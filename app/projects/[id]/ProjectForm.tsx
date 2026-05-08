@@ -22,6 +22,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { checkReusableAnonymousWaiver } from "./actions";
+import { ModernFormRenderer } from "@/components/forms/ModernFormRenderer";
+import { ArrowLeft } from "lucide-react";
 
 // Constants for phone validation
 const PHONE_LENGTH = 10; // For raw digits
@@ -30,6 +32,30 @@ const ANON_PROFILE_STORAGE_KEY = "letsassist.anonymous-signup-profile.v2";
 const LEGACY_ANON_PROFILE_STORAGE_KEYS = ["letsassist.anonymous-signup-profile.v1"] as const;
 const ANON_PROFILE_AUTO_APPLY_KEY = "letsassist.anonymous-signup-auto-apply.v1";
 const ANON_WAIVER_CACHE_KEY = "letsassist.anonymous-signup-waiver-cache.v1";
+
+// Helper function to format phone number input
+const formatPhoneNumber = (value: string): string => {
+  if (!value) return value;
+  const phoneNumber = value.replace(/[^\d]/g, ""); // Allow only digits
+  const phoneNumberLength = phoneNumber.length;
+
+  if (phoneNumberLength < 4) return phoneNumber;
+  if (phoneNumberLength < 7) {
+    return `${phoneNumber.slice(0, 3)}-${phoneNumber.slice(3)}`;
+  }
+  return `${phoneNumber.slice(0, 3)}-${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
+};
+
+// Helper function to format relative time
+const formatRelativeTime = (isoString: string): string => {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+};
 
 interface SavedAnonymousProfile {
   name: string;
@@ -129,7 +155,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface ProjectFormProps {
-  onSubmit: (data: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null) => void;
+  onSubmit: (data: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, any>) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
   showCommentField?: boolean;
@@ -140,32 +166,10 @@ interface ProjectFormProps {
   waiverDisableEsignature?: boolean;
   waiverPdfUrl?: string | null;
   waiverDefinition?: WaiverDefinitionFull | null;
+  signupFormSchema?: any | null;
 }
 
-// Helper function to format phone number input
-const formatPhoneNumber = (value: string): string => {
-  if (!value) return value;
-  const phoneNumber = value.replace(/[^\d]/g, ""); // Allow only digits
-  const phoneNumberLength = phoneNumber.length;
-
-  if (phoneNumberLength < 4) return phoneNumber;
-  if (phoneNumberLength < 7) {
-    return `${phoneNumber.slice(0, 3)}-${phoneNumber.slice(3)}`;
-  }
-  return `${phoneNumber.slice(0, 3)}-${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
-};
-
-// Helper function to format relative time
-const formatRelativeTime = (isoString: string): string => {
-  const diff = Date.now() - new Date(isoString).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-};
-
+// ... rest of imports
 
 export function ProjectSignupForm({
   onSubmit,
@@ -179,7 +183,11 @@ export function ProjectSignupForm({
   waiverDisableEsignature = false,
   waiverPdfUrl = null,
   waiverDefinition = null,
+  signupFormSchema = null,
 }: ProjectFormProps) {
+  const [step, setStep] = useState<"anonymous-info" | "custom-form">("anonymous-info");
+  const [pendingAnonData, setPendingAnonData] = useState<AnonymousSignupData | null>(null);
+  const [pendingWaiverSignature, setPendingWaiverSignature] = useState<WaiverSignatureInput | null>(null);
   // Mobile check for responsive layout if needed
   // Using simple responsive classes instead of hook
   const [phoneNumberLength, setPhoneNumberLength] = useState(0); // State for phone number length
@@ -382,7 +390,20 @@ export function ProjectSignupForm({
       markWaiverCachedLocally(data.email);
     }
 
+    if (signupFormSchema) {
+      setPendingAnonData(payload);
+      setPendingWaiverSignature(waiverSignature);
+      setStep("custom-form");
+      return;
+    }
+
     onSubmit(payload, waiverSignature);
+  };
+
+  const handleCustomFormSubmit = (data: Record<string, any>) => {
+    if (pendingAnonData) {
+      onSubmit(pendingAnonData, pendingWaiverSignature, data);
+    }
   };
 
   const signerName = form.watch("name");
@@ -399,6 +420,25 @@ export function ProjectSignupForm({
     setIsWaiverDialogOpen(false);
   };
 
+
+  if (step === "custom-form") {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => setStep("anonymous-info")} className="gap-2 -ml-2">
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <ModernFormRenderer
+          schema={signupFormSchema}
+          title="Additional Information"
+          description="Please complete the following information required for this tournament."
+          onSubmit={handleCustomFormSubmit}
+          isSubmitting={isSubmitting}
+          userEmail={pendingAnonData?.email}
+        />
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">

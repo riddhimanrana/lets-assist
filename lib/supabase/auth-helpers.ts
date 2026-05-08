@@ -99,6 +99,15 @@ async function sessionRequiresMfa(
 export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthResult> {
   const supabase = await createClient();
 
+  const returnUser = (
+    user: AuthUser,
+    requiresMfa = false,
+  ): AuthResult => ({
+    user,
+    error: null,
+    ...(requiresMfa ? { requiresMfa: true } : {}),
+  });
+
   if (options?.sensitive) {
     // Use getUser() for sensitive operations - makes API call for fresh data
     const { data: { user }, error } = await supabase.auth.getUser();
@@ -128,18 +137,38 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
       }
     }
 
+    if (options.allowMfaPending) {
+      const mfaState = await sessionRequiresMfa(supabase);
+
+      if (mfaState.invalidUser) {
+        await supabase.auth.signOut();
+        return { user: null, error: null };
+      }
+
+      if (mfaState.requiresMfa) {
+        return returnUser(
+          {
+            id: user.id,
+            email: user.email || null,
+            phone: user.phone || null,
+            role: user.role || null,
+            user_metadata: user.user_metadata || null,
+            app_metadata: user.app_metadata || null,
+          },
+          true,
+        );
+      }
+    }
+
     // Return user in consistent format
-    return {
-      user: {
-        id: user.id,
-        email: user.email || null,
-        phone: user.phone || null,
-        role: user.role || null,
-        user_metadata: user.user_metadata || null,
-        app_metadata: user.app_metadata || null,
-      },
-      error: null,
-    };
+    return returnUser({
+      id: user.id,
+      email: user.email || null,
+      phone: user.phone || null,
+      role: user.role || null,
+      user_metadata: user.user_metadata || null,
+      app_metadata: user.app_metadata || null,
+    });
   }
 
   // Default: use getClaims() for fast session validation
@@ -168,6 +197,21 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
     if (mfaState.requiresMfa) {
       return { user: null, error: null, requiresMfa: true };
     }
+  }
+
+  if (options?.allowMfaPending && mfaState.requiresMfa) {
+    return {
+      user: {
+        id: claims.sub,
+        email: claims.email || null,
+        phone: claims.phone || null,
+        role: claims.role || null,
+        user_metadata: claims.user_metadata || null,
+        app_metadata: claims.app_metadata || null,
+      },
+      error: null,
+      requiresMfa: true,
+    };
   }
 
   // Return user-shaped object from claims

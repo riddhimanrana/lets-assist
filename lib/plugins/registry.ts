@@ -50,6 +50,10 @@ export function createPluginRegistry(
 
 const registry = createPluginRegistry(pluginDefinitions, null);
 
+export function getPluginRegistry() {
+  return registry;
+}
+
 export function getRegisteredPlugin(
   key: string,
 ): OrganizationPluginDefinition | undefined {

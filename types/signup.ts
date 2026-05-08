@@ -20,6 +20,7 @@ export interface ProjectSignup {
   status: SignupStatus;
   anonymous_id?: string | null;
   volunteer_comment?: string | null;
+  response_data?: Record<string, any> | null;
   waiver_signature?: WaiverSignature | WaiverSignature[] | null;
   anonymous_name?: string;
   anonymous_email?: string;
@@ -65,6 +66,7 @@ export interface Signup {
   check_in_time: string | null;
   check_out_time: string | null;
   volunteer_comment?: string | null;
+  response_data?: Record<string, any> | null;
   waiver_signature?: WaiverSignature | WaiverSignature[] | null;
   email?: string | null;
   full_name?: string | null;

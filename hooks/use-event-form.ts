@@ -130,6 +130,8 @@ export interface EventFormState {
     endOccurrences?: number;
     weekdays: RecurrenceWeekday[];
   };
+  signupFormSchema: any | null;
+  pluginData: Record<string, any>;
 }
 
 type EventFormAction =
@@ -137,6 +139,8 @@ type EventFormAction =
   | { type: 'PREV_STEP' }
   | { type: 'SET_EVENT_TYPE'; payload: EventType }
   | { type: 'UPDATE_BASIC_INFO'; payload: { field: string; value: string | number | boolean | LocationData | null | undefined } }
+  | { type: 'UPDATE_SIGNUP_FORM_SCHEMA'; payload: any }
+  | { type: 'UPDATE_PLUGIN_DATA'; payload: { field: string; value: any } }
   | { type: 'UPDATE_ONE_TIME_SCHEDULE'; payload: { field: string; value: string | number } }
   | {
     type: 'UPDATE_MULTI_DAY_SCHEDULE';
@@ -250,6 +254,8 @@ const initialState: EventFormState = {
     endOccurrences: undefined,
     weekdays: [],
   },
+  signupFormSchema: null,
+  pluginData: {},
 };
 
 const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
@@ -281,6 +287,19 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         ...state,
         basicInfo: {
           ...state.basicInfo,
+          [action.payload.field]: action.payload.value,
+        },
+      };
+    case 'UPDATE_SIGNUP_FORM_SCHEMA':
+      return {
+        ...state,
+        signupFormSchema: action.payload,
+      };
+    case 'UPDATE_PLUGIN_DATA':
+      return {
+        ...state,
+        pluginData: {
+          ...state.pluginData,
           [action.payload.field]: action.payload.value,
         },
       };
@@ -650,6 +669,12 @@ export const useEventForm = () => {
   const updateBasicInfo = (field: string, value: string | number | boolean | LocationData | null | undefined) =>
     dispatch({ type: 'UPDATE_BASIC_INFO', payload: { field, value } });
 
+  const updateSignupFormSchema = (schema: any) =>
+    dispatch({ type: 'UPDATE_SIGNUP_FORM_SCHEMA', payload: schema });
+
+  const updatePluginData = (field: string, value: any) =>
+    dispatch({ type: 'UPDATE_PLUGIN_DATA', payload: { field, value } });
+
   const updateOneTimeSchedule = (field: string, value: string | number) =>
     dispatch({ type: 'UPDATE_ONE_TIME_SCHEDULE', payload: { field, value } });
 
@@ -749,6 +774,8 @@ export const useEventForm = () => {
     prevStep,
     setEventType,
     updateBasicInfo,
+    updateSignupFormSchema,
+    updatePluginData,
     updateOneTimeSchedule,
     updateMultiDaySchedule,
     updateMultiRoleSchedule,

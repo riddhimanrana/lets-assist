@@ -9,6 +9,7 @@ import type {
   OrganizationPluginSurfaceAccessLevel,
   OrganizationPluginSurfaceRenderTargetContext,
   OrganizationPluginTargetingConfig,
+  ResolvedOrganizationPluginSurface,
 } from "@/types";
 
 export interface ResolveOrganizationPluginSurfacesOptions {
@@ -19,10 +20,6 @@ export interface ResolveOrganizationPluginSurfacesOptions {
   useAdminClient?: boolean;
 }
 
-export interface ResolvedOrganizationPluginSurface {
-  pluginKey: string;
-  node: ReactNode;
-}
 
 type PluginInstallRow = {
   plugin_key: string;

@@ -7,8 +7,18 @@ import OrganizationInvitation from "@/emails/organization-invitation";
 import type {
   BulkInviteResult,
   BulkInviteResponse,
+  OrganizationInvitationsPage,
   OrganizationInvitationWithDetails,
 } from "@/types/invitation";
+import {
+  getInvitationExpirationDetails,
+  getInvitationBaseUrl,
+  normalizeInvitationDuration,
+  type InvitationDeliveryStatus,
+  type InvitationDuration,
+} from "@/lib/organization/invitation-utils";
+import { getAdminClient } from "@/lib/supabase/admin";
+
 // Get member directory
 export async function getOrganizationMembers(organizationId: string) {
   const supabase = await createClient();
@@ -102,26 +112,57 @@ function normalizeImportedProfileData(value: unknown): Record<string, string> {
 async function applyImportedProfileData(params: {
   supabase: Awaited<ReturnType<typeof createClient>>;
   userId: string;
-  importJobId: string | null;
-  invitedEmail: string;
+  invitation: {
+    email: string;
+    import_job_id?: string | null;
+    invited_full_name?: string | null;
+    invited_phone?: string | null;
+    invited_profile_data?: Record<string, unknown> | null;
+  };
 }) {
-  const { supabase, userId, importJobId, invitedEmail } = params;
+  const { supabase, userId, invitation } = params;
 
-  if (!importJobId) {
-    return;
+  const invitedEmail = invitation.email.trim().toLowerCase();
+  const importJobId = invitation.import_job_id || null;
+
+  let importedProfileData = normalizeImportedProfileData(invitation.invited_profile_data);
+  let importedFullName =
+    (invitation.invited_full_name || importedProfileData.full_name || "").trim();
+  let importedPhone =
+    (invitation.invited_phone || importedProfileData.phone || "").trim();
+
+  if (importJobId) {
+    const { data: importRow } = await supabase
+      .from("organization_contact_import_rows")
+      .select("full_name, profile_data")
+      .eq("job_id", importJobId)
+      .eq("email", invitedEmail)
+      .maybeSingle();
+
+    const importRowProfileData = normalizeImportedProfileData(importRow?.profile_data);
+
+    importedProfileData = {
+      ...importRowProfileData,
+      ...importedProfileData,
+    };
+
+    importedFullName =
+      (invitation.invited_full_name ||
+        importRow?.full_name ||
+        importRowProfileData.full_name ||
+        importedProfileData.full_name ||
+        "").trim();
+
+    importedPhone =
+      (invitation.invited_phone ||
+        importRowProfileData.phone ||
+        importedProfileData.phone ||
+        "").trim();
   }
 
-  const { data: importRow } = await supabase
-    .from("organization_contact_import_rows")
-    .select("full_name, profile_data")
-    .eq("job_id", importJobId)
-    .eq("email", invitedEmail)
-    .maybeSingle();
-
-  const importedProfileData = normalizeImportedProfileData(importRow?.profile_data);
-  const importedFullName =
-    (importRow?.full_name || importedProfileData.full_name || "").trim();
-  const importedPhone = (importedProfileData.phone || "").trim();
+  if (!importedFullName && !importedPhone && Object.keys(importedProfileData).length === 0) {
+    return;
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -169,10 +210,12 @@ export async function bulkInviteMembers({
   organizationId,
   emails,
   role,
+  invitationDuration,
 }: {
   organizationId: string;
   emails: string[];
   role: "staff" | "member";
+  invitationDuration?: InvitationDuration;
 }): Promise<BulkInviteResponse> {
   const supabase = await createClient();
   const { user } = await getAuthUser();
@@ -244,11 +287,9 @@ export async function bulkInviteMembers({
     (existingMembers || [])
       .map((m) => {
         const profiles = m.profiles as { email: string } | { email: string }[] | null;
-
         if (Array.isArray(profiles)) {
           return profiles[0]?.email?.toLowerCase();
         }
-
         return profiles?.email?.toLowerCase();
       })
       .filter(Boolean)
@@ -269,20 +310,17 @@ export async function bulkInviteMembers({
   let successful = 0;
   let failed = 0;
 
-  // Calculate expiration date (7 days from now)
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
-  const expiresAtFormatted = expiresAt.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const resolvedInvitationDuration = normalizeInvitationDuration(invitationDuration);
+  const { expiresAtIso, expiresAtDisplay } =
+    getInvitationExpirationDetails(resolvedInvitationDuration);
 
   for (const email of emails) {
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Check if already a member
-    if (memberEmails.has(email)) {
+    if (memberEmails.has(normalizedEmail)) {
       results.push({
-        email,
+        email: normalizedEmail,
         success: false,
         error: "Already a member of this organization",
       });
@@ -291,9 +329,9 @@ export async function bulkInviteMembers({
     }
 
     // Check if already has pending invite
-    if (pendingEmails.has(email)) {
+    if (pendingEmails.has(normalizedEmail)) {
       results.push({
-        email,
+        email: normalizedEmail,
         success: false,
         error: "Already has a pending invitation",
       });
@@ -306,17 +344,18 @@ export async function bulkInviteMembers({
       .from("organization_invitations")
       .insert({
         organization_id: organizationId,
-        email,
+        email: normalizedEmail,
         role,
         invited_by: user.id,
-        expires_at: expiresAt.toISOString(),
+        invitation_duration: resolvedInvitationDuration,
+        expires_at: expiresAtIso,
       })
       .select("id, token")
       .single();
 
     if (insertError || !invitation) {
       results.push({
-        email,
+        email: normalizedEmail,
         success: false,
         error: insertError?.message || "Failed to create invitation",
       });
@@ -325,12 +364,13 @@ export async function bulkInviteMembers({
     }
 
     // Build invitation URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://lets-assist.com";
+    const baseUrl = getInvitationBaseUrl();
     const inviteUrl = `${baseUrl}/organization/join/invite?token=${invitation.token}`;
 
     // Send invitation email
+    const attemptedAtIso = new Date().toISOString();
     const emailResult = await sendEmail({
-      to: email,
+      to: normalizedEmail,
       subject: `You're invited to join ${org.name} on Let's Assist`,
       react: OrganizationInvitation({
         organizationName: org.name,
@@ -338,15 +378,26 @@ export async function bulkInviteMembers({
         inviterName,
         role,
         inviteUrl,
-        expiresAt: expiresAtFormatted,
+        expiresAt: expiresAtDisplay,
       }),
       type: "transactional",
     });
 
     if (!emailResult.success && !emailResult.skipped) {
-      // Mark invitation as failed (we could delete it or leave it)
+      await supabase
+        .from("organization_invitations")
+        .update({
+          email_delivery_status: "failed",
+          email_delivery_error: "Failed to send invitation email",
+          last_email_attempt_at: attemptedAtIso,
+          last_email_sent_at: null,
+          email_message_id: null,
+          email_transport: null,
+        })
+        .eq("id", invitation.id);
+
       results.push({
-        email,
+        email: normalizedEmail,
         success: false,
         error: "Failed to send invitation email",
         invitationId: invitation.id,
@@ -355,13 +406,27 @@ export async function bulkInviteMembers({
       continue;
     }
 
+    const deliveryStatus: InvitationDeliveryStatus = emailResult.skipped ? "skipped" : "sent";
+
+    await supabase
+      .from("organization_invitations")
+      .update({
+        email_delivery_status: deliveryStatus,
+        email_delivery_error: emailResult.skipped ? emailResult.reason || null : null,
+        last_email_attempt_at: attemptedAtIso,
+        last_email_sent_at: emailResult.success ? attemptedAtIso : null,
+        email_message_id: emailResult.data?.id || null,
+        email_transport: emailResult.data?.transport || null,
+      })
+      .eq("id", invitation.id);
+
     results.push({
-      email,
+      email: normalizedEmail,
       success: true,
       invitationId: invitation.id,
     });
     successful++;
-    pendingEmails.add(email); // Prevent duplicates in same batch
+    pendingEmails.add(normalizedEmail); // Prevent duplicates in same batch
   }
 
   return {
@@ -375,14 +440,29 @@ export async function bulkInviteMembers({
 // Get organization invitations
 export async function getOrganizationInvitations(
   organizationId: string,
-  status?: "pending" | "accepted" | "expired" | "cancelled" | "all"
-): Promise<OrganizationInvitationWithDetails[]> {
+  status: "pending" | "accepted" | "expired" | "cancelled" | "all" = "pending",
+  page = 1,
+  pageSize = 10,
+): Promise<OrganizationInvitationsPage> {
   const supabase = await createClient();
   const { user } = await getAuthUser();
 
+  const safePage = Math.max(1, page);
+  const safePageSize = Math.min(Math.max(1, pageSize), 50);
+
   if (!user) {
-    return [];
+    return {
+      invitations: [],
+      total: 0,
+      page: safePage,
+      pageSize: safePageSize,
+      totalPages: 1,
+    };
   }
+
+  const nowIso = new Date().toISOString();
+  const rangeFrom = (safePage - 1) * safePageSize;
+  const rangeTo = rangeFrom + safePageSize - 1;
 
   let query = supabase
     .from("organization_invitations")
@@ -391,23 +471,43 @@ export async function getOrganizationInvitations(
       *,
       inviter:profiles!organization_invitations_invited_by_fkey(full_name, email),
       organization:organizations!organization_invitations_organization_id_fkey(name, username, logo_url)
-    `
+    `,
+      { count: "exact" }
     )
-    .eq("organization_id", organizationId)
-    .order("created_at", { ascending: false });
+    .eq("organization_id", organizationId);
 
-  if (status && status !== "all") {
+  if (status === "pending") {
+    query = query.eq("status", "pending").gte("expires_at", nowIso);
+  } else if (status === "expired") {
+    query = query.or(`status.eq.expired,and(status.eq.pending,expires_at.lt.${nowIso})`);
+  } else if (status !== "all") {
     query = query.eq("status", status);
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query
+    .order("created_at", { ascending: false })
+    .range(rangeFrom, rangeTo);
 
   if (error) {
     console.error("Error fetching invitations:", error);
-    return [];
+    return {
+      invitations: [],
+      total: 0,
+      page: safePage,
+      pageSize: safePageSize,
+      totalPages: 1,
+    };
   }
 
-  return (data || []) as OrganizationInvitationWithDetails[];
+  const total = count || 0;
+
+  return {
+    invitations: (data || []) as OrganizationInvitationWithDetails[],
+    total,
+    page: safePage,
+    pageSize: safePageSize,
+    totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+  };
 }
 
 // Cancel an invitation
@@ -454,9 +554,45 @@ export async function cancelInvitation(
   return { success: true };
 }
 
+export async function deleteInvitations(params: {
+  organizationId: string;
+  invitationIds: string[];
+}): Promise<{ success: boolean; deleted?: number; error?: string }> {
+  const { organizationId, invitationIds } = params;
+  const supabase = await createClient();
+  const { user } = await getAuthUser();
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  const uniqueIds = Array.from(new Set(invitationIds.filter(Boolean)));
+  if (uniqueIds.length === 0) {
+    return { success: false, error: "No invitations selected" };
+  }
+
+  const admin = await isOrgAdmin(supabase, organizationId, user.id);
+  if (!admin) {
+    return { success: false, error: "Not authorized" };
+  }
+
+  const { error } = await supabase
+    .from("organization_invitations")
+    .delete()
+    .eq("organization_id", organizationId)
+    .in("id", uniqueIds);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, deleted: uniqueIds.length };
+}
+
 // Resend an invitation email
 export async function resendInvitation(
-  invitationId: string
+  invitationId: string,
+  invitationDuration?: InvitationDuration,
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
   const { user } = await getAuthUser();
@@ -481,8 +617,10 @@ export async function resendInvitation(
     return { success: false, error: "Invitation not found" };
   }
 
-  if (invitation.status !== "pending") {
-    return { success: false, error: "Can only resend pending invitations" };
+  const status = invitation.status as "pending" | "accepted" | "expired" | "cancelled";
+
+  if (status !== "pending" && status !== "expired") {
+    return { success: false, error: "Can only resend pending or expired invitations" };
   }
 
   // Check if user is admin
@@ -501,23 +639,30 @@ export async function resendInvitation(
   const inviterName = inviterProfile?.full_name || inviterProfile?.email || "An admin";
   const org = invitation.organization as { name: string; username: string };
 
-  // Update expiration date
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
-  const expiresAtFormatted = expiresAt.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const resolvedInvitationDuration = normalizeInvitationDuration(
+    invitationDuration || invitation.invitation_duration,
+  );
+
+  const { expiresAtIso, expiresAtDisplay } =
+    getInvitationExpirationDetails(resolvedInvitationDuration);
+
+  const attemptedAtIso = new Date().toISOString();
 
   // Update the invitation with new expiration
   await supabase
     .from("organization_invitations")
-    .update({ expires_at: expiresAt.toISOString() })
+    .update({
+      status: "pending",
+      invitation_duration: resolvedInvitationDuration,
+      expires_at: expiresAtIso,
+      email_delivery_status: "pending",
+      email_delivery_error: null,
+      last_email_attempt_at: attemptedAtIso,
+    })
     .eq("id", invitationId);
 
   // Build invitation URL
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://lets-assist.com";
+  const baseUrl = getInvitationBaseUrl();
   const inviteUrl = `${baseUrl}/organization/join/invite?token=${invitation.token}`;
 
   // Send email
@@ -530,14 +675,40 @@ export async function resendInvitation(
       inviterName,
       role: invitation.role as "staff" | "member",
       inviteUrl,
-      expiresAt: expiresAtFormatted,
+      expiresAt: expiresAtDisplay,
     }),
     type: "transactional",
   });
 
   if (!emailResult.success && !emailResult.skipped) {
+    await supabase
+      .from("organization_invitations")
+      .update({
+        email_delivery_status: "failed",
+        email_delivery_error: "Failed to resend invitation email",
+        last_email_attempt_at: attemptedAtIso,
+        last_email_sent_at: null,
+        email_message_id: null,
+        email_transport: null,
+      })
+      .eq("id", invitationId);
+
     return { success: false, error: "Failed to send email" };
   }
+
+  const deliveryStatus: InvitationDeliveryStatus = emailResult.skipped ? "skipped" : "sent";
+
+  await supabase
+    .from("organization_invitations")
+    .update({
+      email_delivery_status: deliveryStatus,
+      email_delivery_error: emailResult.skipped ? emailResult.reason || null : null,
+      last_email_attempt_at: attemptedAtIso,
+      last_email_sent_at: emailResult.success ? attemptedAtIso : null,
+      email_message_id: emailResult.data?.id || null,
+      email_transport: emailResult.data?.transport || null,
+    })
+    .eq("id", invitationId);
 
   return { success: true };
 }
@@ -572,6 +743,13 @@ export async function acceptInvitation(
   token: string
 ): Promise<{ success: boolean; error?: string; redirectUrl?: string }> {
   const supabase = await createClient();
+  const invitationWriteClient = (() => {
+    try {
+      return getAdminClient();
+    } catch {
+      return supabase;
+    }
+  })();
   const { user } = await getAuthUser();
 
   if (!user) {
@@ -609,7 +787,7 @@ export async function acceptInvitation(
   // Check if expired
   if (new Date(invitation.expires_at) < new Date()) {
     // Mark as expired
-    await supabase
+    await invitationWriteClient
       .from("organization_invitations")
       .update({ status: "expired" })
       .eq("id", invitation.id);
@@ -646,7 +824,7 @@ export async function acceptInvitation(
         .eq("id", existingMember.id);
 
       // Mark invitation as accepted
-      await supabase
+      const { error: invitationUpdateError } = await invitationWriteClient
         .from("organization_invitations")
         .update({
           status: "accepted",
@@ -655,11 +833,15 @@ export async function acceptInvitation(
         })
         .eq("id", invitation.id);
 
+      if (invitationUpdateError) {
+        console.error("Error marking invitation accepted:", invitationUpdateError);
+        return { success: false, error: "Failed to finalize invitation acceptance" };
+      }
+
       await applyImportedProfileData({
         supabase,
         userId: user.id,
-        importJobId: invitation.import_job_id,
-        invitedEmail,
+        invitation,
       });
 
       const org = invitation.organization as { username: string };
@@ -689,7 +871,7 @@ export async function acceptInvitation(
   }
 
   // Mark invitation as accepted
-  await supabase
+  const { error: invitationUpdateError } = await invitationWriteClient
     .from("organization_invitations")
     .update({
       status: "accepted",
@@ -698,11 +880,15 @@ export async function acceptInvitation(
     })
     .eq("id", invitation.id);
 
+  if (invitationUpdateError) {
+    console.error("Error marking invitation accepted:", invitationUpdateError);
+    return { success: false, error: "Failed to finalize invitation acceptance" };
+  }
+
   await applyImportedProfileData({
     supabase,
     userId: user.id,
-    importJobId: invitation.import_job_id,
-    invitedEmail,
+    invitation,
   });
 
   const org = invitation.organization as { username: string };

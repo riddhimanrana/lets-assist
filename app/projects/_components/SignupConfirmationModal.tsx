@@ -23,8 +23,9 @@ import { getUserProfile } from '@/app/projects/[id]/actions';
 import { toast } from "sonner";
 import { TimezoneBadge } from '@/components/shared/TimezoneBadge';
 import { WaiverSigningDialog } from '@/components/waiver/WaiverSigningDialog';
-import { Check, PenTool } from 'lucide-react';
+import { Check, PenTool, ArrowLeft } from 'lucide-react';
 import type { Project, WaiverSignatureInput, WaiverDefinitionFull } from '@/types';
+import { ModernFormRenderer } from '@/components/forms/ModernFormRenderer';
 
 interface UserProfile {
   full_name: string | null;
@@ -35,13 +36,14 @@ interface UserProfile {
 interface SignupConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (comment?: string, waiverSignature?: WaiverSignatureInput | null) => void;
+  onConfirm: (comment?: string, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, any>) => void;
   enableVolunteerComments?: boolean;
   waiverRequired?: boolean;
   waiverAllowUpload?: boolean;
   waiverDisableEsignature?: boolean;
   waiverPdfUrl?: string | null;
   waiverDefinition?: WaiverDefinitionFull | null;
+  signupFormSchema?: any | null;
   project: {
     id: string;
     title: string;
@@ -65,10 +67,13 @@ export function SignupConfirmationModal({
   waiverDisableEsignature = false,
   waiverPdfUrl = null,
   waiverDefinition = null,
+  signupFormSchema = null,
   project,
   scheduleId,
   isLoading = false,
 }: SignupConfirmationModalProps) {
+  const [step, setStep] = useState<"confirmation" | "custom-form">("confirmation");
+  const [formData, setFormData] = useState<Record<string, any> | null>(null);
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -242,9 +247,28 @@ export function SignupConfirmationModal({
   };
 
   const handleConfirm = () => {
+    if (signupFormSchema && step === "confirmation") {
+      setStep("custom-form");
+      return;
+    }
+
     const trimmed = comment.trim();
     // Use type assertion if needed, as the action accepts compatible structure
-    onConfirm(trimmed.length > 0 ? trimmed : undefined, waiverSignature as WaiverSignatureInput);
+    onConfirm(
+      trimmed.length > 0 ? trimmed : undefined, 
+      waiverSignature as WaiverSignatureInput,
+      formData || undefined
+    );
+  };
+
+  const handleCustomFormSubmit = (data: Record<string, any>) => {
+    setFormData(data);
+    const trimmed = comment.trim();
+    onConfirm(
+      trimmed.length > 0 ? trimmed : undefined, 
+      waiverSignature as WaiverSignatureInput,
+      data
+    );
   };
 
   const formatTime = (timeString: string) => {
@@ -270,258 +294,284 @@ export function SignupConfirmationModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Confirm Event Signup</DialogTitle>
+          <div className="flex items-center gap-2">
+            {step === "custom-form" && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => setStep("confirmation")}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
+            <DialogTitle>
+              {step === "confirmation" ? "Confirm Event Signup" : "Tournament Registration"}
+            </DialogTitle>
+          </div>
           <DialogDescription>
-            Please review your information and event details before confirming your signup.
+            {step === "confirmation" 
+              ? "Please review your information and event details before confirming your signup."
+              : "Please complete the following information required for this tournament."}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* User Information */}
-          <div className="space-y-3">
-            <h4 className="font-semibold text-sm">
-              Your Information
-            </h4>
-            {isFetchingProfile ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading your information...
-              </div>
-            ) : profileError ? (
-              <div className="text-sm text-red-600">{profileError}</div>
-            ) : currentUserProfile ? (
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">
-                    {currentUserProfile.full_name || 'No name provided'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">
-                    {currentUserProfile.email || 'No email provided'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">
-                    {currentUserProfile.phone || 'No phone number provided'}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                Could not load user information.
-              </div>
-            )}
-          </div>
-
-          {/* Event Information */}
-          <div className="space-y-3">
-            <h4 className="font-semibold text-sm text-text">
-              Event Details
-            </h4>
-            <div className="space-y-2">
-              <div className="flex items-start gap-3">
-                <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <div>
-                  <div className="text-sm font-medium">{project.title}</div>
+        {step === "confirmation" ? (
+          <>
+            <div className="space-y-6">
+              {/* User Information */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm">
+                  Your Information
+                </h4>
+                {isFetchingProfile ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading your information...
+                  </div>
+                ) : profileError ? (
+                  <div className="text-sm text-red-600">{profileError}</div>
+                ) : currentUserProfile ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">
+                        {currentUserProfile.full_name || 'No name provided'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">
+                        {currentUserProfile.email || 'No email provided'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">
+                        {currentUserProfile.phone || 'No phone number provided'}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
                   <div className="text-sm text-muted-foreground">
-                    {formatDate(project.date)}
+                    Could not load user information.
                   </div>
-                </div>
+                )}
               </div>
-              {(project.start_time || project.end_time) && (
-                <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">
-                      {project.start_time && formatTime(project.start_time)}
-                      {project.start_time && project.end_time && ' - '}
-                      {project.end_time && formatTime(project.end_time)}
-                    </span>
-                    {project.project_timezone && (
-                      <TimezoneBadge timezone={project.project_timezone} />
-                    )}
-                  </div>
-                </div>
-              )}
-              <div className="flex items-center gap-3">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{project.location}</span>
-              </div>
-            </div>
-          </div>
 
-          {waiverRequired && (
-            <div className="space-y-3 pt-3 border-t">
-              <h4 className="font-semibold text-sm text-text">
-                Waiver Agreement
-              </h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                You must sign the waiver to participate in this event.
-              </p>
-
-              {!waiverSignature ? (
-                <Button 
-                  onClick={() => setIsWaiverDialogOpen(true)}
-                  className="w-full sm:w-auto"
-                >
-                  <PenTool className="h-4 w-4 mr-2" />
-                  Sign Waiver
-                </Button>
-              ) : (
-                <div className="flex items-center justify-between p-3 bg-success/10 border border-success/80 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center text-success">
-                      <Check className="h-4 w-4" />
-                    </div>
-                    <div className="text-sm font-medium text-success">
-                      Waiver Signed
-                    </div>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setIsWaiverDialogOpen(true)}
-                    className="text-muted-foreground hover:text-text"
-                  >
-                    Edit
-                  </Button>
-                </div>
-              )}
-
-              <WaiverSigningDialog
-                isOpen={isWaiverDialogOpen}
-                onClose={() => setIsWaiverDialogOpen(false)}
-                onComplete={handleWaiverComplete}
-                waiverDefinition={waiverDefinition}
-                waiverPdfUrl={waiverPdfUrl}
-                defaultSignerName={currentUserProfile?.full_name || ""}
-                defaultSignerEmail={currentUserProfile?.email || ""}
-                allowUpload={waiverAllowUpload}
-                disableEsignature={waiverDisableEsignature}
-              />
-            </div>
-          )}
-
-          {enableVolunteerComments && (
-            <div className="space-y-3 pt-3 border-t">
-              <div className="flex justify-between items-center">
-                <h4 className="font-semibold text-sm text-text">Comment (Optional)</h4>
-                <span className={`text-xs ${comment.length > 100 ? "text-destructive" : "text-muted-foreground"}`}>
-                  {comment.length}/100
-                </span>
-              </div>
-              <Textarea
-                placeholder="Add a note for the organizer..."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                rows={2}
-                maxLength={100}
-                className="resize-none text-sm"
-              />
-              <div className="text-xs text-muted-foreground">
-                Brief note visible to the organizer.
-              </div>
-            </div>
-          )}
-
-          {/* Calendar Integration Section */}
-          <div className="space-y-3 pt-3 border-t">
-            <h4 className="font-semibold text-sm text-text">
-              Add to Calendar
-            </h4>
-            {checkingConnection ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Checking connection...
-              </div>
-            ) : calendarConnected ? (
-              <div className="flex items-center justify-between gap-3 p-3 bg-success/10 border border-success/80 rounded-lg max-w-md">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center shrink-0">
-                    <Image className="h-4 w-4" src="/googlecalendar.svg" alt="Google Calendar" width={16} height={16} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-success truncate">
-                      Google Calendar Connected
-                    </div>
-                    {connectedEmail && (
-                      <div className="text-xs text-success/80 truncate">
-                        {connectedEmail}
+              {/* Event Information */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-text">
+                  Event Details
+                </h4>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-3">
+                    <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <div className="text-sm font-medium">{project.title}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {formatDate(project.date)}
                       </div>
-                    )}
+                    </div>
+                  </div>
+                  {(project.start_time || project.end_time) && (
+                    <div className="flex items-center gap-3">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">
+                          {project.start_time && formatTime(project.start_time)}
+                          {project.start_time && project.end_time && ' - '}
+                          {project.end_time && formatTime(project.end_time)}
+                        </span>
+                        {project.project_timezone && (
+                          <TimezoneBadge timezone={project.project_timezone} />
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{project.location}</span>
                   </div>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger render={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 shrink-0"
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  } />
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleDownloadICal}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download as iCal
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
-            ) : (
+
+              {waiverRequired && (
+                <div className="space-y-3 pt-3 border-t">
+                  <h4 className="font-semibold text-sm text-text">
+                    Waiver Agreement
+                  </h4>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    You must sign the waiver to participate in this event.
+                  </p>
+
+                  {!waiverSignature ? (
+                    <Button 
+                      onClick={() => setIsWaiverDialogOpen(true)}
+                      className="w-full sm:w-auto"
+                    >
+                      <PenTool className="h-4 w-4 mr-2" />
+                      Sign Waiver
+                    </Button>
+                  ) : (
+                    <div className="flex items-center justify-between p-3 bg-success/10 border border-success/80 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center text-success">
+                          <Check className="h-4 w-4" />
+                        </div>
+                        <div className="text-sm font-medium text-success">
+                          Waiver Signed
+                        </div>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setIsWaiverDialogOpen(true)}
+                        className="text-muted-foreground hover:text-text"
+                      >
+                        Edit
+                      </Button>
+                    </div>
+                  )}
+
+                  <WaiverSigningDialog
+                    isOpen={isWaiverDialogOpen}
+                    onClose={() => setIsWaiverDialogOpen(false)}
+                    onComplete={handleWaiverComplete}
+                    waiverDefinition={waiverDefinition}
+                    waiverPdfUrl={waiverPdfUrl}
+                    defaultSignerName={currentUserProfile?.full_name || ""}
+                    defaultSignerEmail={currentUserProfile?.email || ""}
+                    allowUpload={waiverAllowUpload}
+                    disableEsignature={waiverDisableEsignature}
+                  />
+                </div>
+              )}
+
+              {enableVolunteerComments && (
+                <div className="space-y-3 pt-3 border-t">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-semibold text-sm text-text">Comment (Optional)</h4>
+                    <span className={`text-xs ${comment.length > 100 ? "text-destructive" : "text-muted-foreground"}`}>
+                      {comment.length}/100
+                    </span>
+                  </div>
+                  <Textarea
+                    placeholder="Add a note for the organizer..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    rows={2}
+                    maxLength={100}
+                    className="resize-none text-sm"
+                  />
+                  <div className="text-xs text-muted-foreground">
+                    Brief note visible to the organizer.
+                  </div>
+                </div>
+              )}
+
+              {/* Calendar Integration Section */}
+              <div className="space-y-3 pt-3 border-t">
+                <h4 className="font-semibold text-sm text-text">
+                  Add to Calendar
+                </h4>
+                {checkingConnection ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Checking connection...
+                  </div>
+                ) : calendarConnected ? (
+                  <div className="flex items-center justify-between gap-3 p-3 bg-success/10 border border-success/80 rounded-lg max-w-md">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center shrink-0">
+                        <Image className="h-4 w-4" src="/googlecalendar.svg" alt="Google Calendar" width={16} height={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-success truncate">
+                          Google Calendar Connected
+                        </div>
+                        {connectedEmail && (
+                          <div className="text-xs text-success/80 truncate">
+                            {connectedEmail}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger render={
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      } />
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handleDownloadICal}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Download as iCal
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full max-w-md justify-start h-auto p-3"
+                    onClick={handleConnectCalendar}
+                    disabled={connectingCalendar}
+                  >
+                    <div className="flex items-center gap-3 w-full">
+                      {connectingCalendar ? (
+                        <Loader2 className="h-5 w-5 animate-spin shrink-0" />
+                      ) : (
+                        <Image
+                          src="/resources/google-calendar-logo.svg"
+                          alt="Google Calendar"
+                          width={20}
+                          height={20}
+                          className="h-5 w-5 mr-1"
+                        />
+                      )}
+                      <div className="text-left flex-1">
+                        <div className="text-sm font-medium">
+                          Connect Google Calendar
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Auto-sync events to your calendar
+                        </div>
+                      </div>
+                    </div>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter className="mt-6 pt-6 border-t">
               <Button
                 variant="outline"
-                className="w-full max-w-md justify-start h-auto p-3"
-                onClick={handleConnectCalendar}
-                disabled={connectingCalendar}
+                onClick={onClose}
+                disabled={isLoading || isFetchingProfile}
               >
-                <div className="flex items-center gap-3 w-full">
-                  {connectingCalendar ? (
-                    <Loader2 className="h-5 w-5 animate-spin shrink-0" />
-                  ) : (
-                    <Image
-                      src="/resources/google-calendar-logo.svg"
-                      alt="Google Calendar"
-                      width={20}
-                      height={20}
-                      className="h-5 w-5 mr-1"
-                    />
-                  )}
-                  <div className="text-left flex-1">
-                    <div className="text-sm font-medium">
-                      Connect Google Calendar
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Auto-sync events to your calendar
-                    </div>
-                  </div>
-                </div>
+                Cancel
               </Button>
-            )}
+              <Button
+                onClick={handleConfirm}
+                className="mb-2"
+                disabled={!canConfirm}
+              >
+                {isLoading ? 'Signing up...' : isFetchingProfile ? 'Loading...' : signupFormSchema ? 'Next: registration' : 'Confirm Signup'}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <div className="py-4">
+            <ModernFormRenderer
+              schema={signupFormSchema}
+              title={project.title}
+              description="Tournament Registration Form"
+              onSubmit={handleCustomFormSubmit}
+              isSubmitting={isLoading}
+              userEmail={currentUserProfile?.email || undefined}
+            />
           </div>
-        </div>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={isLoading || isFetchingProfile}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            className="mb-2"
-            disabled={!canConfirm}
-          >
-            {isLoading ? 'Signing up...' : isFetchingProfile ? 'Loading...' : 'Confirm Signup'}
-          </Button>
-        </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

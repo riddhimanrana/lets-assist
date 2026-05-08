@@ -346,7 +346,15 @@ export async function GET(request: Request) {
         }
 
         // Check if user needs MFA challenge before redirecting
-        const currentAal = user.aud ? 'aal2' : 'aal1'; // Check AAL from user claims
+        const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+
+        if (claimsError && process.env.NODE_ENV === "development") {
+          console.debug("Could not fetch auth claims during callback:", claimsError);
+        }
+
+        const currentAal = typeof claimsData?.claims?.aal === "string"
+          ? claimsData.claims.aal
+          : null;
         let mfaFactors: MfaListFactorsLike = { totp: [], phone: [] };
         
         try {

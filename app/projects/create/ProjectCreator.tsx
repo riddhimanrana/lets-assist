@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useEventForm } from "@/hooks/use-event-form";
 import type { EventFormState } from "@/hooks/use-event-form";
 import BasicInfo from "./BasicInfo";
@@ -11,6 +11,7 @@ import AIAssistant, { AIParseResult } from "./AIAssistant";
 // shadcn components
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
@@ -69,9 +70,23 @@ interface ProjectCreatorProps {
   drafts?: Draft[];
   initialDraftData?: Partial<EventFormState>;
   initialDraftId?: string | null;
+  pluginSteps?: {
+    id: string;
+    title: string;
+    description?: string;
+    content: React.ReactNode;
+  }[];
 }
 
-export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUsePublicVisibility = true, drafts = [], initialDraftData, initialDraftId }: ProjectCreatorProps) {
+export default function ProjectCreator({ 
+  initialOrgId, 
+  initialOrgOptions, 
+  canUsePublicVisibility = true, 
+  drafts = [], 
+  initialDraftData, 
+  initialDraftId,
+  pluginSteps = []
+}: ProjectCreatorProps) {
   const {
     state,
     nextStep,
@@ -92,6 +107,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
     removeRole,
 
     updateRestrictToOrgDomains,
+    updateSignupFormSchema,
 
     updateEnableVolunteerComments,
     updateShowAttendeesPublicly,
@@ -105,6 +121,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
     clearWaiverPdf,
     updateRecurrence,
     loadDraftState,
+    updatePluginData,
   } = useEventForm();
 
   const router = useRouter();
@@ -546,11 +563,11 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
           setVerificationErrors([]);
           return true;
 
-        case 5: // Finalize
-          // No validation needed for files
-          return true;
-
         default:
+          if (state.step === 5 + pluginSteps.length) {
+            // No validation needed for files
+            return true;
+          }
           return false;
       }
     } catch (error) {
@@ -592,7 +609,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
     // Validate current step before proceeding
     const isValid = validateCurrentStep();
 
-    if (isValid || state.step === 5) {
+    if (isValid || state.step === 5 + pluginSteps.length) {
       nextStep();
       // Reset validation attempted since we're moving to a new step
       setValidationAttempted(false);
@@ -600,7 +617,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
   };
 
   const handleSubmit = async () => {
-    if (state.step !== 5) {
+    if (state.step !== 5 + pluginSteps.length) {
       handleNextStep();
       return;
     }
@@ -865,7 +882,33 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
   };
 
   // Render step based on current state.step
+  // Map step to component
   const renderStep = () => {
+    // If it's a plugin step
+    if (state.step > 4 && state.step <= 4 + pluginSteps.length) {
+      const pluginStep = pluginSteps[state.step - 5];
+      return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold">{pluginStep.title}</h2>
+            {pluginStep.description && <p className="text-sm text-muted-foreground">{pluginStep.description}</p>}
+          </div>
+          <Card className="border-primary/10 shadow-sm overflow-hidden">
+            <CardContent className="pt-6">
+              {React.isValidElement(pluginStep.content) 
+                ? React.cloneElement(pluginStep.content as React.ReactElement<any>, { 
+                    pluginData: state.pluginData,
+                    updatePluginData,
+                    signupFormSchema: state.signupFormSchema,
+                    updateSignupFormSchema
+                  })
+                : pluginStep.content}
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     switch (state.step) {
       case 1:
         return (
@@ -966,16 +1009,17 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
             }}
           />
         );
-      case 5:
-        return (
-          <Finalize
-            state={state}
-            setCoverImageAction={setCoverImage} // Updated prop name
-            setDocumentsAction={setDocuments}   // Updated prop name
-            hasProfanity={hasProfanity}
-          />
-        );
       default:
+        if (state.step === 5 + pluginSteps.length) {
+          return (
+            <Finalize
+              state={state}
+              setCoverImageAction={setCoverImage} // Updated prop name
+              setDocumentsAction={setDocuments}   // Updated prop name
+              hasProfanity={hasProfanity}
+            />
+          );
+        }
         return null;
     }
   };
@@ -999,8 +1043,11 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
           )}
         </div>
 
-        <Progress value={(state.step / 5) * 100} className="h-2" />
-        <div className="grid grid-cols-5 mt-2 text-xs sm:text-sm text-muted-foreground">
+        <Progress value={(state.step / (5 + pluginSteps.length)) * 100} className="h-2" />
+        <div 
+          className="grid mt-2 text-xs sm:text-sm text-muted-foreground" 
+          style={{ gridTemplateColumns: `repeat(${5 + pluginSteps.length}, minmax(0, 1fr))` }}
+        >
           <span className={cn("text-center sm:text-left truncate", state.step === 1 && "text-primary font-medium")}>
             Basic Info
           </span>
@@ -1013,7 +1060,12 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
           <span className={cn("text-center sm:text-left truncate", state.step === 4 && "text-primary font-medium")}>
             Settings
           </span>
-          <span className={cn("text-center sm:text-left", state.step === 5 && "text-primary font-medium")}>
+          {pluginSteps.map((ps, idx) => (
+            <span key={ps.id} className={cn("text-center sm:text-left truncate", state.step === (5 + idx) && "text-primary font-medium")}>
+              {ps.title}
+            </span>
+          ))}
+          <span className={cn("text-right truncate", state.step === (5 + pluginSteps.length) && "text-primary font-medium")}>
             Finalize
           </span>
         </div>

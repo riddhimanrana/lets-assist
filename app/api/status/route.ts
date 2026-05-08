@@ -47,14 +47,22 @@ async function runCheck(
 
 async function checkEnvironment(): Promise<StatusCheck> {
   return runCheck("environment", true, async () => {
-    const required = ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SECRET_KEY", "CRON_SECRET"];
+    const required = ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SECRET_KEY"];
     const missing = required.filter((key) => !process.env[key]);
+    const hasCronSecret = Boolean(
+      process.env.CRON_TOKEN ??
+        process.env.CRON_SECRET ??
+        process.env.RECURRING_PROJECTS_SECRET_TOKEN
+    );
 
-    if (missing.length > 0) {
+    if (missing.length > 0 || !hasCronSecret) {
       return {
         state: "fail",
         message: "Required environment variables are missing",
-        details: { missing },
+        details: {
+          missing,
+          missingCronSecret: !hasCronSecret,
+        },
       };
     }
 

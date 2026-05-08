@@ -112,7 +112,9 @@ export async function GET(request: Request) {
     const grantedScopesUpdatedAt = grantedScopes ? new Date().toISOString() : null;
 
     // Determine connection type based on granted scopes
-    const hasSheetsScopes = grantedScopes && grantedScopes.includes("spreadsheets");
+    const hasSheetsScopes =
+      !!grantedScopes &&
+      grantedScopes.includes("https://www.googleapis.com/auth/drive.file");
     const hasCalendarScopes = grantedScopes && grantedScopes.includes("calendar");
     const connectionType: "calendar" | "sheets" | "both" =
       hasSheetsScopes && hasCalendarScopes

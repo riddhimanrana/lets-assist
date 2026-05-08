@@ -6,6 +6,9 @@ import { getWaiverPdfRequirementError } from "@/lib/projects/waiver-validation";
 import { revalidatePath } from "next/cache";
 import { v4 as uuidv4 } from "uuid";
 import type { EventFormState } from "@/hooks/use-event-form";
+import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
+import { runProjectCreate } from "@/lib/plugins/lifecycle";
+import { OrganizationWithRole } from "@/types/plugin";
 
 // File size and type validation constants
 const MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -41,6 +44,7 @@ function sanitizeDraftData(projectData: Partial<EventFormState>): Partial<EventF
     waiverPdfFile: null,
     waiverPdfUrl: null,
     waiverPdfValidation: null,
+    pluginData: projectData.pluginData || {},
   };
 }
 
@@ -251,6 +255,7 @@ export async function createBasicProject(
       restrict_to_org_domains: projectData.restrictToOrgDomains || false, // Add domain restriction flag
       workflow_status: isDraft ? 'draft' : 'published', // Support draft saving
       recurrence_rule: recurrenceRule, // Support recurring projects
+      signup_form_schema: projectData.signupFormSchema || null,
     };
 
     // Create project in the database
@@ -275,6 +280,44 @@ export async function createBasicProject(
     if (projectError || !project) {
       console.error("Error creating project:", projectError);
       return { error: "Failed to create project. Please try again." };
+    }
+
+    // Handle plugin hooks after project creation
+    if (projectData.basicInfo.organizationId) {
+      const { data: organization } = await supabase
+        .from("organizations")
+        .select("*")
+        .eq("id", projectData.basicInfo.organizationId)
+        .single();
+      
+      if (organization) {
+        const { data: member } = await supabase
+          .from("organization_members")
+          .select("role")
+          .eq("organization_id", projectData.basicInfo.organizationId)
+          .eq("user_id", user.id)
+          .single();
+
+        const userRole = member?.role || null;
+
+        const plugins = await resolveOrganizationPlugins({
+          organizationId: projectData.basicInfo.organizationId,
+          userRole
+        });
+
+        for (const resolved of plugins) {
+          if (!resolved.enabled) continue;
+          const plugin = (await import("@/lib/plugins/registry")).getRegisteredPlugin(resolved.key);
+          if (plugin && plugin.lifecycle?.onProjectCreate) {
+             await runProjectCreate(plugin, {
+               organization: { ...organization, role: userRole } as OrganizationWithRole,
+               projectId: project.id,
+               pluginData: projectData.pluginData,
+               actor: { id: user.id, type: "user" }
+             });
+          }
+        }
+      }
     }
 
     // Return success with the new project ID
