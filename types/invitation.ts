@@ -1,3 +1,8 @@
+import type {
+  InvitationDeliveryStatus,
+  InvitationDuration,
+} from "@/lib/organization/invitation-utils";
+
 export interface OrganizationInvitation {
   id: string;
   organization_id: string;
@@ -7,6 +12,13 @@ export interface OrganizationInvitation {
   token: string;
   invited_by: string | null;
   status: 'pending' | 'accepted' | 'expired' | 'cancelled';
+  invitation_duration?: InvitationDuration;
+  email_delivery_status?: InvitationDeliveryStatus;
+  email_delivery_error?: string | null;
+  last_email_attempt_at?: string | null;
+  last_email_sent_at?: string | null;
+  email_message_id?: string | null;
+  email_transport?: string | null;
   created_at: string;
   expires_at: string;
   accepted_at: string | null;
@@ -40,4 +52,12 @@ export interface BulkInviteResponse {
   successful: number;
   failed: number;
   results: BulkInviteResult[];
+}
+
+export interface OrganizationInvitationsPage {
+  invitations: OrganizationInvitationWithDetails[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }

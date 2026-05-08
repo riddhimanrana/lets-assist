@@ -224,6 +224,27 @@ export async function signup(formData: FormData) {
       throw new Error("No user returned");
     }
 
+    const profileEmail = user.email || validatedFields.data.email;
+    const profileFullName = validatedFields.data.fullName.trim() || null;
+    const profilePhone = validatedFields.data.phone?.trim() || null;
+
+    const { error: profileUpsertError } = await adminClient
+      .from("profiles")
+      .upsert(
+        {
+          id: user.id,
+          email: profileEmail,
+          full_name: profileFullName,
+          phone: profilePhone,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" },
+      );
+
+    if (profileUpsertError) {
+      console.warn("Profile upsert after signup failed:", profileUpsertError.message);
+    }
+
     // Profile row will be created/updated by DB trigger using user metadata
 
     // Handle staff token - add user to organization as staff

@@ -37,7 +37,8 @@ Core Let&apos;s Assist application code in this repository is open-source under 
 
 Reference example included in this repository:
 
-- `lib/plugins/private/dv-speech-debate/` (isolated, customized custom code for organizations)
+- `lib/plugins/private/dv-speech-debate/` (specialized codebase for DV Speech & Debate organization)
+- [`docs/DV_SPEECH_DEBATE_SYSTEM.md`](docs/DV_SPEECH_DEBATE_SYSTEM.md) (Full system specification, status report, and roadmap)
 
 Production client-specific logic should remain in private repos and be imported into this app runtime, not developed directly in public source.
 

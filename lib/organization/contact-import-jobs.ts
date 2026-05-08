@@ -2,6 +2,13 @@ import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/services/email";
 import OrganizationInvitation from "@/emails/organization-invitation";
 import { parseContactImportFile } from "@/lib/organization/contact-import-parser";
+import {
+  getInvitationBaseUrl,
+  getInvitationExpirationDetails,
+  normalizeInvitationDuration,
+  type InvitationDeliveryStatus,
+  type InvitationDuration,
+} from "@/lib/organization/invitation-utils";
 import type {
   ContactImportCreateResponse,
   ContactImportProcessResponse,
@@ -19,6 +26,7 @@ type ContactImportJobRow = {
   source_file_name: string;
   source_file_type: "csv" | "xlsx" | "xls";
   role: ContactImportRole;
+  invitation_duration: InvitationDuration;
   status: "pending" | "processing" | "completed" | "failed" | "cancelled";
   total_rows: number;
   valid_rows: number;
@@ -63,6 +71,7 @@ function toJob(row: ContactImportJobRow): OrganizationContactImportJob {
     source_file_name: row.source_file_name,
     source_file_type: row.source_file_type,
     role: row.role,
+    invitation_duration: row.invitation_duration,
     status: row.status,
     total_rows: row.total_rows,
     valid_rows: row.valid_rows,
@@ -129,32 +138,16 @@ async function getInviterName(
   return profile?.full_name || profile?.email || "An admin";
 }
 
-function getBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com";
-}
-
-function getExpirationDetails(): { expiresAtIso: string; expiresAtDisplay: string } {
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
-
-  return {
-    expiresAtIso: expiresAt.toISOString(),
-    expiresAtDisplay: expiresAt.toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    }),
-  };
-}
-
 export async function createContactImportJobFromFile(params: {
   supabase: SupabaseClient;
   organizationId: string;
   userId: string;
   role: ContactImportRole;
+  invitationDuration?: InvitationDuration;
   file: File;
 }): Promise<ContactImportCreateResponse> {
   const { supabase, organizationId, userId, role, file } = params;
+  const invitationDuration = normalizeInvitationDuration(params.invitationDuration);
 
   const admin = await isOrgAdmin(supabase, organizationId, userId);
   if (!admin) {
@@ -193,6 +186,7 @@ export async function createContactImportJobFromFile(params: {
       source_file_name: file.name,
       source_file_type: parsed.fileType,
       role,
+      invitation_duration: invitationDuration,
       status: initialStatus,
       total_rows: parsed.summary.totalRows,
       valid_rows: parsed.summary.validRows,
@@ -205,7 +199,7 @@ export async function createContactImportJobFromFile(params: {
       last_error: initialError,
     })
     .select(
-      "id, organization_id, created_by, source_file_name, source_file_type, role, status, total_rows, valid_rows, invalid_rows, duplicate_rows, processed_rows, successful_invites, failed_invites, started_at, completed_at, last_error, created_at, updated_at",
+      "id, organization_id, created_by, source_file_name, source_file_type, role, invitation_duration, status, total_rows, valid_rows, invalid_rows, duplicate_rows, processed_rows, successful_invites, failed_invites, started_at, completed_at, last_error, created_at, updated_at",
     )
     .single();
 
@@ -276,7 +270,7 @@ export async function getContactImportJobStatus(params: {
   const { data: jobData, error: jobError } = await supabase
     .from("organization_contact_import_jobs")
     .select(
-      "id, organization_id, created_by, source_file_name, source_file_type, role, status, total_rows, valid_rows, invalid_rows, duplicate_rows, processed_rows, successful_invites, failed_invites, started_at, completed_at, last_error, created_at, updated_at",
+      "id, organization_id, created_by, source_file_name, source_file_type, role, invitation_duration, status, total_rows, valid_rows, invalid_rows, duplicate_rows, processed_rows, successful_invites, failed_invites, started_at, completed_at, last_error, created_at, updated_at",
     )
     .eq("id", jobId)
     .single();
@@ -324,7 +318,7 @@ export async function processContactImportJobBatch(params: {
   const { data: jobData, error: jobError } = await supabase
     .from("organization_contact_import_jobs")
     .select(
-      "id, organization_id, created_by, source_file_name, source_file_type, role, status, total_rows, valid_rows, invalid_rows, duplicate_rows, processed_rows, successful_invites, failed_invites, started_at, completed_at, last_error, created_at, updated_at",
+      "id, organization_id, created_by, source_file_name, source_file_type, role, invitation_duration, status, total_rows, valid_rows, invalid_rows, duplicate_rows, processed_rows, successful_invites, failed_invites, started_at, completed_at, last_error, created_at, updated_at",
     )
     .eq("id", jobId)
     .single();
@@ -357,9 +351,11 @@ export async function processContactImportJobBatch(params: {
     return { success: false, error: "Organization not found for this import job." };
   }
 
+  const invitationDuration = normalizeInvitationDuration(job.invitation_duration);
   const inviterName = await getInviterName(supabase, job.created_by);
-  const baseUrl = getBaseUrl();
-  const { expiresAtIso, expiresAtDisplay } = getExpirationDetails();
+  const baseUrl = getInvitationBaseUrl();
+  const { expiresAtIso, expiresAtDisplay } =
+    getInvitationExpirationDetails(invitationDuration);
 
   if (!job.started_at) {
     await supabase
@@ -408,7 +404,7 @@ export async function processContactImportJobBatch(params: {
       })
       .eq("id", job.id)
       .select(
-        "id, organization_id, created_by, source_file_name, source_file_type, role, status, total_rows, valid_rows, invalid_rows, duplicate_rows, processed_rows, successful_invites, failed_invites, started_at, completed_at, last_error, created_at, updated_at",
+        "id, organization_id, created_by, source_file_name, source_file_type, role, invitation_duration, status, total_rows, valid_rows, invalid_rows, duplicate_rows, processed_rows, successful_invites, failed_invites, started_at, completed_at, last_error, created_at, updated_at",
       )
       .single();
 
@@ -513,7 +509,11 @@ export async function processContactImportJobBatch(params: {
         email: lowerEmail,
         role: job.role,
         invited_by: job.created_by,
+        invitation_duration: invitationDuration,
         expires_at: expiresAtIso,
+        invited_full_name: row.full_name,
+        invited_phone: row.profile_data?.phone || null,
+        invited_profile_data: row.profile_data || {},
       })
       .select("id, token")
       .single();
@@ -533,6 +533,7 @@ export async function processContactImportJobBatch(params: {
     }
 
     const inviteUrl = `${baseUrl}/organization/join/invite?token=${invitationData.token}`;
+    const attemptedAtIso = new Date().toISOString();
     const emailResult = await sendEmail({
       to: lowerEmail,
       subject: `You're invited to join ${organization.name} on Let's Assist`,
@@ -553,7 +554,14 @@ export async function processContactImportJobBatch(params: {
 
       await supabase
         .from("organization_invitations")
-        .update({ status: "cancelled" })
+        .update({
+          email_delivery_status: "failed",
+          email_delivery_error: reason,
+          last_email_attempt_at: attemptedAtIso,
+          last_email_sent_at: null,
+          email_message_id: null,
+          email_transport: null,
+        })
         .eq("id", invitationData.id);
 
       await markRow("failed", reason, invitationData.id);
@@ -567,6 +575,20 @@ export async function processContactImportJobBatch(params: {
       });
       continue;
     }
+
+    const deliveryStatus: InvitationDeliveryStatus = emailResult.skipped ? "skipped" : "sent";
+
+    await supabase
+      .from("organization_invitations")
+      .update({
+        email_delivery_status: deliveryStatus,
+        email_delivery_error: emailResult.skipped ? emailResult.reason || null : null,
+        last_email_attempt_at: attemptedAtIso,
+        last_email_sent_at: emailResult.success ? attemptedAtIso : null,
+        email_message_id: emailResult.data?.id || null,
+        email_transport: emailResult.data?.transport || null,
+      })
+      .eq("id", invitationData.id);
 
     await markRow("invited", null, invitationData.id);
     invitedCount++;
@@ -594,7 +616,7 @@ export async function processContactImportJobBatch(params: {
     })
     .eq("id", job.id)
     .select(
-      "id, organization_id, created_by, source_file_name, source_file_type, role, status, total_rows, valid_rows, invalid_rows, duplicate_rows, processed_rows, successful_invites, failed_invites, started_at, completed_at, last_error, created_at, updated_at",
+      "id, organization_id, created_by, source_file_name, source_file_type, role, invitation_duration, status, total_rows, valid_rows, invalid_rows, duplicate_rows, processed_rows, successful_invites, failed_invites, started_at, completed_at, last_error, created_at, updated_at",
     )
     .single();
 
@@ -623,6 +645,7 @@ export async function importContactsDirectFromFile(params: {
   organizationId: string;
   userId: string;
   role: ContactImportRole;
+  invitationDuration?: InvitationDuration;
   file: File;
 }): Promise<
   ContactImportCreateResponse & {
@@ -631,6 +654,7 @@ export async function importContactsDirectFromFile(params: {
   }
 > {
   const { supabase, organizationId, userId, role, file } = params;
+  const invitationDuration = normalizeInvitationDuration(params.invitationDuration);
 
   const admin = await isOrgAdmin(supabase, organizationId, userId);
   if (!admin) {
@@ -702,8 +726,9 @@ export async function importContactsDirectFromFile(params: {
   }
 
   const inviterName = await getInviterName(supabase, userId);
-  const baseUrl = getBaseUrl();
-  const { expiresAtIso, expiresAtDisplay } = getExpirationDetails();
+  const baseUrl = getInvitationBaseUrl();
+  const { expiresAtIso, expiresAtDisplay } =
+    getInvitationExpirationDetails(invitationDuration);
 
   const { data: existingMembers } = await supabase
     .from("organization_members")
@@ -768,7 +793,11 @@ export async function importContactsDirectFromFile(params: {
         email: lowerEmail,
         role,
         invited_by: userId,
+        invitation_duration: invitationDuration,
         expires_at: expiresAtIso,
+        invited_full_name: row.fullName,
+        invited_phone: row.profileData.phone || null,
+        invited_profile_data: row.profileData || {},
       })
       .select("id, token")
       .single();
@@ -784,6 +813,7 @@ export async function importContactsDirectFromFile(params: {
     }
 
     const inviteUrl = `${baseUrl}/organization/join/invite?token=${invitationData.token}`;
+    const attemptedAtIso = new Date().toISOString();
 
     const emailResult = await sendEmail({
       to: lowerEmail,
@@ -803,7 +833,14 @@ export async function importContactsDirectFromFile(params: {
     if (!emailResult.success && !emailResult.skipped) {
       await supabase
         .from("organization_invitations")
-        .update({ status: "cancelled" })
+        .update({
+          email_delivery_status: "failed",
+          email_delivery_error: "Invitation email could not be sent",
+          last_email_attempt_at: attemptedAtIso,
+          last_email_sent_at: null,
+          email_message_id: null,
+          email_transport: null,
+        })
         .eq("id", invitationData.id);
 
       results.push({
@@ -815,6 +852,20 @@ export async function importContactsDirectFromFile(params: {
       failed++;
       continue;
     }
+
+    const deliveryStatus: InvitationDeliveryStatus = emailResult.skipped ? "skipped" : "sent";
+
+    await supabase
+      .from("organization_invitations")
+      .update({
+        email_delivery_status: deliveryStatus,
+        email_delivery_error: emailResult.skipped ? emailResult.reason || null : null,
+        last_email_attempt_at: attemptedAtIso,
+        last_email_sent_at: emailResult.success ? attemptedAtIso : null,
+        email_message_id: emailResult.data?.id || null,
+        email_transport: emailResult.data?.transport || null,
+      })
+      .eq("id", invitationData.id);
 
     results.push({
       email: lowerEmail,

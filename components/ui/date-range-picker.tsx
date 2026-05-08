@@ -176,12 +176,12 @@ export function DateRangePicker({
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="academic-year">This Academic Year</SelectItem>
-            <SelectItem value="academic-semester">This Academic Semester</SelectItem>
-            <SelectItem value="summer">Summer</SelectItem>
-            <SelectItem value="last-month">Last Month</SelectItem>
-            <SelectItem value="last-6-months">Last 6 Months</SelectItem>
-            <SelectItem value="lifetime">Lifetime</SelectItem>
+            <SelectItem value="academic-year">this academic year</SelectItem>
+            <SelectItem value="academic-semester">this academic semester</SelectItem>
+            <SelectItem value="summer">summer</SelectItem>
+            <SelectItem value="last-month">last month</SelectItem>
+            <SelectItem value="last-6-months">last 6 months</SelectItem>
+            <SelectItem value="lifetime">lifetime</SelectItem>
           </SelectContent>
         </Select>
       )}

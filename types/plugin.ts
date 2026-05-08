@@ -58,8 +58,10 @@ export type OrganizationPluginSurface =
 export type OrganizationPluginBehaviorHook =
   | "anonymous.profile.experience"     // Modify anonymous signup experience
   | "organization.tabs"                // Add custom tabs to org dashboard
+  | "organization.navigation.overrides" // Override core org navigation tabs
   | "project.create.validation"        // Validate project creation
   | "project.update.validation"        // Validate project updates
+  | "project.create.additional_steps"  // Add custom steps to project creation wizard
   | "signup.form.fields"               // Add custom fields to signup forms
   | "signup.submit.validation"         // Validate signup submissions
   | "notification.send.intercept"      // Intercept outgoing notifications
@@ -124,6 +126,11 @@ export interface OrganizationTabBehavior {
   content: ReactNode;
 }
 
+export interface ResolvedOrganizationPluginSurface {
+  pluginKey: string;
+  node: ReactNode;
+}
+
 /**
  * Validation result for project create/update hooks
  */
@@ -178,11 +185,30 @@ export interface MemberEventResult {
   handled?: boolean;  // Acknowledge processing
 }
 
+export interface OrganizationNavigationBehavior {
+  hideMembersTab?: boolean;
+  hideProjectsTab?: boolean;
+  hideOverviewTab?: boolean;
+  projectsTabLabel?: string;
+  membersTabLabel?: string;
+}
+
+export interface ProjectCreateAdditionalStep {
+  id: string;
+  title: string;
+  description?: string;
+  content: ReactNode;
+  validate?: () => Promise<{ valid: boolean; errors?: any }>;
+  onComplete?: () => Promise<void>;
+}
+
 export interface OrganizationPluginBehaviorHookResultMap {
   "anonymous.profile.experience": AnonymousProfileExperienceBehavior;
   "organization.tabs": OrganizationTabBehavior[];
+  "organization.navigation.overrides": OrganizationNavigationBehavior;
   "project.create.validation": ProjectValidationResult;
   "project.update.validation": ProjectValidationResult;
+  "project.create.additional_steps": ProjectCreateAdditionalStep[];
   "signup.form.fields": SignupFormField[];
   "signup.submit.validation": SignupValidationResult;
   "notification.send.intercept": NotificationInterceptResult;
@@ -315,6 +341,42 @@ export interface OrganizationPluginLifecycleHooks {
    * Used for GDPR compliance and clean org offboarding.
    */
   onDataDelete?: (context: OrganizationPluginLifecycleContext) => Promise<void>;
+
+  /**
+   * Called when a project is created.
+   * Allows plugins to store custom project-scoped data.
+   */
+  onProjectCreate?: (
+    context: OrganizationPluginLifecycleContext & {
+      projectId: string;
+      pluginData?: Record<string, any>;
+    },
+  ) => Promise<void>;
+
+  /**
+   * Called when a project is cloned.
+   * Allows plugins to duplicate their own project-scoped data.
+   */
+  onProjectClone?: (
+    context: OrganizationPluginLifecycleContext & {
+      sourceProjectId: string;
+      newProjectId: string;
+    },
+  ) => Promise<void>;
+
+  /**
+   * Called when a user or anonymous user signs up for a project.
+   * Allows plugins to process signup data and custom form responses.
+   */
+  onSignup?: (
+    context: OrganizationPluginLifecycleContext & {
+      projectId: string;
+      signupId: string;
+      userId?: string | null;
+      anonymousId?: string | null;
+      formData?: Record<string, any> | null;
+    },
+  ) => Promise<void>;
 }
 
 export interface OrganizationPluginDefinition {

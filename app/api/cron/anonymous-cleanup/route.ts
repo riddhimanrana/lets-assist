@@ -85,12 +85,12 @@ function getProjectFinishedAt(project: CleanupProject): Date | null {
 
 function authorizeCronRequest(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_TOKEN;
+  const cronSecret = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
 
   if (!cronSecret) {
     return {
       ok: false,
-      response: NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 }),
+      response: NextResponse.json({ error: "Cron secret not configured" }, { status: 500 }),
     };
   }
 

@@ -25,7 +25,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "sonner";
 import {
   Upload,
   FileSpreadsheet,
@@ -40,6 +39,10 @@ import {
 import { bulkInviteMembers } from "@/app/organization/[id]/admin/actions";
 import { parseEmails } from "@/utils/email-parser";
 import type { BulkInviteResponse } from "@/types/invitation";
+import {
+  getInvitationDurationLabel,
+  type InvitationDuration,
+} from "@/lib/organization/invitation-utils";
 import type {
   ContactImportCreateResponse,
   ContactImportParseSummary,
@@ -68,6 +71,11 @@ const ROLE_OPTIONS = [
   { label: "Members", value: "member" },
   { label: "Staff", value: "staff" },
 ] as const;
+
+const INVITATION_DURATION_OPTIONS: Array<{ label: string; value: InvitationDuration }> = [
+  { label: "1 week", value: "1_week" },
+  { label: "1 month", value: "1_month" },
+];
 
 function formatFileSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 KB";
@@ -103,6 +111,8 @@ export default function BulkImportDialog({
   const [mode, setMode] = useState<ImportMode>("file");
   const [emailInput, setEmailInput] = useState("");
   const [role, setRole] = useState<ContactImportRole>("member");
+  const [invitationDuration, setInvitationDuration] =
+    useState<InvitationDuration>("1_month");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [parseSummary, setParseSummary] = useState<ContactImportParseSummary | null>(null);
@@ -112,7 +122,6 @@ export default function BulkImportDialog({
   const [failedRowsPreview, setFailedRowsPreview] = useState<FailedRowPreview[]>([]);
   const [importJob, setImportJob] = useState<OrganizationContactImportJob | null>(null);
   const [isProcessingImport, setIsProcessingImport] = useState(false);
-  const [importStageMessage, setImportStageMessage] = useState("");
 
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<BulkInviteResponse | null>(null);
@@ -142,6 +151,7 @@ export default function BulkImportDialog({
     setMode("file");
     setEmailInput("");
     setRole("member");
+    setInvitationDuration("1_week");
     setSelectedFile(null);
     setUploadError(null);
     setParseSummary(null);
@@ -149,7 +159,6 @@ export default function BulkImportDialog({
     setFailedRowsPreview([]);
     setImportJob(null);
     setIsProcessingImport(false);
-    setImportStageMessage("");
     setResult(null);
     setStep("input");
   };
@@ -179,12 +188,11 @@ export default function BulkImportDialog({
 
   const handleSubmit = () => {
     startTransition(async () => {
-      const loadingToast = toast.loading("Sending invitations...");
-
       const response = await bulkInviteMembers({
         organizationId,
         emails: parsedEmails,
         role,
+        invitationDuration,
       });
 
       setResult(response);
@@ -192,17 +200,6 @@ export default function BulkImportDialog({
 
       if (response.successful > 0 && onSuccess) {
         onSuccess();
-      }
-
-      if (response.successful > 0) {
-        toast.success(`Sent ${response.successful}/${response.total} invitations.`, {
-          id: loadingToast,
-        });
-      } else {
-        toast.error("No invitations were sent.", {
-          id: loadingToast,
-          description: response.results[0]?.error || "Please review the row-level results.",
-        });
       }
     });
   };
@@ -264,14 +261,13 @@ export default function BulkImportDialog({
     setFailedRowsPreview([]);
     setImportJob(null);
     setIsProcessingImport(true);
-    setImportStageMessage("Uploading and parsing file...");
-
-    const loadingToast = toast.loading("Uploading and parsing file...");
+    setStep("importProcessing");
 
     try {
       const formData = new FormData();
       formData.set("organizationId", organizationId);
       formData.set("role", role);
+      formData.set("invitationDuration", invitationDuration);
       formData.set("file", selectedFile);
 
       const response = await fetch("/api/organization/import-jobs", {
@@ -281,33 +277,36 @@ export default function BulkImportDialog({
 
       const payload = (await response.json()) as ContactImportCreateResponse;
 
-      if (!response.ok || !payload.success || !payload.job) {
-        if (payload.success && payload.mode === "direct" && payload.directResult) {
-          setParseSummary(payload.parseSummary || null);
-          setInvalidRowsPreview(payload.invalidRowsPreview || []);
-          setResult(payload.directResult as BulkInviteResponse);
-          setStep("manualResult");
-          setImportJob(null);
-
-          if (payload.directResult.successful > 0 && onSuccess) {
-            onSuccess();
-          }
-
-          toast.success(
-            `Import complete: ${payload.directResult.successful}/${payload.directResult.total} invitations sent.`,
-            {
-              id: loadingToast,
-            },
-          );
-
-          return;
-        }
-
-        throw new Error(payload.error || "Failed to process contact import.");
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || "Failed to start contact import.");
       }
 
-      setImportStageMessage("Processing invitations...");
-      setStep("importProcessing");
+      if (payload.mode === "direct") {
+        const directResult =
+          payload.directResult ||
+          {
+            total: 0,
+            successful: 0,
+            failed: 0,
+            results: [],
+          };
+
+        setResult(directResult);
+        setParseSummary(payload.parseSummary || null);
+        setInvalidRowsPreview(payload.invalidRowsPreview || []);
+        setStep("manualResult");
+
+        if (directResult.successful > 0 && onSuccess) {
+          onSuccess();
+        }
+
+        return;
+      }
+
+      if (!payload.job) {
+        throw new Error("Import started but no job details were returned.");
+      }
+
       setImportJob(payload.job);
       setParseSummary(payload.parseSummary || null);
       setInvalidRowsPreview(payload.invalidRowsPreview || []);
@@ -318,24 +317,17 @@ export default function BulkImportDialog({
         payload.job.valid_rows === 0
       ) {
         setStep("importResult");
-        toast.success("Import finished.", { id: loadingToast });
         return;
       }
 
       await processImportJobUntilDone(payload.job.id);
       setStep("importResult");
-      toast.success("Import finished.", { id: loadingToast });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unexpected error starting contact import.";
       setUploadError(message);
       setStep("input");
-      toast.error("Import failed.", {
-        id: loadingToast,
-        description: message,
-      });
     } finally {
       setIsProcessingImport(false);
-      setImportStageMessage("");
     }
   };
 
@@ -364,6 +356,14 @@ export default function BulkImportDialog({
             </DialogHeader>
 
             <div className="flex flex-col gap-4 ">
+              {/* <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>No setup required</AlertTitle>
+                <AlertDescription>
+                  Upload a CSV/XLSX file or paste a copied list. We’ll parse the email column automatically and keep duplicates out.
+                </AlertDescription>
+              </Alert> */}
+
               <div className="space-y-2">
                 <Label htmlFor="role">Invite as</Label>
                 <Select
@@ -393,6 +393,26 @@ export default function BulkImportDialog({
                   {role === "staff"
                     ? "Staff can verify hours and help manage the organization."
                     : "Members can participate in volunteer opportunities."}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="invitation-duration">Invitation validity</Label>
+                <Select
+                  items={INVITATION_DURATION_OPTIONS}
+                  value={invitationDuration}
+                  onValueChange={(v) => setInvitationDuration(v as InvitationDuration)}
+                >
+                  <SelectTrigger id="invitation-duration">
+                    <SelectValue placeholder="Invitation validity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1_week">1 week</SelectItem>
+                    <SelectItem value="1_month">1 month</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  New invitations in this run will expire in {getInvitationDurationLabel(invitationDuration)}.
                 </p>
               </div>
 
@@ -491,7 +511,7 @@ bob@example.com"
                   {isProcessingImport ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {importStageMessage || "Starting import..."}
+                      Starting Import...
                     </>
                   ) : (
                     "Start Import"
@@ -511,6 +531,9 @@ bob@example.com"
                 <Badge variant={role === "staff" ? "default" : "secondary"} className="capitalize">
                   {role}
                 </Badge>
+                <span className="ml-2 text-muted-foreground">
+                  • expires in {getInvitationDurationLabel(invitationDuration)}
+                </span>
               </DialogDescription>
             </DialogHeader>
 
@@ -519,10 +542,10 @@ bob@example.com"
                 {parsedEmails.map((email, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between rounded-lg border bg-card px-3 py-2"
+                    className="flex items-center justify-between p-2 rounded-md bg-muted/50"
                   >
-                    <span className="truncate text-sm font-medium">{email}</span>
-                    <Badge variant="secondary" className="text-xs">
+                    <span className="text-sm font-mono">{email}</span>
+                    <Badge variant="outline" className="text-xs">
                       Pending
                     </Badge>
                   </div>
@@ -564,50 +587,26 @@ bob@example.com"
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid grid-cols-2 gap-2 py-2">
-              <div className="rounded-lg border bg-card p-3">
-                <p className="text-xs text-muted-foreground">Sent</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <p className="text-lg font-semibold tabular-nums">{result.successful}</p>
-                  <Badge variant="secondary">Success</Badge>
-                </div>
-              </div>
-              <div className="rounded-lg border bg-card p-3">
-                <p className="text-xs text-muted-foreground">Failed</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <p className="text-lg font-semibold tabular-nums">{result.failed}</p>
-                  <Badge variant={result.failed > 0 ? "destructive" : "outline"}>
-                    {result.failed > 0 ? "Needs attention" : "None"}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-
             <ScrollArea className="max-h-75 pr-4">
               <div className="space-y-2 py-4">
                 {result.results.map((item, index) => (
                   <div
                     key={index}
-                    className="rounded-lg border bg-card p-3"
+                    className={`flex items-center justify-between p-2 rounded-md ${
+                      item.success ? "bg-green-50 dark:bg-green-950/20" : "bg-red-50 dark:bg-red-950/20"
+                    }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          {item.success ? (
-                            <CheckCircle2 className="h-4 w-4 text-primary" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-destructive" />
-                          )}
-                          <span className="truncate text-sm font-medium">{item.email}</span>
-                        </div>
-                        {item.error && (
-                          <p className="mt-2 text-xs text-destructive">{item.error}</p>
-                        )}
-                      </div>
-                      <Badge variant={item.success ? "secondary" : "destructive"}>
-                        {item.success ? "Sent" : "Failed"}
-                      </Badge>
+                    <div className="flex items-center gap-2">
+                      {item.success ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-600" />
+                      )}
+                      <span className="text-sm font-mono">{item.email}</span>
                     </div>
+                    {item.error && (
+                      <span className="text-xs text-red-600">{item.error}</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -627,26 +626,26 @@ bob@example.com"
                 Processing Import Job
               </DialogTitle>
               <DialogDescription>
-                Processing invitations and tracking progress in real time.
+                Sending invitations in safe batches. You can keep this open to track progress.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-2">
               {parseSummary && (
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-lg border bg-card p-3">
+                  <div className="rounded-md border p-2">
                     <p className="text-muted-foreground">Valid rows</p>
                     <p className="text-sm font-semibold">{parseSummary.validRows}</p>
                   </div>
-                  <div className="rounded-lg border bg-card p-3">
+                  <div className="rounded-md border p-2">
                     <p className="text-muted-foreground">Invalid rows</p>
                     <p className="text-sm font-semibold">{parseSummary.invalidRows}</p>
                   </div>
-                  <div className="rounded-lg border bg-card p-3">
+                  <div className="rounded-md border p-2">
                     <p className="text-muted-foreground">Duplicate rows</p>
                     <p className="text-sm font-semibold">{parseSummary.duplicateRows}</p>
                   </div>
-                  <div className="rounded-lg border bg-card p-3">
+                  <div className="rounded-md border p-2">
                     <p className="text-muted-foreground">Skipped empty rows</p>
                     <p className="text-sm font-semibold">{parseSummary.skippedEmptyRows}</p>
                   </div>
@@ -664,7 +663,9 @@ bob@example.com"
 
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                {isProcessingImport ? "Processing next batch..." : "Finalizing results..."}
+                {isProcessingImport
+                  ? "Processing next batch..."
+                  : "Finalizing import results..."}
               </div>
             </div>
           </>
@@ -689,27 +690,23 @@ bob@example.com"
 
             <div className="space-y-4 py-2">
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-lg border bg-card p-3">
+                <div className="rounded-md border p-2">
                   <p className="text-muted-foreground">Successful invites</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <p className="text-lg font-semibold tabular-nums">{importJob.successful_invites}</p>
-                    <Badge variant="secondary">Sent</Badge>
-                  </div>
+                  <p className="text-sm font-semibold text-green-700 dark:text-green-400">
+                    {importJob.successful_invites}
+                  </p>
                 </div>
-                <div className="rounded-lg border bg-card p-3">
+                <div className="rounded-md border p-2">
                   <p className="text-muted-foreground">Failed / skipped</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <p className="text-lg font-semibold tabular-nums">{importJob.failed_invites}</p>
-                    <Badge variant={importJob.failed_invites > 0 ? "destructive" : "outline"}>
-                      {importJob.failed_invites > 0 ? "Review" : "None"}
-                    </Badge>
-                  </div>
+                  <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+                    {importJob.failed_invites}
+                  </p>
                 </div>
-                <div className="rounded-lg border bg-card p-3">
+                <div className="rounded-md border p-2">
                   <p className="text-muted-foreground">Processed rows</p>
                   <p className="text-sm font-semibold">{importJob.processed_rows}</p>
                 </div>
-                <div className="rounded-lg border bg-card p-3">
+                <div className="rounded-md border p-2">
                   <p className="text-muted-foreground">Job status</p>
                   <Badge variant={importJob.status === "completed" ? "default" : "secondary"} className="capitalize">
                     {importJob.status}
@@ -728,20 +725,15 @@ bob@example.com"
                         {invalidRowsPreview.map((row) => (
                           <div
                             key={`invalid-${row.rowNumber}-${row.reason}`}
-                            className="rounded-lg border border-destructive/30 bg-destructive/5 p-2.5"
+                            className="flex items-start justify-between gap-2 rounded-md bg-red-50 dark:bg-red-950/20 p-2"
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <XCircle className="h-4 w-4 text-destructive" />
-                                  <span className="text-xs font-medium">
-                                    Row {row.rowNumber}: {row.email || "(empty email)"}
-                                  </span>
-                                </div>
-                                <p className="mt-1 text-[11px] text-destructive">{row.reason}</p>
-                              </div>
-                              <Badge variant="destructive">Invalid</Badge>
+                            <div className="flex items-center gap-2">
+                              <XCircle className="h-4 w-4 text-red-600" />
+                              <span className="text-xs font-mono">
+                                Row {row.rowNumber}: {row.email || "(empty email)"}
+                              </span>
                             </div>
+                            <span className="text-[11px] text-red-700 dark:text-red-400">{row.reason}</span>
                           </div>
                         ))}
                       </div>
@@ -755,28 +747,21 @@ bob@example.com"
                         {failedRowsPreview.map((row) => (
                           <div
                             key={`failed-${row.row_number}-${row.status}-${row.email}`}
-                            className="rounded-lg border bg-muted/30 p-2.5"
+                            className="flex items-start justify-between gap-2 rounded-md bg-amber-50 dark:bg-amber-950/20 p-2"
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  {row.status === "failed" ? (
-                                    <XCircle className="h-4 w-4 text-destructive" />
-                                  ) : (
-                                    <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                                  )}
-                                  <span className="text-xs font-medium">
-                                    Row {row.row_number}: {row.email || "(empty email)"}
-                                  </span>
-                                </div>
-                                <p className={`mt-1 text-[11px] ${row.status === "failed" ? "text-destructive" : "text-muted-foreground"}`}>
-                                  {row.error || row.status}
-                                </p>
-                              </div>
-                              <Badge variant={row.status === "failed" ? "destructive" : "secondary"} className="capitalize">
-                                {row.status}
-                              </Badge>
+                            <div className="flex items-center gap-2">
+                              {row.status === "failed" ? (
+                                <XCircle className="h-4 w-4 text-red-600" />
+                              ) : (
+                                <AlertCircle className="h-4 w-4 text-amber-600" />
+                              )}
+                              <span className="text-xs font-mono">
+                                Row {row.row_number}: {row.email}
+                              </span>
                             </div>
+                            <span className="text-[11px] text-amber-700 dark:text-amber-400">
+                              {row.error || row.status}
+                            </span>
                           </div>
                         ))}
                       </div>

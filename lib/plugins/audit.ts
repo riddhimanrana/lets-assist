@@ -29,6 +29,9 @@ export type PluginAuditAction =
   | "lifecycle.config_update"
   | "lifecycle.version_update"
   | "lifecycle.data_delete"
+  | "lifecycle.project_clone"
+  | "lifecycle.project_create"
+  | "lifecycle.signup"
   // Execution tracking
   | "execution.surface"
   | "execution.behavior"
