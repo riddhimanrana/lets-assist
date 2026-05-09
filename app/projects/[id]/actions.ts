@@ -28,6 +28,9 @@ import { getProjectCreatorProfileById } from "@/lib/profile/public";
 import { isTurnstileEnabled, verifyTurnstileToken } from "@/lib/turnstile";
 import { validateWaiverPayload } from "@/lib/waiver/validate-waiver-payload";
 import { mapDetectedFieldsForDb, mapCustomPlacementsForDb } from "@/lib/waiver/map-definition-input";
+import { getPluginRegistry } from "@/lib/plugins/registry";
+import { runProjectClone, runPluginOnSignup } from "@/lib/plugins/lifecycle";
+import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
 
 // Define your site URL (replace with environment variable ideally)
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -1052,7 +1055,8 @@ export async function signUpForProject(
   scheduleId: string,
   anonymousData?: AnonymousSignupData,
   volunteerComment?: string,
-  waiverSignature?: WaiverSignatureInput | null
+  waiverSignature?: WaiverSignatureInput | null,
+  formData?: Record<string, any>
 ) {
   const supabase = await createClient();
   const serviceSupabase = getAdminClient();
@@ -1292,6 +1296,7 @@ export async function signUpForProject(
           status: "approved", // Logged-in users are approved by default
           anonymous_id: null,
           volunteer_comment: volunteerCommentToSave,
+          response_data: formData || null,
         };
 
         const { data: insertedSignup, error: signupError } = await supabase
@@ -1470,6 +1475,7 @@ export async function signUpForProject(
           status: newSignupStatus,
           anonymous_id: createdAnonymousSignupId,
           volunteer_comment: volunteerCommentToSave,
+          response_data: formData || null,
         };
 
         const { data: insertedProjectSignup, error: projectSignupInsertError } = await serviceSupabase
@@ -1586,6 +1592,7 @@ export async function signUpForProject(
           status: "pending", // New anonymous signups start as pending
           anonymous_id: createdAnonymousSignupId,
           volunteer_comment: volunteerCommentToSave,
+          response_data: formData || null,
         };
 
         const { data: insertedProjectSignup, error: projectSignupInsertError } = await serviceSupabase
@@ -1709,6 +1716,44 @@ export async function signUpForProject(
         }
       } else if (project.waiver_required) {
         return { error: "Waiver signature is required before completing signup." };
+      }
+    }
+
+    // --- Trigger Plugin onSignup Hooks ---
+    if (project.organization_id && createdSignupId) {
+      try {
+        const { data: orgMember } = await supabase
+          .from("organization_members")
+          .select("role")
+          .eq("organization_id", project.organization_id)
+          .eq("user_id", user?.id || "00000000-0000-0000-0000-000000000000") // Fallback for anon
+          .maybeSingle();
+
+        const viewerRole = (orgMember?.role as any) || "member";
+        const installedPlugins = await resolveOrganizationPlugins({
+          organizationId: project.organization_id,
+          userRole: viewerRole,
+        });
+
+        const registry = getPluginRegistry();
+
+        for (const resolved of installedPlugins) {
+          const definition = registry.get(resolved.key);
+          if (definition && definition.lifecycle?.onSignup) {
+            await runPluginOnSignup(definition, {
+              organization: { id: project.organization_id, role: viewerRole } as any,
+              actor: user ? { id: user.id, type: "user" } : undefined,
+              projectId: project.id,
+              signupId: createdSignupId,
+              userId: user?.id,
+              anonymousId: createdAnonymousSignupId,
+              formData: formData,
+            });
+          }
+        }
+      } catch (pluginError) {
+        console.error("Error triggering plugin signup hooks:", pluginError);
+        // Don't fail the whole signup if plugins fail
       }
     }
 
@@ -2137,6 +2182,118 @@ export async function updateProjectStatus(
   revalidatePath('/home');
 
   return { success: true, cancellationNotifications };
+}
+
+export async function cloneProject(projectId: string) {
+  const supabase = await createClient();
+  const { user } = await getAuthUser();
+  if (!user) return { error: "You must be logged in to clone a project" };
+
+  // Fetch source project
+  const { data: source, error: fetchError } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", projectId)
+    .single();
+
+  if (fetchError || !source) return { error: "Project not found" };
+
+  // Permission check: only org staff/admin or project creator can clone
+  let hasPermission = source.creator_id === user.id;
+  if (source.organization_id && !hasPermission) {
+    const { data: orgMember } = await supabase
+      .from("organization_members")
+      .select("role")
+      .eq("organization_id", source.organization_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (orgMember?.role) {
+      hasPermission = orgMember.role === "admin" || orgMember.role === "staff";
+    }
+  }
+
+  if (!hasPermission) {
+    return { error: "You don't have permission to clone this project" };
+  }
+
+  // Prepare new project data
+  const {
+    id: _,
+    created_at: __,
+    updated_at: ___,
+    creator_id: ____,
+    status: _____,
+    workflow_status: ______,
+    creator_calendar_event_id: _______,
+    creator_synced_at: ________,
+    published: _________,
+    certificates: __________,
+    ...clonableData
+  } = source;
+
+  const newProjectData = {
+    ...clonableData,
+    title: `${source.title} (Copy)`,
+    creator_id: user.id,
+    status: "draft",
+    workflow_status: "draft",
+  };
+
+  // Insert new project
+  const { data: newProject, error: insertError } = await supabase
+    .from("projects")
+    .insert(newProjectData)
+    .select("id")
+    .single();
+
+  if (insertError) {
+    console.error("Error creating clone:", insertError);
+    return { error: `Failed to create clone: ${insertError.message}` };
+  }
+
+  // Trigger plugin hooks if organization-scoped
+  if (source.organization_id) {
+    try {
+      const { data: orgMember } = await supabase
+        .from("organization_members")
+        .select("role")
+        .eq("organization_id", source.organization_id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const viewerRole = (orgMember?.role as any) || null;
+      const installedPlugins = await resolveOrganizationPlugins({
+        organizationId: source.organization_id,
+        userRole: viewerRole,
+      });
+
+      const registry = getPluginRegistry();
+      
+      for (const resolved of installedPlugins) {
+        const definition = registry.get(resolved.key);
+        if (definition && definition.lifecycle?.onProjectClone) {
+          await runProjectClone(definition, {
+            organization: { id: source.organization_id, role: viewerRole } as any,
+            actor: { id: user.id, type: "user" },
+            sourceProjectId: projectId,
+            newProjectId: newProject.id,
+          });
+        }
+      }
+    } catch (pluginError) {
+      console.error("Error triggering plugin clone hooks:", pluginError);
+      // Don't fail the whole clone if plugins fail
+    }
+  }
+
+  revalidatePath(`/projects/${newProject.id}`);
+  if (source.organization_id) {
+    revalidatePath(`/organization/${source.organization_id}`);
+  }
+  revalidatePath('/home');
+
+  return { success: true, newProjectId: newProject.id };
 }
 
 export async function deleteProject(projectId: string) {

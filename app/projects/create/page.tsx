@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import ProjectCreator from "./ProjectCreator";
 import { createClient } from "@/lib/supabase/server";
+import { resolveOrganizationPluginBehaviorHook } from "@/lib/plugins/resolve-plugin-behaviors";
 import { redirect } from "next/navigation";
 import type { EventFormState } from "@/hooks/use-event-form";
 import { headers } from "next/headers";
@@ -206,6 +207,27 @@ export default async function CreateProjectPage({
     loadedDraftId = drafts[0].id;
   }
 
+  // Fetch plugin steps if an organization is selected
+  let pluginSteps: any[] = [];
+  if (initialOrgId) {
+    const { data: member } = await supabase
+      .from("organization_members")
+      .select("role")
+      .eq("organization_id", initialOrgId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (member) {
+      const contributions = await resolveOrganizationPluginBehaviorHook({
+        organizationId: initialOrgId,
+        hook: "project.create.additional_steps",
+        viewerRole: member.role as any,
+      });
+      
+      pluginSteps = contributions.flatMap(c => c.behavior || []);
+    }
+  }
+
   return (
     <div className="w-full mx-auto p-4 sm:p-8 max-w-4xl">
       <ProjectCreator 
@@ -214,6 +236,7 @@ export default async function CreateProjectPage({
         canUsePublicVisibility={canUsePublicVisibility}
         initialDraftData={loadedDraft ?? undefined}
         initialDraftId={loadedDraftId}
+        pluginSteps={pluginSteps}
         drafts={(drafts as DraftRow[] | null)?.map((d) => ({
           id: d.id,
           title: d.title || 'Untitled Draft',

@@ -527,10 +527,10 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent alignItemWithTrigger={false}>
-                            <SelectItem value="all">All Types</SelectItem>
-                            <SelectItem value="oneTime">Single Event</SelectItem>
-                            <SelectItem value="multiDay">Multi-day Event</SelectItem>
-                            <SelectItem value="sameDayMultiArea">Multi-role Event</SelectItem>
+                            <SelectItem value="all">all types</SelectItem>
+                            <SelectItem value="oneTime">single event</SelectItem>
+                            <SelectItem value="multiDay">multi-day event</SelectItem>
+                            <SelectItem value="sameDayMultiArea">multi-role event</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -554,9 +554,9 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent alignItemWithTrigger={false}>
-                            <SelectItem value="no-sort">No sorting</SelectItem>
-                            <SelectItem value="desc">Most recent first</SelectItem>
-                            <SelectItem value="asc">Future dates first</SelectItem>
+                            <SelectItem value="no-sort">no sorting</SelectItem>
+                            <SelectItem value="desc">most recent first</SelectItem>
+                            <SelectItem value="asc">future dates first</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -704,10 +704,10 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent alignItemWithTrigger={false}>
-                            <SelectItem value="all">All Types</SelectItem>
-                            <SelectItem value="oneTime">Single Event</SelectItem>
-                            <SelectItem value="multiDay">Multi-day Event</SelectItem>
-                            <SelectItem value="sameDayMultiArea">Multi-role Event</SelectItem>
+                            <SelectItem value="all">all types</SelectItem>
+                            <SelectItem value="oneTime">single event</SelectItem>
+                            <SelectItem value="multiDay">multi-day event</SelectItem>
+                            <SelectItem value="sameDayMultiArea">multi-role event</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -731,9 +731,9 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent alignItemWithTrigger={false}>
-                            <SelectItem value="no-sort">No sorting</SelectItem>
-                            <SelectItem value="desc">Most recent first</SelectItem>
-                            <SelectItem value="asc">Future dates first</SelectItem>
+                            <SelectItem value="no-sort">no sorting</SelectItem>
+                            <SelectItem value="desc">most recent first</SelectItem>
+                            <SelectItem value="asc">future dates first</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

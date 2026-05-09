@@ -5,6 +5,7 @@ import {
   createContactImportJobFromFile,
   importContactsDirectFromFile,
 } from "@/lib/organization/contact-import-jobs";
+import { normalizeInvitationDuration } from "@/lib/organization/invitation-utils";
 
 const SUPPORTED_ROLES = new Set(["staff", "member"]);
 
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
     const organizationId = String(formData.get("organizationId") || "").trim();
     const roleRaw = String(formData.get("role") || "member").trim().toLowerCase();
     const role = SUPPORTED_ROLES.has(roleRaw) ? (roleRaw as "staff" | "member") : null;
+    const invitationDuration = normalizeInvitationDuration(formData.get("invitationDuration"));
     const file = formData.get("file");
 
     if (!organizationId) {
@@ -66,6 +68,7 @@ export async function POST(request: Request) {
         organizationId,
         userId: user.id,
         role,
+        invitationDuration,
         file,
       });
 
@@ -79,6 +82,7 @@ export async function POST(request: Request) {
       organizationId,
       userId: user.id,
       role,
+      invitationDuration,
       file,
     });
 
@@ -88,6 +92,7 @@ export async function POST(request: Request) {
         organizationId,
         userId: user.id,
         role,
+        invitationDuration,
         file,
       });
 
@@ -144,7 +149,7 @@ export async function GET(request: Request) {
     const { data: jobs, error } = await supabase
       .from("organization_contact_import_jobs")
       .select(
-        "id, organization_id, created_by, source_file_name, source_file_type, role, status, total_rows, valid_rows, invalid_rows, duplicate_rows, processed_rows, successful_invites, failed_invites, started_at, completed_at, last_error, created_at, updated_at",
+        "id, organization_id, created_by, source_file_name, source_file_type, role, invitation_duration, status, total_rows, valid_rows, invalid_rows, duplicate_rows, processed_rows, successful_invites, failed_invites, started_at, completed_at, last_error, created_at, updated_at",
       )
       .eq("organization_id", organizationId)
       .order("created_at", { ascending: false })

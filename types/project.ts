@@ -73,4 +73,5 @@ export interface Project {
   recurrence_parent_id?: string;
   recurrence_sequence?: number;
   restrict_to_org_domains?: boolean;
+  signup_form_schema?: any | null;
 }

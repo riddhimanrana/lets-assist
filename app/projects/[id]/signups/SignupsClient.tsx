@@ -33,13 +33,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch, ArrowUpDown, ChevronUp, ChevronDown, Printer, RefreshCw, Pause, Play, UserCheck, Eye, Download, MoreVertical } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch, ArrowUpDown, ChevronUp, ChevronDown, Printer, RefreshCw, Pause, Play, UserCheck, Eye, Download, MoreVertical, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { NotificationService } from "@/services/notifications";
 import { WaiverPreviewDialog, WaiverPreviewSignature } from "@/components/projects/WaiverPreviewDialog";
+import { SignupResponsesDialog } from "@/components/projects/SignupResponsesDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +61,7 @@ type Signup = {
   anonymous_id: string | null; // FK to anonymous_signups
   schedule_id: string;
   volunteer_comment?: string | null;
+  response_data?: Record<string, any> | null;
   waiver_signature?: WaiverPreviewSignature | WaiverPreviewSignature[];
   profile?: { // Data from profiles table (if user_id exists)
     full_name: string;
@@ -101,6 +103,10 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   // Waiver preview state
   const [previewSignature, setPreviewSignature] = useState<WaiverPreviewSignature | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+
+  // Response dialog state
+  const [selectedSignupForResponse, setSelectedSignupForResponse] = useState<Signup | null>(null);
+  const [isResponseDialogOpen, setIsResponseDialogOpen] = useState(false);
 
   const toggleSort = (field: SortField) => {
     setSort(current => ({
@@ -411,6 +417,11 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     }
   };
 
+  const handleViewResponses = (signup: Signup) => {
+    setSelectedSignupForResponse(signup);
+    setIsResponseDialogOpen(true);
+  };
+
   const handleDownloadWaiverForSignup = async (signupId: string) => {
     try {
       const result = await getWaiverDownloadUrl(signupId);
@@ -639,6 +650,18 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         onDownload={handleDownloadWaiver}
         isDownloading={previewSignature ? waiverDownloads[previewSignature.id] : false}
       />
+
+      <SignupResponsesDialog
+        isOpen={isResponseDialogOpen}
+        onClose={() => setIsResponseDialogOpen(false)}
+        responseData={selectedSignupForResponse?.response_data || null}
+        formSchema={project?.signup_form_schema || null}
+        participantName={
+          selectedSignupForResponse?.user_id
+            ? selectedSignupForResponse.profile?.full_name || "Volunteer"
+            : selectedSignupForResponse?.anonymous_signup?.name || "Anonymous"
+        }
+      />
       
       <div className="mb-6">
         <Button
@@ -865,8 +888,19 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                         )}
                         <TableCell>{getStatusBadge(signup.status, confirmed_at)}</TableCell>
                         <TableCell className="text-right">
-                          {signup.status === "rejected" ? (
-                            <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-2">
+                            {signup.response_data && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewResponses(signup)}
+                                className="gap-2"
+                              >
+                                <FileText className="h-3.5 w-3.5" />
+                                Responses
+                              </Button>
+                            )}
+                            {signup.status === "rejected" ? (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -886,24 +920,24 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                                   </>
                                 )}
                               </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => updateSignupStatus(signup.id, "rejected")}
-                              disabled={processingSignups[signup.id]}
-                            >
-                              {processingSignups[signup.id] ? (
-                                <>
-                                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                                  <span className="inline-block">Rejecting...</span>
-                                </>
-                              ) : (
-                                "Reject"
-                              )}
-                            </Button>
-                          )}
+                            ) : (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => updateSignupStatus(signup.id, "rejected")}
+                                disabled={processingSignups[signup.id]}
+                              >
+                                {processingSignups[signup.id] ? (
+                                  <>
+                                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                    <span className="inline-block">Rejecting...</span>
+                                  </>
+                                ) : (
+                                  "Reject"
+                                )}
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

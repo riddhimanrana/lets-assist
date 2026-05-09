@@ -12,6 +12,7 @@ import {
     shouldPromptForMfaChallenge,
     type MfaListFactorsLike,
 } from "@/lib/auth/mfa";
+import { isMfaProtectedPath } from "@/lib/auth/mfa-paths";
 import { isStaleSupabaseAuthUserError } from "@/lib/supabase/auth-errors";
 
 // Paths that require authentication
@@ -150,7 +151,11 @@ export async function updateSession(request: NextRequest) {
         !!searchParams.get("staff_token") &&
         !!searchParams.get("org");
 
-    if (searchParams.get("noRedirect") === "1") {
+    if (
+        currentPath === "/" &&
+        searchParams.get("deleted") === "true" &&
+        searchParams.get("noRedirect") === "1"
+    ) {
         return applyPrivateNoStore(supabaseResponse); // Skip redirects if requested
     }
 
@@ -187,6 +192,7 @@ export async function updateSession(request: NextRequest) {
     const shouldCheckMfa = !!user && (
         isRestrictedPathForLoggedIn ||
         isProtectedPath(effectivePathForMfa) ||
+        isMfaProtectedPath(effectivePathForMfa) ||
         currentPath.startsWith("/admin") ||
         creatorRouteInfo.isCreatorPath
     );

@@ -278,16 +278,14 @@ export default async function OrganizationPage({
     const pluginRole = toOrganizationPluginRole(userRole);
     
     const pluginOverviewExtensions = pluginRole
-      ? (
-          await resolveOrganizationPluginSurfaces({
-            organizationId: organization.id,
-            surface: "organization.overview.cards",
-            viewerRole: pluginRole,
-            target: {
-              userId: user?.id ?? null,
-            },
-          })
-        ).map((surface) => surface.node)
+      ? await resolveOrganizationPluginSurfaces({
+          organizationId: organization.id,
+          surface: "organization.overview.cards",
+          viewerRole: pluginRole,
+          target: {
+            userId: user?.id ?? null,
+          },
+        })
       : [];
     const pluginTabsContributions = pluginRole 
       ? await resolveOrganizationPluginBehaviorHook({
@@ -299,9 +297,18 @@ export default async function OrganizationPage({
           }
         })
       : [];
+      
+    const navOverridesContributions = pluginRole
+      ? await resolveOrganizationPluginBehaviorHook({
+          organizationId: organization.id,
+          hook: "organization.navigation.overrides",
+          viewerRole: pluginRole,
+        })
+      : [];
     
     const pluginTabs = pluginTabsContributions.flatMap((c) => c.behavior);
-console.log("DEV_TABS:", pluginTabs);
+    const navOverrides = navOverridesContributions.reduce((acc, c) => ({ ...acc, ...c.behavior }), {});
+
   return (
     <div className="flex flex-col w-full">
       <div className="w-full absolute bg-linear-to-br from-primary/15 via-primary/5 to-background/0 min-h-72 before:content-[''] before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:to-background" />
@@ -331,6 +338,7 @@ console.log("DEV_TABS:", pluginTabs);
             canViewMembers={canViewMembers}
             pluginOverviewExtensions={pluginOverviewExtensions}
             pluginTabs={pluginTabs}
+            pluginNavigationOverrides={navOverrides}
           />
         </div>
       </div>

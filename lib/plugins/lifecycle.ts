@@ -10,7 +10,7 @@ export type { OrganizationPluginLifecycleContext, OrganizationPluginLifecycleHoo
 
 function getLifecycleActionName(
   hookName: keyof OrganizationPluginLifecycleHooks,
-): "lifecycle.install" | "lifecycle.uninstall" | "lifecycle.enable" | "lifecycle.disable" | "lifecycle.config_update" | "lifecycle.version_update" | "lifecycle.data_delete" {
+): "lifecycle.install" | "lifecycle.uninstall" | "lifecycle.enable" | "lifecycle.disable" | "lifecycle.config_update" | "lifecycle.version_update" | "lifecycle.data_delete" | "lifecycle.project_clone" | "lifecycle.project_create" | "lifecycle.signup" {
   switch (hookName) {
     case "onInstall":
       return "lifecycle.install";
@@ -26,6 +26,12 @@ function getLifecycleActionName(
       return "lifecycle.version_update";
     case "onDataDelete":
       return "lifecycle.data_delete";
+    case "onProjectClone":
+      return "lifecycle.project_clone";
+    case "onProjectCreate":
+      return "lifecycle.project_create";
+    case "onSignup":
+      return "lifecycle.signup";
   }
 }
 
@@ -170,6 +176,60 @@ export async function runPluginDataDelete(
   context: Omit<OrganizationPluginLifecycleContext, "pluginKey">,
 ): Promise<{ success: boolean; error?: string }> {
   return executeLifecycleHook(plugin, "onDataDelete", {
+    ...context,
+    pluginKey: plugin.manifest.key,
+  });
+}
+/**
+ * Run the project create lifecycle for a plugin.
+ * Allows plugins to store project-scoped custom data.
+ */
+export async function runProjectCreate(
+  plugin: OrganizationPluginDefinition,
+  context: Omit<OrganizationPluginLifecycleContext, "pluginKey"> & {
+    projectId: string;
+    pluginData?: Record<string, any>;
+  },
+): Promise<{ success: boolean; error?: string }> {
+  return executeLifecycleHook(plugin, "onProjectCreate", {
+    ...context,
+    pluginKey: plugin.manifest.key,
+  });
+}
+
+/**
+ * Run the project clone lifecycle for a plugin.
+...
+ * Allows plugins to duplicate project-scoped custom data.
+ */
+export async function runProjectClone(
+  plugin: OrganizationPluginDefinition,
+  context: Omit<OrganizationPluginLifecycleContext, "pluginKey"> & {
+    sourceProjectId: string;
+    newProjectId: string;
+  },
+): Promise<{ success: boolean; error?: string }> {
+  return executeLifecycleHook(plugin, "onProjectClone", {
+    ...context,
+    pluginKey: plugin.manifest.key,
+  });
+}
+
+/**
+ * Run the signup lifecycle for a plugin.
+ * Allows plugins to process custom form responses and update linked profiles.
+ */
+export async function runPluginOnSignup(
+  plugin: OrganizationPluginDefinition,
+  context: Omit<OrganizationPluginLifecycleContext, "pluginKey"> & {
+    projectId: string;
+    signupId: string;
+    userId?: string | null;
+    anonymousId?: string | null;
+    formData?: Record<string, any> | null;
+  },
+): Promise<{ success: boolean; error?: string }> {
+  return executeLifecycleHook(plugin, "onSignup", {
     ...context,
     pluginKey: plugin.manifest.key,
   });

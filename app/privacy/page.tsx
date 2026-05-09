@@ -83,7 +83,7 @@ const PrivacyPage = () => {
               <ul className="list-disc pl-5 mt-2 space-y-2">
                 <li><strong>Email and Profile (userinfo.email, userinfo.profile):</strong> To identify and link your Google account to your Let's Assist profile.</li>
                 <li><strong>Google Drive Files (drive.file):</strong> To access only the specific Google Drive files you select or create through our app, such as spreadsheets.</li>
-                <li><strong>Google Sheets (https://www.googleapis.com/auth/spreadsheets):</strong> To create, read, update, and delete spreadsheets and sheets for features like templates, bulk import/export, and two-way sync. Full access is required because our features involve structural changes, formulas, and bulk operations that narrower scopes do not support.</li>
+                <li><strong>Google Sheets access via Drive Files (https://www.googleapis.com/auth/drive.file):</strong> To create spreadsheets and access only the spreadsheets you explicitly select or create through Let&apos;s Assist for reporting and sync workflows.</li>
                 <li><strong>Google Calendar (https://www.googleapis.com/auth/calendar):</strong> To create, update, share, and remove calendars and events for scheduling features and sync.</li>
               </ul>
             </li>

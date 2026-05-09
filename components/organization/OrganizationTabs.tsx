@@ -34,7 +34,7 @@ import { Loader2 } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStatus } from "@/utils/project";
 import ReportsTab from "@/app/organization/[id]/ReportsTab";
-import type { Organization, Project, ResolvedOrganizationPlugin, OrganizationTabBehavior } from "@/types";
+import type { Organization, Project, ResolvedOrganizationPlugin, OrganizationTabBehavior, ResolvedOrganizationPluginSurface, OrganizationNavigationBehavior } from "@/types";
 
 type OrganizationMember = {
   id: string;
@@ -71,8 +71,9 @@ interface OrganizationTabsProps {
   organizationSlug?: string;
   organizationCreatedLabel: string;
   canViewMembers?: boolean;
-  pluginOverviewExtensions?: ReactNode[];
+  pluginOverviewExtensions?: ResolvedOrganizationPluginSurface[];
   pluginTabs?: OrganizationTabBehavior[];
+  pluginNavigationOverrides?: OrganizationNavigationBehavior;
 }
 
 function LeaveOrganizationDialog({
@@ -172,6 +173,7 @@ export default function OrganizationTabs({
   canViewMembers = true,
   pluginOverviewExtensions = [],
   pluginTabs = [],
+  pluginNavigationOverrides = {},
 }: OrganizationTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -293,20 +295,24 @@ export default function OrganizationTabs({
       className="w-full"
     >
       <TabsList className="mb-6 flex h-auto w-full sm:w-fit self-start max-w-full items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        <TabsTrigger value="overview" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
-          <LayoutDashboard className="h-4 w-4 shrink-0" />
-          <span className="truncate">Overview</span>
-        </TabsTrigger>
-        {canViewMembers && (
-          <TabsTrigger value="members" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
-            <Users className="h-4 w-4 shrink-0" />
-            <span className="truncate">Members</span>
+        {!pluginNavigationOverrides.hideOverviewTab && (
+          <TabsTrigger value="overview" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
+            <LayoutDashboard className="h-4 w-4 shrink-0" />
+            <span className="truncate">Overview</span>
           </TabsTrigger>
         )}
-        <TabsTrigger value="projects" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
-          <Folders className="h-4 w-4 shrink-0" />
-          <span className="truncate">Projects</span>
-        </TabsTrigger>
+        {canViewMembers && !pluginNavigationOverrides.hideMembersTab && (
+          <TabsTrigger value="members" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
+            <Users className="h-4 w-4 shrink-0" />
+            <span className="truncate">{pluginNavigationOverrides.membersTabLabel || "Members"}</span>
+          </TabsTrigger>
+        )}
+        {!pluginNavigationOverrides.hideProjectsTab && (
+          <TabsTrigger value="projects" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
+            <Folders className="h-4 w-4 shrink-0" />
+            <span className="truncate">{pluginNavigationOverrides.projectsTabLabel || "Projects"}</span>
+          </TabsTrigger>
+        )}
         {canViewReports && (
           <TabsTrigger value="reports" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
             <BarChart3 className="h-4 w-4 shrink-0" />
@@ -323,7 +329,8 @@ export default function OrganizationTabs({
         })}
       </TabsList>
 
-      <TabsContent value="overview" className="space-y-6">
+      {!pluginNavigationOverrides.hideOverviewTab && (
+        <TabsContent value="overview" className="space-y-6">
         <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 items-stretch">
           <Card className="overflow-hidden">
             <CardHeader>
@@ -479,8 +486,8 @@ export default function OrganizationTabs({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {pluginOverviewExtensions.map((node, index) => (
-                <div key={`plugin-overview-extension-${index}`}>{node}</div>
+              {pluginOverviewExtensions.map((surface) => (
+                <div key={surface.pluginKey}>{surface.node}</div>
               ))}
             </CardContent>
           </Card>
@@ -671,7 +678,9 @@ export default function OrganizationTabs({
           </Card>
         )}
       </TabsContent>
+      )}
 
+      {canViewMembers && !pluginNavigationOverrides.hideMembersTab && (
       <TabsContent value="members">
         <MembersTab
           members={members}
@@ -681,7 +690,9 @@ export default function OrganizationTabs({
           canViewMembers={canViewMembers}
         />
       </TabsContent>
+      )}
 
+      {!pluginNavigationOverrides.hideProjectsTab && (
       <TabsContent value="projects">
         <ProjectsTab
           projects={projects}
@@ -689,6 +700,7 @@ export default function OrganizationTabs({
           userRole={userRole}
         />
       </TabsContent>
+      )}
 
       {canViewReports && (
         <TabsContent value="reports">

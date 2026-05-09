@@ -718,9 +718,9 @@ export default function ProjectDetails({
   };
 
   // Handle confirmation modal actions
-  const handleConfirmSignup = (comment?: string, waiverSignature?: WaiverSignatureInput | null) => {
+  const handleConfirmSignup = (comment?: string, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, any>) => {
     setShowSignupConfirmation(false);
-    handleSignUp(pendingScheduleId, undefined, comment, waiverSignature);
+    handleSignUp(pendingScheduleId, undefined, comment, waiverSignature, formData);
     setPendingScheduleId("");
   };
 
@@ -736,13 +736,14 @@ export default function ProjectDetails({
     anonymousData?: AnonymousSignupData,
     volunteerComment?: string,
     waiverSignature?: WaiverSignatureInput | null,
+    formData?: Record<string, any>,
   ) => {
     setLoadingStates(prev => ({ ...prev, [scheduleId]: true }));
     // Reset alert state on new signup attempt
     setShowConfirmationAlert(false);
 
     try {
-      const result = await signUpForProject(project.id, scheduleId, anonymousData, volunteerComment, waiverSignature);
+      const result = await signUpForProject(project.id, scheduleId, anonymousData, volunteerComment, waiverSignature, formData);
 
       if (result.error) {
         // Check if this is a pending signup that can be resent
@@ -831,7 +832,7 @@ export default function ProjectDetails({
   };
 
   // Handle anonymous form submit
-  const handleAnonymousSubmit = (values: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null) => {
+  const handleAnonymousSubmit = (values: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, any>) => {
     const scheduleIds = Array.from(
       new Set(
         (selectedAnonymousScheduleIds.length > 0 ? selectedAnonymousScheduleIds : [currentScheduleId])
@@ -845,7 +846,7 @@ export default function ProjectDetails({
         ...values,
         selectedSlotCount: 1,
       };
-      handleSignUp(onlyScheduleId, payload, values.comment, waiverSignature);
+      handleSignUp(onlyScheduleId, payload, values.comment, waiverSignature, formData);
       return;
     }
 
@@ -878,6 +879,7 @@ export default function ProjectDetails({
             payload,
             values.comment,
             index === 0 ? waiverSignature : null,
+            formData
           );
 
           if (result.error) {
@@ -1978,6 +1980,7 @@ export default function ProjectDetails({
             waiverDisableEsignature={project.waiver_disable_esignature ?? false}
             waiverPdfUrl={waiverDefinition?.pdf_public_url || project.waiver_pdf_url || null}
             waiverDefinition={waiverDefinition}
+            signupFormSchema={project.signup_form_schema}
           />
         </DialogContent>
       </Dialog>
@@ -2087,6 +2090,7 @@ export default function ProjectDetails({
           waiverDisableEsignature={project.waiver_disable_esignature ?? false}
           waiverPdfUrl={waiverDefinition?.pdf_public_url || project.waiver_pdf_url || null}
           waiverDefinition={waiverDefinition}
+          signupFormSchema={project.signup_form_schema}
           project={{
             id: project.id,
             title: project.title,

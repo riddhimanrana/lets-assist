@@ -34,9 +34,10 @@ import {
   Calendar,
   CalendarCheck,
   ChevronRight,
+  Copy,
 } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
-import { deleteProject, updateProjectStatus } from "./actions";
+import { useState, useMemo, useEffect, useTransition } from "react";
+import { deleteProject, updateProjectStatus, cloneProject } from "./actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -79,6 +80,7 @@ export default function CreatorDashboard({
 }: Props) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCloning, startCloning] = useTransition();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
@@ -172,6 +174,22 @@ export default function CreatorDashboard({
       setIsDeleting(false);
       setShowDeleteDialog(false);
     }
+  };
+
+  const handleClone = () => {
+    startCloning(async () => {
+      try {
+        const result = await cloneProject(project.id);
+        if (result.success && result.newProjectId) {
+          toast.success("Project cloned successfully as draft!");
+          router.push(`/projects/${result.newProjectId}/edit`);
+        } else {
+          toast.error(result.error || "Failed to clone project");
+        }
+      } catch (error) {
+        toast.error("An unexpected error occurred while cloning.");
+      }
+    });
   };
 
   const handleContactAllSignups = async () => {
@@ -628,6 +646,20 @@ export default function CreatorDashboard({
                 </span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </Button>
+
+              <Button
+                variant="outline"
+                className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
+                onClick={handleClone}
+                disabled={isCloning}
+              >
+                <span className="flex items-center gap-2">
+                  {isCloning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+                  Clone Project
+                </span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </Button>
+
               <Button
                 variant="outline"
                 className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
