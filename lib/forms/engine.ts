@@ -179,7 +179,22 @@ export function validateSubmission(
 
     // Required check
     if (field.required) {
-      if (value == null || value === "" || (Array.isArray(value) && value.length === 0)) {
+      if (field.type === "checkbox") {
+        if (value !== true && value !== "true") {
+          errors.push({ field: field.key, message: `${field.label} is required` });
+          continue;
+        }
+      } else if (field.type === "file") {
+        const hasFileValue =
+          typeof File !== "undefined" && value instanceof File
+            ? value.size > 0
+            : value != null && value !== "";
+
+        if (!hasFileValue) {
+          errors.push({ field: field.key, message: `${field.label} is required` });
+          continue;
+        }
+      } else if (value == null || value === "" || (Array.isArray(value) && value.length === 0)) {
         errors.push({ field: field.key, message: `${field.label} is required` });
         continue;
       }
@@ -255,6 +270,34 @@ export function validateSubmission(
         errors.push({
           field: field.key,
           message: `${field.label}: invalid selection`,
+        });
+      }
+    }
+
+    // File fields: validate file type and size when a File is provided.
+    if (field.type === "file" && typeof File !== "undefined" && value instanceof File) {
+      const fileName = value.name.toLowerCase();
+      const fileType = value.type.toLowerCase();
+
+      if (field.validation?.fileTypes?.length) {
+        const acceptedTypes = field.validation.fileTypes.map((t) => t.toLowerCase());
+        const matchesAllowedType = acceptedTypes.some((type) => {
+          const normalized = type.startsWith(".") ? type : `.${type}`;
+          return fileName.endsWith(normalized) || fileType === type || fileType.endsWith(type.replace(/^\./, ""));
+        });
+
+        if (!matchesAllowedType) {
+          errors.push({
+            field: field.key,
+            message: `${field.label}: unsupported file type`,
+          });
+        }
+      }
+
+      if (field.validation?.maxFileSizeMb && value.size > field.validation.maxFileSizeMb * 1024 * 1024) {
+        errors.push({
+          field: field.key,
+          message: `${field.label} must be smaller than ${field.validation.maxFileSizeMb}MB`,
         });
       }
     }

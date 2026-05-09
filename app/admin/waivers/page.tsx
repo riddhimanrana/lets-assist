@@ -2,6 +2,8 @@ import { getGlobalWaiverDefinitions } from './actions';
 import { GlobalWaiverDefinitionList } from '@/components/admin/GlobalWaiverDefinitionList';
 import { CreateDefinitionButton } from './components/CreateDefinitionButton';
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Global Waiver Definitions | Admin Console",
   description: "Manage organization-wide waiver definitions.",

@@ -101,9 +101,7 @@ export async function GET(request: Request) {
     const shouldPromptConsent = forceConsent || !existingConnection?.refresh_token;
 
     const sheetsScopes = [
-      "https://www.googleapis.com/auth/spreadsheets",
       "https://www.googleapis.com/auth/drive.file",
-      "https://www.googleapis.com/auth/drive.metadata.readonly",
     ];
 
     // Build Google OAuth URL

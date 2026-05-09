@@ -4,7 +4,7 @@ import { syncOrganizationCalendarNow } from "@/app/organization/[id]/calendar/ac
 
 const WORKER_ENABLED = process.env.ORG_CALENDAR_SYNC_WORKER_ENABLED !== "false";
 const WORKER_TOKEN = process.env.ORG_CALENDAR_SYNC_WORKER_SECRET_TOKEN;
-const CRON_SECRET = process.env.CRON_TOKEN;
+const CRON_SECRET = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
 
 function isAuthorized(request: NextRequest) {
   const authHeader = request.headers.get("authorization") || "";

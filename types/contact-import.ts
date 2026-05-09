@@ -1,3 +1,5 @@
+import type { InvitationDuration } from "@/lib/organization/invitation-utils";
+
 export type ContactImportRole = "staff" | "member";
 
 export type ContactImportFileType = "csv" | "xlsx" | "xls";
@@ -40,6 +42,7 @@ export interface OrganizationContactImportJob {
   source_file_name: string;
   source_file_type: ContactImportFileType;
   role: ContactImportRole;
+  invitation_duration: InvitationDuration;
   status: ContactImportJobStatus;
   total_rows: number;
   valid_rows: number;
