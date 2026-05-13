@@ -10,7 +10,10 @@ const DURATION_DAYS: Record<InvitationDuration, number> = {
 };
 
 export function normalizeInvitationDuration(value: unknown): InvitationDuration {
-  return value === "1_month" ? "1_month" : DEFAULT_INVITATION_DURATION;
+  if (value === "1_week" || value === "1_month") {
+    return value as InvitationDuration;
+  }
+  return DEFAULT_INVITATION_DURATION;
 }
 
 export function getInvitationDurationDays(duration: InvitationDuration): number {
