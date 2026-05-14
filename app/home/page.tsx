@@ -20,7 +20,12 @@ export const metadata: Metadata = {
     "Find and join local volunteer projects. Connect with your community and make a difference today.",
 };
 
-export default async function Home() {
+interface HomePageProps {
+  searchParams: Promise<{ next?: string }>;
+}
+
+export default async function Home({ searchParams }: HomePageProps) {
+  const { next } = await searchParams;
   const supabase = await createClient();
 
   // Get the current user using getClaims() for better performance
@@ -59,7 +64,7 @@ export default async function Home() {
     <div className="min-h-screen">
       <EmailConfirmationModal />
       <EmailVerificationToast />
-      <main className="mx-auto px-4 sm:px-8 lg:px-12 py-8">
+      <main className="mx-auto px-4 sm:px-8 lg:px-12 py-8" data-next-url={next}>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div className="flex items-center gap-3" data-tour-id="home-greeting">
             <Avatar className="w-10 h-10">

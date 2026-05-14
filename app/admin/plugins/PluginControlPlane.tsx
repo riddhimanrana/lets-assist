@@ -139,6 +139,7 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
       "",
   );
   const [entitlementStatus, setEntitlementStatus] = useState<"active" | "inactive">("active");
+  const [entitlementIsForced, setEntitlementIsForced] = useState(false);
   const [entitlementStartsAt, setEntitlementStartsAt] = useState("");
   const [entitlementEndsAt, setEntitlementEndsAt] = useState("");
   const [entitlementSearch, setEntitlementSearch] = useState("");
@@ -148,6 +149,7 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
   );
   const [bulkEntitlementStatus, setBulkEntitlementStatus] =
     useState<"active" | "inactive">("active");
+  const [bulkEntitlementIsForced, setBulkEntitlementIsForced] = useState(false);
   const [bulkEntitlementStartsAt, setBulkEntitlementStartsAt] = useState("");
   const [bulkEntitlementEndsAt, setBulkEntitlementEndsAt] = useState("");
   const [bulkEntitlementIdentifiers, setBulkEntitlementIdentifiers] = useState("");
@@ -348,6 +350,7 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
         status: entitlementStatus,
         startsAt: entitlementStartsAt || null,
         endsAt: entitlementEndsAt || null,
+        isForced: entitlementIsForced,
       });
 
       if (!result.success) {
@@ -366,6 +369,7 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
     setEntitlementOrgId(entitlement.organization_id);
     setEntitlementPluginKey(entitlement.plugin_key);
     setEntitlementStatus(entitlement.status);
+    setEntitlementIsForced(entitlement.is_forced);
     setEntitlementStartsAt(entitlement.starts_at ? entitlement.starts_at.slice(0, 16) : "");
     setEntitlementEndsAt(entitlement.ends_at ? entitlement.ends_at.slice(0, 16) : "");
     toast.success("Loaded entitlement into form");
@@ -389,6 +393,7 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
         status: bulkEntitlementStatus,
         startsAt: bulkEntitlementStartsAt || null,
         endsAt: bulkEntitlementEndsAt || null,
+        isForced: bulkEntitlementIsForced,
       });
 
       if (!result.success) {
@@ -898,6 +903,16 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="entitlement-is-forced"
+                checked={entitlementIsForced}
+                onCheckedChange={setEntitlementIsForced}
+              />
+              <Label htmlFor="entitlement-is-forced">
+                Force plugin for organization (managed install)
+              </Label>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="entitlement-start">Starts at (optional)</Label>
               <Input
@@ -955,10 +970,15 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                     <tr key={entitlement.id} className="border-t">
                       <td className="px-3 py-2">{entitlement.organization_name}</td>
                       <td className="px-3 py-2">{entitlement.plugin_key}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 space-y-1">
                         <Badge variant={entitlement.status === "active" ? "default" : "secondary"}>
                           {entitlement.status}
                         </Badge>
+                        {entitlement.is_forced && (
+                          <div className="block">
+                            <Badge variant="destructive" className="text-[10px]">Forced</Badge>
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">
                         {formatEntitlementWindowLabel(
@@ -1037,6 +1057,17 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                   </SelectGroup>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Switch
+                id="bulk-entitlement-is-forced"
+                checked={bulkEntitlementIsForced}
+                onCheckedChange={setBulkEntitlementIsForced}
+              />
+              <Label htmlFor="bulk-entitlement-is-forced">
+                Force plugin for these organizations
+              </Label>
             </div>
 
             <div className="space-y-2">

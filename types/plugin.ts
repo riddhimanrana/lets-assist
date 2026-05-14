@@ -436,6 +436,7 @@ export interface OrganizationPluginAdminSetting {
   minimumRole: OrganizationPluginAccessRole;
   availableInRuntime: boolean;
   entitled: boolean;
+  isForced: boolean;
   installed: boolean;
   enabled: boolean;
   blockedReason: string | null;
