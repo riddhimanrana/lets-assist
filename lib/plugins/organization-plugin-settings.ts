@@ -24,6 +24,7 @@ export type PluginEntitlementForSettings = {
   status: "active" | "inactive";
   starts_at: string | null;
   ends_at: string | null;
+  is_forced: boolean;
 };
 
 export type PluginInstallForSettings = {
@@ -62,6 +63,11 @@ export function buildOrganizationPluginAdminSettings(input: {
       .filter((entitlement) => isEntitlementActive(entitlement, now))
       .map((entitlement) => entitlement.plugin_key),
   );
+  const forcedPrivateKeys = new Set(
+    input.entitlements
+      .filter((entitlement) => entitlement.is_forced && isEntitlementActive(entitlement, now))
+      .map((entitlement) => entitlement.plugin_key),
+  );
 
   return input.catalog
     .filter((plugin) => plugin.is_active)
@@ -72,6 +78,7 @@ export function buildOrganizationPluginAdminSettings(input: {
       const ownerType = runtimePlugin?.ownerType ?? "platform-official";
       const entitled =
         plugin.visibility === "global" || entitledPrivateKeys.has(plugin.key);
+      const isForced = forcedPrivateKeys.has(plugin.key);
 
       const description = plugin.description?.trim() || undefined;
       const detailedDescription =
@@ -115,6 +122,7 @@ export function buildOrganizationPluginAdminSettings(input: {
         minimumRole: runtimePlugin?.minimumRole ?? "member",
         availableInRuntime: Boolean(runtimePlugin),
         entitled,
+        isForced,
         installed: Boolean(install),
         enabled: install?.enabled ?? false,
         blockedReason,

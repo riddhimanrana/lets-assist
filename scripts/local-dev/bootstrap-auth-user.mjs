@@ -2,7 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import bcrypt from "bcrypt";
 
 function readEnvFile(filePath) {
@@ -73,38 +73,53 @@ function toUsername(rawEmail, explicitUsername) {
   if (explicitUsername && explicitUsername.trim()) return explicitUsername.trim();
   const localPart = rawEmail?.split("@")[0] || "local-user";
   return localPart.toLowerCase().replace(/[^a-z0-9_]/g, "-");
-      function persistUserId(email, userId, env) {
-        const filePath = env.BOOTSTRAP_USER_ID_FILE;
-        if (!filePath || !email || !userId) {
-          return;
-        }
+}
 
-        try {
-          const existing = fs.existsSync(filePath)
-            ? JSON.parse(fs.readFileSync(filePath, "utf8"))
-            : {};
+function persistUserId(email, userId, env) {
+  const filePath = env.BOOTSTRAP_USER_ID_FILE;
+  if (!filePath || !email || !userId) {
+    return;
+  }
 
-          existing[email.toLowerCase()] = userId;
-          fs.writeFileSync(filePath, JSON.stringify(existing, null, 2));
-        } catch (err) {
-          console.warn(`[bootstrap-auth-user] Warning: Could not persist bootstrap user id: ${err.message}`);
-        }
-      }
+  try {
+    const existing = fs.existsSync(filePath)
+      ? JSON.parse(fs.readFileSync(filePath, "utf8"))
+      : {};
+
+    existing[email.toLowerCase()] = userId;
+    fs.writeFileSync(filePath, JSON.stringify(existing, null, 2));
+  } catch {
+    console.warn("[bootstrap-auth-user] Warning: Could not persist bootstrap user id.");
+  }
+}
+
+const LOCAL_POSTGRES_URL = "postgresql://postgres@127.0.0.1:54322/postgres";
+
+function sqlLiteral(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function runLocalPsql(sql) {
+  return execFileSync(
+    "psql",
+    [LOCAL_POSTGRES_URL, "-At", "-c", sql],
+    {
+      encoding: "utf-8",
+      env: {
+        ...process.env,
+        PGPASSWORD: "postgres",
+      },
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  ).trim();
 }
 
 async function updatePasswordInDatabase(userId, plainPassword) {
-  // Hash password using bcrypt module (now installed)
   let hash;
-  
-  // Debug: log the password being hashed
-  console.log(`[bootstrap-auth-user] DEBUG: About to hash password, length=${plainPassword.length}, first 3 chars='${plainPassword.substring(0, 3)}'`);
-  
   try {
     hash = await bcrypt.hash(plainPassword, 10);
-    console.log(`[bootstrap-auth-user] Generated bcrypt hash for password, hash starts with: ${hash.substring(0, 10)}...`);
-    console.log(`[bootstrap-auth-user] Full hash (for debug): ${hash}`);
-  } catch (err) {
-    console.warn(`[bootstrap-auth-user] Warning: Failed to hash password - ${err.message}`);
+  } catch {
+    console.warn("[bootstrap-auth-user] Warning: Failed to hash password.");
     return false;
   }
 
@@ -113,54 +128,24 @@ async function updatePasswordInDatabase(userId, plainPassword) {
   }
 
   try {
-    // Use a temp file to avoid shell escaping issues with special characters in the hash
-    const tempSqlFile = `/tmp/update_pwd_${userId}_${Date.now()}.sql`;
-    
-    // Write the SQL file directly with the hash - no escaping needed since we control the hash
-    const sqlStatement = `UPDATE auth.users SET encrypted_password = '${hash}' WHERE id = '${userId}';`;
-    console.log(`[bootstrap-auth-user] SQL statement: ${sqlStatement}`);
-    
-    execSync(`cat > "${tempSqlFile}" << 'SQL_EOF'\n${sqlStatement}\nSQL_EOF`, { 
-      stdio: "pipe",
-      shell: "/bin/bash"
-    });
-    
-    // Verify the file was written correctly
-    const fileContent = execSync(`cat "${tempSqlFile}"`, { encoding: "utf-8" });
-    console.log(`[bootstrap-auth-user] SQL file content:\n${fileContent}`);
-    
-    execSync(
-      `PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -f "${tempSqlFile}"`,
-      { 
-        stdio: "pipe",
-        shell: "/bin/bash",
-        timeout: 5000
-      }
+    runLocalPsql(
+      `UPDATE auth.users SET encrypted_password = ${sqlLiteral(hash)} WHERE id = ${sqlLiteral(userId)};`,
     );
-    
-    console.log(`[bootstrap-auth-user] Executed SQL from file`);
-    
-    // Additional verify - check if password was actually updated
-    const postUpdateHash = execSync(
-      `PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -At -c "SELECT encrypted_password FROM auth.users WHERE id='${userId}';"`,
-      { encoding: "utf-8" }
-    ).trim();
-    
+
+    const postUpdateHash = runLocalPsql(
+      `SELECT encrypted_password FROM auth.users WHERE id = ${sqlLiteral(userId)} LIMIT 1;`,
+    );
+
     if (!postUpdateHash) {
-      console.warn(`[bootstrap-auth-user] ERROR: No hash found after update!`);
+      console.warn("[bootstrap-auth-user] Warning: No password hash found after update.");
     } else if (postUpdateHash !== hash) {
-      console.warn(`[bootstrap-auth-user] ERROR: Hash mismatch after update!`);
-      console.warn(`[bootstrap-auth-user]   Expected: ${hash}`);
-      console.warn(`[bootstrap-auth-user]   Got:      ${postUpdateHash}`);
+      console.warn("[bootstrap-auth-user] Warning: Password hash verification mismatch.");
     }
-    
-    // Keep SQL files for debugging in /tmp/
-    console.log(`[bootstrap-auth-user] SQL file saved for debug at: ${tempSqlFile}`);
-    
-    console.log(`[bootstrap-auth-user] Set password for user ${userId}`);
+
+    console.log("[bootstrap-auth-user] Password updated in local auth database.");
     return true;
-  } catch (err) {
-    console.warn(`[bootstrap-auth-user] Warning: Failed to update password: ${err.message}`);
+  } catch {
+    console.warn("[bootstrap-auth-user] Warning: Failed to update password.");
     return false;
   }
 }
@@ -216,12 +201,11 @@ async function main() {
 
   const lookupUserIdByEmail = () => {
     try {
-      return execSync(
-        `PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -At -c "SELECT id FROM auth.users WHERE lower(email) = lower('${email.replace(/'/g, "''")}') LIMIT 1;"`,
-        { encoding: "utf-8" },
-      ).trim();
-    } catch (err) {
-      console.warn(`[bootstrap-auth-user] Warning: Could not resolve existing user ID from database: ${err.message}`);
+      return runLocalPsql(
+        `SELECT id FROM auth.users WHERE lower(email) = lower(${sqlLiteral(email)}) LIMIT 1;`,
+      );
+    } catch {
+      console.warn("[bootstrap-auth-user] Warning: Could not resolve existing user ID from database.");
       return "";
     }
   };
@@ -262,9 +246,8 @@ async function main() {
 
     try {
       await updatePasswordInDatabase(user.id, password);
-    } catch (err) {
-      console.warn(`[bootstrap-auth-user] Warning: Could not hash password: ${err.message}`);
-              persistUserId(email, dbUserId, env);
+    } catch {
+      console.warn("[bootstrap-auth-user] Warning: Could not set password.");
     }
 
     const { createClient } = await import("@supabase/supabase-js");
@@ -288,9 +271,7 @@ async function main() {
       existingProfileUpsertError &&
       !String(existingProfileUpsertError.message || "").includes("permission denied for table users")
     ) {
-      console.warn(
-        `[bootstrap-auth-user] Profile upsert warning for ${email}: ${existingProfileUpsertError.message}`,
-      );
+      console.warn("[bootstrap-auth-user] Warning: Profile upsert failed.");
     }
 
     await supabaseAdmin.from("notification_settings").upsert(
@@ -303,7 +284,8 @@ async function main() {
       { onConflict: "user_id" },
     );
 
-    console.log(`[bootstrap-auth-user] Updated local user ${email} (${username}).`);
+    persistUserId(email, user.id, env);
+    console.log("[bootstrap-auth-user] Updated existing local user.");
   };
 
   if (existingUser?.id) {
@@ -370,7 +352,6 @@ async function main() {
       }
     }
 
-        persistUserId(email, userId, env);
     throw new Error(`Failed to create user: ${createRes.status} ${text}`);
   }
 
@@ -384,28 +365,27 @@ async function main() {
     process.exit(0);
   }
 
-  // DEBUG: Check what password hash exists immediately after API creation
+  persistUserId(email, userId, env);
+
   try {
-    const preUpdateHash = execSync(
-      `PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -At -c "SELECT encrypted_password FROM auth.users WHERE id='${userId}';"`,
-      { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
-    ).trim();
-    console.log(`[bootstrap-auth-user] Hash BEFORE updatePasswordInDatabase: ${preUpdateHash || "(null or empty)"}`);
-  } catch (e) {
-    console.log(`[bootstrap-auth-user] Could not query pre-update hash: ${e.message}`);
+    const preUpdateHash = runLocalPsql(
+      `SELECT encrypted_password FROM auth.users WHERE id = ${sqlLiteral(userId)} LIMIT 1;`,
+    );
+    if (!preUpdateHash) {
+      console.log("[bootstrap-auth-user] No pre-existing password hash before update.");
+    }
+  } catch {
+    console.log("[bootstrap-auth-user] Could not query pre-update password hash.");
   }
 
-  // Hash the password and update it directly in the database
-  // The Supabase admin API may not properly hash passwords in local dev
   try {
     await updatePasswordInDatabase(userId, password);
-    console.log(`[bootstrap-auth-user] Password set for user ${userId}`);
-  } catch (err) {
-    console.warn(`[bootstrap-auth-user] Warning: Could not set password: ${err.message}`);
+    console.log("[bootstrap-auth-user] Password setup completed.");
+  } catch {
+    console.warn("[bootstrap-auth-user] Warning: Could not set password.");
   }
 
-  // Create corresponding profile using admin Supabase client with service role
-  console.log(`[bootstrap-auth-user] Creating profile for user ${userId}...`);
+  console.log("[bootstrap-auth-user] Creating profile and notification settings...");
   try {
     const { createClient } = await import("@supabase/supabase-js");
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
@@ -428,7 +408,7 @@ async function main() {
       String(profileError.message || "").includes("permission denied");
 
     if (profileError && !isProfileErrorIgnorable) {
-      console.warn(`[bootstrap-auth-user] Warning: Profile creation failed: ${profileError.message}`);
+      console.warn("[bootstrap-auth-user] Warning: Profile creation failed.");
     }
 
     // Create notification settings record
@@ -442,7 +422,7 @@ async function main() {
       }, { onConflict: "user_id" });
 
     if (notifError) {
-      console.warn(`[bootstrap-auth-user] Warning: Notification settings creation failed: ${notifError.message}`);
+      console.warn("[bootstrap-auth-user] Warning: Notification settings creation failed.");
     }
 
     // Success if both are completely error-free, OR if only profile has ignorable permission error
@@ -450,25 +430,18 @@ async function main() {
     const notifSuccess = !notifError;
 
     if (profileSuccess && notifSuccess) {
-      console.log(`[bootstrap-auth-user] Created local login user ${email} (${username}) with profile and notifications.`);
+      console.log("[bootstrap-auth-user] Created local login user with profile and notifications.");
     } else {
-      const errors = [];
-      if (profileError && !isProfileErrorIgnorable) errors.push(`profile: ${profileError.message}`);
-      if (notifError) errors.push(`notification_settings: ${notifError.message}`);
-      if (errors.length > 0) {
-        console.warn(`[bootstrap-auth-user] DEBUG: Additional setup steps had errors: ${errors.join("; ")}`);
-      }
-      console.log(`[bootstrap-auth-user] Created local login user ${email} (some additional setup failed).`);
+      console.warn("[bootstrap-auth-user] Warning: Additional setup steps had errors.");
+      console.log("[bootstrap-auth-user] Created local login user (some additional setup failed).");
     }
-  } catch (err) {
-    console.warn(
-      `[bootstrap-auth-user] Warning: Failed to create profile: ${err.message}`,
-    );
-    console.log(`[bootstrap-auth-user] Created auth user ${email} (profile creation failed).`);
+  } catch {
+    console.warn("[bootstrap-auth-user] Warning: Failed to create profile.");
+    console.log("[bootstrap-auth-user] Created auth user (profile creation failed).");
   }
 }
 
-main().catch((error) => {
-  console.error("[bootstrap-auth-user]", error.message);
+main().catch(() => {
+  console.error("[bootstrap-auth-user] Script failed.");
   process.exit(1);
 });
