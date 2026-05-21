@@ -1670,6 +1670,7 @@ CREATE TABLE IF NOT EXISTS "public"."project_signups" (
     "volunteer_calendar_event_id" "text",
     "volunteer_synced_at" timestamp with time zone,
     "volunteer_comment" "text",
+    "response_data" "jsonb",
     CONSTRAINT "project_signups_status_check" CHECK (("status" = ANY (ARRAY['approved'::"text", 'attended'::"text", 'rejected'::"text", 'pending'::"text"]))),
     CONSTRAINT "user_or_anonymous" CHECK (((("user_id" IS NOT NULL) AND ("anonymous_id" IS NULL)) OR (("user_id" IS NULL) AND ("anonymous_id" IS NOT NULL))))
 );
@@ -3847,7 +3848,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT SELECT,INS
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO "service_role";
-
 
 
 

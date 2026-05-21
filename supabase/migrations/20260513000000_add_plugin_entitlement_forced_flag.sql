@@ -6,6 +6,8 @@ comment on column public.organization_plugin_entitlements.is_forced is
   'If true, this plugin is forced for the organization (pre-installed/managed).';
 
 -- Update organization_plugin_access view to include is_forced
+drop view if exists public.organization_plugin_access;
+
 create or replace view public.organization_plugin_access
 with (security_invoker = true) as
 with organization_plugin_keys as (
