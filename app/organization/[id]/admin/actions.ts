@@ -892,6 +892,27 @@ export async function acceptInvitation(
   });
 
   const org = invitation.organization as { username: string };
+  
+  // Check if user was just created (within last 2 minutes)
+  // If so, redirect to home/dashboard for onboarding first
+  const userCreatedAt =
+    typeof user.user_metadata?.created_at === "string" ? user.user_metadata.created_at : null;
+  if (userCreatedAt) {
+    const createdDate = new Date(userCreatedAt);
+    const nowDate = new Date();
+    const timeDiffMinutes = (nowDate.getTime() - createdDate.getTime()) / (1000 * 60);
+    
+    // If user was created less than 2 minutes ago, assume they just signed up
+    if (timeDiffMinutes < 2) {
+      const homeParams = new URLSearchParams();
+      homeParams.set('next', `/organization/${org.username}`);
+      return {
+        success: true,
+        redirectUrl: `/home?${homeParams.toString()}`,
+      };
+    }
+  }
+  
   return {
     success: true,
     redirectUrl: `/organization/${org.username}`,

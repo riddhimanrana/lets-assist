@@ -228,7 +228,7 @@ export default function PendingInvitations({
 
     if (effectiveStatus === "accepted") {
       return (
-        <Badge variant="default" className="bg-green-600">
+        <Badge variant="default">
           <CheckCircle2 className="h-3 w-3 mr-1" />
           Accepted
         </Badge>
@@ -265,7 +265,7 @@ export default function PendingInvitations({
     const deliveryStatus = invitation.email_delivery_status || "pending";
 
     if (deliveryStatus === "sent") {
-      return <Badge variant="default" className="bg-green-600">Sent</Badge>;
+      return <Badge variant="default">Sent</Badge>;
     }
 
     if (deliveryStatus === "failed") {

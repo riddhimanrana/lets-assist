@@ -31,6 +31,7 @@ type PluginEntitlementRow = {
   status: "active" | "inactive";
   starts_at: string | null;
   ends_at: string | null;
+  is_forced: boolean;
   updated_at: string;
 };
 
@@ -62,6 +63,7 @@ type PluginAccessControlRow = {
   entitlement_status: "active" | "inactive" | null;
   entitlement_starts_at: string | null;
   entitlement_ends_at: string | null;
+  entitlement_is_forced: boolean | null;
   entitlement_updated_at: string | null;
 };
 
@@ -93,6 +95,7 @@ type EntitlementBaseRow = {
   status: "active" | "inactive";
   starts_at: string | null;
   ends_at: string | null;
+  is_forced: boolean;
   updated_at: string;
 };
 
@@ -215,7 +218,7 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
     service
       .from("organization_plugin_access")
       .select(
-        "organization_id, plugin_key, enabled, installed_version, install_created_at, entitlement_id, entitlement_status, entitlement_starts_at, entitlement_ends_at, entitlement_updated_at",
+        "organization_id, plugin_key, enabled, installed_version, install_created_at, entitlement_id, entitlement_status, entitlement_starts_at, entitlement_ends_at, entitlement_is_forced, entitlement_updated_at",
       ),
   ]);
 
@@ -251,7 +254,7 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
     const [entitlementsResult, installsResult] = await Promise.all([
       service
         .from("organization_plugin_entitlements")
-        .select("id, organization_id, plugin_key, status, starts_at, ends_at, updated_at")
+        .select("id, organization_id, plugin_key, status, starts_at, ends_at, is_forced, updated_at")
         .order("updated_at", { ascending: false }),
       service
         .from("organization_plugin_installs")
@@ -310,6 +313,7 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
           status: entitlement.status,
           starts_at: entitlement.starts_at,
           ends_at: entitlement.ends_at,
+          is_forced: entitlement.is_forced,
           updated_at: entitlement.updated_at,
         } satisfies PluginEntitlementRow;
       },
@@ -353,6 +357,7 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
           status: (access.entitlement_status ?? "inactive") as "active" | "inactive",
           starts_at: access.entitlement_starts_at,
           ends_at: access.entitlement_ends_at,
+          is_forced: access.entitlement_is_forced ?? false,
           updated_at: access.entitlement_updated_at ?? new Date(0).toISOString(),
         });
       }
@@ -472,6 +477,7 @@ export async function upsertOrganizationPluginEntitlement(input: {
   status: "active" | "inactive";
   startsAt?: string | null;
   endsAt?: string | null;
+  isForced?: boolean;
 }): Promise<{ success: boolean; error?: string }> {
   const { isAdmin, userId } = await checkSuperAdmin();
   if (!isAdmin || !userId) {
@@ -501,6 +507,7 @@ export async function upsertOrganizationPluginEntitlement(input: {
         status: input.status,
         starts_at: dateWindow.startsAt,
         ends_at: dateWindow.endsAt,
+        is_forced: input.isForced ?? false,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "organization_id,plugin_key" },
@@ -532,6 +539,7 @@ export async function bulkUpsertOrganizationPluginEntitlements(input: {
   status: "active" | "inactive";
   startsAt?: string | null;
   endsAt?: string | null;
+  isForced?: boolean;
 }): Promise<{
   success: boolean;
   error?: string;
@@ -686,6 +694,7 @@ export async function bulkUpsertOrganizationPluginEntitlements(input: {
       status: input.status,
       starts_at: dateWindow.startsAt,
       ends_at: dateWindow.endsAt,
+      is_forced: input.isForced ?? false,
       updated_at: now,
     }),
   );

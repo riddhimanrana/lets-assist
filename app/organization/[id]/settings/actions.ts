@@ -502,6 +502,7 @@ type PluginEntitlementRow = {
   status: "active" | "inactive";
   starts_at: string | null;
   ends_at: string | null;
+  is_forced: boolean;
 };
 
 type PluginInstallRow = {
@@ -520,6 +521,7 @@ type PluginAccessRow = {
   entitlement_status: "active" | "inactive" | null;
   entitlement_starts_at: string | null;
   entitlement_ends_at: string | null;
+  entitlement_is_forced: boolean | null;
 };
 
 type SupabaseLikeError = {
@@ -595,7 +597,7 @@ export async function getOrganizationPluginSettings(
     supabase
       .from("organization_plugin_access")
       .select(
-        "plugin_key, enabled, installed_version, configuration, install_created_at, entitlement_status, entitlement_starts_at, entitlement_ends_at",
+        "plugin_key, enabled, installed_version, configuration, install_created_at, entitlement_status, entitlement_starts_at, entitlement_ends_at, entitlement_is_forced",
       )
       .eq("organization_id", organizationId),
   ]);
@@ -607,7 +609,7 @@ export async function getOrganizationPluginSettings(
     const [entitlementResult, installResult] = await Promise.all([
       supabase
         .from("organization_plugin_entitlements")
-        .select("plugin_key, status, starts_at, ends_at")
+        .select("plugin_key, status, starts_at, ends_at, is_forced")
         .eq("organization_id", organizationId),
       supabase
         .from("organization_plugin_installs")
@@ -708,6 +710,7 @@ export async function getOrganizationPluginSettings(
       status: row.entitlement_status as "active" | "inactive",
       starts_at: row.entitlement_starts_at,
       ends_at: row.entitlement_ends_at,
+      is_forced: row.entitlement_is_forced ?? false,
     })) as PluginEntitlementRow[];
 
   const installs = accessRows
@@ -790,12 +793,44 @@ export async function setOrganizationPluginInstallState(options: {
     return { success: false, error: "Plugin is not active in the catalog." };
   }
 
-  if (pluginCatalog.visibility !== "global") {
+  // Check if plugin is forced via entitlement
+  const { data: entitlement } = await adminSupabase
+    .from("organization_plugin_entitlements")
+    .select("id, is_forced, status, starts_at, ends_at")
+    .eq("organization_id", organizationId)
+    .eq("plugin_key", pluginKey)
+    .maybeSingle();
+
+  if (entitlement?.is_forced && !enabled) {
     return {
       success: false,
-      error:
-        "Private plugins are managed by the Let's Assist team. Contact support for changes.",
+      error: "This plugin is managed by platform administrators and cannot be disabled.",
     };
+  }
+
+  if (pluginCatalog.visibility !== "global") {
+    // Check for entitlement if not global
+    const { data: entitlement } = await adminSupabase
+      .from("organization_plugin_entitlements")
+      .select("id, status, starts_at, ends_at")
+      .eq("organization_id", organizationId)
+      .eq("plugin_key", pluginKey)
+      .eq("status", "active")
+      .maybeSingle();
+
+    const now = new Date();
+    const isEntitled =
+      entitlement &&
+      (!entitlement.starts_at || new Date(entitlement.starts_at) <= now) &&
+      (!entitlement.ends_at || new Date(entitlement.ends_at) >= now);
+
+    if (!isEntitled) {
+      return {
+        success: false,
+        error:
+          "Private plugins require an active entitlement. Contact support for assistance.",
+      };
+    }
   }
 
   const { data: existingInstall, error: existingInstallError } = (await adminSupabase
@@ -925,12 +960,44 @@ export async function uninstallOrganizationPlugin(options: {
     };
   }
 
-  if (pluginCatalog?.visibility === "private") {
+  // Check if plugin is forced via entitlement
+  const { data: entitlement } = await adminSupabase
+    .from("organization_plugin_entitlements")
+    .select("id, is_forced")
+    .eq("organization_id", organizationId)
+    .eq("plugin_key", pluginKey)
+    .maybeSingle();
+
+  if (entitlement?.is_forced) {
     return {
       success: false,
-      error:
-        "Private plugins are managed by the Let's Assist team. Contact support for changes.",
+      error: "This plugin is managed by platform administrators and cannot be uninstalled.",
     };
+  }
+
+  if (pluginCatalog?.visibility === "private") {
+    // Check for entitlement if private
+    const { data: entitlement } = await adminSupabase
+      .from("organization_plugin_entitlements")
+      .select("id, status, starts_at, ends_at")
+      .eq("organization_id", organizationId)
+      .eq("plugin_key", pluginKey)
+      .eq("status", "active")
+      .maybeSingle();
+
+    const now = new Date();
+    const isEntitled =
+      entitlement &&
+      (!entitlement.starts_at || new Date(entitlement.starts_at) <= now) &&
+      (!entitlement.ends_at || new Date(entitlement.ends_at) >= now);
+
+    if (!isEntitled) {
+      return {
+        success: false,
+        error:
+          "Private plugins require an active entitlement. Contact support for assistance.",
+      };
+    }
   }
 
   const { data: existingInstall, error: existingInstallError } = (await adminSupabase
@@ -1033,11 +1100,28 @@ export async function updateOrganizationPluginToLatest(options: {
   }
 
   if (pluginCatalog.visibility !== "global") {
-    return {
-      success: false,
-      error:
-        "Private plugins are managed by the Let's Assist team. Contact support for changes.",
-    };
+    // Check for entitlement if not global
+    const { data: entitlement } = await adminSupabase
+      .from("organization_plugin_entitlements")
+      .select("id, status, starts_at, ends_at")
+      .eq("organization_id", organizationId)
+      .eq("plugin_key", pluginKey)
+      .eq("status", "active")
+      .maybeSingle();
+
+    const now = new Date();
+    const isEntitled =
+      entitlement &&
+      (!entitlement.starts_at || new Date(entitlement.starts_at) <= now) &&
+      (!entitlement.ends_at || new Date(entitlement.ends_at) >= now);
+
+    if (!isEntitled) {
+      return {
+        success: false,
+        error:
+          "Private plugins require an active entitlement. Contact support for assistance.",
+      };
+    }
   }
 
   const { data: existingInstall, error: existingInstallError } = (await adminSupabase
@@ -1124,11 +1208,28 @@ export async function updateOrganizationPluginConfiguration(options: {
   }
 
   if (definition.manifest.visibility !== "global") {
-    return {
-      success: false,
-      error:
-        "Private plugins are managed by the Let's Assist team. Contact support for changes.",
-    };
+    // Check for entitlement if not global
+    const { data: entitlement } = await adminSupabase
+      .from("organization_plugin_entitlements")
+      .select("id, status, starts_at, ends_at")
+      .eq("organization_id", organizationId)
+      .eq("plugin_key", pluginKey)
+      .eq("status", "active")
+      .maybeSingle();
+
+    const now = new Date();
+    const isEntitled =
+      entitlement &&
+      (!entitlement.starts_at || new Date(entitlement.starts_at) <= now) &&
+      (!entitlement.ends_at || new Date(entitlement.ends_at) >= now);
+
+    if (!isEntitled) {
+      return {
+        success: false,
+        error:
+          "Private plugins require an active entitlement. Contact support for assistance.",
+      };
+    }
   }
 
   const { data: pluginCatalog, error: pluginCatalogError } = (await adminSupabase
