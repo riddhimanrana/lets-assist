@@ -48,7 +48,7 @@ function sanitizeDraftData(projectData: Partial<EventFormState>): Partial<EventF
   };
 }
 
-function isMissingWaiverDisableEsignatureColumnError(error: unknown): boolean {
+function isMissingProjectColumnError(error: unknown, columnName: string): boolean {
   if (!error || typeof error !== "object") return false;
 
   const pgError = error as {
@@ -59,7 +59,7 @@ function isMissingWaiverDisableEsignatureColumnError(error: unknown): boolean {
   };
 
   const combined = `${pgError.message ?? ""} ${pgError.details ?? ""} ${pgError.hint ?? ""}`.toLowerCase();
-  const referencesColumn = combined.includes("waiver_disable_esignature");
+  const referencesColumn = combined.includes(columnName.toLowerCase());
   const schemaCacheLike =
     combined.includes("schema cache") ||
     combined.includes("could not find") ||
@@ -67,6 +67,27 @@ function isMissingWaiverDisableEsignatureColumnError(error: unknown): boolean {
   const knownCode = pgError.code === "PGRST204" || pgError.code === "42703";
 
   return referencesColumn && (knownCode || schemaCacheLike);
+}
+
+function isMissingWaiverDisableEsignatureColumnError(error: unknown): boolean {
+  return isMissingProjectColumnError(error, "waiver_disable_esignature");
+}
+
+function isMissingSignupFormSchemaColumnError(error: unknown): boolean {
+  return isMissingProjectColumnError(error, "signup_form_schema");
+}
+
+function omitProjectColumns(
+  payload: Record<string, unknown>,
+  columns: string[]
+): Record<string, unknown> {
+  const next = { ...payload };
+
+  for (const column of columns) {
+    delete next[column];
+  }
+
+  return next;
 }
 
 // Helper function to check if date/time is in the past, using user's local time
@@ -258,23 +279,41 @@ export async function createBasicProject(
       signup_form_schema: projectData.signupFormSchema || null,
     };
 
-    // Create project in the database
-    let { data: project, error: projectError } = await supabase
-      .from("projects")
-      .insert({
-        ...baseProjectPayload,
-        waiver_disable_esignature: projectData.waiverDisableEsignature ?? false,
-      })
-      .select("id")
-      .single();
+    const projectInsertPayload = {
+      ...baseProjectPayload,
+      waiver_disable_esignature: projectData.waiverDisableEsignature ?? false,
+    };
 
-    // Backward compatibility for databases where this column doesn't exist yet.
-    if (projectError && isMissingWaiverDisableEsignatureColumnError(projectError)) {
-      ({ data: project, error: projectError } = await supabase
+    const projectInsertPayloads = [
+      projectInsertPayload,
+      omitProjectColumns(projectInsertPayload, ["signup_form_schema"]),
+      omitProjectColumns(projectInsertPayload, ["waiver_disable_esignature"]),
+      omitProjectColumns(projectInsertPayload, ["signup_form_schema", "waiver_disable_esignature"]),
+    ];
+
+    let project: { id: string } | null = null;
+    let projectError: unknown = null;
+
+    for (const payload of projectInsertPayloads) {
+      const { data, error } = await supabase
         .from("projects")
-        .insert(baseProjectPayload)
+        .insert(payload)
         .select("id")
-        .single());
+        .single();
+
+      if (data && !error) {
+        project = data;
+        projectError = null;
+        break;
+      }
+
+      projectError = error;
+
+      const missingSignupFormSchema = isMissingSignupFormSchemaColumnError(error);
+      const missingWaiverDisableEsignature = isMissingWaiverDisableEsignatureColumnError(error);
+      if (!missingSignupFormSchema && !missingWaiverDisableEsignature) {
+        break;
+      }
     }
 
     if (projectError || !project) {
