@@ -701,6 +701,12 @@ export default function ProjectCreator({
       }
 
       const projectId = result.id;
+      if (!projectId) {
+        toast.dismiss(loadingToast);
+        toast.error("Failed to create project.");
+        setIsSubmitting(false);
+        return;
+      }
       let hasErrors = false;
 
       // Step 2: Upload cover image if available
