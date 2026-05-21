@@ -138,6 +138,7 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
       data.plugins[0]?.key ??
       "",
   );
+  
   const [entitlementStatus, setEntitlementStatus] = useState<"active" | "inactive">("active");
   const [entitlementIsForced, setEntitlementIsForced] = useState(false);
   const [entitlementStartsAt, setEntitlementStartsAt] = useState("");

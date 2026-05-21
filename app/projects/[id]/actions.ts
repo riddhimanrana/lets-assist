@@ -95,6 +95,61 @@ function isMissingWaiverDisableEsignatureColumnError(error: unknown): boolean {
   return referencesColumn && (knownCode || schemaCacheLike);
 }
 
+function isMissingProjectSignupResponseDataColumnError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const pgError = error as PostgrestErrorLike;
+  const combined = `${pgError.message ?? ""} ${pgError.details ?? ""} ${pgError.hint ?? ""}`.toLowerCase();
+  const referencesColumn = combined.includes("response_data");
+  const schemaCacheLike =
+    combined.includes("schema cache") ||
+    combined.includes("could not find") ||
+    combined.includes("column");
+  const knownCode = pgError.code === "PGRST204" || pgError.code === "42703";
+
+  return referencesColumn && (knownCode || schemaCacheLike);
+}
+
+function omitRecordKeys(payload: Record<string, unknown>, keys: string[]): Record<string, unknown> {
+  const next = { ...payload };
+  for (const key of keys) {
+    delete next[key];
+  }
+  return next;
+}
+
+async function insertProjectSignupWithFallback(
+  client: any,
+  signupData: Record<string, unknown>
+): Promise<{ data: { id: string } | null; error: unknown | null }> {
+  const payloads = [
+    signupData,
+    omitRecordKeys(signupData, ["response_data"]),
+  ];
+
+  let lastError: unknown = null;
+
+  for (const payload of payloads) {
+    const { data, error } = await client
+      .from("project_signups")
+      .insert(payload)
+      .select("id")
+      .single();
+
+    if (data && !error) {
+      return { data, error: null };
+    }
+
+    lastError = error;
+
+    if (!isMissingProjectSignupResponseDataColumnError(error)) {
+      break;
+    }
+  }
+
+  return { data: null, error: lastError };
+}
+
 type ParsedDataUrl = {
   contentType: string;
   buffer: Buffer;
@@ -1299,11 +1354,10 @@ export async function signUpForProject(
           response_data: formData || null,
         };
 
-        const { data: insertedSignup, error: signupError } = await supabase
-          .from("project_signups")
-          .insert(signupData)
-          .select()
-          .single();
+        const { data: insertedSignup, error: signupError } = await insertProjectSignupWithFallback(
+          supabase,
+          signupData
+        );
 
         if (signupError || !insertedSignup) {
           console.error("Error creating signup for registered user:", signupError);
@@ -1478,11 +1532,10 @@ export async function signUpForProject(
           response_data: formData || null,
         };
 
-        const { data: insertedProjectSignup, error: projectSignupInsertError } = await serviceSupabase
-          .from("project_signups")
-          .insert(projectSignupData)
-          .select("id")
-          .single();
+        const { data: insertedProjectSignup, error: projectSignupInsertError } = await insertProjectSignupWithFallback(
+          serviceSupabase,
+          projectSignupData
+        );
 
         if (projectSignupInsertError || !insertedProjectSignup) {
           console.error("Error creating project signup for existing anon profile:", projectSignupInsertError);
@@ -1595,11 +1648,10 @@ export async function signUpForProject(
           response_data: formData || null,
         };
 
-        const { data: insertedProjectSignup, error: projectSignupInsertError } = await serviceSupabase
-          .from("project_signups")
-          .insert(projectSignupData)
-          .select("id")
-          .single();
+        const { data: insertedProjectSignup, error: projectSignupInsertError } = await insertProjectSignupWithFallback(
+          serviceSupabase,
+          projectSignupData
+        );
 
         if (projectSignupInsertError || !insertedProjectSignup) {
           console.error("Error creating project signup record for anonymous:", projectSignupInsertError);
@@ -3159,4 +3211,3 @@ export async function saveWaiverDefinition(
     return { success: false, error: "An unexpected error occurred" };
   }
 }
-
