@@ -801,7 +801,7 @@ export async function setOrganizationPluginInstallState(options: {
     .eq("plugin_key", pluginKey)
     .maybeSingle();
 
-  if (entitlement?.is_forced && !input.enabled) {
+  if (entitlement?.is_forced && !enabled) {
     return {
       success: false,
       error: "This plugin is managed by platform administrators and cannot be disabled.",
