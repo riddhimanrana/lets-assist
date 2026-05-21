@@ -572,8 +572,7 @@ export default function OrganizationPluginSettings({
   const renderAvailablePluginCard = (plugin: OrganizationPluginAdminSetting) => {
     const isInstallUpdating = updatingActionId === `${plugin.key}:install`;
     const isPrivatePlugin = plugin.visibility === "private" || plugin.privateCodebase;
-    const canInstall =
-      plugin.entitled && plugin.availableInRuntime && !isPrivatePlugin;
+    const canInstall = plugin.entitled && plugin.availableInRuntime;
 
     return (
       <div key={plugin.key} className="rounded-lg border border-border/70 bg-background px-3 py-3">
@@ -582,9 +581,15 @@ export default function OrganizationPluginSettings({
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-sm font-semibold">{plugin.name}</p>
               <Badge variant="outline">{plugin.navLabel}</Badge>
-              <Badge variant={isPrivatePlugin ? "destructive" : "secondary"}>
-                {isPrivatePlugin ? "Private" : "Available"}
-              </Badge>
+              {isPrivatePlugin && (
+                <Badge variant="destructive">Private</Badge>
+              )}
+              {plugin.isForced && (
+                <Badge variant="default" className="bg-amber-600 hover:bg-amber-600">Forced</Badge>
+              )}
+              {!isPrivatePlugin && (
+                <Badge variant="secondary">Available</Badge>
+              )}
             </div>
 
             <p className="line-clamp-2 text-xs text-muted-foreground">
@@ -620,11 +625,6 @@ export default function OrganizationPluginSettings({
                 <Loader2 data-icon="inline-start" className="animate-spin" />
                 Installing...
               </>
-            ) : isPrivatePlugin ? (
-              <>
-                <Shield data-icon="inline-start" />
-                Managed
-              </>
             ) : (
               <>
                 <Store data-icon="inline-start" />
@@ -642,12 +642,11 @@ export default function OrganizationPluginSettings({
     const isVersionUpdating = updatingActionId === `${plugin.key}:update`;
     const isUninstalling = updatingActionId === `${plugin.key}:uninstall`;
     const isPrivatePlugin = plugin.visibility === "private" || plugin.privateCodebase;
-    const canToggle = plugin.entitled && plugin.availableInRuntime && !isPrivatePlugin;
-    const canUninstall = plugin.installed && !isPrivatePlugin;
+    const canToggle = plugin.entitled && plugin.availableInRuntime && !plugin.isForced;
+    const canUninstall = plugin.installed && !plugin.isForced;
     const canUpdate =
       plugin.availableInRuntime &&
       plugin.entitled &&
-      !isPrivatePlugin &&
       (plugin.updateAvailable || plugin.forceUpdateRequired);
 
     return (
@@ -659,6 +658,9 @@ export default function OrganizationPluginSettings({
               <Badge variant={plugin.enabled ? "default" : "secondary"}>
                 {plugin.enabled ? "Enabled" : "Disabled"}
               </Badge>
+              {plugin.isForced && (
+                <Badge variant="default" className="bg-amber-600 hover:bg-amber-600">Forced</Badge>
+              )}
               {plugin.updateAvailable ? <Badge variant="outline">Update</Badge> : null}
               {plugin.forceUpdateRequired ? <Badge variant="destructive">Required</Badge> : null}
             </div>
@@ -1134,13 +1136,13 @@ export default function OrganizationPluginSettings({
                   >
                     Cancel
                   </AlertDialogCancel>
-                  <AlertDialogAction
+                    <AlertDialogAction
                     variant={isInstallAction ? "default" : "destructive"}
                     onClick={(e) => {
                       e.preventDefault();
                       void handleConfirmPluginAction();
                     }}
-                    disabled={isPluginActionSubmitting || (isInstallAction && !installConsentChecked)}
+                    disabled={isPluginActionSubmitting || (isInstallAction && !installConsentChecked) || (!isInstallAction && activePluginAction?.isForced)}
                     className="w-full sm:w-auto sm:flex-1 mt-2 sm:mt-0 sm:ml-2"
                   >
                     {isPluginActionSubmitting ? (
@@ -1150,6 +1152,8 @@ export default function OrganizationPluginSettings({
                       </>
                     ) : isInstallAction ? (
                       "Install Plugin"
+                    ) : activePluginAction?.isForced ? (
+                      "Cannot Uninstall Forced Plugin"
                     ) : (
                       "Yes, Uninstall"
                     )}

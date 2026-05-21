@@ -22,6 +22,7 @@ type PluginEntitlementRow = {
   status: "active" | "inactive";
   starts_at: string | null;
   ends_at: string | null;
+  is_forced: boolean;
 };
 
 type PluginInstallRow = {
@@ -174,7 +175,7 @@ export async function resolveOrganizationPlugins(options: {
       .eq("is_active", true),
     supabase
       .from("organization_plugin_entitlements")
-      .select("plugin_key, status, starts_at, ends_at")
+      .select("plugin_key, status, starts_at, ends_at, is_forced")
       .eq("organization_id", organizationId),
     supabase
       .from("organization_plugin_installs")

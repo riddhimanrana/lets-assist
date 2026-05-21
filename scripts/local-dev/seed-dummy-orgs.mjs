@@ -51,8 +51,8 @@ async function upsertDummyUser({ url, serviceRoleKey, email, password, username,
           },
         },
       ).trim();
-    } catch (err) {
-      console.warn(`[seed-dummy-orgs] Direct user lookup failed for ${email}: ${err.message}`);
+    } catch {
+      console.warn("[seed-dummy-orgs] Direct user lookup failed.");
       return "";
     }
   };
@@ -684,7 +684,7 @@ on conflict (id) do update set
   console.log("[seed-dummy-orgs] Seeded 2 organizations, 4 projects, 5 signups, and 5 certificates.");
 }
 
-main().catch((error) => {
-  console.error("[seed-dummy-orgs]", error.message);
+main().catch(() => {
+  console.error("[seed-dummy-orgs] Script failed.");
   process.exit(1);
 });

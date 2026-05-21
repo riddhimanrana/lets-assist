@@ -63,7 +63,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
     const admin = getAdminClient();
     const { data: invite } = await admin
       .from("organization_invitations")
-      .select("email, invited_full_name, invited_phone")
+      .select("email, invited_full_name, invited_phone, invited_profile_data")
       .eq("token", inviteToken)
       .single();
     
@@ -71,8 +71,20 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
       if (!prefilledEmail && invite.email) {
         prefilledEmail = invite.email;
       }
+      
+      // Use invited_full_name first, then fall back to profile_data
       prefilledName = invite.invited_full_name;
+      if (!prefilledName && invite.invited_profile_data) {
+        const profileData = invite.invited_profile_data as Record<string, string> | null;
+        prefilledName = profileData?.full_name || profileData?.fullName;
+      }
+      
+      // Use invited_phone first, then fall back to profile_data
       prefilledPhone = invite.invited_phone;
+      if (!prefilledPhone && invite.invited_profile_data) {
+        const profileData = invite.invited_profile_data as Record<string, string> | null;
+        prefilledPhone = profileData?.phone;
+      }
     }
   }
 
