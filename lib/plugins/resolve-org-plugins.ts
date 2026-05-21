@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
 import {
   coalescePluginVersion,
@@ -107,7 +108,12 @@ export async function resolveOrganizationPlugins(options: {
     return [];
   }
 
-  const supabase = await createClient();
+  let supabase;
+  try {
+    supabase = getAdminClient();
+  } catch {
+    supabase = await createClient();
+  }
 
   const unifiedAccessResult = await supabase
     .from("organization_plugin_access")
@@ -117,12 +123,24 @@ export async function resolveOrganizationPlugins(options: {
     .eq("organization_id", organizationId)
     .eq("enabled", true);
 
-  if (!isMissingPluginTableError(unifiedAccessResult.error)) {
-    if (unifiedAccessResult.error) {
-      throw new Error(
-        `Failed to load consolidated plugin access: ${unifiedAccessResult.error.message}`,
-      );
+  if (unifiedAccessResult.error) {
+    if (!isMissingPluginTableError(unifiedAccessResult.error)) {
+      const message = unifiedAccessResult.error.message?.toLowerCase?.() ?? "";
+      const permissionDenied =
+        unifiedAccessResult.error.code === "42501" ||
+        message.includes("permission denied");
+
+      if (!permissionDenied) {
+        throw new Error(
+          `Failed to load consolidated plugin access: ${unifiedAccessResult.error.message}`,
+        );
+      }
+    } else {
+      // Fall through to the legacy table-based path.
     }
+  }
+
+  if (!unifiedAccessResult.error) {
 
     const rows = (unifiedAccessResult.data ?? []) as PluginAccessRow[];
     const resolved: ResolvedOrganizationPlugin[] = [];
