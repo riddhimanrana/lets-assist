@@ -895,7 +895,8 @@ export async function acceptInvitation(
   
   // Check if user was just created (within last 2 minutes)
   // If so, redirect to home/dashboard for onboarding first
-  const userCreatedAt = user.user_metadata?.created_at || user.created_at;
+  const userCreatedAt =
+    typeof user.user_metadata?.created_at === "string" ? user.user_metadata.created_at : null;
   if (userCreatedAt) {
     const createdDate = new Date(userCreatedAt);
     const nowDate = new Date();

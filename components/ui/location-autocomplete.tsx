@@ -6,7 +6,7 @@ import { Check, MapPin, Search, Loader2, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
-import { APIProvider } from "@vis.gl/react-google-maps"
+import { APIProvider, useMapsLibrary } from "@vis.gl/react-google-maps"
 import { LocationData } from "@/types"
 
 interface LocationAutocompleteProps {
@@ -48,7 +48,8 @@ function LocationAutocompleteContent({
   const [isLoading, setIsLoading] = useState(false)
   const [predictions, setPredictions] = useState<LocationPrediction[]>([])
   const [focusedIndex, setFocusedIndex] = useState(-1)
-  const [placesApiReady, setPlacesApiReady] = useState(false)
+  const placesLibrary = useMapsLibrary("places")
+  const placesApiReady = Boolean(placesLibrary)
 
   const searchDebounceRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -58,30 +59,9 @@ function LocationAutocompleteContent({
     setInputValue(value?.text || "")
   }, [value])
 
-  useEffect(() => {
-    let cancelled = false
-
-    const initializePlacesAPI = async () => {
-      try {
-        if (typeof google === 'undefined' || !google.maps?.importLibrary) return
-        await google.maps.importLibrary('places')
-        if (!cancelled) setPlacesApiReady(true)
-      } catch (error) {
-        console.error('Error loading Places library:', error)
-        if (!cancelled) setPlacesApiReady(false)
-      }
-    }
-
-    void initializePlacesAPI()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   // Search for predictions or show current selection when input is focused
   useEffect(() => {
-    if (!placesApiReady) return;
+    if (!placesApiReady || !placesLibrary) return;
 
     if (!query.trim()) {
       // If no query but we have a selected value, create a single prediction for it
@@ -105,7 +85,7 @@ function LocationAutocompleteContent({
 
     searchDebounceRef.current = setTimeout(() => {
       setIsLoading(true)
-      void google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+      void placesLibrary.AutocompleteSuggestion.fetchAutocompleteSuggestions({
         input: query,
       })
         .then(({ suggestions }) => {
@@ -133,7 +113,7 @@ function LocationAutocompleteContent({
         clearTimeout(searchDebounceRef.current)
       }
     }
-  }, [query, value, placesApiReady])
+  }, [query, value, placesApiReady, placesLibrary])
 
   const handleSelect = async (prediction: LocationPrediction) => {
     // If selecting the current selection, just close the dropdown
@@ -429,4 +409,3 @@ export default function LocationAutocomplete(props: LocationAutocompleteProps) {
     </APIProvider>
   )
 }
-
