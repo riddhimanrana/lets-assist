@@ -200,7 +200,7 @@ export function Footer() {
           <div className="flex min-w-0 items-center gap-3">
             <Image src="/logo.png" alt="letsassist Logo" width={32} height={32} />
             <p className="text-sm text-muted-foreground whitespace-nowrap">
-              © {currentYear} Riddhiman Rana
+              © {currentYear} Tulip Coaching LLC
               <span className="hidden xl:inline">. All rights reserved.</span>
             </p>
             {statusBadge}
