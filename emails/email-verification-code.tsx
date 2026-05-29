@@ -66,7 +66,7 @@ export default function EmailVerificationCode({
             </Section>
 
             <Section style={footerBox}>
-              <Text style={footerText}>© {currentYear} Riddhiman Rana. All rights reserved.</Text>
+              <Text style={footerText}>© {currentYear} Tulip Coaching LLC. All rights reserved.</Text>
             </Section>
           </Section>
         </Container>

@@ -25,7 +25,7 @@ export default function EmailFooter() {
             </Link>
           </Text>
           <Text style={footerText}>
-            © {currentYear} Riddhiman Rana. All rights reserved.
+            © {currentYear} Tulip Coaching LLC. All rights reserved.
           </Text>
         </Column>
       </Row>
