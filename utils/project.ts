@@ -15,20 +15,27 @@ type MultiDaySlotLike = {
   volunteers?: number;
 };
 
-export function parseMultiDayScheduleId(scheduleId: string): { date: string; slotIndex: number } | null {
-  const lastDashIndex = scheduleId.lastIndexOf("-");
-  if (lastDashIndex <= 0 || lastDashIndex === scheduleId.length - 1) {
-    return null;
+export function parseMultiDayScheduleId(scheduleId: string): { date: string; dayIndex?: number; slotIndex: number } | null {
+  const parts = scheduleId.split("-");
+  
+  // Backward compatibility: YYYY-MM-DD-slotIndex (4 parts)
+  if (parts.length === 4) {
+    const [y, m, d, slotIdx] = parts;
+    const slotIndex = Number.parseInt(slotIdx, 10);
+    if (Number.isNaN(slotIndex)) return null;
+    return { date: `${y}-${m}-${d}`, slotIndex };
+  } 
+  
+  // New format: YYYY-MM-DD-dayIndex-slotIndex (5 parts)
+  if (parts.length === 5) {
+    const [y, m, d, dayIdx, slotIdx] = parts;
+    const dayIndex = Number.parseInt(dayIdx, 10);
+    const slotIndex = Number.parseInt(slotIdx, 10);
+    if (Number.isNaN(dayIndex) || Number.isNaN(slotIndex)) return null;
+    return { date: `${y}-${m}-${d}`, dayIndex, slotIndex };
   }
 
-  const date = scheduleId.slice(0, lastDashIndex);
-  const slotIndex = Number.parseInt(scheduleId.slice(lastDashIndex + 1), 10);
-
-  if (!date || Number.isNaN(slotIndex) || slotIndex < 0) {
-    return null;
-  }
-
-  return { date, slotIndex };
+  return null;
 }
 
 export function getMultiDaySlotDisplayName(slot: MultiDaySlotLike, slotIndex: number): string {
@@ -39,7 +46,7 @@ export function getMultiDaySlotDisplayName(slot: MultiDaySlotLike, slotIndex: nu
 export function getMultiDaySlotByScheduleId(
   project: Project,
   scheduleId: string
-): { day: NonNullable<Project["schedule"]["multiDay"]>[number]; slot: NonNullable<Project["schedule"]["multiDay"]>[number]["slots"][number]; slotIndex: number } | null {
+): { day: NonNullable<Project["schedule"]["multiDay"]>[number]; slot: NonNullable<Project["schedule"]["multiDay"]>[number]["slots"][number]; slotIndex: number; dayIndex: number } | null {
   if (project.event_type !== "multiDay" || !project.schedule.multiDay) {
     return null;
   }
@@ -49,9 +56,26 @@ export function getMultiDaySlotByScheduleId(
     return null;
   }
 
-  const { date, slotIndex } = parsedScheduleId;
-  const day = project.schedule.multiDay.find((entry) => entry.date === date);
-  if (!day || slotIndex >= day.slots.length) {
+  const { date, dayIndex, slotIndex } = parsedScheduleId;
+  
+  let day;
+  let actualDayIndex = -1;
+
+  if (dayIndex !== undefined && dayIndex >= 0 && dayIndex < project.schedule.multiDay.length) {
+    const candidateDay = project.schedule.multiDay[dayIndex];
+    if (candidateDay.date === date) {
+      day = candidateDay;
+      actualDayIndex = dayIndex;
+    }
+  }
+
+  if (!day) {
+    actualDayIndex = project.schedule.multiDay.findIndex((entry) => entry.date === date);
+    if (actualDayIndex === -1) return null;
+    day = project.schedule.multiDay[actualDayIndex];
+  }
+
+  if (slotIndex >= day.slots.length) {
     return null;
   }
 
@@ -60,7 +84,7 @@ export function getMultiDaySlotByScheduleId(
     return null;
   }
 
-  return { day, slot, slotIndex };
+  return { day, slot, slotIndex, dayIndex: actualDayIndex };
 }
 
 export const getProjectEventDate = (project: Project): Date => {
@@ -361,9 +385,9 @@ export async function getSlotCapacities(
     scheduleIds.push("oneTime");
     capacities["oneTime"] = project.schedule.oneTime.volunteers;
   } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-    project.schedule.multiDay.forEach((day, _dayIndex) => {
+    project.schedule.multiDay.forEach((day, dayIndex) => {
       day.slots.forEach((slot, slotIndex) => {
-        const scheduleId = `${day.date}-${slotIndex}`;
+        const scheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
         scheduleIds.push(scheduleId);
         capacities[scheduleId] = slot.volunteers;
       });

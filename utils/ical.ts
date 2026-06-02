@@ -208,13 +208,14 @@ function generateMultiDayEventICal(
   // Find the specific day and slot
   const events: string[] = [];
   
-  project.schedule.multiDay.forEach((day, _dayIndex) => {
+  project.schedule.multiDay.forEach((day, dayIndex) => {
     day.slots.forEach((slot, slotIndex) => {
-      const scheduleIdentifier = `${day.date}-${slotIndex}`;
+      const scheduleIdentifier = `${day.date}-${dayIndex}-${slotIndex}`;
+      const legacyScheduleIdentifier = `${day.date}-${slotIndex}`;
       const slotName = slot.name?.trim();
-      
+
       // Only create event for the requested schedule ID or create all if no specific ID
-      if (!scheduleId || scheduleId === scheduleIdentifier) {
+      if (!scheduleId || scheduleId === scheduleIdentifier || scheduleId === legacyScheduleIdentifier) {
         const startTime = parseDateTime(day.date, slot.startTime);
         const endTime = parseDateTime(day.date, slot.endTime);
 
@@ -229,7 +230,6 @@ function generateMultiDayEventICal(
           url: `${process.env.NEXT_PUBLIC_SITE_URL}/projects/${project.id}`,
           uid: generateUID(project.id, scheduleIdentifier),
         };
-
         events.push(createICalEvent(eventData));
       }
     });

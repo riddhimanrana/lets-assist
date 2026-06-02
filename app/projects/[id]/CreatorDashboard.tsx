@@ -304,14 +304,17 @@ export default function CreatorDashboard({
     if (project.event_type === "oneTime" && sessionId === "oneTime") {
       return "oneTime";
     } else if (project.event_type === "multiDay") {
+      // sessionId could be "day-0-slot-0" or the new unique format "2026-06-06-0-0"
       const match = sessionId.match(/day-(\d+)-slot-(\d+)/);
       if (match && project.schedule.multiDay) {
         const dayIndex = parseInt(match[1], 10);
         const slotIndex = parseInt(match[2], 10);
         const dateKey = project.schedule.multiDay[dayIndex]?.date;
-        // Ensure dateKey is valid before constructing the key
-        return dateKey ? `${dateKey}-${slotIndex}` : sessionId; // Fallback
+        // Preferred key is now unique: date-dayIndex-slotIndex
+        return dateKey ? `${dateKey}-${dayIndex}-${slotIndex}` : sessionId;
       }
+      // If it's already in the date-dayIndex-slotIndex format, return as is
+      return sessionId;
     } else if (project.event_type === "sameDayMultiArea") {
       // For sameDayMultiArea, the session ID passed to this function might be role-${index}
       // but the actual key in 'published' is the role name. We need the role name from the session list.
@@ -387,7 +390,8 @@ export default function CreatorDashboard({
           const simplifiedId = `${dayIndex}-${slotIndex}`;
           const dateString = format(dayDate, "yyyy-MM-dd");
           const dateBasedId = `${dateString}-${slotIndex}`;
-          const sessionIds = [sessionId, simplifiedId, dateBasedId];
+          const uniqueId = `${dateString}-${dayIndex}-${slotIndex}`;
+          const sessionIds = [sessionId, simplifiedId, dateBasedId, uniqueId];
           const attendedCount = getAttendedCount(sessionIds);
 
           if (isAfter(now, slotEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48 && !publishedKeys[publishKey] && attendedCount > 0) {

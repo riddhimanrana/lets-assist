@@ -186,6 +186,22 @@ export default async function ProjectPage({
   // If the current user can manage the project, fetch all signups for the dashboard logic
   let allSignups: ManagerSignupRow[] = [];
   if (canManageProject) {
+    // Collect all possible schedule IDs for this project to ensure we fetch everything
+    const projectScheduleIds: string[] = [];
+    if (project.event_type === "oneTime") {
+      projectScheduleIds.push("oneTime");
+    } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+      project.schedule.multiDay.forEach((day, dayIndex) => {
+        day.slots.forEach((_, slotIndex) => {
+          projectScheduleIds.push(`${day.date}-${dayIndex}-${slotIndex}`);
+          // Also include legacy format just in case
+          projectScheduleIds.push(`${day.date}-${slotIndex}`);
+        });
+      });
+    } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+      project.schedule.sameDayMultiArea.roles.forEach(role => projectScheduleIds.push(role.name));
+    }
+
     const { data: signups } = await supabase
       .from("project_signups")
       .select("id, schedule_id, status, check_in_time")
@@ -220,6 +236,21 @@ export default async function ProjectPage({
       userSignupsData = relevantSignups as Signup[];
 
       const dashboardState = buildVolunteerDashboardSlotState(userSignupsData);
+      
+      // Expand legacy IDs to new unique IDs for multi-day events to handle collision issues
+      if (project.event_type === "multiDay" && project.schedule.multiDay) {
+        project.schedule.multiDay.forEach((day, dayIndex) => {
+          day.slots.forEach((_, slotIndex) => {
+            const legacyId = `${day.date}-${slotIndex}`;
+            const newId = `${day.date}-${dayIndex}-${slotIndex}`;
+            
+            if (dashboardState.userSignups[legacyId]) dashboardState.userSignups[newId] = true;
+            if (dashboardState.attendedSlots[legacyId]) dashboardState.attendedSlots[newId] = true;
+            if (dashboardState.pendingSlots[legacyId]) dashboardState.pendingSlots[newId] = true;
+          });
+        });
+      }
+
       Object.assign(userSignups, dashboardState.userSignups);
       Object.assign(attendedSlots, dashboardState.attendedSlots);
       Object.assign(pendingSlots, dashboardState.pendingSlots);

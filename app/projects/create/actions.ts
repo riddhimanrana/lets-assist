@@ -228,10 +228,10 @@ export async function createBasicProject(
     }
     else if (projectData.eventType === "multiDay" && projectData.schedule.multiDay) {
       // For multi-day events, create keys for each day and slot combination
-      projectData.schedule.multiDay.forEach((day: { date: string; slots: { startTime: string; endTime: string; }[] }, _dayIndex: number) => {
+      projectData.schedule.multiDay.forEach((day: { date: string; slots: { startTime: string; endTime: string; }[] }, dayIndex: number) => {
         day.slots.forEach((slot: { startTime: string; endTime: string }, slotIndex: number) => {
-          // Format: "2025-04-28-0" (date-slotIndex)
-          const sessionKey = `${day.date}-${slotIndex}`;
+          // Format: "YYYY-MM-DD-dayIndex-slotIndex" (unique even if dates are duplicate)
+          const sessionKey = `${day.date}-${dayIndex}-${slotIndex}`;
           publishedState[sessionKey] = false;
         });
       });

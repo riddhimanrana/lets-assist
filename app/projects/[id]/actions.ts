@@ -220,7 +220,7 @@ function getScheduleDetails(project: Project, scheduleId: string) {
   } else if (project.event_type === "multiDay") {
     const slotData = getMultiDaySlotByScheduleId(project, scheduleId);
     if (slotData) {
-      const { day, slot, slotIndex } = slotData;
+      const { day, slot, slotIndex, dayIndex } = slotData;
       const date = formatDateWithWeekday(day.date);
 
       const start12 = formatTimeTo12Hour(slot.startTime);
