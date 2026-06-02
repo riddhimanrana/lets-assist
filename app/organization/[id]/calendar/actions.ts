@@ -82,9 +82,9 @@ function getProjectScheduleIds(project: Project): string[] {
 
   if (project.event_type === "multiDay" && project.schedule.multiDay) {
     const scheduleIds: string[] = [];
-    project.schedule.multiDay.forEach((day) => {
-      day.slots.forEach((slot, slotIndex) => {
-        scheduleIds.push(`${day.date}-${slotIndex}`);
+    project.schedule.multiDay.forEach((day, dayIndex) => {
+      day.slots.forEach((_, slotIndex) => {
+        scheduleIds.push(`${day.date}-${dayIndex}-${slotIndex}`);
       });
     });
     return scheduleIds;

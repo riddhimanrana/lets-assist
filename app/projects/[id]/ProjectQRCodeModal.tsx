@@ -87,9 +87,9 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
         });
       } 
       else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-        project.schedule.multiDay.forEach((day, _dayIndex) => {
+        project.schedule.multiDay.forEach((day, dayIndex) => {
           day.slots.forEach((slot, slotIndex) => {
-            const scheduleId = `${day.date}-${slotIndex}`;
+            const scheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
             const availability = calculateAvailability(day.date, slot.startTime, slot.endTime);
             
             processedSessions.push({

@@ -274,13 +274,15 @@ function formatProjectToCalendarEvent(
   if (project.event_type === "multiDay" && project.schedule.multiDay) {
     const events: GoogleCalendarEvent[] = [];
 
-    project.schedule.multiDay.forEach((day, _dayIndex) => {
+    project.schedule.multiDay.forEach((day, dayIndex) => {
       day.slots.forEach((slot, slotIndex) => {
-        const currentScheduleId = `${day.date}-${slotIndex}`;
+        const currentScheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
+        const legacyScheduleId = `${day.date}-${slotIndex}`;
         const slotName = slot.name?.trim();
         
         // If scheduleId is provided, only create event for that specific slot
-        if (scheduleId && scheduleId !== currentScheduleId) {
+        // Match either the new unique format or the legacy format
+        if (scheduleId && scheduleId !== currentScheduleId && scheduleId !== legacyScheduleId) {
           return;
         }
 

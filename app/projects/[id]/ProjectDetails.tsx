@@ -219,12 +219,16 @@ export default function ProjectDetails({
 
   useEffect(() => {
     const fetchPublicAttendees = async () => {
-      if (!project.show_attendees_publicly) {
+      // Fetch if public OR if user is a manager
+      const shouldFetch = project.show_attendees_publicly || canManageProject;
+      
+      if (!shouldFetch) {
         setPublicAttendees([]);
         return;
       }
 
-      if (project.visibility !== "public" && project.visibility !== "unlisted") {
+      // If not a manager, check visibility
+      if (!canManageProject && project.visibility !== "public" && project.visibility !== "unlisted") {
         setPublicAttendees([]);
         return;
       }
@@ -235,7 +239,7 @@ export default function ProjectDetails({
       });
 
       if (error) {
-        console.error("Error fetching public attendees:", error);
+        console.error("Error fetching attendees:", error);
         setPublicAttendees([]);
         return;
       }
@@ -244,12 +248,14 @@ export default function ProjectDetails({
     };
 
     fetchPublicAttendees();
-  }, [project.id, project.show_attendees_publicly, project.visibility]);
+  }, [project.id, project.show_attendees_publicly, project.visibility, canManageProject]);
 
   // Function to refetch attendees (called after signup/cancel)
   const refetchAttendees = async () => {
-    if (!project.show_attendees_publicly) return;
-    if (project.visibility !== "public" && project.visibility !== "unlisted") return;
+    const shouldFetch = project.show_attendees_publicly || canManageProject;
+    if (!shouldFetch) return;
+    
+    if (!canManageProject && project.visibility !== "public" && project.visibility !== "unlisted") return;
 
     const supabase = createClient();
     const { data, error } = await supabase.rpc("get_public_attendees", {
@@ -257,7 +263,7 @@ export default function ProjectDetails({
     });
 
     if (error) {
-      console.error("Error refetching public attendees:", error);
+      console.error("Error refetching attendees:", error);
       return;
     }
 
@@ -454,7 +460,8 @@ export default function ProjectDetails({
 
   // Helper function to get attendees for a specific schedule slot
   const getAttendeesForSlot = (scheduleId: string): SlotAttendee[] => {
-    if (!project.show_attendees_publicly) return [];
+    // Show to managers even if not public
+    if (!project.show_attendees_publicly && !canManageProject) return [];
     return publicAttendees.filter(attendee => attendee.schedule_id === scheduleId);
   };
 
@@ -1385,7 +1392,7 @@ export default function ProjectDetails({
                         </Button>
                       </div>
                     </div>
-                    {project.show_attendees_publicly && (
+                    {(project.show_attendees_publicly || canManageProject) && (
                       <SlotAttendeesDropdown attendees={getAttendeesForSlot("oneTime")} />
                     )}
                   </div>
@@ -1393,14 +1400,14 @@ export default function ProjectDetails({
 
                 {project.event_type === "multiDay" && project.schedule.multiDay && (
                   <div className="space-y-3">
-                    {project.schedule.multiDay.map((day) => {
+                    {project.schedule.multiDay.map((day, dayIndex) => {
                       const allSlotsInDayPast = day.slots.every((slot, slotIndex) => {
-                        const scheduleId = `${day.date}-${slotIndex}`;
+                        const scheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
                         return isMultiDaySlotPastByScheduleId(project, scheduleId);
                       });
 
                       return (
-                        <div key={day.date} className="mb-4">
+                        <div key={`${day.date}-${dayIndex}`} className="mb-4">
                           <div className="flex items-center justify-between mb-2">
                             <h3 className="font-medium">
                               {(() => {
@@ -1419,7 +1426,7 @@ export default function ProjectDetails({
                           </div>
                           <div className={`space-y-2 ${allSlotsInDayPast ? "opacity-50" : ""}`}>
                             {day.slots.map((slot, slotIndex) => {
-                              const scheduleId = `${day.date}-${slotIndex}`;
+                              const scheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
                               return (
                                 <div key={scheduleId} className="border rounded-lg p-3 bg-card/50 hover:bg-card/80 transition-colors">
                                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -1469,7 +1476,7 @@ export default function ProjectDetails({
                                       </Button>
                                     </div>
                                   </div>
-                                  {project.show_attendees_publicly && (
+                                  {(project.show_attendees_publicly || canManageProject) && (
                                     <SlotAttendeesDropdown attendees={getAttendeesForSlot(scheduleId)} />
                                   )}
                                 </div>
@@ -1542,7 +1549,7 @@ export default function ProjectDetails({
                                 </Button>
                               </div>
                             </div>
-                            {project.show_attendees_publicly && (
+                            {(project.show_attendees_publicly || canManageProject) && (
                               <SlotAttendeesDropdown attendees={getAttendeesForSlot(role.name)} />
                             )}
                           </div>

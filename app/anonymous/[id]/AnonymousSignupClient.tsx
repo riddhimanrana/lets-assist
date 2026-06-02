@@ -133,15 +133,10 @@ const getSlotTiming = (project: Project, scheduleId: string) => {
     sessionDate = project.schedule.oneTime.date;
     endTime = project.schedule.oneTime.endTime;
   } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-    const lastDashIdx = scheduleId.lastIndexOf("-");
-    const date = scheduleId.substring(0, lastDashIdx);
-    const idx = scheduleId.substring(lastDashIdx + 1);
-    const day = project.schedule.multiDay.find(d => d.date === date);
-    const slotIndex = parseInt(idx, 10);
-    const slot = day && !isNaN(slotIndex) ? day.slots[slotIndex] : undefined;
-    if (day && slot) {
-      sessionDate = day.date;
-      endTime = slot.endTime;
+    const slotData = getMultiDaySlotByScheduleId(project, scheduleId);
+    if (slotData) {
+      sessionDate = slotData.day.date;
+      endTime = slotData.slot.endTime;
     }
   } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
     const role = project.schedule.sameDayMultiArea.roles.find(r => r.name === scheduleId);
