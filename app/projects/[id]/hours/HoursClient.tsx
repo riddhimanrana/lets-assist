@@ -670,7 +670,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
         const dayDate = parseISO(day.date);
 
         day.slots.forEach((slot, slotIndex) => {
-          const sessionId = `day-${dayIndex}-slot-${slotIndex}`;
+          const sessionId = `${day.date}-${dayIndex}-${slotIndex}`;
           const [endHours, endMinutes] = slot.endTime.split(':').map(Number);
           const endDateTime = new Date(new Date(dayDate).setHours(endHours, endMinutes));
 
@@ -857,11 +857,8 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
     if (project.event_type === "oneTime") {
       return !!publishedSessions["oneTime"];
     } else if (project.event_type === "multiDay") {
-      // For multiDay events, the session ID matches the published state key
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [_day, dayIndex, _slot, slotIndex] = sessionId.split("-");
-      const dateKey = project.schedule.multiDay?.[parseInt(dayIndex)]?.date;
-      return dateKey ? !!publishedSessions[`${dateKey}-${slotIndex}`] : false;
+      const publishKey = getPublishStateKey(sessionId);
+      return !!publishedSessions[publishKey];
     } else if (project.event_type === "sameDayMultiArea") {
       // For multi-area events, use the sessionId directly as it's the role name
       return !!publishedSessions[sessionId];
@@ -874,11 +871,16 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
     if (project.event_type === "oneTime") {
       return "oneTime";
     } else if (project.event_type === "multiDay") {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [_day, dayIndex, _slot, slotIndex] = sessionId.split("-");
-      const dateKey = project.schedule.multiDay?.[parseInt(dayIndex)]?.date;
-      // Ensure dateKey is valid before constructing the key
-      return dateKey ? `${dateKey}-${slotIndex}` : sessionId; // Fallback to sessionId if dateKey is missing
+      const parts = sessionId.split("-");
+      if (parts.length === 5) {
+        // New format: YYYY-MM-DD-dayIndex-slotIndex
+        const dateKey = `${parts[0]}-${parts[1]}-${parts[2]}`;
+        const slotIndex = parts[4];
+        return `${dateKey}-${slotIndex}`;
+      } else if (parts.length === 4) {
+        // Legacy format: YYYY-MM-DD-slotIndex
+        return sessionId;
+      }
     } else if (project.event_type === "sameDayMultiArea") {
       // For multi-area events, the sessionId is already the role name
       return sessionId;

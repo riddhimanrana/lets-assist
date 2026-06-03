@@ -436,7 +436,7 @@ function MapContent({ initialProjects, projects: externalProjects }: ProjectsMap
         onLoad={handleMapLoad} 
       >
         {/* User location marker with improved styling */}
-        {userLocation && (
+        {userLocation && typeof userLocation.lat === 'number' && typeof userLocation.lng === 'number' && (
           <AdvancedMarker
             position={userLocation}
             title="Your location"
@@ -452,7 +452,7 @@ function MapContent({ initialProjects, projects: externalProjects }: ProjectsMap
         {/* Project markers */}
         {projectsWithCoordinates.map((project) => {
           const position = getProjectPosition(project);
-          if (!position) return null;
+          if (!position || typeof position.lat !== 'number' || typeof position.lng !== 'number') return null;
           
           return (
             <AdvancedMarker
@@ -468,19 +468,23 @@ function MapContent({ initialProjects, projects: externalProjects }: ProjectsMap
         })}
         
         {/* Custom info window for selected project */}
-        {selectedProject && (
-          <AdvancedMarker
-            position={getProjectPosition(selectedProject)!}
-            clickable={false}
-          >
-            <div className="animate-fadeIn">
-              <ProjectMapInfoWindow 
-                project={selectedProject}
-                onClose={() => setSelectedProject(null)}
-              />
-            </div>
-          </AdvancedMarker>
-        )}
+        {selectedProject && (() => {
+          const position = getProjectPosition(selectedProject);
+          if (!position || typeof position.lat !== 'number' || typeof position.lng !== 'number') return null;
+          return (
+            <AdvancedMarker
+              position={position}
+              clickable={false}
+            >
+              <div className="animate-fadeIn">
+                <ProjectMapInfoWindow 
+                  project={selectedProject}
+                  onClose={() => setSelectedProject(null)}
+                />
+              </div>
+            </AdvancedMarker>
+          );
+        })()}
       </Map>
       
       {/* Always show radius notice when we have user location */}

@@ -531,7 +531,7 @@ export default function ProjectDetails({
     isUpdatingStatus
   ]); // Remove function dependency
 
-  const isAnonymousSlotSelectable = (scheduleId: string) => {
+  const isAnonymousSlotSelectable = useCallback((scheduleId: string) => {
     if (isCreator || calculatedStatus === "cancelled") return false;
     if (hasSignedUp[scheduleId] || rejectedSlots[scheduleId] || attendedSlots[scheduleId]) return false;
     if ((remainingSlots[scheduleId] ?? 0) === 0) return false;
@@ -545,15 +545,15 @@ export default function ProjectDetails({
     }
 
     return true;
-  };
+  }, [isCreator, calculatedStatus, hasSignedUp, rejectedSlots, attendedSlots, remainingSlots, project]);
 
-  const formatScheduleDateLabel = (dateStr: string) => {
+  const formatScheduleDateLabel = useCallback((dateStr: string) => {
     const [year, month, dayNum] = dateStr.split("-").map(Number);
     if (!year || !month || !dayNum) return dateStr;
     const date = new Date(year, month - 1, dayNum);
     if (isNaN(date.getTime())) return dateStr;
     return format(date, "EEE, MMM d");
-  };
+  }, []);
 
   const anonymousSlotOptions = useMemo<AnonymousSlotOption[]>(() => {
     if (project.event_type === "oneTime") {
@@ -561,10 +561,10 @@ export default function ProjectDetails({
     }
 
     if (project.event_type === "multiDay" && project.schedule.multiDay) {
-      return project.schedule.multiDay.flatMap((day) => {
+      return project.schedule.multiDay.flatMap((day, dayIndex) => {
         return day.slots
           .map((slot, idx) => {
-            const scheduleId = `${day.date}-${idx}`;
+            const scheduleId = `${day.date}-${dayIndex}-${idx}`;
             if (!isAnonymousSlotSelectable(scheduleId)) return null;
 
             const startLabel = slot.startTime ? formatTimeTo12Hour(slot.startTime) : "TBD";
@@ -609,6 +609,8 @@ export default function ProjectDetails({
     rejectedSlots,
     attendedSlots,
     remainingSlots,
+    isAnonymousSlotSelectable,
+    formatScheduleDateLabel,
   ]);
 
   const closeAnonymousFlows = () => {

@@ -24,10 +24,16 @@ const getPublishStateKey = (project: Project, sessionId: string): string => {
   if (project.event_type === "oneTime") {
     return "oneTime";
   } else if (project.event_type === "multiDay") {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [_day, dayIndex, _slot, slotIndex] = sessionId.split("-");
-    const dateKey = project.schedule.multiDay?.[parseInt(dayIndex)]?.date;
-    return `${dateKey}-${slotIndex}`;
+    const parts = sessionId.split("-");
+    if (parts.length === 5) {
+      // New format: YYYY-MM-DD-dayIndex-slotIndex
+      const dateKey = `${parts[0]}-${parts[1]}-${parts[2]}`;
+      const slotIndex = parts[4];
+      return `${dateKey}-${slotIndex}`;
+    } else if (parts.length === 4) {
+      // Legacy format: YYYY-MM-DD-slotIndex
+      return sessionId;
+    }
   } else if (project.event_type === "sameDayMultiArea") {
     // For multi-area events, the sessionId is the role name
     return sessionId;
