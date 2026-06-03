@@ -1764,6 +1764,12 @@ export async function signUpForProject(
 
         const registry = getPluginRegistry();
 
+        // Prepare formData with a compatibility shim for plugins that expect .get()
+        const pluginFormData = {
+          ...(formData || {}),
+          get: (key: string) => (formData as any)?.[key] ?? null,
+        };
+
         for (const resolved of installedPlugins) {
           const definition = registry.get(resolved.key);
           if (definition && definition.lifecycle?.onSignup) {
@@ -1774,7 +1780,7 @@ export async function signUpForProject(
               signupId: createdSignupId,
               userId: user?.id,
               anonymousId: createdAnonymousSignupId,
-              formData: formData,
+              formData: pluginFormData,
             });
           }
         }
