@@ -646,54 +646,113 @@ export default function ProjectDetails({
     });
   };
 
+  const logSignupClientDebug = (payload: Record<string, unknown>) => {
+    console.log("[signup-client-debug]", JSON.stringify(payload));
+  };
+
   // Handle sign up or cancel click
   const handleSignUpClick = async (scheduleId: string) => {
+    logSignupClientDebug({
+      step: "slot_click",
+      projectId: project.id,
+      scheduleId,
+      isCreator,
+      hasSignedUp: Boolean(hasSignedUp[scheduleId]),
+      rejected: Boolean(rejectedSlots[scheduleId]),
+      attended: Boolean(attendedSlots[scheduleId]),
+      remainingSlots: remainingSlots[scheduleId],
+      calculatedStatus,
+      requireLogin: project.require_login,
+      pauseSignups: project.pause_signups,
+      eventType: project.event_type,
+      userPresent: Boolean(user),
+    });
+
     // Prevent project creator from signing up
     if (isCreator) {
+      logSignupClientDebug({
+        step: "slot_click_blocked_creator",
+        projectId: project.id,
+        scheduleId,
+      });
       toast.info("You cannot sign up for your own project");
       return;
     }
 
     // Check if this specific slot has been rejected
     if (rejectedSlots[scheduleId]) {
+      logSignupClientDebug({
+        step: "slot_click_blocked_rejected",
+        projectId: project.id,
+        scheduleId,
+      });
       toast.error("You have been rejected for this slot and cannot sign up again.");
       return;
     }
 
     // Check if user has attended this slot
     if (attendedSlots[scheduleId]) {
+      logSignupClientDebug({
+        step: "slot_click_blocked_attended",
+        projectId: project.id,
+        scheduleId,
+      });
       toast.error("You have already attended this slot.");
       return;
     }
 
     if (hasSignedUp[scheduleId]) {
+      logSignupClientDebug({
+        step: "slot_click_cancel_existing",
+        projectId: project.id,
+        scheduleId,
+      });
       handleCancelSignup(scheduleId);
       return;
     }
 
     // Check if signups are paused
     if (project.pause_signups) {
+      logSignupClientDebug({
+        step: "slot_click_blocked_paused",
+        projectId: project.id,
+        scheduleId,
+      });
       toast.error("Signups for this project are temporarily paused by the organizer");
       return;
     }
 
     // Use calculatedStatus instead of project.status
     if (!isSlotAvailable(project, scheduleId, remainingSlots, calculatedStatus)) {
-      console.log(project)
-      console.log(scheduleId)
-      console.log(remainingSlots)
-      console.log(calculatedStatus)
+      logSignupClientDebug({
+        step: "slot_click_blocked_unavailable",
+        projectId: project.id,
+        scheduleId,
+        remainingSlots,
+        calculatedStatus,
+      });
       toast.error("This slot is no longer available");
       return;
     }
 
     if (!user && project.require_login) {
+      logSignupClientDebug({
+        step: "slot_click_open_auth",
+        projectId: project.id,
+        scheduleId,
+      });
       setCurrentScheduleId(scheduleId);
       setAuthDialogOpen(true);
       return;
     }
 
     if (!user && !project.require_login) {
+      logSignupClientDebug({
+        step: "slot_click_open_anonymous_flow",
+        projectId: project.id,
+        scheduleId,
+        eventType: project.event_type,
+      });
       setCurrentScheduleId(scheduleId);
 
       if (project.event_type === "oneTime") {
@@ -714,6 +773,12 @@ export default function ProjectDetails({
 
     // For logged-in users, show confirmation modal
     if (user) {
+      logSignupClientDebug({
+        step: "slot_click_open_confirmation_modal",
+        projectId: project.id,
+        scheduleId,
+        userId: user.id,
+      });
       setPendingScheduleId(scheduleId);
       setShowSignupConfirmation(true);
       return;
@@ -726,6 +791,12 @@ export default function ProjectDetails({
   const handleCancelSignup = async (scheduleId: string) => {
     // Show confirmation modal for logged-in users
     if (user) {
+      logSignupClientDebug({
+        step: "cancel_click_open_confirmation_modal",
+        projectId: project.id,
+        scheduleId,
+        userId: user.id,
+      });
       setPendingScheduleId(scheduleId);
       setShowCancelConfirmation(true);
       return;
@@ -734,6 +805,14 @@ export default function ProjectDetails({
 
   // Handle confirmation modal actions
   const handleConfirmSignup = (comment?: string, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, any>) => {
+    logSignupClientDebug({
+      step: "confirmation_modal_submit",
+      projectId: project.id,
+      scheduleId: pendingScheduleId,
+      hasComment: Boolean(comment),
+      hasWaiverSignature: Boolean(waiverSignature),
+      hasFormData: Boolean(formData && Object.keys(formData).length > 0),
+    });
     setShowSignupConfirmation(false);
     handleSignUp(pendingScheduleId, undefined, comment, waiverSignature, formData);
     setPendingScheduleId("");
@@ -758,7 +837,24 @@ export default function ProjectDetails({
     setShowConfirmationAlert(false);
 
     try {
+      logSignupClientDebug({
+        step: "action_start",
+        projectId: project.id,
+        scheduleId,
+        isAnonymous: Boolean(anonymousData),
+        hasVolunteerComment: Boolean(volunteerComment),
+        hasWaiverSignature: Boolean(waiverSignature),
+        hasFormData: Boolean(formData && Object.keys(formData).length > 0),
+      });
+
       const result = await signUpForProject(project.id, scheduleId, anonymousData, volunteerComment, waiverSignature, formData);
+
+      logSignupClientDebug({
+        step: "action_result",
+        projectId: project.id,
+        scheduleId,
+        result,
+      });
 
       if (result.error) {
         // Check if this is a pending signup that can be resent
@@ -827,14 +923,43 @@ export default function ProjectDetails({
           }));
 
           // Refetch attendees to update the list in real-time
+          logSignupClientDebug({
+            step: "refetch_attendees_start",
+            traceId: "traceId" in result ? result.traceId : undefined,
+            projectId: project.id,
+            scheduleId,
+          });
           await refetchAttendees();
+          logSignupClientDebug({
+            step: "refetch_attendees_complete",
+            traceId: "traceId" in result ? result.traceId : undefined,
+            projectId: project.id,
+            scheduleId,
+          });
 
           // Force a refresh of the page data to ensure we're in sync with the server
+          logSignupClientDebug({
+            step: "router_refresh_start",
+            traceId: "traceId" in result ? result.traceId : undefined,
+            projectId: project.id,
+            scheduleId,
+          });
           router.refresh();
+          logSignupClientDebug({
+            step: "router_refresh_called",
+            traceId: "traceId" in result ? result.traceId : undefined,
+            projectId: project.id,
+            scheduleId,
+          });
         }
       }
     } catch (error) {
-      console.error("Error in signup process:", error);
+      console.error("[signup-client-debug]", JSON.stringify({
+        step: "client_exception",
+        projectId: project.id,
+        scheduleId,
+        error,
+      }));
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setLoadingStates(prev => ({ ...prev, [scheduleId]: false }));
@@ -848,6 +973,16 @@ export default function ProjectDetails({
 
   // Handle anonymous form submit
   const handleAnonymousSubmit = (values: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, any>) => {
+    logSignupClientDebug({
+      step: "anonymous_submit",
+      projectId: project.id,
+      currentScheduleId,
+      selectedScheduleIds: selectedAnonymousScheduleIds,
+      selectedSlotCount: values.selectedSlotCount,
+      hasWaiverSignature: Boolean(waiverSignature),
+      hasFormData: Boolean(formData && Object.keys(formData).length > 0),
+      hasComment: Boolean(values.comment),
+    });
     const scheduleIds = Array.from(
       new Set(
         (selectedAnonymousScheduleIds.length > 0 ? selectedAnonymousScheduleIds : [currentScheduleId])
@@ -857,6 +992,11 @@ export default function ProjectDetails({
 
     if (scheduleIds.length <= 1) {
       const onlyScheduleId = scheduleIds[0] || currentScheduleId;
+      logSignupClientDebug({
+        step: "anonymous_single_slot_submit",
+        projectId: project.id,
+        scheduleId: onlyScheduleId,
+      });
       const payload: AnonymousSignupData = {
         ...values,
         selectedSlotCount: 1,
@@ -882,6 +1022,14 @@ export default function ProjectDetails({
       try {
         for (let index = 0; index < scheduleIds.length; index += 1) {
           const scheduleId = scheduleIds[index];
+          logSignupClientDebug({
+            step: "anonymous_multi_slot_submit",
+            projectId: project.id,
+            scheduleId,
+            slotIndex: index,
+            totalSlots: scheduleIds.length,
+            reuseWaiver: index === 0,
+          });
           const payload: AnonymousSignupData = {
             ...values,
             selectedSlotCount: scheduleIds.length,
@@ -898,11 +1046,27 @@ export default function ProjectDetails({
           );
 
           if (result.error) {
+            logSignupClientDebug({
+              step: "anonymous_multi_slot_error",
+              projectId: project.id,
+              scheduleId,
+              slotIndex: index,
+              error: result.error,
+              traceId: "traceId" in result ? result.traceId : undefined,
+            });
             errorMessages.push(result.error);
             continue;
           }
 
           if (result.success) {
+            logSignupClientDebug({
+              step: "anonymous_multi_slot_success",
+              projectId: project.id,
+              scheduleId,
+              slotIndex: index,
+              needsConfirmation: Boolean(result.needsConfirmation),
+              traceId: "traceId" in result ? result.traceId : undefined,
+            });
             successfulSignups += 1;
             needsConfirmation = needsConfirmation || !!result.needsConfirmation;
 
