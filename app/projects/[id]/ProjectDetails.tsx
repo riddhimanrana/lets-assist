@@ -57,7 +57,7 @@ import { formatTimeTo12Hour, formatBytes, copyToClipboard, isMobileDevice } from
 import { createClient } from "@/lib/supabase/client";
 import { getMultiDaySlotDisplayName, isSlotAvailable, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
 import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility and date utils
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -79,7 +79,6 @@ import CreatorDashboard from "./CreatorDashboard";
 import UserDashboard from "./UserDashboard";
 import { ProjectSignupForm } from "./ProjectForm";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { useRef } from "react";
 // Import User type from supabase
 // import { User } from "@supabase/supabase-js";
 import ProjectInstructionsModal from "./ProjectInstructionsModalWrapper";
@@ -2108,10 +2107,8 @@ export default function ProjectDetails({
               if (project.event_type === "oneTime" && project.schedule.oneTime) {
                 return project.schedule.oneTime.date;
               } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-                // For multiDay, schedule ID is like "2024-05-31-0", extract the date part
-                const datePart = pendingScheduleId.split('-').slice(0, 3).join('-');
-                const day = project.schedule.multiDay.find((d: MultiDayScheduleDay) => d.date === datePart);
-                return day?.date || project.schedule.multiDay[0]?.date || '';
+                const slotData = getMultiDaySlotByScheduleId(project, pendingScheduleId);
+                return slotData?.day.date || project.schedule.multiDay[0]?.date || '';
               } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
                 return project.schedule.sameDayMultiArea.date;
               }
@@ -2123,10 +2120,8 @@ export default function ProjectDetails({
               if (project.event_type === "oneTime" && project.schedule.oneTime) {
                 return project.schedule.oneTime.startTime;
               } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-                const datePart = pendingScheduleId.split('-').slice(0, 3).join('-');
-                const slotIndex = parseInt(pendingScheduleId.split('-')[3]);
-                const day = project.schedule.multiDay.find((d: MultiDayScheduleDay) => d.date === datePart);
-                return day?.slots[slotIndex]?.startTime;
+                const slotData = getMultiDaySlotByScheduleId(project, pendingScheduleId);
+                return slotData?.slot.startTime;
               } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
                 const role = project.schedule.sameDayMultiArea.roles.find((r: SameDayMultiAreaRole) => r.name === pendingScheduleId);
                 return role?.startTime;
@@ -2138,10 +2133,8 @@ export default function ProjectDetails({
               if (project.event_type === "oneTime" && project.schedule.oneTime) {
                 return project.schedule.oneTime.endTime;
               } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-                const datePart = pendingScheduleId.split('-').slice(0, 3).join('-');
-                const slotIndex = parseInt(pendingScheduleId.split('-')[3]);
-                const day = project.schedule.multiDay.find((d: MultiDayScheduleDay) => d.date === datePart);
-                return day?.slots[slotIndex]?.endTime;
+                const slotData = getMultiDaySlotByScheduleId(project, pendingScheduleId);
+                return slotData?.slot.endTime;
               } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
                 const role = project.schedule.sameDayMultiArea.roles.find((r: SameDayMultiAreaRole) => r.name === pendingScheduleId);
                 return role?.endTime;
@@ -2177,10 +2170,8 @@ export default function ProjectDetails({
               if (project.event_type === "oneTime" && project.schedule.oneTime) {
                 return project.schedule.oneTime.date;
               } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-                // For multiDay, schedule ID is like "2024-05-31-0", extract the date part
-                const datePart = pendingScheduleId.split('-').slice(0, 3).join('-');
-                const day = project.schedule.multiDay.find((d: MultiDayScheduleDay) => d.date === datePart);
-                return day?.date || project.schedule.multiDay[0]?.date || '';
+                const slotData = getMultiDaySlotByScheduleId(project, pendingScheduleId);
+                return slotData?.day.date || project.schedule.multiDay[0]?.date || '';
               } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
                 return project.schedule.sameDayMultiArea.date;
               }
@@ -2192,10 +2183,8 @@ export default function ProjectDetails({
               if (project.event_type === "oneTime" && project.schedule.oneTime) {
                 return project.schedule.oneTime.startTime;
               } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-                const datePart = pendingScheduleId.split('-').slice(0, 3).join('-');
-                const slotIndex = parseInt(pendingScheduleId.split('-')[3]);
-                const day = project.schedule.multiDay.find((d: MultiDayScheduleDay) => d.date === datePart);
-                return day?.slots[slotIndex]?.startTime;
+                const slotData = getMultiDaySlotByScheduleId(project, pendingScheduleId);
+                return slotData?.slot.startTime;
               } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
                 const role = project.schedule.sameDayMultiArea.roles.find((r: SameDayMultiAreaRole) => r.name === pendingScheduleId);
                 return role?.startTime;
@@ -2207,10 +2196,8 @@ export default function ProjectDetails({
               if (project.event_type === "oneTime" && project.schedule.oneTime) {
                 return project.schedule.oneTime.endTime;
               } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-                const datePart = pendingScheduleId.split('-').slice(0, 3).join('-');
-                const slotIndex = parseInt(pendingScheduleId.split('-')[3]);
-                const day = project.schedule.multiDay.find((d: MultiDayScheduleDay) => d.date === datePart);
-                return day?.slots[slotIndex]?.endTime;
+                const slotData = getMultiDaySlotByScheduleId(project, pendingScheduleId);
+                return slotData?.slot.endTime;
               } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
                 const role = project.schedule.sameDayMultiArea.roles.find((r: SameDayMultiAreaRole) => r.name === pendingScheduleId);
                 return role?.endTime;

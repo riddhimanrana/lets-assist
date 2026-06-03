@@ -3,7 +3,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeRichTextHtml } from "@/lib/security/html.server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
-import { canCancelProject, getMultiDaySlotByScheduleId, getMultiDaySlotDisplayName, isProjectVisible } from "@/utils/project";
+import {
+  canCancelProject,
+  getMultiDaySlotByScheduleId,
+  getMultiDaySlotDisplayName,
+  getSlotDetails,
+  isMultiDaySlotPastByScheduleId,
+  isProjectVisible,
+} from "@/utils/project";
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
 // Make sure AnonymousSignup is imported from the correct types definition
@@ -770,47 +777,7 @@ async function uploadWaiverAsset(params: {
   return { path: params.fileName, contentType: parsed.contentType };
 }
 
-// Fix: Remove async keyword as this function doesn't perform async operations
-function getSlotDetails(project: Project, scheduleId: string) {
-  console.log("Server: Getting slot details for", { scheduleId, projectType: project.event_type });
 
-  if (project.event_type === "oneTime") {
-    return project.schedule.oneTime;
-  } else if (project.event_type === "multiDay") {
-    // Improved parsing for multi-day schedules
-    const parts = scheduleId.split("-");
-    if (parts.length >= 2) {
-      const slotIndexStr = parts.pop(); // Get last element (slot index)
-      const date = parts.join("-"); // Rejoin the rest as the date
-
-      console.log("Server: Parsing multiDay scheduleId:", { date, slotIndexStr });
-
-      const day = project.schedule.multiDay?.find(d => d.date === date);
-      if (!day) {
-        console.error("Server: Day not found for multiDay event:", { date, scheduleId });
-        return null;
-      }
-
-      const slotIndex = parseInt(slotIndexStr!, 10);
-      if (isNaN(slotIndex) || slotIndex < 0 || slotIndex >= day.slots.length) {
-        console.error("Server: Invalid slot index for multiDay event:", {
-          slotIndexStr, slotIndex, slotsLength: day.slots.length
-        });
-        return null;
-      }
-
-      return day.slots[slotIndex];
-    } else {
-      console.error("Server: Invalid multiDay scheduleId format:", scheduleId);
-      return null;
-    }
-  } else if (project.event_type === "sameDayMultiArea") {
-    const role = project.schedule.sameDayMultiArea?.roles.find(r => r.name === scheduleId);
-    return role;
-  }
-
-  return null;
-}
 
 async function getCurrentSignups(projectId: string, scheduleId: string): Promise<number> {
   const supabase = await createClient();
@@ -1293,26 +1260,8 @@ export async function signUpForProject(
 
     // For multiDay events, validate that the specific day/slot hasn't passed
     if (project.event_type === "multiDay" && project.schedule.multiDay) {
-      const parts = scheduleId.split("-");
-      if (parts.length >= 2) {
-        const slotIndexStr = parts.pop();
-        const date = parts.join("-");
-
-        const day = project.schedule.multiDay.find((d) => d.date === date);
-        if (day && slotIndexStr) {
-          const slotIdx = parseInt(slotIndexStr, 10);
-          if (!isNaN(slotIdx) && slotIdx >= 0 && slotIdx < day.slots.length) {
-            const slot = day.slots[slotIdx];
-            const dayDate = parseISO(date);
-            const [hours, minutes] = slot.endTime.split(':').map(Number);
-            const slotEndDateTime = new Date(dayDate);
-            slotEndDateTime.setHours(hours, minutes, 0, 0);
-
-            if (isAfter(new Date(), slotEndDateTime)) {
-              return { error: "This time slot has already passed" };
-            }
-          }
-        }
+      if (isMultiDaySlotPastByScheduleId(project, scheduleId)) {
+        return { error: "This time slot has already passed" };
       }
     }
 
