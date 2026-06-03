@@ -76,7 +76,9 @@ function MapComponent({ location: _location, locationData }: LocationMapCardProp
         colorScheme={mapColorScheme}
         renderingType={RenderingType.RASTER}
       >
-        {hasCoordinates && markerPosition && (
+        {hasCoordinates && markerPosition && 
+         typeof markerPosition.lat === 'number' && 
+         typeof markerPosition.lng === 'number' && (
           <AdvancedMarker position={markerPosition}>
           </AdvancedMarker>
         )}

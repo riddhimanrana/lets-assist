@@ -304,16 +304,24 @@ export default function CreatorDashboard({
     if (project.event_type === "oneTime" && sessionId === "oneTime") {
       return "oneTime";
     } else if (project.event_type === "multiDay") {
-      // sessionId could be "day-0-slot-0" or the new unique format "2026-06-06-0-0"
+      const parts = sessionId.split("-");
+      if (parts.length === 5) {
+        // New format: YYYY-MM-DD-dayIndex-slotIndex
+        const dateKey = `${parts[0]}-${parts[1]}-${parts[2]}`;
+        const slotIndex = parts[4];
+        return `${dateKey}-${slotIndex}`;
+      } else if (parts.length === 4) {
+        // Legacy format: YYYY-MM-DD-slotIndex
+        return sessionId;
+      }
+      
       const match = sessionId.match(/day-(\d+)-slot-(\d+)/);
       if (match && project.schedule.multiDay) {
         const dayIndex = parseInt(match[1], 10);
         const slotIndex = parseInt(match[2], 10);
         const dateKey = project.schedule.multiDay[dayIndex]?.date;
-        // Preferred key is now unique: date-dayIndex-slotIndex
-        return dateKey ? `${dateKey}-${dayIndex}-${slotIndex}` : sessionId;
+        return dateKey ? `${dateKey}-${slotIndex}` : sessionId;
       }
-      // If it's already in the date-dayIndex-slotIndex format, return as is
       return sessionId;
     } else if (project.event_type === "sameDayMultiArea") {
       // For sameDayMultiArea, the session ID passed to this function might be role-${index}
@@ -381,10 +389,10 @@ export default function CreatorDashboard({
 
         day.slots.forEach((slot, slotIndex) => {
           const [hours, minutes] = slot.endTime.split(':').map(Number);
-          const slotEndTime = new Date(new Date(dayDate).setHours(hours, minutes)); 
+          const slotEndTime = new Date(new Date(dayDate).setHours(hours, minutes));
           const hoursSinceEnd = differenceInHours(now, slotEndTime);
-          const sessionId = `day-${dayIndex}-slot-${slotIndex}`;
-          const publishKey = getPublishStateKey(sessionId); 
+          const sessionId = `${day.date}-${dayIndex}-${slotIndex}`;
+          const publishKey = getPublishStateKey(sessionId);
 
           // IDs used in multi-day scheduling
           const simplifiedId = `${dayIndex}-${slotIndex}`;
