@@ -55,7 +55,14 @@ import { toast } from "sonner";
 import { signUpForProject, resendAnonymousConfirmationEmail, getProjectWaiver } from "./actions";
 import { formatTimeTo12Hour, formatBytes, copyToClipboard, isMobileDevice } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { getMultiDaySlotDisplayName, isSlotAvailable, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
+import {
+  getMultiDaySlotDisplayName,
+  getMultiDaySlotByScheduleId,
+  isSlotAvailable,
+  isMultiDaySlotPastByScheduleId,
+  isSameDayMultiAreaSlotPast,
+  isOneTimeSlotPast
+} from "@/utils/project";
 import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility and date utils
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";

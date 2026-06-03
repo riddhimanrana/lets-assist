@@ -103,7 +103,7 @@ export async function lookupEmailStatus(projectId: string, incomingScheduleId: s
   const serviceSupabase = getAdminClient();
   
   // Resolve potentially legacy scheduleId
-  const { data: project } = await getProject(projectId);
+  const { project } = await getProject(projectId);
   const scheduleId = project ? resolveScheduleId(project, incomingScheduleId) : incomingScheduleId;
   const lowerCaseEmail = email.toLowerCase();
 
@@ -313,7 +313,7 @@ export async function checkInAnonymous(projectId: string, incomingScheduleId: st
   const lowerEmail = email.toLowerCase();
 
   // Resolve potentially legacy scheduleId
-  const { data: project } = await getProject(projectId);
+  const { project } = await getProject(projectId);
   const scheduleId = project ? resolveScheduleId(project, incomingScheduleId) : incomingScheduleId;
 
   const scheduledCheckoutIso = await getScheduledCheckoutTime(
