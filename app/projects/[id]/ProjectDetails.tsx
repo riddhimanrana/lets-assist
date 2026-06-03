@@ -1267,7 +1267,7 @@ export default function ProjectDetails({
           </div>
         </div>
 
-        {canManageProject && (
+        {isCreator && (
           <CreatorDashboard
             project={project}
             allSignups={allSignups || []}

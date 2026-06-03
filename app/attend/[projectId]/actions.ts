@@ -5,6 +5,8 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { TZDate } from "@date-fns/tz";
 import type { Project } from "@/types";
+import { resolveScheduleId } from "@/utils/project";
+import { getProject } from "@/app/projects/[id]/actions";
 
 /**
  * Checks in a user (registered or anonymous) by updating their signup record.
@@ -95,10 +97,14 @@ export async function checkInUser(signupId: string, userId?: string) {
 /**
  * Looks up an email for a specific project and schedule to determine signup status.
  */
-export async function lookupEmailStatus(projectId: string, scheduleId: string, email: string) {
-  console.log("Looking up email status:", { projectId, scheduleId, email });
+export async function lookupEmailStatus(projectId: string, incomingScheduleId: string, email: string) {
+  console.log("Looking up email status:", { projectId, incomingScheduleId, email });
   const supabase = await createClient();
   const serviceSupabase = getAdminClient();
+  
+  // Resolve potentially legacy scheduleId
+  const { data: project } = await getProject(projectId);
+  const scheduleId = project ? resolveScheduleId(project, incomingScheduleId) : incomingScheduleId;
   const lowerCaseEmail = email.toLowerCase();
 
   try {
@@ -299,12 +305,16 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
  * creates or updates a project_signups record (anonymous_id) with check_in_time and status.
  * Returns check-in time and success status.
  */
-export async function checkInAnonymous(projectId: string, scheduleId: string, email: string) {
+export async function checkInAnonymous(projectId: string, incomingScheduleId: string, email: string) {
   const supabase = await createClient();
   const serviceSupabase = getAdminClient();
   const nowDate = new Date();
   const nowIso = nowDate.toISOString();
   const lowerEmail = email.toLowerCase();
+
+  // Resolve potentially legacy scheduleId
+  const { data: project } = await getProject(projectId);
+  const scheduleId = project ? resolveScheduleId(project, incomingScheduleId) : incomingScheduleId;
 
   const scheduledCheckoutIso = await getScheduledCheckoutTime(
     supabase,
@@ -576,52 +586,11 @@ async function getScheduledCheckoutTime(
   if (typedProject.event_type === 'oneTime' && schedule.oneTime) {
     endDate = toDateTime(schedule.oneTime.date, schedule.oneTime.endTime);
   } else if (typedProject.event_type === 'multiDay' && schedule.multiDay) {
-    const directParts = scheduleId.split('-');
-    let slot: { endTime: string } | undefined;
-    let dateStr: string | undefined;
-
-    if (directParts.length >= 2) {
-      const slotIndexStr = directParts.pop();
-      const potentialDate = directParts.join('-');
-      const day = schedule.multiDay.find(d => d.date === potentialDate);
-      if (day && slotIndexStr !== undefined) {
-        const idx = Number.parseInt(slotIndexStr, 10);
-        slot = day.slots[idx];
-        dateStr = day.date;
-      }
-    }
-
-    if (!slot) {
-      const altMatch = scheduleId.match(/^day-(\d+)-slot-(\d+)$/);
-      if (altMatch) {
-        const dayIdx = Number.parseInt(altMatch[1], 10);
-        const slotIdx = Number.parseInt(altMatch[2], 10);
-        const day = schedule.multiDay[dayIdx];
-        if (day) {
-          slot = day.slots[slotIdx];
-          dateStr = day.date;
-        }
-      }
-    }
-
-    if (!slot) {
-      // Fallback: brute force search
-      schedule.multiDay.forEach(day => {
-        day.slots.forEach((s, idx) => {
-          const candidateIds = [
-            `${day.date}-${idx}`,
-            `day-${schedule.multiDay!.indexOf(day)}-slot-${idx}`,
-          ];
-          if (candidateIds.includes(scheduleId)) {
-            slot = s;
-            dateStr = day.date;
-          }
-        });
-      });
-    }
-
-    if (slot && dateStr) {
-      endDate = toDateTime(dateStr, slot.endTime);
+    const { getMultiDaySlotByScheduleId } = await import("@/utils/project");
+    const slotData = getMultiDaySlotByScheduleId(typedProject as unknown as Project, scheduleId);
+    
+    if (slotData) {
+      endDate = toDateTime(slotData.day.date, slotData.slot.endTime);
     }
   } else if (typedProject.event_type === 'sameDayMultiArea' && schedule.sameDayMultiArea) {
     const roleByName = schedule.sameDayMultiArea.roles.find(role => role.name === scheduleId);

@@ -16,17 +16,19 @@ CREATE OR REPLACE FUNCTION "public"."is_project_organizer"("p_project_id" "uuid"
           -- The creator always has management permissions
           p.creator_id = p_user
           or (
-            -- Organization admins/staff ONLY have permissions if:
-            -- 1. The project is associated with their organization
-            -- 2. AND the project creator has enabled 'can_be_managed_by_staff'
+            -- Organization-level permissions:
             p.organization_id is not null
-            and p.can_be_managed_by_staff = true
             and exists (
               select 1
               from public.organization_members om
               where om.organization_id = p.organization_id
                 and om.user_id = p_user
-                and om.role in ('admin', 'staff')
+                and (
+                  -- 1. Org Admins always have management permissions for projects in their org
+                  om.role = 'admin'
+                  -- 2. Org Staff ONLY have permissions if the creator enabled 'can_be_managed_by_staff'
+                  or (om.role = 'staff' and p.can_be_managed_by_staff = true)
+                )
             )
           )
         )
