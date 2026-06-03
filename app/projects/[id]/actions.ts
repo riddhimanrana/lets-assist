@@ -289,6 +289,7 @@ type ManageableProjectRecord = {
   creator_id?: string | null;
   organization_id?: string | null;
   organization?: { id?: string | null } | null;
+  can_be_managed_by_staff?: boolean;
 };
 
 type CurrentUserProjectPermissions = {
@@ -326,11 +327,25 @@ async function canUserManageProject(
   if (!project) return false;
   if (project.creator_id === userId) return true;
 
-  return isUserOrganizationAdmin(
-    supabase,
-    getManageableProjectOrganizationId(project),
-    userId,
-  );
+  const orgId = getManageableProjectOrganizationId(project);
+  if (!orgId) return false;
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("organization_id", orgId)
+    .eq("user_id", userId)
+    .single();
+
+  if (!membership) return false;
+
+  // 1. Org Admins always have management permissions for projects in their org
+  if (membership.role === "admin") return true;
+
+  // 2. Org Staff ONLY have permissions if the creator enabled 'can_be_managed_by_staff'
+  if (membership.role === "staff" && project.can_be_managed_by_staff === true) return true;
+
+  return false;
 }
 
 export async function getCurrentUserProjectPermissions(
@@ -351,7 +366,7 @@ export async function getCurrentUserProjectPermissions(
 
     const { data: project } = await supabase
       .from("projects")
-      .select("creator_id, organization_id")
+      .select("creator_id, organization_id, can_be_managed_by_staff")
       .eq("id", projectId)
       .maybeSingle();
 
@@ -365,15 +380,26 @@ export async function getCurrentUserProjectPermissions(
     }
 
     const isCreator = project.creator_id === user.id;
-    const isOrgAdmin = !isCreator
-      ? await isUserOrganizationAdmin(supabase, project.organization_id, user.id)
-      : false;
+    const canManageProject = await canUserManageProject(supabase, project, user.id);
+    
+    // Check if they are an admin specifically (for other UI purposes)
+    const orgId = project.organization_id;
+    let isOrgAdmin = false;
+    if (orgId && !isCreator) {
+        const { data: membership } = await supabase
+            .from("organization_members")
+            .select("role")
+            .eq("organization_id", orgId)
+            .eq("user_id", user.id)
+            .single();
+        isOrgAdmin = membership?.role === "admin";
+    }
 
     return {
       userId: user.id,
       isCreator,
       isOrgAdmin,
-      canManageProject: isCreator || isOrgAdmin,
+      canManageProject,
     };
   } catch {
     return {
@@ -2459,7 +2485,7 @@ export async function updateProject(projectId: string, updates: Partial<Project>
     // Verify project ownership
     const { data: project } = await supabase
       .from("projects")
-      .select("creator_id, organization_id, recurrence_parent_id, recurrence_rule, visibility")
+      .select("creator_id, organization_id, can_be_managed_by_staff, recurrence_parent_id, recurrence_rule, visibility")
       .eq("id", projectId)
       .single();
 

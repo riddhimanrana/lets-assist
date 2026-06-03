@@ -87,6 +87,36 @@ export function getMultiDaySlotByScheduleId(
   return { day, slot, slotIndex, dayIndex: actualDayIndex };
 }
 
+/**
+ * Resolves a potentially legacy schedule ID to the current unique ID format.
+ * If the provided ID is already in the new unique format, it is returned as is.
+ * If it's a legacy ID (YYYY-MM-DD-slotIndex), it tries to find the best match.
+ */
+export function resolveScheduleId(project: Project, scheduleId: string): string {
+  if (project.event_type !== "multiDay" || !project.schedule.multiDay) {
+    return scheduleId;
+  }
+
+  const parsed = parseMultiDayScheduleId(scheduleId);
+  if (!parsed) return scheduleId;
+
+  // If it already has dayIndex, it's the new format
+  if (parsed.dayIndex !== undefined) {
+    return scheduleId;
+  }
+
+  // Legacy format (YYYY-MM-DD-slotIndex): Find the first day that matches this date
+  const { date, slotIndex } = parsed;
+  const dayIndex = project.schedule.multiDay.findIndex((d) => d.date === date);
+  
+  if (dayIndex !== -1) {
+    // Construct the new unique ID
+    return `${date}-${dayIndex}-${slotIndex}`;
+  }
+
+  return scheduleId;
+}
+
 export const getProjectEventDate = (project: Project): Date => {
   switch (project.event_type) {
     case "oneTime":
