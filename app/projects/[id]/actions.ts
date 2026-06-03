@@ -125,9 +125,34 @@ function omitRecordKeys(payload: Record<string, unknown>, keys: string[]): Recor
   return next;
 }
 
+function summarizePostgrestError(error: unknown) {
+  if (!error || typeof error !== "object") return error;
+
+  const pgError = error as PostgrestErrorLike;
+  return {
+    code: pgError.code,
+    message: pgError.message,
+    details: pgError.details,
+    hint: pgError.hint,
+  };
+}
+
+function logSignupDebug(
+  traceId: string,
+  step: string,
+  details: Record<string, unknown> = {},
+) {
+  console.log("[signup-debug]", JSON.stringify({
+    traceId,
+    step,
+    ...details,
+  }));
+}
+
 async function insertProjectSignupWithFallback(
   client: any,
-  signupData: Record<string, unknown>
+  signupData: Record<string, unknown>,
+  traceId?: string
 ): Promise<{ data: { id: string } | null; error: unknown | null }> {
   const payloads = [
     signupData,
@@ -136,7 +161,19 @@ async function insertProjectSignupWithFallback(
 
   let lastError: unknown = null;
 
-  for (const payload of payloads) {
+  for (const [index, payload] of payloads.entries()) {
+    if (traceId) {
+      logSignupDebug(traceId, "project_signup_insert_attempt", {
+        attempt: index + 1,
+        hasResponseData: "response_data" in payload,
+        projectId: payload.project_id,
+        scheduleId: payload.schedule_id,
+        status: payload.status,
+        isAnonymous: Boolean(payload.anonymous_id),
+        hasUser: Boolean(payload.user_id),
+      });
+    }
+
     const { data, error } = await client
       .from("project_signups")
       .insert(payload)
@@ -144,10 +181,23 @@ async function insertProjectSignupWithFallback(
       .single();
 
     if (data && !error) {
+      if (traceId) {
+        logSignupDebug(traceId, "project_signup_insert_success", {
+          attempt: index + 1,
+          signupId: data.id,
+        });
+      }
       return { data, error: null };
     }
 
     lastError = error;
+
+    if (traceId) {
+      logSignupDebug(traceId, "project_signup_insert_error", {
+        attempt: index + 1,
+        error: summarizePostgrestError(error),
+      });
+    }
 
     if (!isMissingProjectSignupResponseDataColumnError(error)) {
       break;
@@ -1116,16 +1166,41 @@ export async function signUpForProject(
   let createdNewAnonymousProfile = false;
   let shouldReuseExistingAnonymousWaiver = false;
   let anonymousProfileAlreadyConfirmed = false;
+  const traceId = crypto.randomUUID();
 
   try {
-    console.log("Starting signup process:", { projectId, scheduleId, isAnonymous });
+    logSignupDebug(traceId, "start", {
+      projectId,
+      scheduleId,
+      isAnonymous,
+      hasVolunteerComment: Boolean(volunteerComment || anonymousData?.comment),
+      hasWaiverSignature: Boolean(waiverSignature),
+      hasFormData: Boolean(formData && Object.keys(formData).length > 0),
+      selectedSlotCount,
+    });
 
     // Get project details
     const { project, error: projectError } = await getProject(projectId);
 
     if (!project || projectError) {
+      logSignupDebug(traceId, "project_lookup_failed", {
+        projectId,
+        projectError,
+      });
       return { error: "Project not found" };
     }
+
+    logSignupDebug(traceId, "project_loaded", {
+      eventType: project.event_type,
+      verificationMethod: project.verification_method,
+      status: project.status,
+      workflowStatus: project.workflow_status,
+      requireLogin: project.require_login,
+      pauseSignups: project.pause_signups,
+      organizationId: project.organization_id,
+      hasSignupFormSchema: Boolean(project.signup_form_schema),
+      restrictToOrgDomains: project.restrict_to_org_domains,
+    });
 
     const rawComment = (anonymousData?.comment ?? volunteerComment ?? "").trim();
     const normalizedComment = rawComment.length > 0 ? rawComment.slice(0, 1000) : null;
@@ -1195,16 +1270,19 @@ export async function signUpForProject(
 
     // Check if signups are paused
     if (project.pause_signups) {
+      logSignupDebug(traceId, "blocked_pause_signups");
       return { error: "Signups for this project are temporarily paused by the organizer" };
     }
 
     // Check if project is available for signup
     // Check if project is available for signup
     if (project.status === "cancelled") {
+      logSignupDebug(traceId, "blocked_cancelled");
       return { error: "This project has been cancelled" };
     }
 
     if (project.status === "completed") {
+      logSignupDebug(traceId, "blocked_completed");
       return { error: "This project has been completed" };
     }
 
@@ -1252,6 +1330,10 @@ export async function signUpForProject(
       }
 
       if (!hasValidEmail) {
+        logSignupDebug(traceId, "blocked_domain_restriction", {
+          isAnonymous,
+          allowedDomainCount: allowedDomains.length,
+        });
         return {
           error: `This project is restricted to users with the following email domains: ${allowedDomains.join(', ')}. Please use a verified email with one of these domains.`
         };
@@ -1261,6 +1343,7 @@ export async function signUpForProject(
     // For multiDay events, validate that the specific day/slot hasn't passed
     if (project.event_type === "multiDay" && project.schedule.multiDay) {
       if (isMultiDaySlotPastByScheduleId(project, scheduleId)) {
+        logSignupDebug(traceId, "blocked_slot_past");
         return { error: "This time slot has already passed" };
       }
     }
@@ -1268,15 +1351,29 @@ export async function signUpForProject(
     // Fix: Don't await getSlotDetails since it's no longer async
     const slotDetails = getSlotDetails(project, scheduleId);
     if (!slotDetails) {
-      console.error("Invalid schedule slot:", { scheduleId, projectId });
+      logSignupDebug(traceId, "invalid_schedule_slot", { scheduleId, projectId });
       return { error: "Invalid schedule slot" };
     }
 
+    logSignupDebug(traceId, "slot_loaded", {
+      scheduleId,
+      volunteers: slotDetails.volunteers,
+      hasStartTime: Boolean(slotDetails.startTime),
+      hasEndTime: Boolean(slotDetails.endTime),
+    });
+
     // Check if slot is full (only count 'approved/attended' signups towards capacity)
     const currentSignups = await getCurrentSignups(projectId, scheduleId);
-    console.log("Current signups:", { currentSignups, maxVolunteers: slotDetails.volunteers });
+    logSignupDebug(traceId, "slot_capacity_loaded", {
+      currentSignups,
+      maxVolunteers: slotDetails.volunteers,
+    });
 
     if (currentSignups >= slotDetails.volunteers) {
+      logSignupDebug(traceId, "blocked_slot_full", {
+        currentSignups,
+        maxVolunteers: slotDetails.volunteers,
+      });
       return { error: "This slot is full" };
     }
 
@@ -1285,8 +1382,14 @@ export async function signUpForProject(
 
     // If project requires login but user isn't logged in
     if (project.require_login && !user) {
+      logSignupDebug(traceId, "blocked_login_required");
       return { error: "You must be logged in to sign up for this project" };
     }
+
+    logSignupDebug(traceId, "auth_loaded", {
+      hasUser: Boolean(user),
+      userId: user?.id,
+    });
 
     // --- Check for existing signups ---
     if (user) { // Logged-in user check
@@ -1302,6 +1405,9 @@ export async function signUpForProject(
           .maybeSingle();
 
         if (previousRejection) {
+          logSignupDebug(traceId, "blocked_previous_rejection", {
+            previousSignupId: previousRejection.id,
+          });
           return { error: "You have been rejected for this project and cannot sign up again." };
         }
 
@@ -1315,6 +1421,9 @@ export async function signUpForProject(
           .maybeSingle();
 
         if (existingSignup) {
+          logSignupDebug(traceId, "blocked_existing_signup", {
+            existingSignupId: existingSignup.id,
+          });
           return { error: "You have already signed up for this slot" };
         }
 
@@ -1331,11 +1440,14 @@ export async function signUpForProject(
 
         const { data: insertedSignup, error: signupError } = await insertProjectSignupWithFallback(
           supabase,
-          signupData
+          signupData,
+          traceId
         );
 
         if (signupError || !insertedSignup) {
-          console.error("Error creating signup for registered user:", signupError);
+          logSignupDebug(traceId, "registered_insert_failed", {
+            error: summarizePostgrestError(signupError),
+          });
           return { error: "Failed to sign up. Please try again." };
         }
 
@@ -1371,31 +1483,44 @@ export async function signUpForProject(
             });
 
             if (emailError) {
-              console.error("Error sending confirmation email to logged-in user:", emailError);
+              logSignupDebug(traceId, "registered_confirmation_email_failed", {
+                error: summarizePostgrestError(emailError),
+              });
               // Don't fail the signup if email fails
             } else {
-              console.log("Confirmation email sent to logged-in user successfully:", emailData);
+              logSignupDebug(traceId, "registered_confirmation_email_sent", {
+                emailId: typeof emailData === "object" && emailData ? (emailData as { id?: string }).id : undefined,
+              });
             }
           }
         } catch (emailError) {
-          console.error("Error in email sending process for logged-in user:", emailError);
+          logSignupDebug(traceId, "registered_confirmation_email_exception", {
+            error: emailError instanceof Error ? emailError.message : String(emailError),
+          });
           // Don't fail the signup if email fails
         }
 
         // Explicitly log success for debugging
-        console.log("Successfully created signup for registered user:", {
+        logSignupDebug(traceId, "registered_signup_created", {
           userId: user.id,
           projectId,
-          scheduleId
+          scheduleId,
+          signupId: createdSignupId,
         });
 
       } catch (error) {
-        console.error("Error in user signup process:", error);
+        logSignupDebug(traceId, "registered_signup_exception", {
+          error: error instanceof Error ? error.message : String(error),
+        });
         return { error: "An error occurred during signup" };
       }
     } else if (isAnonymous && anonymousData) { // Anonymous user check
       const emailToCheck = (anonymousData.email ?? "").toLowerCase();
-      console.log("Checking anonymous signup for email:", emailToCheck);
+      logSignupDebug(traceId, "anonymous_flow_start", {
+        hasEmail: Boolean(emailToCheck),
+        hasExistingSelectedSlotCount: Boolean(anonymousData.selectedSlotCount),
+        skipConfirmationEmail: skipAnonymousConfirmationEmail,
+      });
 
       // Check if an anonymous profile already exists for this email + project
       const { data: existingAnonProfile, error: anonLookupError } = await serviceSupabase
@@ -1406,9 +1531,16 @@ export async function signUpForProject(
         .maybeSingle();
 
       if (anonLookupError) {
-        console.error("Error checking for existing anonymous signup:", anonLookupError);
+        logSignupDebug(traceId, "anonymous_lookup_failed", {
+          error: summarizePostgrestError(anonLookupError),
+        });
         return { error: "An error occurred while checking signup status." };
       }
+
+      logSignupDebug(traceId, "anonymous_lookup_complete", {
+        hasExistingAnonProfile: Boolean(existingAnonProfile),
+        existingAnonConfirmed: Boolean(existingAnonProfile?.confirmed_at),
+      });
 
       const requiresCaptchaVerification = shouldRequireAnonymousSignupCaptcha({
         hasExistingAnonymousProfile: !!existingAnonProfile,
@@ -1420,11 +1552,14 @@ export async function signUpForProject(
         .rpc('check_email_exists', { email_to_check: emailToCheck });
 
       if (rpcError) {
-        console.error("Error checking for existing account:", rpcError);
+        logSignupDebug(traceId, "anonymous_email_exists_rpc_failed", {
+          error: summarizePostgrestError(rpcError),
+        });
         return { error: "An error occurred while checking email availability." };
       }
 
       if (emailExists) {
+        logSignupDebug(traceId, "blocked_email_has_account");
         return { error: "This email is associated with an existing Let's Assist account. Please log in to sign up for this project." };
       }
 
@@ -1439,12 +1574,18 @@ export async function signUpForProject(
           .maybeSingle();
 
         if (slotError) {
-          console.error("Error checking for existing slot signup:", slotError);
+          logSignupDebug(traceId, "anonymous_existing_slot_lookup_failed", {
+            error: summarizePostgrestError(slotError),
+          });
           return { error: "An error occurred while checking signup status." };
         }
 
         if (existingSlotSignup) {
           const signupStatus = existingSlotSignup.status;
+          logSignupDebug(traceId, "anonymous_existing_slot_found", {
+            existingSignupId: existingSlotSignup.id,
+            signupStatus,
+          });
 
           if (signupStatus === "pending") {
             return {
@@ -1509,11 +1650,14 @@ export async function signUpForProject(
 
         const { data: insertedProjectSignup, error: projectSignupInsertError } = await insertProjectSignupWithFallback(
           serviceSupabase,
-          projectSignupData
+          projectSignupData,
+          traceId
         );
 
         if (projectSignupInsertError || !insertedProjectSignup) {
-          console.error("Error creating project signup for existing anon profile:", projectSignupInsertError);
+          logSignupDebug(traceId, "anonymous_existing_profile_insert_failed", {
+            error: summarizePostgrestError(projectSignupInsertError),
+          });
           return { error: "Failed to complete signup. Please try again." };
         }
 
@@ -1598,7 +1742,12 @@ export async function signUpForProject(
           token: confirmationToken,
         };
 
-        console.log("Inserting anonSignupData:", anonSignupData);
+        logSignupDebug(traceId, "anonymous_profile_insert_attempt", {
+          projectId,
+          hasEmail: Boolean(anonSignupData.email),
+          hasName: Boolean(anonSignupData.name),
+          hasPhone: Boolean(anonSignupData.phone_number),
+        });
         const { data: insertedAnonSignup, error: anonInsertError } = await serviceSupabase
           .from("anonymous_signups")
           .insert(anonSignupData)
@@ -1606,12 +1755,16 @@ export async function signUpForProject(
           .single();
 
         if (anonInsertError || !insertedAnonSignup) {
-          console.error("Error creating anonymous signup record:", anonInsertError);
+          logSignupDebug(traceId, "anonymous_profile_insert_failed", {
+            error: summarizePostgrestError(anonInsertError),
+          });
           return { error: "Failed to initiate anonymous signup. Please try again." };
         }
         createdAnonymousSignupId = insertedAnonSignup.id;
         createdNewAnonymousProfile = true;
-        console.log("Anonymous Signup ID:", createdAnonymousSignupId);
+        logSignupDebug(traceId, "anonymous_profile_insert_success", {
+          anonymousSignupId: createdAnonymousSignupId,
+        });
 
         const projectSignupData: Omit<ProjectSignup, "id" | "created_at"> = {
           project_id: projectId,
@@ -1625,11 +1778,14 @@ export async function signUpForProject(
 
         const { data: insertedProjectSignup, error: projectSignupInsertError } = await insertProjectSignupWithFallback(
           serviceSupabase,
-          projectSignupData
+          projectSignupData,
+          traceId
         );
 
         if (projectSignupInsertError || !insertedProjectSignup) {
-          console.error("Error creating project signup record for anonymous:", projectSignupInsertError);
+          logSignupDebug(traceId, "anonymous_new_profile_signup_insert_failed", {
+            error: summarizePostgrestError(projectSignupInsertError),
+          });
           await serviceSupabase.from("anonymous_signups").delete().eq("id", createdAnonymousSignupId);
           return { error: "Failed to complete signup. Please try again." };
         }
@@ -1692,6 +1848,12 @@ export async function signUpForProject(
     }
 
     if ((project.waiver_required || waiverSignature) && createdSignupId) {
+      logSignupDebug(traceId, "waiver_persist_start", {
+        waiverRequired: project.waiver_required,
+        hasWaiverSignature: Boolean(waiverSignature),
+        shouldReuseExistingAnonymousWaiver,
+      });
+
       if (waiverSignature) {
         const userMetadata = user?.user_metadata as { full_name?: string } | undefined;
         const signerName =
@@ -1719,6 +1881,9 @@ export async function signUpForProject(
         });
 
         if (persistResult?.error) {
+          logSignupDebug(traceId, "waiver_persist_failed", {
+            error: persistResult.error,
+          });
           await serviceSupabase.from("project_signups").delete().eq("id", createdSignupId);
           if (createdAnonymousSignupId && createdNewAnonymousProfile) {
             await serviceSupabase.from("anonymous_signups").delete().eq("id", createdAnonymousSignupId);
@@ -1734,6 +1899,9 @@ export async function signUpForProject(
         });
 
         if (cloneResult?.error) {
+          logSignupDebug(traceId, "waiver_clone_failed", {
+            error: cloneResult.error,
+          });
           await serviceSupabase.from("project_signups").delete().eq("id", createdSignupId);
           if (createdAnonymousSignupId && createdNewAnonymousProfile) {
             await serviceSupabase.from("anonymous_signups").delete().eq("id", createdAnonymousSignupId);
@@ -1742,6 +1910,7 @@ export async function signUpForProject(
           return { error: cloneResult.error };
         }
       } else if (project.waiver_required) {
+        logSignupDebug(traceId, "blocked_missing_waiver_signature");
         return { error: "Waiver signature is required before completing signup." };
       }
     }
@@ -1749,6 +1918,11 @@ export async function signUpForProject(
     // --- Trigger Plugin onSignup Hooks ---
     if (project.organization_id && createdSignupId) {
       try {
+        logSignupDebug(traceId, "plugin_hooks_start", {
+          organizationId: project.organization_id,
+          signupId: createdSignupId,
+        });
+
         const { data: orgMember } = await supabase
           .from("organization_members")
           .select("role")
@@ -1784,13 +1958,24 @@ export async function signUpForProject(
             });
           }
         }
+
+        logSignupDebug(traceId, "plugin_hooks_complete", {
+          installedPluginCount: installedPlugins.length,
+        });
       } catch (pluginError) {
-        console.error("Error triggering plugin signup hooks:", pluginError);
+        logSignupDebug(traceId, "plugin_hooks_failed", {
+          error: pluginError instanceof Error ? pluginError.message : String(pluginError),
+        });
         // Don't fail the whole signup if plugins fail
       }
     }
 
     // --- Revalidate paths ---
+    logSignupDebug(traceId, "revalidate_start", {
+      projectId,
+      organizationId: project.organization_id,
+      hasUser: Boolean(user),
+    });
     revalidatePath(`/projects/${projectId}`);
     revalidatePath(`/projects/${projectId}/signups`); // Revalidate signups page too
     if (project.organization_id) {
@@ -1801,15 +1986,25 @@ export async function signUpForProject(
     }
 
     // --- Return success with signup ID for calendar integration ---
+    logSignupDebug(traceId, "success", {
+      signupId: createdSignupId,
+      needsConfirmation: isAnonymous ? !anonymousProfileAlreadyConfirmed : false,
+      projectId: project.id,
+    });
+
     return {
       success: true,
       needsConfirmation: isAnonymous ? !anonymousProfileAlreadyConfirmed : false,
       signupId: createdSignupId,
-      projectId: project.id
+      projectId: project.id,
+      traceId,
     };
   } catch (error) {
-    console.error("Error in signUpForProject:", error);
-    return { error: "An unexpected error occurred during signup." };
+    logSignupDebug(traceId, "unhandled_exception", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    return { error: "An unexpected error occurred during signup.", traceId };
   }
 }
 
