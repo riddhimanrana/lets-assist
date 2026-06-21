@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Detect DB-related changes
         id: filter
@@ -36,6 +38,8 @@ jobs:
             db:
               - 'supabase/**'
               - 'lib/supabase/**'
+              - 'lib/plugins/**'
+              - 'scripts/local-dev/**'
               - 'app/**/auth/**'
               - 'app/auth/**'
 
@@ -45,6 +49,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
@@ -67,6 +73,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
@@ -79,13 +87,20 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: 2.84.2
+          version: 2.107.0
 
       - name: Start local Supabase
         run: bun run supabase:start
 
       - name: Validate DB reset replay
-        run: bun run supabase:reset
+        run: bun run dv:dev:reset
+        env:
+          DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
+
+      - name: Validate DV fixtures and RLS
+        run: bun run dv:test:db
+        env:
+          DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
 
       - name: Show Supabase status
         run: bun run supabase:status
