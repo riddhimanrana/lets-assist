@@ -9,7 +9,7 @@ if (!password) {
   throw new Error("Set DV_LOCAL_TEST_PASSWORD before running DV database tests.");
 }
 
-const { url, anonKey } = getLocalSupabaseEnv();
+const { url, anonKey, serviceRoleKey } = getLocalSupabaseEnv();
 
 async function clientFor(email) {
   const client = createClient(url, anonKey, {
@@ -27,6 +27,7 @@ async function rows(label, query) {
 }
 
 const student = await clientFor("dv.student.a@local.test");
+const submittedStudent = await clientFor("dv.student.b@local.test");
 const outsider = await clientFor("dv.outsider@local.test");
 const staff = await clientFor("dv.staff@local.test");
 
@@ -78,5 +79,49 @@ const studentAudit = await rows(
   student.from("dv_sd_audit_events").select("id"),
 );
 assert.equal(studentAudit.length, 0, "students cannot read staff audit events");
+
+const submittedMembership = await rows(
+  "submitted membership",
+  submittedStudent
+    .from("dv_sd_seasonal_memberships")
+    .select("id,status")
+    .eq("status", "submitted"),
+);
+assert.equal(submittedMembership.length, 1);
+const selfApproval = await submittedStudent
+  .from("dv_sd_seasonal_memberships")
+  .update({ status: "approved" })
+  .eq("id", submittedMembership[0].id)
+  .select("id");
+assert.equal(
+  selfApproval.data?.length ?? 0,
+  0,
+  "student cannot approve own membership",
+);
+
+const staffLedger = await rows(
+  "staff service ledger",
+  staff.from("dv_sd_family_service_ledger").select("id,credits").limit(1),
+);
+assert.equal(staffLedger.length, 1);
+const immutableLedgerUpdate = await staff
+  .from("dv_sd_family_service_ledger")
+  .update({ credits: 99 })
+  .eq("id", staffLedger[0].id)
+  .select("id");
+assert.equal(
+  immutableLedgerUpdate.data?.length ?? 0,
+  0,
+  "staff cannot update service-credit ledger rows",
+);
+
+const maintenance = createClient(url, serviceRoleKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+}).schema("plugin_data");
+const triggerProtectedUpdate = await maintenance
+  .from("dv_sd_family_service_ledger")
+  .update({ credits: 99 })
+  .eq("id", staffLedger[0].id);
+assert.ok(triggerProtectedUpdate.error, "immutable trigger also blocks maintenance updates");
 
 console.log("DV database fixtures and RLS checks passed.");
