@@ -244,7 +244,7 @@ export function WaiverSigningDialog({
   // (We still keep currentSignerFields for any step-specific UX decisions.)
   const allPlacements = useMemo<CustomPlacement[]>(() => {
     return (effectiveDefinition.fields || []).map((field) => ({
-      id: field.id,
+      id: field.id ?? field.field_key,
       fieldKey: field.field_key,
       label: field.label,
       signerRoleKey: field.signer_role_key || 'global',

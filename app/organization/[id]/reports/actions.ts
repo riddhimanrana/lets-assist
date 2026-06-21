@@ -119,26 +119,6 @@ const calculateHours = (start?: string | null, end?: string | null): number => {
   }
 };
 
-type RangeQuery<T> = {
-  gte: (field: string, value: string) => T;
-  lte: (field: string, value: string) => T;
-};
-
-const applyDateRange = <T extends RangeQuery<T>>(
-  query: T,
-  field: string,
-  range?: ReportDateRange
-) => {
-  if (!range?.from && !range?.to) return query;
-  if (range?.from) {
-    query = query.gte(field, startOfDay(new Date(range.from)).toISOString());
-  }
-  if (range?.to) {
-    query = query.lte(field, endOfDay(new Date(range.to)).toISOString());
-  }
-  return query;
-};
-
 type ResolvedReportWindow = {
   queryRange: Required<ReportDateRange>;
   monthStart: Date;
@@ -247,7 +227,9 @@ async function buildReportDataForOrg(
       )
       .in("project_id", projectIds);
 
-    certificatesQuery = applyDateRange(certificatesQuery, "issued_at", reportWindow.queryRange);
+    certificatesQuery = certificatesQuery
+      .gte("issued_at", startOfDay(new Date(reportWindow.queryRange.from)).toISOString())
+      .lte("issued_at", endOfDay(new Date(reportWindow.queryRange.to)).toISOString());
 
     const { data: certificates, error: certificatesError } = (await certificatesQuery) as {
       data: CertificateRow[] | null;
@@ -269,7 +251,15 @@ async function buildReportDataForOrg(
       .not("check_in_time", "is", null)
       .not("check_out_time", "is", null);
 
-    attendanceQuery = applyDateRange(attendanceQuery, "check_in_time", reportWindow.queryRange);
+    attendanceQuery = attendanceQuery
+      .gte(
+        "check_in_time",
+        startOfDay(new Date(reportWindow.queryRange.from)).toISOString(),
+      )
+      .lte(
+        "check_in_time",
+        endOfDay(new Date(reportWindow.queryRange.to)).toISOString(),
+      );
 
     const { data: signups, error: attendanceError } = (await attendanceQuery) as {
       data: SignupRow[] | null;

@@ -76,6 +76,8 @@ lib/plugins/private/*
 # scripts/local-dev/
 
 playwright.config.ts
+playwright-report/
+test-results/
 
 # Pending plugin data migrations (not yet ready for deploy)
 supabase/migrations/.pending-plugin-data/
