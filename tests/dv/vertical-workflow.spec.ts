@@ -1,0 +1,105 @@
+import { createHash, randomBytes } from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
+import { expect, test } from "@playwright/test";
+import { getLocalSupabaseEnv } from "../../scripts/local-dev/dv-local-env.mjs";
+
+const ORGANIZATION_ID = "d0000000-0000-4000-8000-000000000001";
+const TOURNAMENT_ID = "d0000000-0000-4000-8000-000000000021";
+const STUDENT_EMAIL = "dv.student.a@local.test";
+
+function adminClient() {
+  const env = getLocalSupabaseEnv();
+  return createClient(env.url, env.serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
+test("approved student can open the current seasonal membership workspace", async ({
+  page,
+}) => {
+  const password = process.env.DV_LOCAL_TEST_PASSWORD;
+  if (!password) {
+    throw new Error("Set DV_LOCAL_TEST_PASSWORD before running DV Playwright tests.");
+  }
+
+  await page.goto(
+    `/login?redirect=${encodeURIComponent(
+      "/organization/dv-speech-debate-local/plugins/dv-speech-debate",
+    )}`,
+  );
+  await page.getByRole("textbox", { name: "Email" }).fill(STUDENT_EMAIL);
+  await page.getByLabel("Password").fill(password);
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: "Login", exact: true })
+    .click();
+
+  await expect(page).toHaveURL(
+    /\/organization\/dv-speech-debate-local\/plugins\/dv-speech-debate/,
+  );
+  await expect(
+    page.getByRole("heading", { name: /DV Speech & Debate/i }).first(),
+  ).toBeVisible();
+  await expect(page.getByText("2026-2027 membership")).toBeVisible();
+  await expect(page.getByText("Approved", { exact: true })).toBeVisible();
+});
+
+test("guardian availability link is single-use and updates judge availability", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const plugin = admin.schema("plugin_data");
+  const { data: judge, error: judgeError } = await plugin
+    .from("dv_sd_judges")
+    .select("id,guardian_id")
+    .eq("organization_id", ORGANIZATION_ID)
+    .single();
+  expect(judgeError).toBeNull();
+  expect(judge).toBeTruthy();
+
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const { error: tokenError } = await plugin
+    .from("dv_sd_guardian_action_tokens")
+    .insert({
+      organization_id: ORGANIZATION_ID,
+      guardian_id: judge!.guardian_id,
+      purpose: "confirm_availability",
+      token_hash: tokenHash,
+      payload: {
+        tournamentId: TOURNAMENT_ID,
+        judgeId: judge!.id,
+        tournamentName: "Local Invitational",
+      },
+      expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    });
+  expect(tokenError).toBeNull();
+
+  await page.goto(`/guardian-action/${token}`);
+  await expect(page.getByText("Confirm judging availability")).toBeVisible();
+  await page
+    .getByRole("radio", { name: "Available for some rounds" })
+    .click();
+  await page.getByLabel("Notes").fill("Available after the first round.");
+  await page.getByRole("button", { name: "Confirm availability" }).click();
+  await expect(page.getByText("Availability recorded")).toBeVisible();
+
+  const { data: availability, error: availabilityError } = await plugin
+    .from("dv_sd_judge_availability")
+    .select("status,notes,confirmed_at")
+    .eq("tournament_id", TOURNAMENT_ID)
+    .eq("judge_id", judge!.id)
+    .single();
+  expect(availabilityError).toBeNull();
+  expect(availability?.status).toBe("limited");
+  expect(availability?.notes).toBe("Available after the first round.");
+  expect(availability?.confirmed_at).toBeTruthy();
+
+  await page.goto(`/guardian-action/${token}`);
+  await expect(page.getByText("Link unavailable")).toBeVisible();
+});
+
+test("expired guardian links fail closed", async ({ page }) => {
+  await page.goto(`/guardian-action/${randomBytes(32).toString("base64url")}`);
+  await expect(page.getByText("Link unavailable")).toBeVisible();
+});
