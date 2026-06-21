@@ -66,6 +66,12 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
+      - name: DV unit tests
+        run: bun test ./lib/plugins/private/plugins/dv-speech-debate/services
+
+      - name: Production build
+        run: bun run build
+
   db-replay-validation:
     needs: changes
     runs-on: ubuntu-latest
@@ -99,6 +105,14 @@ jobs:
 
       - name: Validate DV fixtures and RLS
         run: bun run dv:test:db
+        env:
+          DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
+
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: Validate DV browser workflows
+        run: bun run dv:test:e2e
         env:
           DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
 

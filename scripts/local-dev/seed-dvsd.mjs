@@ -356,7 +356,7 @@ async function main() {
     partner_student_id: studentByUser[users.studentB.id],
   }, { onConflict: "registration_id,event_code" }));
 
-  await must("judge", plugin.from("dv_sd_judges").upsert({
+  const judge = await must("judge", plugin.from("dv_sd_judges").upsert({
     organization_id: IDS.organization,
     guardian_id: IDS.guardian,
     clearance_status: "verified",
@@ -365,7 +365,16 @@ async function main() {
     event_qualifications: ["PF"],
     event_preferences: ["PF"],
     max_rounds_per_day: 3,
-  }, { onConflict: "organization_id,guardian_id" }));
+  }, { onConflict: "organization_id,guardian_id" }).select("id").single());
+
+  await must("judge availability", plugin.from("dv_sd_judge_availability").upsert({
+    organization_id: IDS.organization,
+    tournament_id: IDS.tournament,
+    judge_id: judge.id,
+    status: "unknown",
+    available_rounds: [],
+    unavailable_rounds: [],
+  }, { onConflict: "tournament_id,judge_id" }));
 
   const account = serviceAccounts.find((row) => row.household_id === IDS.household);
   const { count } = await plugin
