@@ -51,8 +51,8 @@ V16: build/typecheck/lint/tests pass after staged dependency upgrade.
 
 id|status|task|cites
 T1|x|fix local Supabase replay, fixtures, credentials, CI commands|V1,V2,V12,I.cmd
-T2|~|add consolidated seasonal household/membership/judge schema + RLS + migration|V3,V4,V5,V6,V7,V8,V9,V13,V14,V15,I.schema
-T3|.|add typed domain contracts + repositories/services|V3,V4,V5,V6,V7,V8,V9,V10,V13,V15,I.service
+T2|x|add consolidated seasonal household/membership/judge schema + RLS + migration|V3,V4,V5,V6,V7,V8,V9,V13,V14,V15,I.schema
+T3|~|add typed domain contracts + repositories/services|V3,V4,V5,V6,V7,V8,V9,V10,V13,V15,I.service
 T4|.|add Tabroom provider, fixture snapshots, sync runs, fallback|V11,V12,I.provider
 T5|.|add deterministic eligibility + AI draft review/approval flow|V9,V10,V13,I.service
 T6|.|complete student/staff vertical-slice UI + guardian token flow|V4,V5,V6,V7,V8,V9,V13,V14
@@ -66,3 +66,6 @@ T10|.|rewrite DV architecture/status/plugin development docs|V1,V3,V4,V5,V8,V9,V
 id|date|cause|fix
 B1|2026-06-21|DV fixture `join_code` exceeded existing `varchar(6)`|V2
 B2|2026-06-21|bulk requirement upsert omitted non-null `metadata`|V2
+B3|2026-06-21|ledger immutability test expected trigger before RLS denial|V15
+B4|2026-06-21|removed dev button left empty JSX conditional|V16
+B5|2026-06-21|legacy wrapper lacked season narrowing; Kotlin-JS payload needed `unknown` bridge|V16
