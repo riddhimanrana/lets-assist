@@ -114,12 +114,18 @@ jobs:
           DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
 
       - name: Install Playwright Chromium
+        if: ${{ hashFiles('lib/plugins/private/plugins/dv-speech-debate/plugin.tsx') != '' }}
         run: bunx playwright install --with-deps chromium
 
       - name: Validate DV browser workflows
+        if: ${{ hashFiles('lib/plugins/private/plugins/dv-speech-debate/plugin.tsx') != '' }}
         run: bun run dv:test:e2e
         env:
           DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
+
+      - name: Skip private DV browser workflows
+        if: ${{ hashFiles('lib/plugins/private/plugins/dv-speech-debate/plugin.tsx') == '' }}
+        run: echo "Private DV plugin submodule unavailable; skipping private DV browser workflows."
 
       - name: Show Supabase status
         run: bun run supabase:status
