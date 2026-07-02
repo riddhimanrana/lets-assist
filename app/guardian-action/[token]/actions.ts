@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { GuardianTokenService } from "@/lib/plugins/private/plugins/dv-speech-debate/services/guardian-token-service";
+import { GuardianTokenService } from "@/lib/dv/guardian-token-service";
 
 export async function confirmGuardianAvailability(formData: FormData) {
   const token = String(formData.get("token") ?? "");

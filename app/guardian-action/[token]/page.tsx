@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle2 } from "lucide-react";
-import { GuardianTokenService } from "@/lib/plugins/private/plugins/dv-speech-debate/services/guardian-token-service";
+import { GuardianTokenService } from "@/lib/dv/guardian-token-service";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
