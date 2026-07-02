@@ -12,7 +12,9 @@ import {
 } from "@/services/calendar";
 import {
   buildSpreadsheetUrl,
+  buildClearRange,
   buildWriteRange,
+  clearSpreadsheetValues,
   createSpreadsheet,
   ensureSpreadsheetTab,
   extractSpreadsheetId,
@@ -387,6 +389,20 @@ export async function syncSheetNow(
     syncConfig.range_a1,
     rows
   );
+  const clearRange = buildClearRange(
+    syncConfig.tab_name || DEFAULT_TAB_NAME,
+    syncConfig.range_a1,
+    rows
+  );
+  const cleared = await clearSpreadsheetValues(
+    accessToken,
+    syncConfig.sheet_id,
+    clearRange
+  );
+  if (!cleared) {
+    return { success: false, error: "Failed to clear stale Google Sheet values" };
+  }
+
   const updated = await updateSpreadsheetValues(
     accessToken,
     syncConfig.sheet_id,

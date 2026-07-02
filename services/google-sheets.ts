@@ -31,18 +31,24 @@ const parseA1Cell = (cell: string) => {
 const parseA1Range = (range: string) => {
   const trimmed = range.trim();
   if (!trimmed) return null;
-  const [tabPart, rangePart] = trimmed.includes("!")
+  const [rawTabPart, rangePart] = trimmed.includes("!")
     ? trimmed.split("!")
     : [null, trimmed];
   const [startPart, endPart] = rangePart.split(":");
   const start = parseA1Cell(startPart);
   const end = endPart ? parseA1Cell(endPart) : null;
   if (!start) return null;
+  const tabPart = rawTabPart?.replace(/^'(.*)'$/, "$1").replace(/''/g, "'");
   return {
     tabName: tabPart || null,
     start,
     end,
   };
+};
+
+const formatSheetNameForA1 = (tabName: string) => {
+  const escaped = tabName.replace(/'/g, "''");
+  return `'${escaped}'`;
 };
 
 export function buildWriteRange(
@@ -63,7 +69,70 @@ export function buildWriteRange(
   const endRow = startRow + totalRows - 1;
   const resolvedTab = parsed?.tabName || tabName;
 
-  return `${resolvedTab}!${startColumn}${startRow}:${endColumn}${endRow}`;
+  return `${formatSheetNameForA1(resolvedTab)}!${startColumn}${startRow}:${endColumn}${endRow}`;
+}
+
+export function buildClearRange(
+  tabName: string,
+  rangeA1: string | null | undefined,
+  rows: string[][]
+) {
+  const parsed = rangeA1 ? parseA1Range(rangeA1) : null;
+  const startColumn = parsed?.start.column ?? "A";
+  const startRow = parsed?.start.row ?? 1;
+  const startIndex = columnToIndex(startColumn);
+  const totalColumns = Math.max(
+    rows.reduce((max, row) => Math.max(max, row.length), 0),
+    1
+  );
+  const resolvedTab = parsed?.tabName || tabName;
+
+  if (parsed?.end) {
+    return `${formatSheetNameForA1(resolvedTab)}!${startColumn}${startRow}:${parsed.end.column}${parsed.end.row}`;
+  }
+
+  const endColumn = indexToColumn(Math.max(startIndex + totalColumns - 1, 26));
+  const endRow = Math.max(startRow + rows.length + 50, 1000);
+  return `${formatSheetNameForA1(resolvedTab)}!${startColumn}${startRow}:${endColumn}${endRow}`;
+}
+
+export async function clearSpreadsheetValues(
+  accessToken: string,
+  sheetId: string,
+  range: string
+): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `${GOOGLE_SHEETS_API}/${encodeURIComponent(
+        sheetId
+      )}/values/${encodeURIComponent(range)}:clear`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      logError('Failed to clear Google spreadsheet values', new Error(error), {
+        sheet_id: sheetId,
+        range,
+      });
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    logError('Exception while clearing Google spreadsheet values', error, {
+      sheet_id: sheetId,
+      range,
+    });
+    return false;
+  }
 }
 
 export async function createSpreadsheet(

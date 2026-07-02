@@ -90,6 +90,13 @@ function omitProjectColumns(
   return next;
 }
 
+function normalizeRequireLoginForVerificationMethod(
+  verificationMethod: EventFormState["verificationMethod"] | undefined,
+  requireLogin: boolean
+) {
+  return verificationMethod === "signup-only" ? false : requireLogin;
+}
+
 // Helper function to check if date/time is in the past, using user's local time
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _isDateTimeInPast = (date: string, time: string, userNow: Date): boolean => {
@@ -264,7 +271,10 @@ export async function createBasicProject(
       schedule: projectData.schedule,
       status: 'upcoming',
       verification_method: projectData.verificationMethod,
-      require_login: projectData.requireLogin,
+      require_login: normalizeRequireLoginForVerificationMethod(
+        projectData.verificationMethod,
+        projectData.requireLogin
+      ),
       enable_volunteer_comments: projectData.enableVolunteerComments || false,
       show_attendees_publicly: projectData.showAttendeesPublicly || false,
       waiver_required: projectData.waiverRequired || false,
@@ -923,7 +933,10 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
     event_type: projectData.eventType,
     schedule: projectData.schedule,
     verification_method: projectData.verificationMethod,
-    require_login: projectData.requireLogin,
+    require_login: normalizeRequireLoginForVerificationMethod(
+      projectData.verificationMethod,
+      projectData.requireLogin ?? true
+    ),
     enable_volunteer_comments: projectData.enableVolunteerComments || false,
     show_attendees_publicly: projectData.showAttendeesPublicly || false,
     waiver_required: projectData.waiverRequired || false,

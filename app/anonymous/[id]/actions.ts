@@ -37,6 +37,20 @@ async function transferAnonymousDataToUser(
     return { error: "This profile is already linked to another account." };
   }
 
+  const { data: signupRows, error: signupRowsError } = await adminClient
+    .from("project_signups")
+    .select("id")
+    .eq("anonymous_id", anonymousId);
+
+  if (signupRowsError) {
+    console.error("Error loading anonymous project signups:", signupRowsError);
+    return { error: "Failed to prepare profile transfer. Please try again." };
+  }
+
+  const signupIds = (signupRows ?? [])
+    .map((row) => row.id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+
   const { error: transferSignupsError } = await adminClient
     .from("project_signups")
     .update({ user_id: userId, anonymous_id: null })
@@ -57,6 +71,19 @@ async function transferAnonymousDataToUser(
   if (transferWaiversError) {
     console.error("Error transferring waiver signatures:", transferWaiversError);
     return { error: "Failed to transfer waiver data. Please try again." };
+  }
+
+  if (signupIds.length > 0) {
+    const { error: transferCertificatesError } = await adminClient
+      .from("certificates")
+      .update({ user_id: userId })
+      .in("signup_id", signupIds)
+      .is("user_id", null);
+
+    if (transferCertificatesError) {
+      console.error("Error transferring certificates:", transferCertificatesError);
+      return { error: "Failed to transfer certificate data. Please try again." };
+    }
   }
 
   if (profile.linked_user_id !== userId) {
