@@ -111,6 +111,58 @@ export interface OrganizationPluginActionButton {
   external?: boolean;
 }
 
+export interface OrganizationPluginRouteDefinition {
+  /**
+   * Relative plugin route, for example `members`, `tournaments/import`,
+   * or `admin/data`. The host renders it below
+   * `/organization/[id]/plugins/[pluginKey]/...`.
+   */
+  path: string;
+  label: string;
+  title?: string;
+  description?: string;
+  minimumRole?: OrganizationPluginSurfaceAccessLevel;
+  navSection?: "plugin" | "organization" | "hidden";
+}
+
+export interface OrganizationPluginBackendCapability {
+  key: string;
+  kind:
+    | "server-action"
+    | "route-handler"
+    | "cron"
+    | "webhook"
+    | "external-api"
+    | "ai"
+    | "workflow";
+  description: string;
+  route?: string;
+  minimumRole?: OrganizationPluginSurfaceAccessLevel;
+  idempotencyRequired?: boolean;
+}
+
+export interface OrganizationPluginDataAccessDeclaration {
+  schema: "public" | "plugin_data" | "private" | string;
+  relation: string;
+  access:
+    | "server-only"
+    | "rls-client"
+    | "public-read-model"
+    | "rpc"
+    | "background-job";
+  purpose: string;
+  containsPersonalData?: boolean;
+  containsSensitiveData?: boolean;
+  tenantColumn?: string;
+}
+
+export interface OrganizationPluginStorageAccessDeclaration {
+  bucket: string;
+  pathPattern: string;
+  access: "public-read" | "authenticated-read" | "staff-only" | "server-only";
+  purpose: string;
+}
+
 export interface AnonymousProfileExperienceBehavior {
   bannerMessage?: string;
   hideLinkingSection?: boolean;
@@ -269,6 +321,24 @@ export interface OrganizationPluginManifest {
    */
   requiredScopes?: OrganizationPluginScope[];
   /**
+   * Custom routes owned by this plugin under
+   * /organization/[id]/plugins/[pluginKey]/...
+   */
+  routes?: OrganizationPluginRouteDefinition[];
+  /**
+   * Server-side capabilities this plugin depends on or exposes.
+   */
+  backendCapabilities?: OrganizationPluginBackendCapability[];
+  /**
+   * Structured data access contract used for privacy review and API exposure
+   * reduction. This supersedes string-only dataScope documentation.
+   */
+  dataAccess?: OrganizationPluginDataAccessDeclaration[];
+  /**
+   * Storage buckets/path patterns used by this plugin.
+   */
+  storageAccess?: OrganizationPluginStorageAccessDeclaration[];
+  /**
    * Tables/data this plugin manages (for documentation/cleanup)
    */
   dataScope?: string[];
@@ -388,6 +458,10 @@ export interface OrganizationPluginDefinition {
   renderOrganizationPage?: (
     props: OrganizationPluginPageProps,
   ) => ReactNode | Promise<ReactNode>;
+  renderOrganizationRoute?: (
+    routePath: string,
+    props: OrganizationPluginPageProps,
+  ) => ReactNode | null | Promise<ReactNode | null>;
   renderSurface?: (
     surface: OrganizationPluginSurface,
     context: OrganizationPluginSurfaceRenderContext,

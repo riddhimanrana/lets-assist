@@ -20,7 +20,7 @@ jobs:
     env:
       CRON_BASE_URL: ${{ secrets.CRON_BASE_URL }}
       CRON_TOKEN: ${{ secrets.CRON_SECRET }}
-      VERCEL_BYPASS_SECRET: ${{ secrets.VERCEL_BYPASS_SECRET }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET || secrets.VERCEL_BYPASS_SECRET }}
       BETTERSTACK_HEARTBEAT_URL: ${{ secrets['BETTERSTACK_AI_MODERATION_HEARTBEAT_URL'] || secrets['BETTERSTACK_HEARTBEAT_AI_MODERATION_URL'] || secrets['BETTERSTACK_HEARTBEAT_URL'] }}
       ENDPOINT_PATH: /api/cron/ai-moderation
       HTTP_METHOD: GET
@@ -29,15 +29,27 @@ jobs:
         run: |
           test -n "$CRON_BASE_URL" || { echo "CRON_BASE_URL secret missing"; exit 1; }
           test -n "$CRON_TOKEN" || { echo "CRON_SECRET secret missing"; exit 1; }
-          test -n "$VERCEL_BYPASS_SECRET" || { echo "VERCEL_BYPASS_SECRET secret missing"; exit 1; }
 
       - name: Call AI moderation endpoint with retries
         run: |
           set -euo pipefail
-          [[ -z "${BETTERSTACK_HEARTBEAT_URL:-}" ]] && { echo "No BetterStack URL configured, skipping."; exit 0; }
 
           endpoint="${CRON_BASE_URL%/}${ENDPOINT_PATH}"
           max_attempts=5
+          vercel_bypass_args=()
+          if [[ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]; then
+            vercel_bypass_args=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+          fi
+
+          request_endpoint="$endpoint"
+          if [[ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]; then
+            encoded_bypass="${VERCEL_AUTOMATION_BYPASS_SECRET}"
+            separator="?"
+            if [[ "$endpoint" == *\?* ]]; then
+              separator="&"
+            fi
+            request_endpoint="${endpoint}${separator}x-vercel-protection-bypass=${encoded_bypass}"
+          fi
 
           for attempt in $(seq 1 "$max_attempts"); do
             echo "Attempt ${attempt}/${max_attempts}: ${HTTP_METHOD} ${endpoint}"
@@ -50,19 +62,24 @@ jobs:
                 -H "Authorization: Bearer $CRON_TOKEN" \
                 -H "Accept: application/json" \
                 -H "User-Agent: lets-assist-cron/${GITHUB_WORKFLOW}" \
-                -H "x-vercel-protection-bypass: $VERCEL_BYPASS_SECRET" \
+                "${vercel_bypass_args[@]}" \
                 -D "$headers_file" \
                 -o "$body_file" \
                 -w "%{http_code}" \
                 --connect-timeout 10 \
                 --max-time 300 \
-                "$endpoint" || true
+                "$request_endpoint" || true
             })"
 
             echo "HTTP status: ${status_code}"
             if [[ -s "$body_file" ]]; then
-              echo "Response body:"
-              cat "$body_file"
+              if grep -qi "Vercel Security Checkpoint" "$body_file"; then
+                echo "Response body: Vercel Security Checkpoint (deployment protection challenge)."
+              else
+                echo "Response body:"
+                head -c 4000 "$body_file"
+                echo
+              fi
             fi
 
             if [[ "$status_code" =~ ^2[0-9][0-9]$ ]]; then
