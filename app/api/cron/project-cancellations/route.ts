@@ -190,7 +190,9 @@ async function processOneJob(job: CancellationJobRow) {
   let notificationsCreated = 0;
   const errors: string[] = [];
 
-  // Process sequentially so we can checkpoint the cursor and reduce duplicate sends on retries.
+  const emailPromises: Promise<void>[] = [];
+  const notificationsToInsert: any[] = [];
+
   for (let i = 0; i < signupRows.length; i++) {
     const signup = signupRows[i];
 
@@ -214,9 +216,9 @@ async function processOneJob(job: CancellationJobRow) {
     const prefs = signup.user_id ? settingsByUserId.get(signup.user_id) : undefined;
     const allowProjectUpdates = prefs?.project_updates !== false;
 
-    // In-app notification (registered users only)
+    // In-app notification data (registered users only)
     if (signup.user_id && allowProjectUpdates) {
-      const { error: notifError } = await supabase.from("notifications").insert({
+      notificationsToInsert.push({
         user_id: signup.user_id,
         title: "Project Cancelled",
         body: `The project "${project.title}" has been cancelled.${job.cancellation_reason ? ` Reason: ${job.cancellation_reason}` : ""}`,
@@ -230,49 +232,55 @@ async function processOneJob(job: CancellationJobRow) {
         },
         displayed: false,
       });
-
-      if (notifError) {
-        errors.push(`Notification insert failed for user ${signup.user_id}: ${notifError.message}`);
-      } else {
-        notificationsCreated++;
-      }
     }
 
-    // Email notification (cancellation is treated as transactional)
+    // Email notification promise (cancellation is treated as transactional)
     const shouldSendEmail = !!email;
     if (shouldSendEmail && email) {
-      try {
-        const subject = `Project Cancelled: ${project.title}`;
+      emailPromises.push((async () => {
+        try {
+          const subject = `Project Cancelled: ${project.title}`;
+          const { success, error: emailError } = await sendEmail({
+            to: email!,
+            subject,
+            react: React.createElement(ProjectCancellation, {
+              volunteerName: name,
+              projectName: project.title,
+              cancellationReason: job.cancellation_reason,
+            }),
+            type: "transactional",
+          });
 
-        const { error: emailError } = await sendEmail({
-          to: email,
-          subject,
-          react: React.createElement(ProjectCancellation, {
-            volunteerName: name,
-            projectName: project.title,
-            cancellationReason: job.cancellation_reason,
-          }),
-          type: "transactional",
-        });
-
-        if (emailError) {
-          errors.push(`Email send failed for ${email}: ${String(emailError)}`);
-        } else {
-          emailsSent++;
+          if (!success) {
+            errors.push(`Email send failed for ${email}: ${String(emailError)}`);
+          } else {
+            emailsSent++;
+          }
+        } catch (e) {
+          const message = e instanceof Error ? e.message : "Unknown email error";
+          errors.push(`Email send threw for ${email}: ${message}`);
         }
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "Unknown email error";
-        errors.push(`Email send threw for ${email}: ${message}`);
-      }
+      })());
     }
-
-    // Checkpoint cursor after each processed row to minimize duplicate sends if the worker crashes mid-batch.
-    const newCursor = job.cursor + i + 1;
-    await supabase
-      .from("project_cancellation_jobs")
-      .update({ cursor: newCursor, updated_at: new Date().toISOString() })
-      .eq("id", job.id);
   }
+
+  // Execute email promises and batch insert notifications in parallel
+  const dbPromises: Promise<void>[] = [];
+  if (notificationsToInsert.length > 0) {
+    dbPromises.push((async () => {
+      const { error: notifError } = await supabase
+        .from("notifications")
+        .insert(notificationsToInsert);
+
+      if (notifError) {
+        errors.push(`Batch notification insert failed: ${notifError.message}`);
+      } else {
+        notificationsCreated += notificationsToInsert.length;
+      }
+    })());
+  }
+
+  await Promise.all([...emailPromises, ...dbPromises]);
 
   const finalCursor = job.cursor + signupRows.length;
   const isComplete = signupRows.length < batchSize;

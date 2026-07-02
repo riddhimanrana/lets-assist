@@ -99,15 +99,23 @@ export function useAuth(): AuthState {
         const claims = claimsData.claims as AuthClaimsLike & { aal?: string };
         const currentAal = claims.aal || 'aal1';
 
-        // Get MFA factors if user exists
+        // Middleware enforces MFA for protected routes. Client-side factor
+        // lookup is only needed on MFA/authentication screens; doing it on
+        // every page adds a network call and can create noisy local-dev errors.
         let mfaFactors: MfaListFactorsLike = { totp: [], phone: [] };
-        try {
-          const { data: factors } = await supabase.auth.mfa.listFactors();
-          if (factors) {
-            mfaFactors = factors as MfaListFactorsLike;
+        const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+        const shouldCheckClientMfa =
+          pathname === '/auth/mfa' || pathname.startsWith('/account/authentication');
+
+        if (shouldCheckClientMfa) {
+          try {
+            const { data: factors } = await supabase.auth.mfa.listFactors();
+            if (factors) {
+              mfaFactors = factors as MfaListFactorsLike;
+            }
+          } catch (mfaError) {
+            console.debug('[useAuth] Could not fetch MFA factors:', mfaError);
           }
-        } catch (mfaError) {
-          console.debug('[useAuth] Could not fetch MFA factors:', mfaError);
         }
 
         // Determine if user needs MFA challenge

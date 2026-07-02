@@ -14,16 +14,16 @@ const VolunteerJourneySection = dynamic(
   () => import("./_components/VolunteerJourneySection"),
   { loading: () => null, ssr: false },
 );
-const PlatformFeaturesSection = dynamic(
-  () => import("./_components/PlatformFeaturesSection"),
-  { loading: () => null, ssr: false },
-);
 const OrgToolingSection = dynamic(
   () => import("./_components/OrgToolingSection"),
   {
     loading: () => null,
     ssr: false,
   },
+);
+const TestimonialsSection = dynamic(
+  () => import("./_components/TestimonialsSection"),
+  { loading: () => null, ssr: false },
 );
 const CallToAction = dynamic(
   () => import("./_components/CallToAction").then((mod) => mod.CallToAction),
@@ -36,8 +36,8 @@ export function LandingLazySections() {
       <BayAreaExamples />
       <ComparisonSection />
       <VolunteerJourneySection />
-      <PlatformFeaturesSection />
       <OrgToolingSection />
+      <TestimonialsSection />
       <CallToAction />
     </>
   );

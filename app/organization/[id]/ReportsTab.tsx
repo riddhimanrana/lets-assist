@@ -13,6 +13,7 @@ import {
   FileSpreadsheet,
   FolderKanban,
   RefreshCw,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 
@@ -38,7 +39,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { Bar, BarChart as RechartsBarChart, XAxis, YAxis, CartesianGrid } from "recharts";
+import { Area, AreaChart, Bar, BarChart as RechartsBarChart, XAxis, YAxis, CartesianGrid } from "recharts";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -181,6 +182,18 @@ export default function ReportsTab({
     total: {
       label: "Hours",
       color: "var(--chart-3)",
+    },
+    verified: {
+      label: "Verified",
+      color: "var(--chart-1)",
+    },
+    pending: {
+      label: "Pending",
+      color: "var(--chart-4)",
+    },
+    volunteers: {
+      label: "Volunteers",
+      color: "var(--chart-2)",
     },
   } satisfies ChartConfig), []);
 
@@ -622,6 +635,27 @@ export default function ReportsTab({
     [reportData?.projects]
   );
   const monthlyData = reportData?.monthlyHours || [];
+  const activeVolunteerCount = reportData?.metrics?.totalVolunteers ?? 0;
+  const registeredVolunteerCount = reportData?.metrics?.registeredVolunteers ?? 0;
+  const anonymousVolunteerCount = reportData?.metrics?.anonymousVolunteers ?? 0;
+  const verifiedHours = reportData?.metrics?.verifiedHours ?? 0;
+  const pendingHours = reportData?.metrics?.pendingHours ?? 0;
+  const verifiedShare =
+    reportData?.metrics?.totalHours && reportData.metrics.totalHours > 0
+      ? Math.round((verifiedHours / reportData.metrics.totalHours) * 100)
+      : 0;
+  const volunteerMixData = [
+    {
+      type: "Registered",
+      volunteers: registeredVolunteerCount,
+      fill: "var(--color-volunteers)",
+    },
+    {
+      type: "Anonymous",
+      volunteers: anonymousVolunteerCount,
+      fill: "var(--color-pending)",
+    },
+  ];
 
   if (loading && !reportData) {
     return (
@@ -657,7 +691,7 @@ export default function ReportsTab({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <SummaryCard
           title="Total Hours"
           value={(reportData?.metrics?.totalHours ?? 0).toFixed(1)}
@@ -667,7 +701,7 @@ export default function ReportsTab({
         />
         <SummaryCard
           title="Active Members"
-          value={reportData?.metrics?.totalVolunteers ?? 0}
+          value={activeVolunteerCount}
           description="Members with hours"
           icon={Users}
           loading={loading}
@@ -680,7 +714,7 @@ export default function ReportsTab({
           loading={loading}
         />
         <SummaryCard
-          title="Avg Per Active Member"
+          title="Avg / Active Member"
           value={
             reportData?.metrics && reportData.metrics.totalVolunteers > 0
               ? ((reportData.metrics.totalHours ?? 0) / reportData.metrics.totalVolunteers).toFixed(1)
@@ -690,42 +724,101 @@ export default function ReportsTab({
           icon={BarChart}
           loading={loading}
         />
+        <SummaryCard
+          title="Verified"
+          value={`${verifiedShare}%`}
+          description={`${verifiedHours.toFixed(1)} verified hours`}
+          icon={ShieldCheck}
+          loading={loading}
+        />
+        <SummaryCard
+          title="Pending"
+          value={pendingHours.toFixed(1)}
+          description="Hours awaiting review"
+          icon={RefreshCw}
+          loading={loading}
+        />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            Monthly Hours Breakdown
-          </CardTitle>
-          <CardDescription>Hours logged month by month for the selected range</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-50 w-full" />
-          ) : (
-            <ChartContainer config={chartConfig} className="h-50 w-full">
-              <RechartsBarChart accessibilityLayer data={monthlyData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={10}
-                  tick={{ fontSize: 10 }}
-                />
-                <YAxis hide />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar
-                  dataKey="total"
-                  fill="var(--color-total)"
-                  radius={[4, 4, 0, 0]}
-                />
-              </RechartsBarChart>
-            </ChartContainer>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              Monthly Hours Breakdown
+            </CardTitle>
+            <CardDescription>Verified and pending hours month by month for the selected range</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-60 w-full" />
+            ) : (
+              <ChartContainer config={chartConfig} className="h-60 w-full">
+                <AreaChart accessibilityLayer data={monthlyData} margin={{ left: 8, right: 12, top: 10, bottom: 0 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={10}
+                    tick={{ fontSize: 10 }}
+                  />
+                  <YAxis hide />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Area
+                    dataKey="verified"
+                    type="natural"
+                    fill="var(--color-verified)"
+                    fillOpacity={0.25}
+                    stroke="var(--color-verified)"
+                    stackId="a"
+                  />
+                  <Area
+                    dataKey="pending"
+                    type="natural"
+                    fill="var(--color-pending)"
+                    fillOpacity={0.2}
+                    stroke="var(--color-pending)"
+                    stackId="a"
+                  />
+                </AreaChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              Volunteer Mix
+            </CardTitle>
+            <CardDescription>Registered and anonymous participation</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-60 w-full" />
+            ) : (
+              <ChartContainer config={chartConfig} className="h-60 w-full">
+                <RechartsBarChart accessibilityLayer data={volunteerMixData} layout="vertical" margin={{ left: 0, right: 12, top: 10, bottom: 0 }}>
+                  <CartesianGrid horizontal={false} />
+                  <XAxis type="number" hide />
+                  <YAxis
+                    dataKey="type"
+                    type="category"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11 }}
+                    width={74}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent nameKey="type" />} />
+                  <Bar dataKey="volunteers" radius={[0, 5, 5, 0]} />
+                </RechartsBarChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>

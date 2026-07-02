@@ -1,8 +1,7 @@
 "use client"
 
 import { useCallback, useRef, useState, useEffect } from "react"
-import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api"
-import { useTheme } from "next-themes"
+import { GoogleMap, OverlayView, useLoadScript } from "@react-google-maps/api"
 import type { LocationData } from "@/types"
 
 const libraries = ["places"]
@@ -35,10 +34,6 @@ export function LocationMap({
 }: Omit<LocationMapProps, "readOnly" | "showAttribution">) {
   const mapRef = useRef<google.maps.Map | null>(null)
   const [map, setMap] = useState<google.maps.Map | null>(null)
-  const { theme, systemTheme } = useTheme()
-
-  // Determine if dark mode is active
-  const isDarkMode = theme === "dark" || (theme === "system" && systemTheme === "dark")
 
   // Load Google Maps script
   const { isLoaded, loadError } = useLoadScript({
@@ -46,16 +41,14 @@ export function LocationMap({
     libraries: libraries as "places"[],
   })
 
-  // Update map styling when theme changes
+  // Keep the cloud-styled map ID applied without also passing inline styles.
   useEffect(() => {
     if (map) {
-      // Apply the map ID with the appropriate theme
       map.setOptions({
         mapId: MAP_ID,
-        styles: isDarkMode ? [] : [], // The map ID handles styling, so we don't need custom styles
       })
     }
-  }, [map, isDarkMode])
+  }, [map])
 
   // Get marker position from location data
   const getMarkerPosition = (): google.maps.LatLngLiteral | undefined => {
@@ -130,7 +123,11 @@ export function LocationMap({
             mapId: MAP_ID, // Apply your map ID here
           }}
         >
-          {getMarkerPosition() && <Marker position={getMarkerPosition()!} />}
+          {getMarkerPosition() && (
+            <OverlayView position={getMarkerPosition()!} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
+              <div className="h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-primary shadow-md ring-2 ring-primary/25" />
+            </OverlayView>
+          )}
         </GoogleMap>
 
         {/* Show a message if no location data is available */}
@@ -143,4 +140,3 @@ export function LocationMap({
     </div>
   )
 }
-

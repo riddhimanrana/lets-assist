@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "supabase-local": {
+      "type": "http",
+      "url": "http://127.0.0.1:54321/mcp"
+    },
+    "supabase-remote-readonly": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=fotdmeakexgrkronxlof&read_only=true"
+    },
+    "supabase-remote-writable": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=fotdmeakexgrkronxlof"
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 import { getLocalSupabaseEnv } from "../../scripts/local-dev/dv-local-env.mjs";
 
 const ORGANIZATION_ID = "d0000000-0000-4000-8000-000000000001";
+const ORGANIZATION_SLUG = "dv-speech-debate";
 const TOURNAMENT_ID = "d0000000-0000-4000-8000-000000000021";
 const STUDENT_EMAIL = "dv.student.a@local.test";
 
@@ -24,7 +25,7 @@ test("approved student can open the current seasonal membership workspace", asyn
 
   await page.goto(
     `/login?redirect=${encodeURIComponent(
-      "/organization/dv-speech-debate-local/plugins/dv-speech-debate",
+      `/organization/${ORGANIZATION_SLUG}/plugins/dv-speech-debate`,
     )}`,
   );
   await page.getByRole("textbox", { name: "Email" }).fill(STUDENT_EMAIL);
@@ -35,7 +36,7 @@ test("approved student can open the current seasonal membership workspace", asyn
     .click();
 
   await expect(page).toHaveURL(
-    /\/organization\/dv-speech-debate-local\/plugins\/dv-speech-debate/,
+    new RegExp(`/organization/${ORGANIZATION_SLUG}/plugins/dv-speech-debate`),
   );
   await expect(
     page.getByRole("heading", { name: /DV Speech & Debate/i }).first(),

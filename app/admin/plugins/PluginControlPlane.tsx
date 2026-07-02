@@ -84,6 +84,15 @@ const ENTITLEMENT_STATUS_ITEMS: Array<{
   { label: "Inactive", value: "inactive" },
 ];
 
+function getBoundaryBadgeVariant(
+  status: PluginControlPlaneData["dataBoundaries"][number]["boundary_status"],
+) {
+  if (status === "active") return "default";
+  if (status === "migration_pending") return "info";
+  if (status === "archived") return "secondary";
+  return "outline";
+}
+
 function getPluginHighlights(plugin: PluginControlPlaneData["plugins"][number]) {
   const items: string[] = [];
 
@@ -491,6 +500,7 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
       <TabsList className="w-full justify-start">
         <TabsTrigger value="catalog">Catalog</TabsTrigger>
         <TabsTrigger value="entitlements">Access</TabsTrigger>
+        <TabsTrigger value="boundaries">Data Boundaries</TabsTrigger>
         <TabsTrigger value="deployments">Rollouts</TabsTrigger>
         <TabsTrigger value="configuration">Config</TabsTrigger>
       </TabsList>
@@ -831,7 +841,64 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
         </CardContent>
       </Card>
       </TabsContent>
-      
+
+      <TabsContent value="boundaries" className="mt-0 flex flex-col gap-4">
+        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="space-y-2 border-b bg-muted/20">
+            <CardTitle>Plugin data boundaries</CardTitle>
+            <CardDescription>
+              Every installed plugin should have an explicit org/plugin boundary. Shared mode is the normal path; enterprise customers can be marked for dedicated schema, dedicated project, or external data handling.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {data.dataBoundaries.length === 0 ? (
+              <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                No plugin data boundaries exist yet. Run the latest Supabase migrations and fixture sync.
+              </p>
+            ) : (
+              <div className="overflow-hidden rounded-xl border">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/50 text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">Organization</th>
+                      <th className="px-3 py-2 text-left font-medium">Plugin</th>
+                      <th className="px-3 py-2 text-left font-medium">Boundary</th>
+                      <th className="px-3 py-2 text-left font-medium">Isolation</th>
+                      <th className="px-3 py-2 text-left font-medium">Client access</th>
+                      <th className="px-3 py-2 text-left font-medium">Data target</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.dataBoundaries.map((boundary) => (
+                      <tr key={boundary.id} className="border-t">
+                        <td className="px-3 py-2">
+                          <div className="font-medium">{boundary.organization_name}</div>
+                          <div className="text-muted-foreground">
+                            {boundary.organization_slug ?? boundary.organization_id}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">{boundary.plugin_key}</td>
+                        <td className="px-3 py-2">
+                          <Badge variant={getBoundaryBadgeVariant(boundary.boundary_status)}>
+                            {boundary.boundary_status.replaceAll("_", " ")}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2">{boundary.isolation_mode.replaceAll("_", " ")}</td>
+                        <td className="px-3 py-2">{boundary.direct_client_access.replaceAll("_", " ")}</td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {boundary.data_schema}
+                          {boundary.data_prefix ? ` / ${boundary.data_prefix}` : ""}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
       <TabsContent value="entitlements" className="mt-0 flex flex-col gap-4">
       <Card className="border-border/60 shadow-sm">
         <CardHeader className="space-y-2 border-b bg-muted/20">

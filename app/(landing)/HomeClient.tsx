@@ -4,7 +4,6 @@ import { CallToAction } from "./_components/CallToAction";
 import { Hero } from "./_components/Hero";
 import BayAreaExamples from "./_components/BayAreaExamples";
 import VolunteerJourneySection from "./_components/VolunteerJourneySection";
-import PlatformFeaturesSection from "./_components/PlatformFeaturesSection";
 import OrgToolingSection from "./_components/OrgToolingSection";
 import ComparisonSection from "./_components/ComparisonSection";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -87,7 +86,6 @@ function HomeContent() {
       <BayAreaExamples />
       <ComparisonSection />
       <VolunteerJourneySection />
-      <PlatformFeaturesSection />
       <OrgToolingSection />
       <CallToAction />
     </main>

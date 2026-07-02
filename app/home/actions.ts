@@ -25,6 +25,41 @@ type GetActiveProjectsOptions = {
   eventType?: Project["event_type"];
 };
 
+type ProjectDiscoveryReadModelRow = Project & {
+  creator_full_name: string | null;
+  creator_avatar_url: string | null;
+  creator_username: string | null;
+  creator_created_at: string | null;
+  organization_name: string | null;
+  organization_username: string | null;
+  organization_logo_url: string | null;
+  organization_verified: boolean | null;
+  organization_type: Organization["type"] | null;
+};
+
+function projectDiscoveryRowToProject(row: ProjectDiscoveryReadModelRow): Project {
+  return {
+    ...row,
+    profiles: {
+      full_name: row.creator_full_name,
+      avatar_url: row.creator_avatar_url,
+      username: row.creator_username,
+      created_at: row.creator_created_at ?? row.created_at,
+      email: "",
+    },
+    organization: row.organization_id
+      ? {
+          id: row.organization_id,
+          name: row.organization_name ?? "",
+          username: row.organization_username,
+          logo_url: row.organization_logo_url,
+          verified: row.organization_verified ?? false,
+          type: row.organization_type ?? "nonprofit",
+        } as Organization
+      : undefined,
+  };
+}
+
 export async function getActiveProjects(
   limit: number = 21, 
   offset: number = 0,
@@ -36,6 +71,80 @@ export async function getActiveProjects(
   const supabase = await createClient();
   const admin = getAdminClient();
   const normalizedSearchTerm = options.searchTerm?.trim();
+
+  if (!organizationId) {
+    let query = admin
+      .from("project_discovery_read_model")
+      .select("*");
+
+    if (status) {
+      query = query.eq("status", status);
+    }
+
+    if (normalizedSearchTerm) {
+      query = query.or(`title.ilike.%${normalizedSearchTerm}%,description.ilike.%${normalizedSearchTerm}%`);
+    }
+
+    if (options.eventType) {
+      query = query.eq("event_type", options.eventType);
+    }
+
+    query = query.range(offset, offset + limit - 1)
+      .order("created_at", { ascending: false });
+
+    const projectsResult = await withRetryableSupabaseQuery(() => query);
+    const { data: rows, error } = projectsResult as {
+      data: ProjectDiscoveryReadModelRow[] | null;
+      error: { message?: string } | null;
+    };
+
+    if (error || !rows) {
+      console.error("Error fetching project discovery read model:", error);
+      return [];
+    }
+
+    const projectIds = rows.map((project) => project.id);
+    let occupancyByProject: ReturnType<typeof buildProjectOccupancyByProject> = {};
+
+    if (projectIds.length > 0) {
+      const signupsResult = await withRetryableSupabaseQuery(() => admin
+        .from("project_signups")
+        .select(`
+          project_id,
+          schedule_id,
+          status
+        `)
+        .in("status", [...ACTIVE_PROJECT_SIGNUP_STATUSES])
+        .in("project_id", projectIds));
+
+      const { data, error: signupsError } = signupsResult as {
+        data: { project_id: string; schedule_id: string | null; status: string }[] | null;
+        error: { message?: string } | null;
+      };
+
+      if (signupsError) {
+        console.error("Error fetching project occupancy counts:", signupsError);
+      } else {
+        occupancyByProject = buildProjectOccupancyByProject(data || []);
+      }
+    }
+
+    return rows.map((row) => {
+      const occupancy = occupancyByProject[row.id] || {
+        slotsFilled: 0,
+        slotsFilledBySchedule: {},
+      };
+
+      return {
+        ...projectDiscoveryRowToProject(row),
+        confirmed_signups: occupancy.slotsFilledBySchedule,
+        total_confirmed: occupancy.slotsFilled,
+        slots_filled: occupancy.slotsFilled,
+        slots_filled_by_schedule: occupancy.slotsFilledBySchedule,
+        status: getProjectStatus(row),
+      } as Project;
+    });
+  }
 
   // First get all projects
   let query = supabase

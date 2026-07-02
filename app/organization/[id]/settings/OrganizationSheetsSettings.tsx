@@ -266,7 +266,7 @@ export default function OrganizationSheetsSettings({
                   <div className="flex items-start gap-3">
                     <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background shadow-sm">
                       <Image
-                        src="/resources/google-sheets-logo.svg"
+                        src="/resources/google-sheets-logo-2026.png"
                         alt="Google Sheets"
                         width={24}
                         height={24}
@@ -494,7 +494,7 @@ export default function OrganizationSheetsSettings({
           <div className="space-y-4 rounded-2xl border border-dashed border-border/60 bg-muted/30 p-6 text-center">
             <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-border/60 bg-background shadow-sm">
               <Image
-                src="/resources/google-sheets-logo.svg"
+                src="/resources/google-sheets-logo-2026.png"
                 alt="Google Sheets"
                 width={24}
                 height={24}
@@ -542,7 +542,7 @@ export default function OrganizationSheetsSettings({
           <div className="space-y-4 rounded-2xl border border-dashed border-border/60 bg-muted/30 p-6 text-center">
             <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-border/60 bg-background shadow-sm">
               <Image
-                src="/resources/google-sheets-logo.svg"
+                src="/resources/google-sheets-logo-2026.png"
                 alt="Google Sheets"
                 width={24}
                 height={24}

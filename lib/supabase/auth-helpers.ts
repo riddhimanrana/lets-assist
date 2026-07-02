@@ -184,34 +184,36 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
   }
 
   const { claims } = claimsData;
-  const currentAal = typeof claims.aal === 'string' ? claims.aal : null;
 
-  const mfaState = await sessionRequiresMfa(supabase, currentAal);
+  // ONLY check MFA if explicitly requested, as listing factors requires a network call.
+  const checkMfaEnabled = options?.checkMfa || options?.allowMfaPending;
+  if (checkMfaEnabled) {
+    const currentAal = typeof claims.aal === 'string' ? claims.aal : null;
+    const mfaState = await sessionRequiresMfa(supabase, currentAal);
 
-  if (mfaState.invalidUser) {
-    await supabase.auth.signOut();
-    return { user: null, error: null };
-  }
+    if (mfaState.invalidUser) {
+      await supabase.auth.signOut();
+      return { user: null, error: null };
+    }
 
-  if (options?.checkMfa) {
-    if (mfaState.requiresMfa) {
+    if (options?.checkMfa && mfaState.requiresMfa) {
       return { user: null, error: null, requiresMfa: true };
     }
-  }
 
-  if (options?.allowMfaPending && mfaState.requiresMfa) {
-    return {
-      user: {
-        id: claims.sub,
-        email: claims.email || null,
-        phone: claims.phone || null,
-        role: claims.role || null,
-        user_metadata: claims.user_metadata || null,
-        app_metadata: claims.app_metadata || null,
-      },
-      error: null,
-      requiresMfa: true,
-    };
+    if (options?.allowMfaPending && mfaState.requiresMfa) {
+      return {
+        user: {
+          id: claims.sub,
+          email: claims.email || null,
+          phone: claims.phone || null,
+          role: claims.role || null,
+          user_metadata: claims.user_metadata || null,
+          app_metadata: claims.app_metadata || null,
+        },
+        error: null,
+        requiresMfa: true,
+      };
+    }
   }
 
   // Return user-shaped object from claims

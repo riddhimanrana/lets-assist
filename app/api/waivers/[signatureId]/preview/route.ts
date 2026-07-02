@@ -102,21 +102,8 @@ export async function GET(
       waiver_definition:waiver_definitions (
         id,
         pdf_public_url,
-        signers:waiver_definition_signers (
-          id,
-          role_key,
-          label,
-          required,
-          order_index
-        ),
-        fields:waiver_definition_fields (
-          id,
-          field_key,
-          field_type,
-          page_index,
-          rect,
-          signer_role_key
-        )
+        signers,
+        fields
       )
     `;
 

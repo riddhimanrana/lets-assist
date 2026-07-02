@@ -24,6 +24,14 @@ const ALLOWED_DOCUMENT_TYPES = [
   "image/jpg"
 ];
 
+type UploadedProjectDocument = {
+  name: string;
+  originalName: string;
+  type: string;
+  size: number;
+  url: string;
+};
+
 function sanitizeDraftData(projectData: Partial<EventFormState>): Partial<EventFormState> {
   const sanitizedDescription =
     typeof projectData.basicInfo?.description === "string"
@@ -534,6 +542,92 @@ export async function uploadProjectDocument(projectId: string, documentBase64: s
     console.error("Error uploading document:", error);
     return { error: "An unexpected error occurred during document upload." };
   }
+}
+
+export async function linkProjectUploadedAssets(
+  projectId: string,
+  assets: {
+    coverImageUrl?: string;
+    documents?: UploadedProjectDocument[];
+  }
+) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { error: "You must be logged in to upload files." };
+  }
+
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("id, creator_id, organization_id, documents")
+    .eq("id", projectId)
+    .single();
+
+  if (projectError || !project) {
+    console.error("Error loading project for uploaded file linking:", projectError);
+    return { error: "Project not found." };
+  }
+
+  let hasPermission = project.creator_id === user.id;
+
+  if (!hasPermission && project.organization_id) {
+    const { data: membership } = await supabase
+      .from("organization_members")
+      .select("role")
+      .eq("organization_id", project.organization_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    hasPermission = membership?.role === "admin" || membership?.role === "staff";
+  }
+
+  if (!hasPermission) {
+    return { error: "You don't have permission to update this project." };
+  }
+
+  const safeDocuments = (assets.documents ?? []).filter((document) => {
+    return (
+      document &&
+      typeof document.name === "string" &&
+      typeof document.originalName === "string" &&
+      typeof document.type === "string" &&
+      typeof document.size === "number" &&
+      typeof document.url === "string" &&
+      ALLOWED_DOCUMENT_TYPES.includes(document.type)
+    );
+  });
+
+  const updatePayload: Record<string, unknown> = {};
+
+  if (assets.coverImageUrl) {
+    updatePayload.cover_image_url = assets.coverImageUrl;
+  }
+
+  if (safeDocuments.length > 0) {
+    const currentDocuments = Array.isArray(project.documents) ? project.documents : [];
+    updatePayload.documents = [...currentDocuments, ...safeDocuments];
+  }
+
+  if (Object.keys(updatePayload).length === 0) {
+    return { success: true };
+  }
+
+  const { error: updateError } = await supabase
+    .from("projects")
+    .update(updatePayload)
+    .eq("id", projectId);
+
+  if (updateError) {
+    console.error("Error linking uploaded project assets:", updateError);
+    return { error: "Uploaded files could not be attached to the project." };
+  }
+
+  return { success: true };
 }
 
 // Handle waiver PDF upload for a project

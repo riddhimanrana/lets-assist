@@ -240,6 +240,8 @@
   --radius-sm: calc(var(--radius) - 4px);
 
   --font-overusedgrotesk: var(--font-overusedgrotesk), sans-serif;
+  --font-nohemi: var(--font-nohemi), sans-serif;
+  --font-cheese-milky: var(--font-cheese-milky), cursive;
   --font-sans: var(--font-sans), sans-serif;
   --font-mono: var(--font-geist-mono), sans-serif;
 
@@ -285,6 +287,39 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  .la-text-reveal-item {
+    opacity: 0;
+    filter: blur(var(--la-reveal-blur, 12px));
+    transform: translate3d(0, var(--la-reveal-y, 28px), 0)
+      scale(var(--la-scale, 1)) rotateX(var(--la-rotate-x, 0deg));
+    transform-origin: 50% 85%;
+    will-change: transform, opacity, filter;
+    transition:
+      opacity var(--la-duration, 0.62s) cubic-bezier(0.16, 1, 0.3, 1),
+      transform var(--la-duration, 0.62s) cubic-bezier(0.16, 1, 0.3, 1),
+      filter var(--la-duration, 0.62s) cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: var(--la-delay, 0s);
+  }
+
+  .la-text-reveal[data-visible="true"] .la-text-reveal-item {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1) rotateX(0deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .la-text-reveal-item {
+      transition: none !important;
+      opacity: 1;
+      filter: none;
+      transform: none;
+    }
+  }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -310,6 +345,14 @@
     pointer-events: none;
   }
 
+  .la-demo-scroll-region {
+    scrollbar-width: none;
+  }
+
+  .la-demo-scroll-region::-webkit-scrollbar {
+    display: none;
+  }
+
   button:not(:disabled),
   /* bring back pointer cursor from tailwind css v3*/
   [role="button"]:not(:disabled) {
@@ -320,10 +363,26 @@
 @layer utilities {
 
   html .font-overusedgrotesk {
+    font-family: var(--font-overusedgrotesk), sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-synthesis: none;
     text-rendering: geometricPrecision;
+  }
+
+  html .font-nohemi {
+    font-family: var(--font-nohemi), sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-synthesis: none;
+    text-rendering: geometricPrecision;
+  }
+
+  html .font-cheese-milky {
+    font-family: var(--font-cheese-milky), cursive;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-synthesis: none;
   }
 
   @media (max-width: 639.98px) {

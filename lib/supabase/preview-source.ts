@@ -28,3 +28,31 @@ export function createRemoteReadonlyClient(): SupabaseClient | null {
     },
   });
 }
+
+/**
+ * Maps a local developer's email address to their remote user ID
+ * to ensure roles and permissions align correctly in Remote Preview Mode.
+ */
+export function getRemoteUserIdForLocalUser(email: string | null | undefined): string | null {
+  if (!email) return null;
+
+  const envMap = process.env.NEXT_PUBLIC_REMOTE_USER_ID_MAP;
+  if (envMap) {
+    try {
+      const parsed = JSON.parse(envMap);
+      if (parsed[email]) {
+        return parsed[email];
+      }
+    } catch (e) {
+      console.error("Error parsing NEXT_PUBLIC_REMOTE_USER_ID_MAP:", e);
+    }
+  }
+
+  // Default mappings for the developer's emails
+  if (email === "riddhiman.rana@gmail.com") {
+    return "b6ee0559-a406-4992-b621-9c5af015adce";
+  }
+
+  return null;
+}
+

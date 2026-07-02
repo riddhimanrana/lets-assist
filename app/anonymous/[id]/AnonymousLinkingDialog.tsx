@@ -4,12 +4,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CheckCircle2,
   Link2,
-  Loader2,
   LogIn,
+  Loader2,
   Mail,
   Shield,
   UserPlus,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -525,7 +526,13 @@ export function AnonymousLinkingDialog({
                 {isGoogleLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <LogIn className="mr-2 h-4 w-4" />
+                  <Image
+                    src="/resources/google-logo-2026.png"
+                    alt=""
+                    width={18}
+                    height={18}
+                    className="mr-2 h-4.5 w-4.5 object-contain"
+                  />
                 )}
                 Continue with Google
               </Button>

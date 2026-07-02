@@ -479,7 +479,7 @@ export function SignupConfirmationModal({
                   <div className="flex items-center justify-between gap-3 p-3 bg-success/10 border border-success/80 rounded-lg max-w-md">
                     <div className="flex items-center gap-3 overflow-hidden">
                       <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center shrink-0">
-                        <Image className="h-4 w-4" src="/googlecalendar.svg" alt="Google Calendar" width={16} height={16} />
+                        <Image className="h-4 w-4" src="/resources/google-calendar-logo-2026.png" alt="Google Calendar" width={16} height={16} />
                       </div>
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-success truncate">
@@ -522,7 +522,7 @@ export function SignupConfirmationModal({
                         <Loader2 className="h-5 w-5 animate-spin shrink-0" />
                       ) : (
                         <Image
-                          src="/resources/google-calendar-logo.svg"
+                          src="/resources/google-calendar-logo-2026.png"
                           alt="Google Calendar"
                           width={20}
                           height={20}

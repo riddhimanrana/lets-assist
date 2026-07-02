@@ -600,11 +600,7 @@ export async function getProjectWaiver(projectId: string) {
     if (project.waiver_definition_id) {
       const { data: definition, error: defError } = await serviceSupabase
         .from("waiver_definitions")
-        .select(`
-          *,
-          signers:waiver_definition_signers(*),
-          fields:waiver_definition_fields(*)
-        `)
+        .select("*")
         .eq("id", project.waiver_definition_id)
         .single();
 
@@ -3199,11 +3195,7 @@ export async function getWaiverDefinition(projectId: string): Promise<{
     // Fetch the definition with related data
     const { data: definition, error } = await supabase
       .from("waiver_definitions")
-      .select(`
-        *,
-        signers:waiver_definition_signers(*),
-        fields:waiver_definition_fields(*)
-      `)
+      .select("*")
       .eq("id", project.waiver_definition_id)
       .single();
 
@@ -3252,6 +3244,58 @@ export async function saveWaiverDefinition(
     const serviceSupabase = getAdminClient();
     let definitionId = project.waiver_definition_id;
 
+    // Process signers and fields for JSONB insert/update
+    const signersToInsert = (definitionInput.signers || []).map((signer: {
+      roleKey?: string;
+      label?: string;
+      required?: boolean;
+      orderIndex?: number;
+      rules?: Record<string, unknown> | null;
+    }, index: number) => ({
+      role_key: signer.roleKey,
+      label: signer.label,
+      required: signer.required ?? true,
+      order_index: signer.orderIndex ?? index,
+      rules: signer.rules || null,
+    }));
+
+    const fieldsToInsert: any[] = [];
+    if (definitionInput.fields) {
+      if (definitionInput.fields.detected) {
+        const detectedFieldMappings = Object.entries(definitionInput.fields.detected).map(([fieldKey, mapping]: [string, any]) => ({
+          fieldKey: mapping.fieldKey || fieldKey,
+          fieldType: mapping.fieldType || "text",
+          pageIndex: mapping.pageIndex,
+          rect: mapping.rect,
+          pdfFieldName: mapping.pdfFieldName || fieldKey,
+          label: mapping.label || fieldKey,
+          required: mapping.required ?? false,
+          signerRoleKey: mapping.signerRoleKey || undefined,
+          meta: mapping.meta ?? null,
+        }));
+        
+        const detectedFields = mapDetectedFieldsForDb("dummy", detectedFieldMappings);
+        fieldsToInsert.push(...detectedFields.map(({ waiver_definition_id: _, ...rest }) => rest));
+      }
+
+      if (definitionInput.fields.custom && definitionInput.fields.custom.length > 0) {
+        const customPlacements = definitionInput.fields.custom.map((field: any) => ({
+          id: field.id || field.fieldKey,
+          fieldKey: field.fieldKey,
+          label: field.label || undefined,
+          fieldType: field.fieldType || "signature",
+          pageIndex: field.pageIndex,
+          rect: field.rect,
+          signerRoleKey: field.signerRoleKey || undefined,
+          required: field.required ?? undefined,
+          meta: field.meta ?? null,
+        }));
+        
+        const customFields = mapCustomPlacementsForDb("dummy", customPlacements);
+        fieldsToInsert.push(...customFields.map(({ waiver_definition_id: _, ...rest }) => rest));
+      }
+    }
+
     // If definition exists, update it; otherwise create new
     if (definitionId) {
       // Update existing definition
@@ -3259,6 +3303,8 @@ export async function saveWaiverDefinition(
         .from("waiver_definitions")
         .update({
           title: definitionInput.title || "Project Waiver",
+          signers: signersToInsert,
+          fields: fieldsToInsert,
           updated_at: new Date().toISOString(),
         })
         .eq("id", definitionId);
@@ -3267,17 +3313,6 @@ export async function saveWaiverDefinition(
         console.error("Error updating waiver definition:", updateError);
         return { success: false, error: "Failed to update waiver definition" };
       }
-
-      // Delete existing signers and fields
-      await serviceSupabase
-        .from("waiver_definition_signers")
-        .delete()
-        .eq("waiver_definition_id", definitionId);
-
-      await serviceSupabase
-        .from("waiver_definition_fields")
-        .delete()
-        .eq("waiver_definition_id", definitionId);
     } else {
       // Create new definition
       const { data: newDef, error: createError } = await serviceSupabase
@@ -3292,6 +3327,8 @@ export async function saveWaiverDefinition(
           pdf_public_url: project.waiver_pdf_url,
           source: "project_pdf",
           created_by: user.id,
+          signers: signersToInsert,
+          fields: fieldsToInsert,
         })
         .select("id")
         .single();
@@ -3308,110 +3345,6 @@ export async function saveWaiverDefinition(
         .from("projects")
         .update({ waiver_definition_id: definitionId })
         .eq("id", projectId);
-    }
-
-    // Insert signers
-    if (definitionInput.signers && definitionInput.signers.length > 0) {
-      const signersToInsert = definitionInput.signers.map((signer: {
-        roleKey?: string;
-        label?: string;
-        required?: boolean;
-        orderIndex?: number;
-        rules?: Record<string, unknown> | null;
-      }, index: number) => ({
-        waiver_definition_id: definitionId,
-        role_key: signer.roleKey,
-        label: signer.label,
-        required: signer.required ?? true,
-        order_index: signer.orderIndex ?? index,
-        rules: signer.rules || null,
-      }));
-
-      const { error: signersError } = await serviceSupabase
-        .from("waiver_definition_signers")
-        .insert(signersToInsert);
-
-      if (signersError) {
-        console.error("Error inserting waiver signers:", signersError);
-        return { success: false, error: "Failed to save signer configuration" };
-      }
-    }
-
-    // Insert fields
-    if (definitionInput.fields) {
-      const fieldsToInsert: Record<string, unknown>[] = [];
-
-      // Process detected field mappings
-      if (definitionInput.fields.detected) {
-        const detectedFieldMappings = Object.entries(definitionInput.fields.detected).map(([fieldKey, mapping]: [string, unknown]) => {
-          const resolved = (mapping ?? {}) as {
-            fieldKey?: string;
-            fieldType?: string;
-            pageIndex: number;
-            rect: { x: number; y: number; width: number; height: number };
-            pdfFieldName?: string;
-            label?: string;
-            required?: boolean;
-            signerRoleKey?: string;
-            meta?: Record<string, unknown> | null;
-          };
-
-          return {
-            fieldKey: resolved.fieldKey || fieldKey,
-            fieldType: resolved.fieldType || "text",
-            pageIndex: resolved.pageIndex,
-            rect: resolved.rect,
-            pdfFieldName: resolved.pdfFieldName || fieldKey,
-            label: resolved.label || fieldKey,
-            required: resolved.required ?? false,
-            signerRoleKey: resolved.signerRoleKey || undefined,
-            meta: resolved.meta ?? null,
-          };
-        });
-        
-        const detectedFields = mapDetectedFieldsForDb(definitionId, detectedFieldMappings);
-        fieldsToInsert.push(...detectedFields);
-      }
-
-      // Process custom signature placements
-      if (definitionInput.fields.custom && definitionInput.fields.custom.length > 0) {
-        const customPlacements = definitionInput.fields.custom.map((field: {
-          id?: string;
-          fieldKey?: string;
-          label?: string;
-          fieldType?: string;
-          pageIndex: number;
-          rect: { x: number; y: number; width: number; height: number };
-          signerRoleKey?: string;
-          required?: boolean;
-          meta?: Record<string, unknown> | null;
-        }) => ({
-          id: field.id || field.fieldKey,
-          fieldKey: field.fieldKey,
-          label: field.label || undefined,
-          fieldType: field.fieldType || "signature",
-          pageIndex: field.pageIndex,
-          rect: field.rect,
-          signerRoleKey: field.signerRoleKey || undefined,
-          required: field.required ?? undefined,
-          meta: field.meta ?? null,
-        }));
-        
-        const customFields = mapCustomPlacementsForDb(definitionId, customPlacements);
-        fieldsToInsert.push(...customFields);
-      }
-
-      // Insert all fields
-      if (fieldsToInsert.length > 0) {
-        const { error: fieldsError } = await serviceSupabase
-          .from("waiver_definition_fields")
-          .insert(fieldsToInsert);
-
-        if (fieldsError) {
-          console.error("Error inserting waiver fields:", fieldsError);
-          return { success: false, error: "Failed to save field configuration" };
-        }
-      }
     }
 
     revalidatePath(`/projects/${projectId}`);

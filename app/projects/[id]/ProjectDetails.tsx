@@ -120,6 +120,8 @@ interface AnonymousSlotOption {
   subtitle: string;
 }
 
+const EMPTY_DEMO_ATTENDEES: SlotAttendee[] = [];
+
 interface Props {
   project: Project;
   creator: ProjectCreatorProfileRecord | null;
@@ -132,6 +134,8 @@ interface Props {
   // Add prop for full signup data
   userSignupsData: Signup[];
   allSignups?: Array<Pick<Signup, "id" | "schedule_id" | "status" | "check_in_time">>;
+  demoMode?: boolean;
+  demoPublicAttendees?: SlotAttendee[];
 }
 
 const getFileIcon = (type: string) => {
@@ -170,6 +174,8 @@ export default function ProjectDetails({
   // Destructure the new prop
   userSignupsData,
   allSignups = [],
+  demoMode = false,
+  demoPublicAttendees = EMPTY_DEMO_ATTENDEES,
 }: Props) {
   const router = useRouter();
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
@@ -205,7 +211,9 @@ export default function ProjectDetails({
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [pendingScheduleId, setPendingScheduleId] = useState<string>("");
-  const [publicAttendees, setPublicAttendees] = useState<SlotAttendee[]>([]);
+  const [publicAttendees, setPublicAttendees] = useState<SlotAttendee[]>(
+    demoMode ? demoPublicAttendees : EMPTY_DEMO_ATTENDEES,
+  );
   const [waiverDefinition, setWaiverDefinition] = useState<WaiverDefinitionFull | null>(null);
 
   // Add state to track calculated status
@@ -225,17 +233,22 @@ export default function ProjectDetails({
 
   useEffect(() => {
     const fetchPublicAttendees = async () => {
+      if (demoMode) {
+        setPublicAttendees(demoPublicAttendees);
+        return;
+      }
+
       // Fetch if public OR if user is a manager
       const shouldFetch = project.show_attendees_publicly || canManageProject;
       
       if (!shouldFetch) {
-        setPublicAttendees([]);
+        setPublicAttendees((current) => current.length === 0 ? current : EMPTY_DEMO_ATTENDEES);
         return;
       }
 
       // If not a manager, check visibility
       if (!canManageProject && project.visibility !== "public" && project.visibility !== "unlisted") {
-        setPublicAttendees([]);
+        setPublicAttendees((current) => current.length === 0 ? current : EMPTY_DEMO_ATTENDEES);
         return;
       }
 
@@ -254,10 +267,15 @@ export default function ProjectDetails({
     };
 
     fetchPublicAttendees();
-  }, [project.id, project.show_attendees_publicly, project.visibility, canManageProject]);
+  }, [project.id, project.show_attendees_publicly, project.visibility, canManageProject, demoMode, demoPublicAttendees]);
 
   // Function to refetch attendees (called after signup/cancel)
   const refetchAttendees = async () => {
+    if (demoMode) {
+      setPublicAttendees(demoPublicAttendees);
+      return;
+    }
+
     const shouldFetch = project.show_attendees_publicly || canManageProject;
     if (!shouldFetch) return;
     
@@ -650,6 +668,11 @@ export default function ProjectDetails({
     console.log("[signup-client-debug]", JSON.stringify(payload));
   };
 
+  const formatSlotCapacity = (value: unknown) => {
+    const numeric = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(numeric) && numeric > 0 ? Math.floor(numeric) : 0;
+  };
+
   // Handle sign up or cancel click
   const handleSignUpClick = async (scheduleId: string) => {
     logSignupClientDebug({
@@ -837,6 +860,17 @@ export default function ProjectDetails({
     setShowConfirmationAlert(false);
 
     try {
+      if (demoMode) {
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+        toast.info("This is just a demo.", {
+          description: "No signup was created. Real projects save this signup and update the roster.",
+        });
+        setAnonymousDialogOpen(false);
+        setAnonymousSlotSelectionOpen(false);
+        setShowSignupConfirmation(false);
+        return;
+      }
+
       logSignupClientDebug({
         step: "action_start",
         projectId: project.id,
@@ -1539,7 +1573,7 @@ export default function ProjectDetails({
                           <div className="flex items-center gap-1.5">
                             <Users className="h-3.5 w-3.5 shrink-0" />
                             <span>
-                              <span className="font-medium text-foreground">{remainingSlots["oneTime"] ?? project.schedule.oneTime.volunteers}</span> of {project.schedule.oneTime.volunteers} spots
+                              <span className="font-medium text-foreground">{remainingSlots["oneTime"] ?? formatSlotCapacity(project.schedule.oneTime.volunteers)}</span> of {formatSlotCapacity(project.schedule.oneTime.volunteers)} spots
                             </span>
                           </div>
                         </div>
@@ -1623,7 +1657,7 @@ export default function ProjectDetails({
                                       <div className="flex items-center gap-1.5">
                                         <Users className="h-3.5 w-3.5 shrink-0" />
                                         <span>
-                                          <span className="font-medium text-foreground">{remainingSlots[scheduleId] ?? slot.volunteers}</span> of {slot.volunteers} spots
+                                          <span className="font-medium text-foreground">{remainingSlots[scheduleId] ?? formatSlotCapacity(slot.volunteers)}</span> of {formatSlotCapacity(slot.volunteers)} spots
                                         </span>
                                       </div>
                                       </div>
@@ -1696,7 +1730,7 @@ export default function ProjectDetails({
                                   <div className="flex items-center gap-1.5">
                                     <Users className="h-3.5 w-3.5 shrink-0" />
                                     <span>
-                                      <span className="font-medium text-foreground">{remainingSlots[role.name] ?? role.volunteers}</span> of {role.volunteers} spots
+                                      <span className="font-medium text-foreground">{remainingSlots[role.name] ?? formatSlotCapacity(role.volunteers)}</span> of {formatSlotCapacity(role.volunteers)} spots
                                     </span>
                                   </div>
                                 </div>
@@ -2138,7 +2172,7 @@ export default function ProjectDetails({
           }
         }}
       >
-        <DialogContent className="sm:max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[88dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Quick Sign Up</DialogTitle>
             <DialogDescription>

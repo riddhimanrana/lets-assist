@@ -22,6 +22,21 @@ This project is built using the following technologies:
 - [Cloudflare](https://www.cloudflare.com/): Security, domain and performance optimization.
 And many other libraries...
 
+## Development Environment
+
+For a local setup that mirrors the seeded test environment:
+
+1. Run `bun run supabase` to start Supabase, replay the current migrations, seed the deterministic accounts, and verify the stack health.
+2. Run `bun run dev` in a separate terminal for the Next.js app.
+3. Use `bun run dv:test:db` and `bun run dv:test:e2e` to verify DV-specific flows locally.
+4. Use `bun run dev:test:cron` to exercise the cron routes that GitHub Actions calls in CI.
+
+Reference docs:
+
+- [`scripts/local-dev/README.md`](scripts/local-dev/README.md)
+- [`docs/local-dev-accounts.md`](docs/local-dev-accounts.md)
+- [`scripts/README.md`](scripts/README.md)
+
 ## Private Plugin Model (Not Open Source)
 
 Core Let&apos;s Assist application code in this repository is open-source under GPL-3.0, but **organization-specific custom plugins are intentionally not open-sourced here**.

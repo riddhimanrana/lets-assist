@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Plugin audit action types
@@ -69,7 +70,8 @@ export async function logPluginAudit(
     actorId = user?.id ?? null;
   }
 
-  const { data, error } = await supabase.rpc("log_plugin_audit", {
+  const adminSupabase = getAdminClient();
+  const { data, error } = await adminSupabase.rpc("log_plugin_audit", {
     p_organization_id: entry.organization_id ?? null,
     p_plugin_key: entry.plugin_key ?? null,
     p_action: entry.action,
@@ -97,9 +99,8 @@ export async function trackPluginExecution(
   isError: boolean = false,
   errorMessage?: string,
 ): Promise<void> {
-  const supabase = await createClient();
-
-  const { error } = await supabase.rpc("update_plugin_execution_metrics", {
+  const adminSupabase = getAdminClient();
+  const { error } = await adminSupabase.rpc("update_plugin_execution_metrics", {
     p_organization_id: organizationId,
     p_plugin_key: pluginKey,
     p_execution_time_ms: executionTimeMs,

@@ -204,7 +204,7 @@ async function processSingleJob(job: ExportJobRecord) {
       : undefined,
   });
 
-  if (!emailResponse.success) {
+  if (!emailResponse.success && !emailResponse.skipped) {
     const errorMessage =
       "error" in emailResponse && emailResponse.error
         ? typeof emailResponse.error === "string"
@@ -227,6 +227,8 @@ async function processSingleJob(job: ExportJobRecord) {
     export_metadata: {
       manifest: archive.manifest,
       deliveryMode: shouldAttach ? "attachment_and_link" : "link_only",
+      emailSkipped: emailResponse.skipped || false,
+      emailReason: emailResponse.reason || null,
     },
     error_message: null,
   });

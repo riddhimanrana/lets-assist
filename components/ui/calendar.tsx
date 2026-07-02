@@ -5,11 +5,30 @@ import {
   DayPicker,
   getDefaultClassNames,
   type DayButton,
+  type DayPickerProps,
+  type Matcher,
 } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
+
+type CalendarProps = Omit<
+  Partial<DayPickerProps>,
+  "components" | "className" | "classNames" | "disabled" | "formatters" | "mode" | "onSelect" | "selected"
+> & {
+  buttonVariant?: React.ComponentProps<typeof Button>["variant"]
+  className?: string
+  classNames?: DayPickerProps["classNames"]
+  components?: DayPickerProps["components"]
+  disabled?: Matcher | Matcher[]
+  formatters?: DayPickerProps["formatters"]
+  initialFocus?: boolean
+  mode?: DayPickerProps["mode"]
+  selected?: any
+  defaultMonth?: Date
+  onSelect?: (date: any) => void
+}
 
 function Calendar({
   className,
@@ -19,10 +38,9 @@ function Calendar({
   buttonVariant = "ghost",
   formatters,
   components,
+  initialFocus: _initialFocus,
   ...props
-}: React.ComponentProps<typeof DayPicker> & {
-  buttonVariant?: React.ComponentProps<typeof Button>["variant"]
-}) {
+}: CalendarProps) {
   const defaultClassNames = getDefaultClassNames()
 
   return (
@@ -84,7 +102,7 @@ function Calendar({
             : "cn-calendar-caption-label rounded-(--cell-radius) flex items-center gap-1 text-sm  [&>svg]:text-muted-foreground [&>svg]:size-3.5",
           defaultClassNames.caption_label
         ),
-        table: "w-full border-collapse",
+        month_grid: cn("w-full border-collapse", defaultClassNames.month_grid),
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(
           "text-muted-foreground rounded-(--cell-radius) flex-1 font-normal text-[0.8rem] select-none",
@@ -170,7 +188,7 @@ function Calendar({
         },
         ...components,
       }}
-      {...props}
+      {...(props as React.ComponentProps<typeof DayPicker>)}
     />
   )
 }

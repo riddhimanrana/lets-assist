@@ -57,6 +57,13 @@ interface MemberDetailsDialogProps {
   onClose: () => void;
   member: MemberDetailsMember | null;
   organizationId: string;
+  demoMemberDetails?: Record<
+    string,
+    {
+      events: MemberEventDetail[];
+      totalHours: number;
+    }
+  >;
 }
 
 // Helper function to format hours as "Xh Ym"
@@ -72,7 +79,8 @@ export default function MemberDetailsDialog({
   isOpen,
   onClose,
   member,
-  organizationId
+  organizationId,
+  demoMemberDetails,
 }: MemberDetailsDialogProps) {
   const [events, setEvents] = useState<MemberEventDetail[]>([]);
   const [totalHours, setTotalHours] = useState(0);
@@ -85,13 +93,29 @@ export default function MemberDetailsDialog({
     if (isOpen && member) {
       fetchMemberDetails();
     }
-  }, [isOpen, member, organizationId, dateRange]);
+  }, [isOpen, member, organizationId, dateRange, demoMemberDetails]);
 
   const fetchMemberDetails = async () => {
     if (!member) return;
 
     setLoading(true);
     setError(null);
+
+    const demoDetails = demoMemberDetails?.[member.user_id];
+    if (demoDetails) {
+      const filteredEvents =
+        dateRange?.from && dateRange?.to
+          ? demoDetails.events.filter((event) => {
+              const eventDate = new Date(event.eventDate);
+              return eventDate >= dateRange.from! && eventDate < dateRange.to!;
+            })
+          : demoDetails.events;
+
+      setEvents(filteredEvents);
+      setTotalHours(filteredEvents.reduce((sum, event) => sum + event.hours, 0));
+      setLoading(false);
+      return;
+    }
 
     try {
       const dateRangeParam = dateRange?.from && dateRange?.to

@@ -29,7 +29,7 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu"
+} from "@/components/ui/navigation-menu";
 import {
   Sheet,
   SheetContent,
@@ -67,25 +67,25 @@ const features: {
   href: string;
   description: string;
 }[] = [
-    {
-      title: "Volunteer Journey",
-      href: "/#journey",
-      description:
-        "Browse opportunities, confirm attendance, and earn certificates.",
-    },
-    {
-      title: "Platform Features",
-      href: "/#features",
-      description:
-        "Calendar sync, dashboards, QR check-ins, and trusted event types.",
-    },
-    {
-      title: "Organization Tooling",
-      href: "/#org-tooling",
-      description:
-        "Role-based member management, certified reports, and QR verification.",
-    },
-  ];
+  {
+    title: "Volunteer Journey",
+    href: "/#journey",
+    description:
+      "Browse opportunities, confirm attendance, and earn certificates.",
+  },
+  {
+    title: "Platform Features",
+    href: "/#features",
+    description:
+      "Calendar sync, dashboards, QR check-ins, and trusted event types.",
+  },
+  {
+    title: "Organization Tooling",
+    href: "/#org-tooling",
+    description:
+      "Role-based member management, certified reports, and QR verification.",
+  },
+];
 
 export default function Navbar() {
   // Use centralized auth hook instead of manual state management
@@ -93,19 +93,27 @@ export default function Navbar() {
   // Use cached profile data instead of making a separate query
   const { profile, loading: isProfileLoading } = useUserProfile();
 
-  const authMetadata = (user?.user_metadata ?? null) as Record<string, unknown> | null;
+  const authMetadata = (user?.user_metadata ?? null) as Record<
+    string,
+    unknown
+  > | null;
 
   const displayName =
     profile?.full_name ||
-    (typeof authMetadata?.full_name === "string" ? authMetadata.full_name : null) ||
+    (typeof authMetadata?.full_name === "string"
+      ? authMetadata.full_name
+      : null) ||
     (typeof authMetadata?.name === "string" ? authMetadata.name : null) ||
-    (typeof authMetadata?.display_name === "string" ? authMetadata.display_name : null) ||
+    (typeof authMetadata?.display_name === "string"
+      ? authMetadata.display_name
+      : null) ||
     user?.email?.split("@")[0] ||
     "Let's Assist user";
 
   const identityAvatarUrl =
     user?.identities?.find((identity) => {
-      const avatar = identity.identity_data?.avatar_url || identity.identity_data?.picture;
+      const avatar =
+        identity.identity_data?.avatar_url || identity.identity_data?.picture;
       return typeof avatar === "string" && avatar.length > 0;
     })?.identity_data?.avatar_url ||
     user?.identities?.find((identity) => {
@@ -115,20 +123,28 @@ export default function Navbar() {
 
   const avatarUrl =
     profile?.avatar_url ||
-    (typeof authMetadata?.avatar_url === "string" ? authMetadata.avatar_url : null) ||
+    (typeof authMetadata?.avatar_url === "string"
+      ? authMetadata.avatar_url
+      : null) ||
     (typeof authMetadata?.picture === "string" ? authMetadata.picture : null) ||
     identityAvatarUrl ||
     undefined;
 
   const profileUsername =
     profile?.username ||
-    (typeof authMetadata?.username === "string" ? authMetadata.username : null) ||
+    (typeof authMetadata?.username === "string"
+      ? authMetadata.username
+      : null) ||
     null;
-  const profileHref = profileUsername ? `/profile/${profileUsername}` : "/account/profile";
+  const profileHref = profileUsername
+    ? `/profile/${profileUsername}`
+    : "/account/profile";
 
   const [showDonateDialog, setShowDonateDialog] = useState(false);
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
-  const [devPreviewSource, setDevPreviewSource] = useState<"local" | "remote">("local");
+  const [devPreviewSource, setDevPreviewSource] = useState<"local" | "remote">(
+    "local",
+  );
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const { theme, setTheme } = useTheme();
   // Add loading state for logout
@@ -138,25 +154,33 @@ export default function Navbar() {
   const isLocalDevHost = React.useMemo(() => {
     if (typeof window === "undefined") return false;
     const host = window.location.hostname;
-    return process.env.NODE_ENV !== "production" && (host === "localhost" || host === "127.0.0.1");
+    return (
+      process.env.NODE_ENV !== "production" &&
+      (host === "localhost" || host === "127.0.0.1")
+    );
   }, []);
 
   React.useEffect(() => {
     if (!isLocalDevHost || typeof window === "undefined") return;
 
-    const fromStorage = window.localStorage.getItem(DEV_PREVIEW_SOURCE_STORAGE_KEY);
+    const fromStorage = window.localStorage.getItem(
+      DEV_PREVIEW_SOURCE_STORAGE_KEY,
+    );
     if (fromStorage === "local" || fromStorage === "remote") {
       setDevPreviewSource(fromStorage);
     }
   }, [isLocalDevHost]);
 
-  const handleDevSourceToggle = React.useCallback((next: "local" | "remote") => {
-    if (typeof window === "undefined") return;
-    setDevPreviewSource(next);
-    window.localStorage.setItem(DEV_PREVIEW_SOURCE_STORAGE_KEY, next);
-    document.cookie = `${DEV_PREVIEW_SOURCE_COOKIE}=${next}; Path=/; Max-Age=2592000; SameSite=Lax`;
-    window.location.reload();
-  }, []);
+  const handleDevSourceToggle = React.useCallback(
+    (next: "local" | "remote") => {
+      if (typeof window === "undefined") return;
+      setDevPreviewSource(next);
+      window.localStorage.setItem(DEV_PREVIEW_SOURCE_STORAGE_KEY, next);
+      document.cookie = `${DEV_PREVIEW_SOURCE_COOKIE}=${next}; Path=/; Max-Age=2592000; SameSite=Lax`;
+      window.location.reload();
+    },
+    [],
+  );
 
   const handleNavigation = () => {
     setIsSheetOpen(false);
@@ -278,7 +302,7 @@ export default function Navbar() {
                 width={30}
                 height={30}
               />
-              <span className="text-lg font-overusedgrotesk font-semibold sm:font-[750]">
+              <span className="text-md font-nohemi font-bold sm:font-semibold">
                 Let's Assist
               </span>
             </div>
@@ -286,9 +310,7 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center space-x-4 ml-auto">
-            {isAuthLoading ? (
-              null
-            ) : user ? (
+            {isAuthLoading ? null : user ? (
               <>
                 <Link
                   className={cn(
@@ -344,7 +366,16 @@ export default function Navbar() {
                 <NavigationMenu>
                   <NavigationMenuList>
                     <NavigationMenuItem>
-                      <NavigationMenuTrigger className={cn(buttonVariants({ variant: "ghost" }), pathname == "/" ? "text-muted-foreground" : "text-muted-foreground")}>Features</NavigationMenuTrigger>
+                      <NavigationMenuTrigger
+                        className={cn(
+                          buttonVariants({ variant: "ghost" }),
+                          pathname == "/"
+                            ? "text-muted-foreground"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        Features
+                      </NavigationMenuTrigger>
                       <NavigationMenuContent>
                         <ul className="w-130">
                           {features.map((feature) => (
@@ -411,10 +442,7 @@ export default function Navbar() {
                       nativeButton={false}
                       render={
                         <Avatar className="w-9 h-9 cursor-pointer hover:opacity-80 transition-opacity">
-                          <AvatarImage
-                            src={avatarUrl}
-                            alt={displayName}
-                          />
+                          <AvatarImage src={avatarUrl} alt={displayName} />
                           <AvatarFallback>
                             <NoAvatar fullName={displayName} />
                           </AvatarFallback>
@@ -422,9 +450,7 @@ export default function Navbar() {
                       }
                     />
                   )}
-                  <DropdownMenuContent
-                    className="w-64 pt-3 px-2 pb-2"
-                  >
+                  <DropdownMenuContent className="w-64 pt-3 px-2 pb-2">
                     <DropdownMenuGroup>
                       <DropdownMenuLabel className="font-normal mb-2">
                         <div className="flex flex-col space-y-2">
@@ -441,7 +467,11 @@ export default function Navbar() {
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       render={
-                        <Link href="/home" prefetch={false} className="flex items-center w-full">
+                        <Link
+                          href="/home"
+                          prefetch={false}
+                          className="flex items-center w-full"
+                        >
                           <LayoutDashboard className="mr-2 h-4 w-4" />
                           <span>Volunteer Dashboard</span>
                         </Link>
@@ -451,7 +481,11 @@ export default function Navbar() {
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       render={
-                        <Link href={profileHref} prefetch={false} className="flex items-center w-full">
+                        <Link
+                          href={profileHref}
+                          prefetch={false}
+                          className="flex items-center w-full"
+                        >
                           <UserRound className="mr-2 h-4 w-4" />
                           <span>My Profile</span>
                         </Link>
@@ -460,7 +494,11 @@ export default function Navbar() {
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       render={
-                        <Link href="/account/profile" prefetch={false} className="flex items-center w-full">
+                        <Link
+                          href="/account/profile"
+                          prefetch={false}
+                          className="flex items-center w-full"
+                        >
                           <Settings className="mr-2 h-4 w-4" />
                           <span>Account Settings</span>
                         </Link>
@@ -509,7 +547,11 @@ export default function Navbar() {
                             <Button
                               type="button"
                               size="sm"
-                              variant={devPreviewSource === "local" ? "default" : "ghost"}
+                              variant={
+                                devPreviewSource === "local"
+                                  ? "default"
+                                  : "ghost"
+                              }
                               className="h-7 text-xs"
                               onClick={() => handleDevSourceToggle("local")}
                             >
@@ -518,7 +560,11 @@ export default function Navbar() {
                             <Button
                               type="button"
                               size="sm"
-                              variant={devPreviewSource === "remote" ? "default" : "ghost"}
+                              variant={
+                                devPreviewSource === "remote"
+                                  ? "default"
+                                  : "ghost"
+                              }
                               className="h-7 text-xs"
                               onClick={() => handleDevSourceToggle("remote")}
                             >
@@ -541,7 +587,9 @@ export default function Navbar() {
                         ) : (
                           <LogOut className="mr-2 h-4 w-4" />
                         )}
-                        <span>{isLoggingOut ? "Logging out..." : "Log Out"}</span>
+                        <span>
+                          {isLoggingOut ? "Logging out..." : "Log Out"}
+                        </span>
                       </div>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -599,10 +647,7 @@ export default function Navbar() {
                         <Skeleton className="w-12 h-12 rounded-full" />
                       ) : (
                         <Avatar className="w-12 h-12">
-                          <AvatarImage
-                            src={avatarUrl}
-                            alt={displayName}
-                          />
+                          <AvatarImage src={avatarUrl} alt={displayName} />
                           <AvatarFallback>
                             <NoAvatar fullName={displayName} />
                           </AvatarFallback>
@@ -818,10 +863,18 @@ function ListItem({
 }: React.ComponentPropsWithoutRef<"li"> & { href: string }) {
   return (
     <li {...props}>
-      <NavigationMenuLink render={<Link href={href}><div className="flex flex-col gap-1 text-sm">
-        <div className="leading-none font-medium">{title}</div>
-        <div className="text-muted-foreground line-clamp-2">{children}</div>
-      </div></Link>} />
+      <NavigationMenuLink
+        render={
+          <Link href={href}>
+            <div className="flex flex-col gap-1 text-sm">
+              <div className="leading-none font-medium">{title}</div>
+              <div className="text-muted-foreground line-clamp-2">
+                {children}
+              </div>
+            </div>
+          </Link>
+        }
+      />
     </li>
-  )
+  );
 }

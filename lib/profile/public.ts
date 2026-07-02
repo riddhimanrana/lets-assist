@@ -20,7 +20,7 @@ const PUBLIC_PROFILE_SELECT =
 export async function getPublicProfileById(id: string) {
   const admin = getAdminClient();
   return admin
-    .from("profiles")
+    .from("public_profile_read_model")
     .select(PUBLIC_PROFILE_SELECT)
     .eq("id", id)
     .maybeSingle<PublicProfileRecord>();
@@ -40,7 +40,7 @@ export async function getProjectCreatorProfileById(id: string) {
 export async function getPublicProfileByUsername(username: string) {
   const admin = getAdminClient();
   return admin
-    .from("profiles")
+    .from("public_profile_read_model")
     .select(PUBLIC_PROFILE_SELECT)
     .eq("username", username)
     .maybeSingle<PublicProfileRecord>();
@@ -53,7 +53,7 @@ export async function getPublicProfilesByIds(ids: string[]) {
 
   const admin = getAdminClient();
   const { data, error } = await admin
-    .from("profiles")
+    .from("public_profile_read_model")
     .select(PUBLIC_PROFILE_SELECT)
     .in("id", ids);
 

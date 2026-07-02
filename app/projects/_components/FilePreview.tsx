@@ -68,7 +68,7 @@ export default function FilePreview({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="w-[96vw]! max-w-[96vw]! h-[85dvh] rounded-xl p-0 gap-0 overflow-hidden flex flex-col bg-background/95 backdrop-blur-sm border-border/50 shadow-2xl sm:w-[95vw]! sm:max-w-[95vw]! sm:h-[90vh]">
+      <DialogContent showCloseButton={false} className="w-[calc(100vw-2rem)]! max-w-6xl! h-[82dvh] rounded-xl p-0 gap-0 overflow-hidden flex flex-col bg-background/95 backdrop-blur-sm border-border/50 shadow-2xl sm:h-[84dvh]">
         <VisuallyHidden.Root>
           <DialogTitle>File Preview: {fileName}</DialogTitle>
         </VisuallyHidden.Root>
@@ -130,7 +130,7 @@ export default function FilePreview({
               title={`Preview of ${fileName}`}
             />
           ) : isImage ? (
-            <div className="relative w-full h-full flex items-center justify-center p-0 sm:p-4">
+            <div className="relative mx-auto flex h-full w-full max-w-5xl items-center justify-center p-3 sm:p-6">
               <Image
                 src={url}
                 alt={fileName}

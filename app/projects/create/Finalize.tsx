@@ -31,6 +31,16 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { toast } from "sonner";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Attachment,
+  AttachmentAction,
+  AttachmentActions,
+  AttachmentContent,
+  AttachmentDescription,
+  AttachmentGroup,
+  AttachmentMedia,
+  AttachmentTitle,
+} from "@/components/ui/attachment";
 import { getMultiDaySlotDisplayName } from "@/utils/project";
 
 // Maximum file sizes
@@ -89,19 +99,24 @@ interface FinalizeProps {
   setCoverImageAction: (file: File | null) => void;
   setDocumentsAction: (docs: File[]) => void;
   hasProfanity: boolean;
+  coverImageUploadState?: "idle" | "uploading" | "processing" | "error" | "done";
+  documentUploadStates?: Record<string, "idle" | "uploading" | "processing" | "error" | "done">;
+  getUploadKey?: (file: File) => string;
 }
 
 export default function Finalize({
   state,
   setCoverImageAction,
   setDocumentsAction,
-  hasProfanity
+  hasProfanity,
+  coverImageUploadState = "idle",
+  documentUploadStates = {},
+  getUploadKey = (file) => `${file.name}-${file.size}-${file.lastModified}`,
 }: FinalizeProps) {
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
   const [localDocuments, setLocalDocuments] = useState<File[]>([]);
   const [dragActive, setDragActive] = useState<"cover" | "docs" | null>(null);
   const [totalDocumentsSize, setTotalDocumentsSize] = useState<number>(0);
-  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [hoverUpload, setHoverUpload] = useState<"cover" | "docs" | null>(null);
 
   // Calculate total documents size whenever localDocuments change
@@ -355,6 +370,17 @@ export default function Finalize({
     else return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
+  const getAttachmentDescription = (
+    file: File,
+    state: "idle" | "uploading" | "processing" | "error" | "done"
+  ) => {
+    if (state === "uploading") return "Uploading...";
+    if (state === "processing") return "Saving to project...";
+    if (state === "error") return "Upload failed";
+    if (state === "done") return "Uploaded";
+    return `${file.type.split("/").pop()?.toUpperCase() || "File"} · ${formatFileSize(file.size)}`;
+  };
+
   // Helper function for determining upload area styling
   const getUploadAreaClassName = (type: "cover" | "docs") => {
     const baseClass = "border-2 border-dashed rounded-lg relative flex flex-col items-center justify-center p-6 transition-colors";
@@ -469,6 +495,41 @@ export default function Finalize({
               )}
 
             </div>
+            {coverImagePreview && (
+              <Attachment state={coverImageUploadState} className="mt-3 w-full sm:w-fit">
+                <AttachmentMedia variant="image">
+                  <Image
+                    src={coverImagePreview}
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="object-cover"
+                  />
+                </AttachmentMedia>
+                <AttachmentContent>
+                  <AttachmentTitle>Cover image ready</AttachmentTitle>
+                  <AttachmentDescription>
+                    {coverImageUploadState === "uploading" && "Uploading..."}
+                    {coverImageUploadState === "processing" && "Saving to project..."}
+                    {coverImageUploadState === "error" && "Upload failed"}
+                    {coverImageUploadState === "done" && "Uploaded"}
+                    {coverImageUploadState === "idle" && "Will be uploaded after project creation"}
+                  </AttachmentDescription>
+                </AttachmentContent>
+                <AttachmentActions>
+                  <AttachmentAction
+                    type="button"
+                    variant="ghost"
+                    aria-label="Remove cover image"
+                    title="Remove cover image"
+                    disabled={coverImageUploadState === "uploading" || coverImageUploadState === "processing"}
+                    onClick={removeCoverImage}
+                  >
+                    <X className="h-4 w-4" />
+                  </AttachmentAction>
+                </AttachmentActions>
+              </Attachment>
+            )}
             <div className="flex items-center mt-2 text-xs text-muted-foreground">
               <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
               <span>Cover images are optional, but if you have an image feel free to show it!</span>
@@ -515,34 +576,47 @@ export default function Finalize({
 
             {localDocuments.length > 0 && (
               <div className="w-full space-y-2 mt-4">
-                <p className="text-sm font-medium">Uploaded Documents</p>
-                <div className="space-y-2">
-                  {localDocuments.map((doc, index) => (
-                    <div
-                      key={index}
-                      className={`flex items-center justify-between p-3 rounded-md ${hoverIndex === index ? 'bg-muted/80' : 'bg-muted/40'} transition-colors`}
-                      onMouseEnter={() => setHoverIndex(index)}
-                      onMouseLeave={() => setHoverIndex(null)}
-                    >
-                      <div className="flex items-center space-x-3">
-                        {getFileIcon(doc.type)}
-                        <div>
-                          <p className="text-sm font-medium truncate max-w-[200px] sm:max-w-[300px]">{doc.name}</p>
-                          <p className="text-xs text-muted-foreground">{formatFileSize(doc.size)}</p>
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant={hoverIndex === index ? "destructive" : "ghost"}
-                        size="icon"
-                        className="h-8 w-8 transition-colors"
-                        onClick={() => removeDocument(index)}
+                <p className="text-sm font-medium">Selected documents</p>
+                <AttachmentGroup
+                  role="group"
+                  aria-label="Uploaded project documents"
+                  tabIndex={0}
+                  className="grid gap-2 overflow-visible py-0 sm:grid-cols-2 lg:grid-cols-3"
+                >
+                  {localDocuments.map((doc, index) => {
+                    const uploadState = documentUploadStates[getUploadKey(doc)] ?? "idle";
+
+                    return (
+                      <Attachment
+                        key={`${doc.name}-${doc.lastModified}`}
+                        state={uploadState}
+                        className="w-full"
                       >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                        <AttachmentMedia>
+                          {getFileIcon(doc.type)}
+                        </AttachmentMedia>
+                        <AttachmentContent>
+                          <AttachmentTitle>{doc.name}</AttachmentTitle>
+                          <AttachmentDescription>
+                            {getAttachmentDescription(doc, uploadState)}
+                          </AttachmentDescription>
+                        </AttachmentContent>
+                        <AttachmentActions>
+                          <AttachmentAction
+                            type="button"
+                            variant="ghost"
+                            aria-label={`Remove ${doc.name}`}
+                            title={`Remove ${doc.name}`}
+                            disabled={uploadState === "uploading" || uploadState === "processing"}
+                            onClick={() => removeDocument(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </AttachmentAction>
+                        </AttachmentActions>
+                      </Attachment>
+                    );
+                  })}
+                </AttachmentGroup>
               </div>
             )}
 
