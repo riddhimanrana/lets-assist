@@ -29,6 +29,36 @@ const accounts = [
   { key: "outsider", email: "dv.outsider@local.test", fullName: "Outside User", role: null },
 ];
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitForPostgrestSchema(admin) {
+  const maxAttempts = 30;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const { error } = await admin
+      .from("organizations")
+      .select("id", { head: true, count: "exact" })
+      .limit(1);
+
+    if (!error) return;
+
+    if (attempt === maxAttempts) {
+      throw new Error(`PostgREST schema cache did not become ready: ${error.message}`);
+    }
+
+    if (
+      error.message.includes("schema cache") ||
+      error.message.includes("Retrying") ||
+      error.code === "PGRST002"
+    ) {
+      await sleep(1000);
+      continue;
+    }
+
+    throw new Error(`PostgREST readiness check failed: ${error.message}`);
+  }
+}
+
 async function upsertAuthUser(admin, account) {
   const { data: listed, error: listError } = await admin.auth.admin.listUsers({
     page: 1,
@@ -80,6 +110,8 @@ async function main() {
   });
   const plugin = admin.schema("plugin_data");
   const users = {};
+
+  await waitForPostgrestSchema(admin);
 
   for (const account of accounts) {
     users[account.key] = await upsertAuthUser(admin, account);
