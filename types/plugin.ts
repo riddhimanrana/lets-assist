@@ -183,6 +183,15 @@ export interface ResolvedOrganizationPluginSurface {
   node: ReactNode;
 }
 
+export type OrganizationCoreTabKey = "overview" | "members" | "projects" | "reports";
+
+export interface OrganizationCoreTabReplacement {
+  pluginKey: string;
+  routePath?: string;
+  label: string;
+  minimumRole?: OrganizationPluginSurfaceAccessLevel;
+}
+
 /**
  * Validation result for project create/update hooks
  */
@@ -238,9 +247,13 @@ export interface MemberEventResult {
 }
 
 export interface OrganizationNavigationBehavior {
+  defaultTab?: OrganizationCoreTabKey | string;
+  coreTabReplacements?: Partial<Record<OrganizationCoreTabKey, OrganizationCoreTabReplacement>>;
   hideMembersTab?: boolean;
   hideProjectsTab?: boolean;
   hideOverviewTab?: boolean;
+  hideReportsTab?: boolean;
+  pluginSurfaceAllowlist?: string[];
   projectsTabLabel?: string;
   membersTabLabel?: string;
 }
@@ -310,6 +323,7 @@ export interface OrganizationPluginManifest {
   visibility: OrganizationPluginVisibility;
   minimumRole?: OrganizationPluginAccessRole;
   navLabel?: string;
+  organizationPageChrome?: "default" | "workspace";
   surfaceAccess?: OrganizationPluginSurfaceAccessPolicy;
   behaviorAccess?: OrganizationPluginBehaviorAccessPolicy;
   /**

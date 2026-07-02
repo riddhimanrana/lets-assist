@@ -1,6 +1,7 @@
 "use client";
 
-import { Shield, AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +29,7 @@ import { BotVerificationDialog } from "@/components/shared/BotVerificationDialog
 import { useBotVerification } from "@/hooks/useBotVerification";
 import { useRouter } from "next/navigation";
 import { getStaffInviteOrgLabel } from "@/lib/organization/staff-invite-outcome";
+import { SecureCheckLoading } from "@/components/auth/SecureCheckLoading";
 
 interface SignupClientProps {
   redirectPath?: string;
@@ -52,7 +54,7 @@ export default function SignupClient({
   redirectPath,
   staffToken,
   orgUsername,
-  inviteToken,
+  inviteToken: _inviteToken,
   prefilledEmail,
   prefilledName,
   prefilledPhone,
@@ -261,13 +263,14 @@ export default function SignupClient({
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4">
-      <Card className="w-full max-w-100 mx-auto mb-12 py-0">
-        <CardHeader className="space-y-1 px-6 pt-6 pb-0">
-          <CardTitle className="text-2xl font-bold text-left">
+    <section className="relative isolate flex min-h-[calc(100svh-4.5rem)] items-center justify-center overflow-hidden bg-background px-4 py-10 shadow-[inset_0_1px_0_hsl(var(--border))] sm:px-6 lg:px-8">
+
+      <Card className="relative mx-auto w-full max-w-[430px] gap-0 overflow-hidden rounded-2xl border border-border/70 bg-card/95 py-0 shadow-[0_16px_44px_rgba(0,0,0,0.12),0_1px_6px_rgba(0,0,0,0.04)] ring-0 backdrop-blur-xl">
+        <CardHeader className="space-y-2 px-6 pt-6 pb-0 sm:px-7">
+          <CardTitle className="text-left text-2xl font-semibold tracking-tight">
             {isStaffInvite ? "Staff Invite" : "Create an account"}
           </CardTitle>
-          <CardDescription className="text-left">
+          <CardDescription className="text-left text-sm leading-5">
             {isStaffInvite
               ? `You've been invited to join as staff. Create your account to continue.`
               : redirectPath
@@ -275,12 +278,12 @@ export default function SignupClient({
                 : "Enter your details below to create your account"}
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-6 space-y-4">
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <CardContent className="space-y-4 p-6 sm:p-7 sm:pt-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3.5">
             <Button
               type="button"
               variant="outline"
-              className="w-full"
+              className="h-10 w-full rounded-full border-border/80 bg-background/80 font-semibold shadow-xs hover:border-primary/30 hover:bg-primary/5"
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading}
             >
@@ -288,31 +291,23 @@ export default function SignupClient({
                 "Connecting..."
               ) : (
                 <>
-                  <svg
-                    className="mr-2 h-4 w-4"
-                    aria-hidden="true"
-                    focusable="false"
-                    data-prefix="fab"
-                    data-icon="google"
-                    role="img"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 488 512"
-                  >
-                    <path
-                      fill="currentColor"
-                      d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
-                    ></path>
-                  </svg>
+                  <Image
+                    src="/resources/google-logo-2026.png"
+                    alt=""
+                    width={18}
+                    height={18}
+                    className="mr-2 h-4.5 w-4.5 object-contain"
+                  />
                   Continue with Google
                 </>
               )}
             </Button>
             <div className="relative py-1">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
+                <span className="w-full border-t border-border/80" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground font-medium">
+                <span className="bg-card px-3 font-semibold tracking-wide text-muted-foreground/80">
                   Or continue with
                 </span>
               </div>
@@ -322,7 +317,7 @@ export default function SignupClient({
               name="fullName"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>
+                  <FieldLabel htmlFor={field.name} className="text-[13px] font-semibold">
                     Full Name
                     {normalizedPrefilledName && (
                       <span className="ml-2 text-xs text-muted-foreground font-normal italic">
@@ -330,7 +325,13 @@ export default function SignupClient({
                       </span>
                     )}
                   </FieldLabel>
-                  <Input id={field.name} placeholder="John Doe" {...field} aria-invalid={fieldState.invalid} />
+                  <Input
+                    id={field.name}
+                    placeholder="John Doe"
+                    {...field}
+                    aria-invalid={fieldState.invalid}
+                    className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
+                  />
                   {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
                 </Field>
               )}
@@ -340,7 +341,7 @@ export default function SignupClient({
               name="email"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>
+                  <FieldLabel htmlFor={field.name} className="text-[13px] font-semibold">
                     Email
                     {normalizedPrefilledEmail && (
                       <span className="ml-2 text-xs text-muted-foreground font-normal italic">
@@ -348,7 +349,13 @@ export default function SignupClient({
                       </span>
                     )}
                   </FieldLabel>
-                  <Input id={field.name} placeholder="m@example.com" {...field} aria-invalid={fieldState.invalid} />
+                  <Input
+                    id={field.name}
+                    placeholder="m@example.com"
+                    {...field}
+                    aria-invalid={fieldState.invalid}
+                    className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
+                  />
                   {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
                 </Field>
               )}
@@ -358,7 +365,7 @@ export default function SignupClient({
               name="phone"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>
+                  <FieldLabel htmlFor={field.name} className="text-[13px] font-semibold">
                     Phone Number (Optional)
                     {normalizedPrefilledPhone && (
                       <span className="ml-2 text-xs text-muted-foreground font-normal italic">
@@ -366,7 +373,13 @@ export default function SignupClient({
                       </span>
                     )}
                   </FieldLabel>
-                  <Input id={field.name} placeholder="+1 555-1234" {...field} aria-invalid={fieldState.invalid} />
+                  <Input
+                    id={field.name}
+                    placeholder="+1 555-1234"
+                    {...field}
+                    aria-invalid={fieldState.invalid}
+                    className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
+                  />
                   {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
                 </Field>
               )}
@@ -376,16 +389,24 @@ export default function SignupClient({
               name="password"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Password</FieldLabel>
-                  <Input id={field.name} type="password" {...field} aria-invalid={fieldState.invalid} />
+                  <FieldLabel htmlFor={field.name} className="text-[13px] font-semibold">
+                    Password
+                  </FieldLabel>
+                  <Input
+                    id={field.name}
+                    type="password"
+                    {...field}
+                    aria-invalid={fieldState.invalid}
+                    className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
+                  />
                   {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
-                  <div className="mt-3 space-y-2">
-                    <div className="rounded-lg bg-warning/10 border border-warning/20 p-4 shadow-xs">
-                      <p className="text-xs font-semibold text-warning mb-2.5 flex items-center gap-2">
+                  <div className="mt-2.5">
+                    <div className="rounded-xl border border-warning/25 bg-warning/10 p-3 shadow-xs">
+                      <p className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-warning">
                         <AlertCircle className="h-4 w-4" />
                         Password Requirements
                       </p>
-                      <ul className="space-y-2 text-xs text-warning/90">
+                      <ul className="space-y-1.5 text-xs text-warning/90">
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                           <span>At least 8 characters long</span>
@@ -401,13 +422,8 @@ export default function SignupClient({
               )}
             />
             <div className="flex justify-center">
-              <div className="relative w-75 h-16.25 overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
-                {!verification.isReady && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                    <Shield className="h-4 w-4 text-muted-foreground/80" />
-                    <span className="text-[0.7rem] font-semibold normal-case">Bot verification loading…</span>
-                  </div>
-                )}
+              <div className="relative flex h-16.25 w-full max-w-75 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-background">
+                {!verification.isReady && <SecureCheckLoading />}
                 <TurnstileComponent
                   ref={verification.ref}
                   onLoad={verification.onLoad}
@@ -417,10 +433,14 @@ export default function SignupClient({
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading || !verification.isReady}>
+            <Button
+              type="submit"
+              className="h-10 w-full rounded-full bg-primary font-semibold text-primary-foreground shadow-none hover:bg-primary/90"
+              disabled={isLoading || !verification.isReady}
+            >
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
-            <div className="mt-2 text-center text-sm">
+            <div className="pt-1 text-center text-sm text-muted-foreground">
               Already have an account?{" "}
               <Link
                 href={(() => {
@@ -440,7 +460,7 @@ export default function SignupClient({
                   const query = params.toString();
                   return query ? `/login?${query}` : "/login";
                 })()}
-                className="underline"
+                className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
               >
                 Login
               </Link>
@@ -459,6 +479,6 @@ export default function SignupClient({
         isLoading={isResending}
         isSingleStep={true}
       />
-    </div>
+    </section>
   );
 }

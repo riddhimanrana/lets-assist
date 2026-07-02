@@ -194,7 +194,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
         if (currentOrg.logo_url) {
           try {
             const oldFileName = currentOrg.logo_url.split('/').pop();
-            if (oldFileName && oldFileName !== fileName) {
+            if (oldFileName) {
               await supabase.storage.from('organization-logos').remove([oldFileName]);
             }
           } catch (error) {
@@ -208,7 +208,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
           .from('organization-logos')
           .upload(fileName, Buffer.from(base64Data, 'base64'), {
             contentType: mimeType,
-            upsert: true
+            upsert: false
           });
         
         if (uploadError) throw uploadError;
@@ -658,7 +658,14 @@ export async function getOrganizationPluginSettings(
         plugin.manifest.description ??
         `${plugin.manifest.name} plugin for organization workflows.`,
       capabilityHighlights: plugin.manifest.capabilityHighlights ?? [],
-      dataAccess: plugin.manifest.dataScope ?? [],
+      dataAccess:
+        plugin.manifest.dataAccess?.map(
+          (entry) => `${entry.access}: ${entry.schema}.${entry.relation} - ${entry.purpose}`,
+        ) ??
+        plugin.manifest.dataScope ??
+        [],
+      routes: plugin.manifest.routes ?? [],
+      backendCapabilities: plugin.manifest.backendCapabilities ?? [],
       configSchema: plugin.manifest.configSchema ?? null,
       requiredScopes: plugin.manifest.requiredScopes ?? [],
     }));
@@ -696,7 +703,14 @@ export async function getOrganizationPluginSettings(
       plugin.manifest.description ??
       `${plugin.manifest.name} plugin for organization workflows.`,
     capabilityHighlights: plugin.manifest.capabilityHighlights ?? [],
-    dataAccess: plugin.manifest.dataScope ?? [],
+    dataAccess:
+      plugin.manifest.dataAccess?.map(
+        (entry) => `${entry.access}: ${entry.schema}.${entry.relation} - ${entry.purpose}`,
+      ) ??
+      plugin.manifest.dataScope ??
+      [],
+    routes: plugin.manifest.routes ?? [],
+    backendCapabilities: plugin.manifest.backendCapabilities ?? [],
     configSchema: plugin.manifest.configSchema ?? null,
     requiredScopes: plugin.manifest.requiredScopes ?? [],
   }));

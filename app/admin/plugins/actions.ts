@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { getAdminClient } from "@/lib/supabase/admin";
 import { coalescePluginVersion, isPluginVersionBehind } from "@/lib/plugins/versioning";
+import { syncRegisteredPluginRuntimeContracts } from "@/lib/plugins/runtime-contracts";
 import { checkSuperAdmin } from "@/app/admin/actions";
 
 type PluginCatalogControlRow = {
@@ -32,6 +33,20 @@ type PluginEntitlementRow = {
   starts_at: string | null;
   ends_at: string | null;
   is_forced: boolean;
+  updated_at: string;
+};
+
+type PluginDataBoundaryRow = {
+  id: string;
+  organization_id: string;
+  organization_name: string;
+  organization_slug: string | null;
+  plugin_key: string;
+  boundary_status: "active" | "disabled" | "migration_pending" | "archived";
+  data_schema: string;
+  data_prefix: string | null;
+  isolation_mode: "shared" | "dedicated_schema" | "dedicated_project" | "external";
+  direct_client_access: "blocked" | "server_preferred" | "rls_allowed";
   updated_at: string;
 };
 
@@ -102,6 +117,7 @@ type EntitlementBaseRow = {
 export type PluginControlPlaneData = {
   plugins: PluginCatalogControlRow[];
   entitlements: PluginEntitlementRow[];
+  dataBoundaries: PluginDataBoundaryRow[];
   organizations: PluginOrganizationOption[];
   error?: string;
   warning?: string;
@@ -197,14 +213,25 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
     return {
       plugins: [],
       entitlements: [],
+      dataBoundaries: [],
       organizations: [],
       error: "Unauthorized",
     };
   }
 
   const service = getAdminClient();
+  let runtimeContractWarning: string | undefined;
 
-  const [pluginsResult, organizationsResult, accessResult] = await Promise.all([
+  try {
+    await syncRegisteredPluginRuntimeContracts();
+  } catch (error) {
+    runtimeContractWarning =
+      error instanceof Error
+        ? error.message
+        : "Failed to sync plugin runtime contracts.";
+  }
+
+  const [pluginsResult, organizationsResult, accessResult, boundariesResult] = await Promise.all([
     service
       .from("plugins")
       .select(
@@ -220,14 +247,20 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
       .select(
         "organization_id, plugin_key, enabled, installed_version, install_created_at, entitlement_id, entitlement_status, entitlement_starts_at, entitlement_ends_at, entitlement_is_forced, entitlement_updated_at",
       ),
+    service
+      .from("organization_plugin_data_boundaries")
+      .select("id, organization_id, plugin_key, boundary_status, data_schema, data_prefix, isolation_mode, direct_client_access, updated_at")
+      .order("updated_at", { ascending: false }),
   ]);
 
   const isAccessViewMissing = isMissingPluginSchemaError(accessResult.error);
+  const isBoundariesTableMissing = isMissingPluginSchemaError(boundariesResult.error);
 
   if (pluginsResult.error) {
     return {
       plugins: [],
       entitlements: [],
+      dataBoundaries: [],
       organizations: [],
       error: `Failed to load plugin catalog: ${pluginsResult.error.message}`,
     };
@@ -237,6 +270,7 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
     return {
       plugins: [],
       entitlements: [],
+      dataBoundaries: [],
       organizations: [],
       error: `Failed to load organizations: ${organizationsResult.error.message}`,
     };
@@ -268,6 +302,7 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
       return {
         plugins: [],
         entitlements: [],
+        dataBoundaries: [],
         organizations,
         warning:
           "Plugin control tables/columns are not fully initialized. Run local Supabase reset to apply latest migrations.",
@@ -278,6 +313,7 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
       return {
         plugins: [],
         entitlements: [],
+        dataBoundaries: [],
         organizations: [],
         error: `Failed to load entitlements: ${entitlementsResult.error.message}`,
       };
@@ -287,6 +323,7 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
       return {
         plugins: [],
         entitlements: [],
+        dataBoundaries: [],
         organizations: [],
         error: `Failed to load plugin installs: ${installsResult.error.message}`,
       };
@@ -323,6 +360,7 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
       return {
         plugins: [],
         entitlements: [],
+        dataBoundaries: [],
         organizations: [],
         error: `Failed to load consolidated plugin access: ${accessResult.error.message}`,
       };
@@ -368,6 +406,37 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
     );
   }
 
+  let dataBoundaries: PluginDataBoundaryRow[] = [];
+  if (isBoundariesTableMissing) {
+    runtimeContractWarning = [
+      runtimeContractWarning,
+      "Plugin data boundary table is not initialized. Run local Supabase reset to apply latest migrations.",
+    ]
+      .filter(Boolean)
+      .join(" ");
+  } else if (boundariesResult.error) {
+    return {
+      plugins: [],
+      entitlements: [],
+      dataBoundaries: [],
+      organizations: [],
+      error: `Failed to load plugin data boundaries: ${boundariesResult.error.message}`,
+    };
+  } else {
+    dataBoundaries = ((boundariesResult.data ?? []) as Omit<
+      PluginDataBoundaryRow,
+      "organization_name" | "organization_slug"
+    >[]).map((boundary) => {
+      const organization = organizationNameById.get(boundary.organization_id);
+
+      return {
+        ...boundary,
+        organization_name: organization?.name ?? "Unknown organization",
+        organization_slug: organization?.username ?? null,
+      } satisfies PluginDataBoundaryRow;
+    });
+  }
+
   const plugins = ((pluginsResult.data ?? []) as PluginCatalogBaseRow[]).map((plugin) => {
     const pluginInstalls = installsByPlugin.get(plugin.key) ?? [];
 
@@ -393,7 +462,9 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
   return {
     plugins,
     entitlements,
+    dataBoundaries,
     organizations,
+    warning: runtimeContractWarning,
   };
 }
 

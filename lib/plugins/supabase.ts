@@ -1,14 +1,14 @@
 /**
  * Plugin Data Supabase Client
  *
- * Provides a Supabase query builder scoped to the `plugin_data` schema.
- * Use this for all plugin table queries instead of the default client.
+ * Legacy Plugin Data Supabase Client
  *
  * Architecture:
- *   - plugin_data schema is exposed via PostgREST (config.toml + Dashboard)
- *   - supabase.schema('plugin_data') returns a builder that queries plugin_data.*
- *   - RLS policies on plugin_data tables use private.* SECURITY DEFINER helpers
- *   - The default client (no .schema()) still queries public.*
+ *   - plugin_data is no longer exposed through the normal Supabase Data API
+ *   - new plugin code must use host server actions, route handlers, narrow
+ *     RPCs, public read models, or internal service-role/Postgres helpers
+ *   - this file remains only as an explicit fail-closed legacy escape hatch
+ *     while disabled plugins such as DV Speech & Debate are redesigned
  *
  * Usage:
  *   import { createPluginClient } from '@/lib/plugins/supabase';
@@ -21,15 +21,22 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
+
+function assertLegacyPluginDataApiEnabled() {
+  if (process.env.LETS_ASSIST_ENABLE_LEGACY_PLUGIN_DATA_API !== "true") {
+    throw new Error(
+      "Direct plugin_data Supabase schema access is disabled. Use a server-only plugin backend, RPC, route handler, or read model instead.",
+    );
+  }
+}
 
 /**
- * Creates a Supabase query builder scoped to the `plugin_data` schema.
- * Returns the schema-scoped builder (NOT the full client).
- *
- * Note: The returned object only supports `.from()` — it does NOT have
- * `.auth`, `.storage`, `.rpc()`, etc. For those, use `createClient()` directly.
+ * Legacy helper for disabled/private plugins that have not completed the
+ * server-only data cutover. Requires an explicit local/legacy env flag.
  */
 export async function createPluginClient() {
+  assertLegacyPluginDataApiEnabled();
   const supabase = await createClient();
   return supabase.schema("plugin_data");
 }
@@ -44,7 +51,16 @@ export async function createPluginClient() {
  *   const { data: members } = await pluginDb.from('dv_sd_memberships').select('*');
  */
 export async function createDualClient() {
+  assertLegacyPluginDataApiEnabled();
   const supabase = await createClient();
   const pluginDb = supabase.schema("plugin_data");
   return { supabase, pluginDb };
+}
+
+/**
+ * Server-only plugin_data helper for reviewed host backends that must access
+ * private plugin tables without exposing plugin_data through the browser/Data API.
+ */
+export function createPluginAdminClient() {
+  return getAdminClient().schema("plugin_data");
 }

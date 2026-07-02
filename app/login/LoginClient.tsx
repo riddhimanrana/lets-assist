@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Shield } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { applyStaffInviteForCurrentUser, signInWithGoogle } from "./actions";
+import { SecureCheckLoading } from "@/components/auth/SecureCheckLoading";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -110,10 +111,11 @@ export default function LoginClient({
     try {
       const supabase = createClient();
 
+      const isBypassToken = turnstileToken === "turnstile-bypass";
       const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
-        options: turnstileToken ? { captchaToken: turnstileToken } : undefined,
+        options: (turnstileToken && !isBypassToken) ? { captchaToken: turnstileToken } : undefined,
       });
 
       if (error) {
@@ -203,7 +205,7 @@ export default function LoginClient({
       if (error instanceof TypeError && error.message.includes("Failed to fetch")) {
         toast.error("Cannot reach authentication service.", {
           description:
-            "Supabase appears unreachable from the browser. If you use local Supabase, ensure Docker is running and start it with `bun run supabase:start`.",
+            "Supabase appears unreachable from the browser. If you are using local development, start the stack with `bun run supabase` or `bun run supabase:start` and make sure Docker is running.",
         });
       } else {
         toast.error("An error occurred. Please try again.");
@@ -250,22 +252,25 @@ export default function LoginClient({
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Card className="mx-auto mb-12 w-95 max-w-full py-0">
-        <CardHeader className="px-6 pt-6 pb-0">
-          <CardTitle className="text-2xl font-bold">Login</CardTitle>
-          <CardDescription>
+    <section className="relative isolate flex min-h-[calc(100svh-4.5rem)] items-center justify-center overflow-hidden bg-background px-4 py-14 shadow-[inset_0_1px_0_hsl(var(--border))] sm:px-6 lg:px-8">
+
+      <Card className="relative mx-auto w-full max-w-[410px] gap-0 overflow-hidden rounded-2xl border border-border/70 bg-card/95 py-0 shadow-[0_16px_44px_rgba(0,0,0,0.12),0_1px_6px_rgba(0,0,0,0.04)] ring-0 backdrop-blur-xl">
+        <CardHeader className="space-y-2 px-6 pt-7 pb-0 sm:px-7">
+          <CardTitle className="text-2xl font-semibold tracking-tight">
+            Login
+          </CardTitle>
+          <CardDescription className="text-sm leading-5">
             {redirectPath
               ? "Login to continue to the requested page"
               : "Enter your email below to login to your account"}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 p-6">
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <CardContent className="space-y-5 p-6 sm:p-7">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <Button
               type="button"
               variant="outline"
-              className="w-full"
+              className="h-10 w-full rounded-full border-border/80 bg-background/80 font-semibold shadow-xs hover:border-primary/30 hover:bg-primary/5"
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading}
             >
@@ -273,21 +278,13 @@ export default function LoginClient({
                 "Connecting..."
               ) : (
                 <>
-                  <svg
-                    className="mr-2 h-4 w-4"
-                    aria-hidden="true"
-                    focusable="false"
-                    data-prefix="fab"
-                    data-icon="google"
-                    role="img"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 488 512"
-                  >
-                    <path
-                      fill="currentColor"
-                      d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
-                    />
-                  </svg>
+                  <Image
+                    src="/resources/google-logo-2026.png"
+                    alt=""
+                    width={18}
+                    height={18}
+                    className="mr-2 h-4.5 w-4.5 object-contain"
+                  />
                   Login with Google
                 </>
               )}
@@ -295,10 +292,10 @@ export default function LoginClient({
 
             <div className="relative py-1">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
+                <span className="w-full border-t border-border/80" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 font-medium text-muted-foreground">
+                <span className="bg-card px-3 font-semibold tracking-wide text-muted-foreground/80">
                   Or continue with
                 </span>
               </div>
@@ -310,12 +307,15 @@ export default function LoginClient({
                 name="email"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+                    <FieldLabel htmlFor={field.name} className="text-[13px] font-semibold">
+                      Email
+                    </FieldLabel>
                     <Input
                       id={field.name}
                       placeholder="m@example.com"
                       {...field}
                       aria-invalid={fieldState.invalid}
+                      className="h-11 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
                     />
                     <FieldError errors={[fieldState.error]} />
                   </Field>
@@ -328,10 +328,12 @@ export default function LoginClient({
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <div className="flex items-center justify-between">
-                      <FieldLabel htmlFor={field.name}>Password</FieldLabel>
+                      <FieldLabel htmlFor={field.name} className="text-[13px] font-semibold">
+                        Password
+                      </FieldLabel>
                       <Link
                         href="/reset-password"
-                        className="text-xs font-medium text-muted-foreground/80 transition-colors hover:text-primary"
+                        className="text-xs font-semibold text-muted-foreground transition-colors hover:text-primary"
                       >
                         Forgot your password?
                       </Link>
@@ -341,6 +343,7 @@ export default function LoginClient({
                       type="password"
                       {...field}
                       aria-invalid={fieldState.invalid}
+                      className="h-11 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
                     />
                     <FieldError errors={[fieldState.error]} />
                   </Field>
@@ -348,15 +351,8 @@ export default function LoginClient({
               />
 
               <div className="flex justify-center">
-                <div className="relative flex h-16.25 w-75 items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-muted/30">
-                  {!turnstileReady && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                      <Shield className="h-4 w-4 text-muted-foreground/80" />
-                      <span className="text-[0.7rem] font-semibold normal-case">
-                        Bot verification loading…
-                      </span>
-                    </div>
-                  )}
+                <div className="relative flex h-16.25 w-full max-w-75 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-background">
+                  {!turnstileReady && <SecureCheckLoading />}
                   <TurnstileComponent
                     ref={turnstileRef}
                     onLoad={() => setTurnstileReady(true)}
@@ -378,12 +374,16 @@ export default function LoginClient({
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button
+                type="submit"
+                className="h-10 w-full rounded-full bg-primary font-semibold text-primary-foreground shadow-none hover:bg-primary/90"
+                disabled={isLoading}
+              >
                 {isLoading ? "Logging in..." : "Login"}
               </Button>
             </div>
 
-            <div className="mt-2 text-center text-sm text-muted-foreground">
+            <div className="pt-1 text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link
                 href={(() => {
@@ -408,7 +408,7 @@ export default function LoginClient({
                   const query = params.toString();
                   return query ? `/signup?${query}` : "/signup";
                 })()}
-                className="text-primary underline hover:text-primary/80"
+                className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
               >
                 Sign up
               </Link>
@@ -416,6 +416,6 @@ export default function LoginClient({
           </form>
         </CardContent>
       </Card>
-    </div>
+    </section>
   );
 }

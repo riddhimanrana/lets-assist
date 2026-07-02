@@ -57,6 +57,13 @@ import { toast } from "sonner";
 import type { ProjectSchedule, EventType } from "@/types";
 import { deleteDraft, publishDraft } from "./actions";
 import Image from "next/image";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 
 interface Draft {
   id: string;
@@ -247,11 +254,17 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
   const DraftList = () => (
     <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
       {drafts.length === 0 ? (
-        <div className="text-center py-12">
-          <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-          <p className="text-sm font-medium">No drafts yet</p>
-          <p className="text-xs text-muted-foreground mt-1">Save your current project as draft to see it here</p>
-        </div>
+        <Empty className="border bg-muted/20 py-10">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <FileText className="h-5 w-5" />
+            </EmptyMedia>
+            <EmptyTitle>No drafts yet</EmptyTitle>
+            <EmptyDescription>
+              Save your current project as a draft and it will appear here.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         drafts.map((draft) => (
           <DraftItem key={draft.id} draft={draft} />

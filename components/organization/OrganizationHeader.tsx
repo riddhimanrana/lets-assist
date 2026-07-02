@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import type { Organization } from "@/types";
 import { toast } from "sonner";
 import { copyToClipboard, isMobileDevice } from "@/lib/utils";
+import { formatOrganizationWebsiteDisplay } from "@/lib/organization/website";
 
 type OrganizationHeaderOrg = Organization & {
   website?: string | null;
@@ -146,7 +147,7 @@ export default function OrganizationHeader({
                 >
                   <GlobeIcon className="h-3.5 w-3.5" />
                   <span>
-                    {organization.website.replace(/^https?:\/\/(www\.)?/, '')}
+                    {formatOrganizationWebsiteDisplay(organization.website)}
                   </span>
                 </a>
               )}

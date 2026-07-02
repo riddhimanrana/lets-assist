@@ -21,6 +21,8 @@ import OrganizationCalendarSettings from "./OrganizationCalendarSettings";
 import BulkImportSection from "./BulkImportSection";
 import OrganizationSheetsSettings from "./OrganizationSheetsSettings";
 import OrganizationPluginSettings from "./OrganizationPluginSettings";
+import MemberExporter from "./MemberExporter";
+
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -200,7 +202,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
           <OrganizationPluginSettings organizationId={organization.id} />
 
           {/* Member Data Management */}
-          {/* <Card>
+          <Card>
             <CardHeader>
               <CardTitle>Member Data</CardTitle>
               <CardDescription>
@@ -213,7 +215,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
               </p>
               <MemberExporter organizationId={organization.id} />
             </CardContent>
-          </Card> */}
+          </Card>
 
           {/* Danger Zone */}
           <Card className="border-destructive/50">

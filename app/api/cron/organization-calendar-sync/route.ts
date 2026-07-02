@@ -52,50 +52,41 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const results: Array<{ 
-    organizationId: string; 
-    success: boolean; 
-    createdCount?: number;
-    updatedCount?: number;
-    removedCount?: number;
-    error?: string 
-  }> = [];
-
   // Default sync interval for calendar is 1 hour (60 minutes)
   const intervalMinutes = 60;
 
-  for (const row of syncRows || []) {
-    if (!isDue(row.last_synced_at, intervalMinutes)) {
-      continue;
-    }
-
-    try {
-      const result = await syncOrganizationCalendarNow(row.organization_id, true);
-      
-      if (result.success) {
-        results.push({ 
-          organizationId: row.organization_id, 
-          success: true,
-          createdCount: result.createdCount,
-          updatedCount: result.updatedCount,
-          removedCount: result.removedCount,
-        });
-      } else {
-        results.push({ 
+  const syncPromises = (syncRows || [])
+    .filter((row) => isDue(row.last_synced_at, intervalMinutes))
+    .map(async (row) => {
+      try {
+        const result = await syncOrganizationCalendarNow(row.organization_id, true);
+        
+        if (result.success) {
+          return { 
+            organizationId: row.organization_id, 
+            success: true,
+            createdCount: result.createdCount,
+            updatedCount: result.updatedCount,
+            removedCount: result.removedCount,
+          };
+        } else {
+          return { 
+            organizationId: row.organization_id, 
+            success: false, 
+            error: result.error || "Unknown error" 
+          };
+        }
+      } catch (error) {
+        console.error(`Failed to sync calendar for org ${row.organization_id}:`, error);
+        return { 
           organizationId: row.organization_id, 
           success: false, 
-          error: result.error || "Unknown error" 
-        });
+          error: error instanceof Error ? error.message : "Unknown error" 
+        };
       }
-    } catch (error) {
-      console.error(`Failed to sync calendar for org ${row.organization_id}:`, error);
-      results.push({ 
-        organizationId: row.organization_id, 
-        success: false, 
-        error: error instanceof Error ? error.message : "Unknown error" 
-      });
-    }
-  }
+    });
+
+  const results = await Promise.all(syncPromises);
 
   return NextResponse.json({ 
     processed: results.length, 

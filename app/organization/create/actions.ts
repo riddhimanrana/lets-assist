@@ -234,7 +234,7 @@ export async function createOrganization(data: OrganizationCreationData) {
           .upload(
             fileName,
             Buffer.from(base64Data, 'base64'),
-            { contentType: mimeType, upsert: true }
+            { contentType: mimeType, upsert: false }
           );
 
         if (uploadError) throw uploadError;

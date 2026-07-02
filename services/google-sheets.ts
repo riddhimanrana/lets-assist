@@ -336,3 +336,98 @@ export async function updateSpreadsheetValues(
     return false;
   }
 }
+
+export async function batchGetSpreadsheetValues(
+  accessToken: string,
+  sheetId: string,
+  ranges: string[]
+): Promise<Array<{ range: string; values: string[][] }> | null> {
+  if (ranges.length === 0) return [];
+
+  const params = new URLSearchParams();
+  for (const range of ranges) {
+    params.append("ranges", range);
+  }
+  params.set("majorDimension", "ROWS");
+  params.set("valueRenderOption", "FORMATTED_VALUE");
+
+  try {
+    const response = await fetch(
+      `${GOOGLE_SHEETS_API}/${encodeURIComponent(sheetId)}/values:batchGet?${params.toString()}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      logError("Failed to batch read Google spreadsheet values", new Error(error), {
+        sheet_id: sheetId,
+        ranges: ranges.join(", "),
+      });
+      return null;
+    }
+
+    const data = await response.json();
+    return (data.valueRanges || []).map((valueRange: { range?: string; values?: string[][] }) => ({
+      range: valueRange.range || "",
+      values: valueRange.values || [],
+    }));
+  } catch (error) {
+    logError("Exception while batch reading Google spreadsheet values", error, {
+      sheet_id: sheetId,
+      ranges: ranges.join(", "),
+    });
+    return null;
+  }
+}
+
+export async function appendSpreadsheetValues(
+  accessToken: string,
+  sheetId: string,
+  range: string,
+  rows: string[][]
+): Promise<boolean> {
+  if (rows.length === 0) return true;
+
+  try {
+    const response = await fetch(
+      `${GOOGLE_SHEETS_API}/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(
+        range
+      )}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          range,
+          majorDimension: "ROWS",
+          values: rows,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      logError("Failed to append Google spreadsheet values", new Error(error), {
+        sheet_id: sheetId,
+        range,
+        rows_count: rows.length,
+      });
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    logError("Exception while appending Google spreadsheet values", error, {
+      sheet_id: sheetId,
+      range,
+      rows_count: rows.length,
+    });
+    return false;
+  }
+}

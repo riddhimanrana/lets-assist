@@ -24,10 +24,11 @@ import { Loader2, ChevronLeft, ChevronRight, AlertCircle, Sparkles, Save } from 
 import { cn } from "@/lib/utils";
 // Replace shadcn toast with Sonner
 import { toast } from "sonner";
-import { createProject, uploadCoverImage, uploadProjectDocument, uploadWaiverPdf, finalizeProject, saveProjectAsNewDraft, autoSaveDraft, deleteDraft, checkProfanity } from "./actions";
+import { createProject, uploadWaiverPdf, finalizeProject, saveProjectAsNewDraft, autoSaveDraft, deleteDraft, checkProfanity, linkProjectUploadedAssets } from "./actions";
 import { saveWaiverDefinition } from "../[id]/actions";
 import { useRouter } from "next/navigation";
 import { getWaiverPdfRequirementError } from "@/lib/projects/waiver-validation";
+import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/client";
 // Import Zod schemas
 import {
   basicInfoSchema,
@@ -39,6 +40,7 @@ import {
 import { z } from "zod";
 import DraftsSidebar from "./DraftsSidebar";
 import type { ProjectSchedule, EventType } from "@/types";
+import { v4 as uuidv4 } from "uuid";
 
 interface Draft {
   id: string;
@@ -77,6 +79,16 @@ interface ProjectCreatorProps {
     content: React.ReactNode;
   }[];
 }
+
+type UploadStatus = "idle" | "uploading" | "processing" | "error" | "done";
+
+type UploadedProjectDocument = {
+  name: string;
+  originalName: string;
+  type: string;
+  size: number;
+  url: string;
+};
 
 export default function ProjectCreator({ 
   initialOrgId, 
@@ -131,6 +143,8 @@ export default function ProjectCreator({
   // File handling states
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [documents, setDocuments] = useState<File[]>([]);
+  const [coverImageUploadState, setCoverImageUploadState] = useState<UploadStatus>("idle");
+  const [documentUploadStates, setDocumentUploadStates] = useState<Record<string, UploadStatus>>({});
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _AUTOSAVE_KEY = "project-autosave";
@@ -167,6 +181,21 @@ export default function ProjectCreator({
     shouldPromptWaiverReuploadFromDraft
   );
   const waiverPdfRequirementError = getWaiverPdfRequirementError(state);
+  const totalSteps = 5 + pluginSteps.length;
+  const finalStep = totalSteps;
+  const stepLabels = useMemo(
+    () => [
+      "Basic Info",
+      "Event Type",
+      "Schedule",
+      "Settings",
+      ...pluginSteps.map((step) => step.title),
+      "Finalize",
+    ],
+    [pluginSteps]
+  );
+  const currentStepLabel = stepLabels[state.step - 1] ?? "Create Project";
+  const progressValue = (state.step / totalSteps) * 100;
 
   // Autosave state - initialize with loaded draft ID if available
   const [autosaveDraftId, setAutosaveDraftId] = useState<string | undefined>(initialDraftId || undefined);
@@ -517,6 +546,144 @@ export default function ProjectCreator({
     updateMultiRoleSchedule(field, value, roleIndex);
   };
 
+  const getUploadKey = (file: File) => `${file.name}-${file.size}-${file.lastModified}`;
+
+  const getSafeExtension = (file: File) => {
+    const extensionFromName = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const extensionFromType = file.type.split("/")[1]?.toLowerCase().replace(/[^a-z0-9]/g, "");
+    return extensionFromName || extensionFromType || "file";
+  };
+
+  const uploadProjectFiles = async (projectId: string) => {
+    if (!coverImage && documents.length === 0) {
+      return { hasErrors: false };
+    }
+
+    const supabase = createBrowserSupabaseClient();
+    let hasErrors = false;
+    let coverImageUrl: string | undefined;
+    const uploadedDocuments: UploadedProjectDocument[] = [];
+    const uploadedPaths: { bucket: string; path: string }[] = [];
+
+    setCoverImageUploadState(coverImage ? "idle" : "idle");
+    setDocumentUploadStates(
+      Object.fromEntries(documents.map((document) => [getUploadKey(document), "idle" as UploadStatus]))
+    );
+
+    if (coverImage) {
+      if (validateFileSize(coverImage, 5 * 1024 * 1024)) {
+        setCoverImageUploadState("uploading");
+        try {
+          const filePath = `project_${projectId}_cover_${Date.now()}.${getSafeExtension(coverImage)}`;
+          const { error: uploadError } = await supabase.storage
+            .from("project-images")
+            .upload(filePath, coverImage, {
+              contentType: coverImage.type,
+              cacheControl: "3600",
+              upsert: false,
+            });
+
+          if (uploadError) throw uploadError;
+          uploadedPaths.push({ bucket: "project-images", path: filePath });
+
+          const { data: publicUrlData } = supabase.storage
+            .from("project-images")
+            .getPublicUrl(filePath);
+
+          coverImageUrl = publicUrlData.publicUrl;
+          setCoverImageUploadState("processing");
+        } catch (error) {
+          console.error("Cover image upload failed:", error);
+          setCoverImageUploadState("error");
+          hasErrors = true;
+        }
+      } else {
+        setCoverImageUploadState("error");
+        hasErrors = true;
+      }
+    }
+
+    for (const document of documents) {
+      const uploadKey = getUploadKey(document);
+
+      if (!validateFileSize(document, 10 * 1024 * 1024)) {
+        setDocumentUploadStates((current) => ({ ...current, [uploadKey]: "error" }));
+        hasErrors = true;
+        continue;
+      }
+
+      setDocumentUploadStates((current) => ({ ...current, [uploadKey]: "uploading" }));
+
+      try {
+        const filePath = `project_${projectId}_${uuidv4().slice(0, 8)}_${Date.now()}.${getSafeExtension(document)}`;
+        const { error: uploadError } = await supabase.storage
+          .from("project-documents")
+          .upload(filePath, document, {
+            contentType: document.type,
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (uploadError) throw uploadError;
+        uploadedPaths.push({ bucket: "project-documents", path: filePath });
+
+        const { data: publicUrlData } = supabase.storage
+          .from("project-documents")
+          .getPublicUrl(filePath);
+
+        uploadedDocuments.push({
+          name: document.name,
+          originalName: document.name,
+          type: document.type,
+          size: document.size,
+          url: publicUrlData.publicUrl,
+        });
+
+        setDocumentUploadStates((current) => ({ ...current, [uploadKey]: "processing" }));
+      } catch (error) {
+        console.error(`Document upload failed for ${document.name}:`, error);
+        setDocumentUploadStates((current) => ({ ...current, [uploadKey]: "error" }));
+        hasErrors = true;
+      }
+    }
+
+    if (coverImageUrl || uploadedDocuments.length > 0) {
+      const linkResult = await linkProjectUploadedAssets(projectId, {
+        coverImageUrl,
+        documents: uploadedDocuments,
+      });
+
+      if ("error" in linkResult && linkResult.error) {
+        hasErrors = true;
+        if (coverImageUrl) setCoverImageUploadState("error");
+        setDocumentUploadStates((current) => {
+          const next = { ...current };
+          for (const document of uploadedDocuments) {
+            const matchingFile = documents.find((file) => file.name === document.name && file.size === document.size);
+            if (matchingFile) next[getUploadKey(matchingFile)] = "error";
+          }
+          return next;
+        });
+
+        await Promise.allSettled(
+          uploadedPaths.map((item) => supabase.storage.from(item.bucket).remove([item.path]))
+        );
+      } else {
+        if (coverImageUrl) setCoverImageUploadState("done");
+        setDocumentUploadStates((current) => {
+          const next = { ...current };
+          for (const document of uploadedDocuments) {
+            const matchingFile = documents.find((file) => file.name === document.name && file.size === document.size);
+            if (matchingFile) next[getUploadKey(matchingFile)] = "done";
+          }
+          return next;
+        });
+      }
+    }
+
+    return { hasErrors };
+  };
+
   // Function to convert File to base64
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -564,7 +731,7 @@ export default function ProjectCreator({
           return true;
 
         default:
-          if (state.step === 5 + pluginSteps.length) {
+          if (state.step === finalStep) {
             // No validation needed for files
             return true;
           }
@@ -617,7 +784,7 @@ export default function ProjectCreator({
   };
 
   const handleSubmit = async () => {
-    if (state.step !== 5 + pluginSteps.length) {
+    if (state.step !== finalStep) {
       handleNextStep();
       return;
     }
@@ -709,53 +876,9 @@ export default function ProjectCreator({
       }
       let hasErrors = false;
 
-      // Step 2: Upload cover image if available
-      if (coverImage) {
-        if (validateFileSize(coverImage, 5 * 1024 * 1024)) {
-          try {
-            const coverBase64 = await fileToBase64(coverImage);
-            const coverResult = await uploadCoverImage(projectId, coverBase64);
-            if (coverResult.error) {
-              console.error(`Cover image: ${coverResult.error}`);
-              hasErrors = true;
-            }
-          } catch (error) {
-            console.error("Error processing cover image:", error);
-            hasErrors = true;
-          }
-        } else {
-          hasErrors = true;
-        }
-      }
-
-      // Step 3: Upload documents one by one with sequential processing
-      if (documents.length > 0) {
-        for (let i = 0; i < documents.length; i++) {
-          const doc = documents[i];
-
-          // Check size before attempting upload
-          if (!validateFileSize(doc, 10 * 1024 * 1024)) {
-            hasErrors = true;
-            continue;
-          }
-
-          try {
-            const docBase64 = await fileToBase64(doc);
-            const uploadResult = await uploadProjectDocument(projectId, docBase64, doc.name, doc.type);
-
-            // Wait a short delay between uploads to prevent race conditions
-            await new Promise(resolve => setTimeout(resolve, 200));
-
-            if (uploadResult.error) {
-              console.error(`Document ${doc.name}: ${uploadResult.error}`);
-              hasErrors = true;
-            }
-          } catch (error) {
-            console.error(`Error processing document ${doc.name}:`, error);
-            hasErrors = true;
-          }
-        }
-      }
+      // Step 2: Upload files directly to storage and link metadata to the project
+      const fileUploadResult = await uploadProjectFiles(projectId);
+      hasErrors = hasErrors || fileUploadResult.hasErrors;
 
       // Step 4: Upload waiver PDF if available and waiver is required
       if (state.waiverRequired && state.waiverPdfFile) {
@@ -902,7 +1025,7 @@ export default function ProjectCreator({
           <Card className="border-primary/10 shadow-sm overflow-hidden">
             <CardContent className="pt-6">
               {React.isValidElement(pluginStep.content) 
-                ? React.cloneElement(pluginStep.content as React.ReactElement<any>, { 
+                ? React.cloneElement(pluginStep.content as React.ReactElement<Record<string, unknown>>, { 
                     pluginData: state.pluginData,
                     updatePluginData,
                     signupFormSchema: state.signupFormSchema,
@@ -1016,13 +1139,27 @@ export default function ProjectCreator({
           />
         );
       default:
-        if (state.step === 5 + pluginSteps.length) {
+        if (state.step === finalStep) {
           return (
             <Finalize
               state={state}
-              setCoverImageAction={setCoverImage} // Updated prop name
-              setDocumentsAction={setDocuments}   // Updated prop name
+              setCoverImageAction={(file) => {
+                setCoverImage(file);
+                setCoverImageUploadState("idle");
+              }}
+              setDocumentsAction={(nextDocuments) => {
+                setDocuments(nextDocuments);
+                setDocumentUploadStates((current) => {
+                  const nextKeys = new Set(nextDocuments.map(getUploadKey));
+                  return Object.fromEntries(
+                    Object.entries(current).filter(([key]) => nextKeys.has(key))
+                  );
+                });
+              }}
               hasProfanity={hasProfanity}
+              coverImageUploadState={coverImageUploadState}
+              documentUploadStates={documentUploadStates}
+              getUploadKey={getUploadKey}
             />
           );
         }
@@ -1034,9 +1171,14 @@ export default function ProjectCreator({
     <>
       <div className="mb-6 sm:mb-8">
         <div className="flex items-start justify-between mb-4">
-          <h1 className="text-3xl sm:text-4xl font-bold">
-            Create a Volunteering Project
-          </h1>
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-bold">
+              Create a Volunteering Project
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Step {state.step} of {totalSteps}: {currentStepLabel}
+            </p>
+          </div>
           {state.step === 1 && (
             <Button
               variant="outline"
@@ -1049,31 +1191,22 @@ export default function ProjectCreator({
           )}
         </div>
 
-        <Progress value={(state.step / (5 + pluginSteps.length)) * 100} className="h-2" />
+        <Progress value={progressValue} className="h-2" />
         <div 
-          className="grid mt-2 text-xs sm:text-sm text-muted-foreground" 
-          style={{ gridTemplateColumns: `repeat(${5 + pluginSteps.length}, minmax(0, 1fr))` }}
+          className="grid mt-2 text-xs sm:text-sm text-muted-foreground"
+          style={{ gridTemplateColumns: `repeat(${totalSteps}, minmax(0, 1fr))` }}
         >
-          <span className={cn("text-center sm:text-left truncate", state.step === 1 && "text-primary font-medium")}>
-            Basic Info
-          </span>
-          <span className={cn("text-center sm:text-left truncate", state.step === 2 && "text-primary font-medium")}>
-            Event Type
-          </span>
-          <span className={cn("text-center sm:text-left truncate", state.step === 3 && "text-primary font-medium")}>
-            Schedule
-          </span>
-          <span className={cn("text-center sm:text-left truncate", state.step === 4 && "text-primary font-medium")}>
-            Settings
-          </span>
-          {pluginSteps.map((ps, idx) => (
-            <span key={ps.id} className={cn("text-center sm:text-left truncate", state.step === (5 + idx) && "text-primary font-medium")}>
-              {ps.title}
+          {stepLabels.map((label, index) => (
+            <span
+              key={`${label}-${index}`}
+              className={cn(
+                "truncate text-center first:text-left last:text-right",
+                state.step === index + 1 && "font-medium text-primary"
+              )}
+            >
+              {label}
             </span>
           ))}
-          <span className={cn("text-right truncate", state.step === (5 + pluginSteps.length) && "text-primary font-medium")}>
-            Finalize
-          </span>
         </div>
       </div>
 
@@ -1161,12 +1294,12 @@ export default function ProjectCreator({
             {/* Continue / Create button (full) */}
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting || isSavingDraft || (state.step === 5 && Boolean(waiverPdfRequirementError))}
+              disabled={isSubmitting || isSavingDraft || (state.step === finalStep && Boolean(waiverPdfRequirementError))}
               className="w-30"
             >
               {isSubmitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
-              ) : state.step === 5 ? (
+              ) : state.step === finalStep ? (
                 'Create'
               ) : (
                 <>

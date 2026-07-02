@@ -1,6 +1,7 @@
 "use client";
 
 import { Turnstile, TurnstileInstance } from "@marsidev/react-turnstile";
+import { ShieldCheck } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 
 type WindowWithTurnstile = Window & {
@@ -73,7 +74,19 @@ export const TurnstileComponent = forwardRef<TurnstileRef, TurnstileComponentPro
     }, [onLoad]);
 
     if (bypassEnabled) {
-      return null;
+      return (
+        <div className="flex h-full w-full items-center justify-center gap-3 text-sm text-muted-foreground">
+          <span className="flex size-8 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
+            <ShieldCheck className="size-4" />
+          </span>
+          <span className="flex flex-col">
+            <span className="text-xs font-semibold text-foreground">
+              Secure check ready
+            </span>
+            <span className="text-[0.7rem]">Local development bypass is active</span>
+          </span>
+        </div>
+      );
     }
 
     const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
@@ -82,7 +95,19 @@ export const TurnstileComponent = forwardRef<TurnstileRef, TurnstileComponentPro
       if (process.env.NODE_ENV !== "production") {
         console.error("Turnstile site key is not configured (NEXT_PUBLIC_TURNSTILE_SITE_KEY)");
       }
-      return null;
+      return (
+        <div className="flex h-full w-full items-center justify-center gap-3 text-sm text-muted-foreground">
+          <span className="flex size-8 items-center justify-center rounded-full border border-border bg-muted/50">
+            <ShieldCheck className="size-4" />
+          </span>
+          <span className="flex flex-col">
+            <span className="text-xs font-semibold text-foreground">
+              Secure check unavailable
+            </span>
+            <span className="text-[0.7rem]">Turnstile is not configured</span>
+          </span>
+        </div>
+      );
     }
 
     const handleError = (errorCode?: string) => {

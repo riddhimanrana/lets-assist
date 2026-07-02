@@ -187,7 +187,10 @@ export const getProjectStartDateTime = (project: Project): Date => {
       return new Date(date.setHours(hours, minutes));
     }
     default:
-      throw new Error("Invalid event type");
+      // Unknown/legacy event_type — log and return epoch so the project
+      // is treated as upcoming rather than crashing the page.
+      console.warn(`[getProjectStartDateTime] Unknown event_type: "${(project as { event_type: string }).event_type}" on project ${project.id}`);
+      return new Date(0);
   }
 };
 
@@ -225,7 +228,9 @@ export const getProjectEndDateTime = (project: Project): Date => {
       return new Date(date.setHours(hours, minutes));
     }
     default:
-      throw new Error("Invalid event type");
+      // Unknown/legacy event_type — return far-future so it shows as upcoming.
+      console.warn(`[getProjectEndDateTime] Unknown event_type: "${(project as { event_type: string }).event_type}" on project ${project.id}`);
+      return new Date(8640000000000000);
   }
 };
 
@@ -254,6 +259,13 @@ export const getProjectStatus = (project: Project): ProjectStatus => {
   }
 
   if (project.event_type === "sameDayMultiArea" && !project.schedule.sameDayMultiArea) {
+    return "upcoming";
+  }
+
+  // Guard against unknown event_type (e.g. legacy/malformed DB rows like event_type='event')
+  const knownEventTypes = ["oneTime", "multiDay", "sameDayMultiArea"];
+  if (!knownEventTypes.includes(project.event_type)) {
+    console.warn(`[getProjectStatus] Unknown event_type: "${(project as { event_type: string }).event_type}" on project ${project.id} — treating as upcoming`);
     return "upcoming";
   }
 
@@ -409,23 +421,27 @@ export async function getSlotCapacities(
 ): Promise<Record<string, number>> {
   const capacities: Record<string, number> = {};
   const scheduleIds: string[] = [];
+  const normalizeCapacity = (value: unknown): number => {
+    const numeric = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(numeric) && numeric > 0 ? Math.floor(numeric) : 0;
+  };
 
   // Collect all schedule IDs and initial capacities
   if (project.event_type === "oneTime" && project.schedule.oneTime) {
     scheduleIds.push("oneTime");
-    capacities["oneTime"] = project.schedule.oneTime.volunteers;
+    capacities["oneTime"] = normalizeCapacity(project.schedule.oneTime.volunteers);
   } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
     project.schedule.multiDay.forEach((day, dayIndex) => {
       day.slots.forEach((slot, slotIndex) => {
         const scheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
         scheduleIds.push(scheduleId);
-        capacities[scheduleId] = slot.volunteers;
+        capacities[scheduleId] = normalizeCapacity(slot.volunteers);
       });
     });
   } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
     project.schedule.sameDayMultiArea.roles.forEach((role) => {
       scheduleIds.push(role.name);
-      capacities[role.name] = role.volunteers;
+      capacities[role.name] = normalizeCapacity(role.volunteers);
     });
   }
 
@@ -548,7 +564,7 @@ export function isSlotAvailable(
     console.log("Slots remaining:", slotsRemaining, "for scheduleId:", scheduleId);
   }
 
-  return slotsRemaining !== undefined && slotsRemaining > 0;
+  return Number.isFinite(slotsRemaining) && slotsRemaining > 0;
 }
 
 // Check if a specific multi-day slot has passed

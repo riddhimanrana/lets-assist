@@ -9,6 +9,7 @@ import { EmailNotification } from "./journey/EmailNotification";
 import { QRScannerPreview } from "./journey/QRScannerPreview";
 import { MiniDashboard } from "./journey/MiniDashboard";
 import { MiniCertificate } from "./journey/MiniCertificate";
+import { AnimatedText } from "./AnimatedText";
 
 const steps = [
   {
@@ -119,8 +120,8 @@ export default function VolunteerJourneySection() {
             <path d="M0,100 C150,80 300,120 450,100 C525,90 575,110 600,100" fill="none" stroke="currentColor" strokeWidth="1" />
             <path d="M0,120 C150,100 300,140 450,120 C525,110 575,130 600,120" fill="none" stroke="currentColor" strokeWidth="1" />
           </svg>
-          <h2 className="font-overusedgrotesk text-3xl sm:text-4xl tracking-tight">
-            From discovery to certified impact
+          <h2 className="font-nohemi text-3xl sm:text-4xl tracking-tight">
+            <AnimatedText text="From discovery to certified impact" mode="words" />
           </h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground">
             The complete volunteer workflow — sign up, show up, track hours, share proof.

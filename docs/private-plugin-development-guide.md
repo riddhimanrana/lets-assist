@@ -55,6 +55,25 @@ plugins/<plugin-key>/
 - fixtures contain sanitized external-service captures.
 - lifecycle handlers delegate to services rather than directly mutating tables.
 
+## Platform contract
+
+Every production plugin should declare its host integration contract in `plugin.tsx`:
+
+- `routes`: custom organization routes under `/organization/[id]/plugins/[pluginKey]/...`.
+- `surfaceAccess` and `behaviorAccess`: where the plugin renders UI or modifies host behavior.
+- `backendCapabilities`: server actions, route handlers, cron jobs, webhooks, AI jobs, external APIs, or workflows the plugin owns.
+- `dataAccess`: structured table/view/RPC dependencies with the intended access mode (`server-only`, `rls-client`, `public-read-model`, `rpc`, or `background-job`).
+- `storageAccess`: bucket and path patterns the plugin reads or writes.
+- `requiredScopes`: coarse platform permissions shown during install/review.
+
+The host syncs registered plugin manifests into `public.plugin_runtime_contracts` for admin review and audit. Organization-specific routes can also be registered in `public.organization_plugin_routes` when a route should exist for one organization but not every installation of the plugin.
+
+Direct browser access to `plugin_data` is deprecated. New plugin workflows should use server actions, narrow RPCs, or explicit read models declared in `dataAccess`; this keeps the plugin data schema server-only by default while still allowing reviewed public/plugin-specific surfaces.
+
+For organization-specific custom UI, route definitions belong in the plugin manifest first, then optionally in `public.organization_plugin_routes` for per-organization overrides. This keeps custom routes, custom UI, backend capabilities, storage paths, and plugin-owned data under one reviewable contract instead of scattering customer-specific routes throughout the host app.
+
+Production plugin registration should be explicit and database-driven. Use `public.plugins`, `public.plugin_runtime_contracts`, `public.organization_plugin_entitlements`, `public.organization_plugin_installs`, `public.organization_plugin_routes`, and `public.organization_plugin_data_boundaries` to decide what appears for each organization. Do not add per-plugin runtime environment flags for availability; inactive or redesigned plugins should be disabled in the catalog/install/boundary state.
+
 ## Database and migrations
 
 All schema changes live in `supabase/migrations`. Seed files contain data only. Never use a baseline schema override to bypass the migration chain.
@@ -73,7 +92,7 @@ bun run dv:dev:reset
 bun run dv:test:db
 ```
 
-`plugin_data` is an exposed PostgREST schema. Every table, view, and function requires an explicit security decision:
+`plugin_data` is internal server-side plugin storage by default. Every table, view, and function requires an explicit security decision:
 
 - enable RLS;
 - scope rows by organization;
@@ -84,6 +103,14 @@ bun run dv:test:db
 - make audit/ledger data append-only where required.
 
 Ordinary workflows use authenticated RLS clients. Service-role clients are restricted to controlled maintenance, fixture generation, public one-time token handlers, and trusted background jobs.
+
+For new tables, default to server-only access unless the manifest `dataAccess` contract explains why direct RLS client access or a public read model is required. Avoid adding new blanket `GRANT ... ON ALL TABLES IN SCHEMA plugin_data` behavior; grant only the narrow role/object access required by the declared contract.
+
+When a plugin needs browser-visible or public data, create a narrow read model for that specific route or workflow. Prefer `WITH (security_invoker = true)` views on Postgres 15+ when the view should honor the caller's RLS. Keep base plugin tables tenant-owned with `organization_id`, foreign keys, and indexes that match the route's query pattern.
+
+Every installed plugin should have a row in `public.organization_plugin_data_boundaries`. Regular organizations use `isolation_mode = 'shared'`; enterprise customers can be marked for `dedicated_schema`, `dedicated_project`, or `external` handling without changing the default install flow.
+
+Use the admin plugin control plane's Data Boundaries tab to inspect installed plugin boundaries. A missing boundary row is a schema/process bug, not an expected state.
 
 After migrations, regenerate Supabase types and use typed repositories. New plugin code must not introduce `any` casts to bypass schema typing.
 
@@ -109,6 +136,8 @@ Run checks:
 
 ```bash
 bun run dv:test:db
+bun run db:audit:plugin-isolation
+bun run plugin:test:isolation
 bun test ./lib/plugins/private/plugins/dv-speech-debate/services
 bun run dv:test:e2e
 bun run lint

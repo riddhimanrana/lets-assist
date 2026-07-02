@@ -1,18 +1,20 @@
 #!/usr/bin/env node
 
 import { createClient } from "@supabase/supabase-js";
+import { readFileSync } from "node:fs";
 import { getLocalSupabaseEnv } from "./dv-local-env.mjs";
 
-const password = process.env.DV_LOCAL_TEST_PASSWORD;
-if (!password) {
-  throw new Error("Set DV_LOCAL_TEST_PASSWORD before seeding local DV fixtures.");
-}
+const password = process.env.DV_LOCAL_TEST_PASSWORD || "robo6737";
 
 const IDS = {
-  organization: "d0000000-0000-4000-8000-000000000001",
+  organization: "d0000000-0000-4000-8000-000000000001", // DV Speech & Debate
+  orgAOH: "d0000000-0000-4000-8000-000000000002",       // Acts of Hearts
+  orgWRMS: "d0000000-0000-4000-8000-000000000003",      // WRMS Speech & Debate
   currentSeason: "d0000000-0000-4000-8000-000000000010",
   priorSeason: "d0000000-0000-4000-8000-000000000011",
   project: "d0000000-0000-4000-8000-000000000020",
+  projectAOH: "d0000000-0000-4000-8000-000000000022",
+  projectWRMS: "d0000000-0000-4000-8000-000000000023",
   tournament: "d0000000-0000-4000-8000-000000000021",
   household: "d0000000-0000-4000-8000-000000000030",
   secondHousehold: "d0000000-0000-4000-8000-000000000031",
@@ -21,13 +23,35 @@ const IDS = {
 };
 
 const accounts = [
-  { key: "admin", email: "dv.admin@local.test", fullName: "DV Admin", role: "admin" },
-  { key: "staff", email: "dv.staff@local.test", fullName: "DV Staff", role: "staff" },
-  { key: "studentA", email: "dv.student.a@local.test", fullName: "Alex Student", role: "member" },
-  { key: "studentB", email: "dv.student.b@local.test", fullName: "Blair Student", role: "member" },
-  { key: "studentC", email: "dv.student.c@local.test", fullName: "Casey Student", role: "member" },
-  { key: "outsider", email: "dv.outsider@local.test", fullName: "Outside User", role: null },
+  { key: "ridhdiman", email: "riddhiman.rana@gmail.com", fullName: "Riddhiman Rana", roles: ["admin", "admin", "admin"] },
+  { key: "admin", email: "dv.admin@local.test", fullName: "DV Admin", roles: ["admin", null, null] },
+  { key: "staff", email: "dv.staff@local.test", fullName: "DV Staff", roles: ["staff", null, null] },
+  { key: "studentA", email: "dv.student.a@local.test", fullName: "Alex Student", roles: ["member", null, null] },
+  { key: "studentB", email: "dv.student.b@local.test", fullName: "Blair Student", roles: ["member", null, null] },
+  { key: "studentC", email: "dv.student.c@local.test", fullName: "Casey Student", roles: ["member", null, null] },
+  { key: "outsider", email: "dv.outsider@local.test", fullName: "Outside User", roles: [null, null, null] },
 ];
+
+// Generate 15 mock members dynamically
+const extraMembersCount = 15;
+for (let i = 1; i <= extraMembersCount; i++) {
+  let roles = [null, null, null];
+  const orgIndex = Math.floor((i - 1) / 5); // 0, 1, or 2
+  const memberIndexInOrg = (i - 1) % 5;     // 0 to 4
+  
+  let role = "member";
+  if (memberIndexInOrg === 0) role = "admin";
+  else if (memberIndexInOrg === 1) role = "staff";
+  
+  roles[orgIndex] = role;
+  
+  accounts.push({
+    key: `mockMember${i}`,
+    email: `member.${i}@local.test`,
+    fullName: `Member ${i}`,
+    roles: roles
+  });
+}
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -69,9 +93,13 @@ async function upsertAuthUser(admin, account) {
   const existing = listed.users.find(
     (user) => user.email?.toLowerCase() === account.email,
   );
+  
+  // Use robo6737 for all seeded accounts to allow easy sign-in
+  const userPassword = "robo6737";
+
   if (existing) {
     const { data, error } = await admin.auth.admin.updateUserById(existing.id, {
-      password,
+      password: userPassword,
       email_confirm: true,
       user_metadata: {
         full_name: account.fullName,
@@ -85,7 +113,7 @@ async function upsertAuthUser(admin, account) {
 
   const { data, error } = await admin.auth.admin.createUser({
     email: account.email,
-    password,
+    password: userPassword,
     email_confirm: true,
     user_metadata: {
       full_name: account.fullName,
@@ -104,6 +132,13 @@ async function must(label, promise) {
 }
 
 async function main() {
+  const config = readFileSync("supabase/config.toml", "utf8");
+  if (!/schemas\s*=\s*\[[^\]]*["']plugin_data["']/m.test(config)) {
+    throw new Error(
+      "DV fixtures are temporarily disabled because plugin_data is no longer exposed through the Supabase Data API. Redesign DV to use server-only backends/RPCs before re-enabling this seed.",
+    );
+  }
+
   const { url, serviceRoleKey } = getLocalSupabaseEnv();
   const admin = createClient(url, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -117,52 +152,99 @@ async function main() {
     users[account.key] = await upsertAuthUser(admin, account);
   }
 
-  await must("organization", admin.from("organizations").upsert({
+  // Seed developer trusted member status
+  await must("trusted-member-ridhdiman", admin.from("trusted_member").upsert({
+    id: users.ridhdiman.id,
+    user_id: users.ridhdiman.id,
+    name: "Riddhiman Rana",
+    email: "riddhiman.rana@gmail.com",
+    status: true,
+    reason: "Developer admin access",
+  }, { onConflict: "id" }));
+
+  // Seed 3 Organizations
+  await must("organization-1", admin.from("organizations").upsert({
     id: IDS.organization,
-    name: "DV Speech & Debate Local",
-    username: "dv-speech-debate-local",
+    name: "DV Speech & Debate",
+    username: "dv-speech-debate",
     type: "school",
-    description: "Deterministic local fixture organization.",
+    description: "Deterministic local fixture organization for Dougherty Valley Speech & Debate.",
     join_code: "DVLOC1",
-    created_by: users.admin.id,
+    created_by: users.ridhdiman.id,
   }));
 
-  await must(
-    "members",
-    admin.from("organization_members").upsert(
-      accounts
-        .filter((account) => account.role)
-        .map((account) => ({
-          organization_id: IDS.organization,
-          user_id: users[account.key].id,
-          role: account.role,
+  await must("organization-2", admin.from("organizations").upsert({
+    id: IDS.orgAOH,
+    name: "Acts of Hearts",
+    username: "acts-of-hearts",
+    type: "nonprofit",
+    description: "Local nonprofit organization fixture.",
+    join_code: "AOHLC1",
+    created_by: users.ridhdiman.id,
+  }));
+
+  await must("organization-3", admin.from("organizations").upsert({
+    id: IDS.orgWRMS,
+    name: "WRMS Speech & Debate",
+    username: "wrms-speech-debate",
+    type: "school",
+    description: "Windemere Ranch Middle School Speech & Debate.",
+    join_code: "WRMS01",
+    created_by: users.ridhdiman.id,
+  }));
+
+  // Seed Organization Memberships
+  const membershipRows = [];
+  const orgIds = [IDS.organization, IDS.orgAOH, IDS.orgWRMS];
+  
+  for (const account of accounts) {
+    const userId = users[account.key].id;
+    for (let orgIdx = 0; orgIdx < 3; orgIdx++) {
+      const role = account.roles[orgIdx];
+      if (role) {
+        membershipRows.push({
+          organization_id: orgIds[orgIdx],
+          user_id: userId,
+          role: role,
           status: "active",
-        })),
+        });
+      }
+    }
+  }
+
+  await must(
+    "organization memberships",
+    admin.from("organization_members").upsert(
+      membershipRows,
       { onConflict: "organization_id,user_id" },
     ),
   );
 
-  await must("entitlement", admin.from("organization_plugin_entitlements").upsert({
-    organization_id: IDS.organization,
-    plugin_key: "dv-speech-debate",
-    status: "active",
-    is_forced: true,
-    created_by: users.admin.id,
-  }, { onConflict: "organization_id,plugin_key" }));
+  // Seed Plugin Entitlements and Installs for all 3 organizations
+  for (const orgId of orgIds) {
+    await must(`entitlement-${orgId}`, admin.from("organization_plugin_entitlements").upsert({
+      organization_id: orgId,
+      plugin_key: "dv-speech-debate",
+      status: "active",
+      is_forced: true,
+      created_by: users.ridhdiman.id,
+    }, { onConflict: "organization_id,plugin_key" }));
 
-  await must("install", admin.from("organization_plugin_installs").upsert({
-    organization_id: IDS.organization,
-    plugin_key: "dv-speech-debate",
-    enabled: true,
-    installed_version: "2.0.0",
-    installed_by: users.admin.id,
-    configuration: {
-      default_entries_per_judge: 2,
-      family_service_required_credits: 2,
-      external_integration_mode: "fixture",
-    },
-  }, { onConflict: "organization_id,plugin_key" }));
+    await must(`install-${orgId}`, admin.from("organization_plugin_installs").upsert({
+      organization_id: orgId,
+      plugin_key: "dv-speech-debate",
+      enabled: true,
+      installed_version: "2.0.0",
+      installed_by: users.ridhdiman.id,
+      configuration: {
+        default_entries_per_judge: 2,
+        family_service_required_credits: 2,
+        external_integration_mode: "fixture",
+      },
+    }, { onConflict: "organization_id,plugin_key" }));
+  }
 
+  // Seed seasons (for the main DV Speech & Debate org)
   await must("seasons", plugin.from("org_seasons").upsert([
     {
       id: IDS.priorSeason,
@@ -182,26 +264,61 @@ async function main() {
     },
   ], { onConflict: "organization_id,label" }));
 
-  const schedule = {
-    start: "2026-11-14T16:00:00.000Z",
-    end: "2026-11-15T01:00:00.000Z",
-    slots: [],
+  // Seed Projects (1 per org) — must use the correct event_type and schedule shape
+  const projectSchedule = {
+    oneTime: {
+      date: "2026-11-14",
+      startTime: "08:00",
+      endTime: "17:00",
+    },
   };
-  await must("project", admin.from("projects").upsert({
+
+  await must("project-dvsd", admin.from("projects").upsert({
     id: IDS.project,
-    creator_id: users.admin.id,
+    creator_id: users.ridhdiman.id,
     organization_id: IDS.organization,
     title: "Local Invitational",
     location: "DVHS",
     description: "Fixture tournament with a deliberate judge shortage.",
-    event_type: "event",
+    event_type: "oneTime",
     verification_method: "manual",
-    schedule,
+    schedule: projectSchedule,
     status: "upcoming",
     visibility: "organization_only",
     require_login: true,
   }));
 
+  await must("project-aoh", admin.from("projects").upsert({
+    id: IDS.projectAOH,
+    creator_id: users.ridhdiman.id,
+    organization_id: IDS.orgAOH,
+    title: "Heart Charity Drive",
+    location: "San Ramon Community Center",
+    description: "Help distribute care packages to local families in need.",
+    event_type: "oneTime",
+    verification_method: "manual",
+    schedule: { oneTime: { date: "2026-12-05", startTime: "09:00", endTime: "13:00" } },
+    status: "upcoming",
+    visibility: "organization_only",
+    require_login: true,
+  }));
+
+  await must("project-wrms", admin.from("projects").upsert({
+    id: IDS.projectWRMS,
+    creator_id: users.ridhdiman.id,
+    organization_id: IDS.orgWRMS,
+    title: "WRMS Novice Tournament",
+    location: "WRMS",
+    description: "Annual middle school novice debate scrimmage.",
+    event_type: "oneTime",
+    verification_method: "manual",
+    schedule: { oneTime: { date: "2026-10-24", startTime: "08:30", endTime: "15:30" } },
+    status: "upcoming",
+    visibility: "organization_only",
+    require_login: true,
+  }));
+
+  // Seed Tournament mapping (for the main DV Speech & Debate org)
   await must("tournament", plugin.from("dv_sd_tournaments").upsert({
     id: IDS.tournament,
     organization_id: IDS.organization,
@@ -215,9 +332,10 @@ async function main() {
     ends_at: "2026-11-15T01:00:00.000Z",
     registration_deadline: "2026-11-01T07:00:00.000Z",
     entries_per_judge: 2,
-    created_by: users.admin.id,
+    created_by: users.ridhdiman.id,
   }));
 
+  // Seed Students (main DV Speech & Debate org)
   const studentRows = await must(
     "students",
     plugin.from("dv_sd_students").upsert([
@@ -225,21 +343,21 @@ async function main() {
         organization_id: IDS.organization,
         user_id: users.studentA.id,
         legal_name: "Alex Student",
-        school_email: accounts[2].email,
+        school_email: accounts.find(a => a.key === "studentA").email,
         graduation_year: 2027,
       },
       {
         organization_id: IDS.organization,
         user_id: users.studentB.id,
         legal_name: "Blair Student",
-        school_email: accounts[3].email,
+        school_email: accounts.find(a => a.key === "studentB").email,
         graduation_year: 2028,
       },
       {
         organization_id: IDS.organization,
         user_id: users.studentC.id,
         legal_name: "Casey Student",
-        school_email: accounts[4].email,
+        school_email: accounts.find(a => a.key === "studentC").email,
         graduation_year: 2029,
       },
     ], { onConflict: "organization_id,user_id" }).select("id,user_id"),
@@ -280,6 +398,7 @@ async function main() {
     { household_id: IDS.secondHousehold, guardian_id: IDS.secondGuardian, is_primary_contact: true },
   ]));
 
+  // Seed memberships (main DV Speech & Debate org)
   const memberships = await must(
     "memberships",
     plugin.from("dv_sd_seasonal_memberships").upsert([
@@ -298,7 +417,7 @@ async function main() {
         household_id: IDS.household,
         status: "approved",
         application_data: { fixture: true },
-        reviewed_by: users.admin.id,
+        reviewed_by: users.ridhdiman.id,
         reviewed_at: new Date().toISOString(),
       },
       {
@@ -333,7 +452,7 @@ async function main() {
       requirement_type: "staff_review",
       status: "verified",
       metadata: {},
-      verified_by: users.admin.id,
+      verified_by: users.ridhdiman.id,
       verified_at: new Date().toISOString(),
     },
     {
@@ -375,7 +494,7 @@ async function main() {
       payment_status: "not_required",
       guardian_commitment_status: "confirmed",
       submitted_at: new Date().toISOString(),
-      reviewed_by: users.admin.id,
+      reviewed_by: users.ridhdiman.id,
       reviewed_at: new Date().toISOString(),
     }, { onConflict: "tournament_id,membership_id" }).select("id").single(),
   );
@@ -421,18 +540,16 @@ async function main() {
       credits: 1,
       source_type: "fixture",
       note: "Prior fixture judging completion.",
-      created_by: users.admin.id,
+      created_by: users.ridhdiman.id,
     }));
   }
 
-  console.log(JSON.stringify({
-    organizationId: IDS.organization,
-    tournamentId: IDS.tournament,
-    accounts: Object.fromEntries(accounts.map((account) => [
-      account.key,
-      { email: account.email, userId: users[account.key].id },
-    ])),
-  }, null, 2));
+  console.log("Seeding complete! Local developer account seeded:");
+  console.log({
+    email: "riddhiman.rana@gmail.com",
+    password: "robo6737",
+    role: "admin (all 3 orgs)"
+  });
 }
 
 await main();

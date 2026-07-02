@@ -19,11 +19,7 @@ export async function getGlobalWaiverDefinitions(): Promise<WaiverDefinition[]> 
   
   const { data, error } = await supabase
     .from('waiver_definitions')
-    .select(`
-      *,
-      signers:waiver_definition_signers(*),
-      fields:waiver_definition_fields(*)
-    `)
+    .select('*')
     .eq('scope', 'global')
     .order('created_at', { ascending: false });
   
@@ -42,11 +38,7 @@ export async function getActiveGlobalWaiverDefinition(): Promise<WaiverDefinitio
   
   const { data, error } = await supabase
     .from('waiver_definitions')
-    .select(`
-      *,
-      signers:waiver_definition_signers(*),
-      fields:waiver_definition_fields(*)
-    `)
+    .select('*')
     .eq('scope', 'global')
     .eq('active', true)
     // Be deterministic even if multiple active rows exist.
@@ -113,7 +105,53 @@ export async function createGlobalWaiverDefinition(
     
   const nextVersion = (maxVersionData?.version || 0) + 1;
 
-  // 3. Create Definition
+  // 3. Process Signers and Fields for JSONB insert
+  const signersToInsert = (builderDefinition.signers || []).map((signer, index) => ({
+    role_key: signer.roleKey,
+    label: signer.label,
+    required: signer.required ?? true,
+    order_index: signer.orderIndex ?? index,
+    rules: null,
+  }));
+
+  const fieldsToInsert: any[] = [];
+  if (builderDefinition.fields) {
+    if (builderDefinition.fields.detected) {
+      const detectedFieldMappings = Object.entries(builderDefinition.fields.detected).map(([fieldKey, mapping]: [string, any]) => ({
+        fieldKey: mapping.fieldKey || fieldKey,
+        fieldType: mapping.fieldType || 'text',
+        pageIndex: mapping.pageIndex,
+        rect: mapping.rect,
+        pdfFieldName: mapping.pdfFieldName || fieldKey,
+        label: mapping.label || fieldKey,
+        required: mapping.required ?? false,
+        signerRoleKey: mapping.signerRoleKey || undefined,
+        meta: mapping.meta ?? null,
+      }));
+      
+      const detectedFields = mapDetectedFieldsForDb('dummy', detectedFieldMappings);
+      fieldsToInsert.push(...detectedFields.map(({ waiver_definition_id: _, ...rest }) => rest));
+    }
+
+    if (builderDefinition.fields.custom && builderDefinition.fields.custom.length > 0) {
+      const customPlacements = builderDefinition.fields.custom.map((field: any) => ({
+        id: field.id || field.fieldKey,
+        fieldKey: field.fieldKey,
+        label: field.label || undefined,
+        fieldType: field.fieldType || 'signature',
+        pageIndex: field.pageIndex,
+        rect: field.rect,
+        signerRoleKey: field.signerRoleKey || undefined,
+        required: field.required ?? undefined,
+        meta: field.meta ?? null,
+      }));
+      
+      const customFields = mapCustomPlacementsForDb('dummy', customPlacements);
+      fieldsToInsert.push(...customFields.map(({ waiver_definition_id: _, ...rest }) => rest));
+    }
+  }
+
+  // 4. Create Definition
   const { data: definition, error: definitionError } = await supabase
     .from('waiver_definitions')
     .insert({
@@ -126,101 +164,14 @@ export async function createGlobalWaiverDefinition(
       pdf_public_url: publicUrl,
       source: 'global_pdf',
       created_by: userId ?? null,
+      signers: signersToInsert,
+      fields: fieldsToInsert,
     })
     .select()
     .single();
 
   if (definitionError || !definition) {
     return { success: false, error: `Definition creation failed: ${definitionError?.message}` };
-  }
-
-  // 4. Create Signers
-  const signersToInsert = builderDefinition.signers.map((signer) => ({
-    waiver_definition_id: definition.id,
-    role_key: signer.roleKey,
-    label: signer.label,
-    required: signer.required,
-    order_index: signer.orderIndex,
-  }));
-
-  if (signersToInsert.length > 0) {
-      const { error: signersError } = await supabase
-        .from('waiver_definition_signers')
-        .insert(signersToInsert);
-
-      if (signersError) {
-          // Cleanup?
-          return { success: false, error: `Signers creation failed: ${signersError.message}` };
-      }
-  }
-
-  // 5. Create Fields (detected + custom)
-  const fieldsToInsert = [];
-
-  type DetectedFieldMappingForDb = {
-    fieldKey: string;
-    fieldType: string;
-    pageIndex: number;
-    rect: { x: number; y: number; width: number; height: number };
-    pdfFieldName: string;
-    label: string;
-    required: boolean;
-    signerRoleKey?: string;
-    meta?: Record<string, unknown> | null;
-  };
-
-  const detectedFieldMappings: DetectedFieldMappingForDb[] = [];
-  for (const [fieldKey, mapping] of Object.entries(builderDefinition.fields.detected || {})) {
-    const pageIndex = mapping.pageIndex;
-    const rect = mapping.rect;
-
-    if (
-      typeof pageIndex !== 'number' ||
-      !rect ||
-      typeof rect.x !== 'number' ||
-      typeof rect.y !== 'number' ||
-      typeof rect.width !== 'number' ||
-      typeof rect.height !== 'number'
-    ) {
-      continue;
-    }
-
-    detectedFieldMappings.push({
-      fieldKey: mapping.fieldKey || fieldKey,
-      fieldType: mapping.fieldType || 'text',
-      pageIndex,
-      rect,
-      pdfFieldName: mapping.pdfFieldName || fieldKey,
-      label: mapping.label || mapping.fieldKey || fieldKey,
-      required: mapping.required ?? false,
-      signerRoleKey: mapping.signerRoleKey || undefined,
-      meta: mapping.meta ?? null,
-    });
-  }
-
-  const customPlacements = (builderDefinition.fields.custom || []).map((field) => ({
-    id: field.id,
-    fieldKey: field.fieldKey,
-    label: field.label,
-    fieldType: field.fieldType || 'signature',
-    pageIndex: field.pageIndex,
-    rect: field.rect,
-    signerRoleKey: field.signerRoleKey,
-    required: field.required,
-    meta: field.meta ?? null,
-  }));
-
-  fieldsToInsert.push(...mapDetectedFieldsForDb(definition.id, detectedFieldMappings));
-  fieldsToInsert.push(...mapCustomPlacementsForDb(definition.id, customPlacements));
-
-  if (fieldsToInsert.length > 0) {
-      const { error: fieldsError } = await supabase
-        .from('waiver_definition_fields')
-        .insert(fieldsToInsert);
-        
-      if (fieldsError) {
-          return { success: false, error: `Fields creation failed: ${fieldsError.message}` };
-      }
   }
 
   return { success: true, definitionId: definition.id };

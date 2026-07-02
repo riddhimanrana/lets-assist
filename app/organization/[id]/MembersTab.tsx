@@ -72,6 +72,21 @@ interface MembersTabProps {
   organizationId: string;
   currentUserId: string | undefined;
   canViewMembers?: boolean;
+  demoMemberHours?: Record<string, { totalHours: number; eventCount: number; lastEventDate?: string }>;
+  demoMemberDetails?: Record<
+    string,
+    {
+      events: Array<{
+        id: string;
+        projectTitle: string;
+        eventDate: string;
+        hours: number;
+        isCertified: boolean;
+        organizationName: string;
+      }>;
+      totalHours: number;
+    }
+  >;
 }
 
 type MemberProfile = {
@@ -108,6 +123,8 @@ export default function MembersTab({
   organizationId,
   currentUserId,
   canViewMembers = true,
+  demoMemberHours,
+  demoMemberDetails,
 }: MembersTabProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -139,10 +156,16 @@ export default function MembersTab({
 
   // Load member hours for admins and staff
   useEffect(() => {
+    if (demoMemberHours) {
+      setMemberHours(demoMemberHours);
+      setLoadingHours(false);
+      return;
+    }
+
     if (canViewHours && organizationId) {
       loadMemberHours();
     }
-  }, [userRole, organizationId, dateRange]);
+  }, [demoMemberHours, canViewHours, organizationId, dateRange]);
 
   const loadMemberHours = async () => {
     setLoadingHours(true);
@@ -781,6 +804,7 @@ export default function MembersTab({
         }}
         member={selectedMember}
         organizationId={organizationId}
+        demoMemberDetails={demoMemberDetails}
       />
     </div>
   );

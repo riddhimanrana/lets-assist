@@ -28,6 +28,9 @@ export interface SlotAttendee {
   volunteer_comment: string;
   is_anonymous: boolean;
   anonymous_name: string;
+  profile_note?: string;
+  is_trusted?: boolean;
+  created_at?: string;
 }
 
 interface SlotAttendeesDropdownProps {
@@ -84,6 +87,9 @@ export function SlotAttendeesDropdown({
                   username={attendee.username}
                   fullName={attendee.full_name}
                   avatarUrl={attendee.avatar_url || undefined}
+                  description={attendee.profile_note}
+                  isTrusted={attendee.is_trusted}
+                  createdAt={attendee.created_at}
                   disabled={attendee.is_anonymous}
                 >
                   <div className={cn(

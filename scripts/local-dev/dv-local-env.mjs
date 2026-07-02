@@ -31,6 +31,13 @@ export function getLocalSupabaseEnv() {
     cwd: process.cwd(),
     encoding: "utf8",
   });
+
+  if (/Stopped services:/i.test(output)) {
+    throw new Error(
+      "Local Supabase is stopped. Run `bun run supabase:start` or `bun run supabase` first.",
+    );
+  }
+
   const status = parseEnvOutput(output);
   const url = assertLocalSupabaseUrl(
     status.API_URL ?? status.SUPABASE_URL ?? "http://127.0.0.1:54321",

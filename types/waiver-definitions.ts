@@ -37,6 +37,10 @@ export interface WaiverDefinition {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+
+  // Consolidated JSONB columns
+  signers?: WaiverDefinitionSigner[];
+  fields?: WaiverDefinitionField[];
 }
 
 /**
@@ -44,15 +48,15 @@ export interface WaiverDefinition {
  * Defines signer roles (Volunteer, Student, Parent/Guardian, etc.)
  */
 export interface WaiverDefinitionSigner {
-  id: string;
-  waiver_definition_id: string;
+  id?: string;
+  waiver_definition_id?: string;
   role_key: string;
   label: string;
   required: boolean;
   order_index: number;
   rules: SignerRules | null;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**
@@ -73,8 +77,8 @@ export interface SignerRules {
  * Defines signature placements and form fields within a waiver
  */
 export interface WaiverDefinitionField {
-  id: string;
-  waiver_definition_id: string;
+  id?: string;
+  waiver_definition_id?: string;
   field_key: string;
   field_type: WaiverFieldType;
   label: string;
@@ -85,8 +89,8 @@ export interface WaiverDefinitionField {
   rect: FieldRect;
   signer_role_key: string | null;
   meta: FieldMeta | null;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**

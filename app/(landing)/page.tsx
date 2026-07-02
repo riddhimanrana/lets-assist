@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 import { Hero } from "./_components/Hero";
 import { LandingLazySections } from "./LandingLazySections";
+import SmoothScroll from "./_components/SmoothScroll";
 
 // This page calls getAuthUser() which reads cookies — it must be dynamic.
 // Without this, Next.js attempts a build-time prerender and fails when
@@ -121,7 +122,8 @@ export default async function HomePage(props: {
   }
 
   return (
-    <main className="flex flex-col min-h-screen overflow-x-hidden">
+    <main className="flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground">
+      <SmoothScroll />
       <Hero />
       <LandingLazySections />
     </main>

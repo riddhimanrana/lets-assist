@@ -3,8 +3,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MembersTab from "@/app/organization/[id]/MembersTab";
 import ProjectsTab from "@/app/organization/[id]/ProjectsTab";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { NoAvatar } from "@/components/shared/NoAvatar";
 import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import {
@@ -34,7 +32,8 @@ import { Loader2 } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStatus } from "@/utils/project";
 import ReportsTab from "@/app/organization/[id]/ReportsTab";
-import type { Organization, Project, ResolvedOrganizationPlugin, OrganizationTabBehavior, ResolvedOrganizationPluginSurface, OrganizationNavigationBehavior } from "@/types";
+import { formatOrganizationWebsiteDisplay } from "@/lib/organization/website";
+import type { Organization, Project, OrganizationTabBehavior, ResolvedOrganizationPluginSurface, OrganizationNavigationBehavior } from "@/types";
 
 type OrganizationMember = {
   id: string;
@@ -59,6 +58,13 @@ type OrganizationWithWebsite = Organization & {
   created_at?: string | null;
 };
 
+export type OrganizationPluginRouteTabLink = {
+  value: string;
+  label: string;
+  href: string;
+  minimumRole?: "public" | "member" | "staff" | "admin";
+};
+
 interface OrganizationTabsProps {
   organization: OrganizationWithWebsite;
   members: OrganizationMember[];
@@ -73,7 +79,25 @@ interface OrganizationTabsProps {
   canViewMembers?: boolean;
   pluginOverviewExtensions?: ResolvedOrganizationPluginSurface[];
   pluginTabs?: OrganizationTabBehavior[];
+  pluginRouteTabs?: OrganizationPluginRouteTabLink[];
   pluginNavigationOverrides?: OrganizationNavigationBehavior;
+  demoReportsContent?: ReactNode;
+  demoAdminToolsContent?: ReactNode;
+  demoMemberHours?: Record<string, { totalHours: number; eventCount: number; lastEventDate?: string }>;
+  demoMemberDetails?: Record<
+    string,
+    {
+      events: Array<{
+        id: string;
+        projectTitle: string;
+        eventDate: string;
+        hours: number;
+        isCertified: boolean;
+        organizationName: string;
+      }>;
+      totalHours: number;
+    }
+  >;
 }
 
 function LeaveOrganizationDialog({
@@ -173,21 +197,74 @@ export default function OrganizationTabs({
   canViewMembers = true,
   pluginOverviewExtensions = [],
   pluginTabs = [],
+  pluginRouteTabs = [],
   pluginNavigationOverrides = {},
+  demoReportsContent,
+  demoAdminToolsContent,
+  demoMemberHours,
+  demoMemberDetails,
 }: OrganizationTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
+  const [activeTab, setActiveTab] = useState(
+    searchParams.get("tab") || pluginNavigationOverrides.defaultTab || "overview",
+  );
+  const rolePriority = { public: 0, member: 1, staff: 2, admin: 3 } as const;
+  const viewerPriority =
+    userRole === "admin" || userRole === "staff" || userRole === "member"
+      ? rolePriority[userRole]
+      : 0;
+  const hasRouteAccess = (
+    minimumRole: OrganizationPluginRouteTabLink["minimumRole"] = "member",
+  ) => viewerPriority >= rolePriority[minimumRole];
+  const organizationPath = organizationSlug ?? organization.username ?? organization.id;
+  const buildPluginHref = (pluginKey: string, routePath?: string) =>
+    `/organization/${organizationPath}/plugins/${pluginKey}${routePath ? `/${routePath}` : ""}`;
+  const coreTabReplacements = pluginNavigationOverrides.coreTabReplacements ?? {};
+  const visiblePluginRouteTabs = pluginRouteTabs.filter((tab) =>
+    hasRouteAccess(tab.minimumRole),
+  );
+  const routeBackedTabs = new Map<string, string>();
+  for (const tab of visiblePluginRouteTabs) {
+    routeBackedTabs.set(tab.value, tab.href);
+  }
+  for (const [tabKey, replacement] of Object.entries(coreTabReplacements)) {
+    if (replacement && hasRouteAccess(replacement.minimumRole)) {
+      routeBackedTabs.set(
+        tabKey,
+        buildPluginHref(replacement.pluginKey, replacement.routePath),
+      );
+    }
+  }
+  const getCoreLabel = (
+    tabKey: "overview" | "members" | "projects" | "reports",
+    fallback: string,
+  ) => coreTabReplacements[tabKey]?.label ?? fallback;
+  const isCoreReplaced = (tabKey: "overview" | "members" | "projects" | "reports") =>
+    Boolean(coreTabReplacements[tabKey] && routeBackedTabs.has(tabKey));
 
   useEffect(() => {
     const tab = searchParams.get("tab");
-    const validTabs = ["overview", "members", "projects", "reports", ...pluginTabs.map(t => t.value)];
+    const validTabs = [
+      "overview",
+      "members",
+      "projects",
+      "reports",
+      ...pluginTabs.map(t => t.value),
+      ...visiblePluginRouteTabs.map((t) => t.value),
+    ];
     if (tab && validTabs.includes(tab)) {
       setActiveTab(tab);
     }
-  }, [searchParams, pluginTabs]);
+  }, [searchParams, pluginTabs, visiblePluginRouteTabs]);
 
   const handleTabChange = (value: string) => {
+    const routeHref = routeBackedTabs.get(value);
+    if (routeHref) {
+      router.push(routeHref);
+      return;
+    }
+
     setActiveTab(value);
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", value);
@@ -241,7 +318,10 @@ export default function OrganizationTabs({
   // but better to just use them directly if projects are static
   const upcomingProjects = projects.filter(p => getProjectStatus(p) === "upcoming").length;
   const completedProjects = projects.filter(p => getProjectStatus(p) === "completed").length;
-  const canViewReports = userRole === "admin" || userRole === "staff";
+  const cancelledProjects = projects.filter(p => getProjectStatus(p) === "cancelled").length;
+  const canViewReports =
+    !pluginNavigationOverrides.hideReportsTab &&
+    (userRole === "admin" || userRole === "staff" || Boolean(demoReportsContent));
   const totalHours = reportSummary?.totalHours ?? 0;
 
   const quickStats = [
@@ -256,7 +336,7 @@ export default function OrganizationTabs({
     {
       label: "Total Hours",
       value: `${totalHours.toFixed(1)}h`,
-      helper: "Verified + pending",
+      helper: "Verified, pending, and certified",
       icon: Clock3,
       iconColor: "var(--chart-8)",
       borderGradient: "180deg, color-mix(in srgb, var(--chart-8) 80%, transparent) 0%, color-mix(in srgb, var(--chart-8) 40%, transparent) 100%",
@@ -264,7 +344,7 @@ export default function OrganizationTabs({
     {
       label: "Total Projects",
       value: projects.length.toLocaleString(),
-      helper: "All-time projects",
+      helper: "Last 6 months of activity",
       icon: Folders,
       iconColor: "var(--chart-2)",
       borderGradient: "180deg, color-mix(in srgb, var(--chart-2) 80%, transparent) 0%, color-mix(in srgb, var(--chart-2) 40%, transparent) 100%",
@@ -285,6 +365,14 @@ export default function OrganizationTabs({
       iconColor: "var(--success)",
       borderGradient: "180deg, color-mix(in srgb, var(--success) 80%, transparent) 0%, color-mix(in srgb, var(--success) 40%, transparent) 100%",
     },
+    {
+      label: "Cancelled Projects",
+      value: cancelledProjects.toLocaleString(),
+      helper: "Paused or cancelled",
+      icon: Frown,
+      iconColor: "var(--destructive)",
+      borderGradient: "180deg, color-mix(in srgb, var(--destructive) 80%, transparent) 0%, color-mix(in srgb, var(--destructive) 40%, transparent) 100%",
+    },
   ] as const;
 
   return (
@@ -295,28 +383,28 @@ export default function OrganizationTabs({
       className="w-full"
     >
       <TabsList className="mb-6 flex h-auto w-full sm:w-fit self-start max-w-full items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {!pluginNavigationOverrides.hideOverviewTab && (
+        {!pluginNavigationOverrides.hideOverviewTab && (!coreTabReplacements.overview || routeBackedTabs.has("overview")) && (
           <TabsTrigger value="overview" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
             <LayoutDashboard className="h-4 w-4 shrink-0" />
-            <span className="truncate">Overview</span>
+            <span className="truncate">{getCoreLabel("overview", "Overview")}</span>
           </TabsTrigger>
         )}
-        {canViewMembers && !pluginNavigationOverrides.hideMembersTab && (
+        {canViewMembers && !pluginNavigationOverrides.hideMembersTab && (!coreTabReplacements.members || routeBackedTabs.has("members")) && (
           <TabsTrigger value="members" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
             <Users className="h-4 w-4 shrink-0" />
-            <span className="truncate">{pluginNavigationOverrides.membersTabLabel || "Members"}</span>
+            <span className="truncate">{getCoreLabel("members", pluginNavigationOverrides.membersTabLabel || "Members")}</span>
           </TabsTrigger>
         )}
-        {!pluginNavigationOverrides.hideProjectsTab && (
+        {!pluginNavigationOverrides.hideProjectsTab && (!coreTabReplacements.projects || routeBackedTabs.has("projects")) && (
           <TabsTrigger value="projects" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
             <Folders className="h-4 w-4 shrink-0" />
-            <span className="truncate">{pluginNavigationOverrides.projectsTabLabel || "Projects"}</span>
+            <span className="truncate">{getCoreLabel("projects", pluginNavigationOverrides.projectsTabLabel || "Projects")}</span>
           </TabsTrigger>
         )}
-        {canViewReports && (
+        {canViewReports && (!coreTabReplacements.reports || routeBackedTabs.has("reports")) && (
           <TabsTrigger value="reports" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
             <BarChart3 className="h-4 w-4 shrink-0" />
-            <span className="truncate">Reports</span>
+            <span className="truncate">{getCoreLabel("reports", "Reports")}</span>
           </TabsTrigger>
         )}
         {pluginTabs.map((pt) => {
@@ -327,9 +415,17 @@ export default function OrganizationTabs({
             </TabsTrigger>
           );
         })}
+        {visiblePluginRouteTabs.map((pt) => {
+          return (
+            <TabsTrigger key={pt.value} value={pt.value} className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
+              <ShieldCheck className="h-4 w-4 shrink-0" />
+              <span className="truncate">{pt.label}</span>
+            </TabsTrigger>
+          );
+        })}
       </TabsList>
 
-      {!pluginNavigationOverrides.hideOverviewTab && (
+      {!pluginNavigationOverrides.hideOverviewTab && !isCoreReplaced("overview") && (
         <TabsContent value="overview" className="space-y-6">
         <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 items-stretch">
           <Card className="overflow-hidden">
@@ -366,7 +462,7 @@ export default function OrganizationTabs({
                         rel="noopener noreferrer"
                         className="text-primary hover:underline truncate block"
                       >
-                        {organization.website}
+                        {formatOrganizationWebsiteDisplay(organization.website)}
                       </Link>
                     </div>
                   </div>
@@ -444,7 +540,7 @@ export default function OrganizationTabs({
             <CardTitle className="text-xl! font-bold tracking-tight">Quick Stats</CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
               {quickStats.map((stat) => (
                 <div
                   key={stat.label}
@@ -650,8 +746,9 @@ export default function OrganizationTabs({
                           render={<Button className="ml-auto">Close</Button>}
                         />
                       </DialogContent>
-                    </Dialog>
-                  </>
+	                    </Dialog>
+	                    {demoAdminToolsContent}
+	                  </>
                 ) : userRole === "staff" ? (
                   <>
                     <Link href={`/projects/create?org=${organization.id}`}>
@@ -680,7 +777,7 @@ export default function OrganizationTabs({
       </TabsContent>
       )}
 
-      {canViewMembers && !pluginNavigationOverrides.hideMembersTab && (
+      {canViewMembers && !pluginNavigationOverrides.hideMembersTab && !isCoreReplaced("members") && (
       <TabsContent value="members">
         <MembersTab
           members={members}
@@ -688,11 +785,13 @@ export default function OrganizationTabs({
           organizationId={organization.id}
           currentUserId={currentUserId}
           canViewMembers={canViewMembers}
+          demoMemberHours={demoMemberHours}
+          demoMemberDetails={demoMemberDetails}
         />
       </TabsContent>
       )}
 
-      {!pluginNavigationOverrides.hideProjectsTab && (
+      {!pluginNavigationOverrides.hideProjectsTab && !isCoreReplaced("projects") && (
       <TabsContent value="projects">
         <ProjectsTab
           projects={projects}
@@ -702,14 +801,16 @@ export default function OrganizationTabs({
       </TabsContent>
       )}
 
-      {canViewReports && (
+      {canViewReports && !isCoreReplaced("reports") && (
         <TabsContent value="reports">
-          <ReportsTab
-            organizationId={organization.id}
-            organizationName={organization.name}
-            userRole={userRole}
-            organizationSlug={organizationSlug}
-          />
+          {demoReportsContent ?? (
+            <ReportsTab
+              organizationId={organization.id}
+              organizationName={organization.name}
+              userRole={userRole}
+              organizationSlug={organizationSlug}
+            />
+          )}
         </TabsContent>
       )}
 

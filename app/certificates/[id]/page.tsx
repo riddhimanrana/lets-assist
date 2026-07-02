@@ -53,7 +53,7 @@ interface CertificateData {
   volunteer_name: string | null;
   project_location: string | null;
   description: string | null; // For self-reported description
-  creator_profile: { username: string | null } | null; // Updated to single object or null
+  creator_username: string | null;
 }
 
 // Helper function to calculate and format duration
@@ -87,7 +87,7 @@ export async function generateMetadata({
   const supabase = getAdminClient();
   const { id } = await params;
   const { data: record } = await supabase
-    .from("certificates")
+    .from("certificate_verification_read_model")
     .select("project_title")
     .eq("id", id)
     .single();
@@ -106,9 +106,9 @@ export default async function VolunteerRecordPage({
   const supabase = getAdminClient();
   const { id: recordId } = await params;
 
-  // Fetch certificate data directly from the 'certificates' table
+  // Fetch certificate data through the narrow verification read model.
   const { data: record, error } = await supabase
-    .from("certificates")
+    .from("certificate_verification_read_model")
     .select(
       `
       id,
@@ -130,7 +130,7 @@ export default async function VolunteerRecordPage({
       volunteer_name,
       project_location,
       description,
-      creator_profile:profiles!certificates_creator_id_fkey (username) // Specified foreign key and alias
+      creator_username
     `,
     )
     .eq("id", recordId)
@@ -158,7 +158,7 @@ export default async function VolunteerRecordPage({
     ...data,
     volunteer_email: null,
     durationText,
-    creator_username: data.creator_profile?.username || null, // Adjusted to access single profile object
+    creator_username: data.creator_username || null,
   };
 
   return (
@@ -239,7 +239,7 @@ export default async function VolunteerRecordPage({
                         <span className="text-sm font-semibold text-foreground">
                           {data.creator_name}
                         </span>
-                      ) : (
+                      ) : certificateData.creator_username ? (
                         <Link
                           href={`/profile/${certificateData.creator_username}`}
                           className="text-sm font-semibold text-foreground hover:text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/60 rounded"
@@ -247,6 +247,10 @@ export default async function VolunteerRecordPage({
                         >
                           {data.creator_name}
                         </Link>
+                      ) : (
+                        <span className="text-sm font-semibold text-foreground">
+                          {data.creator_name}
+                        </span>
                       )}
                     </CardItem>
                   )}

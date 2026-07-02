@@ -44,6 +44,8 @@ export type RuntimePluginInfo = {
   detailedDescription?: OrganizationPluginAdminSetting["detailedDescription"];
   capabilityHighlights?: OrganizationPluginAdminSetting["capabilityHighlights"];
   dataAccess?: OrganizationPluginAdminSetting["dataAccess"];
+  routes?: Array<{ path: string; label: string }>;
+  backendCapabilities?: Array<{ key: string; kind: string; description: string }>;
   configSchema?: OrganizationPluginAdminSetting["configSchema"];
   requiredScopes?: OrganizationPluginAdminSetting["requiredScopes"];
 };
@@ -115,7 +117,14 @@ export function buildOrganizationPluginAdminSettings(input: {
         ownerName,
         ownerType,
         capabilityHighlights: runtimePlugin?.capabilityHighlights ?? [],
-        dataAccess: runtimePlugin?.dataAccess ?? [],
+        dataAccess: runtimePlugin?.dataAccess ?? [
+          ...(runtimePlugin?.routes ?? []).map(
+            (route) => `Route: ${route.label} (/plugins/${plugin.key}/${route.path})`,
+          ),
+          ...(runtimePlugin?.backendCapabilities ?? []).map(
+            (capability) => `${capability.kind}: ${capability.description}`,
+          ),
+        ],
         visibility: plugin.visibility,
         navLabel: runtimePlugin?.navLabel ?? plugin.name,
         version: runtimePlugin?.version ?? "unregistered",

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { getAdminClient } from "@/lib/supabase/admin";
+import { createPluginAdminClient } from "@/lib/plugins/supabase";
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -7,7 +7,7 @@ function hashToken(token: string) {
 
 export const GuardianTokenService = {
   async inspect(token: string) {
-    const admin = getAdminClient().schema("plugin_data");
+    const admin = createPluginAdminClient();
     const { data, error } = await admin
       .from("dv_sd_guardian_action_tokens")
       .select(
@@ -44,7 +44,7 @@ export const GuardianTokenService = {
       throw new Error("Guardian link payload is incomplete.");
     }
 
-    const admin = getAdminClient().schema("plugin_data");
+    const admin = createPluginAdminClient();
     const consumedAt = new Date().toISOString();
     const { data: consumed, error: consumeError } = await admin
       .from("dv_sd_guardian_action_tokens")

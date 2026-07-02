@@ -1,6 +1,6 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import { Geist_Mono, Inter } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -80,6 +80,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const geistSans = Geist({
+  variable: "--font-sans",
+  subsets: ["latin"],
+});
+
 const overusedgrotesk = localFont({
   src: "../public/fonts/OverusedGrotesk-VF.woff2",
   display: "swap",
@@ -88,9 +93,20 @@ const overusedgrotesk = localFont({
   style: "normal",
 });
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
+const nohemi = localFont({
+  src: "../public/fonts/Nohemi Font Family/Nohemi-VF-BF6438cc58ad63d.ttf",
+  display: "swap",
+  variable: "--font-nohemi",
+  weight: "100 900",
+  style: "normal",
+});
+
+const cheeseMilky = localFont({
+  src: "../Cheese Milky.otf",
+  display: "swap",
+  variable: "--font-cheese-milky",
+  weight: "400",
+  style: "normal",
 });
 
 export default async function RootLayout({
@@ -99,11 +115,13 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.className} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${geistSans.className} ${geistSans.variable} ${geistMono.variable} ${overusedgrotesk.variable} ${nohemi.variable} ${cheeseMilky.variable}`}
+      suppressHydrationWarning
+    >
       <head />
-      <body
-        className={`${geistMono.variable} ${overusedgrotesk.variable} antialiased`}
-      >
+      <body className="antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

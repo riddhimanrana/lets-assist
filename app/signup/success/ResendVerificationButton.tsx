@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Mail } from 'lucide-react';
 import { resendVerificationEmail } from '../actions';
@@ -17,17 +17,22 @@ export function ResendVerificationButton({ email, redirectPath }: ResendVerifica
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const [isCaptchaOpen, setIsCaptchaOpen] = useState(false);
+  // Prevents double-fire: with bypass mode the Turnstile onVerify fires immediately
+  // on mount. We only want it to do something after the user intentionally clicks Resend.
+  const hasFiredRef = useRef(false);
 
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     }
-
     setCanResend(true);
   }, [countdown]);
 
   const handleVerified = async (token: string) => {
+    // Guard: only allow one call per dialog open cycle
+    if (hasFiredRef.current || isLoading) return;
+    hasFiredRef.current = true;
     setIsLoading(true);
 
     try {
@@ -40,18 +45,25 @@ export function ResendVerificationButton({ email, redirectPath }: ResendVerifica
         setIsCaptchaOpen(false);
       } else {
         toast.error(result.error || 'Failed to resend email');
+        hasFiredRef.current = false;
       }
     } catch {
       toast.error('An error occurred. Please try again.');
+      hasFiredRef.current = false;
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleOpen = () => {
+    hasFiredRef.current = false; // Reset guard each time dialog opens
+    setIsCaptchaOpen(true);
+  };
+
   return (
     <>
       <Button
-        onClick={() => setIsCaptchaOpen(true)}
+        onClick={handleOpen}
         disabled={!canResend || isLoading}
         variant="outline"
         className="w-full"

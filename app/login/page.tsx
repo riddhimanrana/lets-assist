@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
+import { cookies } from "next/headers";
 import LoginClient from "./LoginClient";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { applyStaffInviteForUser } from "@/lib/organization/staff-invite";
 import { buildStaffInviteRedirectPath } from "@/lib/organization/staff-invite-outcome";
 import { resolvePostAuthRedirectPath } from "@/lib/auth/mfa";
+import { DEV_PREVIEW_SOURCE_COOKIE } from "@/lib/supabase/preview-source";
 
 export const metadata: Metadata = {
   title: "Login",
@@ -31,6 +33,20 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const inviteToken = invite_token || member_token || token;
 
   const defaultRedirectPath = resolvePostAuthRedirectPath(redirectPath);
+
+  // In development: always reset preview mode to "local" on the login page
+  // so the cookie can never get stuck on "remote" while logged out.
+  if (process.env.NODE_ENV === "development") {
+    try {
+      (await cookies()).set(DEV_PREVIEW_SOURCE_COOKIE, "local", {
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+        sameSite: "lax",
+      });
+    } catch {
+      // Ignore if cookies aren't writable (static render context)
+    }
+  }
 
   const { user } = await getAuthUser({ allowMfaPending: true });
 
