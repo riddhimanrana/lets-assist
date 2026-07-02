@@ -448,12 +448,13 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
       return {
         ...state,
         verificationMethod: action.payload,
+        requireLogin: action.payload === 'signup-only' ? false : state.requireLogin,
       };
     }
     case 'UPDATE_REQUIRE_LOGIN': {
       return {
         ...state,
-        requireLogin: action.payload,
+        requireLogin: state.verificationMethod === 'signup-only' ? false : action.payload,
       };
     }
     case 'UPDATE_VISIBILITY': {
@@ -643,6 +644,10 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
           ...state.recurrence,
           ...(payload.recurrence ?? {}),
         },
+        requireLogin:
+          payload.verificationMethod === 'signup-only'
+            ? false
+            : payload.requireLogin ?? state.requireLogin,
         // Drafts intentionally never restore uploaded waiver files/URLs.
         // We keep waiver configuration data, but users must re-upload the PDF.
         waiverPdfFile: null,

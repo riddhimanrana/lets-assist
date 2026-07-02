@@ -119,6 +119,8 @@ export default function VerificationSettings({
 
   const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
   const isPublicVisibilityDisabled = !canUsePublicVisibility;
+  const isSignupOnly = verificationMethod === "signup-only";
+  const trackingMode = isSignupOnly ? "signup-only" : "track-hours";
 
   const validatePdfFile = useCallback(async (file: File) => {
     setIsValidatingPdf(true);
@@ -214,6 +216,95 @@ export default function VerificationSettings({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
+            Volunteer Tracking
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger render={
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Info className="h-4 w-4" />
+                  </Button>
+                } />
+                <TooltipContent className="text-xs font-normal">
+                  Decide whether this project should record volunteer hours or only collect signups.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RadioGroup
+            value={trackingMode}
+            onValueChange={(value) => {
+              if (value === "signup-only") {
+                updateVerificationMethodAction("signup-only");
+                updateRequireLoginAction(false);
+                return;
+              }
+
+              updateVerificationMethodAction(
+                verificationMethod === "signup-only" ? "qr-code" : verificationMethod,
+              );
+            }}
+            className="grid gap-3 sm:gap-4"
+          >
+            <label
+              htmlFor="track-hours"
+              className={cn(
+                "flex flex-col items-start space-y-2 sm:space-y-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
+                trackingMode === "track-hours" && "border-primary bg-accent",
+              )}
+            >
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <RadioGroupItem value="track-hours" id="track-hours" className="shrink-0" />
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
+                    <Clock className="shrink-0 h-5 w-5 text-primary" />
+                    <span className="font-medium text-sm sm:text-base leading-snug">Track volunteer hours</span>
+                  </div>
+                </div>
+                <Badge
+                  variant="secondary"
+                  className="pointer-events-none text-xs shrink-0 self-start sm:self-center whitespace-nowrap"
+                >
+                  Recommended
+                </Badge>
+              </div>
+              <div className="text-xs sm:text-sm text-muted-foreground pl-7 sm:pl-9 leading-relaxed w-full">
+                Use QR, manual, or automatic check-in. Volunteers use accounts so their hours, certificates, and dashboard stay connected.
+              </div>
+            </label>
+
+            <label
+              htmlFor="signup-only-tracking"
+              className={cn(
+                "flex flex-col items-start space-y-2 sm:space-y-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
+                trackingMode === "signup-only" && "border-primary bg-accent",
+              )}
+            >
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <RadioGroupItem value="signup-only" id="signup-only-tracking" className="shrink-0" />
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
+                    <Clipboard className="shrink-0 h-5 w-5 text-primary" />
+                    <span className="font-medium text-sm sm:text-base leading-snug">Collect signups only</span>
+                  </div>
+                </div>
+                <Badge variant="outline" className="pointer-events-none text-xs shrink-0 self-start sm:self-center whitespace-nowrap">
+                  No email verification
+                </Badge>
+              </div>
+              <div className="text-xs sm:text-sm text-muted-foreground pl-7 sm:pl-9 leading-relaxed w-full">
+                Best for headcount, interest lists, and events where attendance is tracked somewhere else. Volunteers can sign up without creating or verifying an account.
+              </div>
+            </label>
+          </RadioGroup>
+        </CardContent>
+      </Card>
+
+      {!isSignupOnly && (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
             Volunteer Check-in Method
             <TooltipProvider>
               <Tooltip>
@@ -223,8 +314,7 @@ export default function VerificationSettings({
                   </Button>
                 } />
                 <TooltipContent className="text-xs font-normal">
-                  Choose how volunteers will check in and record their hours at
-                  your event.
+                  Choose how volunteers will check in and record their hours at your event.
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -324,31 +414,6 @@ export default function VerificationSettings({
               </div>
             </label>
 
-            {/* Add the new signup-only option */}
-            <label
-              htmlFor="signup-only"
-              className={cn(
-                "flex flex-col items-start space-y-2 sm:space-y-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
-                verificationMethod === "signup-only" && "border-primary bg-accent",
-                errors.verificationMethod && "border-destructive",
-              )}
-            >
-              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                  <RadioGroupItem value="signup-only" id="signup-only" className="shrink-0" />
-                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
-                    <Clipboard className="shrink-0 h-5 w-5 text-primary" />
-                    <span className="font-medium text-sm sm:text-base leading-snug">
-                      Sign-up Only (No Hour Tracking)
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="text-xs sm:text-sm text-muted-foreground pl-7 sm:pl-9 leading-relaxed w-full">
-                Simplest option that only collects volunteer signups without tracking hours.
-                Perfect for events where you just need a headcount or when attendance is tracked separately.
-              </div>
-            </label>
           </RadioGroup>
 
           {errors.verificationMethod && (
@@ -359,6 +424,7 @@ export default function VerificationSettings({
           )}
         </CardContent>
       </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -414,19 +480,29 @@ export default function VerificationSettings({
               </div>
               <Switch
                 id="require-login"
-                checked={requireLogin}
+                checked={isSignupOnly ? false : requireLogin}
                 onCheckedChange={updateRequireLoginAction}
+                disabled={isSignupOnly}
               />
             </div>
 
-            {errors.requireLogin && (
+            {isSignupOnly && (
+              <Alert className="border-primary/30 bg-primary/5">
+                <Info className="h-4 w-4 text-primary" />
+                <AlertDescription className="text-sm">
+                  Signup-only projects collect names and contact information without account creation or email verification. Volunteers can still link the signup to an account later.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {errors.requireLogin && !isSignupOnly && (
               <div className="text-destructive text-sm flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
                 {errors.requireLogin}
               </div>
             )}
 
-            {!requireLogin && (
+            {!requireLogin && !isSignupOnly && (
               <div className="rounded-lg bg-warning/10 p-4 text-sm border border-warning/40">
                 <div className="flex gap-2">
                   <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />

@@ -1202,6 +1202,7 @@ export async function signUpForProject(
       restrictToOrgDomains: project.restrict_to_org_domains,
     });
 
+    const isSignupOnlyProject = project.verification_method === "signup-only";
     const rawComment = (anonymousData?.comment ?? volunteerComment ?? "").trim();
     const normalizedComment = rawComment.length > 0 ? rawComment.slice(0, 1000) : null;
     const volunteerCommentToSave = project.enable_volunteer_comments ? normalizedComment : null;
@@ -1520,6 +1521,7 @@ export async function signUpForProject(
         hasEmail: Boolean(emailToCheck),
         hasExistingSelectedSlotCount: Boolean(anonymousData.selectedSlotCount),
         skipConfirmationEmail: skipAnonymousConfirmationEmail,
+        isSignupOnlyProject,
       });
 
       // Check if an anonymous profile already exists for this email + project
@@ -1587,6 +1589,26 @@ export async function signUpForProject(
             signupStatus,
           });
 
+          if (isSignupOnlyProject && signupStatus === "pending") {
+            const now = new Date().toISOString();
+            await serviceSupabase
+              .from("anonymous_signups")
+              .update({ confirmed_at: existingAnonProfile.confirmed_at ?? now })
+              .eq("id", existingAnonProfile.id);
+
+            await serviceSupabase
+              .from("project_signups")
+              .update({ status: "approved" })
+              .eq("id", existingSlotSignup.id);
+
+            return {
+              success: true,
+              signupId: existingSlotSignup.id,
+              anonymousSignupId: existingAnonProfile.id,
+              message: "You're already on the signup list.",
+            };
+          }
+
           if (signupStatus === "pending") {
             return {
               error: "You've already signed up for this slot but haven't confirmed your email yet.",
@@ -1634,9 +1656,16 @@ export async function signUpForProject(
         createdAnonymousSignupId = existingAnonProfile.id;
 
         // Determine status: if profile is already confirmed, auto-approve new slot signups
-        const isProfileConfirmed = !!existingAnonProfile.confirmed_at;
+        const isProfileConfirmed = !!existingAnonProfile.confirmed_at || isSignupOnlyProject;
         anonymousProfileAlreadyConfirmed = isProfileConfirmed;
         const newSignupStatus = isProfileConfirmed ? "approved" : "pending";
+
+        if (isSignupOnlyProject && !existingAnonProfile.confirmed_at) {
+          await serviceSupabase
+            .from("anonymous_signups")
+            .update({ confirmed_at: new Date().toISOString() })
+            .eq("id", existingAnonProfile.id);
+        }
 
         const projectSignupData: Omit<ProjectSignup, "id" | "created_at"> = {
           project_id: projectId,
@@ -1664,7 +1693,7 @@ export async function signUpForProject(
         createdSignupId = insertedProjectSignup.id;
 
         // If profile is already confirmed, send a simple notification about the new slot
-        if (isProfileConfirmed && anonymousData.email && !skipAnonymousConfirmationEmail) {
+        if (isProfileConfirmed && anonymousData.email && !skipAnonymousConfirmationEmail && !isSignupOnlyProject) {
           const { date, timeRange, slotLabel } = getScheduleDetails(project, scheduleId);
           const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}?token=${existingAnonProfile.token}`;
           try {
@@ -1740,6 +1769,7 @@ export async function signUpForProject(
           name: anonymousData.name,
           phone_number: anonymousData.phone || null,
           token: confirmationToken,
+          confirmed_at: isSignupOnlyProject ? new Date().toISOString() : null,
         };
 
         logSignupDebug(traceId, "anonymous_profile_insert_attempt", {
@@ -1770,7 +1800,7 @@ export async function signUpForProject(
           project_id: projectId,
           schedule_id: scheduleId,
           user_id: null,
-          status: "pending", // New anonymous signups start as pending
+          status: isSignupOnlyProject ? "approved" : "pending",
           anonymous_id: createdAnonymousSignupId,
           volunteer_comment: volunteerCommentToSave,
           response_data: formData || null,
@@ -1793,7 +1823,13 @@ export async function signUpForProject(
         createdSignupId = insertedProjectSignup.id;
 
         // Send confirmation email
-        if (anonymousData.email && confirmationToken && createdAnonymousSignupId && !skipAnonymousConfirmationEmail) {
+        if (
+          anonymousData.email &&
+          confirmationToken &&
+          createdAnonymousSignupId &&
+          !skipAnonymousConfirmationEmail &&
+          !isSignupOnlyProject
+        ) {
           const confirmationUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}/confirm?token=${confirmationToken}`;
           const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}?token=${confirmationToken}`;
           const { date, timeRange, slotLabel } = getScheduleDetails(project, scheduleId);
