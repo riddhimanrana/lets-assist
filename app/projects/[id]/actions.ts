@@ -929,7 +929,7 @@ async function persistWaiverSignature(params: {
   }
 
   const waiverDefinitionIdInput = params.waiverSignature.definitionId?.trim() || null;
-  let waiverDefinitionId: string | null = waiverDefinitionIdInput;
+  const waiverDefinitionId: string | null = waiverDefinitionIdInput;
 
   let waiverPdfUrl: string | null = project?.waiver_pdf_url || params.waiverSignature.waiverPdfUrl || null;
   // Phase 1: Default to true for backward compatibility with projects created before this feature

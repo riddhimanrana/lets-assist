@@ -62,7 +62,14 @@ function findPluginRoute(
   routePath: string | null,
 ) {
   if (!routePath) return null;
-  return routes?.find((route) => route.path === routePath) ?? null;
+  return (
+    routes?.find((route) => route.path === routePath) ??
+    routes
+      ?.filter((route) => routePath.startsWith(`${route.path}/`))
+      .sort((left, right) => right.path.length - left.path.length)
+      .at(0) ??
+    null
+  );
 }
 
 function routeRowToDefinition(
@@ -86,14 +93,10 @@ export async function renderOrganizationPluginPage(options: {
 }): Promise<React.ReactElement> {
   const { organizationIdentifier, pluginKey, routePath = null } = options;
   const supabase = await createClient();
-  const { user } = await getAuthUser();
   const targetPath = routePath
     ? `/organization/${organizationIdentifier}/plugins/${pluginKey}/${routePath}`
     : `/organization/${organizationIdentifier}/plugins/${pluginKey}`;
-
-  if (!user) {
-    redirect(`/login?next=${encodeURIComponent(targetPath)}`);
-  }
+  const { user } = await getAuthUser();
 
   const isUUID =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -127,6 +130,18 @@ export async function renderOrganizationPluginPage(options: {
     redirect(slugPath);
   }
 
+  const definition = getRegisteredPlugin(pluginKey);
+  if (!definition) {
+    notFound();
+  }
+
+  let declaredRoute = findPluginRoute(definition.manifest.routes, routePath);
+  const isPublicManifestRoute = declaredRoute?.minimumRole === "public";
+
+  if (!user) {
+    redirect(`/login?redirect=${encodeURIComponent(targetPath)}`);
+  }
+
   const { data: membership } = (await supabase
     .from("organization_members")
     .select("role")
@@ -135,13 +150,14 @@ export async function renderOrganizationPluginPage(options: {
     .single()) as { data: MembershipRow | null };
 
   const userRole = toRole(membership?.role ?? null);
-  if (!userRole) {
+  if (!userRole && !isPublicManifestRoute) {
     notFound();
   }
+  const effectiveUserRole = userRole ?? "member";
 
   const resolvedPlugin = await resolveOrganizationPluginByKey({
     organizationId: organization.id,
-    userRole,
+    userRole: effectiveUserRole,
     pluginKey,
   });
 
@@ -149,13 +165,7 @@ export async function renderOrganizationPluginPage(options: {
     notFound();
   }
 
-  const definition = getRegisteredPlugin(pluginKey);
-  if (!definition) {
-    notFound();
-  }
-
   const organizationSlug = organization.username ?? organization.id;
-  let declaredRoute = findPluginRoute(definition.manifest.routes, routePath);
 
   if (routePath && !declaredRoute) {
     const routeClient = getAdminClient();
@@ -189,7 +199,7 @@ export async function renderOrganizationPluginPage(options: {
     }
   }
 
-  if (declaredRoute && !hasPluginRouteAccess(declaredRoute.minimumRole, userRole)) {
+  if (declaredRoute && !hasPluginRouteAccess(declaredRoute.minimumRole, effectiveUserRole)) {
     notFound();
   }
 
@@ -200,7 +210,7 @@ export async function renderOrganizationPluginPage(options: {
         organizationId: organization.id,
         organizationSlug,
         organizationName: organization.name,
-        userRole,
+        userRole: effectiveUserRole,
         configuration: resolvedPlugin.configuration,
       })) ?? null;
   } else if (definition.renderOrganizationPage) {
@@ -208,7 +218,7 @@ export async function renderOrganizationPluginPage(options: {
       organizationId: organization.id,
       organizationSlug,
       organizationName: organization.name,
-      userRole,
+      userRole: effectiveUserRole,
       configuration: resolvedPlugin.configuration,
     });
   }

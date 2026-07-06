@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { APIProvider, Map, AdvancedMarker, useApiIsLoaded, ColorScheme, RenderingType } from "@vis.gl/react-google-maps";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Users, MapPin, Loader2, AlertCircle, Sliders } from "lucide-react";

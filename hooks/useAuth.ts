@@ -1,20 +1,12 @@
 'use client';
 
 /**
- * useAuth Hook: React hook for accessing auth state
+ * useAuth Hook: React hook for accessing auth state.
  *
- * Uses getClaims() for fast, local JWT validation (no API call).
- * Subscribes to auth state changes automatically for real-time updates.
- *
- * Based on Supabase best practices from Issue #40985:
- * - getClaims() is recommended over getSession()
- * - Validates JWT locally without database roundtrip
- * - onAuthStateChange should be treated as an invalidation signal, not a trusted user source
- *
- * Usage:
- * const { user, loading } = useAuth();
- *
- * @see https://github.com/supabase/supabase/issues/40985
+ * Uses getClaims() for the fast path, then falls back to getUser() when claims
+ * fail so a refreshable session is not treated as signed out at JWT expiry.
+ * Auth events are invalidation signals; the hook resolves fresh auth state
+ * instead of trusting the event payload.
  */
 
 import { useEffect, useState, useMemo } from 'react';
@@ -44,6 +36,11 @@ type AuthClaimsLike = {
   app_metadata?: Record<string, unknown>;
 };
 
+type ResolvedAuthState = {
+  user: User | null;
+  claims: (AuthClaimsLike & { aal?: string }) | null;
+};
+
 function buildUserFromClaims(claims: AuthClaimsLike): User {
   return {
     id: claims.sub,
@@ -56,6 +53,56 @@ function buildUserFromClaims(claims: AuthClaimsLike): User {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
+}
+
+async function resolveAuthState(
+  supabase: ReturnType<typeof createClient>,
+): Promise<ResolvedAuthState> {
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+
+  if (claimsData?.claims && !claimsError) {
+    const claims = claimsData.claims as AuthClaimsLike & { aal?: string };
+    return {
+      user: buildUserFromClaims(claims),
+      claims,
+    };
+  }
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    if (claimsError && process.env.NODE_ENV === 'development') {
+      console.debug(
+        '[useAuth] Claims unavailable; preserved session through getUser():',
+        claimsError.message,
+      );
+    }
+
+    return {
+      user,
+      claims: {
+        sub: user.id,
+        role: user.role || undefined,
+        email: user.email || undefined,
+        phone: user.phone || undefined,
+        user_metadata: user.user_metadata || {},
+        app_metadata: user.app_metadata || {},
+      },
+    };
+  }
+
+  if (claimsError && process.env.NODE_ENV === 'development') {
+    console.debug('[useAuth] No active claims:', claimsError.message);
+  }
+
+  if (userError && process.env.NODE_ENV === 'development') {
+    console.debug('[useAuth] No active user session:', userError.message);
+  }
+
+  return { user: null, claims: null };
 }
 
 /**
@@ -79,15 +126,11 @@ export function useAuth(): AuthState {
 
     const syncAuthState = async () => {
       try {
-        const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+        const resolvedAuthState = await resolveAuthState(supabase);
 
         if (!mounted) return;
 
-        if (claimsError || !claimsData?.claims) {
-          if (claimsError) {
-            console.error('[useAuth] Error getting claims:', claimsError);
-          }
-
+        if (!resolvedAuthState.user) {
           setUser(null);
           setNeedsMfa(false);
           return;
@@ -95,9 +138,7 @@ export function useAuth(): AuthState {
 
         if (!mounted) return;
 
-        // Restore MFA state from JWT claims
-        const claims = claimsData.claims as AuthClaimsLike & { aal?: string };
-        const currentAal = claims.aal || 'aal1';
+        const currentAal = resolvedAuthState.claims?.aal || 'aal1';
 
         // Middleware enforces MFA for protected routes. Client-side factor
         // lookup is only needed on MFA/authentication screens; doing it on
@@ -126,7 +167,7 @@ export function useAuth(): AuthState {
 
         setNeedsMfa(userNeedsMfa);
 
-        setUser(buildUserFromClaims(claims));
+        setUser(resolvedAuthState.user);
       } catch (error) {
         console.error('[useAuth] Error during auth initialization:', error);
         if (mounted) {

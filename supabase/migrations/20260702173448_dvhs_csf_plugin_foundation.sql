@@ -452,6 +452,8 @@ CREATE TABLE IF NOT EXISTS plugin_data.csf_point_submissions (
     CHECK (source IN ('student', 'staff', 'attendance', 'sheet', 'manual')),
   description text,
   claimed_points numeric(6,2) NOT NULL DEFAULT 0,
+  point_type text NOT NULL DEFAULT 'non_drive'
+    CHECK (point_type IN ('non_drive', 'drive')),
   status text NOT NULL DEFAULT 'submitted'
     CHECK (status IN ('draft', 'submitted', 'needs_action', 'approved', 'rejected', 'duplicate', 'withdrawn')),
   submitted_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -496,7 +498,8 @@ CREATE TABLE IF NOT EXISTS plugin_data.csf_credit_records (
   opportunity_id uuid REFERENCES plugin_data.csf_opportunities(id) ON DELETE SET NULL,
   source text NOT NULL CHECK (source IN ('submission', 'attendance', 'sheet', 'manual')),
   points numeric(6,2) NOT NULL DEFAULT 0,
-  point_type text NOT NULL DEFAULT 'service',
+  point_type text NOT NULL DEFAULT 'non_drive'
+    CHECK (point_type IN ('non_drive', 'drive')),
   status text NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'verified', 'rejected', 'revoked')),
   verified_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -660,10 +663,7 @@ CREATE TABLE IF NOT EXISTS plugin_data.csf_partner_clubs (
   allocation_satisfied boolean,
   allocation_notes text,
   communication_method text,
-  expected_csf_member_count integer CHECK (expected_csf_member_count IS NULL OR expected_csf_member_count >= 0),
   approved_point_types text[] NOT NULL DEFAULT ARRAY[]::text[],
-  sheet_url text,
-  form_url text,
   notes text,
   status text NOT NULL DEFAULT 'active'
     CHECK (status IN ('active', 'inactive', 'archived')),

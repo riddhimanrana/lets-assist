@@ -35,7 +35,7 @@ const accounts = [
 // Generate 15 mock members dynamically
 const extraMembersCount = 15;
 for (let i = 1; i <= extraMembersCount; i++) {
-  let roles = [null, null, null];
+  const roles = [null, null, null];
   const orgIndex = Math.floor((i - 1) / 5); // 0, 1, or 2
   const memberIndexInOrg = (i - 1) % 5;     // 0 to 4
   

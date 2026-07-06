@@ -15,6 +15,12 @@ import {
 import { isMfaProtectedPath } from "@/lib/auth/mfa-paths";
 import { isStaleSupabaseAuthUserError } from "@/lib/supabase/auth-errors";
 
+type PendingAuthCookie = {
+    name: string;
+    value: string;
+    options?: Parameters<NextResponse["cookies"]["set"]>[2];
+};
+
 // Paths that require authentication
 const PROTECTED_PATHS = [
     "/home",
@@ -63,10 +69,25 @@ function isProjectCreatorPath(path: string) {
 }
 
 export async function updateSession(request: NextRequest) {
+    const pendingAuthCookies: PendingAuthCookie[] = [];
     let supabaseResponse = NextResponse.next({
-        request,
+        request: {
+            headers: request.headers,
+        },
     });
     applyPrivateNoStore(supabaseResponse);
+
+    const applyPendingAuthCookies = <T extends NextResponse>(response: T): T => {
+        pendingAuthCookies.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+        });
+        return response;
+    };
+
+    const finalizeResponse = <T extends NextResponse>(response: T): T => {
+        applyPendingAuthCookies(response);
+        return applyPrivateNoStore(response);
+    };
 
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -77,39 +98,36 @@ export async function updateSession(request: NextRequest) {
                     return request.cookies.getAll()
                 },
                 setAll(cookiesToSet) {
+                    pendingAuthCookies.push(...cookiesToSet);
                     cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
                     supabaseResponse = NextResponse.next({
-                        request,
+                        request: {
+                            headers: request.headers,
+                        },
                     })
                     cookiesToSet.forEach(({ name, value, options }) =>
                         supabaseResponse.cookies.set(name, value, options)
                     )
+                    applyPrivateNoStore(supabaseResponse);
                 },
             },
         }
     )
 
-    // IMPORTANT: Always call getClaims() immediately after creating the Supabase client.
-    // This refreshes the user's session tokens and writes updated cookies to the response.
-    // Do NOT run any code between createServerClient and getClaims().
-    // Per Supabase docs: "If you remove getClaims() and you use server-side rendering
-    // with the Supabase client, your users may be randomly logged out."
-    // @see https://github.com/supabase/supabase/issues/40985
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+    // Supabase SSR middleware must validate with getUser() immediately after
+    // client creation so expired tokens are refreshed and persisted via setAll().
+    const { data: userData, error: userError } = await supabase.auth.getUser();
     
-    // If getClaims() fails (e.g., invalid/expired tokens that can't be refreshed),
+    // If getUser() fails (e.g., invalid/expired tokens that can't be refreshed),
     // treat the user as not authenticated. The error is expected for anonymous users
     // or users with completely invalid session state.
-    if (claimsError && process.env.NODE_ENV === 'development') {
+    if (userError && process.env.NODE_ENV === 'development') {
         // Only log in development to avoid noise in production
-        console.log('[Proxy] getClaims error (user will be treated as not authenticated):', claimsError.message);
+        console.log('[Proxy] getUser error (user will be treated as not authenticated):', userError.message);
     }
     
-    // Extract user from claims if available
-    let user = null;
-    if (claimsData?.claims) {
-        user = { id: claimsData.claims.sub, ...claimsData.claims };
-    }
+    let user = userData.user;
+    const { data: claimsData } = user ? await supabase.auth.getClaims() : { data: null };
 
     if (user) {
         const userWithMetadata = user as { app_metadata?: Record<string, unknown> | null };
@@ -129,9 +147,9 @@ export async function updateSession(request: NextRequest) {
                 loginUrl.searchParams.set('reason', accountAccess.reason);
             }
 
-            const response = NextResponse.redirect(loginUrl);
+            const response = finalizeResponse(NextResponse.redirect(loginUrl));
             clearSupabaseAuthCookies(request, response);
-            return applyPrivateNoStore(response);
+            return response;
         }
     }
 
@@ -156,18 +174,12 @@ export async function updateSession(request: NextRequest) {
         searchParams.get("deleted") === "true" &&
         searchParams.get("noRedirect") === "1"
     ) {
-        return applyPrivateNoStore(supabaseResponse); // Skip redirects if requested
+        return finalizeResponse(supabaseResponse); // Skip redirects if requested
     }
 
-    // Handle reset password paths specially
+    // Let password reset pages render without using a page visit as a sign-out action.
     if (currentPath.startsWith("/reset-password")) {
-        if (user) {
-            await supabase.auth.signOut();
-            const response = NextResponse.redirect(request.url);
-            clearSupabaseAuthCookies(request, response);
-            return applyPrivateNoStore(response);
-        }
-        return applyPrivateNoStore(supabaseResponse);
+        return finalizeResponse(supabaseResponse);
     }
 
     // Guard the MFA challenge page itself.
@@ -180,11 +192,11 @@ export async function updateSession(request: NextRequest) {
             if (existingRedirect) {
                 loginUrl.searchParams.set("redirect", existingRedirect);
             }
-            return applyPrivateNoStore(NextResponse.redirect(loginUrl));
+            return finalizeResponse(NextResponse.redirect(loginUrl));
         }
         // Let authenticated users (aal1 or aal2) through; MfaChallengeClient
         // performs the precise check and redirects aal2 users automatically.
-        return applyPrivateNoStore(supabaseResponse);
+        return finalizeResponse(supabaseResponse);
     }
 
     let requiresMfaChallenge = false;
@@ -230,7 +242,7 @@ export async function updateSession(request: NextRequest) {
                     requestedRedirect: searchParams.get("redirect"),
                 });
 
-                return applyPrivateNoStore(
+                return finalizeResponse(
                     NextResponse.redirect(
                         new URL(buildMfaRedirectPath(continuationPath), request.url),
                     ),
@@ -244,32 +256,32 @@ export async function updateSession(request: NextRequest) {
         if (!user) {
             const loginUrl = new URL('/login', request.url);
             loginUrl.searchParams.set('redirect', '/account/profile');
-            return applyPrivateNoStore(NextResponse.redirect(loginUrl));
+            return finalizeResponse(NextResponse.redirect(loginUrl));
         }
 
-        return applyPrivateNoStore(NextResponse.redirect(new URL("/account/profile", request.url)));
+        return finalizeResponse(NextResponse.redirect(new URL("/account/profile", request.url)));
     }
 
     // Redirect authenticated users trying to access restricted paths
     if (user && isRestrictedPathForLoggedIn) {
         if (hasStaffInviteContext) {
-            return applyPrivateNoStore(supabaseResponse);
+            return finalizeResponse(supabaseResponse);
         }
 
-        return applyPrivateNoStore(NextResponse.redirect(new URL("/home", request.url)));
+        return finalizeResponse(NextResponse.redirect(new URL("/home", request.url)));
     }
 
     // Redirect non-authenticated users trying to access protected paths
     if (!user && isProtectedPath(currentPath)) {
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
-        return applyPrivateNoStore(NextResponse.redirect(loginUrl));
+        return finalizeResponse(NextResponse.redirect(loginUrl));
     }
 
     // Handle admin routes - redirect to 404 if not super admin
     if (currentPath.startsWith("/admin")) {
         if (!user) {
-            return applyPrivateNoStore(NextResponse.redirect(new URL("/not-found", request.url)));
+            return finalizeResponse(NextResponse.redirect(new URL("/not-found", request.url)));
         }
         // Logged-in users proceed; the admin route performs a service-role check server-side.
     }
@@ -280,7 +292,7 @@ export async function updateSession(request: NextRequest) {
         if (!user) {
             const loginUrl = new URL('/login', request.url);
             loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
-            return applyPrivateNoStore(NextResponse.redirect(loginUrl));
+            return finalizeResponse(NextResponse.redirect(loginUrl));
         }
 
         try {
@@ -292,11 +304,11 @@ export async function updateSession(request: NextRequest) {
 
             if (error) {
                 console.error("Error fetching project for creator check:", error);
-                return applyPrivateNoStore(NextResponse.redirect(new URL("/home", request.url)));
+                return finalizeResponse(NextResponse.redirect(new URL("/home", request.url)));
             }
 
             if (!project || project.creator_id !== user.id) {
-                return applyPrivateNoStore(
+                return finalizeResponse(
                     NextResponse.redirect(
                         new URL(`/projects/${projectId}`, request.url)
                     ),
@@ -304,9 +316,9 @@ export async function updateSession(request: NextRequest) {
             }
         } catch (e) {
             console.error("Exception during project creator check:", e);
-            return applyPrivateNoStore(NextResponse.redirect(new URL("/home", request.url)));
+            return finalizeResponse(NextResponse.redirect(new URL("/home", request.url)));
         }
     }
 
-    return applyPrivateNoStore(supabaseResponse);
+    return finalizeResponse(supabaseResponse);
 }
