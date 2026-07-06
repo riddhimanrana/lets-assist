@@ -10,7 +10,7 @@ enabled = true
 port = 54321
 # Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
 # endpoints. `public` and `graphql_public` schemas are included by default.
-schemas = ["public", "graphql_public"]
+schemas = ["public", "graphql_public", "plugin_data"]
 # Extra schemas to add to the search_path of every request.
 extra_search_path = ["public", "extensions"]
 # The maximum number of rows returns from a view, table, or stored procedure. Limits payload size
@@ -282,8 +282,9 @@ max_frequency = "5s"
 
 # Configure logged in session timeouts.
 [auth.sessions]
-# Force log out after the specified duration.
-timebox = "15m"
+# Leave session timeboxing disabled for local development so refresh tokens can
+# keep users signed in across normal testing sessions.
+# timebox = "24h"
 # Force log out if the user has been inactive longer than the specified duration.
 # inactivity_timeout = "8h"
 

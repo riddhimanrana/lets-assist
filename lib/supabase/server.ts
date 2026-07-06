@@ -1,10 +1,13 @@
 /**
  * Server-side Supabase client for Server Components, Server Actions, and Route Handlers.
  *
- * ## Auth Guidelines (per Supabase Issue #40985)
+ * ## Auth Guidelines
  *
- * **DO NOT** call `supabase.auth.getUser()` or `supabase.auth.getSession()` directly.
- * Instead, use the auth helpers from `@/lib/supabase/auth-helpers`:
+ * Middleware/proxy code should call `supabase.auth.getUser()` immediately after
+ * creating the SSR client so token refreshes are written back to cookies.
+ *
+ * Server Components, Server Actions, and Route Handlers should use the auth
+ * helpers from `@/lib/supabase/auth-helpers`:
  *
  * ```typescript
  * import { getAuthUser, requireAuth } from "@/lib/supabase/auth-helpers";
@@ -20,7 +23,7 @@
  * ```
  *
  * @see /lib/supabase/auth-helpers.ts for the recommended auth patterns
- * @see https://github.com/supabase/supabase/issues/40985 for context
+ * @see https://supabase.com/docs/guides/auth/server-side/nextjs
  */
 
 import { createServerClient } from "@supabase/ssr";

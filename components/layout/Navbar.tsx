@@ -52,7 +52,7 @@ import { DonateDialog } from "@/components/feedback/DonateDialog";
 import { useState } from "react";
 import Image from "next/image";
 import { NotificationPopover } from "@/components/notifications/NotificationPopover";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme/theme-provider";
 import { usePathname } from "next/navigation";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { useAuth } from "@/hooks/useAuth";

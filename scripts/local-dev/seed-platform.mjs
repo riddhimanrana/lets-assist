@@ -110,12 +110,33 @@ const pluginCatalogRows = [
   },
 ];
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function retrySupabaseAuthRequest(label, operation) {
+  let lastError;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    const result = await operation();
+    if (!result.error) return result;
+
+    lastError = result.error;
+    const status = result.error.status;
+    const retryable = status === 502 || status === 503 || status === 504 || status === undefined;
+    if (!retryable || attempt === 5) break;
+    await sleep(500 * attempt);
+  }
+
+  throw new Error(`${label} failed: ${lastError?.message ?? "unknown Supabase Auth error"}`);
+}
+
 async function upsertAuthUser(admin, account) {
-  const { data: listed, error: listError } = await admin.auth.admin.listUsers({
-    page: 1,
-    perPage: 1000,
-  });
-  if (listError) throw listError;
+  const { data: listed } = await retrySupabaseAuthRequest("List local auth users", () =>
+    admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    }),
+  );
 
   const existing = listed.users.find(
     (user) => user.email?.toLowerCase() === account.email,
@@ -491,8 +512,7 @@ async function main() {
     name: "Quail Run Elementary School",
     contact_name: "Sandra Lei",
     contact_email: "sandralei@gmail.com",
-    approved_point_types: ["non_drive", "service"],
-    sheet_url: "https://docs.google.com/spreadsheets/d/local-quail-run-signup/edit",
+    approved_point_types: ["non_drive"],
     notes: "Fixture partner source for imported participant sheets.",
     status: "active",
     created_by: users.csfOfficer.id,

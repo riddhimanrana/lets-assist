@@ -2,7 +2,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "next-themes";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Navbar from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -10,11 +9,10 @@ import localFont from "next/font/local";
 
 import { Toaster } from "@/components/ui/sonner";
 import { QueryMessageToast } from "@/components/shared/QueryMessageToast";
-import GlobalNotificationProvider from "@/components/providers/GlobalNotificationProvider";
 import CalendarOAuthCallbackHandler from "@/components/calendar/CalendarOAuthCallbackHandler";
-import { AuthProvider } from "@/components/providers/AuthProvider";
 import { Suspense } from "react";
 import SystemStickyBanner from "@/components/layout/SystemStickyBanner";
+import { AppProviders } from "@/components/providers/AppProviders";
 
 export const metadata: Metadata = {
   title: {
@@ -120,33 +118,23 @@ export default async function RootLayout({
       className={`${geistSans.className} ${geistSans.variable} ${geistMono.variable} ${overusedgrotesk.variable} ${nohemi.variable} ${cheeseMilky.variable}`}
       suppressHydrationWarning
     >
-      <head />
       <body className="antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <AuthProvider>
-            <GlobalNotificationProvider>
-              <div className="bg-background text-foreground min-h-screen flex flex-col w-full">
-                <SystemStickyBanner />
-                <Navbar />
-                <Toaster richColors />
-                <main className="flex-1 w-full">{children}</main>
-                <Suspense fallback={null}>
-                  <QueryMessageToast />
-                </Suspense>
-                <Footer />
-                <SpeedInsights />
-                <Suspense fallback={null}>
-                  <CalendarOAuthCallbackHandler />
-                </Suspense>
-              </div>
-            </GlobalNotificationProvider>
-          </AuthProvider>
-        </ThemeProvider>
+        <AppProviders>
+          <div className="bg-background text-foreground min-h-screen flex flex-col w-full">
+            <SystemStickyBanner />
+            <Navbar />
+            <Toaster richColors />
+            <main className="flex-1 w-full">{children}</main>
+            <Suspense fallback={null}>
+              <QueryMessageToast />
+            </Suspense>
+            <Footer />
+            <SpeedInsights />
+            <Suspense fallback={null}>
+              <CalendarOAuthCallbackHandler />
+            </Suspense>
+          </div>
+        </AppProviders>
       </body>
     </html>
   );
