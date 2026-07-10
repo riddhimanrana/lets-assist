@@ -260,6 +260,7 @@ export interface OrganizationNavigationBehavior {
   hideMemberCount?: boolean;
   hideInviteAction?: boolean;
   hideProjectAction?: boolean;
+  compactHeader?: boolean;
 }
 
 export interface ProjectCreateAdditionalStep {

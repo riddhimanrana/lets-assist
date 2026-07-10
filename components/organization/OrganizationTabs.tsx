@@ -19,11 +19,14 @@ import {
   ShieldCheck,
   LogOut,
   BarChart3,
+  Check,
+  ChevronDown,
   Frown
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose, DialogFooter } from "@/components/ui/dialog";
 import { useRouter, useSearchParams } from "next/navigation";
 import { leaveOrganization } from "@/app/organization/actions";
@@ -226,6 +229,7 @@ export default function OrganizationTabs({
   );
   const primaryPluginTabs = pluginTabs.filter((tab) => tab.navigationSection !== "more");
   const morePluginTabs = pluginTabs.filter((tab) => tab.navigationSection === "more");
+  const activeMoreTab = morePluginTabs.find((tab) => tab.value === activeTab);
   const routeBackedTabs = new Map<string, string>();
   for (const tab of visiblePluginRouteTabs) {
     routeBackedTabs.set(tab.value, tab.href);
@@ -384,7 +388,8 @@ export default function OrganizationTabs({
       onValueChange={handleTabChange}
       className="w-full"
     >
-      <TabsList className="mb-6 flex h-auto w-full sm:w-fit self-start max-w-full items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="mb-5 flex min-w-0 items-center gap-2">
+      <TabsList className="flex h-auto min-w-0 flex-1 items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {!pluginNavigationOverrides.hideOverviewTab && (!coreTabReplacements.overview || routeBackedTabs.has("overview")) && (
           <TabsTrigger value="overview" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
             <LayoutDashboard className="h-4 w-4 shrink-0" />
@@ -427,19 +432,33 @@ export default function OrganizationTabs({
         })}
       </TabsList>
 
-      {morePluginTabs.length > 0 ? (
-        <div className="-mt-3 mb-6 flex min-w-0 items-center gap-2">
-          <span className="shrink-0 px-1 text-xs font-medium text-muted-foreground">More tools</span>
-          <TabsList className="flex h-auto min-w-0 flex-1 items-center justify-start overflow-x-auto bg-transparent p-0 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {morePluginTabs.map((pt) => (
-              <TabsTrigger key={pt.value} value={pt.value} className="min-w-max flex-none shrink-0 gap-2 px-3">
-                {pt.icon}
-                <span className="truncate">{pt.label}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
-      ) : null}
+        {morePluginTabs.length > 0 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger render={
+              <Button variant={activeMoreTab ? "secondary" : "outline"} size="sm" className="shrink-0">
+                <span className="hidden sm:inline">{activeMoreTab?.label ?? "More"}</span>
+                <span className="sm:hidden">More</span>
+                <ChevronDown data-icon="inline-end" />
+              </Button>
+            } />
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Administration</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {morePluginTabs.map((pt) => (
+                  <DropdownMenuItem key={pt.value} onClick={() => handleTabChange(pt.value)} className="justify-between">
+                    <span className="flex min-w-0 items-center gap-2">
+                      {pt.icon}
+                      <span className="truncate">{pt.label}</span>
+                    </span>
+                    {pt.value === activeTab ? <Check aria-hidden="true" /> : null}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </div>
 
       {!pluginNavigationOverrides.hideOverviewTab && !isCoreReplaced("overview") && (
         <TabsContent value="overview" className="space-y-6">
