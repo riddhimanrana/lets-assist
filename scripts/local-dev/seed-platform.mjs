@@ -2124,8 +2124,10 @@ async function main() {
         audience: "officers",
         status: "scheduled",
         pinned: false,
-        published_at: "2026-04-03T08:00:00-07:00",
+        published_at: null,
+        scheduled_for: "2026-04-03T08:00:00-07:00",
         created_by: users.csfOfficer.id,
+        updated_by: users.csfOfficer.id,
       },
     ]),
   );
