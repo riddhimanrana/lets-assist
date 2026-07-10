@@ -176,6 +176,7 @@ export interface OrganizationTabBehavior {
   label: string;
   icon?: ReactNode;
   content: ReactNode;
+  navigationSection?: "primary" | "more";
 }
 
 export interface ResolvedOrganizationPluginSurface {
@@ -256,6 +257,9 @@ export interface OrganizationNavigationBehavior {
   pluginSurfaceAllowlist?: string[];
   projectsTabLabel?: string;
   membersTabLabel?: string;
+  hideMemberCount?: boolean;
+  hideInviteAction?: boolean;
+  hideProjectAction?: boolean;
 }
 
 export interface ProjectCreateAdditionalStep {

@@ -468,6 +468,9 @@ export default async function OrganizationPage({
           organization={organizationForDisplay}
           userRole={userRole}
           memberCount={memberCount}
+          showMemberCount={!navOverrides.hideMemberCount}
+          showInviteAction={!navOverrides.hideInviteAction}
+          showProjectAction={!navOverrides.hideProjectAction}
         />
 
         <div className="mt-8 sm:mt-12 bg-card rounded-xl border border-border/60 shadow-xs p-4 sm:p-6 mb-8">
