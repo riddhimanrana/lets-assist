@@ -373,11 +373,16 @@ async function main() {
     "csf_sheet_import_jobs",
     "csf_partner_submission_rows",
     "csf_partner_submission_batches",
+    "csf_partner_club_terms",
+    "csf_partner_club_aliases",
     "csf_partner_clubs",
     "csf_onboarding_links",
     "csf_sheet_sources",
     "csf_meeting_attendance",
+    "csf_meeting_sessions",
+    "csf_meetings",
     "csf_term_meetings",
+    "csf_point_appeals",
     "csf_submission_reviews",
     "csf_credit_records",
     "csf_submission_files",
@@ -395,12 +400,15 @@ async function main() {
     "csf_application_status_events",
     "csf_application_files",
     "csf_application_course_entries",
+    "csf_term_closures",
+    "csf_term_memberships",
     "csf_term_applications",
     "csf_profile_cohort_memberships",
     "csf_profile_accounts",
     "csf_profiles",
     "csf_cohort_terms",
     "csf_cohorts",
+    "csf_term_policies",
     "csf_terms",
   ];
 
@@ -933,6 +941,10 @@ async function main() {
           starts_at: "2025-08-12",
           ends_at: "2025-12-19",
           is_current: false,
+          lifecycle_status: "open",
+          closed_at: null,
+          closed_by: null,
+          closure_policy_version: null,
           settings: {
             csfPointPolicy: { minimumTotalPoints: 7, maxDrivePoints: 2 },
           },
@@ -947,6 +959,10 @@ async function main() {
           starts_at: "2026-01-06",
           ends_at: "2026-05-29",
           is_current: true,
+          lifecycle_status: "open",
+          closed_at: null,
+          closed_by: null,
+          closure_policy_version: null,
           settings: {
             csfPointPolicy: { minimumTotalPoints: 7, maxDrivePoints: 2 },
           },
@@ -1321,7 +1337,7 @@ async function main() {
     ),
   );
 
-  await must(
+  const seededMeetings = await must(
     "csf-expanded-meetings",
     pluginDb.from("csf_term_meetings").upsert(
       [
@@ -1361,8 +1377,47 @@ async function main() {
         },
       ],
       { onConflict: "organization_id,term_id,meeting_key" },
-    ),
+    ).select("id, organization_id, term_id, meeting_key, label, meeting_date, starts_at, location, attendance_source_url, required, sort_order, status, settings, created_by"),
   );
+
+  const meetingProjectionByLegacyId = new Map();
+  for (const meeting of seededMeetings) {
+    const logicalMeeting = await must(
+      `csf-logical-meeting-${meeting.meeting_key}`,
+      pluginDb.from("csf_meetings").upsert(
+        {
+          organization_id: meeting.organization_id,
+          term_id: meeting.term_id,
+          meeting_key: meeting.meeting_key,
+          label: meeting.label,
+          required: meeting.required,
+          sort_order: meeting.sort_order,
+          status: meeting.status,
+          created_by: meeting.created_by,
+        },
+        { onConflict: "organization_id,term_id,meeting_key" },
+      ).select("id").single(),
+    );
+    const meetingSession = await must(
+      `csf-meeting-session-${meeting.meeting_key}`,
+      pluginDb.from("csf_meeting_sessions").upsert(
+        {
+          organization_id: meeting.organization_id,
+          meeting_id: logicalMeeting.id,
+          legacy_term_meeting_id: meeting.id,
+          session_date: meeting.meeting_date,
+          starts_at: meeting.starts_at,
+          location: meeting.location,
+          attendance_source_url: meeting.attendance_source_url,
+          status: "scheduled",
+          settings: meeting.settings,
+          created_by: meeting.created_by,
+        },
+        { onConflict: "legacy_term_meeting_id" },
+      ).select("id, meeting_id").single(),
+    );
+    meetingProjectionByLegacyId.set(meeting.id, meetingSession);
+  }
 
   await must(
     "csf-expanded-opportunities",
@@ -1530,6 +1585,24 @@ async function main() {
     "csf-expanded-submissions",
     pluginDb.from("csf_point_submissions").upsert([
       {
+        id: "10000000-0000-4000-8000-000000000220",
+        organization_id: IDS.csfOrg,
+        profile_id: IDS.csfProfileMember,
+        term_id: IDS.csfTermS26,
+        opportunity_id: IDS.csfOpportunity,
+        source: "student",
+        description: "Quail Run Suessical Musical",
+        claimed_points: 2,
+        point_type: "non_drive",
+        activity_date: "2026-05-08",
+        status: "approved",
+        submitted_by: users.csfMember.id,
+        submitted_at: "2026-05-08T19:15:00-07:00",
+        reviewed_by: users.csfOfficer.id,
+        reviewed_at: "2026-05-08T19:20:00-07:00",
+        review_notes: "Verified from the partner activity roster.",
+      },
+      {
         id: "10000000-0000-4000-8000-000000000204",
         organization_id: IDS.csfOrg,
         profile_id: IDS.csfProfilePending,
@@ -1625,6 +1698,7 @@ async function main() {
         organization_id: IDS.csfOrg,
         profile_id: IDS.csfProfileMember,
         term_id: IDS.csfTermS26,
+        submission_id: "10000000-0000-4000-8000-000000000220",
         opportunity_id: IDS.csfOpportunity,
         source: "manual",
         points: 2,
@@ -1646,6 +1720,8 @@ async function main() {
           profile_id: IDS.csfProfileMember,
           term_id: IDS.csfTermS26,
           term_meeting_id: IDS.csfMeetingGeneral,
+          meeting_id: meetingProjectionByLegacyId.get(IDS.csfMeetingGeneral)?.meeting_id,
+          meeting_session_id: meetingProjectionByLegacyId.get(IDS.csfMeetingGeneral)?.id,
           meeting_key: "spring_general_meeting",
           meeting_label: "Spring General Meeting",
           status: "attended",
@@ -1663,6 +1739,8 @@ async function main() {
           profile_id: IDS.csfProfileComplete,
           term_id: IDS.csfTermS26,
           term_meeting_id: IDS.csfMeetingGeneral,
+          meeting_id: meetingProjectionByLegacyId.get(IDS.csfMeetingGeneral)?.meeting_id,
+          meeting_session_id: meetingProjectionByLegacyId.get(IDS.csfMeetingGeneral)?.id,
           meeting_key: "spring_general_meeting",
           meeting_label: "Spring General Meeting",
           status: "attended",
@@ -1680,6 +1758,8 @@ async function main() {
           profile_id: IDS.csfProfileMissingHours,
           term_id: IDS.csfTermS26,
           term_meeting_id: IDS.csfMeetingService,
+          meeting_id: meetingProjectionByLegacyId.get(IDS.csfMeetingService)?.meeting_id,
+          meeting_session_id: meetingProjectionByLegacyId.get(IDS.csfMeetingService)?.id,
           meeting_key: "service_check_in",
           meeting_label: "Service Check-in",
           status: "missed",
