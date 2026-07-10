@@ -91,7 +91,7 @@ T12|x|add CSF domain foundation, route-scoped services, workspace shell, policy 
 T13|x|complete profiles, applications, onboarding, term membership review flow|V17,V19,V20,V24,V25,V26,V27,V32,I.service,I.route
 T14|x|complete canonical partner clubs, activities, single-proof submissions, awarded credits|V21,V23,V26,V27,V28,V32,I.schema,I.service,I.route
 T15|x|complete meeting sessions, attendance reconciliation, points grid, appeals, term close|V20,V22,V24,V25,V26,V28,V32,I.schema,I.service,I.route
-T16|.|add communications workspace + safe plugin-backed public CSF surface|V18,V26,V30,V31,V32,I.manifest,I.route
+T16|x|add communications workspace + safe plugin-backed public CSF surface|V18,V26,V30,V31,V32,I.manifest,I.route
 T17|.|import legacy CSF data, compatibility exports, security/integration/E2E coverage|V17,V18,V19,V20,V21,V22,V23,V24,V25,V26,V27,V28,V29,V30,V31,V32,I.cmd
 
 §B
@@ -113,3 +113,4 @@ B13|2026-07-09|CSF requirement tests encoded semester total as 1 activity despit
 B14|2026-07-09|bulk organization seed mixed explicit non-null privacy field with omitted values → PostgREST null inserts|V2,V18
 B15|2026-07-09|async proof decorator inferred only added fields and erased submission row shape|V29
 B16|2026-07-09|closing the current term removed the selector and member UI mislabeled the closed membership as pending|V20,V25,V28
+B17|2026-07-09|scheduled announcement fixture omitted the new required publish time|V31,I.cmd
