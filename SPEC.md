@@ -89,7 +89,7 @@ T10|x|rewrite DV architecture/status/plugin development docs|V1,V3,V4,V5,V8,V9,V
 T11|x|secure CSF identity/public privacy + make plugin/migration reproducible|V17,V18,V26,V27,V30,I.manifest,I.schema
 T12|x|add CSF domain foundation, route-scoped services, workspace shell, policy evaluator|V19,V20,V25,V26,V28,V29,V32,I.schema,I.service,I.route
 T13|x|complete profiles, applications, onboarding, term membership review flow|V17,V19,V20,V24,V25,V26,V27,V32,I.service,I.route
-T14|.|complete canonical partner clubs, activities, single-proof submissions, awarded credits|V21,V23,V26,V27,V28,V32,I.schema,I.service,I.route
+T14|x|complete canonical partner clubs, activities, single-proof submissions, awarded credits|V21,V23,V26,V27,V28,V32,I.schema,I.service,I.route
 T15|.|complete meeting sessions, attendance reconciliation, points grid, appeals, term close|V20,V22,V24,V25,V26,V28,V32,I.schema,I.service,I.route
 T16|.|add communications workspace + safe plugin-backed public CSF surface|V18,V26,V30,V31,V32,I.manifest,I.route
 T17|.|import legacy CSF data, compatibility exports, security/integration/E2E coverage|V17,V18,V19,V20,V21,V22,V23,V24,V25,V26,V27,V28,V29,V30,V31,V32,I.cmd
@@ -111,3 +111,4 @@ B11|2026-06-21|Playwright 1.61 had no matching local Chromium binary|install pin
 B12|2026-06-21|Next.js 16 treated synchronous service helpers as invalid Server Actions|reserve `use server` for action entrypoints, not service libraries
 B13|2026-07-09|CSF requirement tests encoded semester total as 1 activity despite per-activity cap|V20,V28
 B14|2026-07-09|bulk organization seed mixed explicit non-null privacy field with omitted values → PostgREST null inserts|V2,V18
+B15|2026-07-09|async proof decorator inferred only added fields and erased submission row shape|V29
