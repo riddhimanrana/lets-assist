@@ -12,6 +12,7 @@ import { resolveOrganizationPluginBehaviorHook } from "@/lib/plugins/resolve-plu
 import { resolveOrganizationPluginSurfaces } from "@/lib/plugins/resolve-plugin-surfaces";
 import {
   hasOrganizationPluginAccess,
+  resolveOrganizationPluginExperiences,
   resolveOrganizationPlugins,
 } from "@/lib/plugins/resolve-org-plugins";
 import {
@@ -211,9 +212,30 @@ export default async function OrganizationPage({
     userRole = memberRecord?.role || null;
   }
 
+  const [pluginExperience] = await resolveOrganizationPluginExperiences([
+    organization.id,
+  ]);
+  const organizationExperience = pluginExperience?.experience ?? null;
+
+  if (!userRole && organizationExperience?.publicPage === "private") {
+    notFound();
+  }
+
+  if (!userRole && organizationExperience?.publicPage === "plugin") {
+    const organizationSlug = organization.username ?? organization.id;
+    const routeSuffix = organizationExperience.publicRoute
+      ? `/${organizationExperience.publicRoute}`
+      : "";
+    redirect(
+      `/organization/${organizationSlug}/plugins/${pluginExperience.pluginKey}${routeSuffix}`,
+    );
+  }
+
   // Check if members should be visible
   // Members are visible if: show_members_publicly is true OR user is a member
-  const canViewMembers = organization.show_members_publicly !== false || !!userRole;
+  const canViewMembers =
+    organizationExperience?.members !== "hidden" &&
+    (organization.show_members_publicly !== false || !!userRole);
 
   console.log("Fetching members for organization ID:", organization.id);
 
@@ -287,11 +309,13 @@ export default async function OrganizationPage({
   }
 
   // Get organization projects
-  const { data: projects } = await readClient
-    .from("projects")
-    .select("*")
-    .eq("organization_id", organization.id)
-    .order("created_at", { ascending: false });
+  const { data: projects } = organizationExperience?.projects === "hidden"
+    ? { data: [] }
+    : await readClient
+        .from("projects")
+        .select("*")
+        .eq("organization_id", organization.id)
+        .order("created_at", { ascending: false });
 
   let reportSummary: { totalHours: number } | null = null;
 
