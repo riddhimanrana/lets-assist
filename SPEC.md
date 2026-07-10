@@ -88,7 +88,7 @@ T9|x|add unit, DB/RLS, integration, Playwright coverage|V1,V2,V3,V4,V5,V6,V7,V8,
 T10|x|rewrite DV architecture/status/plugin development docs|V1,V3,V4,V5,V8,V9,V10,V11,V12
 T11|x|secure CSF identity/public privacy + make plugin/migration reproducible|V17,V18,V26,V27,V30,I.manifest,I.schema
 T12|x|add CSF domain foundation, route-scoped services, workspace shell, policy evaluator|V19,V20,V25,V26,V28,V29,V32,I.schema,I.service,I.route
-T13|.|complete profiles, applications, onboarding, term membership review flow|V17,V19,V20,V24,V25,V26,V27,V32,I.service,I.route
+T13|x|complete profiles, applications, onboarding, term membership review flow|V17,V19,V20,V24,V25,V26,V27,V32,I.service,I.route
 T14|.|complete canonical partner clubs, activities, single-proof submissions, awarded credits|V21,V23,V26,V27,V28,V32,I.schema,I.service,I.route
 T15|.|complete meeting sessions, attendance reconciliation, points grid, appeals, term close|V20,V22,V24,V25,V26,V28,V32,I.schema,I.service,I.route
 T16|.|add communications workspace + safe plugin-backed public CSF surface|V18,V26,V30,V31,V32,I.manifest,I.route
