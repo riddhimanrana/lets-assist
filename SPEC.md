@@ -87,7 +87,7 @@ T8|x|upgrade compatible stack + shadcn diff review|V16
 T9|x|add unit, DB/RLS, integration, Playwright coverage|V1,V2,V3,V4,V5,V6,V7,V8,V9,V10,V11,V12,V13,V14,V15,I.cmd
 T10|x|rewrite DV architecture/status/plugin development docs|V1,V3,V4,V5,V8,V9,V10,V11,V12
 T11|x|secure CSF identity/public privacy + make plugin/migration reproducible|V17,V18,V26,V27,V30,I.manifest,I.schema
-T12|.|add CSF domain foundation, route-scoped services, workspace shell, policy evaluator|V19,V20,V25,V26,V28,V29,V32,I.schema,I.service,I.route
+T12|x|add CSF domain foundation, route-scoped services, workspace shell, policy evaluator|V19,V20,V25,V26,V28,V29,V32,I.schema,I.service,I.route
 T13|.|complete profiles, applications, onboarding, term membership review flow|V17,V19,V20,V24,V25,V26,V27,V32,I.service,I.route
 T14|.|complete canonical partner clubs, activities, single-proof submissions, awarded credits|V21,V23,V26,V27,V28,V32,I.schema,I.service,I.route
 T15|.|complete meeting sessions, attendance reconciliation, points grid, appeals, term close|V20,V22,V24,V25,V26,V28,V32,I.schema,I.service,I.route
@@ -109,3 +109,5 @@ B9|2026-06-21|Supabase client upgrade caused recursive generic query inference i
 B10|2026-06-21|React/TypeScript patch upgrade exposed optional waiver placement IDs|fall back to stable field key during placement normalization
 B11|2026-06-21|Playwright 1.61 had no matching local Chromium binary|install pinned Chromium before browser verification
 B12|2026-06-21|Next.js 16 treated synchronous service helpers as invalid Server Actions|reserve `use server` for action entrypoints, not service libraries
+B13|2026-07-09|CSF requirement tests encoded semester total as 1 activity despite per-activity cap|V20,V28
+B14|2026-07-09|bulk organization seed mixed explicit non-null privacy field with omitted values → PostgREST null inserts|V2,V18
