@@ -92,7 +92,7 @@ T13|x|complete profiles, applications, onboarding, term membership review flow|V
 T14|x|complete canonical partner clubs, activities, single-proof submissions, awarded credits|V21,V23,V26,V27,V28,V32,I.schema,I.service,I.route
 T15|x|complete meeting sessions, attendance reconciliation, points grid, appeals, term close|V20,V22,V24,V25,V26,V28,V32,I.schema,I.service,I.route
 T16|x|add communications workspace + safe plugin-backed public CSF surface|V18,V26,V30,V31,V32,I.manifest,I.route
-T17|.|import legacy CSF data, compatibility exports, security/integration/E2E coverage|V17,V18,V19,V20,V21,V22,V23,V24,V25,V26,V27,V28,V29,V30,V31,V32,I.cmd
+T17|x|import legacy CSF data, compatibility exports, security/integration/E2E coverage|V17,V18,V19,V20,V21,V22,V23,V24,V25,V26,V27,V28,V29,V30,V31,V32,I.cmd
 
 §B
 
@@ -114,3 +114,8 @@ B14|2026-07-09|bulk organization seed mixed explicit non-null privacy field with
 B15|2026-07-09|async proof decorator inferred only added fields and erased submission row shape|V29
 B16|2026-07-09|closing the current term removed the selector and member UI mislabeled the closed membership as pending|V20,V25,V28
 B17|2026-07-09|scheduled announcement fixture omitted the new required publish time|V31,I.cmd
+B18|2026-07-09|legacy partner forms used duplicate email labels and a newer point-allocation question phrase|V23,V24,V31
+B19|2026-07-09|CSF workflow smoke test assumed organization `slug`; platform route key is `username`|V30,I.cmd
+B20|2026-07-09|CSF workflow smoke test used a draft membership FK name instead of `application_id`|V19,I.cmd
+B21|2026-07-09|CSF workflow smoke test assumed generic term `status`; CSF uses `is_current` plus closure metadata|V20,V25,I.cmd
+B22|2026-07-09|legacy inspector exposed worksheet rows as `unknown` instead of the parser's supported cell union|V24,I.cmd

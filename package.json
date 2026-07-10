@@ -27,6 +27,8 @@
     "plugin:test:isolation": "bun scripts/local-dev/test-plugin-isolation-browser.ts",
     "plugin:test:registry": "bun scripts/local-dev/test-plugin-registry-gates.ts",
     "plugin:test:contracts": "bun scripts/local-dev/test-plugin-runtime-contracts.mjs",
+    "csf:test:workflows": "bun scripts/local-dev/test-dvhs-csf-workflows.mjs",
+    "csf:inspect:legacy": "bun scripts/local-dev/inspect-dvhs-csf-legacy-workbooks.ts",
     "plugin:submodules:init": "git submodule update --init --recursive",
     "plugin:submodules:check": "node scripts/check-private-submodules.mjs",
     "plugin:submodules:check:strict": "node scripts/check-private-submodules.mjs --strict",
