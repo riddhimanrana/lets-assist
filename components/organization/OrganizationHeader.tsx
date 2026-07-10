@@ -9,7 +9,7 @@ import JoinCodeDialog from "@/app/organization/[id]/JoinCodeDialog";
 import { useRouter } from "next/navigation";
 import type { Organization } from "@/types";
 import { toast } from "sonner";
-import { copyToClipboard, isMobileDevice } from "@/lib/utils";
+import { cn, copyToClipboard, isMobileDevice } from "@/lib/utils";
 import { formatOrganizationWebsiteDisplay } from "@/lib/organization/website";
 
 type OrganizationHeaderOrg = Organization & {
@@ -23,6 +23,7 @@ interface OrganizationHeaderProps {
   showMemberCount?: boolean;
   showInviteAction?: boolean;
   showProjectAction?: boolean;
+  compact?: boolean;
 }
 
 export default function OrganizationHeader({
@@ -32,6 +33,7 @@ export default function OrganizationHeader({
   showMemberCount = true,
   showInviteAction = true,
   showProjectAction = true,
+  compact = false,
 }: OrganizationHeaderProps) {
   const [showJoinCode, setShowJoinCode] = useState(false);
   const isAdmin = userRole === "admin";
@@ -87,11 +89,11 @@ export default function OrganizationHeader({
   const canCreateProjects = userRole === "admin" || userRole === "staff";
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-        <div className="flex flex-col items-center gap-4 md:flex-row md:items-start">
+    <div className={cn("flex w-full flex-col", compact ? "gap-4" : "gap-6")}>
+      <div className={cn("flex flex-col md:flex-row md:items-start md:justify-between", compact ? "gap-4" : "gap-6")}>
+        <div className={cn("flex flex-col items-center md:flex-row md:items-start", compact ? "gap-3" : "gap-4")}>
           <div className="relative shrink-0">
-            <Avatar className="h-20 w-20 rounded-full border-4 border-background shadow-sm md:h-24 md:w-24">
+            <Avatar className={cn("rounded-full border-4 border-background shadow-sm", compact ? "size-16 md:size-20" : "size-20 md:size-24")}>
               <AvatarImage src={organization.logo_url || undefined} alt={organization.name} />
               <AvatarFallback className="bg-primary/10 text-xl rounded-full">
                 {getMonogramFallback(organization.name)}
@@ -104,9 +106,9 @@ export default function OrganizationHeader({
             )}
           </div>
 
-          <div className="flex flex-col items-center text-center md:items-start md:text-left space-y-2">
+          <div className={cn("flex flex-col items-center text-center md:items-start md:text-left", compact ? "gap-1.5" : "gap-2")}>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+              <h1 className={cn("font-bold tracking-tight", compact ? "text-2xl" : "text-2xl md:text-3xl")}>
                 {organization.name}
               </h1>
               {organization.verified && (

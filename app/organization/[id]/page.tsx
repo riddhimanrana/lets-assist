@@ -25,6 +25,7 @@ import {
   getRemoteUserIdForLocalUser,
 } from "@/lib/supabase/preview-source";
 import { getServerPreviewSource } from "@/lib/supabase/preview-source.server";
+import { cn } from "@/lib/utils";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -229,6 +230,11 @@ export default async function OrganizationPage({
     redirect(
       `/organization/${organizationSlug}/plugins/${pluginExperience.pluginKey}${routeSuffix}`,
     );
+  }
+
+  if (userRole === "member" && organizationExperience?.publicPage === "plugin") {
+    const organizationSlug = organization.username ?? organization.id;
+    redirect(`/organization/${organizationSlug}/plugins/${pluginExperience.pluginKey}`);
   }
 
   // Check if members should be visible
@@ -456,9 +462,15 @@ export default async function OrganizationPage({
 
   return (
     <div className="flex flex-col w-full">
-      <div className="w-full absolute bg-linear-to-br from-primary/15 via-primary/5 to-background/0 min-h-72 before:content-[''] before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:to-background" />
+      <div className={cn(
+        "w-full absolute bg-linear-to-br from-primary/15 via-primary/5 to-background/0 before:content-[''] before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:to-background",
+        navOverrides.compactHeader ? "min-h-48" : "min-h-72",
+      )} />
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10">
+      <div className={cn(
+        "relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6",
+        navOverrides.compactHeader ? "pt-5 sm:pt-6" : "pt-6 sm:pt-10",
+      )}>
         {previewSource === "remote" && (
           <div className="mb-4 rounded-md border border-warning bg-warning/15 px-4 py-3 text-sm text-warning">
             Remote preview mode is active (read-only). Member and org data shown here comes from remote, but all edits still apply to local data.
@@ -471,9 +483,13 @@ export default async function OrganizationPage({
           showMemberCount={!navOverrides.hideMemberCount}
           showInviteAction={!navOverrides.hideInviteAction}
           showProjectAction={!navOverrides.hideProjectAction}
+          compact={navOverrides.compactHeader}
         />
 
-        <div className="mt-8 sm:mt-12 bg-card rounded-xl border border-border/60 shadow-xs p-4 sm:p-6 mb-8">
+        <div className={cn(
+          "bg-card rounded-xl border border-border/60 shadow-xs mb-8",
+          navOverrides.compactHeader ? "mt-5 p-3 sm:mt-6 sm:p-5" : "mt-8 p-4 sm:mt-12 sm:p-6",
+        )}>
           <OrganizationTabs
             organization={organizationForDisplay}
             members={formattedMembers}

@@ -89,7 +89,7 @@ try {
   const publicResponse = await fetch(`${appOrigin}/organization/dvhs-csf/plugins/dvhs-csf/public`);
   const html = await publicResponse.text();
   assert(publicResponse.ok, `CSF public route returned ${publicResponse.status}.`);
-  assert(html.includes("Privacy by design"), "CSF public route is missing its privacy boundary notice.");
+  assert(html.includes("Student records stay private"), "CSF public route is missing its privacy boundary notice.");
   for (const profile of profilesResult.data ?? []) {
     assert(!html.includes(`${profile.first_name} ${profile.last_name}`), `Public CSF route leaked ${profile.first_name} ${profile.last_name}.`);
   }
