@@ -224,6 +224,8 @@ export default function OrganizationTabs({
   const visiblePluginRouteTabs = pluginRouteTabs.filter((tab) =>
     hasRouteAccess(tab.minimumRole),
   );
+  const primaryPluginTabs = pluginTabs.filter((tab) => tab.navigationSection !== "more");
+  const morePluginTabs = pluginTabs.filter((tab) => tab.navigationSection === "more");
   const routeBackedTabs = new Map<string, string>();
   for (const tab of visiblePluginRouteTabs) {
     routeBackedTabs.set(tab.value, tab.href);
@@ -407,9 +409,9 @@ export default function OrganizationTabs({
             <span className="truncate">{getCoreLabel("reports", "Reports")}</span>
           </TabsTrigger>
         )}
-        {pluginTabs.map((pt) => {
+        {primaryPluginTabs.map((pt) => {
           return (
-            <TabsTrigger key={pt.value} value={pt.value} className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
+            <TabsTrigger key={pt.value} value={pt.value} className="min-w-max flex-none shrink-0 gap-2 px-3">
               {pt.icon}
               <span className="truncate">{pt.label}</span>
             </TabsTrigger>
@@ -424,6 +426,20 @@ export default function OrganizationTabs({
           );
         })}
       </TabsList>
+
+      {morePluginTabs.length > 0 ? (
+        <div className="-mt-3 mb-6 flex min-w-0 items-center gap-2">
+          <span className="shrink-0 px-1 text-xs font-medium text-muted-foreground">More tools</span>
+          <TabsList className="flex h-auto min-w-0 flex-1 items-center justify-start overflow-x-auto bg-transparent p-0 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {morePluginTabs.map((pt) => (
+              <TabsTrigger key={pt.value} value={pt.value} className="min-w-max flex-none shrink-0 gap-2 px-3">
+                {pt.icon}
+                <span className="truncate">{pt.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+      ) : null}
 
       {!pluginNavigationOverrides.hideOverviewTab && !isCoreReplaced("overview") && (
         <TabsContent value="overview" className="space-y-6">

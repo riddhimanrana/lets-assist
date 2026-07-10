@@ -20,12 +20,18 @@ interface OrganizationHeaderProps {
   organization: OrganizationHeaderOrg;
   userRole: string | null;
   memberCount: number;
+  showMemberCount?: boolean;
+  showInviteAction?: boolean;
+  showProjectAction?: boolean;
 }
 
 export default function OrganizationHeader({
   organization,
   userRole,
   memberCount,
+  showMemberCount = true,
+  showInviteAction = true,
+  showProjectAction = true,
 }: OrganizationHeaderProps) {
   const [showJoinCode, setShowJoinCode] = useState(false);
   const isAdmin = userRole === "admin";
@@ -152,10 +158,12 @@ export default function OrganizationHeader({
                 </a>
               )}
 
-              <div className="flex items-center gap-1">
-                <UsersIcon className="h-3.5 w-3.5" />
-                <span>{memberCount} {memberCount === 1 ? 'Member' : 'Members'}</span>
-              </div>
+              {showMemberCount ? (
+                <div className="flex items-center gap-1">
+                  <UsersIcon className="h-3.5 w-3.5" />
+                  <span>{memberCount} {memberCount === 1 ? 'Member' : 'Members'}</span>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -171,7 +179,7 @@ export default function OrganizationHeader({
             Share
           </Button>
 
-          {isAdmin && (
+          {isAdmin && showInviteAction && (
             <Button
               variant="default"
               size="sm"
@@ -200,7 +208,7 @@ export default function OrganizationHeader({
             </Button>
           )}
 
-          {canCreateProjects && (
+          {canCreateProjects && showProjectAction && (
             <Button
               onClick={handleCreateProject}
               size="sm"
