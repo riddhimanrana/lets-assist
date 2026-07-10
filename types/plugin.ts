@@ -312,6 +312,15 @@ export interface OrganizationPluginConfigProperty {
   properties?: Record<string, OrganizationPluginConfigProperty>;
 }
 
+export interface OrganizationPluginExperience {
+  publicPage: "core" | "plugin" | "private";
+  publicRoute?: string;
+  members: "public" | "hidden";
+  projects: "public" | "hidden";
+  profileMembership: "public" | "hidden";
+  joinMode: "open" | "request" | "plugin" | "disabled";
+}
+
 export interface OrganizationPluginManifest {
   key: string;
   name: string;
@@ -324,6 +333,7 @@ export interface OrganizationPluginManifest {
   minimumRole?: OrganizationPluginAccessRole;
   navLabel?: string;
   organizationPageChrome?: "default" | "workspace";
+  organizationExperience?: OrganizationPluginExperience;
   surfaceAccess?: OrganizationPluginSurfaceAccessPolicy;
   behaviorAccess?: OrganizationPluginBehaviorAccessPolicy;
   /**

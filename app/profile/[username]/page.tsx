@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { isTrustedForDisplay } from "@/utils/trust";
 import { stripHtml } from "@/lib/utils";
 import OrganizationCard from "@/app/organization/OrganizationCard";
+import { resolveOrganizationPluginExperiences } from "@/lib/plugins/resolve-org-plugins";
 import { ProfileActions } from "./ProfileActions";
 
 interface Profile {
@@ -294,8 +295,30 @@ export default async function ProfilePage(
     return `${m}m`;
   }
 
+  const organizationIds = (userOrganizations ?? []).flatMap((item) => {
+    const organizations = Array.isArray(item.organizations)
+      ? item.organizations
+      : [item.organizations];
+    return organizations
+      .map((organization) => organization?.id)
+      .filter((organizationId): organizationId is string => Boolean(organizationId));
+  });
+  const hiddenMembershipOrganizationIds = isOwner
+    ? new Set<string>()
+    : new Set(
+        (await resolveOrganizationPluginExperiences(organizationIds))
+          .filter(({ experience }) => experience.profileMembership === "hidden")
+          .map(({ organizationId }) => organizationId),
+      );
+  const visibleUserOrganizations = (userOrganizations ?? []).filter((item) => {
+    const organization = Array.isArray(item.organizations)
+      ? item.organizations[0]
+      : item.organizations;
+    return !organization || !hiddenMembershipOrganizationIds.has(organization.id);
+  });
+
   const formattedOrganizations: OrganizationMembership[] =
-    (userOrganizations || []).map((item) => ({
+    visibleUserOrganizations.map((item) => ({
       role: item.role,
       organizations: item.organizations,
     }));

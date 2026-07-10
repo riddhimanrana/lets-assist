@@ -7,6 +7,7 @@ import {
 } from "@/lib/plugins/versioning";
 import type {
   OrganizationPluginAccessRole,
+  OrganizationPluginExperience,
   ResolvedOrganizationPlugin,
 } from "@/types";
 
@@ -47,6 +48,19 @@ type PluginAccessRow = {
   is_accessible: boolean;
 };
 
+type PluginExperienceAccessRow = {
+  organization_id: string;
+  plugin_key: string;
+  enabled: boolean;
+  is_accessible?: boolean;
+};
+
+export interface ResolvedOrganizationPluginExperience {
+  organizationId: string;
+  pluginKey: string;
+  experience: OrganizationPluginExperience;
+}
+
 type SupabaseLikeError = {
   code?: string;
   message?: string;
@@ -79,6 +93,59 @@ export function isEntitlementActive(
   if (endsAt && endsAt < now) return false;
 
   return true;
+}
+
+export async function resolveOrganizationPluginExperiences(
+  organizationIds: string[],
+): Promise<ResolvedOrganizationPluginExperience[]> {
+  const uniqueOrganizationIds = Array.from(new Set(organizationIds.filter(Boolean)));
+  if (uniqueOrganizationIds.length === 0) return [];
+
+  let supabase;
+  try {
+    supabase = getAdminClient();
+  } catch {
+    supabase = await createClient();
+  }
+
+  const unifiedAccessResult = await supabase
+    .from("organization_plugin_access")
+    .select("organization_id, plugin_key, enabled, is_accessible")
+    .in("organization_id", uniqueOrganizationIds)
+    .eq("enabled", true);
+
+  let accessRows: PluginExperienceAccessRow[] = [];
+  if (!unifiedAccessResult.error) {
+    accessRows = (unifiedAccessResult.data ?? []) as PluginExperienceAccessRow[];
+  } else if (isMissingPluginTableError(unifiedAccessResult.error)) {
+    const installResult = await supabase
+      .from("organization_plugin_installs")
+      .select("organization_id, plugin_key, enabled")
+      .in("organization_id", uniqueOrganizationIds)
+      .eq("enabled", true);
+
+    if (installResult.error) {
+      if (isMissingPluginTableError(installResult.error)) return [];
+      throw new Error(`Failed to load plugin experiences: ${installResult.error.message}`);
+    }
+
+    accessRows = (installResult.data ?? []) as PluginExperienceAccessRow[];
+  } else {
+    throw new Error(`Failed to load plugin experiences: ${unifiedAccessResult.error.message}`);
+  }
+
+  return accessRows
+    .filter((row) => row.enabled && row.is_accessible !== false)
+    .flatMap((row) => {
+      const experience = getRegisteredPlugin(row.plugin_key)?.manifest.organizationExperience;
+      if (!experience) return [];
+      return [{
+        organizationId: row.organization_id,
+        pluginKey: row.plugin_key,
+        experience,
+      }];
+    })
+    .sort((left, right) => left.pluginKey.localeCompare(right.pluginKey));
 }
 
 function isMissingPluginTableError(error: SupabaseLikeError | null): boolean {

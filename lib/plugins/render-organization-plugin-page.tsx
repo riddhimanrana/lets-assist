@@ -138,16 +138,18 @@ export async function renderOrganizationPluginPage(options: {
   let declaredRoute = findPluginRoute(definition.manifest.routes, routePath);
   const isPublicManifestRoute = declaredRoute?.minimumRole === "public";
 
-  if (!user) {
+  if (!user && !isPublicManifestRoute) {
     redirect(`/login?redirect=${encodeURIComponent(targetPath)}`);
   }
 
-  const { data: membership } = (await supabase
-    .from("organization_members")
-    .select("role")
-    .eq("organization_id", organization.id)
-    .eq("user_id", user.id)
-    .single()) as { data: MembershipRow | null };
+  const { data: membership } = user
+    ? ((await supabase
+        .from("organization_members")
+        .select("role")
+        .eq("organization_id", organization.id)
+        .eq("user_id", user.id)
+        .maybeSingle()) as { data: MembershipRow | null })
+    : { data: null };
 
   const userRole = toRole(membership?.role ?? null);
   if (!userRole && !isPublicManifestRoute) {
