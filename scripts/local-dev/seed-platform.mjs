@@ -957,6 +957,25 @@ async function main() {
   );
 
   await must(
+    "csf-term-policies",
+    pluginDb.from("csf_term_policies").upsert(
+      [IDS.csfTermF25, IDS.csfTermS26].map((termId) => ({
+        organization_id: IDS.csfOrg,
+        term_id: termId,
+        policy_version: 1,
+        total_points_required: 7,
+        max_drive_points: 2,
+        max_points_per_activity: 3,
+        required_meetings: 0,
+        allowed_absences: 1,
+        allow_point_carryover: false,
+        updated_by: users.csfOfficer.id,
+      })),
+      { onConflict: "organization_id,term_id" },
+    ),
+  );
+
+  await must(
     "csf-expanded-cohorts",
     pluginDb.from("csf_cohorts").upsert(
       [
@@ -1195,7 +1214,7 @@ async function main() {
     ]),
   );
 
-  await must(
+  const seededApplications = await must(
     "csf-expanded-applications",
     pluginDb.from("csf_term_applications").upsert(
       [
@@ -1279,6 +1298,26 @@ async function main() {
         },
       ],
       { onConflict: "profile_id,term_id" },
+    ).select("id, profile_id, cohort_id, term_id, status, reviewed_at"),
+  );
+
+  await must(
+    "csf-term-memberships",
+    pluginDb.from("csf_term_memberships").upsert(
+      seededApplications
+        .filter((application) => application.status === "accepted")
+        .map((application) => ({
+          organization_id: IDS.csfOrg,
+          profile_id: application.profile_id,
+          cohort_id: application.cohort_id,
+          term_id: application.term_id,
+          application_id: application.id,
+          status: application.profile_id === IDS.csfProfileMember ? "active" : "accepted",
+          accepted_at: application.reviewed_at,
+          activated_at: application.profile_id === IDS.csfProfileMember ? application.reviewed_at : null,
+          status_reason: "Seeded from an accepted CSF application.",
+        })),
+      { onConflict: "organization_id,profile_id,term_id" },
     ),
   );
 
@@ -1744,6 +1783,35 @@ async function main() {
   );
 
   await must(
+    "csf-partner-club-aliases",
+    pluginDb.from("csf_partner_club_aliases").upsert(
+      [
+        {
+          organization_id: IDS.csfOrg,
+          partner_club_id: IDS.csfPartnerClub,
+          alias: "Quail Run Elementary School",
+          normalized_alias: "quail run elementary school",
+          source: "legacy_import",
+          first_seen_term_id: IDS.csfTermS26,
+          last_seen_term_id: IDS.csfTermS26,
+          created_by: users.csfOfficer.id,
+        },
+        {
+          organization_id: IDS.csfOrg,
+          partner_club_id: IDS.csfPartnerLibrary,
+          alias: "DVHS Library",
+          normalized_alias: "dvhs library",
+          source: "staff",
+          first_seen_term_id: IDS.csfTermS26,
+          last_seen_term_id: IDS.csfTermS26,
+          created_by: users.csfOfficer.id,
+        },
+      ],
+      { onConflict: "organization_id,normalized_alias" },
+    ),
+  );
+
+  await must(
     "csf-expanded-partner-batch",
     pluginDb.from("csf_partner_submission_batches").upsert({
       id: IDS.csfPartnerBatch,
@@ -1758,6 +1826,42 @@ async function main() {
       submitted_by: users.csfOfficer.id,
       summary: { rows: 14, matched: 11, ambiguous: 2, rejected: 1 },
     }),
+  );
+
+  await must(
+    "csf-partner-club-terms",
+    pluginDb.from("csf_partner_club_terms").upsert(
+      [
+        {
+          organization_id: IDS.csfOrg,
+          partner_club_id: IDS.csfPartnerClub,
+          term_id: IDS.csfTermS26,
+          relationship_status: "returning",
+          workflow_status: "active",
+          approved_point_types: ["non_drive"],
+          non_drive_points: 3,
+          drive_points: 0,
+          policy_notes: "Imported participant sheets are reviewed by a CSF officer.",
+          reviewed_by: users.csfOfficer.id,
+          reviewed_at: "2026-01-20T12:00:00-08:00",
+        },
+        {
+          organization_id: IDS.csfOrg,
+          partner_club_id: IDS.csfPartnerLibrary,
+          term_id: IDS.csfTermS26,
+          relationship_status: "new",
+          workflow_status: "active",
+          approved_point_types: ["non_drive"],
+          non_drive_points: 3,
+          drive_points: 0,
+          source_batch_id: IDS.csfPartnerBatch,
+          policy_notes: "Use the weekly tutoring roster for verification.",
+          reviewed_by: users.csfOfficer.id,
+          reviewed_at: "2026-03-01T12:00:00-08:00",
+        },
+      ],
+      { onConflict: "organization_id,partner_club_id,term_id" },
+    ),
   );
 
   await must(
