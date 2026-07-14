@@ -1,4 +1,6 @@
-import {
+import "server-only";
+
+import type {
   OrganizationPluginDefinition,
   OrganizationPluginLifecycleContext,
   OrganizationPluginLifecycleHooks,
@@ -167,6 +169,22 @@ export async function runPluginConfigUpdate(
 }
 
 /**
+ * Run the version-update lifecycle for a plugin.
+ */
+export async function runPluginVersionUpdate(
+  plugin: OrganizationPluginDefinition,
+  context: Omit<OrganizationPluginLifecycleContext, "pluginKey"> & {
+    previousVersion: string;
+    newVersion: string;
+  },
+): Promise<{ success: boolean; error?: string }> {
+  return executeLifecycleHook(plugin, "onVersionUpdate", {
+    ...context,
+    pluginKey: plugin.manifest.key,
+  });
+}
+
+/**
  * Run the data delete lifecycle for a plugin.
  * Called when an org requests permanent deletion of all plugin data.
  * Used for GDPR compliance and clean org offboarding.
@@ -188,7 +206,7 @@ export async function runProjectCreate(
   plugin: OrganizationPluginDefinition,
   context: Omit<OrganizationPluginLifecycleContext, "pluginKey"> & {
     projectId: string;
-    pluginData?: Record<string, any>;
+    pluginData?: Record<string, unknown>;
   },
 ): Promise<{ success: boolean; error?: string }> {
   return executeLifecycleHook(plugin, "onProjectCreate", {
@@ -226,7 +244,7 @@ export async function runPluginOnSignup(
     signupId: string;
     userId?: string | null;
     anonymousId?: string | null;
-    formData?: Record<string, any> | null;
+    formData?: Record<string, unknown> | null;
   },
 ): Promise<{ success: boolean; error?: string }> {
   return executeLifecycleHook(plugin, "onSignup", {

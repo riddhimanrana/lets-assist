@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import AuthDialog from "./AuthDialog";
 import { Metadata } from "next";
@@ -31,7 +32,8 @@ export default async function JoinOrganizationPage({ searchParams }: Props): Pro
   const { data: { user } } = await supabase.auth.getUser();
 
   // Find organization by join code
-  const { data: organization } = (await supabase
+  const admin = getAdminClient();
+  const { data: organization } = (await admin
     .from("organizations")
     .select("id, name, username, logo_url")
     .eq("join_code", code)

@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  mapWithConcurrency,
+  readPositiveInteger,
+} from "@/lib/async/map-with-concurrency";
 import { getAdminClient } from "@/lib/supabase/admin";
 import {
   buildOrganizationReportRowsForSync,
   type ReportType,
-} from "@/app/organization/[id]/reports/actions";
+} from "@/lib/organization/report-service";
 import {
-  buildClearRange,
-  buildWriteRange,
-  clearSpreadsheetValues,
-  updateSpreadsheetValues,
+  replaceSpreadsheetReportValues,
 } from "@/services/google-sheets";
 import { getGoogleAccessTokenForSheetsForUser } from "@/services/calendar";
 
@@ -16,6 +17,11 @@ const WORKER_ENABLED = process.env.ORG_SHEET_SYNC_WORKER_ENABLED === "true";
 const WORKER_TOKEN = process.env.ORG_SHEET_SYNC_WORKER_SECRET_TOKEN;
 const CRON_SECRET = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
 const DEFAULT_TAB_NAME = "Member Hours";
+const SHEET_SYNC_CONCURRENCY = readPositiveInteger(
+  process.env.ORG_SHEET_SYNC_CONCURRENCY,
+  3,
+  10,
+);
 
 function isAuthorized(request: NextRequest) {
   const authHeader = request.headers.get("authorization") || "";
@@ -63,9 +69,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const syncPromises = (syncRows || [])
-    .filter((row) => isDue(row.last_synced_at, row.sync_interval_minutes || 1440))
-    .map(async (row) => {
+  const dueRows = (syncRows || []).filter((row) =>
+    isDue(row.last_synced_at, row.sync_interval_minutes || 1440),
+  );
+  const results = await mapWithConcurrency(
+    dueRows,
+    SHEET_SYNC_CONCURRENCY,
+    async (row) => {
       try {
         const accessToken = await getGoogleAccessTokenForSheetsForUser(
           row.created_by,
@@ -84,18 +94,24 @@ export async function POST(request: NextRequest) {
           return { organizationId: row.organization_id, success: false, error: rowsError || "Report error" };
         }
 
-        const range = buildWriteRange(row.tab_name || DEFAULT_TAB_NAME, row.range_a1, rows);
-        const clearRange = buildClearRange(row.tab_name || DEFAULT_TAB_NAME, row.range_a1, rows);
-        const cleared = await clearSpreadsheetValues(accessToken, row.sheet_id, clearRange);
+        const replacement = await replaceSpreadsheetReportValues(
+          accessToken,
+          row.sheet_id,
+          row.tab_name || DEFAULT_TAB_NAME,
+          row.range_a1,
+          rows,
+        );
 
-        if (!cleared) {
-          return { organizationId: row.organization_id, success: false, error: "Sheet clear failed" };
+        if (!replacement.success && replacement.stage === "write") {
+          return { organizationId: row.organization_id, success: false, error: "Sheet update failed" };
         }
 
-        const updated = await updateSpreadsheetValues(accessToken, row.sheet_id, range, rows);
-
-        if (!updated) {
-          return { organizationId: row.organization_id, success: false, error: "Sheet update failed" };
+        if (!replacement.success) {
+          return {
+            organizationId: row.organization_id,
+            success: false,
+            error: "Sheet updated, but stale values could not be cleared",
+          };
         }
 
         await supabase
@@ -111,9 +127,8 @@ export async function POST(request: NextRequest) {
           error: error instanceof Error ? error.message : "Unknown error",
         };
       }
-    });
-
-  const results = await Promise.all(syncPromises);
+    },
+  );
 
   return NextResponse.json({ processed: results.length, results }, { status: 200 });
 }

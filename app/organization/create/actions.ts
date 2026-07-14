@@ -4,9 +4,18 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { customAlphabet } from 'nanoid';
 import { hasSuperAdminMetadata } from "@/lib/auth/super-admin";
+import { getAdminClient } from "@/lib/supabase/admin";
 
 // Generate a random 6-digit code
 const generateJoinCode = customAlphabet('0123456789', 6);
+const MAX_JOIN_CODE_ATTEMPTS = 5;
+
+function isJoinCodeCollision(error: { code?: string; message?: string } | null): boolean {
+  return Boolean(
+    error?.code === "23505" &&
+      error.message?.includes("organizations_join_code_unique_idx"),
+  );
+}
 
 // Allowed image MIME types
 const ALLOWED_FILE_TYPES = [
@@ -29,32 +38,6 @@ type OrganizationCreationData = {
   createdBy: string;
   autoJoinDomain?: string;
 };
-
-/**
- * Check if a domain is available for auto-join (not used by another organization)
- */
-export async function checkDomainAvailability(domain: string): Promise<boolean> {
-  const supabase = await createClient();
-
-  if (!domain || domain.length < 3) {
-    return false;
-  }
-
-  const normalizedDomain = domain.toLowerCase().trim();
-
-  const { data, error } = await supabase
-    .from("organizations")
-    .select("id")
-    .eq("auto_join_domain", normalizedDomain)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Error checking domain:", error);
-    return false;
-  }
-
-  return !data;
-}
 
 /**
  * Check if an organization username is available
@@ -121,7 +104,8 @@ export async function createOrganization(data: OrganizationCreationData) {
 
   // Rate limiting: Check organizations created in the last 14 days
   const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
-  const { count: orgsCount, error: countError } = await supabase
+  const admin = getAdminClient();
+  const { count: orgsCount, error: countError } = await admin
     .from("organizations")
     .select("id", { count: "exact", head: true })
     .eq("created_by", user.id) // Assuming 'created_by' stores the user ID
@@ -146,41 +130,50 @@ export async function createOrganization(data: OrganizationCreationData) {
     return { error: "Username is already taken" };
   }
 
-  // If auto-join domain is provided, verify it's available
+  // New organizations are unverified. A platform review must happen before an
+  // organization can claim a domain that grants membership automatically.
   if (data.autoJoinDomain) {
-    const isDomainAvailable = await checkDomainAvailability(data.autoJoinDomain);
-    if (!isDomainAvailable) {
-      return { error: "This domain is already linked to another organization" };
-    }
+    return {
+      error: "Create the organization first, then complete Let's Assist verification before enabling automatic domain membership",
+    };
   }
-
-  // Generate a random join code
-  const joinCode = generateJoinCode();
 
   try {
     // 1. Insert the organization and retrieve its ID
-    const { data: organization, error: createError } = await supabase
-      .from("organizations")
-      .insert({
-        name: data.name,
-        username: data.username,
-        description: data.description || null,
-        website: data.website || null,
-        type: data.type,
-        join_code: joinCode,
-        logo_url: null,  // initially set to null
-        created_by: user.id,
-        auto_join_domain: data.autoJoinDomain || null
-      })
-      .select("id")
-      .single();
+    const insertOrganization = () =>
+      supabase
+        .from("organizations")
+        .insert({
+          name: data.name,
+          username: data.username,
+          description: data.description || null,
+          website: data.website || null,
+          type: data.type,
+          join_code: generateJoinCode(),
+          logo_url: null,
+          created_by: user.id,
+          auto_join_domain: null,
+        })
+        .select("id")
+        .single();
+
+    let createResult = await insertOrganization();
+    for (
+      let attempt = 1;
+      attempt < MAX_JOIN_CODE_ATTEMPTS && isJoinCodeCollision(createResult.error);
+      attempt += 1
+    ) {
+      createResult = await insertOrganization();
+    }
+
+    const { data: organization, error: createError } = createResult;
 
     if (createError || !organization) {
       throw createError || new Error("Failed to create organization");
     }
 
     // 2. Add the creator as an admin
-    const { error: memberError } = await supabase
+    const { error: memberError } = await admin
       .from("organization_members")
       .insert({
         organization_id: organization.id,
@@ -189,6 +182,16 @@ export async function createOrganization(data: OrganizationCreationData) {
       });
 
     if (memberError) {
+      const { error: cleanupError } = await admin
+        .from("organizations")
+        .delete()
+        .eq("id", organization.id);
+      if (cleanupError) {
+        console.error(
+          "Failed to compensate organization creation after membership failure:",
+          cleanupError,
+        );
+      }
       throw memberError;
     }
 
@@ -302,16 +305,27 @@ export async function regenerateJoinCode(organizationId: string) {
     return { error: "Only admins can regenerate join codes" };
   }
 
-  // Generate a new join code
-  const newJoinCode = generateJoinCode();
+  // Update the organization with a unique new code. Collisions are rare but
+  // must not turn an otherwise valid rotation into an ambiguous capability.
+  const admin = getAdminClient();
+  const rotateJoinCode = () =>
+    admin
+      .from("organizations")
+      .update({ join_code: generateJoinCode() })
+      .eq("id", organizationId)
+      .select("join_code")
+      .single();
 
-  // Update the organization with the new code
-  const { data, error } = await supabase
-    .from("organizations")
-    .update({ join_code: newJoinCode })
-    .eq("id", organizationId)
-    .select("join_code")
-    .single();
+  let rotateResult = await rotateJoinCode();
+  for (
+    let attempt = 1;
+    attempt < MAX_JOIN_CODE_ATTEMPTS && isJoinCodeCollision(rotateResult.error);
+    attempt += 1
+  ) {
+    rotateResult = await rotateJoinCode();
+  }
+
+  const { data, error } = rotateResult;
 
   if (error || !data) {
     console.error("Error regenerating join code:", error);
@@ -319,4 +333,29 @@ export async function regenerateJoinCode(organizationId: string) {
   }
 
   return { success: true, joinCode: data.join_code };
+}
+
+export async function getOrganizationJoinCode(organizationId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in" };
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("organization_id", organizationId)
+    .eq("user_id", user.id)
+    .in("role", ["admin", "staff"])
+    .maybeSingle();
+  if (!membership) return { error: "You cannot view this join code" };
+
+  const admin = getAdminClient();
+  const { data: organization, error } = await admin
+    .from("organizations")
+    .select("join_code")
+    .eq("id", organizationId)
+    .maybeSingle();
+  if (error || !organization) return { error: "Unable to load join code" };
+
+  return { joinCode: organization.join_code };
 }

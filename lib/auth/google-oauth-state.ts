@@ -1,0 +1,252 @@
+import {
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
+
+export const GOOGLE_OAUTH_STATE_COOKIE_NAME = "lets_assist_google_oauth_state";
+export const GOOGLE_OAUTH_STATE_TTL_SECONDS = 5 * 60;
+
+const GOOGLE_OAUTH_STATE_VERSION = 1;
+const SAFE_REDIRECT_ORIGIN = "https://lets-assist.invalid";
+const MINIMUM_STATE_SECRET_LENGTH = 32;
+
+export type GoogleOAuthStatePayload = {
+  version: typeof GOOGLE_OAUTH_STATE_VERSION;
+  userId: string;
+  nonce: string;
+  issuedAt: number;
+  expiresAt: number;
+  returnTo: string | null;
+  orgId: string | null;
+  isCalendarSync: boolean;
+  isSheetsSync: boolean;
+};
+
+type CreateGoogleOAuthStateInput = {
+  userId: string;
+  returnTo?: string | null;
+  orgId?: string | null;
+  isCalendarSync?: boolean;
+  isSheetsSync?: boolean;
+};
+
+type VerifyGoogleOAuthStateInput = {
+  state: string | null | undefined;
+  cookieNonce: string | null | undefined;
+  currentUserId: string | null | undefined;
+  now?: number;
+  secret?: string;
+};
+
+type GoogleOAuthStateVerification =
+  | { ok: true; payload: GoogleOAuthStatePayload }
+  | {
+      ok: false;
+      reason:
+        | "missing_state"
+        | "missing_cookie"
+        | "missing_user"
+        | "invalid_state"
+        | "expired_state"
+        | "nonce_mismatch"
+        | "user_mismatch";
+    };
+
+function getGoogleOAuthStateSecret(): string {
+  const secret =
+    process.env.GOOGLE_OAUTH_STATE_SECRET ?? process.env.ENCRYPTION_KEY;
+
+  if (!secret || secret.length < MINIMUM_STATE_SECRET_LENGTH) {
+    throw new Error(
+      "GOOGLE_OAUTH_STATE_SECRET or ENCRYPTION_KEY must be at least 32 characters long",
+    );
+  }
+
+  return secret;
+}
+
+function signPayload(encodedPayload: string, secret: string): string {
+  return createHmac("sha256", secret)
+    .update(`google-oauth-state:v${GOOGLE_OAUTH_STATE_VERSION}:${encodedPayload}`)
+    .digest("base64url");
+}
+
+function safelyEqual(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  return (
+    leftBuffer.length === rightBuffer.length &&
+    timingSafeEqual(leftBuffer, rightBuffer)
+  );
+}
+
+function hasControlCharacter(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint <= 31 || codePoint === 127;
+  });
+}
+
+export function normalizeGoogleOAuthReturnTo(
+  returnTo: string | null | undefined,
+): string | null {
+  if (
+    !returnTo ||
+    returnTo.trim() !== returnTo ||
+    !returnTo.startsWith("/") ||
+    returnTo.startsWith("//") ||
+    returnTo.includes("\\") ||
+    hasControlCharacter(returnTo)
+  ) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(returnTo, SAFE_REDIRECT_ORIGIN);
+    if (parsed.origin !== SAFE_REDIRECT_ORIGIN) {
+      return null;
+    }
+
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return null;
+  }
+}
+
+function isGoogleOAuthStatePayload(
+  value: unknown,
+): value is GoogleOAuthStatePayload {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const payload = value as Partial<GoogleOAuthStatePayload>;
+  return (
+    payload.version === GOOGLE_OAUTH_STATE_VERSION &&
+    typeof payload.userId === "string" &&
+    payload.userId.length > 0 &&
+    typeof payload.nonce === "string" &&
+    payload.nonce.length >= 32 &&
+    typeof payload.issuedAt === "number" &&
+    Number.isSafeInteger(payload.issuedAt) &&
+    typeof payload.expiresAt === "number" &&
+    Number.isSafeInteger(payload.expiresAt) &&
+    (payload.returnTo === null || typeof payload.returnTo === "string") &&
+    (payload.orgId === null || typeof payload.orgId === "string") &&
+    typeof payload.isCalendarSync === "boolean" &&
+    typeof payload.isSheetsSync === "boolean"
+  );
+}
+
+export function createGoogleOAuthState(
+  input: CreateGoogleOAuthStateInput,
+  options: { now?: number; secret?: string; nonce?: string } = {},
+): { state: string; nonce: string; payload: GoogleOAuthStatePayload } {
+  const now = options.now ?? Date.now();
+  const nonce = options.nonce ?? randomBytes(32).toString("base64url");
+  const secret = options.secret ?? getGoogleOAuthStateSecret();
+
+  const payload: GoogleOAuthStatePayload = {
+    version: GOOGLE_OAUTH_STATE_VERSION,
+    userId: input.userId,
+    nonce,
+    issuedAt: now,
+    expiresAt: now + GOOGLE_OAUTH_STATE_TTL_SECONDS * 1000,
+    returnTo: normalizeGoogleOAuthReturnTo(input.returnTo),
+    orgId: input.orgId?.trim() || null,
+    isCalendarSync: input.isCalendarSync === true,
+    isSheetsSync: input.isSheetsSync === true,
+  };
+
+  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString(
+    "base64url",
+  );
+  const signature = signPayload(encodedPayload, secret);
+
+  return {
+    state: `${encodedPayload}.${signature}`,
+    nonce,
+    payload,
+  };
+}
+
+export function verifyGoogleOAuthState(
+  input: VerifyGoogleOAuthStateInput,
+): GoogleOAuthStateVerification {
+  if (!input.state) {
+    return { ok: false, reason: "missing_state" };
+  }
+
+  if (!input.cookieNonce) {
+    return { ok: false, reason: "missing_cookie" };
+  }
+
+  if (!input.currentUserId) {
+    return { ok: false, reason: "missing_user" };
+  }
+
+  const parts = input.state.split(".");
+  if (parts.length !== 2) {
+    return { ok: false, reason: "invalid_state" };
+  }
+
+  const [encodedPayload, suppliedSignature] = parts;
+
+  try {
+    const secret = input.secret ?? getGoogleOAuthStateSecret();
+    const expectedSignature = signPayload(encodedPayload, secret);
+
+    if (!safelyEqual(suppliedSignature, expectedSignature)) {
+      return { ok: false, reason: "invalid_state" };
+    }
+
+    const parsedPayload = JSON.parse(
+      Buffer.from(encodedPayload, "base64url").toString("utf8"),
+    ) as unknown;
+
+    if (!isGoogleOAuthStatePayload(parsedPayload)) {
+      return { ok: false, reason: "invalid_state" };
+    }
+
+    const now = input.now ?? Date.now();
+    if (
+      parsedPayload.issuedAt > now + 30_000 ||
+      parsedPayload.expiresAt <= now ||
+      parsedPayload.expiresAt - parsedPayload.issuedAt !==
+        GOOGLE_OAUTH_STATE_TTL_SECONDS * 1000
+    ) {
+      return { ok: false, reason: "expired_state" };
+    }
+
+    if (!safelyEqual(parsedPayload.nonce, input.cookieNonce)) {
+      return { ok: false, reason: "nonce_mismatch" };
+    }
+
+    if (!safelyEqual(parsedPayload.userId, input.currentUserId)) {
+      return { ok: false, reason: "user_mismatch" };
+    }
+
+    if (
+      parsedPayload.returnTo !==
+      normalizeGoogleOAuthReturnTo(parsedPayload.returnTo)
+    ) {
+      return { ok: false, reason: "invalid_state" };
+    }
+
+    return { ok: true, payload: parsedPayload };
+  } catch {
+    return { ok: false, reason: "invalid_state" };
+  }
+}
+
+export function getGoogleOAuthStateCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/api/calendar/google/callback",
+    maxAge: GOOGLE_OAUTH_STATE_TTL_SECONDS,
+  };
+}

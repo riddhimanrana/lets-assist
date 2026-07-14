@@ -4,7 +4,8 @@ import { chromium } from "playwright";
 import { getLocalSupabaseEnv } from "./dv-local-env.mjs";
 
 const PORT = Number(process.env.PLUGIN_ISOLATION_TEST_PORT ?? 3110);
-const BASE_URL = `http://127.0.0.1:${PORT}`;
+const EXTERNAL_BASE_URL = process.env.PLUGIN_ISOLATION_TEST_BASE_URL?.trim().replace(/\/$/, "");
+const BASE_URL = EXTERNAL_BASE_URL || `http://127.0.0.1:${PORT}`;
 const LOGIN_EMAIL = process.env.PLUGIN_ISOLATION_TEST_EMAIL ?? "riddhiman.rana@gmail.com";
 const LOGIN_PASSWORD = process.env.DV_LOCAL_TEST_PASSWORD ?? "robo6737";
 
@@ -94,7 +95,7 @@ async function assertAnonymousPluginDataBlocked() {
   console.log(`Anonymous plugin_data REST access blocked with status ${response.status}.`);
 }
 
-async function assertDvPluginDisabledInBrowser() {
+async function assertDvPluginIsolatedInBrowser() {
   const browser = await chromium.launch();
   const page = await browser.newPage({ baseURL: BASE_URL });
 
@@ -114,12 +115,12 @@ async function assertDvPluginDisabledInBrowser() {
     await page.waitForURL(/\/organization\/dv-speech-debate\/plugins\/dv-speech-debate/, {
       timeout: 10_000,
     });
-    await page.getByRole("heading", { name: "Page Not Found" }).waitFor({
+    await page.getByRole("heading", { name: /DV Speech & Debate/i }).first().waitFor({
       state: "visible",
       timeout: 10_000,
     });
 
-    console.log("DV plugin route returns 404 after login when plugin registry gate is disabled.");
+    console.log("DV plugin renders through its authenticated server-only workspace.");
   } finally {
     await browser.close();
   }
@@ -129,9 +130,15 @@ async function main() {
   let server: ReturnType<typeof spawn> | null = null;
 
   try {
-    server = await startServer();
+    if (EXTERNAL_BASE_URL) {
+      if (!(await canReach(BASE_URL))) {
+        throw new Error(`Configured app server is not reachable at ${BASE_URL}.`);
+      }
+    } else {
+      server = await startServer();
+    }
     await assertAnonymousPluginDataBlocked();
-    await assertDvPluginDisabledInBrowser();
+    await assertDvPluginIsolatedInBrowser();
     console.log("Plugin isolation browser/API smoke passed.");
   } finally {
     await stopServer(server);

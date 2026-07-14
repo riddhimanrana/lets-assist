@@ -1,7 +1,12 @@
 #!/usr/bin/env bun
 
 import { createClient } from "@supabase/supabase-js";
+import { mock } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { getLocalSupabaseEnv } from "./dv-local-env.mjs";
+
+// Registry definitions are server-only, while this audit runs in plain Bun.
+mock.module("server-only", () => ({}));
 
 const { url, serviceRoleKey } = getLocalSupabaseEnv();
 
@@ -109,6 +114,65 @@ for (const row of contractRows ?? []) {
     ) {
       contractFailures.push(`${row.plugin_key}: ${schema}.${relation} handles personal/sensitive data without tenantColumn`);
     }
+  }
+}
+
+const dvContract = (contractRows ?? []).find(
+  (row) => row.plugin_key === "dv-speech-debate",
+);
+if (dvContract) {
+  const dbUrl =
+    process.env.SUPABASE_DB_URL ??
+    "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+  const actualDvRelations = execFileSync(
+    "psql",
+    [
+      dbUrl,
+      "-Atc",
+      "select table_name from information_schema.tables where table_schema = 'plugin_data' and table_type = 'BASE TABLE' and table_name like 'dv_sd_%' order by table_name",
+    ],
+    { encoding: "utf8" },
+  )
+    .trim()
+    .split(/\r?\n/u)
+    .filter(Boolean);
+  const declarations = Array.isArray(dvContract.data_access)
+    ? dvContract.data_access
+    : [];
+  const declaredByRelation = new Map(
+    declarations
+      .filter(
+        (declaration) =>
+          declaration &&
+          typeof declaration === "object" &&
+          !Array.isArray(declaration) &&
+          declaration.schema === "plugin_data" &&
+          typeof declaration.relation === "string",
+      )
+      .map((declaration) => [declaration.relation, declaration]),
+  );
+  const requiredRelations = [
+    ...actualDvRelations,
+    "org_form_definitions",
+    "org_form_submissions",
+    "org_member_profiles",
+    "org_seasons",
+  ];
+  const missingRelations = requiredRelations.filter(
+    (relation) => !declaredByRelation.has(relation),
+  );
+  if (missingRelations.length > 0) {
+    contractFailures.push(
+      `dv-speech-debate: runtime contract omits plugin_data relations: ${missingRelations.join(", ")}`,
+    );
+  }
+  const nonServerOnly = [...declaredByRelation.entries()]
+    .filter(([, declaration]) => declaration.access !== "server-only")
+    .map(([relation]) => relation);
+  if (nonServerOnly.length > 0) {
+    contractFailures.push(
+      `dv-speech-debate: plugin_data relations are not server-only: ${nonServerOnly.join(", ")}`,
+    );
   }
 }
 

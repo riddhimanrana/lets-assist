@@ -47,6 +47,8 @@ next-env.d.ts
 !/supabase/templates/**
 !/supabase/migrations/
 !/supabase/migrations/**
+!/supabase/tests/
+!/supabase/tests/**
 !/supabase/snippets/
 !/supabase/snippets/**
 

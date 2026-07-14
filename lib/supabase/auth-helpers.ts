@@ -12,10 +12,9 @@ import { createClient } from './server';
 import type { AuthUser } from './types';
 import type { AuthError } from '@supabase/supabase-js';
 import {
-  deriveAuthenticatorAssurance,
-  shouldPromptForMfaChallenge,
   type MfaListFactorsLike,
 } from '@/lib/auth/mfa';
+import { resolveMfaSessionState } from '@/lib/auth/mfa-session-state';
 import { isStaleSupabaseAuthUserError } from '@/lib/supabase/auth-errors';
 
 export type AuthResult = {
@@ -32,35 +31,31 @@ type GetAuthUserOptions = {
 
 async function sessionRequiresMfa(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  currentAal?: string | null,
 ) {
-  if (currentAal === 'aal2') {
-    return { requiresMfa: false, invalidUser: false };
-  }
-
-  const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
-
-  if (factorsError) {
-    if (isStaleSupabaseAuthUserError(factorsError)) {
-      return { requiresMfa: false, invalidUser: true };
-    }
-
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[AuthHelpers] MFA factor lookup failed:', factorsError.message);
-    }
-
-    return { requiresMfa: false, invalidUser: false };
-  }
-
+  const [assuranceResult, factorsResult] = await Promise.all([
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+    supabase.auth.mfa.listFactors(),
+  ]);
+  const { data: assuranceData, error: assuranceError } = assuranceResult;
+  const { data: factorsData, error: factorsError } = factorsResult;
   const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
-  const assuranceData = deriveAuthenticatorAssurance(currentAal, factorData);
+  const mfaState = resolveMfaSessionState({
+    assurance: assuranceData,
+    factors: factorData,
+    assuranceError,
+    factorsError,
+  });
+
+  if (mfaState.lookupError && process.env.NODE_ENV === 'development') {
+    console.warn(
+      '[AuthHelpers] MFA assurance lookup failed:',
+      mfaState.lookupError.message,
+    );
+  }
 
   return {
-    requiresMfa: shouldPromptForMfaChallenge(
-      assuranceData,
-      factorData,
-    ),
-    invalidUser: false,
+    ...mfaState,
+    lookupError: mfaState.lookupError as AuthError | null,
   };
 }
 
@@ -124,7 +119,8 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
       return { user: null, error: null };
     }
 
-    if (options.checkMfa) {
+    const checkMfaEnabled = options.checkMfa || options.allowMfaPending;
+    if (checkMfaEnabled) {
       const mfaState = await sessionRequiresMfa(supabase);
 
       if (mfaState.invalidUser) {
@@ -132,20 +128,15 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
         return { user: null, error: null };
       }
 
-      if (mfaState.requiresMfa) {
+      if (mfaState.lookupError) {
+        return { user: null, error: mfaState.lookupError };
+      }
+
+      if (options.checkMfa && mfaState.requiresMfa) {
         return { user: null, error: null, requiresMfa: true };
       }
-    }
 
-    if (options.allowMfaPending) {
-      const mfaState = await sessionRequiresMfa(supabase);
-
-      if (mfaState.invalidUser) {
-        await supabase.auth.signOut();
-        return { user: null, error: null };
-      }
-
-      if (mfaState.requiresMfa) {
+      if (options.allowMfaPending && mfaState.requiresMfa) {
         return returnUser(
           {
             id: user.id,
@@ -188,12 +179,15 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
   // ONLY check MFA if explicitly requested, as listing factors requires a network call.
   const checkMfaEnabled = options?.checkMfa || options?.allowMfaPending;
   if (checkMfaEnabled) {
-    const currentAal = typeof claims.aal === 'string' ? claims.aal : null;
-    const mfaState = await sessionRequiresMfa(supabase, currentAal);
+    const mfaState = await sessionRequiresMfa(supabase);
 
     if (mfaState.invalidUser) {
       await supabase.auth.signOut();
       return { user: null, error: null };
+    }
+
+    if (mfaState.lookupError) {
+      return { user: null, error: mfaState.lookupError };
     }
 
     if (options?.checkMfa && mfaState.requiresMfa) {

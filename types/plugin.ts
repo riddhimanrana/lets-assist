@@ -93,12 +93,15 @@ export interface OrganizationPluginSurfaceRenderTargetContext {
   anonymousSignupId?: string | null;
   userProfileId?: string | null;
   userId?: string | null;
+  userEmail?: string | null;
   projectId?: string | null;
   anonymousEmail?: string | null;
 }
 
 export interface OrganizationPluginSurfaceRenderContext {
   organizationId: string;
+  organizationSlug?: string;
+  organizationName?: string;
   pluginConfiguration: Record<string, unknown> | null;
   viewerRole?: OrganizationPluginAccessRole | null;
   target?: OrganizationPluginSurfaceRenderTargetContext;
@@ -176,7 +179,8 @@ export interface OrganizationTabBehavior {
   label: string;
   icon?: ReactNode;
   content: ReactNode;
-  navigationSection?: "primary" | "more";
+  navigationSection?: "primary" | "more" | "hidden";
+  parentValue?: string;
 }
 
 export interface ResolvedOrganizationPluginSurface {
@@ -261,6 +265,9 @@ export interface OrganizationNavigationBehavior {
   hideInviteAction?: boolean;
   hideProjectAction?: boolean;
   compactHeader?: boolean;
+  utilityMenuLabel?: string;
+  /** Query parameters that should be cleared when the host navigation changes tabs. */
+  transientQueryParams?: string[];
 }
 
 export interface ProjectCreateAdditionalStep {

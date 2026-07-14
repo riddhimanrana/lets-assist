@@ -172,7 +172,7 @@ export default async function ProjectPage({
   let organization = null;
   if (project.organization_id) {
     const { data: org } = await supabase
-      .from("organizations")
+      .from("organization_public_read_model")
       .select("*")
       .eq("id", project.organization_id)
       .single();

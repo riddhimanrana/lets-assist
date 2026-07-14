@@ -1,5 +1,11 @@
 const GOOGLE_SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
 import { logError } from '@/lib/logger';
+import {
+  writeThenClearStaleSpreadsheetValues,
+  type SpreadsheetReplaceResult,
+} from "@/lib/organization/spreadsheet-replace-core";
+
+type SpreadsheetValueInputOption = "RAW" | "USER_ENTERED";
 
 const columnToIndex = (column: string) => {
   return column
@@ -94,6 +100,53 @@ export function buildClearRange(
   const endColumn = indexToColumn(Math.max(startIndex + totalColumns - 1, 26));
   const endRow = Math.max(startRow + rows.length + 50, 1000);
   return `${formatSheetNameForA1(resolvedTab)}!${startColumn}${startRow}:${endColumn}${endRow}`;
+}
+
+export function buildStaleClearRanges(
+  tabName: string,
+  rangeA1: string | null | undefined,
+  rows: string[][],
+): string[] {
+  const parsed = rangeA1 ? parseA1Range(rangeA1) : null;
+  const startColumn = parsed?.start.column ?? "A";
+  const startRow = parsed?.start.row ?? 1;
+  const startColumnIndex = columnToIndex(startColumn);
+  const rowCount = Math.max(rows.length, 1);
+  const columnCount = Math.max(
+    rows.reduce((max, row) => Math.max(max, row.length), 0),
+    1,
+  );
+  const writeEndColumnIndex = startColumnIndex + columnCount - 1;
+  const writeEndRow = startRow + rowCount - 1;
+  const clearEndColumnIndex = parsed?.end
+    ? Math.max(startColumnIndex, columnToIndex(parsed.end.column))
+    : Math.max(writeEndColumnIndex, 26);
+  const clearEndRow = parsed?.end
+    ? Math.max(startRow, parsed.end.row)
+    : Math.max(startRow + rows.length + 50, 1000);
+  const resolvedTab = parsed?.tabName || tabName;
+  const formattedTab = formatSheetNameForA1(resolvedTab);
+  const clearEndColumn = indexToColumn(clearEndColumnIndex);
+  const staleRanges: string[] = [];
+
+  // Clear cells to the right of a newly narrower report without touching any
+  // values that were just written.
+  if (clearEndColumnIndex > writeEndColumnIndex && clearEndRow >= startRow) {
+    const rightStartColumn = indexToColumn(writeEndColumnIndex + 1);
+    const rightEndRow = Math.min(writeEndRow, clearEndRow);
+    staleRanges.push(
+      `${formattedTab}!${rightStartColumn}${startRow}:${clearEndColumn}${rightEndRow}`,
+    );
+  }
+
+  // Clear rows left behind by a newly shorter report.
+  if (clearEndRow > writeEndRow) {
+    staleRanges.push(
+      `${formattedTab}!${startColumn}${writeEndRow + 1}:${clearEndColumn}${clearEndRow}`,
+    );
+  }
+
+  return staleRanges;
 }
 
 export async function clearSpreadsheetValues(
@@ -294,14 +347,15 @@ export async function updateSpreadsheetValues(
   accessToken: string,
   sheetId: string,
   range: string,
-  rows: string[][]
+  rows: string[][],
+  valueInputOption: SpreadsheetValueInputOption = "USER_ENTERED",
 ): Promise<boolean> {
   const resolvedRange = range || "A1";
   try {
     const response = await fetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(
         sheetId
-      )}/values/${encodeURIComponent(resolvedRange)}?valueInputOption=USER_ENTERED`,
+      )}/values/${encodeURIComponent(resolvedRange)}?valueInputOption=${valueInputOption}`,
       {
         method: "PUT",
         headers: {
@@ -335,6 +389,31 @@ export async function updateSpreadsheetValues(
     });
     return false;
   }
+}
+
+export async function replaceSpreadsheetReportValues(
+  accessToken: string,
+  sheetId: string,
+  tabName: string,
+  rangeA1: string | null | undefined,
+  rows: string[][],
+): Promise<SpreadsheetReplaceResult> {
+  const writeRange = buildWriteRange(tabName, rangeA1, rows);
+  const staleRanges = buildStaleClearRanges(tabName, rangeA1, rows);
+
+  return writeThenClearStaleSpreadsheetValues(staleRanges, {
+    // Report cells are untrusted data, never formulas. RAW prevents names,
+    // emails, project titles, or custom labels from being evaluated by Sheets.
+    write: () =>
+      updateSpreadsheetValues(
+        accessToken,
+        sheetId,
+        writeRange,
+        rows,
+        "RAW",
+      ),
+    clear: (range) => clearSpreadsheetValues(accessToken, sheetId, range),
+  });
 }
 
 export async function batchGetSpreadsheetValues(
@@ -388,7 +467,8 @@ export async function appendSpreadsheetValues(
   accessToken: string,
   sheetId: string,
   range: string,
-  rows: string[][]
+  rows: string[][],
+  valueInputOption: SpreadsheetValueInputOption = "USER_ENTERED",
 ): Promise<boolean> {
   if (rows.length === 0) return true;
 
@@ -396,7 +476,7 @@ export async function appendSpreadsheetValues(
     const response = await fetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(
         range
-      )}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      )}:append?valueInputOption=${valueInputOption}&insertDataOption=INSERT_ROWS`,
       {
         method: "POST",
         headers: {

@@ -10,6 +10,8 @@ export interface AnonymousSignupData {
   captchaToken?: string;
   skipConfirmationEmail?: boolean;
   selectedSlotCount?: number;
+  /** Short-lived server-issued capability used only to continue a multi-slot signup. */
+  continuationToken?: string;
 }
 
 export interface ProjectSignup {
@@ -60,7 +62,7 @@ export interface Signup {
   project_id: string;
   user_id: string | null;
   schedule_id: string;
-  status: 'pending' | 'approved' | 'rejected' | 'attended';
+  status: 'pending' | 'approved' | 'rejected' | 'attended' | 'cancelled';
   created_at: string;
   updated_at: string;
   check_in_time: string | null;

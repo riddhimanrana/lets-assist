@@ -1051,6 +1051,7 @@ export default function ProjectDetails({
 
       let successfulSignups = 0;
       let needsConfirmation = false;
+      let continuationToken: string | undefined;
       const errorMessages: string[] = [];
 
       try {
@@ -1068,6 +1069,7 @@ export default function ProjectDetails({
             ...values,
             selectedSlotCount: scheduleIds.length,
             skipConfirmationEmail: index > 0,
+            continuationToken,
           };
 
           const result = await signUpForProject(
@@ -1093,6 +1095,12 @@ export default function ProjectDetails({
           }
 
           if (result.success) {
+            if (
+              "anonymousContinuationToken" in result &&
+              typeof result.anonymousContinuationToken === "string"
+            ) {
+              continuationToken = result.anonymousContinuationToken;
+            }
             logSignupClientDebug({
               step: "anonymous_multi_slot_success",
               projectId: project.id,

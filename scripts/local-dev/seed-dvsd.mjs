@@ -4,11 +4,10 @@ import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
 import { getLocalSupabaseEnv } from "./dv-local-env.mjs";
 
-const password = process.env.DV_LOCAL_TEST_PASSWORD || "robo6737";
-
 const IDS = {
   organization: "d0000000-0000-4000-8000-000000000001", // DV Speech & Debate
-  orgAOH: "d0000000-0000-4000-8000-000000000002",       // Acts of Hearts
+  // Shared with seed-platform.mjs so the two standard local seeders compose.
+  orgAOH: "10000000-0000-4000-8000-000000000002",       // Acts of Hearts
   orgWRMS: "d0000000-0000-4000-8000-000000000003",      // WRMS Speech & Debate
   currentSeason: "d0000000-0000-4000-8000-000000000010",
   priorSeason: "d0000000-0000-4000-8000-000000000011",
@@ -135,7 +134,7 @@ async function main() {
   const config = readFileSync("supabase/config.toml", "utf8");
   if (!/schemas\s*=\s*\[[^\]]*["']plugin_data["']/m.test(config)) {
     throw new Error(
-      "DV fixtures are temporarily disabled because plugin_data is no longer exposed through the Supabase Data API. Redesign DV to use server-only backends/RPCs before re-enabling this seed.",
+      "DV fixtures require plugin_data in the local Data API schema list for the service-role-only backend client.",
     );
   }
 
@@ -169,7 +168,7 @@ async function main() {
     username: "dv-speech-debate",
     type: "school",
     description: "Deterministic local fixture organization for Dougherty Valley Speech & Debate.",
-    join_code: "DVLOC1",
+    join_code: "730001",
     created_by: users.ridhdiman.id,
   }));
 
@@ -179,7 +178,7 @@ async function main() {
     username: "acts-of-hearts",
     type: "nonprofit",
     description: "Local nonprofit organization fixture.",
-    join_code: "AOHLC1",
+    join_code: "740002",
     created_by: users.ridhdiman.id,
   }));
 
@@ -189,7 +188,7 @@ async function main() {
     username: "wrms-speech-debate",
     type: "school",
     description: "Windemere Ranch Middle School Speech & Debate.",
-    join_code: "WRMS01",
+    join_code: "730003",
     created_by: users.ridhdiman.id,
   }));
 

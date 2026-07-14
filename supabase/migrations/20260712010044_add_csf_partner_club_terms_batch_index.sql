@@ -1,0 +1,1 @@
+CREATE INDEX CONCURRENTLY IF NOT EXISTS csf_partner_club_terms_source_batch_id_idx ON plugin_data.csf_partner_club_terms (source_batch_id);

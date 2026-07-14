@@ -12,6 +12,7 @@ import { formatTimeTo12Hour } from "@/lib/utils";
 import { useReactToPrint } from "react-to-print";
 import { cn } from "@/lib/utils";
 import { getMultiDaySlotDisplayName } from "@/utils/project";
+import { createProjectAttendanceQrChallenges } from "./attendance/qr-actions";
 
 // Remove the complex token generation function - we'll use cookies/sessions instead
 
@@ -35,6 +36,7 @@ interface SessionInfo {
 
 export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCodeModalProps) {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [attendanceChallenges, setAttendanceChallenges] = useState<Record<string, string>>({});
   const printRef = useRef<HTMLDivElement>(null);
   const [selectedQRCode, setSelectedQRCode] = useState<SessionInfo | null>(null);
   
@@ -43,6 +45,28 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
     documentTitle: `QR Code – ${project.title}`,
   });
 
+  useEffect(() => {
+    if (!open) {
+      setAttendanceChallenges({});
+      return;
+    }
+
+    let cancelled = false;
+    void createProjectAttendanceQrChallenges(project.id).then((result) => {
+      if (cancelled) return;
+      if (result.success) {
+        setAttendanceChallenges(result.challenges);
+      } else {
+        console.error("Failed to create secure attendance QR codes:", result.error);
+        setAttendanceChallenges({});
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, project.id]);
+
   // Process project schedule to get all sessions with their availability
   useEffect(() => {
     if (project) {
@@ -50,6 +74,11 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
       const processedSessions: SessionInfo[] = [];
 
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lets-assist.com';
+      const buildQrUrl = (scheduleId: string) => {
+        const challenge = attendanceChallenges[scheduleId];
+        if (!challenge) return "";
+        return `${siteUrl}/attend/${project.id}/prepare?challenge=${encodeURIComponent(challenge)}`;
+      };
 
       const calculateAvailability = (date: string, startTime: string, endTime: string) => {
         const startDate = parseISO(`${date}T${startTime}`);
@@ -83,7 +112,7 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
           isAvailable: availability.isAvailable,
           isVisible: availability.isVisible,
           hoursUntilStart: availability.hoursUntilStart,
-          qrUrl: `${siteUrl}/attend/${project.id}/prepare?session=${encodeURIComponent(project.session_id || '')}&schedule=${encodeURIComponent("oneTime")}`
+          qrUrl: buildQrUrl("oneTime")
         });
       } 
       else if (project.event_type === "multiDay" && project.schedule.multiDay) {
@@ -101,7 +130,7 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
               isAvailable: availability.isAvailable,
               isVisible: availability.isVisible,
               hoursUntilStart: availability.hoursUntilStart,
-              qrUrl: `${siteUrl}/attend/${project.id}/prepare?session=${encodeURIComponent(project.session_id || '')}&schedule=${encodeURIComponent(scheduleId)}`
+              qrUrl: buildQrUrl(scheduleId)
             });
           });
         });
@@ -121,7 +150,7 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
             isAvailable: availability.isAvailable,
             isVisible: availability.isVisible,
             hoursUntilStart: availability.hoursUntilStart,
-            qrUrl: `${siteUrl}/attend/${project.id}/prepare?session=${encodeURIComponent(project.session_id || '')}&schedule=${encodeURIComponent(role.name)}`
+            qrUrl: buildQrUrl(role.name)
           });
         });
       }
@@ -130,11 +159,15 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
       
       // Set active tab to first visible session if any
       const visibleSessions = processedSessions.filter(s => s.isVisible);
-      if (visibleSessions.length > 0 && !selectedQRCode) {
-        setSelectedQRCode(visibleSessions[0]);
-      }
+      setSelectedQRCode((current) =>
+        current
+          ? processedSessions.find((session) => session.id === current.id) ??
+            visibleSessions[0] ??
+            null
+          : visibleSessions[0] ?? null,
+      );
     }
-  }, [project, open, selectedQRCode]);
+  }, [project, open, attendanceChallenges]);
 
   // Reset modal state when it closes
   useEffect(() => {
@@ -235,7 +268,7 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
                       ref={printRef}
                       className="rounded-xl border-4 border-muted/30 bg-white p-3 shadow-inner"
                     >
-                      {selectedQRCode.isAvailable ? (
+                      {selectedQRCode.isAvailable && selectedQRCode.qrUrl ? (
                         <QRCode
                           value={selectedQRCode.qrUrl}
                           size={180}
@@ -252,7 +285,9 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
                         <div className="w-45 h-45 flex flex-col items-center justify-center p-4 text-center">
                           <Lock className="h-10 w-10 mb-3 text-muted-foreground" />
                           <p className="text-[10px] leading-tight text-muted-foreground uppercase tracking-wider font-semibold">
-                            {!selectedQRCode.isVisible
+                            {selectedQRCode.isAvailable && !selectedQRCode.qrUrl
+                              ? "Securing QR code..."
+                              : !selectedQRCode.isVisible
                               ? "Will be visible 1 week before"
                               : selectedQRCode.isVisible && !selectedQRCode.isAvailable
                               ? "Visible but scannable 2 hours before"
@@ -265,7 +300,7 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
                     <Button
                       type="button"
                       onClick={() => { void handlePrint(); }}
-                      disabled={!selectedQRCode.isAvailable}
+                      disabled={!selectedQRCode.isAvailable || !selectedQRCode.qrUrl}
                       className="mt-6 w-full gap-2"
                       size="lg"
                     >

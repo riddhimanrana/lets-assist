@@ -15,10 +15,8 @@ import {
   resolveOrganizationPluginExperiences,
   resolveOrganizationPlugins,
 } from "@/lib/plugins/resolve-org-plugins";
-import {
-  getOrganizationReportData,
-  getOrganizationReportDataForSync,
-} from "./reports/actions";
+import { getOrganizationReportData } from "./reports/actions";
+import { getPublicOrganizationReportSummary } from "@/lib/organization/report-service";
 import type { Organization, OrganizationNavigationBehavior, OrganizationPluginAccessRole } from "@/types";
 import {
   createRemoteReadonlyClient,
@@ -26,6 +24,7 @@ import {
 } from "@/lib/supabase/preview-source";
 import { getServerPreviewSource } from "@/lib/supabase/preview-source.server";
 import { cn } from "@/lib/utils";
+import { shouldRedirectMemberToPluginRoot } from "@/lib/plugins/organization-page-routing";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -217,6 +216,25 @@ export default async function OrganizationPage({
     organization.id,
   ]);
   const organizationExperience = pluginExperience?.experience ?? null;
+  const pluginRole = toOrganizationPluginRole(userRole);
+  const pluginTabsContributions = pluginRole
+    ? await resolveOrganizationPluginBehaviorHook({
+        organizationId: organization.id,
+        organizationSlug: organization.username ?? organization.id,
+        organizationName: organization.name,
+        hook: "organization.tabs",
+        viewerRole: pluginRole,
+        target: {
+          userId: user?.id ?? null,
+          userEmail: user?.email ?? null,
+        },
+        hookInput: { searchParams: resolvedSearchParams },
+        useAdminClient: true,
+      })
+    : [];
+  const hasEmbeddedOrganizationTabs = pluginTabsContributions.some(
+    (contribution) => contribution.pluginKey === pluginExperience?.pluginKey,
+  );
 
   if (!userRole && organizationExperience?.publicPage === "private") {
     notFound();
@@ -232,7 +250,11 @@ export default async function OrganizationPage({
     );
   }
 
-  if (userRole === "member" && organizationExperience?.publicPage === "plugin") {
+  if (shouldRedirectMemberToPluginRoot({
+    userRole,
+    publicPage: organizationExperience?.publicPage ?? null,
+    hasEmbeddedOrganizationTabs,
+  })) {
     const organizationSlug = organization.username ?? organization.id;
     redirect(`/organization/${organizationSlug}/plugins/${pluginExperience.pluginKey}`);
   }
@@ -335,20 +357,13 @@ export default async function OrganizationPage({
   }
 
   if (!reportSummary) {
-    const reportResult = await getOrganizationReportDataForSync(organization.id);
-    if (reportResult.data?.metrics) {
-      reportSummary = {
-        totalHours: reportResult.data.metrics.totalHours,
-      };
-    }
+    reportSummary = await getPublicOrganizationReportSummary(organization.id);
   }
 
   const organizationCreatedLabel = formatUtcCalendarDateLabel(
     organization.created_at,
   );
 
-    const pluginRole = toOrganizationPluginRole(userRole);
-    
     const pluginOverviewExtensions = pluginRole
       ? await resolveOrganizationPluginSurfaces({
           organizationId: organization.id,
@@ -357,24 +372,21 @@ export default async function OrganizationPage({
           target: {
             userId: user?.id ?? null,
           },
+          useAdminClient: true,
         })
       : [];
-    const pluginTabsContributions = pluginRole 
-      ? await resolveOrganizationPluginBehaviorHook({
-          organizationId: organization.id,
-          hook: "organization.tabs",
-          viewerRole: pluginRole,
-          target: {
-            userId: user?.id ?? null,
-          }
-        })
-      : [];
-      
     const navOverridesContributions = pluginRole
       ? await resolveOrganizationPluginBehaviorHook({
           organizationId: organization.id,
+          organizationSlug: organization.username ?? organization.id,
+          organizationName: organization.name,
           hook: "organization.navigation.overrides",
           viewerRole: pluginRole,
+          target: {
+            userId: user?.id ?? null,
+            userEmail: user?.email ?? null,
+          },
+          useAdminClient: true,
         })
       : [];
     
@@ -464,12 +476,12 @@ export default async function OrganizationPage({
     <div className="flex flex-col w-full">
       <div className={cn(
         "w-full absolute bg-linear-to-br from-primary/15 via-primary/5 to-background/0 before:content-[''] before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:to-background",
-        navOverrides.compactHeader ? "min-h-48" : "min-h-72",
+        navOverrides.compactHeader ? "min-h-40" : "min-h-72",
       )} />
 
       <div className={cn(
         "relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6",
-        navOverrides.compactHeader ? "pt-5 sm:pt-6" : "pt-6 sm:pt-10",
+        navOverrides.compactHeader ? "pt-4 sm:pt-5" : "pt-6 sm:pt-10",
       )}>
         {previewSource === "remote" && (
           <div className="mb-4 rounded-md border border-warning bg-warning/15 px-4 py-3 text-sm text-warning">
@@ -488,7 +500,7 @@ export default async function OrganizationPage({
 
         <div className={cn(
           "bg-card rounded-xl border border-border/60 shadow-xs mb-8",
-          navOverrides.compactHeader ? "mt-5 p-3 sm:mt-6 sm:p-5" : "mt-8 p-4 sm:mt-12 sm:p-6",
+          navOverrides.compactHeader ? "mt-4 p-3 sm:mt-5 sm:p-4" : "mt-8 p-4 sm:mt-12 sm:p-6",
         )}>
           <OrganizationTabs
             organization={organizationForDisplay}

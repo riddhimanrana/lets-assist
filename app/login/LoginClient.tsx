@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { applyStaffInviteForCurrentUser, signInWithGoogle } from "./actions";
+import { applyPostLoginAffiliations, signInWithGoogle } from "./actions";
 import { SecureCheckLoading } from "@/components/auth/SecureCheckLoading";
 import { Button } from "@/components/ui/button";
 import {
@@ -176,6 +176,11 @@ export default function LoginClient({
 
       let finalRedirectUrl = defaultRedirectUrl;
 
+      const affiliationResult = await applyPostLoginAffiliations(
+        staffToken,
+        orgUsername,
+      );
+
       // Handle generic invite token (newer flow)
       if (inviteToken) {
         const inviteParams = new URLSearchParams({ token: inviteToken });
@@ -183,12 +188,8 @@ export default function LoginClient({
         finalRedirectUrl = `/organization/join/invite?${inviteParams.toString()}`;
       }
       // Handle staff token (legacy flow)
-      else if (staffToken && orgUsername) {
-        const inviteResult = await applyStaffInviteForCurrentUser(
-          staffToken,
-          orgUsername,
-        );
-        const inviteOutcome = inviteResult.inviteOutcome;
+      else if (affiliationResult.inviteOutcome) {
+        const inviteOutcome = affiliationResult.inviteOutcome;
 
         if (inviteOutcome) {
           finalRedirectUrl = buildStaffInviteRedirectPath(inviteOutcome, {

@@ -89,11 +89,11 @@ export default function OrganizationHeader({
   const canCreateProjects = userRole === "admin" || userRole === "staff";
 
   return (
-    <div className={cn("flex w-full flex-col", compact ? "gap-4" : "gap-6")}>
-      <div className={cn("flex flex-col md:flex-row md:items-start md:justify-between", compact ? "gap-4" : "gap-6")}>
+    <div className={cn("flex w-full flex-col", compact ? "gap-3" : "gap-6")}>
+      <div className={cn("flex flex-col md:flex-row md:items-start md:justify-between", compact ? "gap-3" : "gap-6")}>
         <div className={cn("flex flex-col items-center md:flex-row md:items-start", compact ? "gap-3" : "gap-4")}>
           <div className="relative shrink-0">
-            <Avatar className={cn("rounded-full border-4 border-background shadow-sm", compact ? "size-16 md:size-20" : "size-20 md:size-24")}>
+            <Avatar className={cn("rounded-full border-4 border-background shadow-sm", compact ? "size-14 md:size-16" : "size-20 md:size-24")}>
               <AvatarImage src={organization.logo_url || undefined} alt={organization.name} />
               <AvatarFallback className="bg-primary/10 text-xl rounded-full">
                 {getMonogramFallback(organization.name)}
@@ -108,7 +108,7 @@ export default function OrganizationHeader({
 
           <div className={cn("flex flex-col items-center text-center md:items-start md:text-left", compact ? "gap-1.5" : "gap-2")}>
             <div className="flex items-center gap-2">
-              <h1 className={cn("font-bold tracking-tight", compact ? "text-2xl" : "text-2xl md:text-3xl")}>
+              <h1 className={cn("font-bold tracking-tight", compact ? "text-xl md:text-2xl" : "text-2xl md:text-3xl")}>
                 {organization.name}
               </h1>
               {organization.verified && (

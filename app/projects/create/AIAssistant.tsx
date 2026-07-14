@@ -6,7 +6,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { EventType, ProjectSchedule, RecurrenceFrequency, RecurrenceEndType, RecurrenceWeekday } from '@/types';
+import {
+  parseProjectOutputSchema,
+  type ParseProjectResult,
+} from '@/lib/ai/parse-project-schema';
 
 interface AIAssistantProps {
   onApplyData: (data: AIParseResult) => void;
@@ -14,24 +17,7 @@ interface AIAssistantProps {
   isOpen: boolean;
 }
 
-export interface AIParseResult {
-  title?: string;
-  location?: string;
-  description?: string;
-  eventType?: EventType;
-  schedule?: ProjectSchedule;
-  verificationMethod?: 'qr-code' | 'manual' | 'auto' | 'signup-only';
-  requireLogin?: boolean;
-  recurrence?: {
-    enabled: boolean;
-    frequency?: RecurrenceFrequency;
-    interval?: number;
-    endType?: RecurrenceEndType;
-    endDate?: string;
-    endOccurrences?: number;
-    weekdays?: RecurrenceWeekday[];
-  };
-}
+export type AIParseResult = ParseProjectResult;
 
 // Test data for demo purposes (removed - no longer needed)
 
@@ -61,12 +47,11 @@ export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistan
         throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
-      const parsedData: AIParseResult = await response.json();
-      
-      // Validate that we received some useful data
-      if (!parsedData || (!parsedData.title && !parsedData.eventType && !parsedData.schedule)) {
+      const parsedResponse = parseProjectOutputSchema.safeParse(await response.json());
+      if (!parsedResponse.success) {
         throw new Error('AI did not return valid project data');
       }
+      const parsedData = parsedResponse.data;
 
       await applyWithAnimation(parsedData);
     } catch (error) {

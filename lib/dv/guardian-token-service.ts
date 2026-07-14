@@ -1,17 +1,29 @@
+import "server-only";
+
 import { createHash } from "node:crypto";
+
+import { hasOrganizationPluginRuntimeAccess } from "@/lib/plugins/runtime-access";
 import { createPluginAdminClient } from "@/lib/plugins/supabase";
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
+function isGuardianCapability(token: string) {
+  return /^[A-Za-z0-9_-]{43}$/u.test(token);
+}
+
 export const GuardianTokenService = {
   async inspect(token: string) {
+    if (!isGuardianCapability(token)) {
+      return { valid: false as const, reason: "not_found" };
+    }
+
     const admin = createPluginAdminClient();
     const { data, error } = await admin
       .from("dv_sd_guardian_action_tokens")
       .select(
-        "id,organization_id,guardian_id,purpose,payload,expires_at,consumed_at,dv_sd_guardians(full_name,email)",
+        "id,organization_id,guardian_id,purpose,payload,expires_at,consumed_at,dv_sd_guardians(full_name,email,organization_id)",
       )
       .eq("token_hash", hashToken(token))
       .maybeSingle();
@@ -21,7 +33,30 @@ export const GuardianTokenService = {
     if (new Date(data.expires_at) <= new Date()) {
       return { valid: false as const, reason: "expired" };
     }
-    return { valid: true as const, action: data };
+
+    const guardianRelation = data.dv_sd_guardians as
+      | { full_name: string; email: string; organization_id: string }
+      | { full_name: string; email: string; organization_id: string }[]
+      | null;
+    const guardian = Array.isArray(guardianRelation)
+      ? guardianRelation[0]
+      : guardianRelation;
+    if (!guardian || guardian.organization_id !== data.organization_id) {
+      return { valid: false as const, reason: "not_found" };
+    }
+
+    const hasRuntimeAccess = await hasOrganizationPluginRuntimeAccess({
+      organizationId: data.organization_id,
+      pluginKey: "dv-speech-debate",
+    });
+    if (!hasRuntimeAccess) {
+      return { valid: false as const, reason: "not_found" };
+    }
+
+    return {
+      valid: true as const,
+      action: { ...data, dv_sd_guardians: guardian },
+    };
   },
 
   async consumeAvailability(input: {
@@ -30,62 +65,38 @@ export const GuardianTokenService = {
     availableRounds?: string[];
     notes?: string | null;
   }) {
+    if (!isGuardianCapability(input.token)) {
+      throw new Error("Guardian link is not_found.");
+    }
+    if (input.availableRounds && input.availableRounds.length > 50) {
+      throw new Error("Too many availability rounds were submitted.");
+    }
+
+    const availableRounds = (input.availableRounds ?? []).map((round) => {
+      const normalized = round.trim();
+      if (!normalized || normalized.length > 100) {
+        throw new Error("Availability round labels must be 1-100 characters.");
+      }
+      return normalized;
+    });
+    const notes = input.notes?.trim() || null;
+    if (notes && notes.length > 2_000) {
+      throw new Error("Availability notes cannot exceed 2,000 characters.");
+    }
+
     const inspected = await this.inspect(input.token);
     if (!inspected.valid) throw new Error(`Guardian link is ${inspected.reason}.`);
     if (inspected.action.purpose !== "confirm_availability") {
       throw new Error("Guardian link has the wrong purpose.");
     }
 
-    const payload = inspected.action.payload as {
-      tournamentId?: string;
-      judgeId?: string;
-    };
-    if (!payload.tournamentId || !payload.judgeId) {
-      throw new Error("Guardian link payload is incomplete.");
-    }
-
     const admin = createPluginAdminClient();
-    const consumedAt = new Date().toISOString();
-    const { data: consumed, error: consumeError } = await admin
-      .from("dv_sd_guardian_action_tokens")
-      .update({ consumed_at: consumedAt })
-      .eq("id", inspected.action.id)
-      .is("consumed_at", null)
-      .gt("expires_at", consumedAt)
-      .select("id")
-      .maybeSingle();
-    if (consumeError) throw consumeError;
-    if (!consumed) throw new Error("Guardian link was already used or expired.");
-
-    const { error: availabilityError } = await admin
-      .from("dv_sd_judge_availability")
-      .upsert(
-        {
-          organization_id: inspected.action.organization_id,
-          tournament_id: payload.tournamentId,
-          judge_id: payload.judgeId,
-          status: input.status,
-          available_rounds: input.availableRounds ?? [],
-          notes: input.notes ?? null,
-          confirmed_at: consumedAt,
-          updated_at: consumedAt,
-        },
-        { onConflict: "tournament_id,judge_id" },
-      );
-    if (availabilityError) throw availabilityError;
-
-    const { error: auditError } = await admin.from("dv_sd_audit_events").insert({
-      organization_id: inspected.action.organization_id,
-      action: "guardian.availability_confirmed",
-      entity_type: "judge_availability",
-      entity_id: payload.judgeId,
-      after_data: {
-        tournamentId: payload.tournamentId,
-        status: input.status,
-        availableRounds: input.availableRounds ?? [],
-      },
-      metadata: { tokenId: inspected.action.id },
+    const { error } = await admin.rpc("consume_dv_guardian_availability", {
+      p_token_hash: hashToken(input.token),
+      p_status: input.status,
+      p_available_rounds: availableRounds,
+      p_notes: notes,
     });
-    if (auditError) throw auditError;
+    if (error) throw new Error(error.message);
   },
 };

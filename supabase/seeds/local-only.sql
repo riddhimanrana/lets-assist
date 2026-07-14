@@ -13,10 +13,10 @@ INSERT INTO public.plugins (
 )
 VALUES (
   'dv-speech-debate',
-  'DV Speech & Debate',
-  'Temporarily disabled while the plugin_data backend is redesigned for server-only access.',
+  'DV Speech & Debate Ops',
+  'Server-only seasonal membership, tournament, guardian, and team operations for speech and debate organizations.',
   'private',
-  false,
+  true,
   '2.0.0',
   true
 )

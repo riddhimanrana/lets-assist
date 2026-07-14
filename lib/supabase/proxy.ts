@@ -7,11 +7,10 @@ import {
 } from "@/lib/auth/account-access";
 import {
     buildMfaRedirectPath,
-    deriveAuthenticatorAssurance,
     deriveMfaContinuationPath,
-    shouldPromptForMfaChallenge,
     type MfaListFactorsLike,
 } from "@/lib/auth/mfa";
+import { resolveMfaSessionState } from "@/lib/auth/mfa-session-state";
 import { isMfaProtectedPath } from "@/lib/auth/mfa-paths";
 import { isStaleSupabaseAuthUserError } from "@/lib/supabase/auth-errors";
 
@@ -20,6 +19,37 @@ type PendingAuthCookie = {
     value: string;
     options?: Parameters<NextResponse["cookies"]["set"]>[2];
 };
+
+type ProxyUser = {
+    id: string;
+    app_metadata?: Record<string, unknown> | null;
+};
+
+type FreshUserErrorLike = {
+    message?: string | null;
+    code?: string | null;
+    status?: number | null;
+};
+
+export type FreshUserValidationDisposition =
+    | "valid"
+    | "banned"
+    | "clear_session"
+    | "retry";
+
+export function classifyFreshUserValidation(input: {
+    error?: FreshUserErrorLike | null;
+    freshUserId?: string | null;
+    expectedUserId: string;
+}): FreshUserValidationDisposition {
+    if (input.error?.code === "user_banned") return "banned";
+    if (isStaleSupabaseAuthUserError(input.error)) return "clear_session";
+    if (input.error) return "retry";
+    if (!input.freshUserId || input.freshUserId !== input.expectedUserId) {
+        return "clear_session";
+    }
+    return "valid";
+}
 
 // Paths that require authentication
 const PROTECTED_PATHS = [
@@ -43,9 +73,83 @@ export function isProtectedPath(path: string) {
     );
 }
 
+export function shouldRedirectAuthenticatedRestrictedRequest(
+    input: {
+        method: string;
+        hasNextActionHeader: boolean;
+    },
+): boolean {
+    return !(input.method === "POST" && input.hasNextActionHeader);
+}
+
 export function applyPrivateNoStore<T extends NextResponse>(response: T): T {
     response.headers.set("Cache-Control", "private, no-store");
     return response;
+}
+
+type ProxyCachePrivacyInput = {
+    hasIncomingAuthContext: boolean;
+    authCookiesMutated: boolean;
+    authenticated: boolean;
+    authSensitiveRequest: boolean;
+    isRedirect: boolean;
+    responseStatus: number;
+};
+
+const SENSITIVE_AUTH_QUERY_PARAMETERS = [
+    "access_token",
+    "code",
+    "email",
+    "invite_token",
+    "member_token",
+    "refresh_token",
+    "staff_token",
+    "token",
+    "token_hash",
+] as const;
+
+export function isSupabaseAuthCookieName(name: string): boolean {
+    return name.startsWith("sb-");
+}
+
+export function hasSensitiveAuthQuery(
+    searchParams: Pick<URLSearchParams, "has">,
+): boolean {
+    return SENSITIVE_AUTH_QUERY_PARAMETERS.some((parameter) =>
+        searchParams.has(parameter),
+    );
+}
+
+export function isAuthSensitiveProxyPath(path: string): boolean {
+    if (
+        isProtectedPath(path) ||
+        path === "/auth" ||
+        path.startsWith("/auth/") ||
+        path === "/reset-password" ||
+        path.startsWith("/reset-password/") ||
+        path === "/trusted-member" ||
+        path.startsWith("/trusted-member/") ||
+        path === "/guardian-action" ||
+        path.startsWith("/guardian-action/") ||
+        path === "/admin" ||
+        path.startsWith("/admin/") ||
+        isProjectManagementPath(path).isCreatorPath
+    ) {
+        return true;
+    }
+
+    return /^\/organization\/[^/]+\/(?:admin|moderation|settings)(?:\/|$)/u.test(path);
+}
+
+export function shouldApplyPrivateNoStore(input: ProxyCachePrivacyInput): boolean {
+    return (
+        input.hasIncomingAuthContext ||
+        input.authCookiesMutated ||
+        input.authenticated ||
+        input.authSensitiveRequest ||
+        input.isRedirect ||
+        input.responseStatus >= 400
+    );
 }
 
 function clearSupabaseAuthCookies(request: NextRequest, response: NextResponse) {
@@ -62,20 +166,40 @@ function clearSupabaseAuthCookies(request: NextRequest, response: NextResponse) 
     }
 }
 
-// Function to check if path is for project creator only
-function isProjectCreatorPath(path: string) {
+// Function to check if path is for project managers only
+function isProjectManagementPath(path: string) {
     const matches = path.match(/^\/projects\/([^/]+)\/(edit|signups|documents|attendance|hours)$/);
     return matches ? { isCreatorPath: true, projectId: matches[1] } : { isCreatorPath: false, projectId: null };
 }
 
+type ProjectManagementAccessInput = {
+    creatorId: string | null;
+    userId: string;
+    organizationRole?: string | null;
+    canBeManagedByStaff?: boolean | null;
+};
+
+export function canManageProjectRoute(input: ProjectManagementAccessInput) {
+    if (input.creatorId === input.userId) return true;
+    if (input.organizationRole === "admin") return true;
+    return input.organizationRole === "staff" && input.canBeManagedByStaff === true;
+}
+
 export async function updateSession(request: NextRequest) {
+    // Capture the original auth context before Supabase's setAll callback mutates
+    // the request cookie store during a token refresh.
+    const hasIncomingAuthContext =
+        request.headers.has("authorization") ||
+        request.cookies.getAll().some(({ name }) => isSupabaseAuthCookieName(name));
+    const authSensitiveRequest =
+        isAuthSensitiveProxyPath(request.nextUrl.pathname) ||
+        hasSensitiveAuthQuery(request.nextUrl.searchParams);
     const pendingAuthCookies: PendingAuthCookie[] = [];
+    const pendingAuthHeaders = new Map<string, string>();
+    let clearAuthCookiesOnFinalize = false;
     let supabaseResponse = NextResponse.next({
-        request: {
-            headers: request.headers,
-        },
+        request,
     });
-    applyPrivateNoStore(supabaseResponse);
 
     const applyPendingAuthCookies = <T extends NextResponse>(response: T): T => {
         pendingAuthCookies.forEach(({ name, value, options }) => {
@@ -86,8 +210,38 @@ export async function updateSession(request: NextRequest) {
 
     const finalizeResponse = <T extends NextResponse>(response: T): T => {
         applyPendingAuthCookies(response);
-        return applyPrivateNoStore(response);
+        pendingAuthHeaders.forEach((value, key) => response.headers.set(key, value));
+        if (clearAuthCookiesOnFinalize) {
+            clearSupabaseAuthCookies(request, response);
+        }
+
+        const isRedirect =
+            response.status >= 300 &&
+            response.status < 400 &&
+            response.headers.has("location");
+        const shouldDisableSharedCaching = shouldApplyPrivateNoStore({
+            hasIncomingAuthContext,
+            authCookiesMutated:
+                pendingAuthCookies.length > 0 || clearAuthCookiesOnFinalize,
+            authenticated: user !== null,
+            authSensitiveRequest,
+            isRedirect,
+            responseStatus: response.status,
+        });
+
+        return shouldDisableSharedCaching
+            ? applyPrivateNoStore(response)
+            : response;
     };
+
+    const authRetryResponse = () => finalizeResponse(
+        new NextResponse("Authentication is temporarily unavailable. Please retry.", {
+            status: 503,
+            headers: {
+                "Retry-After": "5",
+            },
+        }),
+    );
 
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -97,44 +251,89 @@ export async function updateSession(request: NextRequest) {
                 getAll() {
                     return request.cookies.getAll()
                 },
-                setAll(cookiesToSet) {
+                setAll(cookiesToSet, headers) {
                     pendingAuthCookies.push(...cookiesToSet);
                     cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
                     supabaseResponse = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
+                        request,
                     })
                     cookiesToSet.forEach(({ name, value, options }) =>
                         supabaseResponse.cookies.set(name, value, options)
                     )
-                    applyPrivateNoStore(supabaseResponse);
+                    Object.entries(headers).forEach(([key, value]) => {
+                        pendingAuthHeaders.set(key, value);
+                        supabaseResponse.headers.set(key, value);
+                    });
                 },
             },
         }
     )
 
-    // Supabase SSR middleware must validate with getUser() immediately after
-    // client creation so expired tokens are refreshed and persisted via setAll().
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    
-    // If getUser() fails (e.g., invalid/expired tokens that can't be refreshed),
-    // treat the user as not authenticated. The error is expected for anonymous users
-    // or users with completely invalid session state.
-    if (userError && process.env.NODE_ENV === 'development') {
-        // Only log in development to avoid noise in production
-        console.log('[Proxy] getUser error (user will be treated as not authenticated):', userError.message);
+    // Supabase SSR requires this validation to run immediately after client
+    // creation. getClaims verifies the JWT and lets setAll persist any refresh.
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+
+    if (claimsError && process.env.NODE_ENV === 'development') {
+        console.log('[Proxy] getClaims error (request will be treated as unauthenticated):', claimsError.message);
     }
-    
-    let user = userData.user;
-    const { data: claimsData } = user ? await supabase.auth.getClaims() : { data: null };
+
+    const claims = claimsData?.claims;
+    let user: ProxyUser | null = null;
+
+    // Claims establish cryptographic session validity, but authorization state
+    // such as bans, restrictions, user deletion, and revocation can change
+    // after an access token was issued. Resolve the user authoritatively before
+    // using app_metadata or treating the request as authenticated.
+    if (claims?.sub) {
+        const { data: freshUserData, error: freshUserError } = await supabase.auth.getUser();
+        const freshUser = freshUserData.user;
+        const validationDisposition = classifyFreshUserValidation({
+            error: freshUserError,
+            freshUserId: freshUser?.id,
+            expectedUserId: claims.sub,
+        });
+
+        if (validationDisposition === "retry") {
+            if (process.env.NODE_ENV === "development") {
+                console.warn("[Proxy] Fresh auth-user validation temporarily failed:", freshUserError?.message);
+            }
+            return authRetryResponse();
+        }
+
+        if (
+            validationDisposition === "banned" ||
+            validationDisposition === "clear_session"
+        ) {
+            await supabase.auth.signOut();
+            clearAuthCookiesOnFinalize = true;
+
+            if (validationDisposition === "banned") {
+                const loginUrl = new URL('/login', request.url);
+                const errorCode = getAccountAccessErrorCode("banned");
+
+                if (errorCode) {
+                    loginUrl.searchParams.set('error', errorCode);
+                }
+
+                return finalizeResponse(NextResponse.redirect(loginUrl));
+            }
+        } else if (freshUser) {
+            user = {
+                id: freshUser.id,
+                app_metadata:
+                    freshUser.app_metadata && typeof freshUser.app_metadata === "object"
+                        ? freshUser.app_metadata as Record<string, unknown>
+                        : null,
+            };
+        }
+    }
 
     if (user) {
-        const userWithMetadata = user as { app_metadata?: Record<string, unknown> | null };
-        const accountAccess = readAccountAccessFromMetadata(userWithMetadata.app_metadata ?? null);
+        const accountAccess = readAccountAccessFromMetadata(user.app_metadata ?? null);
 
         if (isAccountBlockedStatus(accountAccess.status)) {
             await supabase.auth.signOut();
+            clearAuthCookiesOnFinalize = true;
 
             const loginUrl = new URL('/login', request.url);
             const errorCode = getAccountAccessErrorCode(accountAccess.status);
@@ -147,21 +346,15 @@ export async function updateSession(request: NextRequest) {
                 loginUrl.searchParams.set('reason', accountAccess.reason);
             }
 
-            const response = finalizeResponse(NextResponse.redirect(loginUrl));
-            clearSupabaseAuthCookies(request, response);
-            return response;
+            return finalizeResponse(NextResponse.redirect(loginUrl));
         }
     }
 
     const currentPath = request.nextUrl.pathname;
-    const creatorRouteInfo = isProjectCreatorPath(currentPath);
+    const creatorRouteInfo = isProjectManagementPath(currentPath);
     const effectivePathForMfa = currentPath === "/account" ? "/account/profile" : currentPath;
     const effectiveSearchForMfa = currentPath === "/account" ? "" : request.nextUrl.search;
     const isRestrictedPathForLoggedIn = RESTRICTED_PATHS_FOR_LOGGED_IN_USERS.includes(currentPath);
-    const currentAal = claimsData?.claims && typeof claimsData.claims.aal === "string"
-        ? claimsData.claims.aal
-        : null;
-
     // Check for ?noRedirect=1 query parameter
     const searchParams = request.nextUrl.searchParams;
     const hasStaffInviteContext =
@@ -210,30 +403,35 @@ export async function updateSession(request: NextRequest) {
     );
 
     if (shouldCheckMfa) {
-        const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
+        const [assuranceResult, factorsResult] = await Promise.all([
+            supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+            supabase.auth.mfa.listFactors(),
+        ]);
+        const factorData = (factorsResult.data as MfaListFactorsLike | null) ?? null;
+        const mfaState = resolveMfaSessionState({
+            assurance: assuranceResult.data,
+            factors: factorData,
+            assuranceError: assuranceResult.error,
+            factorsError: factorsResult.error,
+        });
 
-        if (factorsError) {
-            if (isStaleSupabaseAuthUserError(factorsError)) {
-                if (process.env.NODE_ENV === "development") {
-                    console.warn("[Proxy] Detected stale/deleted auth user. Signing out and treating request as unauthenticated.");
-                }
-
-                await supabase.auth.signOut();
-                clearSupabaseAuthCookies(request, supabaseResponse);
-                user = null;
-            } else if (process.env.NODE_ENV === "development") {
-                console.log("[Proxy] MFA factor lookup error:", factorsError.message);
+        if (mfaState.invalidUser) {
+            if (process.env.NODE_ENV === "development") {
+                console.warn("[Proxy] Detected stale/deleted auth user during MFA validation. Signing out.");
             }
+
+            await supabase.auth.signOut();
+            clearAuthCookiesOnFinalize = true;
+            user = null;
+        } else if (mfaState.lookupError) {
+            if (process.env.NODE_ENV === "development") {
+                console.warn("[Proxy] MFA validation temporarily failed:", mfaState.lookupError.message);
+            }
+            return authRetryResponse();
         }
 
         if (user) {
-            const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
-            const assuranceData = deriveAuthenticatorAssurance(currentAal, factorData);
-
-            requiresMfaChallenge = shouldPromptForMfaChallenge(
-                assuranceData,
-                factorData,
-            );
+            requiresMfaChallenge = mfaState.requiresMfa;
 
             if (requiresMfaChallenge) {
                 const continuationPath = deriveMfaContinuationPath({
@@ -263,7 +461,14 @@ export async function updateSession(request: NextRequest) {
     }
 
     // Redirect authenticated users trying to access restricted paths
-    if (user && isRestrictedPathForLoggedIn) {
+    if (
+        user &&
+        isRestrictedPathForLoggedIn &&
+        shouldRedirectAuthenticatedRestrictedRequest({
+            method: request.method,
+            hasNextActionHeader: request.headers.has("next-action"),
+        })
+    ) {
         if (hasStaffInviteContext) {
             return finalizeResponse(supabaseResponse);
         }
@@ -274,7 +479,7 @@ export async function updateSession(request: NextRequest) {
     // Redirect non-authenticated users trying to access protected paths
     if (!user && isProtectedPath(currentPath)) {
         const loginUrl = new URL('/login', request.url);
-        loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
+        loginUrl.searchParams.set('redirect', `${request.nextUrl.pathname}${request.nextUrl.search}`);
         return finalizeResponse(NextResponse.redirect(loginUrl));
     }
 
@@ -286,28 +491,45 @@ export async function updateSession(request: NextRequest) {
         // Logged-in users proceed; the admin route performs a service-role check server-side.
     }
 
-    // Check for project creator routes
+    // Check project-management routes using the same creator/admin/staff model
+    // enforced by the underlying Server Actions.
     const { isCreatorPath, projectId } = creatorRouteInfo;
     if (isCreatorPath && projectId) {
         if (!user) {
             const loginUrl = new URL('/login', request.url);
-            loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
+            loginUrl.searchParams.set('redirect', `${request.nextUrl.pathname}${request.nextUrl.search}`);
             return finalizeResponse(NextResponse.redirect(loginUrl));
         }
 
         try {
             const { data: project, error } = await supabase
                 .from("projects")
-                .select("creator_id")
+                .select("creator_id, organization_id, can_be_managed_by_staff")
                 .eq("id", projectId)
                 .single();
 
             if (error) {
-                console.error("Error fetching project for creator check:", error);
+                console.error("Error fetching project for management-route check:", error);
                 return finalizeResponse(NextResponse.redirect(new URL("/home", request.url)));
             }
 
-            if (!project || project.creator_id !== user.id) {
+            let organizationRole: string | null = null;
+            if (project?.organization_id && project.creator_id !== user.id) {
+                const { data: membership } = await supabase
+                    .from("organization_members")
+                    .select("role")
+                    .eq("organization_id", project.organization_id)
+                    .eq("user_id", user.id)
+                    .maybeSingle();
+                organizationRole = membership?.role ?? null;
+            }
+
+            if (!project || !canManageProjectRoute({
+                creatorId: project.creator_id,
+                userId: user.id,
+                organizationRole,
+                canBeManagedByStaff: project.can_be_managed_by_staff,
+            })) {
                 return finalizeResponse(
                     NextResponse.redirect(
                         new URL(`/projects/${projectId}`, request.url)
@@ -315,7 +537,7 @@ export async function updateSession(request: NextRequest) {
                 );
             }
         } catch (e) {
-            console.error("Exception during project creator check:", e);
+            console.error("Exception during project management-route check:", e);
             return finalizeResponse(NextResponse.redirect(new URL("/home", request.url)));
         }
     }

@@ -9,6 +9,7 @@ import type { EventFormState } from "@/hooks/use-event-form";
 import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
 import { runProjectCreate } from "@/lib/plugins/lifecycle";
 import { OrganizationWithRole } from "@/types/plugin";
+import { getAdminClient } from "@/lib/supabase/admin";
 
 // File size and type validation constants
 const MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -341,9 +342,10 @@ export async function createBasicProject(
 
     // Handle plugin hooks after project creation
     if (projectData.basicInfo.organizationId) {
-      const { data: organization } = await supabase
+      const admin = getAdminClient();
+      const { data: organization } = await admin
         .from("organizations")
-        .select("*")
+        .select("id, name, username, description, logo_url, type, verified, allowed_email_domains, show_members_publicly")
         .eq("id", projectData.basicInfo.organizationId)
         .single();
       

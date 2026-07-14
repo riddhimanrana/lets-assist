@@ -2,7 +2,7 @@
 
 export type EventType = "oneTime" | "multiDay" | "sameDayMultiArea";
 export type VerificationMethod = "qr-code" | "auto" | "manual" | "signup-only";
-export type SignupStatus = "approved" | "rejected" | "pending" | "attended";
+export type SignupStatus = "approved" | "rejected" | "pending" | "attended" | "cancelled";
 export type ProfileVisibility = 'public' | 'private' | 'organization_only';
 export type ProjectVisibility = 'public' | 'unlisted' | 'organization_only';
 export type ProjectStatus = "upcoming" | "in-progress" | "completed" | "cancelled";

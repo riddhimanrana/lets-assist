@@ -4,7 +4,25 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  createGoogleOAuthState,
+  getGoogleOAuthStateCookieOptions,
+  GOOGLE_OAUTH_STATE_COOKIE_NAME,
+  normalizeGoogleOAuthReturnTo,
+} from "@/lib/auth/google-oauth-state";
 import { NextResponse } from "next/server";
+
+function attachGoogleOAuthStateCookie(
+  response: NextResponse,
+  nonce: string,
+): NextResponse {
+  response.cookies.set(
+    GOOGLE_OAUTH_STATE_COOKIE_NAME,
+    nonce,
+    getGoogleOAuthStateCookieOptions(),
+  );
+  return response;
+}
 
 export async function GET(request: Request) {
   try {
@@ -42,10 +60,7 @@ export async function GET(request: Request) {
       if (!membership || membership.role !== "admin") {
         const requestUrl = new URL(request.url);
         const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || requestUrl.origin;
-        const safeReturnTo =
-          returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
-            ? returnTo
-            : null;
+        const safeReturnTo = normalizeGoogleOAuthReturnTo(returnTo);
         const target = safeReturnTo || `/organization/${orgId}/settings`;
         const redirectUrl = new URL(target, baseUrl);
         redirectUrl.searchParams.set("error", "org_admin_required");
@@ -65,22 +80,15 @@ export async function GET(request: Request) {
       );
     }
 
-    // Generate state parameter for security (prevents CSRF)
-    // Include returnTo in the state so we can redirect after OAuth
-    const state = Buffer.from(
-      JSON.stringify({
-        userId: user.id,
-        timestamp: Date.now(),
-        nonce: Math.random().toString(36).substring(7),
-        returnTo:
-          returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
-            ? returnTo
-            : null,
-        orgId: orgId || null,
-        isCalendarSync: isCalendarSync || false,
-        isSheetsSync: isSheetsSync || false,
-      })
-    ).toString("base64");
+    // Bind the OAuth response to this signed-in user and a short-lived,
+    // HttpOnly nonce cookie. The callback consumes the cookie exactly once.
+    const { state, nonce } = createGoogleOAuthState({
+      userId: user.id,
+      returnTo,
+      orgId,
+      isCalendarSync,
+      isSheetsSync,
+    });
 
     const wantsSheetsScopes = scopeType === "sheets" || scopeType === "both" || isSheetsSync;
     const connectionTypesToCheck = wantsSheetsScopes
@@ -138,12 +146,18 @@ export async function GET(request: Request) {
     googleAuthUrl.searchParams.set("state", state);
 
     if (wantsJson) {
-      return NextResponse.json({
-        authUrl: googleAuthUrl.toString(),
-      });
+      return attachGoogleOAuthStateCookie(
+        NextResponse.json({
+          authUrl: googleAuthUrl.toString(),
+        }),
+        nonce,
+      );
     }
 
-    return NextResponse.redirect(googleAuthUrl.toString());
+    return attachGoogleOAuthStateCookie(
+      NextResponse.redirect(googleAuthUrl.toString()),
+      nonce,
+    );
   } catch (error) {
     console.error("Error initiating Google Calendar connection:", error);
     return NextResponse.json(

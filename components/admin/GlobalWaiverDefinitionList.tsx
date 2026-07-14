@@ -35,7 +35,7 @@ function formatDate(value?: string | null) {
   }).format(date);
 }
 
-export function GlobalWaiverDefinitionList({
+export function WaiverDefinitionList({
   definitions,
 }: {
   definitions: WaiverDefinitionRow[];
@@ -43,7 +43,7 @@ export function GlobalWaiverDefinitionList({
   if (definitions.length === 0) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground">
-        No global waiver definitions have been created yet.
+        No project waiver definitions have been created yet.
       </div>
     );
   }
@@ -73,7 +73,7 @@ export function GlobalWaiverDefinitionList({
                   <div className="flex flex-col gap-1">
                     <span>{definition.title}</span>
                     <span className="text-xs text-muted-foreground">
-                      {definition.scope ?? "global"} • {definition.id.slice(0, 8)}
+                      {definition.scope ?? "project"} • {definition.id.slice(0, 8)}
                     </span>
                   </div>
                 </TableCell>

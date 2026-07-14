@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -194,14 +195,19 @@ export async function removeMember(organizationId: string, membershipId: string)
     }
   }
   
-  // Remove the member
-  const { error: removeError } = (await supabase
-    .from("organization_members")
-    .delete()
-    .eq("id", membershipId)
-    .eq("organization_id", organizationId)) as { error: { message?: string } | null };
-  
-  if (removeError) {
+  // Record the auto-join suppression and remove the membership atomically so a
+  // later login cannot silently recreate access that was explicitly removed.
+  const admin = getAdminClient();
+  const { data: removed, error: removeError } = await admin.rpc(
+    "remove_organization_member_with_autojoin_suppression",
+    {
+      p_organization_id: organizationId,
+      p_membership_id: membershipId,
+      p_removed_by: user.id,
+    },
+  );
+
+  if (removeError || removed !== true) {
     console.error("Error removing member:", removeError);
     return { error: "Failed to remove member" };
   }
