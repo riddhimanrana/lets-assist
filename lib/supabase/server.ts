@@ -3,8 +3,9 @@
  *
  * ## Auth Guidelines
  *
- * Middleware/proxy code should call `supabase.auth.getUser()` immediately after
- * creating the SSR client so token refreshes are written back to cookies.
+ * Proxy code should call `supabase.auth.getClaims()` immediately after creating
+ * the request-scoped SSR client so tokens are validated and refresh cookies are
+ * written back before any other work runs.
  *
  * Server Components, Server Actions, and Route Handlers should use the auth
  * helpers from `@/lib/supabase/auth-helpers`:

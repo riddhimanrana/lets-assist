@@ -2,7 +2,7 @@ import { PDFDocument, rgb } from 'pdf-lib';
 import type { SignaturePayload } from '@/types/waiver-definitions';
 
 export interface PdfGenerationOptions {
-  waiverPdfUrl: string;
+  sourcePdfBytes: Uint8Array | ArrayBuffer;
   definition: {
     id: string;
     fields?: Array<{
@@ -33,15 +33,12 @@ export interface PdfGenerationOptions {
 export async function generateSignedWaiverPdf(
   options: PdfGenerationOptions
 ): Promise<Buffer> {
-  const { waiverPdfUrl, definition, signaturePayload, storageResolver } = options;
+  const { sourcePdfBytes, definition, signaturePayload, storageResolver } = options;
 
-  // 1. Load the original PDF
-  const pdfResponse = await fetch(waiverPdfUrl);
-  if (!pdfResponse.ok) {
-    throw new Error('Failed to fetch waiver PDF');
-  }
-  const pdfBytes = await pdfResponse.arrayBuffer();
-  const pdfDoc = await PDFDocument.load(pdfBytes);
+  // The source is loaded through the bounded, Storage-aware server loader.
+  // Keeping network access out of this renderer prevents callers from turning
+  // persisted waiver metadata into an SSRF primitive.
+  const pdfDoc = await PDFDocument.load(sourcePdfBytes);
 
   // 2. Get signature placements from definition
   const signatureFields = definition.fields?.filter(f => f.field_type === 'signature') || [];

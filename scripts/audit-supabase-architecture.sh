@@ -310,7 +310,7 @@ storage_bucket_drift="$(
         ('waivers', true, 20971520::bigint, array['application/pdf']::text[]),
         ('data-exports', false, 104857600::bigint, array['application/zip']::text[]),
         ('plugin_form_uploads', false, 10485760::bigint, array['application/pdf', 'image/jpeg', 'image/png']::text[]),
-        ('waiver-signatures', false, 2097152::bigint, array['image/png', 'image/jpeg', 'image/jpg']::text[])
+        ('waiver-signatures', false, 10485760::bigint, array['application/pdf', 'image/png', 'image/jpeg', 'image/jpg']::text[])
     )
     select
       e.id,
@@ -385,8 +385,6 @@ unexpected_security_definer_exec="$(
         ('public', 'can_insert_project', 'p_user uuid', 'authenticated'),
         ('public', 'can_insert_project', 'p_user uuid, p_visibility text, p_organization_id uuid', 'authenticated'),
         ('public', 'can_keep_or_set_public_visibility', 'p_project_id uuid, p_user uuid', 'authenticated'),
-        ('public', 'check_email_exists', 'email_to_check text', 'anon'),
-        ('public', 'check_email_exists', 'email_to_check text', 'authenticated'),
         ('public', 'get_public_attendees', 'p_project_id uuid', 'anon'),
         ('public', 'get_public_attendees', 'p_project_id uuid', 'authenticated'),
         ('public', 'is_project_organizer', 'p_project_id uuid, p_user uuid', 'authenticated'),

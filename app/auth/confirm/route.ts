@@ -1,6 +1,7 @@
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { syncPrimaryUserEmail } from "@/lib/auth/primary-email";
 import { redirect } from "next/navigation";
 import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
 
@@ -80,7 +81,18 @@ export async function GET(request: NextRequest) {
       return redirect(`/error?message=${encodeURIComponent(error.message)}`);
     }
 
-    const userEmail = (await getTrustedUser())?.email;
+    const trustedUser = await getTrustedUser();
+    if (!trustedUser) {
+      return redirect("/error?message=Unable%20to%20load%20verified%20user");
+    }
+
+    const primarySync = await syncPrimaryUserEmail(trustedUser.id);
+    if (!primarySync.success) {
+      console.error("Primary email synchronization failed after code exchange:", primarySync.status);
+      return redirect("/error?message=Unable%20to%20synchronize%20verified%20email");
+    }
+
+    const userEmail = trustedUser.email;
     await supabase.auth.signOut();
     return redirectToSuccess(
       request,
@@ -91,13 +103,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (!token_hash && !token && !code) {
-    console.warn("Confirmation hit without parameters, assuming success");
-    return redirectToSuccess(
-      request,
-      undefined,
-      type === "email_change" ? "email_change" : "signup",
-      redirectAfterAuth,
-    );
+    console.warn("Confirmation hit without a verification credential");
+    return redirect("/error?message=Missing%20verification%20credential");
   }
 
   const tokenValue = token_hash ?? token;
@@ -122,23 +129,17 @@ export async function GET(request: NextRequest) {
 
   const trustedUser = await getTrustedUser();
 
+  if (!trustedUser) {
+    return redirect("/error?message=Unable%20to%20load%20verified%20user");
+  }
+
+  const primarySync = await syncPrimaryUserEmail(trustedUser.id);
+  if (!primarySync.success) {
+    console.error("Primary email synchronization failed after confirmation:", primarySync.status);
+    return redirect("/error?message=Unable%20to%20synchronize%20verified%20email");
+  }
+
   if (type === "email_change") {
-    if (!trustedUser) {
-      return redirect("/error?message=Unable%20to%20load%20verified%20user");
-    }
-
-    const { error: profileError } = (await supabase
-      .from("profiles")
-      .update({
-        email: trustedUser.email,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", trustedUser.id)) as { error: { message?: string } | null };
-
-    if (profileError) {
-      console.error("Profile update error:", profileError);
-    }
-
     return redirectToSuccess(
       request,
       trustedUser.email,
@@ -147,7 +148,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const userEmail = trustedUser?.email;
+  const userEmail = trustedUser.email;
   await supabase.auth.signOut();
   return redirectToSuccess(request, userEmail, "signup", redirectAfterAuth);
 }

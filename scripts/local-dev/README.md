@@ -34,7 +34,7 @@ and restarting the local stack.
 - `bun run db:audit:remote-readiness` to check the stricter final production posture where `plugin_data` is removed from exposed Data API schemas and authenticated direct grants are gone
   - This is expected to fail during the current transition while server-side plugin code still uses Supabase schema builders for `plugin_data`.
 - `bun run plugin:audit:data-access` to verify browser/client code cannot directly construct `plugin_data` queries
-- `bun run plugin:test:registry` to verify private plugin registry gates, including DV hard-disabled while its backend is redesigned
+- `bun run plugin:test:registry` to verify every private plugin registry gate, including the server-only DV workspace
 - `bun run plugin:test:contracts` to sync registered plugin runtime contracts and verify no plugin declares raw `plugin_data` client access
 - `bun run typecheck` to verify generated read-model usage still matches the app
 
@@ -43,7 +43,7 @@ and restarting the local stack.
 - `README-fixtures.md` documents the seeded accounts and passwords
 - `member-import-mock.csv` is a sample import file for org member CSV testing
 - `seed-platform.mjs` contains the default local platform seed logic
-- `seed-dvsd.mjs` is temporarily disabled because `plugin_data` is no longer exposed through the Supabase Data API
+- `seed-dvsd.mjs` provisions the optional DV workspace through a service-role-only backend client; browser roles have no `plugin_data` grants
 
 ## Supabase redesign gate
 
@@ -66,4 +66,4 @@ Run browser/dev-server checks sequentially. Next.js allows only one dev server p
 
 Remote Supabase writes should wait until the local gate passes and the generated migration has been reviewed.
 
-`bun run db:test:redesign` is the current local merge gate and now includes `bun run db:audit:remote-readiness`. DV Speech & Debate is intentionally down until its plugin backend is redesigned for server-only access.
+`bun run db:test:redesign` is the current local merge gate and now includes `bun run db:audit:remote-readiness`. DV Speech & Debate is registered again after its browser-facing data access was replaced with authenticated Server Actions and service-role-only backend reads.

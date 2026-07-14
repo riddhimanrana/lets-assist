@@ -20,6 +20,7 @@ export interface AuthCheckParams {
   project: {
     creator_id: string | null;
     organization_id: string | null;
+    can_be_managed_by_staff: boolean;
   };
   /** Organization member record if user is in org, or null */
   orgMember?: {
@@ -67,9 +68,14 @@ export function checkWaiverAccess(params: AuthCheckParams): AuthCheckResult {
     };
   }
 
-  // Path 1: Organizer access (org admin/staff)
+  // Path 1: Organization admins always manage org projects. Staff only inherit
+  // that access when the creator explicitly enabled staff management.
   if (currentUserId && project.organization_id && orgMember) {
-    if (['admin', 'staff'].includes(orgMember.role)) {
+    const isAuthorizedOrgManager =
+      orgMember.role === 'admin' ||
+      (orgMember.role === 'staff' && project.can_be_managed_by_staff);
+
+    if (isAuthorizedOrgManager) {
       return {
         hasPermission: true,
         reason: 'organizer',

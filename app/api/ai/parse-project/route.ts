@@ -2,8 +2,22 @@ import { generateText } from 'ai';
 import { NextRequest } from 'next/server';
 import { gatewayModel } from '@/lib/ai/gateway';
 import { createPostHogTelemetry } from '@/lib/ai/posthog-telemetry';
+import { getAuthUser } from '@/lib/supabase/auth-helpers';
+import { consumeParseProjectQuota } from '@/lib/ai/parse-project-rate-limit';
+import { getRequestIp } from '@/lib/ai/parse-project-rate-limit-config';
+import {
+  normalizeParseProjectCandidate,
+  parseProjectOutputSchema,
+} from '@/lib/ai/parse-project-schema';
+import { z } from 'zod';
 
 // export const runtime = 'edge'; - incompatible with cacheComponents
+
+const parseProjectRequestSchema = z
+  .object({
+    prompt: z.string().trim().min(10).max(4_000),
+  })
+  .strict();
 
 const getCurrentDateInfo = () => {
   const now = new Date();
@@ -117,18 +131,55 @@ Return ONLY valid JSON, no additional text.`;
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt } = await req.json();
+    const { user, error: authError } = await getAuthUser({ sensitive: true });
+    if (authError || !user) {
+      return Response.json({ error: 'Authentication required' }, { status: 401 });
+    }
 
-    if (!prompt || typeof prompt !== 'string') {
-      return Response.json({ error: 'Prompt is required' }, { status: 400 });
+    const requestBody = await req.json().catch(() => null);
+    const parsedRequest = parseProjectRequestSchema.safeParse(requestBody);
+    if (!parsedRequest.success) {
+      return Response.json(
+        { error: 'Project description must be between 10 and 4,000 characters.' },
+        { status: 400 },
+      );
+    }
+
+    const { prompt } = parsedRequest.data;
+    let quota: Awaited<ReturnType<typeof consumeParseProjectQuota>>;
+    try {
+      quota = await consumeParseProjectQuota(user.id, getRequestIp(req.headers));
+    } catch (rateLimitError) {
+      console.error('Project parser rate-limit check failed:', rateLimitError);
+      return Response.json(
+        { error: 'Project assistant is temporarily unavailable. Please try again.' },
+        { status: 503 },
+      );
+    }
+
+    if (!quota.allowed) {
+      const retryAfterSeconds = Math.max(
+        Math.ceil((new Date(quota.resetAt).getTime() - Date.now()) / 1_000),
+        1,
+      );
+      return Response.json(
+        { error: 'Too many project-assistant requests. Please try again shortly.' },
+        {
+          status: 429,
+          headers: { 'Retry-After': retryAfterSeconds.toString() },
+        },
+      );
     }
 
     const { text } = await generateText({
       model: gatewayModel('platform', 'google/gemini-2.5-flash-lite'),
       experimental_telemetry: createPostHogTelemetry({
         functionId: 'parse-project',
+        distinctId: user.id,
         metadata: {
           ai_feature: 'project-form-parser',
+          prompt_length: prompt.length,
+          rate_limit_remaining: quota.remaining,
         },
       }),
       system: systemPrompt,
@@ -140,53 +191,36 @@ export async function POST(req: NextRequest) {
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        console.error('No JSON found in AI response:', text);
+        console.error('Project parser response did not contain JSON');
         return Response.json(
           { error: 'AI did not return valid JSON. Please try rephrasing your description.' },
-          { status: 500 }
+          { status: 502 }
         );
       }
       
-      const parsedData = JSON.parse(jsonMatch[0]);
-      
-      // Validate required fields
-      if (!parsedData.eventType || !parsedData.schedule) {
-        console.error('Missing required fields in AI response:', parsedData);
+      const candidate = normalizeParseProjectCandidate(JSON.parse(jsonMatch[0]));
+      const parsedData = parseProjectOutputSchema.safeParse(candidate);
+
+      if (!parsedData.success) {
+        console.error(
+          'Project parser returned an invalid shape:',
+          parsedData.error.issues.map((issue) => ({
+            code: issue.code,
+            path: issue.path.join('.'),
+          })),
+        );
         return Response.json(
-          { error: 'AI response missing required fields. Please try again.' },
-          { status: 500 }
+          { error: 'AI response was incomplete. Please try rephrasing your description.' },
+          { status: 502 },
         );
       }
-      
-      // Ensure multiDay events have proper structure with slots
-      if (parsedData.eventType === 'multiDay' && Array.isArray(parsedData.schedule)) {
-        parsedData.schedule = parsedData.schedule.map((day: Record<string, unknown>) => {
-          // Ensure each day has a slots array
-          if (!Array.isArray(day.slots)) {
-            day.slots = [{
-              name: day.name || '',
-              startTime: day.startTime || '09:00',
-              endTime: day.endTime || '17:00',
-              volunteers: day.volunteers || 10
-            }];
-          } else {
-            day.slots = day.slots.map((slot: Record<string, unknown>) => ({
-              name: typeof slot.name === 'string' ? slot.name : '',
-              startTime: slot.startTime || day.startTime || '09:00',
-              endTime: slot.endTime || day.endTime || '17:00',
-              volunteers: slot.volunteers || day.volunteers || 10,
-            }));
-          }
-          return day;
-        });
-      }
-      
-      return Response.json(parsedData);
+
+      return Response.json(parsedData.data);
     } catch (parseError) {
-      console.error('JSON parse error:', parseError, 'Raw text:', text);
+      console.error('Project parser returned invalid JSON:', parseError);
       return Response.json(
         { error: 'Failed to parse AI response. Please try again or rephrase your description.' },
-        { status: 500 }
+        { status: 502 }
       );
     }
   } catch (error) {

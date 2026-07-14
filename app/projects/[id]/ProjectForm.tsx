@@ -21,7 +21,6 @@ import { WaiverSigningDialog } from '@/components/waiver/WaiverSigningDialog';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { checkReusableAnonymousWaiver } from "./actions";
 import { ModernFormRenderer } from "@/components/forms/ModernFormRenderer";
 import { ArrowLeft } from "lucide-react";
 
@@ -217,9 +216,7 @@ export function ProjectSignupForm({
   const [usedSavedProfile, setUsedSavedProfile] = useState(false);
   const [autoApplyEnabled, setAutoApplyEnabled] = useState(false);
   const [lastUpdatedDisplay, setLastUpdatedDisplay] = useState<string>("");
-  const [hasReusableWaiver, setHasReusableWaiver] = useState(false);
   const [hasLocallyCachedWaiver, setHasLocallyCachedWaiver] = useState(false);
-  const [isCheckingReusableWaiver, setIsCheckingReusableWaiver] = useState(false);
 
   const watchedEmail = form.watch("email");
   const normalizedWatchedEmail = watchedEmail?.trim().toLowerCase() || "";
@@ -305,35 +302,6 @@ export function ProjectSignupForm({
     }
   }, [waiverRequired, waiverCacheEntryKey]);
 
-  useEffect(() => {
-    if (!waiverRequired || !projectId || !normalizedWatchedEmail.includes("@")) {
-      setHasReusableWaiver(false);
-      setIsCheckingReusableWaiver(false);
-      return;
-    }
-
-    let cancelled = false;
-    const timeout = window.setTimeout(async () => {
-      setIsCheckingReusableWaiver(true);
-      const result = await checkReusableAnonymousWaiver(projectId, normalizedWatchedEmail);
-
-      if (cancelled) return;
-
-      const reusable = !!result.hasReusableWaiver;
-      setHasReusableWaiver(reusable);
-      setIsCheckingReusableWaiver(false);
-
-      if (reusable) {
-        markWaiverCachedLocally(normalizedWatchedEmail);
-      }
-    }, 300);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeout);
-    };
-  }, [waiverRequired, projectId, normalizedWatchedEmail, markWaiverCachedLocally]);
-
   const handleApplyClick = () => {
     if (savedProfile) {
       applySavedProfile(savedProfile);
@@ -386,7 +354,7 @@ export function ProjectSignupForm({
       captchaToken: turnstileToken ?? undefined,
     };
 
-    if (waiverRequired && (waiverSignature || hasReusableWaiver)) {
+    if (waiverRequired && waiverSignature) {
       markWaiverCachedLocally(data.email);
     }
 
@@ -408,8 +376,7 @@ export function ProjectSignupForm({
 
   const signerName = form.watch("name");
   const signerEmail = form.watch("email");
-  const hasServerReusableWaiver = hasReusableWaiver;
-  const waiverSatisfied = !waiverRequired || !!waiverSignature || hasServerReusableWaiver;
+  const waiverSatisfied = !waiverRequired || !!waiverSignature;
 
   const handleWaiverComplete = async (input: WaiverSignatureInput) => {
     setWaiverSignature(input);
@@ -596,19 +563,7 @@ export function ProjectSignupForm({
             A signature is required to participate in this event.
           </div>
 
-          {isCheckingReusableWaiver && (
-            <p className="text-xs text-muted-foreground mb-3">Checking for an existing waiver on your anonymous profile...</p>
-          )}
-
-          {!waiverSignature && hasServerReusableWaiver && (
-            <Alert className="mb-3 border-success/30 bg-success/5">
-              <AlertDescription className="text-xs text-success">
-                We found your latest signed waiver for this anonymous profile. You can submit without signing again.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {!waiverSignature && hasLocallyCachedWaiver && !hasServerReusableWaiver && (
+          {!waiverSignature && hasLocallyCachedWaiver && (
             <Alert className="mb-3 border-primary/30 bg-primary/5">
               <AlertDescription className="text-xs text-primary">
                 We found a recent waiver on this device, but it isn&apos;t confirmed on the server for this profile yet. Please sign again to continue.
@@ -624,7 +579,7 @@ export function ProjectSignupForm({
                className="w-full sm:w-auto"
              >
                <PenTool className="h-4 w-4 mr-2" />
-               {hasServerReusableWaiver ? "Review or Re-sign Waiver" : "Sign Waiver"}
+               Sign Waiver
              </Button>
           ) : (
              <div className="flex items-center justify-between p-3 bg-success/10 border border-success rounded-lg">

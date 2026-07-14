@@ -5,6 +5,7 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { getRegisteredPlugin, listRegisteredPlugins } from "@/lib/plugins/registry";
+import { transitionOrganizationPluginInstall } from "@/lib/plugins/control-plane-transition";
 import { buildOrganizationPluginAdminSettings } from "@/lib/plugins/organization-plugin-settings";
 import {
   applyConfigDefaults,
@@ -12,6 +13,7 @@ import {
   type PluginConfigSchema,
 } from "@/lib/plugins/config-schema";
 import type { OrganizationPluginAdminSetting } from "@/types";
+import { validateOrganizationAutojoinDomain } from "@/lib/organization/domain-policy";
 
 // Allowed image MIME types
 const ALLOWED_FILE_TYPES = [
@@ -61,44 +63,6 @@ export async function checkUsernameAvailability(username: string): Promise<boole
 }
 
 /**
- * Check if a domain is available for auto-join (not used by another organization)
- * Excludes the specified organization from the check
- */
-export async function checkDomainAvailability(domain: string, excludeOrgId?: string): Promise<boolean> {
-  const supabase = await createClient();
-
-  const normalizedDomain = domain.toLowerCase().trim();
-  if (!normalizedDomain) {
-    return false;
-  }
-
-  // Require at least one dot, prevent consecutive dots, and ensure labels don't start/end with hyphens.
-  // Examples: example.org, school.k12.us
-  const domainPattern = /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
-  if (!domainPattern.test(normalizedDomain)) {
-    return false;
-  }
-
-  let query = supabase
-    .from("organizations")
-    .select("id")
-    .eq("auto_join_domain", normalizedDomain);
-  
-  if (excludeOrgId) {
-    query = query.neq("id", excludeOrgId);
-  }
-
-  const { data, error } = await query.maybeSingle();
-
-  if (error) {
-    console.error("Error checking domain:", error);
-    return false;
-  }
-
-  return !data; // If data is null, domain is available
-}
-
-/**
  * Update an organization's details
  */
 export async function updateOrganization(data: OrganizationUpdateData) {
@@ -124,9 +88,10 @@ export async function updateOrganization(data: OrganizationUpdateData) {
   }
 
   // Get the current organization data
-  const { data: currentOrg, error: orgError } = await supabase
+  const admin = getAdminClient();
+  const { data: currentOrg, error: orgError } = await admin
     .from("organizations")
-    .select("username, logo_url")
+    .select("username, logo_url, verified, auto_join_domain")
     .eq("id", data.id)
     .single();
 
@@ -137,6 +102,28 @@ export async function updateOrganization(data: OrganizationUpdateData) {
 
   try {
     let logoUrl = currentOrg.logo_url;
+    const autoJoinDomain: string | null = currentOrg.auto_join_domain;
+
+    if (data.autoJoinDomain) {
+      const domainResult = validateOrganizationAutojoinDomain(data.autoJoinDomain);
+      if (!domainResult.ok) {
+        return {
+          error: domainResult.reason === "public_provider"
+            ? "Public email providers cannot be used for automatic organization membership"
+            : "Enter a valid organization-owned email domain",
+        };
+      }
+
+      if (domainResult.domain !== currentOrg.auto_join_domain) {
+        return {
+          error: "Contact Let's Assist support to verify or change an automatic-membership domain",
+        };
+      }
+    } else if (currentOrg.auto_join_domain) {
+      return {
+        error: "Contact Let's Assist support to disable a verified automatic-membership domain",
+      };
+    }
     
     // Handle logo update
     if (data.logoUrl !== undefined) {
@@ -223,7 +210,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
     }
 
     // Update the organization
-    const { error: updateError } = await supabase
+    const { error: updateError } = await admin
       .from("organizations")
       .update({
         name: data.name,
@@ -232,7 +219,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
         website: data.website || null,
         type: data.type,
         logo_url: logoUrl,
-        auto_join_domain: data.autoJoinDomain || null,
+        auto_join_domain: autoJoinDomain,
         show_members_publicly: data.showMembersPublicly !== false,
       })
       .eq("id", data.id);
@@ -351,7 +338,8 @@ export async function generateStaffLink(organizationId: string, expiresInDays: n
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
     // Update the organization with the new staff token
-    const { error: updateError } = await supabase
+    const admin = getAdminClient();
+    const { error: updateError } = await admin
       .from("organizations")
       .update({
         staff_join_token: token,
@@ -405,7 +393,8 @@ export async function revokeStaffLink(organizationId: string) {
   }
 
   try {
-    const { error: updateError } = await supabase
+    const admin = getAdminClient();
+    const { error: updateError } = await admin
       .from("organizations")
       .update({
         staff_join_token: null,
@@ -455,7 +444,8 @@ export async function getStaffLinkDetails(organizationId: string) {
   }
 
   try {
-    const { data: org, error } = await supabase
+    const admin = getAdminClient();
+    const { data: org, error } = await admin
       .from("organizations")
       .select("staff_join_token, staff_join_token_created_at, staff_join_token_expires_at")
       .eq("id", organizationId)
@@ -847,69 +837,21 @@ export async function setOrganizationPluginInstallState(options: {
     }
   }
 
-  const { data: existingInstall, error: existingInstallError } = (await adminSupabase
-    .from("organization_plugin_installs")
-    .select("organization_id, plugin_key")
-    .eq("organization_id", organizationId)
-    .eq("plugin_key", pluginKey)
-    .maybeSingle()) as {
-    data: { organization_id: string; plugin_key: string } | null;
-    error: SupabaseLikeError | null;
-  };
+  const transitionResult = await transitionOrganizationPluginInstall({
+    organizationId,
+    pluginKey,
+    actor: { id: user.id, type: "user" },
+    organizationRole: "admin",
+    transition: enabled
+      ? { kind: "install_or_enable", targetVersion: pluginCatalog.latest_version }
+      : { kind: "disable" },
+  });
 
-  if (existingInstallError) {
+  if (!transitionResult.success) {
     return {
       success: false,
-      error: `Failed to load current install state: ${existingInstallError.message}`,
+      error: transitionResult.error ?? `Failed to ${enabled ? "enable" : "disable"} plugin.`,
     };
-  }
-
-  const now = new Date().toISOString();
-
-  if (enabled) {
-    if (existingInstall) {
-      const { error: updateError } = await adminSupabase
-        .from("organization_plugin_installs")
-        .update({
-          enabled: true,
-          installed_version: pluginCatalog.latest_version,
-          updated_at: now,
-        })
-        .eq("organization_id", organizationId)
-        .eq("plugin_key", pluginKey);
-
-      if (updateError) {
-        return { success: false, error: `Failed to enable plugin: ${updateError.message}` };
-      }
-    } else {
-      const { error: insertError } = await adminSupabase
-        .from("organization_plugin_installs")
-        .insert({
-          organization_id: organizationId,
-          plugin_key: pluginKey,
-          enabled: true,
-          installed_version: pluginCatalog.latest_version,
-          installed_at: now,
-          updated_at: now,
-        });
-
-      if (insertError) {
-        return { success: false, error: `Failed to install plugin: ${insertError.message}` };
-      }
-    }
-  } else if (existingInstall) {
-    const { error: updateError } = await adminSupabase
-      .from("organization_plugin_installs")
-      .update({
-        enabled: false,
-        updated_at: now,
-      })
-      .eq("organization_id", organizationId)
-      .eq("plugin_key", pluginKey);
-
-    if (updateError) {
-      return { success: false, error: `Failed to disable plugin: ${updateError.message}` };
-    }
   }
 
   const { data: organization } = await adminSupabase
@@ -1014,40 +956,18 @@ export async function uninstallOrganizationPlugin(options: {
     }
   }
 
-  const { data: existingInstall, error: existingInstallError } = (await adminSupabase
-    .from("organization_plugin_installs")
-    .select("organization_id, plugin_key")
-    .eq("organization_id", organizationId)
-    .eq("plugin_key", pluginKey)
-    .maybeSingle()) as {
-    data: { organization_id: string; plugin_key: string } | null;
-    error: SupabaseLikeError | null;
-  };
+  const transitionResult = await transitionOrganizationPluginInstall({
+    organizationId,
+    pluginKey,
+    actor: { id: user.id, type: "user" },
+    organizationRole: "admin",
+    transition: { kind: "uninstall" },
+  });
 
-  if (existingInstallError) {
+  if (!transitionResult.success) {
     return {
       success: false,
-      error: `Failed to load current install state: ${existingInstallError.message}`,
-    };
-  }
-
-  if (!existingInstall) {
-    return {
-      success: false,
-      error: "Plugin is not installed for this organization.",
-    };
-  }
-
-  const { error: deleteError } = await adminSupabase
-    .from("organization_plugin_installs")
-    .delete()
-    .eq("organization_id", organizationId)
-    .eq("plugin_key", pluginKey);
-
-  if (deleteError) {
-    return {
-      success: false,
-      error: `Failed to uninstall plugin: ${deleteError.message}`,
+      error: transitionResult.error ?? "Failed to uninstall plugin.",
     };
   }
 
@@ -1138,42 +1058,22 @@ export async function updateOrganizationPluginToLatest(options: {
     }
   }
 
-  const { data: existingInstall, error: existingInstallError } = (await adminSupabase
-    .from("organization_plugin_installs")
-    .select("id, enabled")
-    .eq("organization_id", organizationId)
-    .eq("plugin_key", pluginKey)
-    .maybeSingle()) as {
-    data: { id: string; enabled: boolean } | null;
-    error: SupabaseLikeError | null;
-  };
+  const transitionResult = await transitionOrganizationPluginInstall({
+    organizationId,
+    pluginKey,
+    actor: { id: user.id, type: "user" },
+    organizationRole: "admin",
+    transition: {
+      kind: "version_update",
+      targetVersion: pluginCatalog.latest_version,
+    },
+  });
 
-  if (existingInstallError) {
+  if (!transitionResult.success) {
     return {
       success: false,
-      error: `Failed to load install state: ${existingInstallError.message}`,
+      error: transitionResult.error ?? "Failed to update plugin.",
     };
-  }
-
-  if (!existingInstall) {
-    return {
-      success: false,
-      error: "Plugin must be installed before it can be updated.",
-    };
-  }
-
-  const { error: updateError } = await adminSupabase
-    .from("organization_plugin_installs")
-    .update({
-      installed_version: pluginCatalog.latest_version,
-      enabled: true,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("organization_id", organizationId)
-    .eq("plugin_key", pluginKey);
-
-  if (updateError) {
-    return { success: false, error: `Failed to update plugin: ${updateError.message}` };
   }
 
   const { data: organization } = await adminSupabase
@@ -1348,19 +1248,21 @@ export async function updateOrganizationPluginConfiguration(options: {
     }
   }
 
-  const { error: updateError } = await adminSupabase
-    .from("organization_plugin_installs")
-    .update({
+  const transitionResult = await transitionOrganizationPluginInstall({
+    organizationId,
+    pluginKey,
+    actor: { id: user.id, type: "user" },
+    organizationRole: "admin",
+    transition: {
+      kind: "config_update",
       configuration: normalizedConfiguration,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("organization_id", organizationId)
-    .eq("plugin_key", pluginKey);
+    },
+  });
 
-  if (updateError) {
+  if (!transitionResult.success) {
     return {
       success: false,
-      error: `Failed to save plugin settings: ${updateError.message}`,
+      error: transitionResult.error ?? "Failed to save plugin settings.",
     };
   }
 

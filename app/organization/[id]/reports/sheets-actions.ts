@@ -12,16 +12,14 @@ import {
 } from "@/services/calendar";
 import {
   buildSpreadsheetUrl,
-  buildClearRange,
-  buildWriteRange,
-  clearSpreadsheetValues,
   createSpreadsheet,
   ensureSpreadsheetTab,
   extractSpreadsheetId,
   getSpreadsheetMetadata,
-  updateSpreadsheetValues,
+  replaceSpreadsheetReportValues,
 } from "@/services/google-sheets";
-import { buildOrganizationReportRows, type ReportType, getOrganizationReportData } from "./actions";
+import { getOrganizationReportData, type ReportType } from "./actions";
+import { buildOrganizationReportRows } from "@/lib/organization/report-service";
 import {
   buildRowsWithLayout,
   validateLayout,
@@ -384,34 +382,23 @@ export async function syncSheetNow(
     }
   }
 
-  const range = buildWriteRange(
-    syncConfig.tab_name || DEFAULT_TAB_NAME,
-    syncConfig.range_a1,
-    rows
-  );
-  const clearRange = buildClearRange(
-    syncConfig.tab_name || DEFAULT_TAB_NAME,
-    syncConfig.range_a1,
-    rows
-  );
-  const cleared = await clearSpreadsheetValues(
+  const replacement = await replaceSpreadsheetReportValues(
     accessToken,
     syncConfig.sheet_id,
-    clearRange
+    syncConfig.tab_name || DEFAULT_TAB_NAME,
+    syncConfig.range_a1,
+    rows,
   );
-  if (!cleared) {
-    return { success: false, error: "Failed to clear stale Google Sheet values" };
+
+  if (!replacement.success && replacement.stage === "write") {
+    return { success: false, error: "Failed to update Google Sheet" };
   }
 
-  const updated = await updateSpreadsheetValues(
-    accessToken,
-    syncConfig.sheet_id,
-    range,
-    rows
-  );
-
-  if (!updated) {
-    return { success: false, error: "Failed to update Google Sheet" };
+  if (!replacement.success) {
+    return {
+      success: false,
+      error: "Google Sheet updated, but stale values could not be cleared",
+    };
   }
 
   await serviceSupabase

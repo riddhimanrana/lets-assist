@@ -1,6 +1,5 @@
-import type { ReactNode } from "react";
-
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
+import { loadAccessibleOrganizationPluginAccess } from "@/lib/plugins/organization-plugin-access";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -18,42 +17,6 @@ export interface ResolveOrganizationPluginSurfacesOptions {
   viewerRole?: OrganizationPluginAccessRole | null;
   target?: OrganizationPluginSurfaceRenderTargetContext;
   useAdminClient?: boolean;
-}
-
-
-type PluginInstallRow = {
-  plugin_key: string;
-  enabled: boolean;
-  configuration: Record<string, unknown> | null;
-};
-
-type PluginAccessRow = {
-  plugin_key: string;
-  enabled: boolean;
-  is_accessible: boolean;
-  configuration: Record<string, unknown> | null;
-};
-
-type SupabaseLikeError = {
-  code?: string;
-  message?: string;
-};
-
-function isMissingPluginTableError(error: SupabaseLikeError | null): boolean {
-  if (!error) return false;
-
-  const message =
-    typeof error.message === "string" ? error.message.toLowerCase() : "";
-
-  return (
-    error.code === "42P01" ||
-    error.code === "42703" ||
-    error.code === "PGRST205" ||
-    message.includes("does not exist") ||
-    message.includes("schema cache") ||
-    message.includes("could not find the table") ||
-    message.includes("could not find the relation")
-  );
 }
 
 const ROLE_ORDER: Record<OrganizationPluginAccessRole, number> = {
@@ -167,47 +130,13 @@ export function matchesPluginTargeting(
 export async function resolveOrganizationPluginSurfaces(
   options: ResolveOrganizationPluginSurfacesOptions,
 ): Promise<ResolvedOrganizationPluginSurface[]> {
-  const supabase = options.useAdminClient ? getAdminClient() : await createClient();
-
-  const pluginAccessResult = await supabase
-    .from("organization_plugin_access")
-    .select("plugin_key, enabled, is_accessible, configuration")
-    .eq("organization_id", options.organizationId)
-    .eq("enabled", true);
-
-  let installRows: PluginInstallRow[] = [];
-
-  if (!isMissingPluginTableError(pluginAccessResult.error)) {
-    if (pluginAccessResult.error) {
-      throw new Error(
-        `Failed to load consolidated plugin access: ${pluginAccessResult.error.message}`,
-      );
-    }
-
-    installRows = ((pluginAccessResult.data ?? []) as PluginAccessRow[])
-      .filter((row) => row.is_accessible)
-      .map((row) => ({
-        plugin_key: row.plugin_key,
-        enabled: row.enabled,
-        configuration: row.configuration,
-      }));
-  } else {
-    const { data: installs, error } = await supabase
-      .from("organization_plugin_installs")
-      .select("plugin_key, enabled, configuration")
-      .eq("organization_id", options.organizationId)
-      .eq("enabled", true);
-
-    if (isMissingPluginTableError(error)) {
-      return [];
-    }
-
-    if (error) {
-      throw new Error(`Failed to load plugin installs: ${error.message}`);
-    }
-
-    installRows = (installs ?? []) as PluginInstallRow[];
-  }
+  const supabase = options.useAdminClient
+    ? getAdminClient()
+    : await createClient();
+  const installRows = await loadAccessibleOrganizationPluginAccess({
+    supabase,
+    organizationIds: [options.organizationId],
+  });
 
   const results: ResolvedOrganizationPluginSurface[] = [];
 

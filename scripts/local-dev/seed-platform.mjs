@@ -248,7 +248,7 @@ async function main() {
       description:
         "Default local organization for plugin platform and data-isolation testing.",
       show_members_publicly: true,
-      join_code: "LOCAL1",
+      join_code: "740001",
       created_by: users.developer.id,
     },
     {
@@ -259,7 +259,7 @@ async function main() {
       description:
         "Local nonprofit fixture for public project and organization workflows.",
       show_members_publicly: true,
-      join_code: "AOHLC1",
+      join_code: "740002",
       created_by: users.developer.id,
     },
     {
@@ -270,7 +270,7 @@ async function main() {
       description:
         "Local school organization fixture for membership isolation checks.",
       show_members_publicly: true,
-      join_code: "SCHOOL",
+      join_code: "740003",
       created_by: users.developer.id,
     },
     {
@@ -282,7 +282,7 @@ async function main() {
         "Deterministic local fixture for the DVHS CSF private plugin.",
       logo_url: "/logos/dvhigh-csf.png",
       show_members_publicly: false,
-      join_code: "DVCSF1",
+      join_code: "740004",
       created_by: users.developer.id,
     },
   ];
@@ -2217,7 +2217,7 @@ async function main() {
     email: "riddhiman.rana@gmail.com",
     password: "robo6737",
     role: "admin (all 3 platform orgs)",
-    dvPlugin: "disabled by default",
+    dvPlugin: "catalog enabled; run bun run dv:fixtures for the full workspace",
   });
 }
 

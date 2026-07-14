@@ -6,6 +6,10 @@ import AttendanceClient from "./AttendanceClient";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { CircleAlert, QrCode } from "lucide-react";
 import { cookies } from "next/headers";
+import {
+    getAttendancePresenceCookieName,
+    verifyAttendancePresence,
+} from "@/lib/attendance/challenge";
 
 // Validate scan context (no cookies)
 function validateScanContext(userAgent: string) {
@@ -75,11 +79,14 @@ async function AttendanceContent({
 
     // verify QR scan cookie
     const cookieStore = await cookies();
-    const cookieName = `attend_${projectId}_${sessionUuid}_${scheduleId}`;
+    const cookieName = getAttendancePresenceCookieName(projectId);
     const tokenCookie = cookieStore.get(cookieName);
-    const hasToken = Boolean(tokenCookie);
-    console.log(`AttendPage: verifying cookie ${cookieName}:`, hasToken, tokenCookie);
-    if (!hasToken) {
+    const presence = verifyAttendancePresence(tokenCookie?.value, {
+        projectId,
+        sessionId: sessionUuid,
+        scheduleId,
+    });
+    if (!presence.ok) {
         console.log("AttendPage: cookie verification failed");
         return (
             <div className="flex items-center justify-center min-h-[calc(100vh-160px)] lg:min-h-[calc(100vh-64px)]">

@@ -36,7 +36,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { checkInUser, checkOutUser } from "@/app/attend/[projectId]/actions";
+import {
+  checkInParticipant,
+  checkOutParticipant,
+} from "@/app/projects/[id]/actions";
 
 interface Props {
   projectId: string;
@@ -351,7 +354,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
   // Add new helper for manual check-in
   const handleManualCheckIn = async (signupId: string) => {
     try {
-      const result = await checkInUser(signupId);
+      const result = await checkInParticipant(signupId);
       if (result.success) {
         toast.success("User checked in successfully");
         loadAttendance(); // Refresh the list
@@ -365,7 +368,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
 
   const handleManualCheckOut = async (signupId: string) => {
     try {
-      const result = await checkOutUser(signupId);
+      const result = await checkOutParticipant(signupId);
       if (result.success) {
         toast.success("User checked out successfully");
         loadAttendance();

@@ -818,7 +818,7 @@ export async function acceptInvitation(
     // User is already a member
     // If they're a member being invited as staff, upgrade them
     if (existingMember.role === "member" && invitation.role === "staff") {
-      await supabase
+      await invitationWriteClient
         .from("organization_members")
         .update({ role: "staff" })
         .eq("id", existingMember.id);
@@ -858,7 +858,7 @@ export async function acceptInvitation(
   }
 
   // Create organization member record
-  const { error: memberError } = await supabase.from("organization_members").insert({
+  const { error: memberError } = await invitationWriteClient.from("organization_members").insert({
     organization_id: invitation.organization_id,
     user_id: user.id,
     role: invitation.role,

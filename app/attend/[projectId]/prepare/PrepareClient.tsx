@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { setAttendanceCookie } from './actions'; // Import the server action
+import { redeemAttendanceChallenge } from './actions';
 import { Loader2, AlertTriangle, Smartphone } from 'lucide-react'; // Added Smartphone icon
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
@@ -15,12 +15,6 @@ export default function PrepareClient({ projectId }: PrepareClientProps) {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   useEffect(() => {
     // --- Device Check ---
     const userAgent = navigator.userAgent;
@@ -34,36 +28,29 @@ export default function PrepareClient({ projectId }: PrepareClientProps) {
     }
     // --- End Device Check ---
 
-    // Read params consistent with QR code generation and AttendPage
-    const sessionUuid = searchParams.get('session');
-    const scheduleId = searchParams.get('schedule');
+    const challenge = searchParams.get('challenge');
 
     console.log('PrepareClient: Raw URL params:', {
-      sessionUuid,
-      scheduleId,
+      hasChallenge: Boolean(challenge),
       fullURL: window.location.href
     });
 
-    if (!sessionUuid || !scheduleId) {
-      setErrorMessage('Missing required session or schedule information in the URL.');
+    if (!challenge) {
+      setErrorMessage('This QR code is missing its attendance challenge.');
       setStatus('error');
       return;
     }
 
     const setCookieAndRedirect = async () => {
       try {
-        console.log(`PrepareClient: Calling setAttendanceCookie for project ${projectId}, session ${sessionUuid}, schedule ${scheduleId}`);
-        // Call the server action
-        const result = await setAttendanceCookie(projectId, sessionUuid, scheduleId);
+        const result = await redeemAttendanceChallenge(projectId, challenge);
 
         if (result.success) {
           console.log('PrepareClient: Cookie set successfully. Redirecting client-side...');
           setStatus('success');
-          // Wait for mounted and router to be ready
-          if (mounted) {
-            // Redirect client-side to the main attendance page
-            router.replace(`/attend/${encodeURIComponent(projectId)}?session=${encodeURIComponent(sessionUuid)}&schedule=${encodeURIComponent(scheduleId)}`);
-          }
+          router.replace(
+            `/attend/${encodeURIComponent(result.projectId)}?session=${encodeURIComponent(result.sessionId)}&schedule=${encodeURIComponent(result.scheduleId)}`,
+          );
         } else {
           console.error('PrepareClient: Failed to set cookie via server action.', result.error);
           setErrorMessage(result.error || 'Failed to verify attendance link. Please try scanning the QR code again.');
@@ -79,7 +66,7 @@ export default function PrepareClient({ projectId }: PrepareClientProps) {
     // Use void to explicitly ignore the promise returned by the async function
     void setCookieAndRedirect();
     // Dependency array includes necessary values
-  }, [projectId, router, searchParams, mounted]);
+  }, [projectId, router, searchParams]);
 
   // Render UI based on status
   return (

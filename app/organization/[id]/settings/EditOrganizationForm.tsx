@@ -14,8 +14,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Upload,
-  X,
-  Info
+  X
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,7 +28,7 @@ import {
 } from "@/components/ui/field";
 import { Controller } from "react-hook-form";
 import { Switch } from "@/components/ui/switch";
-import { updateOrganization, checkUsernameAvailability, checkDomainAvailability } from "./actions";
+import { updateOrganization, checkUsernameAvailability } from "./actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/shared/ImageCropper";
@@ -42,7 +41,6 @@ const NAME_MAX_LENGTH = 64;
 const WEBSITE_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 650;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
-const normalizeDomain = (value: string | null | undefined) => (value ?? "").toLowerCase().trim();
 
 const ORG_TYPE_LABELS: Record<string, string> = {
   nonprofit: "Nonprofit Organization",
@@ -80,17 +78,6 @@ const orgUpdateSchema = z.object({
 
   logoUrl: z.string().optional().nullable(),
 
-  enableAutoJoin: z.boolean().optional(),
-
-  autoJoinDomain: z.string()
-    .optional()
-    .refine(
-      (val) =>
-        !val ||
-        /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/.test(val),
-      "Please enter a valid domain (e.g., example.org)"
-    ),
-
   showMembersPublicly: z.boolean().optional(),
 });
 
@@ -119,8 +106,6 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
-  const [domainAvailable, setDomainAvailable] = useState<boolean | null>(null);
-  const [checkingDomain, setCheckingDomain] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string>("");
   const [showCropper, setShowCropper] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -139,14 +124,9 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
       website: organization.website || "",
       type: resolvedOrgType,
       logoUrl: organization.logo_url || null,
-      enableAutoJoin: !!organization.auto_join_domain,
-      autoJoinDomain: organization.auto_join_domain || "",
       showMembersPublicly: organization.show_members_publicly !== false,
     },
   });
-
-  // Watch enableAutoJoin for conditional rendering
-  const enableAutoJoin = form.watch("enableAutoJoin");
 
   // Watch all form values and detect changes more reliably
   const formValues = form.watch();
@@ -197,34 +177,6 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
       setUsernameAvailable(false);
     } finally {
       setCheckingUsername(false);
-    }
-  };
-
-  // Check if domain is available when changed
-  const currentDomain = organization.auto_join_domain;
-
-  const handleDomainBlur = async (value: string) => {
-    const normalizedValue = normalizeDomain(value);
-    if (!normalizedValue) {
-      setDomainAvailable(null);
-      return;
-    }
-
-    if (normalizedValue === normalizeDomain(currentDomain)) {
-      // Domain hasn't changed, so it's "available" (still belongs to this org)
-      setDomainAvailable(true);
-      return;
-    }
-
-    setCheckingDomain(true);
-    try {
-      const isAvailable = await checkDomainAvailability(normalizedValue, organization.id);
-      setDomainAvailable(isAvailable);
-    } catch (error) {
-      console.error("Error checking domain:", error);
-      setDomainAvailable(false);
-    } finally {
-      setCheckingDomain(false);
     }
   };
 
@@ -303,27 +255,13 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
         }
       }
 
-      // Check domain availability if auto-join is enabled and domain changed
-      const newDomain = data.enableAutoJoin ? normalizeDomain(data.autoJoinDomain) : null;
-      if (newDomain && newDomain !== normalizeDomain(currentDomain)) {
-        const isDomainAvailable = await checkDomainAvailability(newDomain, organization.id);
-        if (!isDomainAvailable) {
-          form.setError("autoJoinDomain", {
-            type: "manual",
-            message: "This domain is already in use by another organization",
-          });
-          setIsSubmitting(false);
-          return;
-        }
-      }
-
       const result = await updateOrganization({
         ...data,
         id: organization.id,
         description: data.description || "",
         website: data.website || "",
         logoUrl: data.logoUrl === undefined ? organization.logo_url : data.logoUrl,
-        autoJoinDomain: newDomain || null,
+        autoJoinDomain: organization.auto_join_domain ?? null,
         showMembersPublicly: data.showMembersPublicly,
       });
 
@@ -609,77 +547,14 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
               )}
             />
 
-            {/* Auto-join by Email Domain Section */}
-            <div className="space-y-4 rounded-lg border p-4 bg-muted/30">
-              <Controller
-                control={form.control}
-                name="enableAutoJoin"
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid} className="flex flex-row items-center justify-between">
-                    <div className="space-y-0.5">
-                      <FieldLabel htmlFor={field.name} className="text-base">Auto-join by Email Domain</FieldLabel>
-                      <FieldDescription>
-                        Allow users with matching email domains to join automatically
-                      </FieldDescription>
-                    </div>
-                    <Switch
-                      id={field.name}
-                      checked={field.value}
-                      onCheckedChange={(checked) => {
-                        field.onChange(checked);
-                        if (!checked) {
-                          form.setValue("autoJoinDomain", "");
-                          setDomainAvailable(null);
-                        }
-                      }}
-                      aria-invalid={fieldState.invalid}
-                    />
-                  </Field>
-                )}
-              />
-
-              {enableAutoJoin && (
-                <Controller
-                  control={form.control}
-                  name="autoJoinDomain"
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor={field.name}>Email Domain</FieldLabel>
-                      <div className="relative">
-                        <Input
-                          id={field.name}
-                          placeholder="example.org"
-                          {...field}
-                          onBlur={(e) => handleDomainBlur(e.target.value)}
-                          className="pr-10"
-                          aria-invalid={fieldState.invalid}
-                        />
-                        {checkingDomain && (
-                          <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
-                        )}
-                        {!checkingDomain && domainAvailable === true && (
-                          <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-green-500" />
-                        )}
-                        {!checkingDomain && domainAvailable === false && (
-                          <AlertCircle className="absolute right-3 top-3 h-4 w-4 text-destructive" />
-                        )}
-                      </div>
-                      <FieldDescription className="flex items-start gap-1.5">
-                        <Info className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
-                        <span>
-                          Users with verified email addresses from this domain (e.g., @example.org) will be able to join your organization instantly without approval.
-                        </span>
-                      </FieldDescription>
-                      {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
-                      {!checkingDomain && domainAvailable === false && (
-                        <p className="text-sm text-destructive">
-                          This domain is already in use by another organization.
-                        </p>
-                      )}
-                    </Field>
-                  )}
-                />
-              )}
+            {/* Automatic domain membership is a verified support workflow. */}
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <p className="text-sm font-medium">Automatic domain membership</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {organization.auto_join_domain
+                  ? `Verified domain: ${organization.auto_join_domain}. Contact Let's Assist support to change or disable it.`
+                  : "No verified domain is configured. Contact Let&apos;s Assist support after organization verification to enable one."}
+              </p>
             </div>
             {/* Member Visibility Section */}
             <div className="space-y-4 rounded-lg border p-4 bg-muted/30">

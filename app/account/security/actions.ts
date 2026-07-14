@@ -5,12 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { deleteUserWithCleanup } from "@/lib/supabase/delete-user-with-cleanup";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { passwordSchema } from "@/lib/auth/password-policy";
 
 // Zod schema for password update (for users with existing password)
 const updatePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Current password is required"),
-    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    newPassword: passwordSchema,
     confirmPassword: z.string(),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
@@ -21,7 +22,7 @@ const updatePasswordSchema = z
 // Zod schema for setting password (for OAuth-only users)
 const setPasswordSchema = z
   .object({
-    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    newPassword: passwordSchema,
     confirmPassword: z.string(),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
@@ -69,7 +70,7 @@ export async function updatePasswordAction(formData: FormData) {
   }
 
   // Use getAuthUser with sensitive: true for password changes
-  const { user, error: authError } = await getAuthUser({ sensitive: true });
+  const { user, error: authError } = await getAuthUser({ sensitive: true, checkMfa: true });
 
   if (authError || !user || !user.email) {
     return { error: { server: ["Not authenticated"] } as ActionErrorResponse };
@@ -123,13 +124,34 @@ export async function setPasswordAction(formData: FormData) {
   }
 
   // Use getAuthUser with sensitive: true for password changes
-  const { user, error: authError } = await getAuthUser({ sensitive: true });
+  const { user, error: authError } = await getAuthUser({ sensitive: true, checkMfa: true });
 
   if (authError || !user) {
     return { error: { server: ["Not authenticated"] } as ActionErrorResponse };
   }
 
   const supabase = await createClient();
+
+  const {
+    data: { user: trustedUser },
+    error: trustedUserError,
+  } = await supabase.auth.getUser();
+
+  if (trustedUserError || !trustedUser) {
+    return { error: { server: ["Not authenticated"] } as ActionErrorResponse };
+  }
+
+  const alreadyHasPassword = trustedUser.identities?.some(
+    (identity) => identity.provider === "email",
+  );
+
+  if (alreadyHasPassword) {
+    return {
+      error: {
+        server: ["Use the current-password form to change an existing password."],
+      } as ActionErrorResponse,
+    };
+  }
 
   // OAuth users can set password directly (no current password verification needed)
   const { error: updateError } = await supabase.auth.updateUser({
@@ -155,7 +177,7 @@ export async function updateEmailAction(formData: FormData) {
   }
 
   // Use getAuthUser with sensitive: true for email changes
-  const { user, error: authError } = await getAuthUser({ sensitive: true });
+  const { user, error: authError } = await getAuthUser({ sensitive: true, checkMfa: true });
 
   if (authError || !user) {
     return { error: { server: ["Not authenticated"] } as ActionErrorResponse };
@@ -190,7 +212,7 @@ export async function updateEmailAction(formData: FormData) {
 
 export async function emailDataExport() {
   try {
-    const { user, error: authError } = await getAuthUser({ sensitive: true });
+    const { user, error: authError } = await getAuthUser({ sensitive: true, checkMfa: true });
 
     if (authError || !user || !user.email) {
       return { success: false, error: "Not authenticated" };
@@ -287,7 +309,7 @@ export async function getDataExportJobs() {
 export async function deleteAccount() {
   try {
     // Use getAuthUser with sensitive: true for account deletion
-    const { user, error: authError } = await getAuthUser({ sensitive: true });
+    const { user, error: authError } = await getAuthUser({ sensitive: true, checkMfa: true });
 
     if (authError || !user) {
       throw new Error("Not authenticated");

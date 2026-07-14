@@ -4,6 +4,7 @@ import { getAdminClient } from '@/lib/supabase/admin';
 import { getAnonymousSignupAccessRecord } from '@/lib/anonymous-signup-access';
 import { generateSignedWaiverPdf, requiresPdfGeneration } from '@/lib/waiver/generate-signed-waiver-pdf';
 import { checkWaiverAccess, getContentDisposition } from '@/lib/waiver/preview-auth-helpers';
+import { loadWaiverSourcePdf } from '@/lib/waiver/source-pdf-loader';
 import type { SignaturePayload } from '@/types/waiver-definitions';
 
 interface WaiverSignatureRecord {
@@ -11,6 +12,7 @@ interface WaiverSignatureRecord {
   user_id: string | null;
   anonymous_id: string | null;
   waiver_pdf_url: string | null;
+  waiver_pdf_storage_path: string | null;
   signature_payload: SignaturePayload | null;
   signature_file_url?: string | null; // DEPRECATED - column may not exist in schema
   signature_storage_path: string | null;
@@ -22,6 +24,7 @@ interface WaiverSignatureRecord {
   signup_id?: string | null;
   waiver_definition?: {
     id: string;
+    pdf_storage_path: string | null;
     pdf_public_url: string | null;
     signers: Array<{
       id: string;
@@ -44,6 +47,9 @@ interface WaiverSignatureRecord {
 interface ProjectForAuth {
   creator_id: string | null;
   organization_id: string | null;
+  can_be_managed_by_staff: boolean;
+  waiver_pdf_storage_path: string | null;
+  waiver_pdf_url: string | null;
 }
 
 type PostgrestErrorLike = {
@@ -90,6 +96,7 @@ export async function GET(
       user_id,
       anonymous_id,
       waiver_pdf_url,
+      waiver_pdf_storage_path,
       signature_payload,
       signature_storage_path,
       signed_at,
@@ -100,6 +107,7 @@ export async function GET(
       signup_id,
       waiver_definition:waiver_definitions (
         id,
+        pdf_storage_path,
         pdf_public_url,
         signers,
         fields
@@ -168,7 +176,7 @@ export async function GET(
   // 2. Check authorization (organizer, signer self-access, or authorized anonymous signer)
   const { data: project, error: projectError } = await adminClient
     .from('projects')
-    .select('creator_id, organization_id')
+    .select('creator_id, organization_id, can_be_managed_by_staff, waiver_pdf_storage_path, waiver_pdf_url')
     .eq('id', typedSignature.project_id)
     .single();
 
@@ -226,6 +234,7 @@ export async function GET(
     project: {
       creator_id: typedProject.creator_id,
       organization_id: typedProject.organization_id,
+      can_be_managed_by_staff: typedProject.can_be_managed_by_staff,
     },
     orgMember,
     anonymousSignupIdParam,
@@ -235,6 +244,21 @@ export async function GET(
   if (!authResult.hasPermission) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
+
+  const sourcePdfReference = {
+    projectId: typedSignature.project_id,
+    storagePath:
+      typedSignature.waiver_pdf_storage_path ??
+      typedSignature.waiver_definition?.pdf_storage_path ??
+      typedProject.waiver_pdf_storage_path,
+    legacyUrl:
+      typedSignature.waiver_pdf_url ??
+      typedSignature.waiver_definition?.pdf_public_url ??
+      typedProject.waiver_pdf_url,
+  };
+  const hasSourcePdf = !!(sourcePdfReference.storagePath || sourcePdfReference.legacyUrl);
+  const loadSourcePdf = () =>
+    loadWaiverSourcePdf(sourcePdfReference, { adminClient });
 
   // 3. Handle all signature formats with proper priority
   //    Priority 1: Uploaded full waiver (offline mode)
@@ -246,7 +270,7 @@ export async function GET(
   if (typedSignature.upload_storage_path) {
     try {
       const { data, error } = await adminClient.storage
-        .from('waiver-uploads')
+        .from('waiver-signatures')
         .download(typedSignature.upload_storage_path);
       
       if (error || !data) {
@@ -282,10 +306,7 @@ export async function GET(
   if (payload && requiresPdfGeneration(payload)) {
     // Generate PDF on-demand
     try {
-      const waiverPdfUrl = typedSignature.waiver_pdf_url || 
-                           typedSignature.waiver_definition?.pdf_public_url;
-      
-      if (!waiverPdfUrl) {
+      if (!hasSourcePdf) {
         return NextResponse.json({ error: 'Waiver PDF not found' }, { status: 404 });
       }
 
@@ -295,14 +316,8 @@ export async function GET(
 
       // Phase 2: Create storage resolver for signature assets
       const storageResolver = async (path: string): Promise<ArrayBuffer> => {
-        // Phase 1 Fix: Robust bucket detection
-        // Multi-signer signatures with upload_storage_path -> waiver-uploads (full PDFs)
-        // Multi-signer signature assets (in payload) -> waiver-signatures (signature images)
-        // If path came from upload_storage_path column, it's in waiver-uploads
-        // Otherwise, asset paths are in waiver-signatures
-        const isFullWaiverUpload = typedSignature.upload_storage_path !== null && 
-                                    path === typedSignature.upload_storage_path;
-        const bucket = isFullWaiverUpload ? 'waiver-uploads' : 'waiver-signatures';
+        // All signed evidence is stored in the private signature bucket.
+        const bucket = 'waiver-signatures';
         
         const { data, error } = await adminClient.storage
           .from(bucket)
@@ -315,8 +330,9 @@ export async function GET(
         return await data.arrayBuffer();
       };
 
+      const sourcePdfBytes = await loadSourcePdf();
       const pdfBuffer = await generateSignedWaiverPdf({
-        waiverPdfUrl,
+        sourcePdfBytes,
         definition: typedSignature.waiver_definition,
         signaturePayload: payload,
         storageResolver, // Phase 2: Pass resolver
@@ -340,19 +356,16 @@ export async function GET(
   // Priority 3: Legacy signature_storage_path (pre-migration format)
   if (typedSignature.signature_storage_path) {
     try {
-      // Legacy signatures stored as images - need to generate stamped PDF
-      const waiverPdfUrl = typedSignature.waiver_pdf_url || 
-                           typedSignature.waiver_definition?.pdf_public_url;
-      
-      if (!waiverPdfUrl) {
-        console.error('Legacy signature found but no waiver PDF URL available');
+      if (!hasSourcePdf) {
+        console.error('Legacy signature found but no waiver PDF source available');
         return NextResponse.json({ error: 'Waiver PDF not found for legacy signature' }, { status: 404 });
       }
 
       // For legacy signatures, we may not have a full definition - use minimal setup
       const definition = typedSignature.waiver_definition || {
         id: 'legacy-definition',
-        pdf_public_url: waiverPdfUrl,
+        pdf_storage_path: sourcePdfReference.storagePath,
+        pdf_public_url: sourcePdfReference.legacyUrl,
         signers: [{
           id: 'legacy-signer',
           role_key: 'participant',
@@ -394,8 +407,9 @@ export async function GET(
         return await data.arrayBuffer();
       };
 
+      const sourcePdfBytes = await loadSourcePdf();
       const pdfBuffer = await generateSignedWaiverPdf({
-        waiverPdfUrl,
+        sourcePdfBytes,
         definition,
         signaturePayload: legacyPayload,
         storageResolver,
@@ -418,23 +432,25 @@ export async function GET(
 
   // Priority 4: Very old signature_file_url format
   if (typedSignature.signature_file_url) {
-    // Very old format - public URL to signature, just redirect
-    return NextResponse.redirect(typedSignature.signature_file_url);
+    // Never turn historical database URLs into an open redirect. These rows
+    // predate private evidence Storage and require an explicit migration.
+    return NextResponse.json(
+      { error: 'Legacy signature file requires migration' },
+      { status: 410 },
+    );
   }
 
   // Priority 5: Legacy signature_text format (Phase 1 legacy compatibility)
   if (typedSignature.signature_text) {
     try {
-      const waiverPdfUrl = typedSignature.waiver_pdf_url || 
-                           typedSignature.waiver_definition?.pdf_public_url;
-      
-      if (!waiverPdfUrl) {
+      if (!hasSourcePdf) {
          return NextResponse.json({ error: 'Waiver PDF not found for typed signature' }, { status: 404 });
       }
 
       const definition = typedSignature.waiver_definition || {
         id: 'legacy-typed-definition',
-        pdf_public_url: waiverPdfUrl,
+        pdf_storage_path: sourcePdfReference.storagePath,
+        pdf_public_url: sourcePdfReference.legacyUrl,
         signers: [{
           id: 'legacy-signer',
           role_key: 'participant',
@@ -462,8 +478,9 @@ export async function GET(
         fields: {},
       };
 
+      const sourcePdfBytes = await loadSourcePdf();
       const pdfBuffer = await generateSignedWaiverPdf({
-        waiverPdfUrl,
+        sourcePdfBytes,
         definition,
         signaturePayload: legacyPayload,
       });

@@ -87,7 +87,7 @@ type UserAccessControlResult = {
 
 
 
-export async function createServerNotification(
+async function createServerNotification(
   userId: string,
   title: string,
   body: string,
@@ -174,8 +174,10 @@ export async function sendSystemNotification(prevState: { error?: string; succes
 }
 
 export async function checkSuperAdmin() {
-  // Get current user using getClaims() for better performance
-  const { user } = await getAuthUser();
+  // Admin Server Actions must not trust a cached JWT after a demotion or
+  // revocation. Fetch the current auth record and enforce any enrolled MFA
+  // factor independently of proxy/page navigation.
+  const { user } = await getAuthUser({ sensitive: true, checkMfa: true });
 
   if (!user) {
     return { isAdmin: false };

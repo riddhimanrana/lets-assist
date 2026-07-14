@@ -149,6 +149,7 @@ export interface WaiverSignatureExtended {
   // Existing fields
   id: string;
   waiver_pdf_url: string | null;
+  waiver_pdf_storage_path: string | null;
   project_id: string;
   signup_id: string;
   user_id: string | null;

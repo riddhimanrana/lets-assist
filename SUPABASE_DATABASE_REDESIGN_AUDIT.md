@@ -252,6 +252,43 @@ DV Speech & Debate plugin posture:
 - `bun run plugin:submodules:check` verifies the private plugin submodule path, remote URL, expected `development` branch, and registry file. Strict mode is available with `bun run plugin:submodules:check:strict` before publishing and fails if the submodule is unpublished ahead of or behind `origin/development`.
 - The private plugin submodule should point at the commit that removes DV from the registry during this takedown; publish the submodule commit before publishing the root gitlink.
 
+### 2026-07-11: DV server-only cutover and re-enable
+
+This section supersedes the July 1 temporary-disable posture above.
+
+- Registered DV Speech & Debate again at version `2.0.0`; catalog access now requires the server-only release through `force_update_version`.
+- Removed the legacy authenticated `createPluginClient` / `createDualClient` escape hatch. The only schema builder is `createPluginAdminClient()`, backed by the service role.
+- Kept `plugin_data` in the PostgREST schema list strictly for that service-role builder. `anon` and `authenticated` retain no schema, table, sequence, or function grants.
+- Added fresh user + organization role + plugin runtime checks before member/staff Server Actions construct a privileged plugin client; capability routes use bounded, purpose-specific tokens.
+- Consolidated the public guardian action route onto the private plugin service and made token consumption, tenant binding, availability upsert, and audit insertion one service-only transaction.
+- Made lifecycle hooks server-only and moved complete organization data erasure into an atomic service-only database function that discovers all tenant-scoped DV relations while preserving other organizations and other plugins' shared rows.
+- Replaced DV Sheets writes with RAW report replacement and hardened CSV escaping/formula neutralization.
+- Added registry, member/admin boundary, database erasure, grant, unit, and Playwright regression coverage.
+- Direct-client boundary metadata now defaults to `blocked`; platform-forced entitlements are the only explicit no-install runtime exception and are represented in the consolidated access model.
+- Judge completion now requires exactly one active household/service-account destination; ambiguous or missing mappings fail closed before an assignment or service-credit ledger entry changes.
+- Allocation approval locks each judge and transactionally counts existing non-cancelled tournament assignments plus the complete proposal against `max_rounds_per_day`.
+- Communication jobs use a ten-minute compare-and-swap lease with heartbeats and fenced delivery/job updates. The shared email provider abstraction still has no provider idempotency-key option, so a provider call that hangs beyond the lease remains a narrow duplicate-delivery risk.
+- Initial DV seasons are derived from the installation date using the July academic-year boundary instead of a hard-coded season.
+
+### 2026-07-11: final local verification and remote release gate
+
+Local validation completed against a clean replay through `20260712024700_reenable_dv_server_only_plugin.sql`:
+
+- All migrations replayed successfully from an empty local database.
+- All 13 pgTAP files passed: 388 assertions, including 40 DV release assertions for grants, tenant erasure, one-shot guardian capabilities, judge-credit rollback/idempotency, ambiguous household denial, and allocation round-limit serialization.
+- Supabase advisors reported 0 security and 0 performance issues; targeted `public`, `plugin_data`, and `private` schema lint reported no errors.
+- The architecture audit and all 94 plugin-isolation checks passed. The remaining architecture warnings are the explicitly tracked organization/invitation/plugin-control grants and allowlisted public RPCs.
+- All 222 Bun tests passed; TypeScript and the 78-page production build passed; ESLint reported no errors and only the existing warning backlog.
+- All three DV Playwright journeys passed. The authenticated DV workspace rendered while anonymous `plugin_data` REST access returned 401. CSF workflow, tenant privacy, single-credit constraints, and the live public-route redirect passed.
+
+The linked CLI ref is `fotdmeakexgrkronxlof` (`lets-assist`). It remains unchanged. A direct `supabase db push --linked --dry-run` succeeded and reported 104 pending migrations because production currently stops at `20260603035734`. The linked database also reports a collation-version mismatch. Remote advisors currently report 194 issues (183 security and 11 performance); those results describe the old remote schema and are expected to change substantially only after the reviewed migration rollout.
+
+Production is therefore not approved for a blind push. Before deployment, take a backup and run read-only preflights for duplicate/invalid organization join codes and domains, verified-email alias conflicts, waiver source-path project scope, CSF tenant-role mismatches, duplicate DV service-ledger sources, and installed DV version/entitlement state. Rotate organization join/staff capability tokens that may have existed before the new protection trigger. Apply the 104-migration backlog in a staged maintenance window, repair the database collation version, then rerun remote advisors and the authenticated browser workflows.
+
+`plugin_data` intentionally remains in the PostgREST schema list because current private plugins use the service-role-only Supabase builder. `anon` and `authenticated` have no schema/table/function grants, but the aspirational `db:audit:remote-readiness` gate will remain red until every remaining builder is replaced by RPC/direct Postgres adapters and the schema can be removed from Data API configuration.
+
+Known follow-up reliability work: household creation, seasonal membership, tournament registration, and parts of Tabroom import still span multiple database writes and should become transactional RPCs; email delivery cannot be exactly-once until the shared provider abstraction accepts a stable idempotency key.
+
 ### Phase 5: Remote Deployment
 
 - Run local migration replay.
@@ -292,12 +329,12 @@ Merge gate for this branch:
 
 - Keep remote writes disabled until the local gate passes.
 - Commit the private plugin submodule separately if the DV manifest contract changes are included.
-- Apply remote Supabase changes only through migrations after `bun run supabase`, local advisors, plugin audits, cron checks, remote-readiness, and typecheck pass.
+- Apply remote Supabase changes only through migrations after the local checks pass and the documented remote preflight is reviewed. The aspirational remote-readiness audit is expected to remain red while the service-role-only `plugin_data` PostgREST adapter is still required.
 - After remote migration, run remote advisors again and compare remaining warnings against this document before reducing grants.
 
 ## Open Work
 
 - Capture remote MCP advisor output in a dated appendix once remote auth is available.
 - Save a reviewed linked diff before any `supabase db pull`.
-- Redesign DV Speech & Debate to use server-only plugin backends/RPCs/direct Postgres helpers before re-enabling DV database/browser fixtures.
+- Run the documented remote data preflight and upgrade authorized DV installs to `2.0.0` through the leased lifecycle control plane before enabling production traffic.
 - Decide which public flows move to views versus server-only APIs.

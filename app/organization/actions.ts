@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
 type MembershipRow = {
@@ -21,53 +22,31 @@ export async function joinOrganization(joinCode: string) {
     return { error: "You must be logged in to join an organization" };
   }
 
-  // Find the organization with the provided join code
-  const { data: organization, error: orgError } = await supabase
-    .from("organizations")
-    .select("id, username")
-    .eq("join_code", joinCode)
-    .single();
+  const admin = getAdminClient();
+  const { data: joinRows, error: joinError } = await admin.rpc(
+    "join_organization_with_code",
+    { p_user_id: user.id, p_join_code: joinCode.trim() },
+  );
+  const joinResult = Array.isArray(joinRows) ? joinRows[0] : joinRows;
 
-  if (orgError || !organization) {
+  if (joinError || !joinResult) {
     return { error: "Invalid join code. Please check and try again." };
   }
 
-  // Check if the user is already a member of the organization
-  const { data: existingMember } = await supabase
-    .from("organization_members")
-    .select("id")
-    .eq("organization_id", organization.id)
-    .eq("user_id", user.id)
-    .single();
-
-  if (existingMember) {
+  if (joinResult.join_status === "already_member") {
     return { 
       error: "You are already a member of this organization",
-      organizationUsername: organization.username
+      organizationUsername: joinResult.organization_username,
     };
   }
 
-  // Add the user as a member
-  const { error: joinError } = await supabase
-    .from("organization_members")
-    .insert({
-      organization_id: organization.id,
-      user_id: user.id,
-      role: "member" // Default role when joining with code
-    });
-
-  if (joinError) {
-    console.error("Error joining organization:", joinError);
-    return { error: "Failed to join organization. Please try again." };
-  }
-
   // Revalidate the organization page
-  revalidatePath(`/organization/${organization.username}`);
+  revalidatePath(`/organization/${joinResult.organization_username}`);
   revalidatePath('/organization');
 
   return { 
     success: true, 
-    organizationUsername: organization.username 
+    organizationUsername: joinResult.organization_username,
   };
 }
 
@@ -119,14 +98,19 @@ export async function leaveOrganization(organizationId: string) {
     }
   }
   
-  // Remove user from organization
-  const { error: leaveError } = await supabase
-    .from("organization_members")
-    .delete()
-    .eq("organization_id", organizationId)
-    .eq("user_id", user.id);
+  // Remove through the same transactional suppression boundary used by admin
+  // removals so a verified-domain login cannot silently re-add the member.
+  const admin = getAdminClient();
+  const { data: removed, error: leaveError } = await admin.rpc(
+    "remove_organization_member_with_autojoin_suppression",
+    {
+      p_organization_id: organizationId,
+      p_membership_id: membership.id,
+      p_removed_by: user.id,
+    },
+  );
 
-  if (leaveError) {
+  if (leaveError || removed !== true) {
     console.error("Error leaving organization:", leaveError);
     return { error: "Failed to leave organization. Please try again." };
   }

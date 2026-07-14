@@ -45,12 +45,15 @@ unexpected_plugin_schema_access="$(
 )"
 fail_if_matches "plugin_data schema access outside server helper/private plugins" "$unexpected_plugin_schema_access"
 
-server_helper_missing_guard="$(
-  if [[ -f lib/plugins/supabase.ts ]] && ! rg -q 'LETS_ASSIST_ENABLE_LEGACY_PLUGIN_DATA_API' lib/plugins/supabase.ts; then
-    echo "lib/plugins/supabase.ts: missing fail-closed legacy plugin_data guard"
+server_helper_contract_failure="$(
+  if rg -q 'createPluginClient|createDualClient|LETS_ASSIST_ENABLE_LEGACY_PLUGIN_DATA_API' lib/plugins/supabase.ts; then
+    echo "lib/plugins/supabase.ts: legacy authenticated plugin_data helper remains"
+  fi
+  if ! rg -q 'getAdminClient\(\)\.schema\("plugin_data"\)' lib/plugins/supabase.ts; then
+    echo "lib/plugins/supabase.ts: service-role plugin_data helper is missing"
   fi
 )"
-fail_if_matches "server plugin_data helper missing fail-closed legacy guard" "$server_helper_missing_guard"
+fail_if_matches "server plugin_data helper contract drift" "$server_helper_contract_failure"
 
 if [[ "$failures" -gt 0 ]]; then
   echo "FAIL: Plugin data access audit found $failures blocking issue group(s)."

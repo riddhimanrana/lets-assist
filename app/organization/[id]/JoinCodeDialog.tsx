@@ -23,8 +23,7 @@ import {
   CheckCircle2,
   QrCode
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { regenerateJoinCode } from "../create/actions";
+import { getOrganizationJoinCode, regenerateJoinCode } from "../create/actions";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { QRCode } from "react-qrcode-logo";
@@ -61,22 +60,17 @@ export default function JoinCodeDialog({
 
       setLoading(true);
 
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("organizations")
-        .select("join_code")
-        .eq("id", organization.id)
-        .single();
+      const result = await getOrganizationJoinCode(organization.id);
 
-      if (error) {
-        console.error("Error fetching join code:", error);
+      if (result.error || !result.joinCode) {
+        console.error("Error fetching join code:", result.error);
         toast.error("Failed to load join code");
-      } else if (data) {
-        setJoinCode(data.join_code);
+      } else {
+        setJoinCode(result.joinCode);
 
         // Create join link
         const baseUrl = window.location.origin;
-        setJoinLink(`${baseUrl}/organization/join?code=${data.join_code}`);
+        setJoinLink(`${baseUrl}/organization/join?code=${result.joinCode}`);
       }
 
       setLoading(false);

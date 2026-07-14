@@ -29,6 +29,17 @@ function normalizeTheme(value: string | null): Theme {
     : DEFAULT_THEME;
 }
 
+function getInitialTheme(): Theme {
+  if (typeof window === "undefined") return DEFAULT_THEME;
+
+  try {
+    return normalizeTheme(window.localStorage.getItem(STORAGE_KEY));
+  } catch {
+    // Storage can be unavailable in private or restricted browser contexts.
+    return DEFAULT_THEME;
+  }
+}
+
 function applyTheme(theme: Theme, systemTheme: ResolvedTheme) {
   if (typeof document === "undefined") return;
 
@@ -41,13 +52,9 @@ function applyTheme(theme: Theme, systemTheme: ResolvedTheme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = React.useState<Theme>(DEFAULT_THEME);
+  const [theme, setThemeState] = React.useState<Theme>(getInitialTheme);
   const [systemTheme, setSystemTheme] =
     React.useState<ResolvedTheme>(getSystemTheme);
-
-  React.useEffect(() => {
-    setThemeState(normalizeTheme(window.localStorage.getItem(STORAGE_KEY)));
-  }, []);
 
   React.useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -75,7 +82,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = React.useCallback((nextTheme: Theme) => {
     setThemeState(nextTheme);
-    window.localStorage.setItem(STORAGE_KEY, nextTheme);
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, nextTheme);
+    } catch {
+      // Keep the in-memory theme state even when persistence is unavailable.
+    }
   }, []);
 
   const value = React.useMemo<ThemeProviderValue>(

@@ -72,6 +72,23 @@ type LookupResult = {
   error?: string;
 };
 
+function parseAnonymousProfileLink(value: string): {
+  anonymousSignupId: string;
+  token: string;
+} | null {
+  try {
+    const parsed = new URL(value.trim(), "https://lets-assist.invalid");
+    const match = parsed.pathname.match(
+      /^\/anonymous\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/confirm)?\/?$/iu,
+    );
+    const token = parsed.searchParams.get("token")?.trim();
+    if (!match || !token) return null;
+    return { anonymousSignupId: match[1], token };
+  } catch {
+    return null;
+  }
+}
+
 // Helper function to format remaining time
 function formatRemainingTime(minutes: number): string {
   if (minutes <= 0) return "Session ended";
@@ -134,6 +151,7 @@ export default function AttendanceClient({
   // Anonymous Check-in state
   const [showAnonInputSection, setShowAnonInputSection] = useState(false);
   const [anonCheckinEmail, setAnonCheckinEmail] = useState("");
+  const [anonProfileLink, setAnonProfileLink] = useState("");
   const [isAnonSubmitting, setIsAnonSubmitting] = useState(false);
 
   // Email Lookup state
@@ -264,7 +282,7 @@ export default function AttendanceClient({
     setLookupResult(null); // Clear lookup result if check-in initiated from there
 
     try {
-      const result = await checkInUser(targetSignupId, user?.id); // Pass user?.id
+      const result = await checkInUser(targetSignupId);
 
       if (result.success && result.checkInTime) {
         setIsCheckedIn(true);
@@ -299,7 +317,10 @@ export default function AttendanceClient({
     setShowLeaveConfirmation(false);
 
     try {
-      const result = await checkOutUser(existingSignupId);
+      const result = await checkOutUser(
+        existingSignupId,
+        checkedInAnonymously ? project.id : undefined,
+      );
 
       if (result.success) {
         setSessionHasEnded(true);
@@ -318,12 +339,20 @@ export default function AttendanceClient({
 
   // Handle check-in for ANONYMOUS users via dedicated button/input
   const handleAnonCheckin = async () => {
-    if (!anonCheckinEmail || isAnonSubmitting) return;
+    if (!anonCheckinEmail || !anonProfileLink || isAnonSubmitting) return;
+
+    const anonymousAccess = parseAnonymousProfileLink(anonProfileLink);
+    if (!anonymousAccess) {
+      toast.error("Paste the private anonymous profile link from your confirmation email.");
+      return;
+    }
 
     setIsAnonSubmitting(true);
     try {
-      // Use the dedicated anonymous check-in action
-      const result = await checkInAnonymous(project.id, scheduleId, anonCheckinEmail);
+      const result = await checkInAnonymous(project.id, scheduleId, {
+        ...anonymousAccess,
+        email: anonCheckinEmail,
+      });
       if (result.success && result.checkInTime) {
         setIsCheckedIn(true);
         setCheckInTime(new Date(result.checkInTime));
@@ -331,7 +360,7 @@ export default function AttendanceClient({
         setCheckedInAnonymously(true); // Mark as anonymous
         setDisplayEmail(anonCheckinEmail); // Set display email to the one used
         setAnonSignupId(result.anonSignupId || ""); // Save anonymous signup ID
-        setAnonAccessToken(result.anonAccessToken || "");
+        setAnonAccessToken(anonymousAccess.token);
         toast.success("Successfully checked in!");
         setShowAnonInputSection(false); // Hide the input section on success
       } else {
@@ -670,9 +699,21 @@ export default function AttendanceClient({
                         placeholder="Enter your signup email"
                         aria-label="Email address for anonymous check-in"
                       />
+                      <Label htmlFor="anon-profile-link">Private anonymous profile link</Label>
+                      <Input
+                        id="anon-profile-link"
+                        type="url"
+                        value={anonProfileLink}
+                        onChange={(event) => setAnonProfileLink(event.target.value)}
+                        placeholder="Paste the link from your confirmation email"
+                        aria-label="Private anonymous profile link"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        This verifies that the anonymous signup belongs to you. The link is never displayed to other attendees.
+                      </p>
                       <Button
                         onClick={handleAnonCheckin}
-                        disabled={isAnonSubmitting || !anonCheckinEmail}
+                        disabled={isAnonSubmitting || !anonCheckinEmail || !anonProfileLink}
                         className="w-full"
                       >
                         {isAnonSubmitting ? (
@@ -748,30 +789,6 @@ export default function AttendanceClient({
                         >
                           Log in now to check in
                           <LogIn className="h-3 w-3 ml-1.5" />
-                        </Button>
-                      )}
-
-                      {/* Anonymous Check-in Button from LOOKUP (if found, not registered, approved) */}
-                      {!lookupResult.isRegistered && lookupResult.found && lookupResult.signupId && lookupResult.message.includes("approved") && (
-                         <Button
-                          size="sm"
-                          // Call handleCheckin, passing signupId, true for anonymous, and the lookupEmail
-                          onClick={() => handleCheckin(lookupResult.signupId, true, lookupEmail)}
-                          disabled={isSubmitting} // Use isSubmitting here
-                          className="mt-2 w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                        >
-                          {isSubmitting ? ( // Check isSubmitting
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Checking in...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              {/* Use lookupEmail here */}
-                              Check In Now (as {lookupEmail})
-                            </>
-                          )}
                         </Button>
                       )}
 

@@ -1,0 +1,1 @@
+CREATE INDEX CONCURRENTLY IF NOT EXISTS csf_partner_club_aliases_partner_club_id_idx ON plugin_data.csf_partner_club_aliases (partner_club_id);

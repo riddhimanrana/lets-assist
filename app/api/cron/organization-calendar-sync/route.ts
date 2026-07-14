@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  mapWithConcurrency,
+  readPositiveInteger,
+} from "@/lib/async/map-with-concurrency";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { syncOrganizationCalendarNow } from "@/app/organization/[id]/calendar/actions";
+import { syncOrganizationCalendarInternal } from "@/lib/organization/calendar-sync";
 
 const WORKER_ENABLED = process.env.ORG_CALENDAR_SYNC_WORKER_ENABLED !== "false";
 const WORKER_TOKEN = process.env.ORG_CALENDAR_SYNC_WORKER_SECRET_TOKEN;
 const CRON_SECRET = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
+const CALENDAR_SYNC_CONCURRENCY = readPositiveInteger(
+  process.env.ORG_CALENDAR_SYNC_CONCURRENCY,
+  3,
+  10,
+);
 
 function isAuthorized(request: NextRequest) {
   const authHeader = request.headers.get("authorization") || "";
@@ -55,11 +64,15 @@ export async function POST(request: NextRequest) {
   // Default sync interval for calendar is 1 hour (60 minutes)
   const intervalMinutes = 60;
 
-  const syncPromises = (syncRows || [])
-    .filter((row) => isDue(row.last_synced_at, intervalMinutes))
-    .map(async (row) => {
+  const dueRows = (syncRows || []).filter((row) =>
+    isDue(row.last_synced_at, intervalMinutes),
+  );
+  const results = await mapWithConcurrency(
+    dueRows,
+    CALENDAR_SYNC_CONCURRENCY,
+    async (row) => {
       try {
-        const result = await syncOrganizationCalendarNow(row.organization_id, true);
+        const result = await syncOrganizationCalendarInternal(row.organization_id);
         
         if (result.success) {
           return { 
@@ -84,9 +97,8 @@ export async function POST(request: NextRequest) {
           error: error instanceof Error ? error.message : "Unknown error" 
         };
       }
-    });
-
-  const results = await Promise.all(syncPromises);
+    },
+  );
 
   return NextResponse.json({ 
     processed: results.length, 

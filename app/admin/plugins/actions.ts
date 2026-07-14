@@ -3,6 +3,13 @@
 import { revalidatePath } from "next/cache";
 
 import { getAdminClient } from "@/lib/supabase/admin";
+import { transitionOrganizationPluginInstall } from "@/lib/plugins/control-plane-transition";
+import {
+  applyConfigDefaults,
+  validatePluginConfig,
+  type PluginConfigSchema,
+} from "@/lib/plugins/config-schema";
+import { getRegisteredPlugin } from "@/lib/plugins/registry";
 import { coalescePluginVersion, isPluginVersionBehind } from "@/lib/plugins/versioning";
 import { syncRegisteredPluginRuntimeContracts } from "@/lib/plugins/runtime-contracts";
 import { checkSuperAdmin } from "@/app/admin/actions";
@@ -114,6 +121,27 @@ type EntitlementBaseRow = {
   updated_at: string;
 };
 
+type ForceInstallEntitlementSnapshot = {
+  id: string;
+  status: "active" | "inactive";
+  starts_at: string | null;
+  ends_at: string | null;
+  updated_at: string;
+};
+
+type ForceInstallEntitlementCompensation =
+  | {
+      kind: "delete_created";
+      id: string;
+      activationUpdatedAt: string;
+    }
+  | {
+      kind: "restore_reactivated";
+      id: string;
+      activationUpdatedAt: string;
+      previous: ForceInstallEntitlementSnapshot;
+    };
+
 export type PluginControlPlaneData = {
   plugins: PluginCatalogControlRow[];
   entitlements: PluginEntitlementRow[];
@@ -141,6 +169,16 @@ function isMissingPluginSchemaError(error: SupabaseLikeError | null): boolean {
     message.includes("could not find the table") ||
     message.includes("could not find the relation")
   );
+}
+
+function isEntitlementCurrentlyActive(
+  entitlement: ForceInstallEntitlementSnapshot,
+  now: Date,
+) {
+  if (entitlement.status !== "active") return false;
+  if (entitlement.starts_at && new Date(entitlement.starts_at) > now) return false;
+  if (entitlement.ends_at && new Date(entitlement.ends_at) < now) return false;
+  return true;
 }
 
 function normalizeVersionInput(value: string): string {
@@ -806,8 +844,8 @@ export async function forceUpdateOrganizationPluginInstall(input: {
   organizationId: string;
   pluginKey: string;
 }): Promise<{ success: boolean; error?: string }> {
-  const { isAdmin } = await checkSuperAdmin();
-  if (!isAdmin) {
+  const { isAdmin, userId } = await checkSuperAdmin();
+  if (!isAdmin || !userId) {
     return { success: false, error: "Unauthorized" };
   }
 
@@ -827,27 +865,28 @@ export async function forceUpdateOrganizationPluginInstall(input: {
     };
   }
 
-  const now = new Date().toISOString();
-  const { data: updatedRows, error: updateError } = await service
-    .from("organization_plugin_installs")
-    .update({
-      installed_version: plugin.latest_version,
-      enabled: true,
-      last_version_update_at: now,
-      updated_at: now,
-    })
-    .eq("organization_id", input.organizationId)
-    .eq("plugin_key", input.pluginKey)
-    .select("id");
-
-  if (updateError) {
-    return { success: false, error: `Failed to force update plugin: ${updateError.message}` };
-  }
-
-  if (!updatedRows || updatedRows.length === 0) {
+  if (!getRegisteredPlugin(input.pluginKey)) {
     return {
       success: false,
-      error: "Plugin is not installed for this organization yet.",
+      error: "This plugin package is not loaded in the current deployment.",
+    };
+  }
+
+  const transitionResult = await transitionOrganizationPluginInstall({
+    organizationId: input.organizationId,
+    pluginKey: input.pluginKey,
+    actor: { id: userId, type: "admin" },
+    organizationRole: "admin",
+    transition: {
+      kind: "version_update",
+      targetVersion: plugin.latest_version,
+    },
+  });
+
+  if (!transitionResult.success) {
+    return {
+      success: false,
+      error: transitionResult.error ?? "Failed to force update plugin.",
     };
   }
 
@@ -879,6 +918,7 @@ export async function forceInstallOrganizationPlugin(input: {
 
   const service = getAdminClient();
   const shouldActivateEntitlement = input.activateEntitlementForPrivate !== false;
+  let entitlementCompensation: ForceInstallEntitlementCompensation | null = null;
 
   const { data: plugin, error: pluginError } = await service
     .from("plugins")
@@ -894,26 +934,82 @@ export async function forceInstallOrganizationPlugin(input: {
     };
   }
 
+  if (!getRegisteredPlugin(input.pluginKey)) {
+    return {
+      success: false,
+      error: "This plugin package is not loaded in the current deployment.",
+    };
+  }
+
   if (plugin.visibility === "private") {
     if (shouldActivateEntitlement) {
-      const { error: entitlementError } = await service
+      const { data: existingEntitlement, error: entitlementLookupError } = await service
         .from("organization_plugin_entitlements")
-        .upsert(
-          {
+        .select("id, status, starts_at, ends_at, updated_at")
+        .eq("organization_id", input.organizationId)
+        .eq("plugin_key", input.pluginKey)
+        .maybeSingle();
+
+      if (entitlementLookupError) {
+        return {
+          success: false,
+          error: `Failed to inspect private entitlement: ${entitlementLookupError.message}`,
+        };
+      }
+
+      const previous = existingEntitlement as ForceInstallEntitlementSnapshot | null;
+      if (!previous) {
+        const activationUpdatedAt = new Date().toISOString();
+        const { data: createdEntitlement, error: entitlementError } = await service
+          .from("organization_plugin_entitlements")
+          .insert({
             organization_id: input.organizationId,
             plugin_key: input.pluginKey,
             status: "active",
             starts_at: null,
             ends_at: null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "organization_id,plugin_key" },
-        );
-
-      if (entitlementError) {
-        return {
-          success: false,
-          error: `Failed to activate private entitlement: ${entitlementError.message}`,
+            updated_at: activationUpdatedAt,
+          })
+          .select("id")
+          .single();
+        if (entitlementError || !createdEntitlement) {
+          return {
+            success: false,
+            error: `Failed to activate private entitlement: ${entitlementError?.message ?? "missing created entitlement"}`,
+          };
+        }
+        entitlementCompensation = {
+          kind: "delete_created",
+          id: createdEntitlement.id,
+          activationUpdatedAt,
+        };
+      } else if (!isEntitlementCurrentlyActive(previous, new Date())) {
+        const activationUpdatedAt = new Date().toISOString();
+        const { data: reactivatedEntitlement, error: entitlementError } = await service
+          .from("organization_plugin_entitlements")
+          .update({
+            status: "active",
+            starts_at: null,
+            ends_at: null,
+            updated_at: activationUpdatedAt,
+          })
+          .eq("id", previous.id)
+          .eq("updated_at", previous.updated_at)
+          .select("id")
+          .maybeSingle();
+        if (entitlementError || !reactivatedEntitlement) {
+          return {
+            success: false,
+            error: entitlementError
+              ? `Failed to activate private entitlement: ${entitlementError.message}`
+              : "Private entitlement changed concurrently. Retry the force install.",
+          };
+        }
+        entitlementCompensation = {
+          kind: "restore_reactivated",
+          id: previous.id,
+          activationUpdatedAt,
+          previous,
         };
       }
     } else {
@@ -942,27 +1038,56 @@ export async function forceInstallOrganizationPlugin(input: {
     }
   }
 
-  const now = new Date().toISOString();
-  const { error: installUpsertError } = await service
-    .from("organization_plugin_installs")
-    .upsert(
-      {
-        organization_id: input.organizationId,
-        plugin_key: input.pluginKey,
-        enabled: true,
-        installed_version: plugin.latest_version,
-        installed_by: userId,
-        installed_at: now,
-        last_version_update_at: now,
-        updated_at: now,
-      },
-      { onConflict: "organization_id,plugin_key" },
-    );
+  const transitionResult = await transitionOrganizationPluginInstall({
+    organizationId: input.organizationId,
+    pluginKey: input.pluginKey,
+    actor: { id: userId, type: "admin" },
+    organizationRole: "admin",
+    transition: {
+      kind: "install_or_enable",
+      targetVersion: plugin.latest_version,
+    },
+  });
 
-  if (installUpsertError) {
+  if (!transitionResult.success) {
+    let compensationError: string | null = null;
+    if (entitlementCompensation?.kind === "delete_created") {
+      const { data, error } = await service
+        .from("organization_plugin_entitlements")
+        .delete()
+        .eq("id", entitlementCompensation.id)
+        .eq("updated_at", entitlementCompensation.activationUpdatedAt)
+        .select("id")
+        .maybeSingle();
+      if (error || !data) {
+        compensationError = error?.message ?? "created entitlement changed concurrently";
+      }
+    } else if (entitlementCompensation?.kind === "restore_reactivated") {
+      const { data, error } = await service
+        .from("organization_plugin_entitlements")
+        .update({
+          status: entitlementCompensation.previous.status,
+          starts_at: entitlementCompensation.previous.starts_at,
+          ends_at: entitlementCompensation.previous.ends_at,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", entitlementCompensation.id)
+        .eq("updated_at", entitlementCompensation.activationUpdatedAt)
+        .select("id")
+        .maybeSingle();
+      if (error || !data) {
+        compensationError = error?.message ?? "reactivated entitlement changed concurrently";
+      }
+    }
+
     return {
       success: false,
-      error: `Failed to force install plugin: ${installUpsertError.message}`,
+      error: [
+        transitionResult.error ?? "Failed to force install plugin.",
+        compensationError
+          ? `Private entitlement rollback also failed: ${compensationError}.`
+          : null,
+      ].filter(Boolean).join(" "),
     };
   }
 
@@ -996,35 +1121,24 @@ export async function setOrganizationPluginInstallStateByAdmin(input: {
     });
   }
 
-  const { isAdmin } = await checkSuperAdmin();
-  if (!isAdmin) {
+  const { isAdmin, userId } = await checkSuperAdmin();
+  if (!isAdmin || !userId) {
     return { success: false, error: "Unauthorized" };
   }
 
   const service = getAdminClient();
-  const now = new Date().toISOString();
+  const transitionResult = await transitionOrganizationPluginInstall({
+    organizationId: input.organizationId,
+    pluginKey: input.pluginKey,
+    actor: { id: userId, type: "admin" },
+    organizationRole: "admin",
+    transition: { kind: "disable" },
+  });
 
-  const { data: updatedRows, error: updateError } = await service
-    .from("organization_plugin_installs")
-    .update({
-      enabled: false,
-      updated_at: now,
-    })
-    .eq("organization_id", input.organizationId)
-    .eq("plugin_key", input.pluginKey)
-    .select("id");
-
-  if (updateError) {
+  if (!transitionResult.success) {
     return {
       success: false,
-      error: `Failed to disable organization install: ${updateError.message}`,
-    };
-  }
-
-  if (!updatedRows || updatedRows.length === 0) {
-    return {
-      success: false,
-      error: "Plugin is not installed for this organization yet.",
+      error: transitionResult.error ?? "Failed to disable organization install.",
     };
   }
 
@@ -1049,8 +1163,8 @@ export async function upsertOrganizationPluginInstallConfiguration(input: {
   pluginKey: string;
   configurationJson: string;
 }): Promise<{ success: boolean; error?: string; message?: string }> {
-  const { isAdmin } = await checkSuperAdmin();
-  if (!isAdmin) {
+  const { isAdmin, userId } = await checkSuperAdmin();
+  if (!isAdmin || !userId) {
     return { success: false, error: "Unauthorized" };
   }
 
@@ -1079,6 +1193,37 @@ export async function upsertOrganizationPluginInstallConfiguration(input: {
     }
   }
 
+  const definition = getRegisteredPlugin(input.pluginKey);
+  if (!definition) {
+    return {
+      success: false,
+      error: "This plugin package is not loaded in the current deployment.",
+    };
+  }
+
+  const schema = definition.manifest.configSchema;
+  let normalizedConfiguration = parsedConfiguration;
+  if (schema) {
+    normalizedConfiguration = applyConfigDefaults(
+      parsedConfiguration,
+      schema as PluginConfigSchema,
+    );
+    const validation = validatePluginConfig(
+      normalizedConfiguration,
+      schema as PluginConfigSchema,
+    );
+    if (!validation.valid) {
+      const firstError = validation.errors[0];
+      const fieldPath = firstError?.path && firstError.path !== "/"
+        ? firstError.path
+        : "root";
+      return {
+        success: false,
+        error: `Configuration validation failed at ${fieldPath}: ${firstError?.message || "Invalid value"}`,
+      };
+    }
+  }
+
   const service = getAdminClient();
 
   const { data: existingInstall, error: existingInstallError } = await service
@@ -1095,39 +1240,29 @@ export async function upsertOrganizationPluginInstallConfiguration(input: {
     };
   }
 
-  if (existingInstall) {
-    const { error: updateError } = await service
-      .from("organization_plugin_installs")
-      .update({
-        configuration: parsedConfiguration,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("organization_id", input.organizationId)
-      .eq("plugin_key", input.pluginKey);
+  if (!existingInstall) {
+    return {
+      success: false,
+      error: "Install the plugin before updating its configuration.",
+    };
+  }
 
-    if (updateError) {
-      return {
-        success: false,
-        error: `Failed to update install configuration: ${updateError.message}`,
-      };
-    }
-  } else {
-    const { error: insertError } = await service
-      .from("organization_plugin_installs")
-      .insert({
-        organization_id: input.organizationId,
-        plugin_key: input.pluginKey,
-        enabled: false,
-        configuration: parsedConfiguration,
-        updated_at: new Date().toISOString(),
-      });
+  const transitionResult = await transitionOrganizationPluginInstall({
+    organizationId: input.organizationId,
+    pluginKey: input.pluginKey,
+    actor: { id: userId, type: "admin" },
+    organizationRole: "admin",
+    transition: {
+      kind: "config_update",
+      configuration: normalizedConfiguration,
+    },
+  });
 
-    if (insertError) {
-      return {
-        success: false,
-        error: `Failed to create install configuration: ${insertError.message}`,
-      };
-    }
+  if (!transitionResult.success) {
+    return {
+      success: false,
+      error: transitionResult.error ?? "Failed to update install configuration.",
+    };
   }
 
   const { data: organization } = await service

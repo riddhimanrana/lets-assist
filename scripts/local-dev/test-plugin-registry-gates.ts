@@ -1,3 +1,5 @@
+import { mock } from "bun:test";
+
 type PluginDefinition = {
   manifest?: {
     key?: string;
@@ -5,6 +7,10 @@ type PluginDefinition = {
 };
 
 export {};
+
+// `server-only` intentionally throws outside a React Server Component build.
+// This script audits registry metadata in Bun, so replace only that marker.
+mock.module("server-only", () => ({}));
 
 const { privatePlugins } = await import("../../lib/plugins/private/registry");
 
@@ -15,15 +21,16 @@ const pluginKeys = (privatePlugins as PluginDefinition[])
 
 const hasDvPlugin = pluginKeys.includes("dv-speech-debate");
 
-if (hasDvPlugin) {
+if (!hasDvPlugin) {
   throw new Error(
-    "Expected dv-speech-debate to be absent while the plugin_data backend is redesigned.",
+    "Expected the server-only dv-speech-debate plugin to be registered.",
   );
 }
 
 const requiredDefaultPlugins = [
   "calendar-tools",
   "community-impact-radar",
+  "dv-speech-debate",
   "dvhs-csf",
   "family-liaison-workbench",
 ];
@@ -38,7 +45,7 @@ console.log(
   JSON.stringify(
     {
       ok: true,
-      dvDisabled: true,
+      dvEnabled: true,
       pluginKeys,
     },
     null,

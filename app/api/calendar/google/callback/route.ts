@@ -4,7 +4,12 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import {
+  getGoogleOAuthStateCookieOptions,
+  GOOGLE_OAUTH_STATE_COOKIE_NAME,
+  verifyGoogleOAuthState,
+} from "@/lib/auth/google-oauth-state";
+import { NextRequest, NextResponse } from "next/server";
 import { encrypt } from "@/lib/encryption";
 import { ensureOrganizationCalendar } from "@/services/calendar";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -13,75 +18,105 @@ import {
   type ExistingGoogleConnection,
 } from "./connection-selection";
 
-export async function GET(request: Request) {
+function getCallbackBaseUrl(request: NextRequest): string {
+  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
+  if (configuredSiteUrl) {
+    try {
+      return new URL(configuredSiteUrl).origin;
+    } catch {
+      // Fall back to the request origin when local configuration is malformed.
+    }
+  }
+
+  return request.nextUrl.origin;
+}
+
+function redirectAndConsumeOAuthState(destination: string | URL): NextResponse {
+  const response = NextResponse.redirect(destination);
+  response.cookies.set(GOOGLE_OAUTH_STATE_COOKIE_NAME, "", {
+    ...getGoogleOAuthStateCookieOptions(),
+    maxAge: 0,
+    expires: new Date(0),
+  });
+  return response;
+}
+
+function buildCallbackRedirect(
+  baseUrl: string,
+  returnTo: string | null,
+  result: { error?: string; success?: string; email?: string },
+): URL {
+  const redirectUrl = new URL(returnTo || "/account/calendar", baseUrl);
+
+  if (result.error) {
+    redirectUrl.searchParams.set("error", result.error);
+  }
+  if (result.success) {
+    redirectUrl.searchParams.set("success", result.success);
+  }
+  if (result.email) {
+    redirectUrl.searchParams.set("email", result.email);
+  }
+
+  return redirectUrl;
+}
+
+export async function GET(request: NextRequest) {
+  const baseUrl = getCallbackBaseUrl(request);
+
   try {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
     const state = searchParams.get("state");
     const error = searchParams.get("error");
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    const stateVerification = verifyGoogleOAuthState({
+      state,
+      cookieNonce: request.cookies.get(GOOGLE_OAUTH_STATE_COOKIE_NAME)?.value,
+      currentUserId: user?.id,
+    });
+
+    if (authError || !user || !stateVerification.ok) {
+      if (stateVerification.ok === false) {
+        console.warn(
+          "Rejected Google OAuth callback state:",
+          stateVerification.reason,
+        );
+      }
+
+      return redirectAndConsumeOAuthState(
+        buildCallbackRedirect(baseUrl, null, {
+          error: authError || !user ? "unauthorized" : "invalid_state",
+        }),
+      );
+    }
+
+    const stateData = stateVerification.payload;
 
     // Handle user denial
     if (error) {
-      const stateData = state ? JSON.parse(Buffer.from(state, "base64").toString()) : null;
-      const redirectUrl = stateData?.returnTo || "/account/calendar";
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
-      const errorUrl = new URL(redirectUrl, baseUrl);
-      errorUrl.searchParams.set("error", "access_denied");
-      return NextResponse.redirect(errorUrl.toString());
+      return redirectAndConsumeOAuthState(
+        buildCallbackRedirect(baseUrl, stateData.returnTo, {
+          error: "access_denied",
+        }),
+      );
     }
 
-    if (!code || !state) {
-      const stateData = state ? JSON.parse(Buffer.from(state, "base64").toString()) : null;
-      const redirectUrl = stateData?.returnTo || "/account/calendar";
-      const errorUrl = new URL(redirectUrl, process.env.NEXT_PUBLIC_SITE_URL || "");
-      errorUrl.searchParams.set("error", "invalid_request");
-      return NextResponse.redirect(errorUrl.toString());
+    if (!code) {
+      return redirectAndConsumeOAuthState(
+        buildCallbackRedirect(baseUrl, stateData.returnTo, {
+          error: "invalid_request",
+        }),
+      );
     }
 
-    // Verify state parameter
-    let stateData: {
-      userId: string;
-      timestamp: number;
-      nonce: string;
-      returnTo?: string | null;
-      orgId?: string | null;
-      isCalendarSync?: boolean;
-      isSheetsSync?: boolean;
-    };
-    try {
-      stateData = JSON.parse(Buffer.from(state, "base64").toString());
-      
-      // Check if state is not too old (5 minutes max)
-      const fiveMinutes = 5 * 60 * 1000;
-      if (Date.now() - stateData.timestamp > fiveMinutes) {
-        throw new Error("State expired");
-      }
-    } catch {
-      const errorUrl = new URL("/account/calendar", process.env.NEXT_PUBLIC_SITE_URL || "");
-      errorUrl.searchParams.set("error", "invalid_state");
-      return NextResponse.redirect(errorUrl.toString());
-    }
-
-    const supabase = await createClient();
-
-    // Try to get the current user, but don't fail if session is expired
-    // We'll verify the userId from state parameter instead
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    // If we have a user session, verify it matches the state
-    // If no session, we'll still proceed but use the userId from state
-    if (user && user.id !== stateData.userId) {
-      console.error("User ID mismatch:", { sessionUser: user.id, stateUser: stateData.userId });
-      const redirectUrl = stateData?.returnTo || "/account/calendar";
-      const errorUrl = new URL(redirectUrl, process.env.NEXT_PUBLIC_SITE_URL || "");
-      errorUrl.searchParams.set("error", "unauthorized");
-      return NextResponse.redirect(errorUrl.toString());
-    }
-
-    // Use userId from state (this is secure because state is signed and time-limited)
-    const userId = stateData.userId;
+    const userId = user.id;
 
     // Exchange authorization code for tokens
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
@@ -101,10 +136,11 @@ export async function GET(request: Request) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error("Token exchange failed:", errorData);
-      const redirectUrl = stateData?.returnTo || "/account/calendar";
-      const errorUrl = new URL(redirectUrl, process.env.NEXT_PUBLIC_SITE_URL || "");
-      errorUrl.searchParams.set("error", "token_exchange_failed");
-      return NextResponse.redirect(errorUrl.toString());
+      return redirectAndConsumeOAuthState(
+        buildCallbackRedirect(baseUrl, stateData.returnTo, {
+          error: "token_exchange_failed",
+        }),
+      );
     }
 
     const tokens = await tokenResponse.json();
@@ -135,10 +171,11 @@ export async function GET(request: Request) {
 
     if (!userInfoResponse.ok) {
       console.error("Failed to get user info");
-      const redirectUrl = stateData?.returnTo || "/account/calendar";
-      const errorUrl = new URL(redirectUrl, process.env.NEXT_PUBLIC_SITE_URL || "");
-      errorUrl.searchParams.set("error", "failed_to_get_email");
-      return NextResponse.redirect(errorUrl.toString());
+      return redirectAndConsumeOAuthState(
+        buildCallbackRedirect(baseUrl, stateData.returnTo, {
+          error: "failed_to_get_email",
+        }),
+      );
     }
 
     const userInfo = await userInfoResponse.json();
@@ -172,10 +209,11 @@ export async function GET(request: Request) {
 
     if (!encryptedRefreshToken) {
       console.error("No refresh token available");
-      const redirectUrl = stateData?.returnTo || "/account/calendar";
-      const errorUrl = new URL(redirectUrl, process.env.NEXT_PUBLIC_SITE_URL || "");
-      errorUrl.searchParams.set("error", "no_refresh_token");
-      return NextResponse.redirect(errorUrl.toString());
+      return redirectAndConsumeOAuthState(
+        buildCallbackRedirect(baseUrl, stateData.returnTo, {
+          error: "no_refresh_token",
+        }),
+      );
     }
 
     if (existingConnection) {
@@ -197,11 +235,11 @@ export async function GET(request: Request) {
 
       if (updateError) {
         console.error("Failed to update calendar connection:", updateError);
-        const redirectUrl = stateData.returnTo || "/account/calendar";
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
-        const errorUrl = new URL(redirectUrl, baseUrl);
-        errorUrl.searchParams.set("error", "connection_failed");
-        return NextResponse.redirect(errorUrl.toString());
+        return redirectAndConsumeOAuthState(
+          buildCallbackRedirect(baseUrl, stateData.returnTo, {
+            error: "connection_failed",
+          }),
+        );
       }
     } else {
       // Create new connection
@@ -227,11 +265,11 @@ export async function GET(request: Request) {
 
       if (insertError) {
         console.error("Failed to save calendar connection:", insertError);
-        const redirectUrl = stateData.returnTo || "/account/calendar";
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
-        const errorUrl = new URL(redirectUrl, baseUrl);
-        errorUrl.searchParams.set("error", "connection_failed");
-        return NextResponse.redirect(errorUrl.toString());
+        return redirectAndConsumeOAuthState(
+          buildCallbackRedirect(baseUrl, stateData.returnTo, {
+            error: "connection_failed",
+          }),
+        );
       }
     }
 
@@ -245,11 +283,13 @@ export async function GET(request: Request) {
         .maybeSingle();
 
       if (!membership || membership.role !== "admin") {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
-        const target = stateData.returnTo || `/organization/${stateData.orgId}/settings`;
-        const errorUrl = new URL(target, baseUrl);
-        errorUrl.searchParams.set("error", "org_admin_required");
-        return NextResponse.redirect(errorUrl.toString());
+        return redirectAndConsumeOAuthState(
+          buildCallbackRedirect(
+            baseUrl,
+            stateData.returnTo || `/organization/${stateData.orgId}/settings`,
+            { error: "org_admin_required" },
+          ),
+        );
       }
 
       // Handle organization calendar sync (separate from sheets sync)
@@ -277,11 +317,13 @@ export async function GET(request: Request) {
         );
 
         if (!ensured) {
-          const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
-          const target = stateData.returnTo || `/organization/${stateData.orgId}/settings`;
-          const errorUrl = new URL(target, baseUrl);
-          errorUrl.searchParams.set("error", "org_calendar_failed");
-          return NextResponse.redirect(errorUrl.toString());
+          return redirectAndConsumeOAuthState(
+            buildCallbackRedirect(
+              baseUrl,
+              stateData.returnTo || `/organization/${stateData.orgId}/settings`,
+              { error: "org_calendar_failed" },
+            ),
+          );
         }
 
         await serviceSupabase
@@ -328,19 +370,16 @@ export async function GET(request: Request) {
       }
     }
 
-    // Success! Check for custom redirect from state or default to calendar settings
-    const redirectUrl = stateData.returnTo || "/account/calendar";
-    const successUrl = new URL(redirectUrl, process.env.NEXT_PUBLIC_SITE_URL!);
-    successUrl.searchParams.set("success", "connected");
-    successUrl.searchParams.set("email", calendarEmail);
-    
-    return NextResponse.redirect(successUrl.toString());
+    return redirectAndConsumeOAuthState(
+      buildCallbackRedirect(baseUrl, stateData.returnTo, {
+        success: "connected",
+        email: calendarEmail,
+      }),
+    );
   } catch (error) {
     console.error("Error in Google Calendar callback:", error);
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
-    // If we have state data in the error context, we might be able to redirect back to where we came from
-    return NextResponse.redirect(
-      `${baseUrl}/account/calendar?error=unknown`
+    return redirectAndConsumeOAuthState(
+      buildCallbackRedirect(baseUrl, null, { error: "unknown" }),
     );
   }
 }

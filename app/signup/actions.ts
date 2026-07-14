@@ -5,16 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "crypto";
 import { buildAuthConfirmRedirectUrl, normalizeRedirectPath } from "./redirect-utils";
-import {
-  applyStaffInviteForUser,
-  type StaffInviteOutcome,
-} from "@/lib/organization/staff-invite";
+import { passwordSchema } from "@/lib/auth/password-policy";
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
   phone: z.string().optional(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: passwordSchema,
   turnstileToken: z.string().nullish(),
   staffToken: z.string().nullish(),
   orgUsername: z.string().nullish(),
@@ -28,66 +25,6 @@ const getSiteUrl = () => {
 
   return (configuredSiteUrl || vercelSiteUrl || "http://localhost:3000").replace(/\/+$/u, "");
 };
-
-type SignupStatus = 
-  | { type: 'confirmed'; message: string }
-  | { type: 'unconfirmed'; message: string }
-  | { type: 'new'; message: string };
-
-export async function checkEmailStatus(email: string): Promise<SignupStatus> {
-  if (process.env.E2E_TEST_MODE === "true") {
-    return { type: 'new', message: 'E2E test mode: email is new' };
-  }
-
-  try {
-    const adminClient = getAdminClient();
-    const normalizedEmail = email.trim().toLowerCase();
-    const perPage = 100;
-    const maxPages = 100;
-    let existingUser: { email?: string | null; email_confirmed_at?: string | null } | null = null;
-
-    for (let page = 1; page <= maxPages; page += 1) {
-      const { data, error } = await adminClient.auth.admin.listUsers({
-        page,
-        perPage,
-      });
-
-      if (error) {
-        console.error("Error checking email status:", error);
-        throw error;
-      }
-
-      const users = data?.users ?? [];
-      existingUser = users.find((u) => u.email?.toLowerCase() === normalizedEmail) ?? null;
-
-      if (existingUser || users.length < perPage) {
-        break;
-      }
-    }
-
-    if (!existingUser) {
-      return { type: 'new', message: 'Email is available for signup' };
-    }
-    
-    // Check if email is confirmed - use explicit truthy check
-    const isConfirmed = !!existingUser.email_confirmed_at;
-    
-    if (isConfirmed) {
-      return { 
-        type: 'confirmed', 
-        message: 'An account with this email already exists and is verified. Please log in to access your account.' 
-      };
-    } else {
-      return { 
-        type: 'unconfirmed', 
-        message: 'It looks like you already signed up but haven\'t confirmed your email yet. Would you like us to resend the verification link?' 
-      };
-    }
-  } catch (error) {
-    console.error("Error in checkEmailStatus:", error);
-    throw error;
-  }
-}
 
 function getResendErrorCode(message: string, status?: number) {
   const lowered = message.toLowerCase();
@@ -141,24 +78,6 @@ export async function signup(formData: FormData) {
   try {
     const origin = getSiteUrl();
     
-    // Check email status first
-    const emailStatus = await checkEmailStatus(validatedFields.data.email);
-    
-    if (emailStatus.type === 'confirmed') {
-      return { 
-        error: { server: [emailStatus.message] },
-        emailStatus: 'confirmed'
-      };
-    }
-    
-    if (emailStatus.type === 'unconfirmed') {
-      return { 
-        error: { server: [emailStatus.message] },
-        emailStatus: 'unconfirmed',
-        email: validatedFields.data.email
-      };
-    }
-
     // Check if this email is blacklisted
     const adminClient = getAdminClient();
     const normalizedSignupEmail = validatedFields.data.email.trim().toLowerCase();
@@ -184,6 +103,8 @@ export async function signup(formData: FormData) {
           username: string;
           phone?: string;
           created_at: string;
+          pending_staff_token?: string;
+          pending_staff_org_username?: string;
         };
         emailRedirectTo: string;
         captchaToken?: string;
@@ -198,6 +119,12 @@ export async function signup(formData: FormData) {
           phone: validatedFields.data.phone,
           username: `user_${randomUUID().slice(0, 8)}`,
           created_at: new Date().toISOString(),
+          ...(validatedFields.data.staffToken && validatedFields.data.orgUsername
+            ? {
+                pending_staff_token: validatedFields.data.staffToken,
+                pending_staff_org_username: validatedFields.data.orgUsername,
+              }
+            : {}),
         },
         emailRedirectTo: buildAuthConfirmRedirectUrl(origin, redirectUrl),
       },
@@ -215,13 +142,29 @@ export async function signup(formData: FormData) {
 
     if (authError) {
       if (authError.message.includes("User already registered")) {
-        return { error: { server: ["An account with this email already exists. Please log in."] } };
+        return {
+          success: true,
+          email: validatedFields.data.email,
+          message: "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
+        };
       }
       throw authError;
     }
 
     if (!user) {
       throw new Error("No user returned");
+    }
+
+    // With email confirmation enabled, Supabase deliberately returns an
+    // obfuscated user with no identities for an existing address. Stop before
+    // any service-role profile, invite, or organization side effects and keep
+    // the public response indistinguishable from a new signup.
+    if (Array.isArray(user.identities) && user.identities.length === 0) {
+      return {
+        success: true,
+        email: validatedFields.data.email,
+        message: "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
+      };
     }
 
     const profileEmail = user.email || validatedFields.data.email;
@@ -247,85 +190,14 @@ export async function signup(formData: FormData) {
 
     // Profile row will be created/updated by DB trigger using user metadata
 
-    // Handle staff token - add user to organization as staff
-    let inviteOutcome: StaffInviteOutcome | undefined;
-    if (staffToken && orgUsername) {
-      inviteOutcome = await applyStaffInviteForUser({
-        userId: user.id,
-        staffToken,
-        orgUsername,
-      });
-    } else {
-      // Check for auto-affiliation based on email domain
-      try {
-        await handleEmailDomainAffiliation(user.id, validatedFields.data.email);
-      } catch (affiliationError) {
-        console.error("Error processing email affiliation:", affiliationError);
-        // Don't fail signup if affiliation processing fails
-      }
-    }
-
     return { 
       success: true, 
       email: validatedFields.data.email,
-      message: "Successfully signed up! Please check your email (and junk folder) to confirm your account.",
-      inviteOutcome,
+      message: "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
     };
   } catch (error) {
     return { error: { server: [(error as Error).message] } };
   }
-}
-
-/**
- * Handle email domain affiliation - auto-add user to organization based on email domain
- * Returns the organization ID if the user was auto-added, null otherwise
- */
-async function handleEmailDomainAffiliation(userId: string, email: string): Promise<string | null> {
-  const adminClient = getAdminClient();
-  
-  const domain = email.split("@")[1]?.toLowerCase();
-  if (!domain) return null;
-
-  // Check if any organization has auto_join_domain set to this domain
-  const { data: org, error: orgError } = await adminClient
-    .from("organizations")
-    .select("id, name")
-    .eq("auto_join_domain", domain)
-    .single();
-
-  if (orgError || !org) {
-    // No organization with this auto-join domain
-    return null;
-  }
-
-  // Add user to the organization as a member
-  const { error: memberError } = await adminClient
-    .from("organization_members")
-    .insert({
-      organization_id: org.id,
-      user_id: userId,
-      role: "member",
-      joined_at: new Date().toISOString(),
-    });
-
-  if (memberError) {
-    // Skip if already a member (duplicate key)
-    if (memberError.code !== "23505") {
-      console.error(`Error adding user to org ${org.id}:`, memberError);
-    }
-    return null;
-  }
-
-  // Store the auto-joined organization info in user metadata for display after onboarding
-  await adminClient.auth.admin.updateUserById(userId, {
-    user_metadata: {
-      auto_joined_org_id: org.id,
-      auto_joined_org_name: org.name,
-    }
-  });
-
-  console.log(`User ${userId} auto-affiliated with organization ${org.id} via domain ${domain}`);
-  return org.id;
 }
 
 export async function resendVerificationEmail(

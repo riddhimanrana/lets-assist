@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { Separator } from "@/components/ui/separator";
 import EditOrganizationForm from "./EditOrganizationForm";
 import { Metadata } from "next";
@@ -26,11 +27,6 @@ import MemberExporter from "./MemberExporter";
 
 type Props = {
   params: Promise<{ id: string }>;
-};
-
-type OrganizationMember = {
-  user_id: string;
-  role: string;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -81,31 +77,46 @@ export default async function OrganizationSettingsPage({ params }: Props) {
   // Check if ID is a username or UUID
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-  // Try to fetch organization by username or ID depending on the format
-  const { data: organization } = isUUID
+  // Resolve only public-safe fields first, then prove admin membership before
+  // loading capability fields such as join/staff tokens with the server client.
+  const { data: organizationIdentity } = isUUID
     ? await supabase
       .from("organizations")
-      .select("*, organization_members!inner(user_id, role)")
+      .select("id, username, name")
       .eq("id", id)
       .single()
     : await supabase
       .from("organizations")
-      .select("*, organization_members!inner(user_id, role)")
+      .select("id, username, name")
       .eq("username", id)
       .single();
 
-  if (!organization) {
+  if (!organizationIdentity) {
     notFound();
   }
 
-  // Check if user is an admin
-  const isAdmin = (organization.organization_members as OrganizationMember[]).some(
-    (member) => member.user_id === user.id && member.role === 'admin'
-  );
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("user_id, role")
+    .eq("organization_id", organizationIdentity.id)
+    .eq("user_id", user.id)
+    .eq("role", "admin")
+    .maybeSingle();
 
   // If not admin, redirect to organization page
-  if (!isAdmin) {
+  if (!membership) {
     redirect(`/organization/${id}`);
+  }
+
+  const admin = getAdminClient();
+  const { data: organization } = await admin
+    .from("organizations")
+    .select("*")
+    .eq("id", organizationIdentity.id)
+    .single();
+
+  if (!organization) {
+    notFound();
   }
 
   return (

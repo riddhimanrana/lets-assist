@@ -5,7 +5,7 @@ DVSD production workflow: seasonal membership → approval → tournament regist
 §C
 
 - Next.js 16 App Router + React 19 + shadcn/Tailwind v4.
-- Supabase `plugin_data` exposed via PostgREST; RLS ! protect ∀ rows.
+- Supabase `plugin_data` remains in PostgREST's schema list for service-role backends; anon/authenticated grants ⊥; RLS remains defense in depth.
 - Students authenticate; guardians default contact-only.
 - `public.projects` canonical tournament; DV extension 1:1.
 - Tabroom read-only; fixture default; live sync opt-in.
@@ -72,6 +72,8 @@ V29: CSF route → fetch route-required data only; all-dashboard aggregate load 
 V30: CSF public page → plugin-controlled safe surface; generic public join/member/project exposure ⊥.
 V31: Google Classroom/Sheets/Forms/Gmail → compatibility/import/export after cutover, never dual authority.
 V32: CSF UI → shadcn/Base UI, explicit text status, accessible dialogs/drawers/tables; color-only state ⊥.
+V33: ∀ externally reachable private-plugin operation → fresh auth/capability + active runtime gate before service-role `plugin_data`; every query/mutation tenant-scoped; legacy authenticated-schema client ⊥.
+V34: authenticated organization member + plugin `organization.tabs` contribution → host organization tab is canonical; direct plugin route may redirect inward, reverse redirect ⊥.
 
 §T
 
@@ -93,6 +95,7 @@ T14|x|complete canonical partner clubs, activities, single-proof submissions, aw
 T15|x|complete meeting sessions, attendance reconciliation, points grid, appeals, term close|V20,V22,V24,V25,V26,V28,V32,I.schema,I.service,I.route
 T16|x|add communications workspace + safe plugin-backed public CSF surface|V18,V26,V30,V31,V32,I.manifest,I.route
 T17|x|import legacy CSF data, compatibility exports, security/integration/E2E coverage|V17,V18,V19,V20,V21,V22,V23,V24,V25,V26,V27,V28,V29,V30,V31,V32,I.cmd
+T18|x|cut DV runtime to explicitly authorized service-only data access and re-enable version 2|V3,V13,V14,V33,I.service,I.cmd
 
 §B
 
@@ -119,3 +122,5 @@ B19|2026-07-09|CSF workflow smoke test assumed organization `slug`; platform rou
 B20|2026-07-09|CSF workflow smoke test used a draft membership FK name instead of `application_id`|V19,I.cmd
 B21|2026-07-09|CSF workflow smoke test assumed generic term `status`; CSF uses `is_current` plus closure metadata|V20,V25,I.cmd
 B22|2026-07-09|legacy inspector exposed worksheet rows as `unknown` instead of the parser's supported cell union|V24,I.cmd
+B23|2026-07-11|DV catalog re-enable reached a legacy authenticated `plugin_data` client after browser grants were revoked|V33
+B24|2026-07-12|host page redirected every plugin-public member outward while CSF direct routes redirected inward, creating a canonical-route loop|V34

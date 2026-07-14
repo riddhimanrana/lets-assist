@@ -36,6 +36,7 @@ import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStatus } from "@/utils/project";
 import ReportsTab from "@/app/organization/[id]/ReportsTab";
 import { formatOrganizationWebsiteDisplay } from "@/lib/organization/website";
+import { cn } from "@/lib/utils";
 import type { Organization, Project, OrganizationTabBehavior, ResolvedOrganizationPluginSurface, OrganizationNavigationBehavior } from "@/types";
 
 type OrganizationMember = {
@@ -227,9 +228,11 @@ export default function OrganizationTabs({
   const visiblePluginRouteTabs = pluginRouteTabs.filter((tab) =>
     hasRouteAccess(tab.minimumRole),
   );
-  const primaryPluginTabs = pluginTabs.filter((tab) => tab.navigationSection !== "more");
+  const primaryPluginTabs = pluginTabs.filter((tab) => !tab.navigationSection || tab.navigationSection === "primary");
   const morePluginTabs = pluginTabs.filter((tab) => tab.navigationSection === "more");
+  const hiddenPluginTabs = pluginTabs.filter((tab) => tab.navigationSection === "hidden");
   const activeMoreTab = morePluginTabs.find((tab) => tab.value === activeTab);
+  const activePluginParentValue = pluginTabs.find((tab) => tab.value === activeTab)?.parentValue;
   const routeBackedTabs = new Map<string, string>();
   for (const tab of visiblePluginRouteTabs) {
     routeBackedTabs.set(tab.value, tab.href);
@@ -252,17 +255,42 @@ export default function OrganizationTabs({
   useEffect(() => {
     const tab = searchParams.get("tab");
     const validTabs = [
-      "overview",
-      "members",
-      "projects",
-      "reports",
+      ...(!pluginNavigationOverrides.hideOverviewTab && (!coreTabReplacements.overview || routeBackedTabs.has("overview")) ? ["overview"] : []),
+      ...(canViewMembers && !pluginNavigationOverrides.hideMembersTab && (!coreTabReplacements.members || routeBackedTabs.has("members")) ? ["members"] : []),
+      ...(!pluginNavigationOverrides.hideProjectsTab && (!coreTabReplacements.projects || routeBackedTabs.has("projects")) ? ["projects"] : []),
+      ...(!pluginNavigationOverrides.hideReportsTab && (userRole === "admin" || userRole === "staff" || Boolean(demoReportsContent)) && (!coreTabReplacements.reports || routeBackedTabs.has("reports")) ? ["reports"] : []),
       ...pluginTabs.map(t => t.value),
       ...visiblePluginRouteTabs.map((t) => t.value),
     ];
-    if (tab && validTabs.includes(tab)) {
-      setActiveTab(tab);
+    const configuredDefault = pluginNavigationOverrides.defaultTab;
+    const fallbackTab = configuredDefault && validTabs.includes(configuredDefault)
+      ? configuredDefault
+      : validTabs[0] ?? "overview";
+    const nextTab = tab && validTabs.includes(tab) ? tab : fallbackTab;
+
+    setActiveTab((current) => current === nextTab ? current : nextTab);
+
+    if (tab && !validTabs.includes(tab)) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", fallbackTab);
+      router.replace(`?${params.toString()}`, { scroll: false });
     }
-  }, [searchParams, pluginTabs, visiblePluginRouteTabs]);
+  }, [
+    canViewMembers,
+    coreTabReplacements,
+    demoReportsContent,
+    pluginNavigationOverrides.defaultTab,
+    pluginNavigationOverrides.hideMembersTab,
+    pluginNavigationOverrides.hideOverviewTab,
+    pluginNavigationOverrides.hideProjectsTab,
+    pluginNavigationOverrides.hideReportsTab,
+    pluginTabs,
+    routeBackedTabs,
+    router,
+    searchParams,
+    userRole,
+    visiblePluginRouteTabs,
+  ]);
 
   const handleTabChange = (value: string) => {
     const routeHref = routeBackedTabs.get(value);
@@ -273,6 +301,9 @@ export default function OrganizationTabs({
 
     setActiveTab(value);
     const params = new URLSearchParams(searchParams.toString());
+    for (const key of pluginNavigationOverrides.transientQueryParams ?? []) {
+      params.delete(key);
+    }
     params.set("tab", value);
     router.replace(`?${params.toString()}`, { scroll: false });
   };
@@ -388,7 +419,7 @@ export default function OrganizationTabs({
       onValueChange={handleTabChange}
       className="w-full"
     >
-      <div className="mb-5 flex min-w-0 items-center gap-2">
+      <div className={cn("flex min-w-0 items-center gap-2", pluginNavigationOverrides.compactHeader ? "mb-3" : "mb-5")}>
       <TabsList className="flex h-auto min-w-0 flex-1 items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {!pluginNavigationOverrides.hideOverviewTab && (!coreTabReplacements.overview || routeBackedTabs.has("overview")) && (
           <TabsTrigger value="overview" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
@@ -416,12 +447,25 @@ export default function OrganizationTabs({
         )}
         {primaryPluginTabs.map((pt) => {
           return (
-            <TabsTrigger key={pt.value} value={pt.value} className="min-w-max flex-none shrink-0 gap-2 px-3">
+            <TabsTrigger
+              key={pt.value}
+              value={pt.value}
+              aria-current={activePluginParentValue === pt.value ? "page" : undefined}
+              className={cn(
+                "min-w-max flex-none shrink-0 gap-2 px-3",
+                activePluginParentValue === pt.value && "bg-background text-foreground shadow-sm",
+              )}
+            >
               {pt.icon}
               <span className="truncate">{pt.label}</span>
             </TabsTrigger>
           );
         })}
+        {hiddenPluginTabs.map((pt) => (
+          <TabsTrigger key={pt.value} value={pt.value} tabIndex={-1} className="sr-only">
+            {pt.label}
+          </TabsTrigger>
+        ))}
         {visiblePluginRouteTabs.map((pt) => {
           return (
             <TabsTrigger key={pt.value} value={pt.value} className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
@@ -436,8 +480,8 @@ export default function OrganizationTabs({
           <DropdownMenu>
             <DropdownMenuTrigger render={
               <Button variant={activeMoreTab ? "secondary" : "outline"} size="sm" className="shrink-0">
-                <span className="hidden sm:inline">{activeMoreTab?.label ?? "More"}</span>
-                <span className="sm:hidden">More</span>
+                <span className="hidden sm:inline">{activeMoreTab?.label ?? pluginNavigationOverrides.utilityMenuLabel ?? "More"}</span>
+                <span className="sm:hidden">{pluginNavigationOverrides.utilityMenuLabel ?? "More"}</span>
                 <ChevronDown data-icon="inline-end" />
               </Button>
             } />

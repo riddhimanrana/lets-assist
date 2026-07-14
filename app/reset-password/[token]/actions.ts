@@ -1,10 +1,11 @@
 "use server";
 
 import { z } from "zod";
+import { passwordSchema } from "@/lib/auth/password-policy";
 import { createClient } from "@/lib/supabase/server";
 
 const resetPasswordSchema = z.object({
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: passwordSchema,
   token: z.string().min(1, "Reset token is required"),
 });
 

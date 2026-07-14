@@ -24,6 +24,7 @@ import {
   type MfaListFactorsLike,
 } from "@/lib/auth/mfa";
 import { getGoogleSigninCapRestriction } from "@/lib/security/google-cap";
+import { applyVerifiedDomainAffiliation } from "@/lib/organization/verified-domain-affiliation";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -305,7 +306,7 @@ export async function GET(request: Request) {
           // Handle auto-join by email domain for new OAuth users
           if (user.email) {
             try {
-              await handleEmailDomainAffiliation(user.id, user.email);
+              await applyVerifiedDomainAffiliation(user.id);
             } catch (affiliationError) {
               console.error("Error processing email affiliation:", affiliationError);
               // Don't fail signup if affiliation processing fails
@@ -435,51 +436,3 @@ export async function GET(request: Request) {
 
   return NextResponse.redirect(`${origin}/error`);
 }
-
-/**
- * Handle email domain affiliation - auto-add user to organization based on email domain
- */
-async function handleEmailDomainAffiliation(userId: string, email: string): Promise<void> {
-  const adminClient = getAdminClient();
-  
-  const domain = email.split("@")[1]?.toLowerCase();
-  if (!domain) return;
-
-  // Check if any organization has auto_join_domain set to this domain
-  const { data: org, error: orgError } = await adminClient
-    .from("organizations")
-    .select("id, name")
-    .eq("auto_join_domain", domain)
-    .single();
-
-  if (orgError || !org) {
-    return;
-  }
-
-  // Add user to the organization as a member
-  const { error: memberError } = (await adminClient
-    .from("organization_members")
-    .insert({
-      organization_id: org.id,
-      user_id: userId,
-      role: "member",
-    })) as { error: { message?: string; code?: string } | null };
-
-  if (memberError) {
-    if (memberError.code !== "23505") {
-      console.error(`Error adding user to org ${org.id}:`, memberError);
-    }
-    return;
-  }
-
-  // Store the auto-joined organization info in user metadata for display after onboarding
-  await adminClient.auth.admin.updateUserById(userId, {
-    user_metadata: {
-      auto_joined_org_id: org.id,
-      auto_joined_org_name: org.name,
-    }
-  });
-
-  console.log(`User ${userId} auto-affiliated with organization ${org.id} via domain ${domain}`);
-}
-
