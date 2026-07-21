@@ -49,6 +49,7 @@ export function isRetryableSupabaseQueryError(error: SupabaseQueryErrorLike | nu
 		searchableText.includes("could not find the table") ||
 		searchableText.includes("relation \"public.") ||
 		searchableText.includes("database client error") ||
+		searchableText.includes("invalid response was received from the upstream server") ||
 		searchableText.includes("fetch failed") ||
 		searchableText.includes("connection refused") ||
 		searchableText.includes("timed out")

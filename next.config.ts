@@ -3,6 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   cacheComponents: false,
 
+  // Playwright and agent-browser use the loopback host so the app and local
+  // Supabase share an origin. Keep this host-only allowlist narrow; Next.js
+  // intentionally blocks other cross-site development origins.
+  allowedDevOrigins: ["127.0.0.1"],
+
   // pdfjs-dist uses browser-only APIs (DOMMatrix, Path2D, ImageData) that are unavailable
   // in the serverless bundle. Marking it external makes Next.js load it at runtime via
   // require() instead of bundling it, so instrumentation.ts polyfills apply first.

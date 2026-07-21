@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(22);
+SELECT extensions.plan(35);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -27,6 +27,55 @@ SELECT extensions.ok(
     'EXECUTE'
   ),
   'the server role can import CSF class history'
+);
+
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'anon',
+    'plugin_data.csf_import_class_history_row_v2(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,jsonb,boolean,uuid)',
+    'EXECUTE'
+  ),
+  'anonymous clients cannot normalize imported CSF credit'
+);
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'authenticated',
+    'plugin_data.csf_import_class_history_row_v2(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,jsonb,boolean,uuid)',
+    'EXECUTE'
+  ),
+  'authenticated clients cannot normalize imported CSF credit'
+);
+SELECT extensions.ok(
+  has_function_privilege(
+    'service_role',
+    'plugin_data.csf_import_class_history_row_v2(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,jsonb,boolean,uuid)',
+    'EXECUTE'
+  ),
+  'the server role can atomically normalize imported CSF credit'
+);
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'anon',
+    'plugin_data.csf_import_student_roster_row(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,text,uuid)',
+    'EXECUTE'
+  ),
+  'anonymous clients cannot import a CSF student roster'
+);
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'authenticated',
+    'plugin_data.csf_import_student_roster_row(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,text,uuid)',
+    'EXECUTE'
+  ),
+  'authenticated clients cannot import a CSF student roster'
+);
+SELECT extensions.ok(
+  has_function_privilege(
+    'service_role',
+    'plugin_data.csf_import_student_roster_row(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,text,uuid)',
+    'EXECUTE'
+  ),
+  'the server role can atomically import a CSF student roster'
 );
 
 INSERT INTO auth.users (
@@ -84,16 +133,28 @@ INSERT INTO plugin_data.csf_cohort_terms (
 );
 
 INSERT INTO plugin_data.csf_sheet_sources (
-  id, organization_id, cohort_id, title, provider, spreadsheet_id, settings
-) VALUES (
-  'ce500000-0000-4000-8000-000000000001',
-  'ce100000-0000-4000-8000-000000000001',
-  'ce300000-0000-4000-8000-000000000001',
-  'Class of 2028 workbook',
-  'google_sheets',
-  'fixture-spreadsheet',
-  '{"sourceKind":"class_history"}'
-);
+  id, organization_id, cohort_id, source_type, title, provider, spreadsheet_id, settings
+) VALUES
+  (
+    'ce500000-0000-4000-8000-000000000001',
+    'ce100000-0000-4000-8000-000000000001',
+    'ce300000-0000-4000-8000-000000000001',
+    'class_history',
+    'Class of 2028 workbook',
+    'google_sheets',
+    'fixture-spreadsheet',
+    '{"sourceKind":"class_history"}'
+  ),
+  (
+    'ce500000-0000-4000-8000-000000000002',
+    'ce100000-0000-4000-8000-000000000001',
+    'ce300000-0000-4000-8000-000000000001',
+    'student_roster',
+    'Class of 2028 roster',
+    'google_sheets',
+    'fixture-roster-spreadsheet',
+    '{"sourceKind":"student_roster"}'
+  );
 
 INSERT INTO plugin_data.csf_sheet_import_jobs (
   id, organization_id, source_id, initiated_by, mode, status
@@ -134,6 +195,22 @@ INSERT INTO plugin_data.csf_sheet_import_jobs (
     'ce600000-0000-4000-8000-000000000005',
     'ce100000-0000-4000-8000-000000000001',
     'ce500000-0000-4000-8000-000000000001',
+    'ce000000-0000-4000-8000-000000000001',
+    'preview',
+    'completed'
+  ),
+  (
+    'ce600000-0000-4000-8000-000000000006',
+    'ce100000-0000-4000-8000-000000000001',
+    'ce500000-0000-4000-8000-000000000001',
+    'ce000000-0000-4000-8000-000000000001',
+    'preview',
+    'completed'
+  ),
+  (
+    'ce600000-0000-4000-8000-000000000007',
+    'ce100000-0000-4000-8000-000000000001',
+    'ce500000-0000-4000-8000-000000000002',
     'ce000000-0000-4000-8000-000000000001',
     'preview',
     'completed'
@@ -226,7 +303,137 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     'expected-row-hash',
     NULL,
     'pending'
+  ),
+  (
+    'ce800000-0000-4000-8000-000000000006',
+    'ce100000-0000-4000-8000-000000000001',
+    'ce600000-0000-4000-8000-000000000006',
+    'ce500000-0000-4000-8000-000000000001',
+    'ce300000-0000-4000-8000-000000000001',
+    'ce200000-0000-4000-8000-000000000001',
+    'S27',
+    7,
+    '{"firstName":"Numeric","lastName":"Credit"}',
+    'numeric-credit-hash',
+    NULL,
+    'pending'
+  ),
+  (
+    'ce800000-0000-4000-8000-000000000007',
+    'ce100000-0000-4000-8000-000000000001',
+    'ce600000-0000-4000-8000-000000000007',
+    'ce500000-0000-4000-8000-000000000002',
+    'ce300000-0000-4000-8000-000000000001',
+    'ce200000-0000-4000-8000-000000000001',
+    'Roster',
+    2,
+    '{"firstName":"Roster","lastName":"Only"}',
+    'roster-only-hash',
+    NULL,
+    'pending'
   );
+
+SELECT extensions.throws_ok(
+  $$
+    UPDATE plugin_data.csf_sheet_import_jobs
+    SET mapping_snapshot = '{"tampered":true}'
+    WHERE id = 'ce600000-0000-4000-8000-000000000001'
+  $$,
+  '55000',
+  'CSF import provenance is immutable; create a retry job instead',
+  'V46: a preview mapping snapshot cannot be rewritten'
+);
+SELECT extensions.throws_ok(
+  $$
+    UPDATE plugin_data.csf_sheet_import_rows
+    SET raw_data = '{"tampered":true}'
+    WHERE id = 'ce800000-0000-4000-8000-000000000001'
+  $$,
+  'P0001',
+  'CSF import row evidence is immutable; create a retry row instead.',
+  'raw preview evidence cannot be rewritten'
+);
+
+SELECT extensions.lives_ok(
+  $$
+    SELECT plugin_data.csf_import_class_history_row_v2(
+      'ce100000-0000-4000-8000-000000000001',
+      NULL,
+      'Numeric',
+      'Credit',
+      'numeric.credit@students.local.test',
+      NULL,
+      'numeric',
+      'credit',
+      'numeric.credit@students.local.test',
+      NULL,
+      'ce300000-0000-4000-8000-000000000001',
+      'ce200000-0000-4000-8000-000000000001',
+      'ce500000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000006',
+      'numeric-credit-hash',
+      '[{"slot":"activity_1","label":"Food Drive","value":"Food Drive","points":2,"sourceColumns":["Activity 1","Activity 2"]},{"slot":"activity_2","label":"Peer tutoring","value":"Peer tutoring","points":2.5,"sourceColumns":["Activity 3"]}]',
+      '[]',
+      NULL,
+      'ce000000-0000-4000-8000-000000000001'
+    )
+  $$,
+  'numeric legacy activity credit is imported atomically'
+);
+SELECT extensions.is(
+  (
+    SELECT points::text
+    FROM plugin_data.csf_credit_records
+    WHERE organization_id = 'ce100000-0000-4000-8000-000000000001'
+      AND evidence @> '{"importRowId":"ce800000-0000-4000-8000-000000000006","slot":"activity_1"}'
+  ),
+  '2.00',
+  'repeated legacy cells become one two-point award'
+);
+SELECT extensions.is(
+  (
+    SELECT points::text
+    FROM plugin_data.csf_credit_records
+    WHERE organization_id = 'ce100000-0000-4000-8000-000000000001'
+      AND evidence @> '{"importRowId":"ce800000-0000-4000-8000-000000000006","slot":"activity_2"}'
+  ),
+  '2.50',
+  'an explicit decimal legacy value remains numeric'
+);
+
+SELECT extensions.lives_ok(
+  $$
+    SELECT plugin_data.csf_import_student_roster_row(
+      'ce100000-0000-4000-8000-000000000001',
+      NULL,
+      'Roster',
+      'Only',
+      'roster.only@students.local.test',
+      NULL,
+      'roster',
+      'only',
+      'roster.only@students.local.test',
+      NULL,
+      'ce300000-0000-4000-8000-000000000001',
+      'ce500000-0000-4000-8000-000000000002',
+      'ce800000-0000-4000-8000-000000000007',
+      'roster-only-hash',
+      'ce000000-0000-4000-8000-000000000001'
+    )
+  $$,
+  'a reviewed roster row creates a student record and class membership'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_term_memberships AS membership
+    JOIN plugin_data.csf_profiles AS profile ON profile.id = membership.profile_id
+    WHERE membership.organization_id = 'ce100000-0000-4000-8000-000000000001'
+      AND profile.normalized_school_email = 'roster.only@students.local.test'
+  ),
+  0,
+  'a roster import does not manufacture a semester membership outcome'
+);
 
 SELECT extensions.lives_ok(
   $$

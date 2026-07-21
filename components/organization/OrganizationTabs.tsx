@@ -104,6 +104,21 @@ interface OrganizationTabsProps {
   >;
 }
 
+function resolveOrganizationTabAlias(
+  value: string,
+  aliases: Readonly<Record<string, string>> | undefined,
+) {
+  let resolvedValue = value;
+  const visited = new Set<string>();
+
+  while (aliases?.[resolvedValue] && !visited.has(resolvedValue)) {
+    visited.add(resolvedValue);
+    resolvedValue = aliases[resolvedValue];
+  }
+
+  return resolvedValue;
+}
+
 function LeaveOrganizationDialog({
   organization,
   userRole
@@ -177,7 +192,7 @@ function LeaveOrganizationDialog({
             {isLeaving ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Leaving...
+                Leaving…
               </>
             ) : (
               "Leave Organization"
@@ -211,7 +226,10 @@ export default function OrganizationTabs({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState(
-    searchParams.get("tab") || pluginNavigationOverrides.defaultTab || "overview",
+    resolveOrganizationTabAlias(
+      searchParams.get("tab") || pluginNavigationOverrides.defaultTab || "overview",
+      pluginNavigationOverrides.tabAliases,
+    ),
   );
   const rolePriority = { public: 0, member: 1, staff: 2, admin: 3 } as const;
   const viewerPriority =
@@ -230,8 +248,11 @@ export default function OrganizationTabs({
   );
   const primaryPluginTabs = pluginTabs.filter((tab) => !tab.navigationSection || tab.navigationSection === "primary");
   const morePluginTabs = pluginTabs.filter((tab) => tab.navigationSection === "more");
-  const hiddenPluginTabs = pluginTabs.filter((tab) => tab.navigationSection === "hidden");
-  const activeMoreTab = morePluginTabs.find((tab) => tab.value === activeTab);
+  const compactMobileOverflowTabs = pluginNavigationOverrides.compactHeader
+    ? primaryPluginTabs.slice(2)
+    : [];
+  const activeMoreTab = [...morePluginTabs, ...compactMobileOverflowTabs]
+    .find((tab) => tab.value === activeTab);
   const activePluginParentValue = pluginTabs.find((tab) => tab.value === activeTab)?.parentValue;
   const routeBackedTabs = new Map<string, string>();
   for (const tab of visiblePluginRouteTabs) {
@@ -253,7 +274,10 @@ export default function OrganizationTabs({
     Boolean(coreTabReplacements[tabKey] && routeBackedTabs.has(tabKey));
 
   useEffect(() => {
-    const tab = searchParams.get("tab");
+    const requestedTab = searchParams.get("tab");
+    const tab = requestedTab
+      ? resolveOrganizationTabAlias(requestedTab, pluginNavigationOverrides.tabAliases)
+      : null;
     const validTabs = [
       ...(!pluginNavigationOverrides.hideOverviewTab && (!coreTabReplacements.overview || routeBackedTabs.has("overview")) ? ["overview"] : []),
       ...(canViewMembers && !pluginNavigationOverrides.hideMembersTab && (!coreTabReplacements.members || routeBackedTabs.has("members")) ? ["members"] : []),
@@ -270,9 +294,9 @@ export default function OrganizationTabs({
 
     setActiveTab((current) => current === nextTab ? current : nextTab);
 
-    if (tab && !validTabs.includes(tab)) {
+    if (requestedTab && requestedTab !== nextTab) {
       const params = new URLSearchParams(searchParams.toString());
-      params.set("tab", fallbackTab);
+      params.set("tab", nextTab);
       router.replace(`?${params.toString()}`, { scroll: false });
     }
   }, [
@@ -284,6 +308,7 @@ export default function OrganizationTabs({
     pluginNavigationOverrides.hideOverviewTab,
     pluginNavigationOverrides.hideProjectsTab,
     pluginNavigationOverrides.hideReportsTab,
+    pluginNavigationOverrides.tabAliases,
     pluginTabs,
     routeBackedTabs,
     router,
@@ -293,19 +318,32 @@ export default function OrganizationTabs({
   ]);
 
   const handleTabChange = (value: string) => {
-    const routeHref = routeBackedTabs.get(value);
+    const canonicalValue = resolveOrganizationTabAlias(
+      value,
+      pluginNavigationOverrides.tabAliases,
+    );
+    const routeHref = routeBackedTabs.get(canonicalValue);
     if (routeHref) {
       router.push(routeHref);
       return;
     }
 
-    setActiveTab(value);
+    setActiveTab(canonicalValue);
     const params = new URLSearchParams(searchParams.toString());
     for (const key of pluginNavigationOverrides.transientQueryParams ?? []) {
       params.delete(key);
     }
-    params.set("tab", value);
+    params.set("tab", canonicalValue);
     router.replace(`?${params.toString()}`, { scroll: false });
+  };
+
+  const getTabHref = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const key of pluginNavigationOverrides.transientQueryParams ?? []) {
+      params.delete(key);
+    }
+    params.set("tab", resolveOrganizationTabAlias(value, pluginNavigationOverrides.tabAliases));
+    return `?${params.toString()}`;
   };
 
   useEffect(() => {
@@ -419,7 +457,7 @@ export default function OrganizationTabs({
       onValueChange={handleTabChange}
       className="w-full"
     >
-      <div className={cn("flex min-w-0 items-center gap-2", pluginNavigationOverrides.compactHeader ? "mb-3" : "mb-5")}>
+      <div className={cn("flex min-w-0 items-center gap-2", pluginNavigationOverrides.compactHeader ? "mb-2" : "mb-5")}>
       <TabsList className="flex h-auto min-w-0 flex-1 items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {!pluginNavigationOverrides.hideOverviewTab && (!coreTabReplacements.overview || routeBackedTabs.has("overview")) && (
           <TabsTrigger value="overview" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
@@ -445,7 +483,7 @@ export default function OrganizationTabs({
             <span className="truncate">{getCoreLabel("reports", "Reports")}</span>
           </TabsTrigger>
         )}
-        {primaryPluginTabs.map((pt) => {
+        {primaryPluginTabs.map((pt, index) => {
           return (
             <TabsTrigger
               key={pt.value}
@@ -453,6 +491,7 @@ export default function OrganizationTabs({
               aria-current={activePluginParentValue === pt.value ? "page" : undefined}
               className={cn(
                 "min-w-max flex-none shrink-0 gap-2 px-3",
+                index >= 2 && pluginNavigationOverrides.compactHeader && "hidden sm:flex",
                 activePluginParentValue === pt.value && "bg-background text-foreground shadow-sm",
               )}
             >
@@ -461,11 +500,6 @@ export default function OrganizationTabs({
             </TabsTrigger>
           );
         })}
-        {hiddenPluginTabs.map((pt) => (
-          <TabsTrigger key={pt.value} value={pt.value} tabIndex={-1} className="sr-only">
-            {pt.label}
-          </TabsTrigger>
-        ))}
         {visiblePluginRouteTabs.map((pt) => {
           return (
             <TabsTrigger key={pt.value} value={pt.value} className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
@@ -476,21 +510,44 @@ export default function OrganizationTabs({
         })}
       </TabsList>
 
-        {morePluginTabs.length > 0 ? (
+        {morePluginTabs.length > 0 || compactMobileOverflowTabs.length > 0 ? (
           <DropdownMenu>
             <DropdownMenuTrigger render={
-              <Button variant={activeMoreTab ? "secondary" : "outline"} size="sm" className="shrink-0">
-                <span className="hidden sm:inline">{activeMoreTab?.label ?? pluginNavigationOverrides.utilityMenuLabel ?? "More"}</span>
-                <span className="sm:hidden">{pluginNavigationOverrides.utilityMenuLabel ?? "More"}</span>
+              <Button
+                variant={activeMoreTab ? "secondary" : "outline"}
+                size="sm"
+                className={cn("shrink-0", morePluginTabs.length === 0 && "sm:hidden")}
+              >
+                <span>{pluginNavigationOverrides.utilityMenuLabel ?? "More"}</span>
                 <ChevronDown data-icon="inline-end" />
               </Button>
             } />
             <DropdownMenuContent align="end" className="w-60">
               <DropdownMenuGroup>
-                <DropdownMenuLabel>Administration</DropdownMenuLabel>
+                <DropdownMenuLabel>{pluginNavigationOverrides.utilityMenuLabel ?? "More"}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {compactMobileOverflowTabs.map((pt) => (
+                  <DropdownMenuItem
+                    key={`mobile-${pt.value}`}
+                    render={<Link href={getTabHref(pt.value)} />}
+                    className="justify-between sm:hidden"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      {pt.icon}
+                      <span className="truncate">{pt.label}</span>
+                    </span>
+                    {pt.value === activeTab ? <Check aria-hidden="true" /> : null}
+                  </DropdownMenuItem>
+                ))}
+                {compactMobileOverflowTabs.length > 0 && morePluginTabs.length > 0 ? (
+                  <DropdownMenuSeparator className="sm:hidden" />
+                ) : null}
                 {morePluginTabs.map((pt) => (
-                  <DropdownMenuItem key={pt.value} onClick={() => handleTabChange(pt.value)} className="justify-between">
+                  <DropdownMenuItem
+                    key={pt.value}
+                    render={<Link href={getTabHref(pt.value)} />}
+                    className="justify-between"
+                  >
                     <span className="flex min-w-0 items-center gap-2">
                       {pt.icon}
                       <span className="truncate">{pt.label}</span>
@@ -623,7 +680,7 @@ export default function OrganizationTabs({
               {quickStats.map((stat) => (
                 <div
                   key={stat.label}
-                  className="relative overflow-hidden rounded-lg border bg-muted/20 p-3 sm:p-4 transition-all hover:border-primary/40 hover:bg-muted/40"
+                  className="relative overflow-hidden rounded-lg border bg-muted/20 p-3 transition-colors hover:border-primary/40 hover:bg-muted/40 sm:p-4"
                 >
                   <div
                     style={{ background: `linear-gradient(${stat.borderGradient})` }}

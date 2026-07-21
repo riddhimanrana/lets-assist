@@ -267,7 +267,7 @@ export default function LoginClient({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 p-6 sm:p-7">
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <Button
               type="button"
               variant="outline"

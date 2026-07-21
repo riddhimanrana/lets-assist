@@ -1,11 +1,93 @@
-const GOOGLE_SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
-import { logError } from '@/lib/logger';
+import { logError } from "@/lib/logger";
 import {
   writeThenClearStaleSpreadsheetValues,
   type SpreadsheetReplaceResult,
 } from "@/lib/organization/spreadsheet-replace-core";
 
+const GOOGLE_SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
+const GOOGLE_DRIVE_FILES_API = "https://www.googleapis.com/drive/v3/files";
+
 type SpreadsheetValueInputOption = "RAW" | "USER_ENTERED";
+
+export type CsfDriveFileAccessState =
+  | "accessible"
+  | "reconnect_required"
+  | "not_found"
+  | "trashed"
+  | "unknown";
+
+export type CsfDriveFileMetadata = {
+  id: string;
+  name: string | null;
+  mimeType: string | null;
+  modifiedTime: string | null;
+  webViewLink: string | null;
+  trashed: boolean | null;
+  accessState: CsfDriveFileAccessState;
+};
+
+export async function getGoogleDriveFileMetadata(
+  accessToken: string,
+  fileId: string,
+): Promise<CsfDriveFileMetadata> {
+  const unavailable = (accessState: CsfDriveFileAccessState): CsfDriveFileMetadata => ({
+    id: fileId,
+    name: null,
+    mimeType: null,
+    modifiedTime: null,
+    webViewLink: null,
+    trashed: null,
+    accessState,
+  });
+
+  try {
+    const params = new URLSearchParams({
+      fields: "id,name,mimeType,modifiedTime,webViewLink,trashed",
+      supportsAllDrives: "true",
+    });
+    const response = await fetch(
+      `${GOOGLE_DRIVE_FILES_API}/${encodeURIComponent(fileId)}?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+
+    if (!response.ok) {
+      const accessState: CsfDriveFileAccessState = response.status === 401 || response.status === 403
+        ? "reconnect_required"
+        : response.status === 404
+          ? "not_found"
+          : "unknown";
+      logError("Failed to fetch Google Drive file metadata", new Error(`Drive returned ${response.status}`), {
+        file_id: fileId,
+        status: response.status,
+      });
+      return unavailable(accessState);
+    }
+
+    const data = await response.json() as {
+      id?: string;
+      name?: string;
+      mimeType?: string;
+      modifiedTime?: string;
+      webViewLink?: string;
+      trashed?: boolean;
+    };
+    const trashed = data.trashed === true;
+    return {
+      id: data.id || fileId,
+      name: data.name || null,
+      mimeType: data.mimeType || null,
+      modifiedTime: data.modifiedTime || null,
+      webViewLink: data.webViewLink || null,
+      trashed,
+      accessState: trashed ? "trashed" : "accessible",
+    };
+  } catch (error) {
+    logError("Exception while fetching Google Drive file metadata", error, {
+      file_id: fileId,
+    });
+    return unavailable("unknown");
+  }
+}
 
 const columnToIndex = (column: string) => {
   return column
@@ -467,7 +549,7 @@ export async function appendSpreadsheetValues(
   accessToken: string,
   sheetId: string,
   range: string,
-  rows: string[][],
+  rows: Array<Array<string | number | boolean | null>>,
   valueInputOption: SpreadsheetValueInputOption = "USER_ENTERED",
 ): Promise<boolean> {
   if (rows.length === 0) return true;

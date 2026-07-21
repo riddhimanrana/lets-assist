@@ -17,6 +17,9 @@ function exportedFunctionSource(source: string, name: string) {
 
 describe("plugin control-plane action wiring", () => {
   const organizationActions = read("app/organization/[id]/settings/actions.ts");
+  const organizationPluginSettings = read(
+    "app/organization/[id]/settings/OrganizationPluginSettings.tsx",
+  );
   const adminActions = read("app/admin/plugins/actions.ts");
   const transitionAdapter = read("lib/plugins/control-plane-transition.ts");
   const transitionLockMigration = read(
@@ -84,6 +87,18 @@ describe("plugin control-plane action wiring", () => {
     const projectActions = read("app/projects/[id]/actions.ts");
     expect(projectCreate).toContain("runProjectCreate(plugin, {");
     expect(projectActions).toContain("runPluginOnSignup(definition, {");
+  });
+
+  test("plugin permission confirmation remains reachable within the viewport", () => {
+    expect(organizationPluginSettings).toContain(
+      'max-h-[calc(100dvh-2rem)] gap-0 overflow-x-hidden overflow-y-auto',
+    );
+    expect(organizationPluginSettings).toContain(
+      "max-h-64 flex-col gap-3 overflow-y-auto",
+    );
+    expect(organizationPluginSettings).not.toContain(
+      'className="sm:max-w-md gap-0 p-0 overflow-hidden"',
+    );
   });
 
   test("control-plane hooks are serialized by a service-role transition lease", () => {

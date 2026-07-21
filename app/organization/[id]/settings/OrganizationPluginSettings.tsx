@@ -10,7 +10,6 @@ import {
   Puzzle,
   Search,
   Settings2,
-  Shield,
   Store,
   Trash2,
   Wrench,
@@ -623,7 +622,7 @@ export default function OrganizationPluginSettings({
             {isInstallUpdating ? (
               <>
                 <Loader2 data-icon="inline-start" className="animate-spin" />
-                Installing...
+                Installing…
               </>
             ) : (
               <>
@@ -710,7 +709,7 @@ export default function OrganizationPluginSettings({
                 {isVersionUpdating ? (
                   <>
                     <Loader2 data-icon="inline-start" className="animate-spin" />
-                    Updating...
+                    Updating…
                   </>
                 ) : (
                   <>
@@ -733,7 +732,7 @@ export default function OrganizationPluginSettings({
               {isToggleUpdating ? (
                 <>
                   <Loader2 data-icon="inline-start" className="animate-spin" />
-                  Saving...
+                  Saving…
                 </>
               ) : plugin.enabled ? (
                 "Disable"
@@ -752,7 +751,7 @@ export default function OrganizationPluginSettings({
               {isUninstalling ? (
                 <>
                   <Loader2 data-icon="inline-start" className="animate-spin" />
-                  Uninstalling...
+                  Uninstalling…
                 </>
               ) : (
                 <>
@@ -860,7 +859,7 @@ export default function OrganizationPluginSettings({
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              Loading plugin settings...
+              Loading plugin settings…
             </div>
           ) : null}
 
@@ -1020,7 +1019,7 @@ export default function OrganizationPluginSettings({
           }
         }}
       >
-        <AlertDialogContent className="sm:max-w-md gap-0 p-0 overflow-hidden">
+        <AlertDialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-x-hidden overflow-y-auto p-0 sm:max-w-md">
           {activePluginAction ? (
             <>
               <div className="flex flex-col items-center text-center px-6 pt-8 pb-6">
@@ -1070,7 +1069,7 @@ export default function OrganizationPluginSettings({
                       </p>
                     </div>
 
-                    <div className="mt-2 flex flex-col gap-3 rounded-lg border bg-background/50 p-4">
+                    <div className="mt-2 flex max-h-64 flex-col gap-3 overflow-y-auto rounded-lg border bg-background/50 p-4">
                       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         This plugin requests access to:
                       </p>
@@ -1148,7 +1147,7 @@ export default function OrganizationPluginSettings({
                     {isPluginActionSubmitting ? (
                       <>
                         <Loader2 data-icon="inline-start" className="animate-spin" />
-                        {isInstallAction ? "Installing..." : "Removing..."}
+                        {isInstallAction ? "Installing…" : "Removing…"}
                       </>
                     ) : isInstallAction ? (
                       "Install Plugin"
@@ -1462,7 +1461,7 @@ export default function OrganizationPluginSettings({
                   {settingsSaving ? (
                     <>
                       <Loader2 data-icon="inline-start" className="animate-spin" />
-                      Saving...
+                      Saving…
                     </>
                   ) : (
                     <>

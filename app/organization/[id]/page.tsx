@@ -265,7 +265,6 @@ export default async function OrganizationPage({
     organizationExperience?.members !== "hidden" &&
     (organization.show_members_publicly !== false || !!userRole);
 
-  console.log("Fetching members for organization ID:", organization.id);
 
   let memberCount = organization.public_member_count ?? 0;
 
@@ -476,12 +475,12 @@ export default async function OrganizationPage({
     <div className="flex flex-col w-full">
       <div className={cn(
         "w-full absolute bg-linear-to-br from-primary/15 via-primary/5 to-background/0 before:content-[''] before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:to-background",
-        navOverrides.compactHeader ? "min-h-40" : "min-h-72",
+        navOverrides.compactHeader ? "min-h-20" : "min-h-72",
       )} />
 
       <div className={cn(
         "relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6",
-        navOverrides.compactHeader ? "pt-4 sm:pt-5" : "pt-6 sm:pt-10",
+        navOverrides.compactHeader ? "pt-2" : "pt-6 sm:pt-10",
       )}>
         {previewSource === "remote" && (
           <div className="mb-4 rounded-md border border-warning bg-warning/15 px-4 py-3 text-sm text-warning">
@@ -499,8 +498,9 @@ export default async function OrganizationPage({
         />
 
         <div className={cn(
-          "bg-card rounded-xl border border-border/60 shadow-xs mb-8",
-          navOverrides.compactHeader ? "mt-4 p-3 sm:mt-5 sm:p-4" : "mt-8 p-4 sm:mt-12 sm:p-6",
+          navOverrides.compactHeader
+            ? "mt-2 mb-4 bg-transparent"
+            : "mt-8 mb-8 rounded-xl border border-border/60 bg-card p-4 shadow-xs sm:mt-12 sm:p-6",
         )}>
           <OrganizationTabs
             organization={organizationForDisplay}

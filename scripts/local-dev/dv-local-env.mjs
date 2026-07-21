@@ -26,7 +26,37 @@ export function assertLocalSupabaseUrl(value) {
   return url.origin;
 }
 
-export function getLocalSupabaseEnv() {
+/**
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function resolveProvidedLocalSupabaseEnv(env = process.env) {
+  const rawUrl = env.NEXT_PUBLIC_SUPABASE_URL ?? env.SUPABASE_URL;
+  const serviceRoleKey =
+    env.SUPABASE_SECRET_KEY ??
+    env.SUPABASE_SERVICE_ROLE_KEY ??
+    env.SERVICE_ROLE_KEY;
+  const anonKey =
+    env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    env.SUPABASE_ANON_KEY ??
+    env.ANON_KEY;
+
+  if (!rawUrl || !serviceRoleKey || !anonKey) return null;
+
+  return {
+    url: assertLocalSupabaseUrl(rawUrl),
+    serviceRoleKey,
+    anonKey,
+  };
+}
+
+/**
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function getLocalSupabaseEnv(env = process.env) {
+  const provided = resolveProvidedLocalSupabaseEnv(env);
+  if (provided) return provided;
+
   const output = execFileSync("supabase", ["status", "-o", "env"], {
     cwd: process.cwd(),
     encoding: "utf8",
