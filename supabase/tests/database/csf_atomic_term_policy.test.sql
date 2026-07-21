@@ -21,12 +21,12 @@ SELECT extensions.ok(
   'authenticated clients cannot update CSF term policy'
 );
 SELECT extensions.ok(
-  has_function_privilege(
+  NOT has_function_privilege(
     'service_role',
     'plugin_data.csf_update_term_policy(uuid,uuid,numeric,numeric,numeric,integer,integer,boolean,uuid)',
     'EXECUTE'
   ),
-  'the server role can update CSF term policy'
+  'the server role cannot bypass draft publication through the legacy policy function'
 );
 
 INSERT INTO auth.users (

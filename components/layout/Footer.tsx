@@ -159,7 +159,7 @@ export function Footer() {
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
                 <p className="text-xs text-muted-foreground whitespace-nowrap">
-                  © {currentYear} Riddhiman Rana
+                  © {currentYear} Tulip Coaching LLC
                 </p>
                 {statusBadge}
               </div>

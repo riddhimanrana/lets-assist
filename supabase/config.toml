@@ -158,9 +158,13 @@ allowed_mime_types = ["application/pdf", "image/png", "image/jpeg", "image/jpg"]
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://localhost:3000"
+site_url = "http://localhost:3001"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = [
+	"http://localhost:3001",
+	"http://localhost:3001/auth/callback",
+	"http://127.0.0.1:3001",
+	"http://127.0.0.1:3001/auth/callback",
 	"http://localhost:3000",
 	"http://localhost:3000/auth/callback",
 	"http://127.0.0.1:3000",

@@ -28,7 +28,10 @@
     "plugin:test:registry": "bun scripts/local-dev/test-plugin-registry-gates.ts",
     "plugin:test:contracts": "bun scripts/local-dev/test-plugin-runtime-contracts.mjs",
     "plugin:test:unit": "bun test --preload ./scripts/local-dev/server-only-test-preload.ts lib/plugins",
+    "csf:test:db:isolated": "bash scripts/local-dev/test-dvhs-csf-isolated-db.sh",
     "csf:test:workflows": "bun scripts/local-dev/test-dvhs-csf-workflows.mjs",
+    "csf:test:scale": "node scripts/local-dev/test-dvhs-csf-scale.mjs",
+    "csf:test:e2e": "CSF_LOCAL_TEST_PASSWORD=${CSF_LOCAL_TEST_PASSWORD:-robo6737} playwright test --config=playwright.csf.config.ts",
     "csf:inspect:legacy": "bun scripts/local-dev/inspect-dvhs-csf-legacy-workbooks.ts",
     "plugin:submodules:init": "git submodule update --init --recursive",
     "plugin:submodules:check": "node scripts/check-private-submodules.mjs",
@@ -144,6 +147,7 @@
   },
   "devDependencies": {
     "@faker-js/faker": "^10.4.0",
+    "@next/env": "16.2.10",
     "@next/eslint-plugin-next": "16.2.9",
     "@playwright/test": "1.61.0",
     "@tailwindcss/postcss": "4.3.1",

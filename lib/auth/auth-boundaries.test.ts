@@ -15,6 +15,17 @@ test("signup does not enumerate Supabase Auth users", () => {
   assert.match(source, /user\.identities\.length === 0/u);
 });
 
+test("signup delegates profile creation to the auth metadata trigger", () => {
+  const source = read("app/signup/actions.ts");
+
+  assert.match(source, /metadata supplied to auth\.signUp/u);
+  assert.match(source, /public\.handle_new_user\(\)/u);
+  assert.match(source, /full_name: validatedFields\.data\.fullName/u);
+  assert.match(source, /phone: validatedFields\.data\.phone/u);
+  assert.doesNotMatch(source, /\.from\("profiles"\)/u);
+  assert.doesNotMatch(source, /Profile upsert after signup failed/u);
+});
+
 test("the OAuth-only password setter rejects an existing email identity", () => {
   const source = read("app/account/security/actions.ts");
   assert.match(source, /identity\.provider === "email"/u);

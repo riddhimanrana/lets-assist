@@ -2,12 +2,12 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(14);
+SELECT extensions.plan(20);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
     'anon',
-    'plugin_data.csf_review_point_submission(uuid,uuid,text,numeric,text,uuid)',
+    'plugin_data.csf_review_point_submission_v2(uuid,uuid,text,numeric,text,uuid)',
     'EXECUTE'
   ),
   'anonymous clients cannot execute point-submission review'
@@ -15,7 +15,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'authenticated',
-    'plugin_data.csf_review_point_submission(uuid,uuid,text,numeric,text,uuid)',
+    'plugin_data.csf_review_point_submission_v2(uuid,uuid,text,numeric,text,uuid)',
     'EXECUTE'
   ),
   'authenticated clients cannot execute point-submission review'
@@ -23,7 +23,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   has_function_privilege(
     'service_role',
-    'plugin_data.csf_review_point_submission(uuid,uuid,text,numeric,text,uuid)',
+    'plugin_data.csf_review_point_submission_v2(uuid,uuid,text,numeric,text,uuid)',
     'EXECUTE'
   ),
   'the server role can execute point-submission review'
@@ -113,7 +113,7 @@ INSERT INTO plugin_data.csf_point_submissions (
 
 SELECT extensions.lives_ok(
   $$
-    SELECT plugin_data.csf_review_point_submission(
+    SELECT plugin_data.csf_review_point_submission_v2(
       'cd100000-0000-4000-8000-000000000001',
       'cd400000-0000-4000-8000-000000000001',
       'approved',
@@ -144,6 +144,94 @@ SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events WHERE target_id = 'cd400000-0000-4000-8000-000000000001' AND action = 'point_submission.review'),
   1,
   'audit history is written in the same review'
+);
+
+SELECT extensions.ok(
+  (
+    SELECT correlation_id IS NOT NULL
+      AND source_type = 'point_submission'
+      AND source_id = 'cd400000-0000-4000-8000-000000000001'
+    FROM plugin_data.csf_admin_audit_events
+    WHERE target_id = 'cd400000-0000-4000-8000-000000000001'
+      AND action = 'point_submission.review'
+  ),
+  'point review audit records carry correlation and source provenance'
+);
+
+SELECT extensions.ok(
+  (
+    SELECT evidence->>'correlationId' IS NOT NULL
+      AND evidence->>'sourceSubmissionId' = 'cd400000-0000-4000-8000-000000000001'
+    FROM plugin_data.csf_credit_records
+    WHERE submission_id = 'cd400000-0000-4000-8000-000000000001'
+  ),
+  'awarded credit retains its submission source and correlation id'
+);
+
+INSERT INTO plugin_data.csf_terms (
+  id, organization_id, code, label, school_year, semester
+) VALUES (
+  'cd200000-0000-4000-8000-000000000002',
+  'cd100000-0000-4000-8000-000000000001',
+  'F27',
+  'Fall 2027',
+  '2027-2028',
+  'fall'
+);
+
+INSERT INTO plugin_data.csf_point_submissions (
+  id, organization_id, profile_id, term_id, description, claimed_points, point_type, status
+) VALUES (
+  'cd400000-0000-4000-8000-000000000002',
+  'cd100000-0000-4000-8000-000000000001',
+  'cd300000-0000-4000-8000-000000000001',
+  'cd200000-0000-4000-8000-000000000002',
+  'No policy fixture',
+  2,
+  'non_drive',
+  'submitted'
+);
+
+SELECT extensions.throws_ok(
+  $$
+    SELECT plugin_data.csf_review_point_submission_v2(
+      'cd100000-0000-4000-8000-000000000001',
+      'cd400000-0000-4000-8000-000000000002',
+      'approved',
+      2,
+      'Must not approve without policy',
+      'cd000000-0000-4000-8000-000000000001'
+    )
+  $$,
+  'P0001',
+  'A saved semester policy is required before approving point submissions.',
+  'approval is blocked until the semester has a saved policy'
+);
+
+SELECT extensions.is(
+  (SELECT status FROM plugin_data.csf_point_submissions WHERE id = 'cd400000-0000-4000-8000-000000000002'),
+  'submitted',
+  'a blocked policy-less approval leaves the submission unchanged'
+);
+
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_credit_records WHERE submission_id = 'cd400000-0000-4000-8000-000000000002'),
+  0,
+  'a blocked policy-less approval does not create credit'
+);
+
+SELECT extensions.lives_ok(
+  $$
+    SELECT plugin_data.csf_review_point_submission_v2(
+      'cd100000-0000-4000-8000-000000000001',
+      'cd400000-0000-4000-8000-000000000002',
+      'needs_action',
+      NULL,
+      'Please correct the submitted evidence.',
+      'cd000000-0000-4000-8000-000000000001'
+    )
+  $$,
+  'officers can request a correction before semester policy is configured'
 );
 
 INSERT INTO plugin_data.csf_credit_records (

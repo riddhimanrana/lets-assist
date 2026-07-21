@@ -37,6 +37,8 @@ DVSD production workflow: seasonal membership → approval → tournament regist
 - service: `CsfImportService` → raw snapshot, row hash, preview, reconcile, idempotent commit
 - route: DVHS CSF workspace → role-aware member/staff sidebar + route-scoped data
 - cmd: `bun run typecheck && bun run lint && bun run plugin:test:registry && bun run plugin:test:contracts`
+- cmd: `bun run csf:test:workflows` → clean local replay + deterministic CSF workflow assertions
+- cmd: `bun run csf:test:e2e` → read-only local role/navigation/browser acceptance
 
 §V
 
@@ -70,10 +72,59 @@ V27: CSF student files → private storage + scoped signed access; lifecycle del
 V28: CSF requirement evaluation shared by member UI, staff grid, reports, export, term close.
 V29: CSF route → fetch route-required data only; all-dashboard aggregate load ⊥.
 V30: CSF public page → plugin-controlled safe surface; generic public join/member/project exposure ⊥.
-V31: Google Classroom/Sheets/Forms/Gmail → compatibility/import/export after cutover, never dual authority.
+V31: Google Forms/Sheets/Drive → intake, evidence, migration, and compatibility export only after cutover; reviewed platform records authoritative; silent overwrite + permanent dual authority ⊥.
 V32: CSF UI → shadcn/Base UI, explicit text status, accessible dialogs/drawers/tables; color-only state ⊥.
 V33: ∀ externally reachable private-plugin operation → fresh auth/capability + active runtime gate before service-role `plugin_data`; every query/mutation tenant-scoped; legacy authenticated-schema client ⊥.
 V34: authenticated organization member + plugin `organization.tabs` contribution → host organization tab is canonical; direct plugin route may redirect inward, reverse redirect ⊥.
+V35: Google Classroom → external broadcast channel only; API integration, draft tracker, delivery state, and fake internal messaging center ⊥; CSF activities stored independently for member point selection.
+V36: application submission, academic eligibility, dues verification, decision, and term membership outcome → separate typed state dimensions; acceptance requires mandatory checks or adviser override + reason + audit.
+V37: officer navigation → Home, Applications, Members, Service, Semester + secondary More menu; member navigation → My CSF, Activities, Point submissions; duplicate/hidden tab triggers ⊥.
+V38: legacy class-workbook activity slots → historical import evidence only; canonical point award = normalized numeric ledger entry linked to activity/club + reviewer.
+V39: every officer metric → underlying filtered records; invented risk/readiness scores, decorative widgets, hard-coded term requirements, and cross-term report leakage ⊥.
+V40: staged import cutover → immutable source provenance + mapping snapshot + row resolution + retry lineage + officer approval before authority transfer.
+V41: `bun run csf:test:workflows` → deterministic local CSF fixtures bootstrapped before workflow assertions; a schema-only reset cannot make the gate fail for missing test data.
+V42: organization-scoped composite foreign key added beside a legacy single-column key → every affected PostgREST embed names its intended relationship explicitly; runtime relationship ambiguity ⊥.
+V43: `bun run csf:test:workflows` always begins with a clean local migration replay before deterministic platform seeding; it never deletes or rewrites immutable audit history in a live fixture database.
+V44: server-rendered CSF workspaces → only serializable children cross into Client Component primitives; function-valued children and unkeyed action arrays ⊥.
+V45: CSF database tests → isolated identifiers that remain collision-free after either platform-only or full plugin fixture seeding.
+V46: CSF import provenance mutation → SQLSTATE `55000` + canonical retry-job guidance; every legacy and reconciliation test asserts the same immutable-source contract.
+V47: the deterministic local platform seed → at least one `app_metadata` super-admin fixture so platform-admin approvals remain testable through the visible UI; organization role alone never grants platform administration.
+V48: authenticated CSF staff + forbidden direct workflow route → explicit permission-denied state before canonical redirect or private workflow queries; member requests to the same private route remain a marker-free 404.
+V49: CSF import-row reconciliation and meeting/partner-club commit → one organization-scoped server-only database transaction including normalized records, source/job state, explicit actor/reason/correlation, and immutable audit event; retry of the same committed snapshot is idempotent.
+V50: CSF role access → authorize route, data projection, action, import source type, and report dataset independently; broad route permission never exposes unrelated courses, files, notes, dues, audit, or exports.
+V51: CSF list query → URL-backed server search/filter/sort + cursor paging; default ≤50, max ≤100; client-side full-dataset filtering ⊥.
+V52: CSF application review → one current-policy eligibility result; stored/source mismatch = `needs_recalculation`; approval blocked until recalculation or adviser override + reason.
+V53: CSF Google source workflow → connection identity/health + explicit file/tab/range/header + stable indexed mapping + normalized row preview + reconciliation + commit summary/retry; Picker cancel ≠ error; silent first-tab/default-range import ⊥.
+V54: CSF Google import snapshot → explicit operator action; reviewed platform data never silently overwritten; partial commit exposes exact committed/failed/retryable rows.
+V55: CSF invitation → cohort link and direct recipient invitation distinct; delivery/acceptance/expiry/cancel/resend state preserved; acceptance + account/profile/membership/audit transition atomic.
+V56: CSF officer Home → signed-in actor's executable tasks first; each count links exact filtered records; duplicate queues, marketing copy, invented metrics, and oversized empty states ⊥.
+V57: CSF member correction → authenticated in-product scoped form tied to original application/check; mailto-only correction ⊥.
+V58: CSF partner club → term approval distinct from optional connected Let’s Assist organization; organization link grants no student-data or staff permission implicitly.
+V59: CSF browser acceptance → synthetic namespaced org + one session per distinct role + applicant/member/public; every visible control mapped to positive/negative lifecycle assertion; screenshot-only proof ⊥.
+V60: CSF Google/private-data verification → real Drive sources read-only in temporary local org with traces/screenshots disabled; committed artifacts contain synthetic identities only and pass PII/credential scan.
+V61: CSF operational UI → compact shadcn lists/tables, 16px icon rhythm, 44–52px rows, ≤24px content offset, page-local URL subviews, mobile full-page fallback, keyboard/focus/screen-reader parity.
+V62: CSF process slides → generated only after UI/action labels pass lifecycle acceptance; native editable 16:9 Google Slides use synthetic screenshots, role/prerequisite/steps/recovery/version metadata, and screenshot-staleness manifest.
+V63: CSF pgTAP function assertion → repository-bundled helper signature or catalog-backed `to_regprocedure(...)`; release-specific optional helper overloads ⊥; isolated replay proves portability.
+V64: CSF closed-term fixture → canonical close workflow or matching organization-scoped closure snapshot + revision/pointer fields; setting `lifecycle_status = 'closed'` without a valid `active_closure_id` ⊥.
+V65: CSF application fixture → respect trigger-initialized typed checks; test-specific check state uses keyed upsert/update, duplicate `(organization_id, application_id, check_type)` inserts ⊥.
+V66: CSF role-navigation acceptance → every authorized canonical area loads its stable workflow landmark with zero uncaught page errors, console errors, unexpected failed requests, or server 5xx responses; tab visibility alone ⊥.
+V67: CSF server-rendered read projection + recognized transient Supabase gateway failure → one bounded read-only retry; mutation replay, unbounded retries, and retrying deterministic database errors ⊥.
+V68: root theme bootstrap → client instrumentation applies the persisted/system theme before hydration without rendering a script element in the React tree; client not-found script replay warnings ⊥.
+V69: mixed-grade application source + reviewed preview rows resolved to configured cohort-term targets → each row commits through the atomic application import using its immutable resolved cohort; fixed sources crossing cohorts, unconfigured cohort-term targets, and changed row targets ⊥.
+V70: CSF member activity claim → current-term published activity + `requires_point_submission = true` in selector & server mutation; officer-recorded activity self-claim ⊥.
+V71: CSF Sheet source discriminator → canonical `source_type` equals populated compatibility `settings.sourceKind`; meeting and partner source create/refresh writes the explicit type; contextual sources leaking into class-history workflows ⊥.
+V72: selected Google Sheet tab + explicit or unqualified A1 range → one canonical range scoped to that same selected tab across inspection, saved mappings, meetings, and partner-club imports; mismatched or malformed explicit tab provenance ⊥.
+V73: CSF officer Home supporting content → quick links auto-fill available width; recent imports/approvals render only with records; single recent section spans full width; dead grid tracks + empty half-cards ⊥.
+V74: CSF application list/detail eligibility presentation → one current derived state; stored/current-policy or stored/calculated conflict displays `Needs recalculation` everywhere and the list names one concise blocking issue; contradictory green eligibility or status-only queue rows ⊥.
+V75: CSF meeting schedule timestamp → compact Pacific-time label shared with the DVHS operating timezone; raw ISO/UTC timestamp in officer or member UI ⊥.
+V76: CSF point correction → verified profile owner + current open term + active membership + current source/policy/proof validation; `needs_action` → `submitted` atomically with prior review/audit preserved + correlated resubmission history; correction ≠ appeal.
+V77: compact CSF primary navigation at phone width → first two destinations remain visible and every additional primary destination is duplicated in the mobile-only More menu; clipped or gesture-only destinations ⊥; desktop primary navigation remains one layer.
+V78: central CSF preview commit → exact source file ID/name + selected tab/range + accessible immutable file metadata + versioned mapping + resolved cohort and semester on every pending row, enforced in UI and again before the commit job is created; generic provenance fallbacks or unresolved ready targets ⊥.
+V79: URL-addressable CSF application review + long evidence record → exactly one compact sticky action bar containing the permitted assignment, request-information, and decision controls; controls disappearing after scroll or duplicated between header and bar ⊥; compact application list unchanged.
+V80: Vercel Speed Insights client → render only when the server is executing on Vercel; local, test, and self-hosted runs make no telemetry-script request; blocked third-party debug requests in CSF acceptance ⊥.
+V81: Let’s Assist footer branding → same product-company identity across responsive variants; developer, operator, or fixture-person identity in product copyright ⊥.
+V82: CSF synthetic fixtures + screenshots → fictional privacy-safe identities on reserved test domains; real external contact identity ⊥; repeat fixture upsert preserves sanitation.
+V83: direct CSF proof fixture insert → explicit valid upload lifecycle tuple; finalized proof requires non-null `finalized_at` + null `failed_at`, pending proof requires upload token + null terminal timestamps, and schema defaults never substitute for lifecycle completion.
 
 §T
 
@@ -96,6 +147,24 @@ T15|x|complete meeting sessions, attendance reconciliation, points grid, appeals
 T16|x|add communications workspace + safe plugin-backed public CSF surface|V18,V26,V30,V31,V32,I.manifest,I.route
 T17|x|import legacy CSF data, compatibility exports, security/integration/E2E coverage|V17,V18,V19,V20,V21,V22,V23,V24,V25,V26,V27,V28,V29,V30,V31,V32,I.cmd
 T18|x|cut DV runtime to explicitly authorized service-only data access and re-enable version 2|V3,V13,V14,V33,I.service,I.cmd
+T19|x|write DVHS CSF product source-of-truth + current-state removal/rename matrix|V17,V18,V19,V20,V21,V22,V23,V24,V25,V26,V27,V28,V29,V30,V31,V32,V34,V35,V36,V37,V38,V39,V40
+T20|x|normalize application checks, dues, deadlines, provenance, assignment, audit, and atomic decisions|V3,V13,V19,V20,V24,V26,V27,V31,V33,V36,V40,I.schema,I.service
+T21|x|replace CSF shell/navigation with canonical officer/member IA|V18,V29,V30,V32,V34,V35,V37,V39,V77,V81,I.manifest,I.route
+T22|x|rebuild application import, eligibility, review, dues, decision, and correction workflows|V17,V19,V20,V24,V26,V27,V28,V32,V36,V39,V40,I.service,I.route
+T23|x|rebuild member directory, account connection, semester record, senior recognition, and My CSF|V17,V18,V20,V25,V26,V28,V29,V32,V36,V37,V39,I.service,I.route
+T24|x|rebuild activities, numeric point submissions, meetings, and partner-club operations|V20,V21,V22,V23,V24,V26,V27,V28,V32,V35,V38,V39,V40,I.schema,I.service,I.route
+T25|x|rebuild semester deadlines/policy/close, term-scoped reports, history, and safe public surface|V18,V20,V25,V26,V28,V29,V30,V31,V32,V39,I.service,I.route
+T26|x|replace fixtures with realistic fictional CSF cases + deterministic DB/unit/core-browser/cutover regression coverage|V1,V2,V3,V17,V18,V19,V20,V21,V22,V23,V24,V25,V26,V27,V28,V29,V30,V31,V32,V33,V34,V35,V36,V37,V38,V39,V40,V41,V42,V43,V44,V45,V82,V83,I.cmd
+T27|x|split CSF route/data/action/import/report authorization + add server cursor paging|V3,V18,V26,V29,V33,V42,V48,V50,V51,I.service,I.route
+T28|x|refine role-aware Home + compact application list/full-page review|V29,V32,V36,V37,V39,V44,V51,V52,V56,V61,V73,V74,V79,I.route
+T29|x|build Google connection center + staged Sheet/XLSX import wizard|V24,V31,V40,V46,V49,V53,V54,V60,V61,V69,V71,V72,V78,I.service,I.route
+T30|x|complete direct/cohort invitations, account connection, member correction, and staff seat lifecycle|V17,V19,V26,V33,V36,V50,V55,V57,V61,I.service,I.route
+T31|x|complete meeting source health, row reconciliation, audited corrections, and member attendance|V22,V24,V26,V28,V40,V49,V53,V54,V61,V71,V72,V75,I.service,I.route
+T32|x|rebuild partner-club table/detail, audit/credit imports, standing history, and optional connected organization|V21,V23,V24,V26,V40,V49,V53,V54,V58,V61,I.service,I.route
+T33|x|complete activity + point proof/correction/adjustment/rejection/appeal lifecycle|V20,V21,V26,V27,V28,V35,V38,V50,V61,V70,V76,V83,I.service,I.route
+T34|~|split Semester subviews + publish policy + close/reopen + scoped reports/human history|V20,V25,V26,V28,V39,V50,V51,V61,I.service,I.route
+T35|.|run every-role synthetic lifecycle, Google failure fixtures, accessibility, cross-browser, privacy, and scale gates|V1,V2,V3,V18,V26,V30,V33,V41,V43,V45,V47,V48,V49,V50,V51,V52,V53,V54,V55,V56,V57,V58,V59,V60,V61,V66,V68,V77,V80,V81,V82,V83,I.cmd
+T36|.|create native Google Slides process suite + screenshot manifest after T35 acceptance|V60,V62
 
 §B
 
@@ -124,3 +193,35 @@ B21|2026-07-09|CSF workflow smoke test assumed generic term `status`; CSF uses `
 B22|2026-07-09|legacy inspector exposed worksheet rows as `unknown` instead of the parser's supported cell union|V24,I.cmd
 B23|2026-07-11|DV catalog re-enable reached a legacy authenticated `plugin_data` client after browser grants were revoked|V33
 B24|2026-07-12|host page redirected every plugin-public member outward while CSF direct routes redirected inward, creating a canonical-route loop|V34
+B25|2026-07-14|CSF workflow gate assumed the full local seed had already run after a schema-only reset|V41
+B26|2026-07-14|new organization-scoped application foreign key made an unqualified Supabase term embed ambiguous at runtime|V42
+B27|2026-07-14|repeat CSF workflow seeding tried to delete term-linked rows protected by the immutable audit trigger|V43
+B28|2026-07-14|member-only My CSF rendered a function child into the client progress primitive and an unkeyed action array|V44
+B29|2026-07-14|the point-withdrawal pgTAP reused a join code from the optional Speech and Debate fixture pack|V45
+B30|2026-07-14|the account-unlink RPC locked a full profile row into an unused PL/pgSQL variable|use a scoped existence lock without retaining the row
+B31|2026-07-15|the reconciliation migration strengthened immutable-import errors but the legacy pgTAP still asserted the superseded SQLSTATE and message|V46
+B32|2026-07-15|the local developer fixture was an organization admin but lacked the trusted auth claim required by every platform-admin page|V47
+B33|2026-07-16|a standalone CSF route redirected before granular officer permissions were evaluated, silently replacing denial with Home|V48
+B34|2026-07-16|meeting attendance and partner-club reconciliation committed through separate PostgREST statements, allowing a mid-flight failure to leave partial records without matching audit history|V49
+B35|2026-07-16|a CSF pgTAP test used a helper overload not supported by the repository-bundled pgTAP signature, so disposable replay failed before testing behavior|V63
+B36|2026-07-16|legacy CSF fixtures set a term directly to `closed` without the closure snapshot pointer required by the closure invariant|V64
+B37|2026-07-16|the direct-invitation fixture inserted checks already initialized by the application trigger, violating the typed-check uniqueness contract|V65
+B38|2026-07-16|the member workspace crashed because point-appeal embeds did not name the new organization-scoped profile, term, and submission relationships|V42
+B39|2026-07-16|role-navigation tests asserted the Members tab but never loaded its directory or monitored browser/server failures, allowing a staff-visible runtime exception to escape the suite|V66
+B40|2026-07-16|the local Supabase gateway intermittently returned an invalid upstream response for a valid member-directory read, crashing a server render even though the same projection immediately succeeded|V67
+B41|2026-07-16|Next's before-interactive Script emitted a raw script element into the App Router React tree, so client-side not-found navigation warned even after the component was moved into the document head|V68
+B42|2026-07-16|grade-derived application sources correctly stored no single cohort, but the atomic import RPC still required the source cohort to equal every resolved row cohort, making all mixed-grade commits fail|V69
+B43|2026-07-16|member activity projection overwrote claim mode while selector and mutation ignored it, exposing officer-recorded activities to point claims|V70
+B44|2026-07-16|meeting and partner source writes omitted the typed discriminator after it gained a class-history default, so correctly tagged JSON settings could still be routed through the wrong import workflow|V71
+B45|2026-07-16|meeting, partner-club, and saved-mapping imports accepted an explicit A1 range naming a different tab than the selected tab, allowing rows and recorded provenance to disagree|V72
+B46|2026-07-16|Home used fixed 4/2-column grids and rendered empty recent panels, leaving dead officer-workspace columns|V73
+B47|2026-07-16|application review displayed stored green eligibility alongside a failing current calculation, while the simple queue omitted the specific issue an officer needed to resolve|V74
+B48|2026-07-16|semester meeting rows rendered the raw stored ISO timestamp beside a localized date, forcing officers to interpret UTC instead of the chapter's Pacific time|V75
+B49|2026-07-16|`needs_action` reused the point-appeal UI while active-claim uniqueness blocked a replacement claim, leaving members unable to correct and return the original claim to review|V76
+B50|2026-07-16|the compact organization tab strip hid its scrollbar while retaining every primary CSF tab, so phone users could not discover Members, Service, or Semester and the visible More menu contained only administrative pages|V77
+B51|2026-07-16|the central import button treated row counts as sufficient readiness and the server created a commit job before proving exact file, tab, range, mapping, access, cohort, and semester provenance|V78
+B52|2026-07-16|application assignment, request-information, and decision controls lived only in the detail header, so reviewers lost access to them while scrolling through course, file, check, dues, note, and history evidence|V79
+B53|2026-07-16|the root layout rendered Vercel Speed Insights in every environment, so local Chromium sessions accumulated blocked external debug-script requests and failed otherwise-correct role acceptance|V80
+B54|2026-07-16|mobile Footer hard-coded a developer identity while desktop used product-company branding|V81
+B55|2026-07-16|a synthetic partner-club fixture and gallery capture contained a real external contact identity|V82
+B56|2026-07-16|the workflow proof-uniqueness probe relied on the legacy finalized status default but omitted the required finalization timestamp, violating the current proof lifecycle tuple|V83

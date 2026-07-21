@@ -16,7 +16,7 @@ const { data: organization, error: orgError } = await admin.from("organizations"
 if (orgError || !organization) throw orgError ?? new Error("DVHS CSF organization fixture is missing.");
 
 const [profilesResult, membershipsResult, termsResult, submissionsResult, filesResult, creditsResult, auditResult] = await Promise.all([
-  plugin.from("csf_profiles").select("id, first_name, last_name").eq("organization_id", organization.id),
+  plugin.from("csf_profiles").select("id, first_name, last_name, school_email, personal_email").eq("organization_id", organization.id),
   plugin.from("csf_term_memberships").select("id, profile_id, term_id, status, application_id").eq("organization_id", organization.id),
   plugin.from("csf_terms").select("id, code, is_current, closed_at").eq("organization_id", organization.id),
   plugin.from("csf_point_submissions").select("id, profile_id, term_id, status").eq("organization_id", organization.id),
@@ -50,6 +50,9 @@ const proofProbe = {
   original_filename: "proof-uniqueness-probe.pdf",
   mime_type: "application/pdf",
   size_bytes: 1,
+  upload_status: "finalized",
+  finalized_at: new Date().toISOString(),
+  failed_at: null,
 };
 const firstProofInsert = await plugin.from("csf_submission_files").insert(proofProbe).select("id").single();
 if (firstProofInsert.error) throw firstProofInsert.error;
@@ -80,7 +83,7 @@ assert(duplicateCreditInsert.error?.code === "23505", "Database did not enforce 
 const { data: anonymousProfiles, error: anonymousProfileError } = await anonPlugin.from("csf_profiles").select("id").limit(1);
 assert(Boolean(anonymousProfileError) || (anonymousProfiles?.length ?? 0) === 0, "Anonymous client could read private CSF profiles.");
 
-const appOrigin = process.env.CSF_APP_URL ?? "http://localhost:3000";
+const appOrigin = process.env.CSF_APP_URL ?? "http://localhost:3001";
 let publicRouteVerified = false;
 try {
   const rootResponse = await fetch(`${appOrigin}/organization/dvhs-csf`, { redirect: "manual" });
@@ -89,9 +92,24 @@ try {
   const publicResponse = await fetch(`${appOrigin}/organization/dvhs-csf/plugins/dvhs-csf/public`);
   const html = await publicResponse.text();
   assert(publicResponse.ok, `CSF public route returned ${publicResponse.status}.`);
-  assert(html.includes("Student records stay private"), "CSF public route is missing its privacy boundary notice.");
+  assert(html.includes("Dougherty Valley High School CSF"), "CSF public route is missing the organization identity.");
+  assert(html.includes("Upcoming activities"), "CSF public route is missing the public activity surface.");
+  assert(html.includes("https://www.dvhighcsf.org/"), "CSF public route is missing the official website link.");
+  assert(!html.includes("Student records stay private"), "CSF public route still renders removed privacy-marketing copy.");
   for (const profile of profilesResult.data ?? []) {
     assert(!html.includes(`${profile.first_name} ${profile.last_name}`), `Public CSF route leaked ${profile.first_name} ${profile.last_name}.`);
+    for (const email of [profile.school_email, profile.personal_email]) {
+      if (email) assert(!html.includes(email), "Public CSF route leaked a private member email.");
+    }
+  }
+  const privateIdentifiers = [
+    ...(membershipsResult.data ?? []).map((row) => row.id),
+    ...(submissionsResult.data ?? []).map((row) => row.id),
+    ...(auditResult.data ?? []).map((row) => row.id),
+    ...(filesResult.data ?? []).flatMap((row) => [row.id, row.object_path]),
+  ].filter(Boolean);
+  for (const identifier of privateIdentifiers) {
+    assert(!html.includes(String(identifier)), "CSF public route serialized a private record identifier.");
   }
   publicRouteVerified = true;
 } catch (error) {

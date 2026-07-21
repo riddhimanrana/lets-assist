@@ -266,6 +266,8 @@ export interface OrganizationNavigationBehavior {
   hideProjectAction?: boolean;
   compactHeader?: boolean;
   utilityMenuLabel?: string;
+  /** Legacy organization tab values mapped to their canonical replacement. */
+  tabAliases?: Record<string, string>;
   /** Query parameters that should be cleared when the host navigation changes tabs. */
   transientQueryParams?: string[];
 }
