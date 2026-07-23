@@ -5,8 +5,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { decrypt } from "@/lib/encryption";
-import { revokeGoogleCalendarAccess } from "@/services/calendar";
+import { deactivateGoogleConnection } from "@/services/calendar";
 
 export async function POST(request: Request) {
   try {
@@ -34,51 +33,18 @@ export async function POST(request: Request) {
       // No body provided, use default
     }
 
-    // Get the user's connection
-    const { data: connection, error: fetchError } = (await supabase
-      .from("user_calendar_connections")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("provider", "google")
-      .eq("is_active", true)
-      .single()) as {
-      data: { id: string; refresh_token?: string | null } | null;
-      error: { message?: string } | null;
-    };
-
-    if (fetchError || !connection) {
+    const deactivateResult = await deactivateGoogleConnection(user.id, {
+      revokeAccess: revoke_access,
+    });
+    if (!deactivateResult.success) {
       return NextResponse.json(
-        { error: "No active calendar connection found" },
-        { status: 404 }
-      );
-    }
-
-    // Optionally revoke access with Google
-    if (revoke_access && connection.refresh_token) {
-      try {
-        const decryptedRefreshToken = decrypt(connection.refresh_token);
-        await revokeGoogleCalendarAccess(decryptedRefreshToken);
-      } catch (error) {
-        console.error("Failed to revoke Google access:", error);
-        // Continue anyway - we still want to deactivate locally
-      }
-    }
-
-    // Deactivate instead of deleting so preferences (like volunteering_calendar_id)
-    // survive reconnect and we can continue using the same Google Calendar.
-    const { error: deactivateError } = (await supabase
-      .from("user_calendar_connections")
-      .update({
-        is_active: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", connection.id)) as { error: { message?: string } | null };
-
-    if (deactivateError) {
-      console.error("Failed to deactivate connection:", deactivateError);
-      return NextResponse.json(
-        { error: "Failed to disconnect calendar" },
-        { status: 500 }
+        { error: deactivateResult.error || "Failed to disconnect calendar" },
+        {
+          status:
+            deactivateResult.error === "No active Google connection found"
+              ? 404
+              : 500,
+        },
       );
     }
 
@@ -106,6 +72,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: "Calendar disconnected successfully",
+      remoteRevocation: deactivateResult.remoteRevocation,
     });
   } catch (error) {
     console.error("Error disconnecting calendar:", error);

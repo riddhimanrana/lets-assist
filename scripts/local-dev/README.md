@@ -6,8 +6,10 @@ This folder contains the deterministic fixtures and health checks for the local 
 
 From the repository root:
 
-1. `bun run supabase`
-2. `bun run dev`
+1. Create a run-scoped fixture password: `export CSF_LOCAL_TEST_PASSWORD="$(openssl rand -base64 24)"`
+2. Reuse it for the optional DV fixtures: `export DV_LOCAL_TEST_PASSWORD="$CSF_LOCAL_TEST_PASSWORD"`
+3. `bun run supabase`
+4. `bun run dev`
 
 `bun run supabase` does the full backend bootstrap:
 
@@ -20,6 +22,23 @@ The reset step uses `scripts/local-dev/reset-supabase.mjs`. It behaves like
 `supabase db reset --local --yes`, except it can recover from the Supabase CLI
 post-reset Storage `502` race after verifying the latest migration was recorded
 and restarting the local stack.
+
+## Isolated DVHS CSF browser stack
+
+Use the isolated launcher when Vela or another workspace is already using the
+shared Supabase ports:
+
+1. Export the two run-scoped fixture-password variables shown above.
+2. Run `scripts/local-dev/start-dvhs-csf-isolated-stack.sh` and copy the exact
+   work directory it prints.
+3. Source `<work-directory>/supabase-browser.env`, then run
+   `bun run supabase:seed:local-dev` to create fictional login accounts.
+4. Source `<work-directory>/lets-assist-browser.sh`, then run
+   `bun run dev -- --port 3001`.
+5. Stop only that namespaced stack with
+   `scripts/local-dev/stop-dvhs-csf-isolated-stack.sh <work-directory>`.
+
+The launcher never starts, stops, or resets the shared Vela Supabase project.
 
 ## Useful follow-up checks
 
@@ -40,7 +59,8 @@ and restarting the local stack.
 
 ## Fixture files
 
-- `README-fixtures.md` documents the seeded accounts and passwords
+- `README-fixtures.md` documents seeded accounts and the required run-scoped
+  credential environment variables
 - `member-import-mock.csv` is a sample import file for org member CSV testing
 - `seed-platform.mjs` contains the default local platform seed logic
 - `seed-dvsd.mjs` provisions the optional DV workspace through a service-role-only backend client; browser roles have no `plugin_data` grants
@@ -49,7 +69,8 @@ and restarting the local stack.
 
 Before merging Supabase schema changes:
 
-1. `bun run supabase`
+1. Export fresh `CSF_LOCAL_TEST_PASSWORD` and `DV_LOCAL_TEST_PASSWORD` values,
+   then run `bun run supabase`
 2. `bun run db:advisors`
 3. `bun run plugin:submodules:check`
 4. `bun run db:audit:plugin-isolation`

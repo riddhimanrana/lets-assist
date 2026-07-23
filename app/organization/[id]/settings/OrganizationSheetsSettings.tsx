@@ -97,7 +97,7 @@ export default function OrganizationSheetsSettings({
 
   const connectUrl = useMemo(
     () =>
-      `/api/calendar/google/connect?scopes=sheets&sheets_sync=1&force=1&org_id=${organizationId}&return_to=${encodeURIComponent(
+      `/api/calendar/google/connect?purpose=organization_sheets&scopes=sheets&sheets_sync=1&force=1&org_id=${organizationId}&return_to=${encodeURIComponent(
         `/organization/${organizationSlug}/settings?section=sheets`
       )}`,
     [organizationId, organizationSlug]

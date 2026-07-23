@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
 import { createClient } from "@supabase/supabase-js";
-import { getLocalSupabaseEnv } from "./dv-local-env.mjs";
+import { getCsfIsolatedSupabaseEnv } from "./dv-local-env.mjs";
 
 const PROFILE_COUNT = 1_000;
 const APPLICATION_COUNT = 600;
 const INSERT_BATCH_SIZE = 200;
 const RELATION_BATCH_SIZE = 200;
 
-const { url, serviceRoleKey } = getLocalSupabaseEnv();
+const { url, serviceRoleKey } = getCsfIsolatedSupabaseEnv();
 const admin = createClient(url, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });

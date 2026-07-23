@@ -1,13 +1,30 @@
-import {
-  createHmac,
-  randomBytes,
-  timingSafeEqual,
-} from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export const GOOGLE_OAUTH_STATE_COOKIE_NAME = "lets_assist_google_oauth_state";
 export const GOOGLE_OAUTH_STATE_TTL_SECONDS = 5 * 60;
 
-const GOOGLE_OAUTH_STATE_VERSION = 1;
+export const GOOGLE_OAUTH_CONNECTION_PURPOSES = [
+  "personal_calendar",
+  "personal_sheets",
+  "organization_calendar",
+  "organization_sheets",
+  "csf_import",
+] as const;
+
+export type GoogleOAuthConnectionPurpose =
+  (typeof GOOGLE_OAUTH_CONNECTION_PURPOSES)[number];
+
+export const GOOGLE_OAUTH_CSF_IMPORT_CAPABILITIES = [
+  "import_applications",
+  "import_members",
+  "import_meetings",
+  "import_partner_clubs",
+] as const;
+
+export type GoogleOAuthCsfImportCapability =
+  (typeof GOOGLE_OAUTH_CSF_IMPORT_CAPABILITIES)[number];
+
+const GOOGLE_OAUTH_STATE_VERSION = 2;
 const SAFE_REDIRECT_ORIGIN = "https://lets-assist.invalid";
 const MINIMUM_STATE_SECRET_LENGTH = 32;
 
@@ -18,7 +35,10 @@ export type GoogleOAuthStatePayload = {
   issuedAt: number;
   expiresAt: number;
   returnTo: string | null;
-  orgId: string | null;
+  organizationId: string | null;
+  pluginKey: "dvhs-csf" | null;
+  purpose: GoogleOAuthConnectionPurpose;
+  requestedCapability: GoogleOAuthCsfImportCapability | null;
   isCalendarSync: boolean;
   isSheetsSync: boolean;
 };
@@ -26,9 +46,10 @@ export type GoogleOAuthStatePayload = {
 type CreateGoogleOAuthStateInput = {
   userId: string;
   returnTo?: string | null;
-  orgId?: string | null;
-  isCalendarSync?: boolean;
-  isSheetsSync?: boolean;
+  organizationId?: string | null;
+  pluginKey?: "dvhs-csf" | null;
+  purpose: GoogleOAuthConnectionPurpose;
+  requestedCapability?: GoogleOAuthCsfImportCapability | null;
 };
 
 type VerifyGoogleOAuthStateInput = {
@@ -68,7 +89,9 @@ function getGoogleOAuthStateSecret(): string {
 
 function signPayload(encodedPayload: string, secret: string): string {
   return createHmac("sha256", secret)
-    .update(`google-oauth-state:v${GOOGLE_OAUTH_STATE_VERSION}:${encodedPayload}`)
+    .update(
+      `google-oauth-state:v${GOOGLE_OAUTH_STATE_VERSION}:${encodedPayload}`,
+    )
     .digest("base64url");
 }
 
@@ -87,6 +110,48 @@ function hasControlCharacter(value: string): boolean {
     const codePoint = character.codePointAt(0) ?? 0;
     return codePoint <= 31 || codePoint === 127;
   });
+}
+
+export function isGoogleOAuthConnectionPurpose(
+  value: string | null | undefined,
+): value is GoogleOAuthConnectionPurpose {
+  return GOOGLE_OAUTH_CONNECTION_PURPOSES.some((purpose) => purpose === value);
+}
+
+export function isGoogleOAuthCsfImportCapability(
+  value: string | null | undefined,
+): value is GoogleOAuthCsfImportCapability {
+  return GOOGLE_OAUTH_CSF_IMPORT_CAPABILITIES.some(
+    (capability) => capability === value,
+  );
+}
+
+function isValidGoogleOAuthIntent(
+  value: Pick<
+    GoogleOAuthStatePayload,
+    "organizationId" | "pluginKey" | "purpose" | "requestedCapability"
+  >,
+): boolean {
+  if (value.purpose === "csf_import") {
+    return Boolean(
+      value.organizationId &&
+      value.pluginKey === "dvhs-csf" &&
+      isGoogleOAuthCsfImportCapability(value.requestedCapability),
+    );
+  }
+
+  if (value.pluginKey !== null || value.requestedCapability !== null) {
+    return false;
+  }
+
+  if (
+    value.purpose === "organization_calendar" ||
+    value.purpose === "organization_sheets"
+  ) {
+    return Boolean(value.organizationId);
+  }
+
+  return value.organizationId === null;
 }
 
 export function normalizeGoogleOAuthReturnTo(
@@ -134,9 +199,22 @@ function isGoogleOAuthStatePayload(
     typeof payload.expiresAt === "number" &&
     Number.isSafeInteger(payload.expiresAt) &&
     (payload.returnTo === null || typeof payload.returnTo === "string") &&
-    (payload.orgId === null || typeof payload.orgId === "string") &&
-    typeof payload.isCalendarSync === "boolean" &&
-    typeof payload.isSheetsSync === "boolean"
+    (payload.organizationId === null ||
+      (typeof payload.organizationId === "string" &&
+        payload.organizationId.trim() === payload.organizationId &&
+        payload.organizationId.length > 0)) &&
+    (payload.pluginKey === null || payload.pluginKey === "dvhs-csf") &&
+    isGoogleOAuthConnectionPurpose(payload.purpose) &&
+    (payload.requestedCapability === null ||
+      isGoogleOAuthCsfImportCapability(payload.requestedCapability)) &&
+    isValidGoogleOAuthIntent({
+      organizationId: payload.organizationId ?? null,
+      pluginKey: payload.pluginKey ?? null,
+      purpose: payload.purpose as GoogleOAuthConnectionPurpose,
+      requestedCapability: payload.requestedCapability ?? null,
+    }) &&
+    payload.isCalendarSync === (payload.purpose === "organization_calendar") &&
+    payload.isSheetsSync === (payload.purpose === "organization_sheets")
   );
 }
 
@@ -148,6 +226,16 @@ export function createGoogleOAuthState(
   const nonce = options.nonce ?? randomBytes(32).toString("base64url");
   const secret = options.secret ?? getGoogleOAuthStateSecret();
 
+  const intent = {
+    organizationId: input.organizationId?.trim() || null,
+    pluginKey: input.pluginKey ?? null,
+    purpose: input.purpose,
+    requestedCapability: input.requestedCapability ?? null,
+  };
+  if (!isValidGoogleOAuthIntent(intent)) {
+    throw new Error("Invalid Google OAuth connection purpose");
+  }
+
   const payload: GoogleOAuthStatePayload = {
     version: GOOGLE_OAUTH_STATE_VERSION,
     userId: input.userId,
@@ -155,9 +243,9 @@ export function createGoogleOAuthState(
     issuedAt: now,
     expiresAt: now + GOOGLE_OAUTH_STATE_TTL_SECONDS * 1000,
     returnTo: normalizeGoogleOAuthReturnTo(input.returnTo),
-    orgId: input.orgId?.trim() || null,
-    isCalendarSync: input.isCalendarSync === true,
-    isSheetsSync: input.isSheetsSync === true,
+    ...intent,
+    isCalendarSync: input.purpose === "organization_calendar",
+    isSheetsSync: input.purpose === "organization_sheets",
   };
 
   const encodedPayload = Buffer.from(JSON.stringify(payload)).toString(

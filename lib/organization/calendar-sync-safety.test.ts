@@ -41,10 +41,39 @@ test("calendar sync loads and validates both sources before calling Google", () 
   );
   const googleAccess = functionSource.indexOf("getGoogleAccessTokenForUser(");
   const googleMutation = functionSource.indexOf("ensureOrganizationCalendar(");
+  const ownerAuthorization = functionSource.indexOf(
+    "authorizeGoogleOAuthOrganizationRequest({",
+  );
+  const disableAutoSync = functionSource.indexOf(
+    ".update({ auto_sync: false",
+  );
 
+  assert.ok(ownerAuthorization >= 0);
+  assert.ok(disableAutoSync > ownerAuthorization);
+  assert.ok(projectsQuery > disableAutoSync);
   assert.ok(projectsQuery >= 0);
   assert.ok(eventsQuery > projectsQuery);
   assert.ok(sourceValidation > eventsQuery);
   assert.ok(googleAccess > sourceValidation);
   assert.ok(googleMutation > googleAccess);
+});
+
+test("the Sheets worker reauthorizes its owner and disables stale syncs before export", () => {
+  const source = readFileSync(
+    join(process.cwd(), "app/api/cron/organization-sheet-sync/route.ts"),
+    "utf8",
+  );
+  const authorization = source.indexOf(
+    "authorizeGoogleOAuthOrganizationRequest({",
+  );
+  const disableAutoSync = source.indexOf(".update({ auto_sync: false");
+  const tokenRead = source.indexOf("getGoogleAccessTokenForSheetsForUser(");
+  const reportRead = source.indexOf("buildOrganizationReportRowsForSync(");
+  const googleWrite = source.indexOf("replaceSpreadsheetReportValues(");
+
+  assert.ok(authorization >= 0);
+  assert.ok(disableAutoSync > authorization);
+  assert.ok(tokenRead > disableAutoSync);
+  assert.ok(reportRead > tokenRead);
+  assert.ok(googleWrite > reportRead);
 });

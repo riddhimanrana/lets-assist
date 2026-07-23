@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import CalendarClient from "./CalendarClient";
 import type { CalendarConnection } from "@/types/calendar";
+import {
+  getCalendarConnection,
+  hasLegacyGoogleOAuthReconnectRequired,
+} from "@/services/calendar";
 
 export const metadata = {
   title: "Calendar Settings - Let's Assist",
@@ -48,12 +52,11 @@ async function getCalendarData(userId: string) {
   };
 
   // Get calendar connection status
-  const { data: connection } = (await supabase
-    .from("user_calendar_connections")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("is_active", true)
-    .single()) as { data: CalendarConnection | null };
+  const connection: CalendarConnection | null =
+    await getCalendarConnection(userId);
+  const legacyReconnectRequired = connection
+    ? false
+    : await hasLegacyGoogleOAuthReconnectRequired(userId);
 
   // Get synced events (projects created by user)
   const { data: creatorProjects } = (await supabase
@@ -148,6 +151,7 @@ async function getCalendarData(userId: string) {
 
     return {
       connection,
+      legacyReconnectRequired,
       creatorProjects: normalizedCreatorProjects,
       volunteerSignups: normalizedVolunteerSignups,
     };

@@ -4,7 +4,10 @@ import assert from "node:assert/strict";
 import { createClient } from "@supabase/supabase-js";
 import { getLocalSupabaseEnv } from "./dv-local-env.mjs";
 
-const password = process.env.DV_LOCAL_TEST_PASSWORD || "robo6737";
+const password = process.env.DV_LOCAL_TEST_PASSWORD?.trim();
+if (!password) {
+  throw new Error("Set DV_LOCAL_TEST_PASSWORD to the run-scoped fixture password.");
+}
 
 const { url, anonKey, serviceRoleKey } = getLocalSupabaseEnv();
 

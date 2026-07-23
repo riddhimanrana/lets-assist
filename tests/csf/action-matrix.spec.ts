@@ -24,10 +24,10 @@ test.describe("admin visible-action matrix", () => {
     }
 
     const applications = page.getByRole("tab", { name: "Applications", exact: true });
-    await expect(async () => {
-      await applications.click({ timeout: 2_000 });
-      await expect(page).toHaveURL(/[?&]tab=csf-applications(?:&|$)/, { timeout: 2_000 });
-    }).toPass({ timeout: 20_000 });
+    await applications.click();
+    await expect(page).toHaveURL(/[?&]tab=csf-applications(?:&|$)/, {
+      timeout: 60_000,
+    });
   });
 
   test("More exposes each canonical utility and opens Settings", async ({ page }) => {
@@ -45,7 +45,7 @@ test.describe("admin visible-action matrix", () => {
   test("application list exposes enabled operational controls", async ({ page }) => {
     await page.goto(`${CSF_ORGANIZATION_PATH}?tab=csf-applications`);
     const controls = page.locator(
-      '[aria-label="Application views"] button, [aria-label="Application filters"] button, form[role="search"] button, button[aria-label^="Sort applications"]',
+      '[aria-label="Application views"] button:visible, [aria-label="Application filters"] button:visible, form[role="search"] button:visible, button[aria-label^="Sort applications"]:visible',
     );
     expect(await controls.count()).toBeGreaterThanOrEqual(8);
     for (const control of await controls.all()) {

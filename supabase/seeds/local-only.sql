@@ -47,7 +47,7 @@ VALUES (
   true,
   '0.1.0',
   true,
-  jsonb_build_object('privacyMode', 'strict-minor-safe', 'defaultOwnerEmails', jsonb_build_array('dvhighcsf@gmail.com'))
+  jsonb_build_object('privacyMode', 'strict-minor-safe', 'defaultOwnerEmails', jsonb_build_array('dvhs-csf-admin@local.test'))
 )
 ON CONFLICT (key) DO UPDATE SET
   name = EXCLUDED.name,

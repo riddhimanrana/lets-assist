@@ -36,6 +36,7 @@ import type { CalendarConnection } from "@/types";
 
 interface CalendarClientProps {
   connection: CalendarConnection | null;
+  legacyReconnectRequired: boolean;
   creatorProjects: Array<{
     id: string;
     title: string;
@@ -65,6 +66,7 @@ interface CalendarClientProps {
 
 export default function CalendarClient({
   connection,
+  legacyReconnectRequired,
   creatorProjects,
   volunteerSignups,
 }: CalendarClientProps) {
@@ -74,7 +76,8 @@ export default function CalendarClient({
   const [removingEventId, setRemovingEventId] = useState<string | null>(null);
 
   const handleConnect = async () => {
-    window.location.href = "/api/calendar/google/connect";
+    window.location.href =
+      "/api/calendar/google/connect?purpose=personal_calendar";
   };
 
   const handleDisconnect = async () => {
@@ -222,15 +225,19 @@ export default function CalendarClient({
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="font-medium">Not Connected</p>
+                  <p className="font-medium">
+                    {legacyReconnectRequired ? "Reconnect required" : "Not connected"}
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    Connect your Google Calendar to sync events automatically
+                    {legacyReconnectRequired
+                      ? "This older Google connection has no verified purpose. Reconnect it to sync events."
+                      : "Connect your Google Calendar to sync events automatically"}
                   </p>
                 </div>
               </div>
               <Button onClick={handleConnect}>
                 <Calendar className="h-4 w-4 mr-1" />
-                Connect Google Calendar
+                {legacyReconnectRequired ? "Reconnect Google Calendar" : "Connect Google Calendar"}
               </Button>
             </div>
           )}

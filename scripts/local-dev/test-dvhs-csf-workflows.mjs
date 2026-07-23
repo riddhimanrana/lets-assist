@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 
 import { createClient } from "@supabase/supabase-js";
-import { getLocalSupabaseEnv } from "./dv-local-env.mjs";
+import { getCsfIsolatedSupabaseEnv } from "./dv-local-env.mjs";
 
-const { url, anonKey, serviceRoleKey } = getLocalSupabaseEnv();
+const { url, anonKey, serviceRoleKey } = getCsfIsolatedSupabaseEnv();
 const admin = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
 const plugin = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false }, db: { schema: "plugin_data" } });
 const anonPlugin = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false }, db: { schema: "plugin_data" } });

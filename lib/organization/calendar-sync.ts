@@ -7,11 +7,13 @@ import {
   deleteGoogleCalendarEventForCalendar,
   ensureOrganizationCalendar,
   getGoogleAccessTokenForUser,
+  organizationCalendarGoogleBinding,
   updateGoogleCalendarEventForCalendar,
 } from "@/services/calendar";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { synchronizeCalendarEvents } from "@/lib/organization/calendar-event-sync-core";
 import { resolveCalendarSyncSources } from "@/lib/organization/calendar-sync-safety";
+import { authorizeGoogleOAuthOrganizationRequest } from "@/lib/auth/google-oauth-authorization";
 import type { Project } from "@/types";
 
 const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
@@ -80,6 +82,24 @@ export async function syncOrganizationCalendarInternal(
     return { success: false, error: "Organization calendar not connected" };
   }
 
+  const ownerAuthorization = await authorizeGoogleOAuthOrganizationRequest({
+    userId: syncConfig.created_by,
+    organizationId,
+    pluginKey: null,
+    purpose: "organization_calendar",
+    requestedCapability: null,
+  });
+  if (!ownerAuthorization.allowed) {
+    await serviceSupabase
+      .from("organization_calendar_syncs")
+      .update({ auto_sync: false, updated_at: new Date().toISOString() })
+      .eq("organization_id", organizationId);
+    return {
+      success: false,
+      error: "Calendar owner no longer has active organization admin access",
+    };
+  }
+
   // Load every source of truth before touching Google. Treating a failed query
   // as an empty result would otherwise delete valid remote events.
   const projectsResult = await serviceSupabase
@@ -106,7 +126,11 @@ export async function syncOrganizationCalendarInternal(
   const accessToken = await getGoogleAccessTokenForUser(
     syncConfig.created_by,
     true,
-    { requiredScopes: [CALENDAR_SCOPE], connectionType: "calendar" },
+    {
+      requiredScopes: [CALENDAR_SCOPE],
+      connectionType: "calendar",
+      expectedBinding: organizationCalendarGoogleBinding(organizationId),
+    },
   );
 
   if (!accessToken) {

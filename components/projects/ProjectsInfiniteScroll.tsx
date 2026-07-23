@@ -84,6 +84,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const latestRequestIdRef = useRef(0);
+  const activeRequestAbortRef = useRef<AbortController | null>(null);
 
   // Debug local storage issue with hydration
   useEffect(() => {
@@ -102,6 +103,9 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   const fetchProjectsPage = useCallback(
     async (offset: number, mode: "replace" | "append" = "append") => {
       const requestId = ++latestRequestIdRef.current;
+      activeRequestAbortRef.current?.abort();
+      const abortController = new AbortController();
+      activeRequestAbortRef.current = abortController;
 
       if (mode === "replace") {
         setIsLoading(true);
@@ -130,6 +134,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
         const response = await fetch(`/api/projects?${params.toString()}`, {
           cache: "no-store",
           credentials: "same-origin",
+          signal: abortController.signal,
         });
 
         if (!response.ok) {
@@ -148,6 +153,10 @@ export const ProjectsInfiniteScroll: React.FC = () => {
         setHasMore(nextProjects.length === limit);
         setIsSuccess(true);
       } catch (fetchError) {
+        if (abortController.signal.aborted) {
+          return;
+        }
+
         if (requestId !== latestRequestIdRef.current) {
           return;
         }
@@ -164,6 +173,9 @@ export const ProjectsInfiniteScroll: React.FC = () => {
           setHasMore(false);
         }
       } finally {
+        if (activeRequestAbortRef.current === abortController) {
+          activeRequestAbortRef.current = null;
+        }
         if (requestId === latestRequestIdRef.current) {
           setIsLoading(false);
           setIsValidating(false);
@@ -176,6 +188,12 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   useEffect(() => {
     setProjectsData([]);
     void fetchProjectsPage(0, "replace");
+
+    return () => {
+      latestRequestIdRef.current += 1;
+      activeRequestAbortRef.current?.abort();
+      activeRequestAbortRef.current = null;
+    };
   }, [fetchProjectsPage]);
 
   const { ref, inView } = useInView({

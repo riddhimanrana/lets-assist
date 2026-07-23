@@ -3,15 +3,17 @@
 import { createClient } from "@supabase/supabase-js";
 import { mock } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { getLocalSupabaseEnv } from "./dv-local-env.mjs";
+import { getLocalSupabaseDbUrl, getLocalSupabaseEnv } from "./dv-local-env.mjs";
 
 // Registry definitions are server-only, while this audit runs in plain Bun.
 mock.module("server-only", () => ({}));
 
-const { url, serviceRoleKey } = getLocalSupabaseEnv();
+const { url, anonKey, serviceRoleKey, dbUrl } = getLocalSupabaseEnv();
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = url;
+process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = anonKey;
 process.env.SUPABASE_SECRET_KEY = serviceRoleKey;
+process.env.SUPABASE_DB_URL = dbUrl;
 
 const { privatePlugins } = await import("../../lib/plugins/private/registry.ts");
 const { syncRegisteredPluginRuntimeContracts } = await import(
@@ -121,13 +123,11 @@ const dvContract = (contractRows ?? []).find(
   (row) => row.plugin_key === "dv-speech-debate",
 );
 if (dvContract) {
-  const dbUrl =
-    process.env.SUPABASE_DB_URL ??
-    "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+  const verifiedDbUrl = getLocalSupabaseDbUrl();
   const actualDvRelations = execFileSync(
     "psql",
     [
-      dbUrl,
+      verifiedDbUrl,
       "-Atc",
       "select table_name from information_schema.tables where table_schema = 'plugin_data' and table_type = 'BASE TABLE' and table_name like 'dv_sd_%' order by table_name",
     ],

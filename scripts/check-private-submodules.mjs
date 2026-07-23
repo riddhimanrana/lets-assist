@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 
 const repoRoot = process.cwd();
 const strict = process.argv.includes("--strict") || process.env.PRIVATE_SUBMODULE_STRICT === "1";
+const allowDetachedGitlink = process.env.PRIVATE_SUBMODULE_ALLOW_DETACHED_GITLINK === "1";
 const expectedPath = "lib/plugins/private";
 const expectedBranch = process.env.PRIVATE_PLUGINS_BRANCH ?? "development";
 const expectedUrl = "https://github.com/riddhimanrana/lets-assist-plugins.git";
@@ -108,10 +109,13 @@ if (existsSync(submodulePath)) {
   }
 
   const branchResult = requireGit(["branch", "--show-current"], { cwd: submodulePath });
-  if (branchResult.stdout !== expectedBranch) {
+  const isDetached = branchResult.ok && !branchResult.stdout;
+  if (branchResult.stdout !== expectedBranch && !(allowDetachedGitlink && isDetached)) {
     const message = `Expected ${expectedPath} branch ${expectedBranch}, found ${branchResult.stdout || "detached HEAD"}.`;
     if (strict) fail(message);
     else warn(message);
+  } else if (allowDetachedGitlink && isDetached) {
+    log(`${expectedPath} is detached at the exact committed gitlink, as expected in CI.`);
   }
 
   const porcelain = requireGit(["status", "--porcelain"], { cwd: submodulePath });
@@ -121,18 +125,20 @@ if (existsSync(submodulePath)) {
     else warn(message);
   }
 
-  const aheadBehind = git(["rev-list", "--left-right", "--count", `origin/${expectedBranch}...HEAD`], {
-    cwd: submodulePath,
-  });
-  if (aheadBehind.ok) {
-    const [behind = "0", ahead = "0"] = aheadBehind.stdout.split(/\s+/);
-    if (ahead !== "0" || behind !== "0") {
-      const message = `${expectedPath} is ${ahead} commit(s) ahead and ${behind} commit(s) behind origin/${expectedBranch}.`;
-      if (strict) fail(message);
-      else warn(message);
+  if (!(allowDetachedGitlink && isDetached)) {
+    const aheadBehind = git(["rev-list", "--left-right", "--count", `origin/${expectedBranch}...HEAD`], {
+      cwd: submodulePath,
+    });
+    if (aheadBehind.ok) {
+      const [behind = "0", ahead = "0"] = aheadBehind.stdout.split(/\s+/);
+      if (ahead !== "0" || behind !== "0") {
+        const message = `${expectedPath} is ${ahead} commit(s) ahead and ${behind} commit(s) behind origin/${expectedBranch}.`;
+        if (strict) fail(message);
+        else warn(message);
+      }
+    } else {
+      warn(`Could not compare ${expectedPath} against origin/${expectedBranch}: ${aheadBehind.stderr || aheadBehind.status}`);
     }
-  } else {
-    warn(`Could not compare ${expectedPath} against origin/${expectedBranch}: ${aheadBehind.stderr || aheadBehind.status}`);
   }
 }
 

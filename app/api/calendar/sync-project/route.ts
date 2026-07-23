@@ -5,7 +5,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { createGoogleCalendarEvent } from "@/services/calendar";
+import {
+  createGoogleCalendarEvent,
+  markPersonalCalendarConnectionSynced,
+} from "@/services/calendar";
 import { syncProjectSchema } from "@/schemas/calendar-schema";
 
 export async function POST(request: Request) {
@@ -115,11 +118,7 @@ export async function POST(request: Request) {
     }
 
     // Update last_synced_at in calendar connection
-    await supabase
-      .from("user_calendar_connections")
-      .update({ last_synced_at: new Date().toISOString() })
-      .eq("user_id", user.id)
-      .eq("is_active", true);
+    await markPersonalCalendarConnectionSynced(user.id);
 
     return NextResponse.json({
       success: true,

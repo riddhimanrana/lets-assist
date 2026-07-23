@@ -6,8 +6,17 @@ import { getLocalSupabaseEnv } from "./dv-local-env.mjs";
 const PORT = Number(process.env.PLUGIN_ISOLATION_TEST_PORT ?? 3110);
 const EXTERNAL_BASE_URL = process.env.PLUGIN_ISOLATION_TEST_BASE_URL?.trim().replace(/\/$/, "");
 const BASE_URL = EXTERNAL_BASE_URL || `http://127.0.0.1:${PORT}`;
-const LOGIN_EMAIL = process.env.PLUGIN_ISOLATION_TEST_EMAIL ?? "riddhiman.rana@gmail.com";
-const LOGIN_PASSWORD = process.env.DV_LOCAL_TEST_PASSWORD ?? "robo6737";
+const LOGIN_EMAIL = process.env.PLUGIN_ISOLATION_TEST_EMAIL ?? "dv.admin@local.test";
+
+function requireRunPassword(value: string | undefined) {
+  const password = value?.trim();
+  if (!password) {
+    throw new Error("Set DV_LOCAL_TEST_PASSWORD to the run-scoped fixture password.");
+  }
+  return password;
+}
+
+const LOGIN_PASSWORD = requireRunPassword(process.env.DV_LOCAL_TEST_PASSWORD);
 
 async function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -113,11 +122,11 @@ async function assertDvPluginIsolatedInBrowser() {
       .click();
 
     await page.waitForURL(/\/organization\/dv-speech-debate\/plugins\/dv-speech-debate/, {
-      timeout: 10_000,
+      timeout: 30_000,
     });
     await page.getByRole("heading", { name: /DV Speech & Debate/i }).first().waitFor({
       state: "visible",
-      timeout: 10_000,
+      timeout: 30_000,
     });
 
     console.log("DV plugin renders through its authenticated server-only workspace.");

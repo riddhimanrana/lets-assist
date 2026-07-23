@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(37);
+SELECT extensions.plan(39);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -29,6 +29,14 @@ SELECT extensions.ok(
   'the server role can invoke the permission-checked semester reopen boundary'
 );
 SELECT extensions.ok(
+  NOT has_function_privilege(
+    'service_role',
+    'plugin_data.csf_reopen_term_base(uuid,uuid,uuid,integer,text,text,uuid,uuid)',
+    'EXECUTE'
+  ),
+  'the server role cannot bypass the authorized semester reopen wrapper'
+);
+SELECT extensions.ok(
   NOT has_table_privilege('authenticated', 'plugin_data.csf_term_membership_outcomes', 'SELECT')
     AND NOT has_table_privilege('authenticated', 'plugin_data.csf_term_reopen_events', 'SELECT'),
   'browser roles cannot read private close outcomes or reopen events directly'
@@ -46,6 +54,13 @@ INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES
   ('dd100000-0000-4000-8000-000000000001', 'CSF Term Reopen A', 'csf-term-reopen-a', 'school', '987001'),
   ('dd100000-0000-4000-8000-000000000002', 'CSF Term Reopen B', 'csf-term-reopen-b', 'school', '987002');
+
+INSERT INTO public.organization_members (organization_id, user_id, role, status)
+VALUES (
+  'dd100000-0000-4000-8000-000000000001',
+  'dd000000-0000-4000-8000-000000000001',
+  'admin', 'active'
+);
 
 INSERT INTO plugin_data.csf_terms (
   id, organization_id, code, label, school_year, semester,
@@ -113,16 +128,14 @@ CREATE TEMP TABLE csf_reopen_cycle_results (
 SELECT extensions.lives_ok(
   $$
     INSERT INTO csf_reopen_cycle_results (phase, payload)
-    SELECT 'close-1', plugin_data.csf_close_term(
+    SELECT 'close-1', plugin_data.csf_close_term_v2(
       'dd100000-0000-4000-8000-000000000001',
       'dd200000-0000-4000-8000-000000000001',
       4,
-      '[
-        {"profileId":"dd400000-0000-4000-8000-000000000001","status":"completed","reason":"All requirements complete.","progress":{"isComplete":true}},
-        {"profileId":"dd400000-0000-4000-8000-000000000002","status":"not_completed","reason":"Meeting requirement incomplete.","progress":{"isComplete":false}},
-        {"profileId":"dd400000-0000-4000-8000-000000000003","status":"not_completed","reason":"Point requirement incomplete.","progress":{"isComplete":false}}
-      ]'::jsonb,
-      '{"membershipCount":3,"completed":2,"notCompleted":1}'::jsonb,
+      plugin_data.csf_term_closure_readiness(
+        'dd100000-0000-4000-8000-000000000001',
+        'dd200000-0000-4000-8000-000000000001'
+      )->>'evidenceHash',
       'dd000000-0000-4000-8000-000000000001'
     )
   $$,
@@ -167,13 +180,13 @@ SELECT extensions.is(
     FROM plugin_data.csf_term_membership_outcomes
     WHERE organization_id = 'dd100000-0000-4000-8000-000000000001'
   ),
-  'completed,completed,not_completed',
+  'not_completed,completed,not_completed',
   'the close records derived and adviser-overridden final outcomes'
 );
 SELECT extensions.ok(
   (
     SELECT closure.revision = 1
-      AND closure.snapshot_version = 2
+      AND closure.snapshot_version = 3
       AND closure.reopenable
       AND closure.correlation_id::text = result.payload->>'correlationId'
     FROM plugin_data.csf_term_closures AS closure
@@ -181,6 +194,21 @@ SELECT extensions.ok(
     WHERE closure.id::text = result.payload->>'closureId'
   ),
   'new close rows carry an explicit reopenable snapshot version and correlation'
+);
+
+SELECT extensions.throws_ok(
+  $$
+    UPDATE plugin_data.csf_term_memberships
+    SET
+      status = 'pending',
+      finalized_closure_id = NULL,
+      finalized_revision = NULL,
+      finalized_correlation_id = NULL
+    WHERE id = 'dd600000-0000-4000-8000-000000000001'
+  $$,
+  'P0001',
+  'Closed CSF semester evidence is immutable; reopen the semester before making changes.',
+  'a restoration-shaped direct membership update cannot bypass the reopen RPC'
 );
 
 SELECT extensions.throws_ok(
@@ -225,8 +253,8 @@ SELECT extensions.throws_ok(
     )
   $$,
   'P0001',
-  'CSF semester is missing or is not closed.',
-  'tenant scoping rejects a foreign semester ID'
+  'Not authorized to reopen this CSF semester.',
+  'tenant scoping rejects a foreign semester before disclosing its state'
 );
 SELECT extensions.throws_ok(
   $$
@@ -421,19 +449,66 @@ SELECT extensions.throws_ok(
   'reopen events cannot be edited'
 );
 
+INSERT INTO plugin_data.csf_credit_records (
+  organization_id, profile_id, term_id, source, points, point_type,
+  status, verified_by, verified_at
+)
+SELECT
+  'dd100000-0000-4000-8000-000000000001',
+  profile.id,
+  'dd200000-0000-4000-8000-000000000001',
+  'manual', points.value, 'non_drive', 'verified',
+  'dd000000-0000-4000-8000-000000000001', now()
+FROM plugin_data.csf_profiles AS profile
+CROSS JOIN (VALUES (3::numeric), (3::numeric), (1::numeric)) AS points(value)
+WHERE profile.organization_id = 'dd100000-0000-4000-8000-000000000001';
+
+INSERT INTO plugin_data.csf_meetings (
+  id, organization_id, term_id, meeting_key, label, required, status, sort_order
+) VALUES
+  (
+    'dd800000-0000-4000-8000-000000000001',
+    'dd100000-0000-4000-8000-000000000001',
+    'dd200000-0000-4000-8000-000000000001',
+    'corrected-meeting-1', 'Corrected meeting 1', true, 'active', 1
+  ),
+  (
+    'dd800000-0000-4000-8000-000000000002',
+    'dd100000-0000-4000-8000-000000000001',
+    'dd200000-0000-4000-8000-000000000001',
+    'corrected-meeting-2', 'Corrected meeting 2', true, 'active', 2
+  );
+
+INSERT INTO plugin_data.csf_meeting_attendance (
+  organization_id, profile_id, term_id, meeting_key, meeting_label,
+  status, source, recorded_by
+)
+SELECT
+  'dd100000-0000-4000-8000-000000000001',
+  profile.id,
+  'dd200000-0000-4000-8000-000000000001',
+  meeting.key,
+  meeting.label,
+  'attended', 'manual',
+  'dd000000-0000-4000-8000-000000000001'
+FROM plugin_data.csf_profiles AS profile
+CROSS JOIN (
+  VALUES ('corrected-meeting-1', 'Corrected meeting 1'),
+         ('corrected-meeting-2', 'Corrected meeting 2')
+) AS meeting(key, label)
+WHERE profile.organization_id = 'dd100000-0000-4000-8000-000000000001';
+
 SELECT extensions.lives_ok(
   $$
     INSERT INTO csf_reopen_cycle_results (phase, payload)
-    SELECT 'close-2', plugin_data.csf_close_term(
+    SELECT 'close-2', plugin_data.csf_close_term_v2(
       'dd100000-0000-4000-8000-000000000001',
       'dd200000-0000-4000-8000-000000000001',
       4,
-      '[
-        {"profileId":"dd400000-0000-4000-8000-000000000001","status":"completed","reason":"All corrected requirements complete."},
-        {"profileId":"dd400000-0000-4000-8000-000000000002","status":"completed","reason":"Adviser exception remains valid."},
-        {"profileId":"dd400000-0000-4000-8000-000000000003","status":"completed","reason":"Attendance correction completed the requirement."}
-      ]'::jsonb,
-      '{"membershipCount":3,"completed":3,"notCompleted":0}'::jsonb,
+      plugin_data.csf_term_closure_readiness(
+        'dd100000-0000-4000-8000-000000000001',
+        'dd200000-0000-4000-8000-000000000001'
+      )->>'evidenceHash',
       'dd000000-0000-4000-8000-000000000001'
     )
   $$,

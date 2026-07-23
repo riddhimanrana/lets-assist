@@ -80,6 +80,7 @@ lib/plugins/private/*
 playwright.config.ts
 playwright-report/
 test-results/
+artifacts/dvhs-csf-e2e/*/playwright/
 
 # Pending plugin data migrations (not yet ready for deploy)
 supabase/migrations/.pending-plugin-data/

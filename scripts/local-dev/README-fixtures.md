@@ -1,49 +1,58 @@
 # Local Dev Fixtures — Let's Assist
 
-> **All accounts use password: `robo6737`** (unless otherwise noted)
+> Set `CSF_LOCAL_TEST_PASSWORD` (or `DV_LOCAL_TEST_PASSWORD`) before seeding.
+> Every generated local account uses that run-specific password; no password is
+> stored in this repository.
 
 ---
 
-## 🧑‍💻 Developer Admin Account
+## 🧑‍💻 Default platform administrator
 
 | Field    | Value                       |
 | -------- | --------------------------- |
-| Email    | `riddhiman.rana@gmail.com`  |
-| Password | `robo6737`                  |
-| Role     | **Admin** in all 3 orgs     |
+| Email    | `platform.admin@local.test` |
+| Password | Value of `CSF_LOCAL_TEST_PASSWORD` or `DV_LOCAL_TEST_PASSWORD` |
+| Role     | **Admin** in all 4 default platform orgs |
 | Status   | Verified + Trusted Member   |
 
 ---
 
-## 🏛️ Organizations
+## 🏛️ Default platform organizations
 
-| Slug                  | Name                    | Type      | Join Code  |
-| --------------------- | ----------------------- | --------- | ---------- |
-| `dv-speech-debate`    | DV Speech & Debate      | School    | `DVLOC1`   |
-| `acts-of-hearts`      | Acts of Hearts          | Nonprofit | `AOHLC1`   |
-| `wrms-speech-debate`  | WRMS Speech & Debate    | School    | `WRMS01`   |
+| Slug                      | Name                    | Type      | Join Code |
+| ------------------------- | ----------------------- | --------- | --------- |
+| `local-platform-org`      | Local Platform Org      | Nonprofit | `572780`  |
+| `acts-of-hearts`          | Acts of Hearts          | Nonprofit | `111607`  |
+| `local-school-volunteers` | Local School Volunteers | School    | `340992`  |
+| `dvhs-csf`                | DVHS CSF                | School    | `621478`  |
 
 ---
 
-## 👥 Named Test Accounts
+## 👥 Optional DV Speech & Debate fixtures
 
-All passwords: `robo6737`
+All accounts use the run-specific password supplied through
+`CSF_LOCAL_TEST_PASSWORD` or `DV_LOCAL_TEST_PASSWORD`.
 
-| Email                      | Name          | DVSD Role | AOH Role | WRMS Role |
-| -------------------------- | ------------- | --------- | -------- | --------- |
-| `riddhiman.rana@gmail.com` | Riddhiman Rana | Admin    | Admin    | Admin     |
-| `dv.admin@local.test`      | DV Admin      | Admin     | —        | —         |
-| `dv.staff@local.test`      | DV Staff      | Staff     | —        | —         |
-| `dv.student.a@local.test`  | Alex Student  | Member    | —        | —         |
-| `dv.student.b@local.test`  | Blair Student | Member    | —        | —         |
-| `dv.student.c@local.test`  | Casey Student | Member    | —        | —         |
-| `dv.outsider@local.test`   | Outside User  | —         | —        | —         |
+Run `bun run dv:fixtures` after the default platform seed to add the following
+three organizations: DV Speech & Debate (`508833`), Acts of Hearts (`111607`),
+and WRMS Speech & Debate (`830672`). `dv.admin@local.test` is an administrator
+in all three. The remaining named accounts are scoped as follows:
+
+| Email                     | Name             | DVSD Role | AOH Role | WRMS Role |
+| ------------------------- | ---------------- | --------- | -------- | --------- |
+| `dv.admin@local.test`     | DV Admin Fixture | Admin     | Admin    | Admin     |
+| `dv.staff@local.test`     | DV Staff         | Staff     | —        | —         |
+| `dv.student.a@local.test` | Alex Student     | Member    | —        | —         |
+| `dv.student.b@local.test` | Blair Student    | Member    | —        | —         |
+| `dv.student.c@local.test` | Casey Student    | Member    | —        | —         |
+| `dv.outsider@local.test`  | Outside User     | —         | —        | —         |
 
 ---
 
 ## 👤 Mock Members (15 accounts)
 
-All passwords: `robo6737`. Members are distributed across the 3 orgs in groups of 5.
+Members use the same run-specific environment password and are distributed
+across the three organizations in groups of five.
 
 ### DV Speech & Debate (members 1–5)
 
@@ -101,21 +110,52 @@ All passwords: `robo6737`. Members are distributed across the 3 orgs in groups o
 
 ## 🔗 Remote Preview Mode
 
-When **Remote Preview** is enabled (`/organization` page toggle), the system maps:
-
-| Local Email                 | Remote User ID                           |
-| --------------------------- | ---------------------------------------- |
-| `riddhiman.rana@gmail.com`  | `b6ee0559-a406-4992-b621-9c5af015adce`  |
-| `ridhdiman.rana@gmail.com`  | `b6ee0559-a406-4992-b621-9c5af015adce`  |
-
-> This ensures org memberships and admin roles are correctly resolved from the remote database.
+Remote Preview has no built-in user mapping. If a developer explicitly enables
+that read-only diagnostic path, provide a server-only
+`REMOTE_PREVIEW_USER_ID_MAP` value for the current session. Never commit hosted
+user IDs or expose the mapping through a `NEXT_PUBLIC_*` variable.
 
 ---
 
 ## 🚀 How to Re-Seed
 
 ```bash
+export CSF_LOCAL_TEST_PASSWORD="$(openssl rand -base64 24)"
 bun run supabase
+# Optional DV Speech & Debate workspace:
+bun run dv:fixtures
 ```
 
-> `bun run supabase` starts local Supabase, resets the database, and seeds these fixtures.
+> `bun run supabase` starts local Supabase, resets the database, and seeds the
+> default platform and DVHS CSF fixtures. `bun run dv:fixtures` adds the optional
+> DV Speech & Debate workspace.
+
+## Isolated DVHS CSF stack
+
+Start a separate stack without touching the shared local Supabase project:
+
+```bash
+scripts/local-dev/start-dvhs-csf-isolated-stack.sh
+```
+
+Source the generated Supabase environment and seed fictional login accounts:
+
+```bash
+source /tmp/lets-assist-csf-browser-<run-id>/supabase-browser.env
+bun run supabase:seed:local-dev
+```
+
+Then source the generated app environment before starting Let’s Assist on port 3001:
+
+```bash
+source /tmp/lets-assist-csf-browser-<run-id>/lets-assist-browser.sh
+bun run dev -- --port 3001
+```
+
+Use the exact work directory printed by that command when stopping it:
+
+```bash
+scripts/local-dev/stop-dvhs-csf-isolated-stack.sh /tmp/lets-assist-csf-browser-<run-id>
+```
+
+Pass `--delete-workdir` only when its local logs and environment file are no longer needed.

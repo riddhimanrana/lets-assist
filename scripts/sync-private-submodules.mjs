@@ -1,5 +1,4 @@
 import { existsSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -21,10 +20,14 @@ function fail(message) {
   process.exit(1);
 }
 
-function runGit(args) {
+function runGit(args, options = {}) {
   const result = spawnSync("git", args, {
     cwd: repoRoot,
     stdio: "inherit",
+    env: {
+      ...process.env,
+      ...options.env,
+    },
   });
 
   if (result.status !== 0) {
@@ -46,26 +49,19 @@ if (!githubToken) {
   fail("Missing GITHUB_ACCESS_TOKEN (or PRIVATE_SUBMODULE_TOKEN) in the Vercel environment.");
 }
 
-const gitmodules = await readFile(gitmodulesPath, "utf8");
-const encodedUsername = encodeURIComponent(githubUsername);
-const encodedToken = encodeURIComponent(githubToken);
-
-const rewrittenGitmodules = gitmodules.replace(
-  /(^\s*url\s*=\s*)https:\/\/github\.com\/([^\s]+)$/gm,
-  (_match, prefix, repoPath) => {
-    return `${prefix}https://${encodedUsername}:${encodedToken}@github.com/${repoPath}`;
-  },
-);
-
-if (rewrittenGitmodules !== gitmodules) {
-  await writeFile(gitmodulesPath, rewrittenGitmodules);
-  log("Rewrote GitHub submodule URL(s) with Vercel credentials.");
-} else {
-  log("No GitHub submodule URLs needed rewriting.");
-}
-
 runGit(["submodule", "sync", "--recursive"]);
-runGit(["submodule", "update", "--init", "--recursive"]);
+
+// Pass credentials only to this Git process. Keeping them out of .gitmodules,
+// command arguments, and persisted Git config avoids leaking the token in
+// diffs, strict-check errors, or later build output.
+const basicCredential = Buffer.from(`${githubUsername}:${githubToken}`, "utf8").toString("base64");
+runGit(["submodule", "update", "--init", "--recursive"], {
+  env: {
+    GIT_CONFIG_COUNT: "1",
+    GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
+    GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basicCredential}`,
+  },
+});
 
 if (!existsSync(privateRegistryPath)) {
   fail(

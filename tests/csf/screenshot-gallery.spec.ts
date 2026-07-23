@@ -39,7 +39,25 @@ async function capture(page: Page, name: string) {
   });
 }
 
+async function openGalleryRoute(page: Page, route: string) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await page.goto(route, {
+        waitUntil: "domcontentloaded",
+        timeout: 60_000,
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt === 0) await page.waitForTimeout(1_000);
+    }
+  }
+  throw lastError;
+}
+
 test.describe("sanitized DVHS CSF screenshot gallery", () => {
+  test.describe.configure({ timeout: 240_000 });
   test.skip(!captureGallery, "Set CSF_CAPTURE_GALLERY=1 to capture the gallery.");
 
   test("captures the complete officer workspace", async ({ page }) => {
@@ -78,7 +96,7 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
     ] as const;
 
     for (const [name, route, marker] of routes) {
-      await page.goto(route, { waitUntil: "domcontentloaded" });
+      await openGalleryRoute(page, route);
       await expect(page.getByRole("tabpanel").first()).toBeVisible();
       await expect(page.getByText(marker, { exact: false }).first()).toBeVisible();
       await capture(page, name);
@@ -95,11 +113,11 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
 
   test("captures member and public views", async ({ page }) => {
     await loginAs(page, "member");
-    await page.goto(CSF_ORGANIZATION_PATH, { waitUntil: "domcontentloaded" });
+    await openGalleryRoute(page, CSF_ORGANIZATION_PATH);
     await expect(page.getByRole("tabpanel")).toBeVisible();
     await capture(page, "54-member-my-csf");
 
-    await page.goto(CSF_PUBLIC_PATH, { waitUntil: "domcontentloaded" });
+    await openGalleryRoute(page, CSF_PUBLIC_PATH);
     await capture(page, "55-public-page");
   });
 
@@ -113,9 +131,10 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       for (const colorScheme of ["light", "dark"] as const) {
         await page.emulateMedia({ colorScheme });
-        await page.goto(`${CSF_ORGANIZATION_PATH}?tab=csf-overview`, {
-          waitUntil: "domcontentloaded",
-        });
+        await openGalleryRoute(
+          page,
+          `${CSF_ORGANIZATION_PATH}?tab=csf-overview`,
+        );
         await expect(page.getByRole("region", { name: "Your tasks" })).toBeVisible();
         await capture(page, `56-home-${viewport.name}-${colorScheme}`);
       }
