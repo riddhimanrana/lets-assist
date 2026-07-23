@@ -3,7 +3,7 @@
 **Run:** `20260722-gallery-final`<br>
 **Environment:** local Let’s Assist at `http://localhost:3001`, local Supabase only  
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** latest isolated replay, focused hardening, plugin-isolation smoke, 14/14 role navigation, and 26-pass CSF Playwright run passed; post-hardening production build, full visible mutation, live Google, cloud-development, accessibility, and Slides acceptance remain open
+**Status:** latest isolated replay, production build, private/root test suites, plugin-isolation smoke, 14/14 role navigation, and 26-pass CSF Playwright run passed; full visible mutation, live Google, cloud-development, accessibility, and Slides acceptance remain open
 
 **Latest contract amendment:** July 22, 2026; final isolated database and focused application hardening evidence recorded below without upgrading any external or unexecuted scope
 
@@ -92,7 +92,7 @@ This table extends the July 16 browser baseline. It records local implementation
 | CSF-E2E-025 | P1 | Data Management / class-history import | The legacy compatibility path could invent a one-point award when a repeated activity cell lacked a valid numeric value. | Revoked direct access to the legacy implementation and exposed a service-only strict wrapper that rejects missing, blank, malformed, non-finite, non-positive, and greater-than-100 point values. | 9 focused strict-value assertions and 35 existing class-history assertions pass. | No real workbook row has been committed through the updated live Google flow. |
 | CSF-E2E-026 | P1 | Adviser/admin / semester close | A browser-supplied decision list could become stale relative to policy, points, attendance, dues, applications, appeals, or imports. | Close preflight now includes unresolved imports and returns an evidence hash. The close RPC locks operational evidence, rejects stale state, derives all outcomes, and commits closure, outcomes, membership states, term state, and audit history atomically. | `csf_transactional_term_close.test.sql` passes 19 assertions. | Full visible blocker resolution → close → adviser reopen → reclose browser lifecycle remains pending. |
 | CSF-E2E-027 | P1 | Developer/operator / tracked seeds | The historical canonical seed could carry contact, token, invitation, or hosted-project material into source control and builds. | Canonical seed is non-executable; fictional local data is isolated; a build/CI scanner rejects unsafe seed paths, contact data, OAuth/bearer material, invitation material, and hosted Supabase URLs. | Seed-safety scanner and 9 focused tests pass; focused lint and typecheck pass. | The scanner prevents recurrence but does not purge earlier Git history or rotate any previously exposed value. GitGuardian disposition remains required before merge. |
-| CSF-E2E-028 | P1 | Developer/operator / migration baseline | New data contracts required proof that the full forward-only ledger and database tests replay independently from the shared stack. | Replayed a disposable isolated Supabase stack before resetting the shared fictional local stack. | 188 migrations, 55 CSF tables, 39 database test files, and 1,129 assertions passed. Private CSF suite: 203 tests, 0 failures; `csf:test:workflows` passed. | Final combined build, green PR #96, development Supabase/Vercel, and production invariants remain pending. |
+| CSF-E2E-028 | P1 | Developer/operator / migration baseline | New data contracts required proof that the full forward-only ledger and database tests replay independently from the shared stack. | Replayed a disposable isolated Supabase stack before resetting the shared fictional local stack. | Initial milestone: 188 migrations, 55 CSF tables, 39 database test files, and 1,129 assertions. The later final replay supersedes these counts. | Green PR #96 and isolated cloud-development acceptance remain pending. |
 
 ### July 22 final local verification amendment
 
@@ -102,7 +102,7 @@ This amendment supersedes earlier local test-count and build-status summaries on
 | --- | --- | --- | --- | --- | --- | --- |
 | CSF-E2E-029 | P1 | Signing-in user / login automation | Browser submission could race React hydration and test a server-rendered form before secure client behavior was ready. | The login form exposes an explicit hydrated-ready marker, and the browser helper waits for that exact state before submitting. | Final production Playwright run passes; password-bearing URL protection remains covered. | Email-provider and Google signup acceptance are still separate external flows. |
 | CSF-E2E-030 | P2 | Local developer / isolated Supabase | Local environment resolution previously assumed a fixed Supabase port, which made a safely namespaced stack appear unhealthy. | Local validation now recognizes loopback Supabase endpoints on arbitrary ports while continuing to reject hosted/non-local endpoints in development. | Status endpoint and local environment resolver tests pass against the isolated stack. | This does not provision or validate a cloud Supabase `development` branch. |
-| CSF-E2E-031 | P1 | Developer/operator / final local gate | Earlier evidence predated the final combined seed, runtime, browser, and concurrency changes. | Re-ran the isolated database ledger and focused application hardening gates after the earlier production build/browser acceptance. | Latest replay: 190 migrations, 57 CSF tables, 43 pgTAP files, and 1,279/1,279 assertions; focused Bun: 73/73 tests and 761 expectations; root typecheck clean; focused ESLint clean. The earlier production build, 268-test private suite, and production-mode run remain separately recorded evidence. | CI remains unproven until `PRIVATE_SUBMODULE_TOKEN`, old-head GitGuardian disposition, and Vercel Preview gates are resolved. |
+| CSF-E2E-031 | P1 | Developer/operator / final local gate | Earlier evidence predated the final combined seed, runtime, browser, and concurrency changes. | Re-ran the isolated database ledger, application hardening gates, full private suite, and production build against the final combined diff. | Latest replay: 190 migrations, 57 CSF tables, 43 pgTAP files, and 1,279/1,279 assertions; focused Bun: 73/73 tests and 761 expectations; private suite: 272/272; root typecheck, focused ESLint, and production build clean. | CI remains unproven until the least-privilege private-submodule secret, GitGuardian false-positive disposition, and authenticated Vercel Preview gates are resolved. |
 | CSF-E2E-032 | P2 | Applicant/member and officer templates / browser boundaries | Profile confirmation and the complete officer-template navigation matrix needed current production-browser evidence. | Retained the privacy-limited exact-match prompt, explicit decline path, granular navigation, and direct-route authorization boundaries. | Exact claim and decline pass; every officer-role navigation/direct-route scenario passes in the final production Playwright run. | Officer resolution and the broader signup-to-close visible mutation lifecycle remain incomplete. |
 | CSF-E2E-033 | P2 | Artifact reader / sanitized gallery | Raw test output would add noise and could retain sensitive browser state. | Kept only a curated, offline 22-image synthetic gallery with sanitized summaries and action evidence. | [`artifacts/dvhs-csf-e2e/20260722-gallery-final/index.html`](artifacts/dvhs-csf-e2e/20260722-gallery-final/index.html) references all 22 images; raw Playwright reports, traces, videos, and payloads are excluded. | The gallery is visual evidence only and does not upgrade mutation, Google, cloud, or accessibility acceptance. |
 | CSF-E2E-034 | P1 | Developer/operator / database concurrency and integrity | Atomic contracts needed proof against retry races, cross-tenant relationships, legacy write paths, direct evidence mutation, and a real concurrent close/write interleaving. | Added profile-claim concurrency and idempotent-retry coverage, validated organization-scoped tenant foreign keys, revoked the legacy close path, enforced nine evidence-write guards, and exercised close versus insert through two real database sessions. | The latest isolated replay passes all 43 pgTAP files and 1,279 assertions, including the real `dblink` two-session close-vs-insert race. | These database results do not replace the still-open complete visible mutation lifecycle or cloud acceptance. |
@@ -140,21 +140,21 @@ The current officer procedure is documented in [`DVHS_CSF_OFFICER_OPERATIONS_RUN
 
 - [x] Clean isolated replay: 190 migrations, 57 CSF tables, 43 pgTAP files, and 1,279/1,279 assertions
 - [x] Profile-claim concurrency/idempotent retry, tenant foreign keys, legacy-close revocation, nine evidence-write guards, and real `dblink` two-session close-vs-insert race
-- [x] Private-plugin unit suite: 268 passed
+- [x] Private-plugin unit suite: 272 passed
 - [x] Import parser/reconciliation and idempotency tests for the implemented contracts
 - [x] Production-mode isolated Playwright `release-green-20260722`: 26 passed, 3 opt-in screenshot-capture tests intentionally skipped, 0 failed, 52.8 seconds
 - [x] Exact profile claim and decline plus navigation/direct-route boundaries for every officer role
 - [x] Separate sanitized gallery: 22 synthetic captures under `20260722-gallery-final`
 - [ ] Keyboard, focus, and screen-reader pass (dark/light and 390/768/1440 px visual coverage passed)
-- [x] 600-application and 1,000-member paging/response test (474 ms fixture load; 31.8 ms member directory; 10.1 ms application queue; 37.1 ms relation batches locally)
-- [x] Earlier July 22 production build baseline and latest root typecheck
+- [x] 600-application and 1,000-member paging/response test (613.1 ms fixture load; 19.1 ms member directory; 7.7 ms application queue; 94.8 ms relation batches locally)
+- [x] Final post-hardening production build (Next.js 16.2.10, TypeScript, 79 generated pages, sitemap)
 - [x] Latest focused hardening gate: 73/73 Bun tests with 761 expectations; root typecheck clean; focused ESLint clean
 - [x] Lint: 0 errors and 180 existing warnings
 - [x] `bun run csf:test:workflows` passed locally; public-route subcheck skipped because no app server was running, with structural public privacy covered separately by the green browser suite
 - [x] Post-hardening private-plugin isolation browser/API smoke
 - [x] Targeted role-navigation suite: 14/14
 - [x] Final full CSF Playwright under `20260722-final-pass`: 26 passed, 3 intentional Google-gated skips, 0 failed, 2.3 minutes
-- [ ] Post-hardening production build and complete private-plugin unit-suite rerun
+- [x] Post-hardening production build and complete private-plugin unit-suite rerun
 - [ ] Complete visible signup → organization/install → import → application → points → meetings/clubs → close/reopen mutation lifecycle
 - [ ] Live Google OAuth, account chooser, Picker, reconnect/revocation, and Drive failure-state execution
 - [ ] Native Google Slides process suite; gated by incomplete `T35`
@@ -169,8 +169,8 @@ The current officer procedure is documented in [`DVHS_CSF_OFFICER_OPERATIONS_RUN
 - [x] Tracked seed-safety scanner: 9 focused tests
 - [x] Latest isolated replay: 190 migrations, 57 CSF tables, 43 pgTAP files, 1,279/1,279 assertions
 - [x] Database concurrency/integrity: profile claim retry safety, tenant FKs, legacy close revocation, nine evidence-write guards, and a real `dblink` two-session close-vs-insert race
-- [x] Latest private-plugin suite: 268 tests, 0 failures
-- [x] Latest root typecheck; earlier July 22 production build baseline
+- [x] Latest private-plugin suite: 272 tests, 0 failures
+- [x] Latest root typecheck and post-hardening production build
 - [x] Lint: 0 errors and 180 existing warnings
 - [x] Latest focused hardening verification: 73/73 Bun tests, 761 expectations, clean root typecheck, clean focused ESLint
 - [x] Google credentials bound to exact organization/plugin/purpose/capability; unbound legacy rows require reconnect
@@ -184,10 +184,10 @@ The current officer procedure is documented in [`DVHS_CSF_OFFICER_OPERATIONS_RUN
 - [x] PostgREST composite-FK onboarding/cohort ambiguity fixed in private-plugin commit `7f12388` with explicit constraint embeds and a regression guard
 - [x] Explicit login hydration-ready marker and arbitrary-port local Supabase resolution
 - [x] Final sanitized 22-image gallery
-- [ ] Green PR #96; `PRIVATE_SUBMODULE_TOKEN`, old-head GitGuardian disposition, and Vercel Preview remain open
+- [ ] Green PR #96; a least-privilege `PRIVATE_SUBMODULE_TOKEN`, GitGuardian false-positive disposition for the removed local-only Supabase fixture password in commit `f66202c`, and authenticated Vercel Preview diagnosis remain open
 - [ ] Persistent Supabase `development` branch; explicit `$0.01344/hour` confirmation required before creation
 - [ ] Branch-scoped Vercel Preview variables and stable development alias with production-Supabase rejection
-- [ ] Post-hardening production build and full private-plugin unit-suite rerun
+- [x] Post-hardening production build and full private-plugin unit-suite rerun
 - [ ] Live Google OAuth/Picker/import and temporary private-tenant aggregate reconciliation
 - [ ] Complete synthetic visible mutation lifecycle
 - [ ] Native Google Slides decks

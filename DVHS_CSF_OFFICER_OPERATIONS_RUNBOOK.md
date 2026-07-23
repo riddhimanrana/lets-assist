@@ -1,7 +1,7 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** latest isolated database, focused hardening, plugin-isolation smoke, 14/14 role navigation, and 26-pass CSF browser gate passed; post-hardening production build/private-unit rerun, live Google, cloud-development, full mutation, accessibility, and Slides acceptance remain pending
+**Current status:** latest isolated database, post-hardening production build/private-unit suites, plugin-isolation smoke, 14/14 role navigation, and 26-pass CSF browser gate passed; live Google, cloud-development, full mutation, accessibility, and Slides acceptance remain pending
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the intended officer workflow using the verified July 22 local contracts. Do not use it for a production cutover until the remaining Google, remote-development, full browser-mutation, accessibility, and Slides gates in `DVHS_CSF_E2E_AUDIT.md` pass.
@@ -181,9 +181,9 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [x] Fictional-only tracked seed enforcement
 - [x] Clean isolated replay through 190 migrations, 57 CSF tables, 43 pgTAP files, and 1,279/1,279 assertions
 - [x] Profile claim concurrency/idempotent retry, validated tenant foreign keys, legacy close revocation, nine evidence-write guards, and real `dblink` two-session close-vs-insert race
-- [x] Earlier July 22 combined production build baseline and latest root typecheck
+- [x] Final post-hardening production build and root typecheck
 - [x] Lint completed with 0 errors and 180 existing warnings
-- [x] Private-plugin unit suite: 268 passed
+- [x] Private-plugin unit suite: 272 passed
 - [x] Latest focused hardening gate: 73/73 Bun tests with 761 expectations, clean root typecheck, clean focused ESLint
 - [x] Exact Google organization/plugin/purpose/capability binding with legacy reconnect
 - [x] Signed/manual profile-link link-type, cohort, application-lock, and stale-retry hardening
@@ -198,8 +198,8 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [x] Exact profile claim and decline plus navigation/direct-route boundaries for every officer role
 - [x] Login hydration-ready marker and arbitrary-port isolated Supabase environment resolution
 - [x] Final sanitized 22-image curated gallery at `artifacts/dvhs-csf-e2e/20260722-gallery-final/index.html`, separate from opt-in Playwright screenshot capture
-- [ ] Complete green PR checks; `PRIVATE_SUBMODULE_TOKEN`, old-head GitGuardian disposition, and Vercel Preview remain open
-- [ ] Post-hardening production build and full private-plugin unit-suite rerun
+- [ ] Complete green PR checks; least-privilege `PRIVATE_SUBMODULE_TOKEN`, GitGuardian disposition for the removed local-only fixture password, and authenticated Vercel Preview diagnosis remain open
+- [x] Post-hardening production build and full private-plugin unit-suite rerun
 - [ ] Persistent isolated Supabase development branch after explicit `$0.01344/hour` cost confirmation
 - [ ] Stable development Vercel preview with non-production Supabase invariant
 - [ ] Authorize local Google origin `http://localhost:3001` and callback `http://localhost:3001/api/calendar/google/callback`

@@ -27,8 +27,8 @@
 - Google credentials are bound to the exact organization, plugin, purpose, and capability. Every token use/refresh reauthorizes that binding, and an unbound legacy connection requires reconnect.
 - Report generation produces a permission-checked local ZIP containing formula-safe CSV files and a manifest. There is no Google report-write destination.
 - CSF replay startup and cleanup require exact project identity/ports/keys and label-scoped containers, volumes, and networks.
-- The earlier July 22 combined production build passed. The latest hardening delta has clean root typecheck and focused ESLint; a post-hardening production build remains an open publication gate.
-- The private-plugin unit suite passes 268 tests.
+- The final post-hardening production build passes with Next.js 16.2.10, clean TypeScript, 79 generated pages, and sitemap generation.
+- The private-plugin unit suite passes 272 tests.
 - The final production-mode isolated Playwright run `release-green-20260722` passes 26 scenarios with 0 failures in 52.8 seconds. Its 3 opt-in screenshot-capture tests are intentionally skipped because screenshot capture is a separate workflow and this sanitized 22-image curated gallery is complete.
 - The post-hardening private-plugin isolation browser/API smoke passes. It loads the required private registry through a static import, signs in as the seeded DV admin, and permits a 30-second cold compile.
 - Targeted role navigation passes 14/14. The full post-hardening CSF Playwright run under `artifacts/dvhs-csf-e2e/20260722-final-pass` passes 26, explicitly skips 3 Google-dependent scenarios, and has 0 failures in 2.3 minutes.

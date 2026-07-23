@@ -1626,8 +1626,8 @@ This amendment records the contracts verified after the July 16 browser baseline
 - `supabase/seed.sql` is intentionally non-executable. Fictional local development data lives only in `supabase/seeds/local-only.sql` and uses reserved `.test` identities.
 - `scripts/check-supabase-seed-safety.mjs` is wired into the production build and CI. It rejects unexpected seed paths, executable canonical seed content, unsafe configuration, real-looking email or phone values, OAuth/bearer material, reusable join/invitation values, and hosted Supabase URLs.
 - The seed-safety scanner and its 9 focused tests pass locally. This prevents a new tracked seed leak; it does not remove sensitive material from earlier Git history or rotate any credential that may previously have been exposed.
-- A disposable isolated replay applied 188 migrations, discovered 55 CSF tables, ran 39 database test files, and passed 1,129 database assertions. The shared local stack was reset only after that replay and contains fictional data.
-- The private CSF plugin suite passes 203 tests with no failures; focused lint, root typecheck, and `csf:test:workflows` pass. A production build passed before the final seed-safety wiring and must be rerun against the final combined diff before merge.
+- The final disposable isolated replay applied 190 migrations, discovered 57 CSF tables, ran 43 pgTAP files, and passed 1,279 database assertions. The shared local stack was not reused for the replay; only fictional data was loaded.
+- The private CSF plugin suite passes 272 tests with no failures; focused lint, root typecheck, `csf:test:workflows`, and the final post-hardening production build pass.
 
 ### 22.6 Remaining release boundary
 
@@ -1638,7 +1638,7 @@ The following are still required before the full lifecycle may be called complet
 3. Complete Google console callback/origin configuration with action-time confirmation, connect the application as `dvhighcsf@gmail.com`, and exercise consent, Picker, refresh, reconnect, revoked-consent, inaccessible-file, 403, and 429 states.
 4. Run the temporary private-tenant Drive import and aggregate reconciliation without capturing or committing real student rows.
 5. Complete the synthetic visible mutation lifecycle for signup, staff assignments, invitations, claims, applications, points, meetings, partner clubs, close/reopen, reports, and public response privacy.
-6. Rerun the complete production build, browser suite, keyboard/focus/screen-reader pass, and shared plugin-isolation gate. The latter still has an unrelated DV Speech & Debate route fixture issue.
+6. Complete the keyboard/focus/screen-reader pass. The production build, complete CSF browser suite, and shared plugin-isolation gate pass.
 7. Produce and visually verify the three native Google Slides decks only after the final sanitized workflow screenshots are stable.
 
 Until those items pass, the July 21 result is a verified local data-contract and partial browser milestone—not a live Google or cloud-development acceptance.
@@ -1662,10 +1662,10 @@ This amendment updates the verification status after the final combined local ru
 - Signed claims and officer-created link requests accept only profile-connect/combined links, enforce the requested cohort, reject cross-cohort accepted applications, and cannot self-assign a class to an existing verified account. Stale success retries are downgraded to officer review when the linked account or cohort is no longer valid.
 - Term close remains one transaction over locked operational evidence. The server derives outcomes from the published policy, stores the closure revision/evidence hash, and rejects stale close attempts.
 - Reports are generated as a permission-checked local ZIP containing formula-safe CSV files and a manifest. This release has no Google report-write destination.
-- The earlier July 22 combined production build passed. The latest hardening delta has clean root typecheck, focused ESLint, focused Bun, and full isolated database replay evidence; a post-hardening production build remains part of the publication gate.
+- The final post-hardening production build passes with Next.js 16.2.10, clean TypeScript, 79 generated pages, and sitemap generation.
 - Root typecheck passes on the latest delta.
 - Lint completes with 0 errors and 180 existing warnings. Those warnings are recorded, not represented as newly resolved.
-- The private-plugin unit suite passes 268 tests.
+- The private-plugin unit suite passes 272 tests.
 - The final production-mode isolated Playwright run `release-green-20260722` passes 26 scenarios with 0 failures in 52.8 seconds. Its 3 opt-in screenshot-capture scenarios are intentionally skipped because capture is a separate workflow and the curated sanitized gallery already contains the required 22 images.
 - That browser run first exposed PostgREST relationship ambiguity introduced by the new composite foreign keys on onboarding/cohort relations. Private-plugin commit `7f12388` fixes the affected queries with explicit constraint embeds and adds a regression guard. The rerun is green.
 - The only server output during the green run is the Next.js diagnostic `Unexpected root span type AppRender.fetch`; no application exception was emitted.
@@ -1681,7 +1681,7 @@ The following must not be described as completed:
 
 1. **Live Google authorization and import.** No live Google OAuth consent, account choice, Picker selection, token refresh, reconnect/revocation, Drive read, or real Drive import was performed. The external OAuth client still needs explicit authorization for JavaScript origin `http://localhost:3001` and redirect `http://localhost:3001/api/calendar/google/callback`. The product must then visibly confirm `dvhighcsf@gmail.com` before any private source is selected.
 2. **Cloud development database.** The persistent Supabase `development` branch has not been created. It requires explicit approval of the ongoing `$0.01344/hour` cost before provisioning.
-3. **Green PR and CI.** `PRIVATE_SUBMODULE_TOKEN` is missing from CI, the GitGuardian result still depends on safely rewriting or resolving the older feature-branch head, and the Vercel development Preview has not passed against an isolated non-production Supabase branch.
+3. **Green PR and CI.** `PRIVATE_SUBMODULE_TOKEN` is missing from CI. GitGuardian flags the removed literal local-only Supabase replay password in commit `f66202c`; it is not a hosted credential, but the authenticated incident still requires a false-positive disposition or an explicitly approved history rewrite. The Vercel development Preview cannot be diagnosed with the currently authenticated CLI/Chrome identities and has not passed against an isolated non-production Supabase branch.
 4. **Complete visible mutation lifecycle.** The post-hardening isolation smoke, 14/14 role-navigation matrix, and 26-pass CSF browser suite are green, but the entire visible signup, staff assignment, invitation, officer connection resolution, application decision, activity, point/proof/appeal, meeting, partner-club, semester close/reopen, report, and public-boundary mutation sequence has not been completed as one contiguous lifecycle.
 5. **Accessibility acceptance.** Responsive light/dark screenshots exist, but the full keyboard, focus, and screen-reader pass remains open.
 6. **Native Google Slides.** No final Officer Operations, Member Quick Start, or Admin/Data Operations deck has been created or visually accepted.
