@@ -1,0 +1,27 @@
+{
+  "runId": "20260722-gallery-final",
+  "dataClassification": "synthetic",
+  "evidenceMeaning": {
+    "captured": "The route and control are visible in the curated screenshot.",
+    "testedSeparately": "The state change or authorization assertion belongs to the automated suite rather than the image."
+  },
+  "screens": [
+    {"area":"Home","actor":"organization_admin","screenshot":"screenshots/40-home-admin.png","actions":["open_filtered_application_queue","open_pending_point_submissions","open_import_reconciliation","open_activity_and_meeting_lists"],"evidence":"captured"},
+    {"area":"Applications","actor":"membership_officer","screenshot":"screenshots/41-applications-list.png","actions":["switch_queue","search","filter","sort","open_full_page_review","start_application_import"],"evidence":"captured"},
+    {"area":"Application review","actor":"authorized_reviewer","screenshot":"screenshots/42-application-review.png","actions":["return_to_list","inspect_provenance","inspect_courses","recalculate_eligibility","request_information","record_decision"],"evidence":"captured_and_tested_separately"},
+    {"area":"Members","actor":"membership_officer","screenshot":"screenshots/43-members-directory.png","actions":["search_directory","filter_by_semester","open_member","review_account_connections"],"evidence":"captured"},
+    {"area":"Activities","actor":"activity_editor","screenshot":"screenshots/44-service-activities.png","actions":["create_activity","open_activity","manage_publication"],"evidence":"captured"},
+    {"area":"Point submissions","actor":"points_reviewer","screenshot":"screenshots/45-service-points.png","actions":["add_claim","open_policy","review_claim","review_appeal"],"evidence":"captured_and_tested_separately"},
+    {"area":"Meetings","actor":"secretary","screenshot":"screenshots/46-service-meetings.png","actions":["search","include_history","start_attendance_import","edit","archive"],"evidence":"captured"},
+    {"area":"Partner clubs","actor":"vp_clubs","screenshot":"screenshots/47-service-partner-clubs.png","actions":["open_club","review_semester_standing","review_member_sheets"],"evidence":"captured"},
+    {"area":"Semester","actor":"adviser_or_admin","screenshot":"screenshots/48-semester.png","actions":["add_deadline","edit_schedule","edit_policy","review_history","close","reopen"],"evidence":"captured_and_tested_separately"},
+    {"area":"Imports","actor":"data_management","screenshot":"screenshots/49-imports.png","actions":["check_connection","select_source","preview","reconcile","commit","start_another_import"],"evidence":"captured_blocked_without_exact_source"},
+    {"area":"Reports","actor":"authorized_officer","screenshot":"screenshots/50-reports.png","actions":["select_semester","open_underlying_records","export"],"evidence":"captured"},
+    {"area":"Staff access","actor":"admin_or_adviser","screenshot":"screenshots/51-staff-access.png","actions":["assign_position","end_assignment","inspect_effective_access"],"evidence":"captured_and_tested_separately"},
+    {"area":"Change history","actor":"authorized_officer","screenshot":"screenshots/52-change-history.png","actions":["review_immutable_events"],"evidence":"captured"},
+    {"area":"Settings","actor":"admin","screenshot":"screenshots/53-csf-settings.png","actions":["open_import_settings","open_semester_settings"],"evidence":"captured"},
+    {"area":"My CSF","actor":"member","screenshot":"screenshots/54-member-my-csf.png","actions":["review_current_status","open_activities","open_point_submissions"],"evidence":"captured"},
+    {"area":"Public page","actor":"public","screenshot":"screenshots/55-public-page.png","actions":["open_public_channel","open_activity_signup"],"evidence":"captured"},
+    {"area":"Responsive Home","actor":"authenticated","screenshots":["screenshots/56-home-desktop-light.png","screenshots/56-home-desktop-dark.png","screenshots/56-home-tablet-light.png","screenshots/56-home-tablet-dark.png","screenshots/56-home-phone-light.png","screenshots/56-home-phone-dark.png"],"actions":["use_primary_navigation","open_more_menu","open_task","open_quick_link"],"evidence":"captured"}
+  ]
+}

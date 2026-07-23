@@ -57,6 +57,10 @@ export const localActors = {
     email: "student.2028@local.test",
     name: "Aarav Mehta",
   },
+  outsider: {
+    email: "platform.outsider@local.test",
+    name: "Platform Outsider",
+  },
 } as const;
 
 export type LocalActor = keyof typeof localActors;
@@ -79,24 +83,25 @@ export async function loginAs(
 ) {
   const account = localActors[actor];
   await page.goto(`/login?redirect=${encodeURIComponent(redirectPath)}`);
-  await page.getByRole("textbox", { name: "Email" }).fill(account.email);
-  await page.getByLabel("Password").fill(localTestPassword());
-  // The server-rendered form is inert until the client has hydrated. The local
-  // Turnstile bypass marks that boundary without relying on a fixed delay.
-  await expect(
-    page.getByText("Secure check ready", { exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("main")
-    .getByRole("button", { name: "Login", exact: true })
-    .click();
-  await page.waitForURL((url) => !url.pathname.startsWith("/login"), {
-    waitUntil: "commit",
-    timeout: 30_000,
+  const main = page.getByRole("main");
+  // The server-rendered form is inert until the client has hydrated. Wait for
+  // the form's explicit readiness marker before interacting with controlled
+  // inputs so a fast production render cannot reset early values.
+  await expect(main.locator('form[data-hydrated="true"]')).toBeVisible();
+  await expect(main.getByText("Secure check ready", { exact: true })).toBeVisible();
+  const email = main.getByRole("textbox", { name: "Email" });
+  const password = main.getByLabel("Password");
+  await email.fill(account.email);
+  await password.fill(localTestPassword());
+  await expect(email).toHaveValue(account.email);
+  const expectedUrl = new URL(redirectPath, page.url());
+  await main.getByRole("button", { name: "Login", exact: true }).click();
+  await page.waitForURL((url) => (
+    url.pathname === expectedUrl.pathname && url.search === expectedUrl.search
+  ), {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
   });
-  if (!page.url().includes(redirectPath)) {
-    await page.goto(redirectPath, { waitUntil: "domcontentloaded" });
-  }
 }
 
 export function watchBrowserFailures(page: Page) {

@@ -45,12 +45,12 @@ SELECT extensions.ok(
   'authenticated clients cannot close CSF semesters directly'
 );
 SELECT extensions.ok(
-  has_function_privilege(
+  NOT has_function_privilege(
     'service_role',
     'plugin_data.csf_close_term(uuid,uuid,integer,jsonb,jsonb,uuid)',
     'EXECUTE'
   ),
-  'the server role can close a ready CSF semester'
+  'the server role cannot call the disabled legacy semester-close RPC'
 );
 
 INSERT INTO auth.users (
@@ -84,6 +84,14 @@ VALUES
     'school',
     '986002'
   );
+
+INSERT INTO public.organization_members (organization_id, user_id, role, status)
+VALUES (
+  'cc100000-0000-4000-8000-000000000001',
+  'cc000000-0000-4000-8000-000000000001',
+  'admin',
+  'active'
+);
 
 INSERT INTO plugin_data.csf_terms (
   id, organization_id, code, label, school_year, semester,
@@ -251,7 +259,7 @@ SELECT extensions.is(
     'cc100000-0000-4000-8000-000000000001',
     'cc200000-0000-4000-8000-000000000001'
   )->'counts',
-  '{"applications":1,"pointSubmissions":1,"pointAppeals":1,"attendance":1,"dues":1}'::jsonb,
+  '{"applications":1,"pointSubmissions":1,"pointAppeals":1,"attendance":1,"dues":1,"imports":0}'::jsonb,
   'closure readiness counts every unresolved workflow for only the requested tenant and semester'
 );
 SELECT extensions.ok(
@@ -272,15 +280,14 @@ SELECT extensions.ok(
 
 SELECT extensions.throws_ok(
   $$
-    SELECT plugin_data.csf_close_term(
+    SELECT plugin_data.csf_close_term_v2(
       'cc100000-0000-4000-8000-000000000001',
       'cc200000-0000-4000-8000-000000000001',
       3,
-      '[
-        {"profileId":"cc400000-0000-4000-8000-000000000001","status":"not_completed","reason":"Requirements incomplete."},
-        {"profileId":"cc400000-0000-4000-8000-000000000002","status":"completed","reason":"Requirements complete."}
-      ]'::jsonb,
-      '{"membershipCount":2}'::jsonb,
+      plugin_data.csf_term_closure_readiness(
+        'cc100000-0000-4000-8000-000000000001',
+        'cc200000-0000-4000-8000-000000000001'
+      )->>'evidenceHash',
       'cc000000-0000-4000-8000-000000000001'
     )
   $$,
@@ -383,8 +390,8 @@ SELECT extensions.throws_ok(
     )
   $$,
   'P0001',
-  'Term close requires exactly one decision for every active membership.',
-  'closure cannot omit an active member outcome'
+  'Legacy CSF semester close is disabled; use the evidence-bound close operation.',
+  'the legacy caller-authored decision path fails closed'
 );
 SELECT extensions.is(
   (SELECT lifecycle_status FROM plugin_data.csf_terms WHERE id = 'cc200000-0000-4000-8000-000000000001'),
@@ -399,15 +406,14 @@ CREATE TEMP TABLE csf_term_closure_result (
 SELECT extensions.lives_ok(
   $$
     INSERT INTO csf_term_closure_result (payload)
-    SELECT plugin_data.csf_close_term(
+    SELECT plugin_data.csf_close_term_v2(
       'cc100000-0000-4000-8000-000000000001',
       'cc200000-0000-4000-8000-000000000001',
       3,
-      '[
-        {"profileId":"cc400000-0000-4000-8000-000000000001","status":"not_completed","reason":"Meeting requirement incomplete."},
-        {"profileId":"cc400000-0000-4000-8000-000000000002","status":"completed","reason":"All requirements complete."}
-      ]'::jsonb,
-      '{"membershipCount":2,"completed":1,"notCompleted":1}'::jsonb,
+      plugin_data.csf_term_closure_readiness(
+        'cc100000-0000-4000-8000-000000000001',
+        'cc200000-0000-4000-8000-000000000001'
+      )->>'evidenceHash',
       'cc000000-0000-4000-8000-000000000001'
     )
   $$,
@@ -432,8 +438,8 @@ SELECT extensions.is(
     WHERE organization_id = 'cc100000-0000-4000-8000-000000000001'
       AND term_id = 'cc200000-0000-4000-8000-000000000001'
   ),
-  'not_completed,completed',
-  'every active membership receives its explicit final outcome'
+  'not_completed,not_completed',
+  'every active membership receives its database-derived final outcome'
 );
 SELECT extensions.ok(
   (
@@ -467,15 +473,11 @@ SELECT extensions.throws_ok(
 );
 SELECT extensions.throws_ok(
   $$
-    SELECT plugin_data.csf_close_term(
+    SELECT plugin_data.csf_close_term_v2(
       'cc100000-0000-4000-8000-000000000001',
       'cc200000-0000-4000-8000-000000000001',
       3,
-      '[
-        {"profileId":"cc400000-0000-4000-8000-000000000001","status":"not_completed"},
-        {"profileId":"cc400000-0000-4000-8000-000000000002","status":"completed"}
-      ]'::jsonb,
-      '{}'::jsonb,
+      repeat('0', 64),
       'cc000000-0000-4000-8000-000000000001'
     )
   $$,

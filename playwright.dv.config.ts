@@ -33,6 +33,7 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_URL: localSupabase.url,
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: localSupabase.anonKey,
       SUPABASE_SECRET_KEY: localSupabase.serviceRoleKey,
+      SUPABASE_DB_URL: localSupabase.dbUrl,
       NEXT_PUBLIC_TURNSTILE_BYPASS: "true",
       DV_TABROOM_LIVE: "0",
     },

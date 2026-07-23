@@ -7,10 +7,6 @@
     "supabase-remote-readonly": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?project_ref=fotdmeakexgrkronxlof&read_only=true"
-    },
-    "supabase-remote-writable": {
-      "type": "http",
-      "url": "https://mcp.supabase.com/mcp?project_ref=fotdmeakexgrkronxlof"
     }
   }
 }

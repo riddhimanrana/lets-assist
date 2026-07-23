@@ -645,10 +645,15 @@ SELECT extensions.ok(
   'discard consumes the draft and preserves its reason in immutable audit history'
 );
 
+-- Construct a historical archive fixture as the database owner. Runtime
+-- callers cannot switch the replication role. A transaction-local role avoids
+-- ALTER TABLE failing when this pgTAP transaction has pending trigger events.
+SET LOCAL session_replication_role = replica;
 UPDATE plugin_data.csf_terms
 SET lifecycle_status = 'archived'
 WHERE organization_id = 'd1000000-0000-4000-8000-000000000001'
   AND id = 'd3000000-0000-4000-8000-000000000002';
+SET LOCAL session_replication_role = origin;
 
 SELECT extensions.throws_ok(
   $$

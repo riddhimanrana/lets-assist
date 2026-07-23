@@ -253,10 +253,11 @@ export async function deleteOrganization(organizationId: string) {
   // Verify the user is an admin of the organization
   const { data: membership } = await supabase
     .from("organization_members")
-    .select("role")
+    .select("role,status")
     .eq("organization_id", organizationId)
     .eq("user_id", user.id)
     .eq("role", "admin")
+    .eq("status", "active")
     .single();
 
   if (!membership) {

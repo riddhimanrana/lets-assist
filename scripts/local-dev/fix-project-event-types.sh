@@ -1,6 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+DB_URL="${SUPABASE_DB_URL:-$(node "$ROOT_DIR/scripts/local-dev/dv-local-env.mjs" --db-url)}"
+
 # Fix the bad event_type rows seeded with "event" instead of "oneTime"
-psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" << 'SQL'
+psql "$DB_URL" << 'SQL'
 UPDATE projects SET
   event_type = 'oneTime',
   schedule = '{"oneTime": {"date": "2026-11-14", "startTime": "08:00", "endTime": "17:00"}}'::jsonb

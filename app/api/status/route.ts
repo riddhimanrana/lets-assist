@@ -12,6 +12,15 @@ type StatusCheck = {
   details?: Record<string, unknown>;
 };
 
+export function isLocalSupabaseEndpoint(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.hostname === "127.0.0.1" || url.hostname === "localhost";
+  } catch {
+    return false;
+  }
+}
+
 function isDeepCheckEnabled(request: NextRequest): boolean {
   const value = request.nextUrl.searchParams.get("deep");
   if (!value) return false;
@@ -55,7 +64,7 @@ async function checkEnvironment(): Promise<StatusCheck> {
         process.env.RECURRING_PROJECTS_SECRET_TOKEN
     );
 
-    if (missing.length > 0 || !hasCronSecret) {
+    if (missing.length > 0 || (!hasCronSecret && process.env.NODE_ENV !== "development")) {
       return {
         state: "fail",
         message: "Required environment variables are missing",
@@ -67,9 +76,7 @@ async function checkEnvironment(): Promise<StatusCheck> {
     }
 
     const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const isLocalSupabaseUrl =
-      configuredSupabaseUrl.includes("127.0.0.1:54321") ||
-      configuredSupabaseUrl.includes("localhost:54321");
+    const isLocalSupabaseUrl = isLocalSupabaseEndpoint(configuredSupabaseUrl);
 
     if (process.env.NODE_ENV === "development" && !isLocalSupabaseUrl) {
       return {
@@ -79,6 +86,14 @@ async function checkEnvironment(): Promise<StatusCheck> {
           configuredSupabaseUrl,
           expectedLocalUrl: "http://127.0.0.1:54321",
         },
+      };
+    }
+
+    if (!hasCronSecret) {
+      return {
+        state: "warn",
+        message: "Local background-job secret is not configured",
+        details: { missingCronSecret: true },
       };
     }
 
@@ -197,7 +212,7 @@ export async function GET(request: NextRequest) {
   const envCheck = await checkEnvironment();
   checks.push(envCheck);
 
-  if (envCheck.state === "pass") {
+  if (envCheck.state !== "fail") {
     checks.push(await checkDatabase());
   } else {
     checks.push({

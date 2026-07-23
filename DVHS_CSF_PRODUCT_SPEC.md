@@ -2,7 +2,7 @@
 
 **Status:** Approved implementation source of truth<br>
 **Version:** 1.0<br>
-**Last updated:** July 16, 2026<br>
+**Last updated:** July 22, 2026<br>
 **Product surface:** DVHS CSF private organization plugin inside Let’s Assist
 
 This document defines the product, operating model, information architecture, terminology, data boundaries, workflows, page behavior, and acceptance criteria for the DVHS CSF rebuild. If current code, old mockups, seed data, or earlier labels conflict with this document, this document wins unless it is amended explicitly.
@@ -624,7 +624,7 @@ The wizard is specified in Section 12.
 **Primary users:** Officers with report permission and adviser.<br>
 **Shows:** Report chooser, semester, applied filters, generated time, source policy version, and export history.<br>
 **Reports:** Approved applicants, unresolved applications, dues status, current members, completed/incomplete memberships, point awards, meeting attendance, senior recognition, partner-club standing, import exceptions, and change history.<br>
-**Actions:** Preview; export CSV/XLSX; create timestamped Google Sheets compatibility tab where supported.<br>
+**Actions:** Preview; download a local ZIP containing formula-safe CSV files and a manifest. There is no Google Sheets write destination.<br>
 **Validation:** A semester is always explicit. Sensitive columns require sensitive-export permission.<br>
 **Empty state:** Explain why the selected report has no records; never render a decorative zero chart.<br>
 **Mobile:** Preview summary is usable; large exports are generated server-side.
@@ -1414,6 +1414,12 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 19. Responsive variants retain the same Let’s Assist product-company branding.
 20. Synthetic fixtures and generated screenshots contain only fictional privacy-safe contacts on reserved test domains.
 21. Every direct proof fixture insert declares a valid complete upload lifecycle tuple; schema defaults never substitute for finalization.
+22. A reusable class link may offer a claim only when the signed-in account has exactly one active CSF profile with the same verified email; missing, ambiguous, declined, and conflicting matches enter officer review without roster search.
+23. Student profile confirmation and officer connection resolution update organization access, the account link, applicable cohort and term membership, the request record, and immutable history in one organization-scoped transaction.
+24. A Google connection is authorized for one signed-in user, organization, plugin, purpose, capability, return route, and short expiry; the callback rechecks current permission before storing a purpose-bound connection.
+25. Historical activity imports never infer a point value. Every imported award must contain an explicit, positive numeric quantity within the accepted import bound.
+26. Semester close accepts the reviewed evidence hash—not browser-supplied membership decisions—and derives outcomes while the relevant policy and operational records are locked.
+27. Tracked Supabase seeds contain no executable canonical seed, live contact, OAuth/bearer material, reusable invitation material, or hosted Supabase project URL.
 
 ---
 
@@ -1566,3 +1572,121 @@ Public-route tests must assert the presence of organization identity, official l
 - Mobile and desktop footers share product-company branding, and repeatable fixture upsert plus gallery capture reject real external contact identities (`V81`, `V82`).
 - Direct proof probes now declare a valid complete finalized or pending upload lifecycle instead of relying on a stale schema default (`V83`).
 - These closures prove deterministic local contracts and read-only browser acceptance. They do not prove live Google behavior, a complete browser mutation lifecycle, remote deployment, or the Slides suite gated by `T35`.
+
+---
+
+## 22. Confirmed data-integrity amendment — July 21, 2026
+
+This amendment records the contracts verified after the July 16 browser baseline. It does not upgrade the live Google, remote-development, full browser-mutation, accessibility, or Slides acceptance status.
+
+### 22.1 Account claim and connection resolution
+
+- A reusable cohort link now performs candidate discovery through `csf_profile_claim_candidate`. It requires the authenticated account's confirmed email and returns a candidate only when that email identifies exactly one active profile in the same organization.
+- Candidate data is intentionally limited to the student's name, cohort label, term label, and compact membership context. The applicant cannot search or enumerate the roster.
+- The confirmation UI uses the functional prompt **We found your CSF record — is this you?** and a short-lived signed claim token bound to the organization, link, profile, user, and verified email.
+- `csf_confirm_profile_claim` atomically activates host membership without downgrading an existing admin or staff role, verifies the profile-account link, activates cohort membership, activates an accepted term membership when present, records the resolved request, and writes correlated immutable history.
+- **Not me**, missing matches, ambiguous matches, and conflicting existing links do not guess. They create or retain officer-review work without exposing another profile.
+- `csf_resolve_profile_link_request` permits only organization administrators or staff with `manage_profiles`, requires an explicit reason, locks the pending request, and atomically connects or rejects it with history.
+- Claim, decline, and manual connection resolution accept only reusable profile-connect or combined links. An application-only link cannot be repurposed to expose or connect a profile.
+- A signed claim must match the link's cohort. A manual request for an existing verified account must already have the matching active cohort membership and no conflicting active cohort; it cannot self-assign a class by submitting a different grade.
+- Accepted applications are locked and must belong to the requested cohort before a term membership can be activated. This serializes account connection with application decisions instead of trusting stale browser state.
+- Idempotent retries revalidate the current profile link, organization membership, cohort, and correlated audit evidence. If a previously linked account was revoked or its cohort now conflicts, the retry moves to officer review and writes a new reasoned audit event rather than returning stale success.
+- Focused database coverage passes 26 assertions for exact-match privacy, conflicts, transaction behavior, tenant boundaries, and server-only execution. Signed-token and UI-boundary tests are included in the private plugin suite.
+
+### 22.2 Purpose-bound Google authorization
+
+- Google OAuth state version 2 is HMAC-signed and binds the signed-in user, nonce cookie, organization, `dvhs-csf` plugin, connection purpose, requested CSF import capability, normalized return route, issue time, and five-minute expiry.
+- CSF imports recognize the granular capabilities `import_applications`, `import_members`, `import_meetings`, and `import_partner_clubs`.
+- The connect route checks active organization membership, plugin availability, and the requested capability before redirecting to Google. The callback performs the same authorization check again before exchanging or storing credentials.
+- The callback verifies that the required `drive.file` scope was actually granted and stores the purpose/capability binding with the encrypted connection. The one-time nonce cookie is consumed on success and failure.
+- Every stored connection is bound to the exact organization, plugin, purpose, and capability that authorized it. Token lookup, refresh, source reads, and disconnect reauthorize that same binding instead of falling back to another organization or capability.
+- The one-time migration may classify a defensible legacy connection, but runtime roles cannot create an unbound token. Any legacy row that cannot be bound safely is marked for reconnect.
+- Disconnect removes only the requested binding. Remote token revocation occurs only when no other active binding still depends on that Google credential.
+- These route, state, authorization, and capability-wiring contracts are locally tested. Google account choice, consent, Picker, token refresh, revocation, inaccessible-file behavior, and the visible confirmation that the connected identity is `dvhighcsf@gmail.com` remain external acceptance work.
+
+### 22.3 Strict historical import values
+
+- Migration `20260721095945_dvhs_csf_strict_class_history_points.sql` retains the earlier class-history function under a revoked internal name and exposes a server-only compatibility wrapper.
+- The wrapper rejects a non-array activity payload, non-object entries, missing or blank point fields, nonnumeric values, non-finite values, zero or negative values, and values above 100.
+- No missing or malformed historical activity becomes a one-point award. Officers must reconcile the source value or omit the row from commit.
+- The strict wrapper passes 9 focused database assertions; the existing class-history import contract continues to pass its 35 assertions.
+
+### 22.4 Transactional semester close
+
+- Semester readiness now includes unresolved import rows alongside applications, point submissions, appeals, attendance, and dues.
+- Readiness produces a SHA-256 evidence hash over the current term, published policy, active memberships, verified credits, attendance, dues, applications, point work, and import rows.
+- `csf_close_term_v2` requires `close_term`, locks the term and all relevant operational records, checks the published policy version and reviewed hash, and rejects a stale preflight or any remaining blocker.
+- Membership completion is derived inside the transaction from the published policy, normalized verified credits, drive and per-activity caps, attendance, allowed absences, and explicit overrides. The browser does not submit outcome decisions.
+- Closure, per-member outcomes, final membership states, term state, revision, evidence hash, correlation identifier, and audit history commit together. A later close after an adviser reopen creates a new revision rather than rewriting the previous result.
+- The closure evidence revision and hash are stored as immutable evidence. Organization-scoped composite foreign keys protect consequential relationships from cross-tenant references.
+- Focused transactional-close coverage passes 19 database assertions, including stale evidence, import blockers, server-only execution, permission denial, and derived outcomes.
+
+### 22.5 Seed and local replay safety
+
+- `supabase/seed.sql` is intentionally non-executable. Fictional local development data lives only in `supabase/seeds/local-only.sql` and uses reserved `.test` identities.
+- `scripts/check-supabase-seed-safety.mjs` is wired into the production build and CI. It rejects unexpected seed paths, executable canonical seed content, unsafe configuration, real-looking email or phone values, OAuth/bearer material, reusable join/invitation values, and hosted Supabase URLs.
+- The seed-safety scanner and its 9 focused tests pass locally. This prevents a new tracked seed leak; it does not remove sensitive material from earlier Git history or rotate any credential that may previously have been exposed.
+- A disposable isolated replay applied 188 migrations, discovered 55 CSF tables, ran 39 database test files, and passed 1,129 database assertions. The shared local stack was reset only after that replay and contains fictional data.
+- The private CSF plugin suite passes 203 tests with no failures; focused lint, root typecheck, and `csf:test:workflows` pass. A production build passed before the final seed-safety wiring and must be rerun against the final combined diff before merge.
+
+### 22.6 Remaining release boundary
+
+The following are still required before the full lifecycle may be called complete:
+
+1. Merge the private-plugin update through its development boundary, update PR #96, and obtain green CI, GitGuardian, and Vercel checks without changing `main` or production.
+2. Obtain explicit cost confirmation before creating the persistent Supabase `development` branch, then apply migrations and fictional seed data there. Production remains read-only.
+3. Complete Google console callback/origin configuration with action-time confirmation, connect the application as `dvhighcsf@gmail.com`, and exercise consent, Picker, refresh, reconnect, revoked-consent, inaccessible-file, 403, and 429 states.
+4. Run the temporary private-tenant Drive import and aggregate reconciliation without capturing or committing real student rows.
+5. Complete the synthetic visible mutation lifecycle for signup, staff assignments, invitations, claims, applications, points, meetings, partner clubs, close/reopen, reports, and public response privacy.
+6. Rerun the complete production build, browser suite, keyboard/focus/screen-reader pass, and shared plugin-isolation gate. The latter still has an unrelated DV Speech & Debate route fixture issue.
+7. Produce and visually verify the three native Google Slides decks only after the final sanitized workflow screenshots are stable.
+
+Until those items pass, the July 21 result is a verified local data-contract and partial browser milestone—not a live Google or cloud-development acceptance.
+
+---
+
+## 23. Final local verification amendment — July 22, 2026
+
+This amendment updates the verification status after the final combined local run. It supersedes earlier local test counts and build-status statements, but it does not change the product contracts or upgrade any external, unexecuted, or manual acceptance scope.
+
+### 23.1 Verified local baseline
+
+- The latest namespaced isolated replay applied 190 migrations, discovered 57 CSF tables, ran 43 pgTAP files, and passed all 1,279 assertions. It used a dedicated Let’s Assist project identity, ports, containers, volumes, and network. It did not access, stop, reset, inspect, or reuse the Vela stack, and it did not target a remote Supabase project.
+- The database acceptance includes concurrent and retry behavior rather than only single-session happy paths: signed and manual profile connection retries revalidate current membership and cohort state; application rows are locked before term activation; organization-scoped tenant foreign keys validate; the legacy close path is revoked; closure evidence hashes are immutable; nine evidence-write guards pass; and a real `dblink` two-session close-vs-insert race passes.
+- The latest focused Bun verification passes 73/73 tests with 761 expectations. Root typecheck is clean, and focused ESLint is clean.
+- The post-hardening private-plugin isolation browser/API smoke passes. The plugin registry now statically imports the required private submodule; it cannot silently return an empty registry when a dynamic `require` fallback fails.
+- The targeted role-navigation matrix passes 14/14. The final full CSF Playwright run under `artifacts/dvhs-csf-e2e/20260722-final-pass` passes 26 scenarios, explicitly skips 3 Google-dependent scenarios, and has 0 failures in 2.3 minutes.
+- The isolation smoke signs in as the seeded DV organization administrator and allows a 30-second cold-compile deadline. Fixture reset preserves profiles referenced by immutable audit history and is repeatable.
+- Project-feed requests are canceled when navigation makes them obsolete. Expected aborts are ignored, while genuine fetch failures still surface. Permission-denial assertions target the single alert instead of matching duplicate page copy.
+- Google connections now persist the exact organization, plugin, purpose, and capability authorized by OAuth. Every token use and refresh reauthorizes that binding. Unbound legacy connections require reconnect instead of receiving a guessed capability.
+- Signed claims and officer-created link requests accept only profile-connect/combined links, enforce the requested cohort, reject cross-cohort accepted applications, and cannot self-assign a class to an existing verified account. Stale success retries are downgraded to officer review when the linked account or cohort is no longer valid.
+- Term close remains one transaction over locked operational evidence. The server derives outcomes from the published policy, stores the closure revision/evidence hash, and rejects stale close attempts.
+- Reports are generated as a permission-checked local ZIP containing formula-safe CSV files and a manifest. This release has no Google report-write destination.
+- The earlier July 22 combined production build passed. The latest hardening delta has clean root typecheck, focused ESLint, focused Bun, and full isolated database replay evidence; a post-hardening production build remains part of the publication gate.
+- Root typecheck passes on the latest delta.
+- Lint completes with 0 errors and 180 existing warnings. Those warnings are recorded, not represented as newly resolved.
+- The private-plugin unit suite passes 268 tests.
+- The final production-mode isolated Playwright run `release-green-20260722` passes 26 scenarios with 0 failures in 52.8 seconds. Its 3 opt-in screenshot-capture scenarios are intentionally skipped because capture is a separate workflow and the curated sanitized gallery already contains the required 22 images.
+- That browser run first exposed PostgREST relationship ambiguity introduced by the new composite foreign keys on onboarding/cohort relations. Private-plugin commit `7f12388` fixes the affected queries with explicit constraint embeds and adds a regression guard. The rerun is green.
+- The only server output during the green run is the Next.js diagnostic `Unexpected root span type AppRender.fetch`; no application exception was emitted.
+- Exact profile claim and explicit decline pass in the browser. Navigation and direct-route authorization pass for every officer permission template, plus applicant and member boundaries.
+- Login testing no longer races hydration: the form exposes an explicit hydrated-ready marker, and automation waits for it before submission.
+- Local Supabase environment resolution accepts safely isolated loopback endpoints on arbitrary ports while still rejecting a hosted/non-local development target.
+
+The current curated visual evidence is [`artifacts/dvhs-csf-e2e/20260722-gallery-final/index.html`](artifacts/dvhs-csf-e2e/20260722-gallery-final/index.html). It contains 22 fictional screenshots plus sanitized summaries. This curated gallery is distinct from the 3 opt-in Playwright screenshot-capture tests skipped by the earlier behavioral run. The final post-hardening report is [`artifacts/dvhs-csf-e2e/20260722-final-pass/playwright/html/index.html`](artifacts/dvhs-csf-e2e/20260722-final-pass/playwright/html/index.html); its 3 skips are the separate live-Google gates. Raw traces, videos, network payloads, cookies, and storage state are not part of the curated gallery.
+
+### 23.2 Acceptance that remains open
+
+The following must not be described as completed:
+
+1. **Live Google authorization and import.** No live Google OAuth consent, account choice, Picker selection, token refresh, reconnect/revocation, Drive read, or real Drive import was performed. The external OAuth client still needs explicit authorization for JavaScript origin `http://localhost:3001` and redirect `http://localhost:3001/api/calendar/google/callback`. The product must then visibly confirm `dvhighcsf@gmail.com` before any private source is selected.
+2. **Cloud development database.** The persistent Supabase `development` branch has not been created. It requires explicit approval of the ongoing `$0.01344/hour` cost before provisioning.
+3. **Green PR and CI.** `PRIVATE_SUBMODULE_TOKEN` is missing from CI, the GitGuardian result still depends on safely rewriting or resolving the older feature-branch head, and the Vercel development Preview has not passed against an isolated non-production Supabase branch.
+4. **Complete visible mutation lifecycle.** The post-hardening isolation smoke, 14/14 role-navigation matrix, and 26-pass CSF browser suite are green, but the entire visible signup, staff assignment, invitation, officer connection resolution, application decision, activity, point/proof/appeal, meeting, partner-club, semester close/reopen, report, and public-boundary mutation sequence has not been completed as one contiguous lifecycle.
+5. **Accessibility acceptance.** Responsive light/dark screenshots exist, but the full keyboard, focus, and screen-reader pass remains open.
+6. **Native Google Slides.** No final Officer Operations, Member Quick Start, or Admin/Data Operations deck has been created or visually accepted.
+7. **Development Preview acceptance.** A local production build is not a substitute for the branch-scoped Vercel Preview, its non-production Supabase invariant, or required remote checks.
+
+The 3 final Playwright skips are intentional external Google consent/configuration gates, not product failures. No Google file, Sheet, report destination, or Gmail message was written. No paid Supabase branch was created. Production Supabase, production Vercel, `main`, and the existing DVHS CSF organization were not mutated. Vela was not accessed or used as infrastructure for this work.
+
+Until these gates close, the product is a verified local implementation and browser-boundary milestone, not a completed chapter cutover or cloud-development release.

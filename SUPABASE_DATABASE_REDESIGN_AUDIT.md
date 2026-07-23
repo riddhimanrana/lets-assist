@@ -15,9 +15,8 @@ Root `.mcp.json` and `.vscode/mcp.json` define:
 
 - `supabase-local`: `http://127.0.0.1:54321/mcp`
 - `supabase-remote-readonly`: `https://mcp.supabase.com/mcp?project_ref=fotdmeakexgrkronxlof&read_only=true`
-- `supabase-remote-writable`: `https://mcp.supabase.com/mcp?project_ref=fotdmeakexgrkronxlof`
 
-Policy: use `supabase-remote-readonly` for inventory and advisors by default. Use writable remote MCP only after a migration replays locally, advisor output is reviewed, and the exact remote action is deliberate.
+Policy: production is exposed only through `supabase-remote-readonly` for inventory and advisors. The repository intentionally has no writable production MCP target. A separate writable target may be added only for an isolated development branch after that branch exists and its project ref is verified.
 
 ## Baseline Sync Findings
 

@@ -17,6 +17,7 @@ export default tseslint.config(
       '.next',
       'dist',
       'coverage',
+      'artifacts/dvhs-csf-e2e/**/playwright/**',
       '*.config.mjs',
       'tmp-component-usage.json',
       '**/*.backup.tsx',

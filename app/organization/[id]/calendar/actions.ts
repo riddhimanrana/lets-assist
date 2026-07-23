@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { deactivateGoogleConnection } from "@/services/calendar";
+import { organizationCalendarGoogleBinding } from "@/services/calendar";
+import { getGoogleOAuthConnectionForBinding } from "@/lib/auth/google-oauth-connection-store";
 import {
   syncOrganizationCalendarInternal,
   type OrganizationCalendarSyncResult,
@@ -47,9 +49,10 @@ async function assertOrgAccess(
 
   const { data: membership } = await supabase
     .from("organization_members")
-    .select("role")
+    .select("role,status")
     .eq("organization_id", organizationId)
     .eq("user_id", user.id)
+    .eq("status", "active")
     .single();
 
   if (!membership?.role) {
@@ -79,7 +82,7 @@ export async function getOrganizationCalendarStatus(
   const { data: syncConfig, error: syncError } = await serviceSupabase
     .from("organization_calendar_syncs")
     .select(
-      "calendar_id, calendar_email, created_by, auto_sync, last_synced_at"
+      "calendar_id, created_by, auto_sync, last_synced_at"
     )
     .eq("organization_id", organizationId)
     .maybeSingle();
@@ -107,16 +110,16 @@ export async function getOrganizationCalendarStatus(
     .eq("id", syncConfig.created_by)
     .maybeSingle();
 
-  const { data: ownerConnection } = await serviceSupabase
-    .from("user_calendar_connections")
-    .select("calendar_email")
-    .eq("user_id", syncConfig.created_by)
-    .eq("provider", "google")
-    .eq("is_active", true)
-    .maybeSingle();
+  const ownerConnection = syncConfig.created_by
+    ? await getGoogleOAuthConnectionForBinding(
+        syncConfig.created_by,
+        organizationCalendarGoogleBinding(organizationId),
+        { useServiceRole: true },
+      )
+    : null;
 
   const connected = !!ownerConnection;
-  const connectedEmail = ownerConnection?.calendar_email ?? syncConfig.calendar_email;
+  const connectedEmail = ownerConnection?.calendar_email ?? null;
 
   return {
     connected,
@@ -168,7 +171,11 @@ export async function disconnectOrganizationCalendarConnection(
     };
   }
 
-  const deactivateResult = await deactivateGoogleConnection(access.userId);
+  const deactivateResult = await deactivateGoogleConnection(access.userId, {
+    expectedBinding: organizationCalendarGoogleBinding(organizationId),
+    useServiceRole: true,
+    revokeAccess: false,
+  });
   if (!deactivateResult.success) {
     return { success: false, error: deactivateResult.error || "Failed to disconnect Google account" };
   }

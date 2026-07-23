@@ -11,6 +11,7 @@ export interface CalendarConnection {
   token_expires_at: string;
   granted_scopes?: string | null;
   granted_scopes_updated_at?: string | null;
+  connection_type?: "calendar" | "sheets" | "both" | null;
   calendar_email: string;
   connected_at: string;
   last_synced_at: string | null;

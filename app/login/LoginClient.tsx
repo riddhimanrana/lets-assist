@@ -56,6 +56,7 @@ export default function LoginClient({
 }: LoginClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
@@ -81,6 +82,10 @@ export default function LoginClient({
     // This avoids SSR redirects caused by stale prefetched payloads right after sign-in.
     window.location.assign(path);
   };
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   useEffect(() => {
     if (authError === "network-timeout") {
@@ -267,13 +272,18 @@ export default function LoginClient({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 p-6 sm:p-7">
-          <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <form
+            method="post"
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-5"
+            data-hydrated={isHydrated ? "true" : "false"}
+          >
             <Button
               type="button"
               variant="outline"
               className="h-10 w-full rounded-full border-border/80 bg-background/80 font-semibold shadow-xs hover:border-primary/30 hover:bg-primary/5"
               onClick={handleGoogleSignIn}
-              disabled={isGoogleLoading}
+              disabled={isGoogleLoading || !isHydrated}
             >
               {isGoogleLoading ? (
                 "Connecting..."
@@ -378,7 +388,7 @@ export default function LoginClient({
               <Button
                 type="submit"
                 className="h-10 w-full rounded-full bg-primary font-semibold text-primary-foreground shadow-none hover:bg-primary/90"
-                disabled={isLoading}
+                disabled={isLoading || !isHydrated}
               >
                 {isLoading ? "Logging in..." : "Login"}
               </Button>

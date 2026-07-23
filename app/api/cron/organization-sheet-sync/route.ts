@@ -11,7 +11,11 @@ import {
 import {
   replaceSpreadsheetReportValues,
 } from "@/services/google-sheets";
-import { getGoogleAccessTokenForSheetsForUser } from "@/services/calendar";
+import {
+  getGoogleAccessTokenForSheetsForUser,
+  organizationSheetsGoogleBinding,
+} from "@/services/calendar";
+import { authorizeGoogleOAuthOrganizationRequest } from "@/lib/auth/google-oauth-authorization";
 
 const WORKER_ENABLED = process.env.ORG_SHEET_SYNC_WORKER_ENABLED === "true";
 const WORKER_TOKEN = process.env.ORG_SHEET_SYNC_WORKER_SECRET_TOKEN;
@@ -77,9 +81,29 @@ export async function POST(request: NextRequest) {
     SHEET_SYNC_CONCURRENCY,
     async (row) => {
       try {
+        const ownerAuthorization = await authorizeGoogleOAuthOrganizationRequest({
+          userId: row.created_by,
+          organizationId: row.organization_id,
+          pluginKey: null,
+          purpose: "organization_sheets",
+          requestedCapability: null,
+        });
+        if (!ownerAuthorization.allowed) {
+          await supabase
+            .from("organization_sheet_syncs")
+            .update({ auto_sync: false, updated_at: new Date().toISOString() })
+            .eq("organization_id", row.organization_id);
+          return {
+            organizationId: row.organization_id,
+            success: false,
+            error: "Sync owner no longer has active organization admin access",
+          };
+        }
+
         const accessToken = await getGoogleAccessTokenForSheetsForUser(
           row.created_by,
-          true
+          true,
+          organizationSheetsGoogleBinding(row.organization_id),
         );
         if (!accessToken) {
           return { organizationId: row.organization_id, success: false, error: "No Google token" };

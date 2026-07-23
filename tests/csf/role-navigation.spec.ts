@@ -172,11 +172,15 @@ async function expectExplicitStaffRouteDenial(
 
   expect(deniedResponse?.status()).toBe(200);
   await expect(page).toHaveURL(deniedPath);
-  await expect(page.locator('[data-slot="alert"]')).toContainText(
+  const denialAlert = page
+    .getByRole("alert")
+    .filter({ hasText: "This area is not part of your CSF role" });
+  await expect(denialAlert).toHaveCount(1);
+  await expect(denialAlert).toContainText(
     "This area is not part of your CSF role",
   );
   await expect(
-    page.getByText(
+    denialAlert.getByText(
       "Ask a CSF administrator to update your officer permissions",
     ),
   ).toBeVisible();

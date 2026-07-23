@@ -795,6 +795,19 @@ INSERT INTO plugin_data.csf_term_closures (
   'ce900000-0000-4000-8000-000000000002'
 );
 
+INSERT INTO plugin_data.csf_term_close_authorizations (
+  transaction_id, organization_id, term_id, closure_id,
+  closure_revision, actor_user_id, correlation_id
+) VALUES (
+  pg_catalog.txid_current(),
+  'ce100000-0000-4000-8000-000000000001',
+  'ce200000-0000-4000-8000-000000000001',
+  'ce900000-0000-4000-8000-000000000001',
+  1,
+  'ce000000-0000-4000-8000-000000000001',
+  'ce900000-0000-4000-8000-000000000002'
+);
+
 UPDATE plugin_data.csf_terms
 SET
   lifecycle_status = 'closed',
@@ -806,6 +819,11 @@ SET
   latest_closure_id = 'ce900000-0000-4000-8000-000000000001',
   active_closure_id = 'ce900000-0000-4000-8000-000000000001'
 WHERE id = 'ce200000-0000-4000-8000-000000000001';
+
+DELETE FROM plugin_data.csf_term_close_authorizations
+WHERE transaction_id = pg_catalog.txid_current()
+  AND organization_id = 'ce100000-0000-4000-8000-000000000001'
+  AND term_id = 'ce200000-0000-4000-8000-000000000001';
 
 SELECT extensions.throws_ok(
   $$

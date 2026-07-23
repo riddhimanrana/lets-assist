@@ -68,11 +68,29 @@ const IDS = {
   csfAnnouncementOfficer: "10000000-0000-4000-8000-000000000137",
 };
 
+function fixtureJoinCode(seed) {
+  const checksum = [...seed].reduce(
+    (total, character) => (total * 31 + character.charCodeAt(0)) % 900_000,
+    0,
+  );
+  return String(100_000 + checksum).slice(-6);
+}
+
+const fixturePassword =
+  process.env.CSF_LOCAL_TEST_PASSWORD ??
+  process.env.DV_LOCAL_TEST_PASSWORD;
+
+if (!fixturePassword) {
+  throw new Error(
+    "Set CSF_LOCAL_TEST_PASSWORD or DV_LOCAL_TEST_PASSWORD before seeding local platform fixtures.",
+  );
+}
+
 const accounts = [
   {
     key: "developer",
-    email: "riddhiman.rana@gmail.com",
-    fullName: "Riddhiman Rana",
+    email: "platform.admin@local.test",
+    fullName: "Platform Admin Fixture",
     superAdmin: true,
     roles: ["admin", "admin", "admin", "admin"],
   },
@@ -295,7 +313,7 @@ async function upsertAuthUser(admin, account) {
   );
 
   const payload = {
-    password: "robo6737",
+    password: fixturePassword,
     email_confirm: true,
     ...(account.superAdmin
       ? {
@@ -355,8 +373,8 @@ async function main() {
       {
         id: users.developer.id,
         user_id: users.developer.id,
-        name: "Riddhiman Rana",
-        email: "riddhiman.rana@gmail.com",
+        name: "Platform Admin Fixture",
+        email: "platform.admin@local.test",
         status: true,
         reason: "Developer admin access",
       },
@@ -373,7 +391,7 @@ async function main() {
       description:
         "Default local organization for plugin platform and data-isolation testing.",
       show_members_publicly: true,
-      join_code: "740001",
+      join_code: fixtureJoinCode("local-platform-org"),
       created_by: users.developer.id,
     },
     {
@@ -384,7 +402,7 @@ async function main() {
       description:
         "Local nonprofit fixture for public project and organization workflows.",
       show_members_publicly: true,
-      join_code: "740002",
+      join_code: fixtureJoinCode("acts-of-hearts"),
       created_by: users.developer.id,
     },
     {
@@ -395,7 +413,7 @@ async function main() {
       description:
         "Local school organization fixture for membership isolation checks.",
       show_members_publicly: true,
-      join_code: "740003",
+      join_code: fixtureJoinCode("local-school-volunteers"),
       created_by: users.developer.id,
     },
     {
@@ -407,7 +425,7 @@ async function main() {
         "Deterministic local fixture for the DVHS CSF private plugin.",
       logo_url: "/logos/dvhigh-csf.png",
       show_members_publicly: false,
-      join_code: "740004",
+      join_code: fixtureJoinCode("dvhs-csf"),
       created_by: users.developer.id,
     },
   ];
@@ -535,7 +553,12 @@ async function main() {
     "csf_term_applications",
     "csf_profile_cohort_memberships",
     "csf_profile_accounts",
-    "csf_profiles",
+    // Profiles can be referenced by immutable audit rows through
+    // actor_profile_id. Deleting them would require updating those audit rows,
+    // which correctly fails. Fixed fixture profiles are reset by the upserts
+    // below; browser-created claim profiles are de-identified by their own
+    // cleanup and remain as historical local evidence until the isolated stack
+    // is disposed.
     "csf_cohort_terms",
     "csf_cohorts",
     "csf_term_deadlines",
@@ -1884,7 +1907,7 @@ async function main() {
         location: "Contra Costa Food Bank Warehouse",
         signup_url:
           "https://docs.google.com/spreadsheets/d/local-food-bank-signup/edit",
-        contact_email: "dvhighcsf@gmail.com",
+        contact_email: "csf-operations@local.test",
         point_value: 3,
         point_type: "non_drive",
         signup_mode: "external",
@@ -1910,7 +1933,7 @@ async function main() {
         location: "DVHS Commons",
         signup_url:
           "https://docs.google.com/spreadsheets/d/local-campus-cleanup/edit",
-        contact_email: "dvhighcsf@gmail.com",
+        contact_email: "csf-operations@local.test",
         point_value: 1.5,
         point_type: "non_drive",
         signup_mode: "external",
@@ -1958,7 +1981,7 @@ async function main() {
         starts_at: "2026-09-14T08:00:00-07:00",
         ends_at: "2026-09-18T15:30:00-07:00",
         location: "DVHS Front Office",
-        contact_email: "dvhighcsf@gmail.com",
+        contact_email: "csf-operations@local.test",
         point_value: 2,
         point_type: "drive",
         signup_mode: "none",
@@ -2678,8 +2701,7 @@ async function main() {
 
   console.log("Seeding complete! Local platform account seeded:");
   console.log({
-    email: "riddhiman.rana@gmail.com",
-    password: "robo6737",
+    email: "platform.admin@local.test",
     role: "admin (all 3 platform orgs)",
     dvPlugin: "catalog enabled; run bun run dv:fixtures for the full workspace",
   });

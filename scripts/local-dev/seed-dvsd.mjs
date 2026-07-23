@@ -21,9 +21,26 @@ const IDS = {
   secondGuardian: "d0000000-0000-4000-8000-000000000041",
 };
 
+function fixtureJoinCode(seed) {
+  const checksum = [...seed].reduce(
+    (total, character) => (total * 31 + character.charCodeAt(0)) % 900_000,
+    0,
+  );
+  return String(100_000 + checksum).slice(-6);
+}
+
+const fixturePassword =
+  process.env.DV_LOCAL_TEST_PASSWORD ??
+  process.env.CSF_LOCAL_TEST_PASSWORD;
+
+if (!fixturePassword) {
+  throw new Error(
+    "Set DV_LOCAL_TEST_PASSWORD or CSF_LOCAL_TEST_PASSWORD before seeding local DV fixtures.",
+  );
+}
+
 const accounts = [
-  { key: "ridhdiman", email: "riddhiman.rana@gmail.com", fullName: "Riddhiman Rana", roles: ["admin", "admin", "admin"] },
-  { key: "admin", email: "dv.admin@local.test", fullName: "DV Admin", roles: ["admin", null, null] },
+  { key: "admin", email: "dv.admin@local.test", fullName: "DV Admin Fixture", roles: ["admin", "admin", "admin"] },
   { key: "staff", email: "dv.staff@local.test", fullName: "DV Staff", roles: ["staff", null, null] },
   { key: "studentA", email: "dv.student.a@local.test", fullName: "Alex Student", roles: ["member", null, null] },
   { key: "studentB", email: "dv.student.b@local.test", fullName: "Blair Student", roles: ["member", null, null] },
@@ -93,12 +110,9 @@ async function upsertAuthUser(admin, account) {
     (user) => user.email?.toLowerCase() === account.email,
   );
   
-  // Use robo6737 for all seeded accounts to allow easy sign-in
-  const userPassword = "robo6737";
-
   if (existing) {
     const { data, error } = await admin.auth.admin.updateUserById(existing.id, {
-      password: userPassword,
+      password: fixturePassword,
       email_confirm: true,
       user_metadata: {
         full_name: account.fullName,
@@ -112,7 +126,7 @@ async function upsertAuthUser(admin, account) {
 
   const { data, error } = await admin.auth.admin.createUser({
     email: account.email,
-    password: userPassword,
+    password: fixturePassword,
     email_confirm: true,
     user_metadata: {
       full_name: account.fullName,
@@ -152,11 +166,11 @@ async function main() {
   }
 
   // Seed developer trusted member status
-  await must("trusted-member-ridhdiman", admin.from("trusted_member").upsert({
-    id: users.ridhdiman.id,
-    user_id: users.ridhdiman.id,
-    name: "Riddhiman Rana",
-    email: "riddhiman.rana@gmail.com",
+  await must("trusted-member-admin", admin.from("trusted_member").upsert({
+    id: users.admin.id,
+    user_id: users.admin.id,
+    name: "DV Admin Fixture",
+    email: "dv.admin@local.test",
     status: true,
     reason: "Developer admin access",
   }, { onConflict: "id" }));
@@ -168,8 +182,8 @@ async function main() {
     username: "dv-speech-debate",
     type: "school",
     description: "Deterministic local fixture organization for Dougherty Valley Speech & Debate.",
-    join_code: "730001",
-    created_by: users.ridhdiman.id,
+    join_code: fixtureJoinCode("dv-speech-debate"),
+    created_by: users.admin.id,
   }));
 
   await must("organization-2", admin.from("organizations").upsert({
@@ -178,8 +192,8 @@ async function main() {
     username: "acts-of-hearts",
     type: "nonprofit",
     description: "Local nonprofit organization fixture.",
-    join_code: "740002",
-    created_by: users.ridhdiman.id,
+    join_code: fixtureJoinCode("acts-of-hearts"),
+    created_by: users.admin.id,
   }));
 
   await must("organization-3", admin.from("organizations").upsert({
@@ -188,8 +202,8 @@ async function main() {
     username: "wrms-speech-debate",
     type: "school",
     description: "Windemere Ranch Middle School Speech & Debate.",
-    join_code: "730003",
-    created_by: users.ridhdiman.id,
+    join_code: fixtureJoinCode("wrms-speech-debate"),
+    created_by: users.admin.id,
   }));
 
   // Seed Organization Memberships
@@ -226,7 +240,7 @@ async function main() {
       plugin_key: "dv-speech-debate",
       status: "active",
       is_forced: true,
-      created_by: users.ridhdiman.id,
+      created_by: users.admin.id,
     }, { onConflict: "organization_id,plugin_key" }));
 
     await must(`install-${orgId}`, admin.from("organization_plugin_installs").upsert({
@@ -234,7 +248,7 @@ async function main() {
       plugin_key: "dv-speech-debate",
       enabled: true,
       installed_version: "2.0.0",
-      installed_by: users.ridhdiman.id,
+      installed_by: users.admin.id,
       configuration: {
         default_entries_per_judge: 2,
         family_service_required_credits: 2,
@@ -274,7 +288,7 @@ async function main() {
 
   await must("project-dvsd", admin.from("projects").upsert({
     id: IDS.project,
-    creator_id: users.ridhdiman.id,
+    creator_id: users.admin.id,
     organization_id: IDS.organization,
     title: "Local Invitational",
     location: "DVHS",
@@ -289,7 +303,7 @@ async function main() {
 
   await must("project-aoh", admin.from("projects").upsert({
     id: IDS.projectAOH,
-    creator_id: users.ridhdiman.id,
+    creator_id: users.admin.id,
     organization_id: IDS.orgAOH,
     title: "Heart Charity Drive",
     location: "San Ramon Community Center",
@@ -304,7 +318,7 @@ async function main() {
 
   await must("project-wrms", admin.from("projects").upsert({
     id: IDS.projectWRMS,
-    creator_id: users.ridhdiman.id,
+    creator_id: users.admin.id,
     organization_id: IDS.orgWRMS,
     title: "WRMS Novice Tournament",
     location: "WRMS",
@@ -331,7 +345,7 @@ async function main() {
     ends_at: "2026-11-15T01:00:00.000Z",
     registration_deadline: "2026-11-01T07:00:00.000Z",
     entries_per_judge: 2,
-    created_by: users.ridhdiman.id,
+    created_by: users.admin.id,
   }));
 
   // Seed Students (main DV Speech & Debate org)
@@ -375,7 +389,7 @@ async function main() {
       normalized_email: "guardian.shared@local.test",
       email: "guardian.shared@local.test",
       full_name: "Shared Guardian",
-      phone: "9255550100",
+      phone: null,
     },
     {
       id: IDS.secondGuardian,
@@ -383,7 +397,7 @@ async function main() {
       normalized_email: "guardian.casey@local.test",
       email: "guardian.casey@local.test",
       full_name: "Casey Guardian",
-      phone: "9255550101",
+      phone: null,
     },
   ], { onConflict: "organization_id,normalized_email" }));
 
@@ -416,7 +430,7 @@ async function main() {
         household_id: IDS.household,
         status: "approved",
         application_data: { fixture: true },
-        reviewed_by: users.ridhdiman.id,
+        reviewed_by: users.admin.id,
         reviewed_at: new Date().toISOString(),
       },
       {
@@ -451,7 +465,7 @@ async function main() {
       requirement_type: "staff_review",
       status: "verified",
       metadata: {},
-      verified_by: users.ridhdiman.id,
+      verified_by: users.admin.id,
       verified_at: new Date().toISOString(),
     },
     {
@@ -493,7 +507,7 @@ async function main() {
       payment_status: "not_required",
       guardian_commitment_status: "confirmed",
       submitted_at: new Date().toISOString(),
-      reviewed_by: users.ridhdiman.id,
+      reviewed_by: users.admin.id,
       reviewed_at: new Date().toISOString(),
     }, { onConflict: "tournament_id,membership_id" }).select("id").single(),
   );
@@ -539,14 +553,13 @@ async function main() {
       credits: 1,
       source_type: "fixture",
       note: "Prior fixture judging completion.",
-      created_by: users.ridhdiman.id,
+      created_by: users.admin.id,
     }));
   }
 
   console.log("Seeding complete! Local developer account seeded:");
   console.log({
-    email: "riddhiman.rana@gmail.com",
-    password: "robo6737",
+    email: "dv.admin@local.test",
     role: "admin (all 3 orgs)"
   });
 }

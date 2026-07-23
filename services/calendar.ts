@@ -5,6 +5,18 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import {
+  getGoogleOAuthConnectionForBinding,
+  hasOtherActiveGoogleOAuthConnection,
+  hasUnboundActiveGoogleOAuthConnection,
+} from "@/lib/auth/google-oauth-connection-store";
+import type { GoogleOAuthConnectionBindingExpectation } from "@/lib/auth/google-oauth-connection-binding";
+import { authorizeGoogleOAuthOrganizationRequest } from "@/lib/auth/google-oauth-authorization";
+import type { GoogleOAuthCsfImportCapability } from "@/lib/auth/google-oauth-state";
+import {
+  shouldRevokeGoogleOAuthGrant,
+  type GoogleOAuthRemoteRevocationState,
+} from "@/lib/auth/google-oauth-disconnect";
 import { encrypt, decrypt } from "@/lib/encryption";
 import {
   Project,
@@ -19,6 +31,32 @@ const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 export const GOOGLE_SHEETS_SCOPES = [
   "https://www.googleapis.com/auth/drive.file",
 ] as const;
+
+export const PERSONAL_CALENDAR_GOOGLE_BINDING = {
+  purpose: "personal_calendar",
+  organizationId: null,
+  pluginKey: null,
+} as const satisfies GoogleOAuthConnectionBindingExpectation;
+
+export function organizationCalendarGoogleBinding(
+  organizationId: string,
+): GoogleOAuthConnectionBindingExpectation {
+  return {
+    purpose: "organization_calendar",
+    organizationId,
+    pluginKey: null,
+  };
+}
+
+export function organizationSheetsGoogleBinding(
+  organizationId: string,
+): GoogleOAuthConnectionBindingExpectation {
+  return {
+    purpose: "organization_sheets",
+    organizationId,
+    pluginKey: null,
+  };
+}
 
 type ScopeInput = string | string[] | null | undefined;
 
@@ -76,50 +114,39 @@ interface GoogleCalendarEvent {
 export async function getCalendarConnection(
   userId: string
 ): Promise<CalendarConnection | null> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("user_calendar_connections")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("is_active", true)
-    .eq("provider", "google")
-    .in("connection_type", ["calendar", "both"])
-    .order("connection_type", { ascending: false }) // prefer "calendar" type over "both"
-    .limit(1)
-    .single();
-
-  if (error || !data) {
+  const connection = await getGoogleOAuthConnectionForBinding(
+    userId,
+    PERSONAL_CALENDAR_GOOGLE_BINDING,
+  );
+  if (
+    !connection ||
+    !["calendar", "both"].includes(connection.connection_type ?? "")
+  ) {
     return null;
   }
-
-  return data as CalendarConnection;
+  return connection;
 }
 
 /**
  * Get user's active sheets connection (for sheets sync)
  */
 export async function getSheetsConnection(
-  userId: string
+  userId: string,
+  expectedBinding: GoogleOAuthConnectionBindingExpectation,
+  useServiceRole = false,
 ): Promise<CalendarConnection | null> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("user_calendar_connections")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("is_active", true)
-    .eq("provider", "google")
-    .in("connection_type", ["sheets", "both"])
-    .order("connection_type", { ascending: false }) // prefer "sheets" type over "both"
-    .limit(1)
-    .single();
-
-  if (error || !data) {
+  const connection = await getGoogleOAuthConnectionForBinding(
+    userId,
+    expectedBinding,
+    { useServiceRole },
+  );
+  if (
+    !connection ||
+    !["sheets", "both"].includes(connection.connection_type ?? "")
+  ) {
     return null;
   }
-
-  return data as CalendarConnection;
+  return connection;
 }
 
 /**
@@ -154,7 +181,11 @@ async function refreshAccessToken(
     });
 
     if (!response.ok) {
-      console.error("Failed to refresh token:", await response.text());
+      // OAuth error bodies can include provider diagnostics tied to the grant.
+      // Record only non-sensitive transport metadata.
+      console.error("Failed to refresh Google access token", {
+        status: response.status,
+      });
       return null;
     }
 
@@ -835,50 +866,81 @@ export async function revokeGoogleCalendarAccess(
 }
 
 /**
- * Deactivate the user's active Google connection and optionally revoke it with Google.
+ * Delete the user's exact Google purpose credential and optionally revoke it with Google.
  */
 export async function deactivateGoogleConnection(
   userId: string,
-  options: { revokeAccess?: boolean } = {}
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const { data: connection, error: fetchError } = await supabase
-    .from("user_calendar_connections")
-    .select("id, refresh_token")
-    .eq("user_id", userId)
-    .eq("provider", "google")
-    .eq("is_active", true)
-    .single();
-
-  if (fetchError || !connection) {
+  options: {
+    revokeAccess?: boolean;
+    expectedBinding?: GoogleOAuthConnectionBindingExpectation;
+    useServiceRole?: boolean;
+  } = {},
+): Promise<{
+  success: boolean;
+  error?: string;
+  remoteRevocation?: GoogleOAuthRemoteRevocationState;
+}> {
+  const expectedBinding =
+    options.expectedBinding ?? PERSONAL_CALENDAR_GOOGLE_BINDING;
+  const connection = await getGoogleOAuthConnectionForBinding(
+    userId,
+    expectedBinding,
+    { activeOnly: false, useServiceRole: options.useServiceRole },
+  );
+  if (!connection) {
     return { success: false, error: "No active Google connection found" };
   }
 
-  if (options.revokeAccess !== false && connection.refresh_token) {
+  const supabase = options.useServiceRole
+    ? getAdminClient()
+    : await createClient();
+
+  const hasOtherActiveConnection = await hasOtherActiveGoogleOAuthConnection(
+    userId,
+    connection.id,
+  );
+  const shouldRevoke = shouldRevokeGoogleOAuthGrant({
+    requested: options.revokeAccess !== false,
+    hasOtherActiveConnection,
+  });
+  let remoteRevocation: GoogleOAuthRemoteRevocationState =
+    options.revokeAccess === false
+      ? "not_requested"
+      : hasOtherActiveConnection
+        ? "skipped_shared_grant"
+        : "failed";
+
+  if (shouldRevoke && connection.refresh_token) {
     try {
       const decryptedRefreshToken = decrypt(connection.refresh_token);
-      await revokeGoogleCalendarAccess(decryptedRefreshToken);
+      remoteRevocation = (await revokeGoogleCalendarAccess(decryptedRefreshToken))
+        ? "revoked"
+        : "failed";
     } catch (error) {
       console.error("Failed to revoke Google access:", error);
-      // Continue deactivating locally even if the remote revoke fails.
+      remoteRevocation = "failed";
     }
   }
 
+  // Delete rather than retaining an inactive refresh token. The binding row is
+  // removed by FK cascade, so reconnect always creates a fresh exact binding.
   const { error: deactivateError } = await supabase
     .from("user_calendar_connections")
-    .update({
-      is_active: false,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", connection.id);
+    .delete()
+    .eq("id", connection.id)
+    .eq("user_id", userId)
+    .eq("provider", "google");
 
   if (deactivateError) {
     console.error("Failed to deactivate Google connection:", deactivateError);
     return { success: false, error: "Failed to disconnect Google account" };
   }
 
-  return { success: true };
+  return { success: true, remoteRevocation };
+}
+
+export async function hasLegacyGoogleOAuthReconnectRequired(userId: string) {
+  return hasUnboundActiveGoogleOAuthConnection(userId);
 }
 
 /**
@@ -899,6 +961,20 @@ export async function hasActiveCalendarConnection(
   return connection !== null && connection.is_active;
 }
 
+export async function markPersonalCalendarConnectionSynced(
+  userId: string,
+): Promise<void> {
+  const connection = await getCalendarConnection(userId);
+  if (!connection) return;
+
+  const supabase = await createClient();
+  await supabase
+    .from("user_calendar_connections")
+    .update({ last_synced_at: new Date().toISOString() })
+    .eq("id", connection.id)
+    .eq("user_id", userId);
+}
+
 /**
  * Get a valid Google access token for external integrations (e.g., Sheets)
  */
@@ -907,6 +983,7 @@ export async function getGoogleAccessToken(
 ): Promise<string | null> {
   return getGoogleAccessTokenForUser(userId, false, {
     connectionType: "calendar",
+    expectedBinding: PERSONAL_CALENDAR_GOOGLE_BINDING,
   });
 }
 
@@ -914,11 +991,15 @@ export async function getGoogleAccessToken(
  * Get a valid Google access token for Sheets integration.
  */
 export async function getGoogleAccessTokenForSheets(
-  userId: string
+  userId: string,
+  expectedBinding: GoogleOAuthConnectionBindingExpectation,
+  requestedCapability?: GoogleOAuthCsfImportCapability,
 ): Promise<string | null> {
   return getGoogleAccessTokenForUser(userId, false, {
     requiredScopes: [...GOOGLE_SHEETS_SCOPES],
     connectionType: "sheets",
+    expectedBinding,
+    requestedCapability,
   });
 }
 
@@ -927,11 +1008,15 @@ export async function getGoogleAccessTokenForSheets(
  */
 export async function getGoogleAccessTokenForSheetsForUser(
   userId: string,
-  useServiceRole: boolean
+  useServiceRole: boolean,
+  expectedBinding: GoogleOAuthConnectionBindingExpectation,
+  requestedCapability?: GoogleOAuthCsfImportCapability,
 ): Promise<string | null> {
   return getGoogleAccessTokenForUser(userId, useServiceRole, {
     requiredScopes: [...GOOGLE_SHEETS_SCOPES],
     connectionType: "sheets",
+    expectedBinding,
+    requestedCapability,
   });
 }
 
@@ -942,87 +1027,108 @@ export async function getGoogleAccessTokenForSheetsForUser(
 export async function getGoogleAccessTokenForUser(
   userId: string,
   useServiceRole: boolean,
-  options?: { requiredScopes?: string[]; connectionType?: "calendar" | "sheets" | "both" }
+  options: {
+    requiredScopes?: string[];
+    connectionType?: "calendar" | "sheets" | "both";
+    expectedBinding: GoogleOAuthConnectionBindingExpectation;
+    requestedCapability?: GoogleOAuthCsfImportCapability;
+  }
 ): Promise<string | null> {
+  if (options.expectedBinding.organizationId) {
+    if (
+      options.expectedBinding.purpose === "csf_import" &&
+      !options.requestedCapability
+    ) {
+      return null;
+    }
+
+    const authorization = await authorizeGoogleOAuthOrganizationRequest({
+      userId,
+      organizationId: options.expectedBinding.organizationId,
+      pluginKey: options.expectedBinding.pluginKey as "dvhs-csf" | null,
+      purpose: options.expectedBinding.purpose,
+      requestedCapability: options.requestedCapability ?? null,
+    });
+    if (!authorization.allowed) return null;
+  }
+
   const supabase = useServiceRole ? getAdminClient() : await createClient();
-
-  // Build query with optional connection type filter
-  let query = supabase
-    .from("user_calendar_connections")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("provider", "google")
-    .eq("is_active", true);
-
-  // If specific connection type is requested, prefer that exact type, then fall back to "both"
-  if (options?.connectionType === "sheets") {
-    query = query.in("connection_type", ["sheets", "both"]);
-  } else if (options?.connectionType === "calendar") {
-    query = query.in("connection_type", ["calendar", "both"]);
-  }
-  // If no specific type is requested, get any active connection
-
-  const { data: connections, error } = await query
-    .order("updated_at", { ascending: false })
-    .order("connected_at", { ascending: false });
-
-  if (error || !connections || connections.length === 0) {
-    return null;
-  }
+  const connection = await getGoogleOAuthConnectionForBinding(
+    userId,
+    options.expectedBinding,
+    { useServiceRole },
+  );
+  if (!connection) return null;
 
   const requiredScopes = options?.requiredScopes?.filter(Boolean) ?? [];
-
-  const rankConnection = (connectionType: string | null | undefined) => {
-    const normalized = (connectionType || "").toLowerCase();
-    const preferred = options?.connectionType;
-
-    if (!preferred) return 0;
-    if (preferred === "both") {
-      return normalized === "both" ? 0 : 1;
-    }
-
-    if (normalized === preferred) return 0;
-    if (normalized === "both") return 1;
-    return 2;
-  };
-
-  const candidateConnections = [...connections]
-    .sort((a, b) => rankConnection(a.connection_type) - rankConnection(b.connection_type))
-    .filter((connection) => hasRequiredScopes(connection.granted_scopes, requiredScopes));
-
-  if (!candidateConnections.length) {
+  const allowedTypes = options.connectionType === "calendar"
+    ? ["calendar", "both"]
+    : options.connectionType === "sheets"
+      ? ["sheets", "both"]
+      : options.connectionType === "both"
+        ? ["both"]
+        : ["calendar", "sheets", "both"];
+  if (
+    !allowedTypes.includes(connection.connection_type ?? "") ||
+    !hasRequiredScopes(connection.granted_scopes, requiredScopes)
+  ) {
     return null;
   }
 
-  for (const connection of candidateConnections) {
-    if (!isTokenExpired(connection.token_expires_at)) {
-      return decrypt(connection.access_token);
-    }
-
-    const decryptedRefreshToken = decrypt(connection.refresh_token);
-    const refreshed = await refreshAccessToken(decryptedRefreshToken);
-
-    if (!refreshed) {
-      await supabase
-        .from("user_calendar_connections")
-        .update({ is_active: false })
-        .eq("id", connection.id);
-      continue;
-    }
-
-    const newExpiresAt = new Date(Date.now() + refreshed.expiresIn * 1000);
-    const encryptedAccessToken = encrypt(refreshed.accessToken);
-
-    await supabase
-      .from("user_calendar_connections")
-      .update({
-        access_token: encryptedAccessToken,
-        token_expires_at: newExpiresAt.toISOString(),
-      })
-      .eq("id", connection.id);
-
-    return refreshed.accessToken;
+  if (!isTokenExpired(connection.token_expires_at)) {
+    return decrypt(connection.access_token);
   }
 
-  return null;
+  const decryptedRefreshToken = decrypt(connection.refresh_token);
+  const refreshed = await refreshAccessToken(decryptedRefreshToken);
+
+  if (!refreshed) {
+    await supabase
+      .from("user_calendar_connections")
+      .update({ is_active: false })
+      .eq("id", connection.id);
+    return null;
+  }
+
+  // Refresh is an external network boundary. Membership, plugin access, or a
+  // CSF capability can be revoked while Google is responding, so repeat the
+  // authorization immediately before any refreshed credential is persisted or
+  // returned to the caller.
+  if (options.expectedBinding.organizationId) {
+    const refreshedAuthorization = await authorizeGoogleOAuthOrganizationRequest({
+      userId,
+      organizationId: options.expectedBinding.organizationId,
+      pluginKey: options.expectedBinding.pluginKey as "dvhs-csf" | null,
+      purpose: options.expectedBinding.purpose,
+      requestedCapability: options.requestedCapability ?? null,
+    });
+    if (!refreshedAuthorization.allowed) return null;
+  }
+
+  // A concurrent disconnect must also win over the slow refresh.
+  const currentConnection = await getGoogleOAuthConnectionForBinding(
+    userId,
+    options.expectedBinding,
+    { useServiceRole },
+  );
+  if (!currentConnection || currentConnection.id !== connection.id) return null;
+
+  const newExpiresAt = new Date(Date.now() + refreshed.expiresIn * 1000);
+  const encryptedAccessToken = encrypt(refreshed.accessToken);
+
+  const { data: persistedConnection, error: persistError } = await supabase
+    .from("user_calendar_connections")
+    .update({
+      access_token: encryptedAccessToken,
+      token_expires_at: newExpiresAt.toISOString(),
+    })
+    .eq("id", connection.id)
+    .eq("user_id", userId)
+    .eq("provider", "google")
+    .select("id")
+    .maybeSingle();
+
+  if (persistError || !persistedConnection) return null;
+
+  return refreshed.accessToken;
 }

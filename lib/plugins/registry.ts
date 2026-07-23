@@ -1,25 +1,9 @@
 import type { OrganizationPluginDefinition } from "@/types";
-
-function loadPrivatePlugins(): OrganizationPluginDefinition[] {
-  try {
-    // The private plugin registry is provided via a private git submodule.
-    // In CI (and some local setups) that submodule is intentionally absent.
-    // Using `require` here avoids TypeScript hard-failing on a missing module
-    // during `tsc --noEmit`, while still allowing builds to include private
-    // plugins when the submodule is present.
-    const mod = require("./private/registry") as {
-      privatePlugins?: OrganizationPluginDefinition[];
-    };
-
-    return Array.isArray(mod.privatePlugins) ? mod.privatePlugins : [];
-  } catch {
-    return [];
-  }
-}
+import { privatePlugins } from "./private/registry";
 
 const pluginDefinitions: OrganizationPluginDefinition[] = [
   // Custom / Monetized plugins loaded securely via private submodules/folders:
-  ...loadPrivatePlugins(),
+  ...privatePlugins,
 ];
 
 export function createPluginRegistry(

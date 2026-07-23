@@ -9,7 +9,9 @@ import {
   getGoogleAccessTokenForSheets,
   getGoogleAccessTokenForSheetsForUser,
   hasGoogleSheetsScopes,
+  organizationSheetsGoogleBinding,
 } from "@/services/calendar";
+import { authorizeGoogleOAuthOrganizationRequest } from "@/lib/auth/google-oauth-authorization";
 import {
   buildSpreadsheetUrl,
   createSpreadsheet,
@@ -58,6 +60,36 @@ const DEFAULT_SYNC_INTERVAL_MINUTES = 1440;
 const DEFAULT_RANGE_A1 = "A1";
 const MIN_SYNC_INTERVAL_MINUTES = 60;
 
+function getOrganizationSheetsConnection(
+  userId: string,
+  organizationId: string,
+  useServiceRole = false,
+) {
+  return getSheetsConnection(
+    userId,
+    organizationSheetsGoogleBinding(organizationId),
+    useServiceRole,
+  );
+}
+
+function getOrganizationSheetsAccessToken(
+  userId: string,
+  organizationId: string,
+  useServiceRole = false,
+) {
+  if (useServiceRole) {
+    return getGoogleAccessTokenForSheetsForUser(
+      userId,
+      true,
+      organizationSheetsGoogleBinding(organizationId),
+    );
+  }
+  return getGoogleAccessTokenForSheets(
+    userId,
+    organizationSheetsGoogleBinding(organizationId),
+  );
+}
+
 function hasConfiguredSheetDestination(
   syncConfig:
     | {
@@ -86,9 +118,10 @@ async function assertOrgAccess(organizationId: string) {
 
   const { data: membership } = await supabase
     .from("organization_members")
-    .select("role")
+    .select("role,status")
     .eq("organization_id", organizationId)
     .eq("user_id", authData.user.id)
+    .eq("status", "active")
     .single();
 
   const canView = membership?.role === "admin" || membership?.role === "staff";
@@ -107,7 +140,10 @@ export async function getSheetSyncStatus(
     return { connected: false, error: access.error ?? undefined };
   }
 
-  const connection = await getSheetsConnection(access.userId);
+  const connection = await getOrganizationSheetsConnection(
+    access.userId,
+    organizationId,
+  );
 
   const serviceSupabase = getAdminClient();
   const { data: syncConfig, error: syncError } = await serviceSupabase
@@ -131,13 +167,11 @@ export async function getSheetSyncStatus(
   const destinationConfigured = hasConfiguredSheetDestination(syncConfig);
 
   if (syncConfig?.created_by) {
-    const { data: ownerConnection } = await serviceSupabase
-      .from("user_calendar_connections")
-      .select("granted_scopes, calendar_email")
-      .eq("user_id", syncConfig.created_by)
-      .eq("provider", "google")
-      .eq("is_active", true)
-      .maybeSingle();
+    const ownerConnection = await getOrganizationSheetsConnection(
+      syncConfig.created_by,
+      organizationId,
+      true,
+    );
 
     connected = !!ownerConnection;
     connectedEmail = ownerConnection?.calendar_email || null;
@@ -213,7 +247,10 @@ export async function createSheetSync(
     return { success: false, error: "Admin access required" };
   }
 
-  const connection = await getSheetsConnection(access.userId);
+  const connection = await getOrganizationSheetsConnection(
+    access.userId,
+    organizationId,
+  );
   if (!connection) {
     return { success: false, error: "Google connection required" };
   }
@@ -235,7 +272,10 @@ export async function createSheetSync(
     }
   }
 
-  const accessToken = await getGoogleAccessTokenForSheets(access.userId);
+  const accessToken = await getOrganizationSheetsAccessToken(
+    access.userId,
+    organizationId,
+  );
   if (!accessToken) {
     return {
       success: false,
@@ -328,9 +368,28 @@ export async function syncSheetNow(
     return { success: false, error: "Sheet sync owner not found" };
   }
 
-  const accessToken = await getGoogleAccessTokenForSheetsForUser(
+  const ownerAuthorization = await authorizeGoogleOAuthOrganizationRequest({
+    userId: syncConfig.created_by,
+    organizationId,
+    pluginKey: null,
+    purpose: "organization_sheets",
+    requestedCapability: null,
+  });
+  if (!ownerAuthorization.allowed) {
+    await serviceSupabase
+      .from("organization_sheet_syncs")
+      .update({ auto_sync: false, updated_at: new Date().toISOString() })
+      .eq("organization_id", organizationId);
+    return {
+      success: false,
+      error: "Sheet sync owner no longer has active organization admin access",
+    };
+  }
+
+  const accessToken = await getOrganizationSheetsAccessToken(
     syncConfig.created_by,
-    true
+    organizationId,
+    true,
   );
   if (!accessToken) {
     return {
@@ -553,7 +612,10 @@ export async function getSheetsAccessTokenForPicker(
     return { success: false, error: "Admin access required" };
   }
 
-  const connection = await getSheetsConnection(access.userId);
+  const connection = await getOrganizationSheetsConnection(
+    access.userId,
+    organizationId,
+  );
   if (!connection) {
     return { success: false, error: "Google connection required" };
   }
@@ -565,7 +627,10 @@ export async function getSheetsAccessTokenForPicker(
     };
   }
 
-  const accessToken = await getGoogleAccessTokenForSheets(access.userId);
+  const accessToken = await getOrganizationSheetsAccessToken(
+    access.userId,
+    organizationId,
+  );
   if (!accessToken) {
     return {
       success: false,
@@ -598,7 +663,10 @@ export async function getSpreadsheetSetupMetadata(
     return { success: false, error: "Invalid spreadsheet URL or ID" };
   }
 
-  const accessToken = await getGoogleAccessTokenForSheets(access.userId);
+  const accessToken = await getOrganizationSheetsAccessToken(
+    access.userId,
+    organizationId,
+  );
   if (!accessToken) {
     return { success: false, error: "Sheets permissions missing" };
   }
@@ -636,7 +704,10 @@ export async function connectExistingSheet(
     return { success: false, error: "Admin access required" };
   }
 
-  const accessToken = await getGoogleAccessTokenForSheets(access.userId);
+  const accessToken = await getOrganizationSheetsAccessToken(
+    access.userId,
+    organizationId,
+  );
   if (!accessToken) {
     return { success: false, error: "Sheets permissions missing" };
   }
@@ -846,7 +917,11 @@ export async function disconnectOrganizationSheetConnection(
     };
   }
 
-  const deactivateResult = await deactivateGoogleConnection(access.userId);
+  const deactivateResult = await deactivateGoogleConnection(access.userId, {
+    expectedBinding: organizationSheetsGoogleBinding(organizationId),
+    useServiceRole: true,
+    revokeAccess: false,
+  });
   if (!deactivateResult.success && deactivateResult.error !== "No active Google connection found") {
     return {
       success: false,
@@ -899,7 +974,8 @@ export async function getAvailableSheetOwners(
   const { data: members, error } = await serviceSupabase
     .from("organization_members")
     .select("user_id, role, profiles(id, full_name, username, email)")
-    .eq("organization_id", organizationId);
+    .eq("organization_id", organizationId)
+    .eq("status", "active");
 
   if (error || !members) {
     console.error("Failed to load organization members:", error);
@@ -913,21 +989,21 @@ export async function getAvailableSheetOwners(
     role: string;
     profiles: { id: string; full_name: string | null; username: string | null; email: string | null } | null;
   }>;
-  const memberIds = eligibleMembers.map((member) => member.user_id).filter(Boolean);
-  if (memberIds.length === 0) {
+  if (eligibleMembers.length === 0) {
     return { success: true, owners: [] };
   }
 
-  const { data: connections } = await serviceSupabase
-    .from("user_calendar_connections")
-    .select("user_id, calendar_email, granted_scopes")
-    .eq("provider", "google")
-    .eq("is_active", true)
-    .in("user_id", memberIds);
-
-  const connectionMap = new Map(
-    (connections || []).map((connection) => [connection.user_id, connection])
+  const connectionEntries = await Promise.all(
+    eligibleMembers.map(async (member) => [
+      member.user_id,
+      await getOrganizationSheetsConnection(
+        member.user_id,
+        organizationId,
+        true,
+      ),
+    ] as const),
   );
+  const connectionMap = new Map(connectionEntries);
 
   const owners = eligibleMembers
     .map((member) => {
@@ -972,13 +1048,11 @@ export async function updateSheetOwner(
     return { success: false, error: "Sheets sync is not configured" };
   }
 
-  const { data: ownerConnection } = await serviceSupabase
-    .from("user_calendar_connections")
-    .select("granted_scopes")
-    .eq("user_id", ownerId)
-    .eq("provider", "google")
-    .eq("is_active", true)
-    .maybeSingle();
+  const ownerConnection = await getOrganizationSheetsConnection(
+    ownerId,
+    organizationId,
+    true,
+  );
 
   if (!hasGoogleSheetsScopes(ownerConnection?.granted_scopes || null)) {
     return {

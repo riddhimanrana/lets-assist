@@ -3,11 +3,11 @@ import path from "node:path";
 import { loadEnvConfig } from "@next/env";
 import { defineConfig, devices } from "@playwright/test";
 
-import { getLocalSupabaseEnv } from "./scripts/local-dev/dv-local-env.mjs";
+import { getCsfIsolatedSupabaseEnv } from "./scripts/local-dev/dv-local-env.mjs";
 
 loadEnvConfig(process.cwd());
 
-const localSupabase = getLocalSupabaseEnv();
+const localSupabase = getCsfIsolatedSupabaseEnv();
 const port = Number(process.env.CSF_E2E_PORT ?? 3113);
 const baseURL = process.env.CSF_E2E_BASE_URL ?? `http://127.0.0.1:${port}`;
 const artifactRoot = path.join(
@@ -20,6 +20,7 @@ const artifactRoot = path.join(
 
 export default defineConfig({
   testDir: "./tests/csf",
+  testMatch: "**/*.spec.ts",
   outputDir: path.join(artifactRoot, "test-results"),
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
@@ -52,7 +53,7 @@ export default defineConfig({
     : {
         command: `bunx next dev --hostname 127.0.0.1 --port ${port}`,
         url: `${baseURL}/login`,
-        reuseExistingServer: true,
+        reuseExistingServer: false,
         timeout: 180_000,
         env: {
           ...process.env,
@@ -61,6 +62,7 @@ export default defineConfig({
           NEXT_PUBLIC_SUPABASE_URL: localSupabase.url,
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: localSupabase.anonKey,
           SUPABASE_SECRET_KEY: localSupabase.serviceRoleKey,
+          SUPABASE_DB_URL: localSupabase.dbUrl,
           NEXT_PUBLIC_TURNSTILE_BYPASS: "true",
           DV_TABROOM_LIVE: "0",
         },
