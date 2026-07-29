@@ -273,7 +273,6 @@ export default function EditProjectClient({ project }: Props) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewDocName, setPreviewDocName] = useState<string>("Document");
   const [previewDocType, setPreviewDocType] = useState<string>("");
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_dragActive, _setDragActive] = useState<"cover" | "docs" | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [totalDocumentsSize, setTotalDocumentsSize] = useState<number>(0);

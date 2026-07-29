@@ -70,7 +70,6 @@ export default function BasicInfo({
 }: BasicInfoProps) {
   const [open, setOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [organizationOptions, _setOrganizationOptions] = useState<OrganizationOption[]>(
     initialOrganizations.length > 0
       ? initialOrganizations

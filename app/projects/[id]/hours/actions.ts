@@ -6,6 +6,7 @@ import { Project } from "@/types"; // Import Project type
 import CertificatePublished from '@/emails/certificate-published';
 import * as React from 'react';
 import { sendEmail } from '@/services/email';
+import { canManageProjectAccess } from '@/lib/projects/management-access';
 
 // Define the structure for session data passed from the client
 type SessionVolunteerData = {
@@ -18,6 +19,38 @@ type SessionVolunteerData = {
   durationMinutes: number;
   isValid: boolean;
 };
+
+type ManageableProject = {
+  creator_id: string | null;
+  organization_id?: string | null;
+  can_be_managed_by_staff?: boolean | null;
+};
+
+async function canUserManageProjectHours(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  project: ManageableProject,
+): Promise<boolean> {
+  let organizationRole: string | null = null;
+
+  if (project.organization_id && project.creator_id !== userId) {
+    const { data: membership } = await supabase
+      .from("organization_members")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("organization_id", project.organization_id)
+      .maybeSingle();
+
+    organizationRole = membership?.role ?? null;
+  }
+
+  return canManageProjectAccess({
+    creatorId: project.creator_id,
+    userId,
+    organizationRole,
+    canBeManagedByStaff: project.can_be_managed_by_staff,
+  });
+}
 
 // Helper function to get the key for the 'published' JSONB field
 const getPublishStateKey = (project: Project, sessionId: string): string => {
@@ -84,16 +117,15 @@ const sendCertificatePublishedEmails = async (
       });
 
       if (emailError) {
-        console.error(`Error sending email to ${cert.volunteer_email}:`, emailError);
-        errors.push(`Failed to send email to ${cert.volunteer_email}: ${emailError}`);
+        console.error(`Error sending certificate ${cert.id}:`, emailError);
+        errors.push(`Failed to send certificate ${cert.id}: ${emailError}`);
       } else {
         emailsSent++;
-        console.log(`Certificate email sent successfully to ${cert.volunteer_email}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error(`Unexpected error sending email to ${cert.volunteer_email}:`, error);
-      errors.push(`Unexpected error for ${cert.volunteer_email}: ${errorMessage}`);
+      console.error(`Unexpected error sending certificate ${cert.id}:`, error);
+      errors.push(`Unexpected error for certificate ${cert.id}: ${errorMessage}`);
     }
   }
 
@@ -113,12 +145,11 @@ export async function publishVolunteerHours(
   const supabase = await createClient();
 
   try {
-    // 1. Verify user authentication and permissions (simplified for brevity)
+    // 1. Verify user authentication
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       return { success: false, error: "Authentication required." };
     }
-    // TODO: Add robust permission check (is user the project creator or org admin/staff?)
 
     // 2. Fetch Project, Organization, and Creator data
     const { data: projectData, error: projectError } = await supabase
@@ -138,6 +169,13 @@ export async function publishVolunteerHours(
 
     // Type assertion after successful fetch
     const project = projectData as Project;
+    if (!(await canUserManageProjectHours(supabase, user.id, project))) {
+      return {
+        success: false,
+        error: "Unauthorized: You cannot publish hours for this project.",
+      };
+    }
+
     const creatorName = project.profiles?.full_name || "Project Organizer"; // Fallback name
     const organizationName = project.organization?.name || null;
     const isOrganizationVerified = project.organization?.verified || false;
@@ -189,7 +227,6 @@ export async function publishVolunteerHours(
     };
 
     if (insertError) {
-        console.log(certificatesToInsert)
       console.error("Error inserting certificates:", insertError);
       return { success: false, error: `Database error inserting certificates: ${insertError.message}` };
     }
@@ -216,8 +253,6 @@ export async function publishVolunteerHours(
 
     // 6.5. Send in-app notifications to volunteers about their published certificates
     if (insertedCerts && insertedCerts.length > 0) {
-      console.log(`Sending ${insertedCerts.length} notifications to volunteers`);
-      
       const notificationPromises = validVolunteers
         .filter(v => v.userId) // Only send to registered users
         .map(async (volunteer) => {
@@ -238,12 +273,11 @@ export async function publishVolunteerHours(
                 read: false
               });
           } catch (error) {
-            console.error('Failed to send notification to user:', { userId: volunteer.userId, error });
+            console.error("Failed to send certificate notification:", error);
           }
         });
 
       await Promise.allSettled(notificationPromises);
-      console.log('Finished sending notifications');
     }
 
     // 7. Send email notifications
@@ -254,9 +288,6 @@ export async function publishVolunteerHours(
     }));
 
     const emailResult = await sendCertificatePublishedEmails(emailCertificates, project.project_timezone);
-    
-    console.log(`Successfully created ${certificatesToInsert.length} certificates for project ${projectId}, session ${sessionId}`);
-    console.log(`Email sending completed: ${emailResult.emailsSent} sent, ${emailResult.errors.length} errors`);
     
     return {
       success: true,
@@ -278,11 +309,15 @@ export async function publishVolunteerHours(
  */
 export async function resendCertificateEmails(
   projectId: string,
-  certificateIds: string[]
+  sessionId: string,
 ): Promise<{ success: boolean; error?: string; emailsSent?: number; emailErrors?: string[] }> {
   const supabase = await createClient();
 
   try {
+    if (!sessionId.trim()) {
+      return { success: false, error: "A project session is required." };
+    }
+
     // 1. Verify user authentication and permissions
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
@@ -292,7 +327,7 @@ export async function resendCertificateEmails(
     // 2. Verify user has permission on this project
     const { data: project, error: projectError } = await supabase
       .from("projects")
-      .select("id, creator_id, organization_id, project_timezone")
+      .select("id, creator_id, organization_id, can_be_managed_by_staff, project_timezone")
       .eq("id", projectId)
       .single();
 
@@ -300,22 +335,11 @@ export async function resendCertificateEmails(
       return { success: false, error: "Project not found." };
     }
 
-    // Check if user is creator or org admin
-    const isCreator = project.creator_id === user.id;
-    let isOrgAdmin = false;
-    
-    if (!isCreator && project.organization_id) {
-      const { data: member } = await supabase
-        .from("organization_members")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("organization_id", project.organization_id)
-        .single();
-      isOrgAdmin = member?.role === "admin" || member?.role === "staff";
-    }
-
-    if (!isCreator && !isOrgAdmin) {
-      return { success: false, error: "Unauthorized: Only project creators and org admins can resend certificate emails." };
+    if (!(await canUserManageProjectHours(supabase, user.id, project))) {
+      return {
+        success: false,
+        error: "Unauthorized: You cannot resend certificates for this project.",
+      };
     }
 
     // 3. Fetch the certificates to resend
@@ -323,7 +347,7 @@ export async function resendCertificateEmails(
       .from("certificates")
       .select("id, volunteer_name, volunteer_email, project_title, event_start, event_end")
       .eq("project_id", projectId)
-      .in("id", certificateIds);
+      .eq("schedule_id", sessionId);
 
     if (certError || !certificates) {
       return { success: false, error: "Failed to fetch certificates." };
@@ -338,8 +362,6 @@ export async function resendCertificateEmails(
 
     // 5. Send emails
     const emailResult = await sendCertificatePublishedEmails(certificatesToEmail, project.project_timezone);
-
-    console.log(`Resent ${emailResult.emailsSent} certificate emails for project ${projectId}`);
 
     return {
       success: true,

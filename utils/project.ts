@@ -1,5 +1,6 @@
 import { Project, ProjectStatus } from "@/types";
 import { format, parseISO, isAfter, isBefore, isEqual, addHours, subHours, isWithinInterval } from "date-fns";
+import { canManageProjectAccess } from "@/lib/projects/management-access";
 
 const shouldLogProjectDebug = process.env.NODE_ENV === "development";
 
@@ -381,28 +382,21 @@ export const canManageProject = (
   userId?: string,
   userOrganizations?: { organization_id: string; role: string }[]
 ): boolean => {
-  // Must have a user ID to manage projects
-  if (!userId) {
-    return false;
-  }
+  if (!userId) return false;
 
-  // Project creator can always manage their project
-  if (project.creator_id === userId) {
-    return true;
-  }
+  const organizationRole = project.organization_id
+    ? userOrganizations?.find(
+        (organization) =>
+          organization.organization_id === project.organization_id,
+      )?.role
+    : null;
 
-  // For organization projects, check if user is admin/staff
-  if (project.organization_id && userOrganizations) {
-    const orgMembership = userOrganizations.find(
-      org => org.organization_id === project.organization_id
-    );
-
-    if (orgMembership && (orgMembership.role === "admin" || orgMembership.role === "staff")) {
-      return true;
-    }
-  }
-
-  return false;
+  return canManageProjectAccess({
+    creatorId: project.creator_id,
+    userId,
+    organizationRole,
+    canBeManagedByStaff: project.can_be_managed_by_staff,
+  });
 };
 
 // Format status text for display (e.g., "in-progress" → "In progress")

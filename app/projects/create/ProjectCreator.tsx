@@ -146,7 +146,6 @@ export default function ProjectCreator({
   const [coverImageUploadState, setCoverImageUploadState] = useState<UploadStatus>("idle");
   const [documentUploadStates, setDocumentUploadStates] = useState<Record<string, UploadStatus>>({});
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _AUTOSAVE_KEY = "project-autosave";
 
   // Form validation states
@@ -200,7 +199,6 @@ export default function ProjectCreator({
   // Autosave state - initialize with loaded draft ID if available
   const [autosaveDraftId, setAutosaveDraftId] = useState<string | undefined>(initialDraftId || undefined);
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_lastAutosaveTime, setLastAutosaveTime] = useState<Date | null>(null);
 
   type AIScheduleSlot = { name?: string; startTime: string; endTime: string; volunteers: number };

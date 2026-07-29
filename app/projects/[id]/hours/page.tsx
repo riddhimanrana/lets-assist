@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, CalendarClock } from "lucide-react";
 import { getProject } from "../actions";
+import { canManageProjectAccess } from "@/lib/projects/management-access";
 
 // Define session type for easier handling
 type ProjectSession = {
@@ -32,13 +33,13 @@ async function checkPermissions(projectId: string, userId: string): Promise<bool
   const supabase = await createClient();
   const { data: project } = await supabase
     .from("projects")
-    .select("creator_id, organization_id")
+    .select("creator_id, organization_id, can_be_managed_by_staff")
     .eq("id", projectId)
     .single();
 
   if (!project) return false;
-  if (project.creator_id === userId) return true;
 
+  let organizationRole: string | null = null;
   if (project.organization_id) {
     const { data: member } = await supabase
       .from("organization_members")
@@ -46,10 +47,15 @@ async function checkPermissions(projectId: string, userId: string): Promise<bool
       .eq("user_id", userId)
       .eq("organization_id", project.organization_id)
       .single();
-    return member?.role === "admin" || member?.role === "staff";
+    organizationRole = member?.role ?? null;
   }
 
-  return false;
+  return canManageProjectAccess({
+    creatorId: project.creator_id,
+    userId,
+    organizationRole,
+    canBeManagedByStaff: project.can_be_managed_by_staff,
+  });
 }
 
 // NEW: Helper function to get sessions that are in editing window
@@ -214,17 +220,6 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   const activeSessions = getSessionsInEditingWindow(project);
   const hasActiveSessions = activeSessions.length > 0;
 
-  // Find the session with the least time remaining (most urgent)
-  let mostUrgentSession: ProjectSession | null = null;
-  let hoursUntilWindowCloses: number | null = null;
-
-  if (activeSessions.length > 0) {
-    mostUrgentSession = activeSessions.reduce(
-      (prev, current) => (prev.hoursRemaining < current.hoursRemaining ? prev : current)
-    );
-    hoursUntilWindowCloses = mostUrgentSession.hoursRemaining;
-  }
-
   // 6. Fetch Attendance Data (Signups)
   const { data: signupsData, error: signupsError } = (await supabase
     .from("project_signups")
@@ -261,12 +256,6 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   if (signupsError) {
     console.error("Error fetching signups:", signupsError);
     return <div>Error loading volunteer data.</div>;
-  }
-
-  // Log for debugging purposes
-  console.log("Fetched signups:", signupsData?.length || 0);
-  if (signupsData && signupsData.length > 0) {
-    console.log("Sample schedule_id formats:", signupsData.slice(0, 3).map(s => s.schedule_id));
   }
 
   // Transform Supabase response arrays to single objects for profile and anonymous_signup
@@ -343,8 +332,6 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
     <HoursClient
       project={project as Project}
       initialSignups={signups}
-      hoursUntilWindowCloses={hoursUntilWindowCloses}
-      activeSessions={activeSessions}
     />
   );
 }

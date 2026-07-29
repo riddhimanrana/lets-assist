@@ -45,7 +45,14 @@ export default tseslint.config(
       'react-hooks/exhaustive-deps': 'off',
       '@next/next/no-duplicate-head': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
       'no-empty': 'warn',
       'no-constant-binary-expression': 'off',
       'no-case-declarations': 'off',

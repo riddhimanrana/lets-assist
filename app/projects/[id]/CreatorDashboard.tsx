@@ -186,7 +186,7 @@ export default function CreatorDashboard({
         } else {
           toast.error(result.error || "Failed to clone project");
         }
-      } catch (error) {
+      } catch {
         toast.error("An unexpected error occurred while cloning.");
       }
     });

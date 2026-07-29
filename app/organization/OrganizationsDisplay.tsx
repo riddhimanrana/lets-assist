@@ -57,7 +57,7 @@ export default function OrganizationsDisplay({
   userMemberships,
   isTrusted = false,
   applicationStatus = undefined,
-  sourceBadge = "local-only",
+  sourceBadge: _sourceBadge = "local-only",
   previewWarning = null,
 }: OrganizationsDisplayProps) {
   const getCreatedAtTime = (value?: string | null) =>

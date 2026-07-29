@@ -160,7 +160,6 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState<boolean>(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_currentVerifyIndex, setCurrentVerifyIndex] = useState<number>(-1);
   const [verificationProgress, setVerificationProgress] = useState<number>(0);
 

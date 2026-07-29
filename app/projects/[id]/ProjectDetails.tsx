@@ -2,7 +2,6 @@
 
 import {
   Project,
-  MultiDayScheduleDay,
   SameDayMultiAreaRole,
   Organization,
   ProjectStatus,

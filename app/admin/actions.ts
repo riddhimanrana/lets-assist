@@ -1027,8 +1027,8 @@ export async function updateOrganizationVerifiedStatus(
       organization.created_by,
       verified ? "Organization verified" : "Organization verification removed",
       verified
-        ? `Your organization \"${organization.name}\" is now verified.`
-        : `Verification for your organization \"${organization.name}\" has been removed.`,
+        ? `Your organization "${organization.name}" is now verified.`
+        : `Verification for your organization "${organization.name}" has been removed.`,
       verified ? "success" : "warning",
       `/organization/${organization.username || organizationId}`,
     );

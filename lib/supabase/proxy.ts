@@ -13,6 +13,10 @@ import {
 import { resolveMfaSessionState } from "@/lib/auth/mfa-session-state";
 import { isMfaProtectedPath } from "@/lib/auth/mfa-paths";
 import { isStaleSupabaseAuthUserError } from "@/lib/supabase/auth-errors";
+import {
+    canManageProjectAccess,
+    type ProjectManagementAccessInput,
+} from "@/lib/projects/management-access";
 
 type PendingAuthCookie = {
     name: string;
@@ -172,17 +176,8 @@ function isProjectManagementPath(path: string) {
     return matches ? { isCreatorPath: true, projectId: matches[1] } : { isCreatorPath: false, projectId: null };
 }
 
-type ProjectManagementAccessInput = {
-    creatorId: string | null;
-    userId: string;
-    organizationRole?: string | null;
-    canBeManagedByStaff?: boolean | null;
-};
-
 export function canManageProjectRoute(input: ProjectManagementAccessInput) {
-    if (input.creatorId === input.userId) return true;
-    if (input.organizationRole === "admin") return true;
-    return input.organizationRole === "staff" && input.canBeManagedByStaff === true;
+    return canManageProjectAccess(input);
 }
 
 export async function updateSession(request: NextRequest) {

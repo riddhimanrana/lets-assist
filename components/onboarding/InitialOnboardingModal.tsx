@@ -29,7 +29,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Constants for validation
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 32;
 const PHONE_LENGTH = 10;
