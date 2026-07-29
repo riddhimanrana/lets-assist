@@ -35,7 +35,7 @@ export type SendEmailResult = {
     error?: string | Error;
 };
 
-function shouldUseMailpitTransport(resendClient: Resend | null): boolean {
+function shouldUseMailpitTransport(): boolean {
     const configured = process.env.EMAIL_TRANSPORT?.trim().toLowerCase();
     if (configured === 'mailpit') return true;
     if (configured === 'resend') return false;
@@ -172,7 +172,7 @@ export async function sendEmail({ to, subject, html, react, userId, type, attach
         // Render React component to HTML if provided
         const emailHtml = react ? await render(react) : html!;
 
-        if (shouldUseMailpitTransport(resend)) {
+        if (shouldUseMailpitTransport()) {
             const mailpitResult = await sendViaMailpit({
                 to,
                 subject,

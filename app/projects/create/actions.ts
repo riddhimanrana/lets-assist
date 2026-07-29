@@ -107,7 +107,6 @@ function normalizeRequireLoginForVerificationMethod(
 }
 
 // Helper function to check if date/time is in the past, using user's local time
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _isDateTimeInPast = (date: string, time: string, userNow: Date): boolean => {
   const [hours, minutes] = time.split(':').map(Number);
   const [year, month, day] = date.split('-').map(Number);

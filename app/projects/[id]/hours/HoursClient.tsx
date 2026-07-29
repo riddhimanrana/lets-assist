@@ -39,7 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 // Import the server action
-import { publishVolunteerHours } from "./actions"; // Import the server action
+import { publishVolunteerHours, resendCertificateEmails } from "./actions";
 import { TimePicker } from "@/components/ui/time-picker"; // Import the TimePicker
 import { formatTimeTo12Hour } from "@/lib/utils"; // Assuming this exists and works
 import { getMultiDaySlotDisplayName } from "@/utils/project";
@@ -50,29 +50,15 @@ type EditedTime = {
   check_out_time: string | null; // Add check_out_time
 };
 
-// Import or define ProjectSession type
-type ProjectSession = {
-  id: string;
-  name: string;
-  endDateTime: Date;
-  hoursRemaining: number;
-};
-
 interface Props {
   project: Project;
   initialSignups: ProjectSignup[];
-  hoursUntilWindowCloses: number | null;
-  activeSessions: ProjectSession[];
 }
 
-export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _hoursUntilWindowCloses, activeSessions }: Props): React.JSX.Element {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function HoursClient({ project, initialSignups }: Props): React.JSX.Element {
   const _router = useRouter();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [signups, _setSignups] = useState<ProjectSignup[]>(initialSignups);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, _setLoading] = useState(false); // Initially false as data comes from server
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_refreshing, _setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sessionFilter, setSessionFilter] = useState<string>("all");
@@ -115,30 +101,6 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
   // State for resending certificates
   const [showResendDialog, setShowResendDialog] = useState<string | null>(null);
   const [resendingSessions, setResendingSessions] = useState<Record<string, boolean>>({});
-
-  // Log initial data for debugging
-  useEffect(() => {
-    console.log("HoursClient initialized with:", {
-      projectId: project.id,
-      eventType: project.event_type,
-      signupsCount: initialSignups.length,
-      activeSessionsCount: activeSessions.length
-    });
-
-    // Log the first few signups
-    if (initialSignups.length > 0) {
-      console.log("Sample signups:", initialSignups.slice(0, 3).map(s => ({
-        id: s.id,
-        scheduleId: s.schedule_id,
-        status: s.status,
-        checkIn: s.check_in_time,
-        checkOut: s.check_out_time,
-        name: s.profile?.full_name || s.anonymous_signup?.name
-      })));
-    } else {
-      console.log("No initial signups provided");
-    }
-  }, [project.id, project.event_type, initialSignups, activeSessions]);
 
   // State to hold edited times, keyed by signup ID
   const [editedTimes, setEditedTimes] = useState<Record<string, EditedTime>>({});
@@ -528,17 +490,22 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
         return;
       }
 
-      // Call the resend action
-      const { resendCertificateEmails } = await import("./actions");
-      
-      // Get all certificate IDs for the session - in a real app, you'd fetch these from DB
-      // For now, let's call the action with the session ID
-      // We'll need to modify this based on actual certificate tracking
-      
-      // TODO: Implement proper certificate ID tracking and resending
-      toast.success("Resend certificates feature coming soon", {
-        description: "This feature will allow you to resend certificates to volunteers."
-      });
+      const result = await resendCertificateEmails(project.id, sessionId);
+      if (!result.success) {
+        toast.error("Certificates were not resent", {
+          description: result.error || "No eligible certificates were found.",
+        });
+        return;
+      }
+
+      const emailsSent = result.emailsSent ?? 0;
+      const emailErrors = result.emailErrors ?? [];
+      toast.success(
+        `${emailsSent} certificate email${emailsSent === 1 ? "" : "s"} resent`,
+        emailErrors.length > 0
+          ? { description: `${emailErrors.length} email${emailErrors.length === 1 ? "" : "s"} could not be sent.` }
+          : undefined,
+      );
 
     } catch (error) {
       console.error("Error resending certificates:", error);
@@ -567,15 +534,6 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
         }
         acc[scheduleId].push(record);
 
-        // For debugging purposes, log the first few records
-        if (acc[scheduleId].length <= 2) {
-          console.log(`Signup in session ${scheduleId}:`, {
-            id: record.id,
-            name: record.profile?.full_name || record.anonymous_signup?.name,
-            checkIn: record.check_in_time,
-            checkOut: record.check_out_time
-          });
-        }
       }
       return acc;
     }, {} as Record<string, ProjectSignup[]>);
@@ -745,13 +703,6 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
       });
     }
 
-    // Log session IDs for debugging 
-    console.log("All possible project sessions:", sessions.map(s => ({
-      id: s.id,
-      status: s.status,
-      alternativeIds: s.alternativeIds
-    })));
-
     return sessions;
   }, [project]);
 
@@ -782,7 +733,6 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
           for (const altId of session.alternativeIds) {
             if (signupsBySession[altId]) {
               sessionSignups = signupsBySession[altId];
-              console.log(`Found signups using alternative ID ${altId} for session ${sessionId}`);
               break;
             }
           }
@@ -1377,15 +1327,9 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
               for (const altId of session.alternativeIds) {
                 if (currentFilteredSignups[altId]) {
                   sessionSignups = currentFilteredSignups[altId];
-                  console.log(`Found signups using alternative ID ${altId} for session ${session.id}`);
                   break;
                 }
               }
-            }
-
-            // For debugging
-            if (sessionSignups.length > 0) {
-              console.log(`Session ${session.id} has ${sessionSignups.length} signups`);
             }
 
             const hasSignups = sessionSignups.length > 0;

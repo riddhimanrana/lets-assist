@@ -1,15 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { DateRange } from "react-day-picker";
-import { addDays, endOfDay, format, startOfDay, startOfMonth, subMonths } from "date-fns";
+import { endOfDay, format, startOfDay, startOfMonth, subMonths } from "date-fns";
 import { toast } from "sonner";
 import {
   BarChart,
   Clock,
-  Download,
   FileSpreadsheet,
   FolderKanban,
   RefreshCw,
@@ -57,16 +55,12 @@ import {
 } from "@/components/ui/accordion";
 
 import {
-  exportOrganizationReport,
   getOrganizationReportData,
   type OrganizationReportData,
   type ReportType,
 } from "./reports/actions";
 import { ReportLayoutCustomizer } from "./reports/ReportLayoutCustomizer";
-import {
-  getDefaultLayout,
-  type ReportLayoutConfig,
-} from "./reports/report-layouts";
+import { type ReportLayoutConfig } from "./reports/report-layouts";
 import {
   createSheetSync,
   connectExistingSheet,
@@ -125,14 +119,6 @@ type GoogleApiWindow = Window & {
   google?: GooglePickerNamespace;
 };
 
-const presetRanges = [
-  { id: "fiscal", label: "This Fiscal Year" },
-  { id: "last-fiscal", label: "Last Fiscal Year" },
-  { id: "ytd", label: "Year to Date" },
-  { id: "last-30", label: "Last 30 Days" },
-  { id: "lifetime", label: "Lifetime" },
-] as const;
-
 const reportTypeLabels: Record<ReportType, string> = {
   "member-hours": "Member Hours Summary",
   "project-summary": "Project Summary",
@@ -159,22 +145,9 @@ const getSyncIntervalLabel = (value: string | number | null | undefined) => {
   );
 };
 
-const buildExclusiveRange = (from: Date, toInclusive: Date) => ({
-  from,
-  to: addDays(toInclusive, 1),
-});
-
-const getFiscalYearRange = (reference: Date, offsetYears = 0) => {
-  const startYear = reference.getMonth() >= 6 ? reference.getFullYear() : reference.getFullYear() - 1;
-  const from = new Date(startYear + offsetYears, 6, 1);
-  const to = new Date(startYear + offsetYears + 1, 5, 30);
-  return buildExclusiveRange(from, to);
-};
-
 export default function ReportsTab({ 
   organizationId, 
   organizationSlug,
-  organizationName, 
   userRole 
 }: ReportsTabProps) {
   const searchParams = useSearchParams();
@@ -203,7 +176,6 @@ export default function ReportsTab({
   }));
   const [reportData, setReportData] = useState<OrganizationReportData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [exporting, setExporting] = useState<ReportType | null>(null);
   const [sheetStatus, setSheetStatus] = useState<Awaited<ReturnType<typeof getSheetSyncStatus>> | null>(null);
   const [syncingSheet, setSyncingSheet] = useState(false);
   const [creatingSheet, setCreatingSheet] = useState(false);
@@ -225,7 +197,7 @@ export default function ReportsTab({
   } | null>(null);
   const [previewRows, setPreviewRows] = useState<string[][] | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewRequested, setPreviewRequested] = useState(false);
+  const [, setPreviewRequested] = useState(false);
   const [setupError, setSetupError] = useState<string | null>(null);
   const [pickerReady, setPickerReady] = useState(false);
   const [pickerLoading, setPickerLoading] = useState(false);
@@ -267,7 +239,6 @@ export default function ReportsTab({
   const viewerNeedsSheets = isAdmin && viewerConnected && !viewerScopesOk;
   const viewerMissingConnection = isAdmin && !viewerConnected;
   const ownerNeedsSheets = sheetStatus?.connected && sheetStatus?.scopesOk === false;
-  const needsSheetScopes = viewerNeedsSheets || ownerNeedsSheets;
   const connectedByLabel =
     sheetStatus?.connectedBy?.name || sheetStatus?.connectedBy?.email || null;
   const hasSheetOwner = Boolean(sheetStatus?.connectedBy);
@@ -519,7 +490,7 @@ export default function ReportsTab({
 
     try {
       await loadGoogleApi();
-    } catch (err) {
+    } catch {
       return false;
     }
 
@@ -1792,34 +1763,6 @@ function getProjectStatusBadgeVariant(status: string | null | undefined): "defau
     default:
       return "outline";
   }
-}
-
-function ExportButton({
-  label,
-  type,
-  exporting,
-  onExport,
-}: {
-  label: string;
-  type: ReportType;
-  exporting: ReportType | null;
-  onExport: (type: ReportType) => void;
-}) {
-  const isLoading = exporting === type;
-  return (
-    <Button
-      variant="outline"
-      onClick={() => onExport(type)}
-      disabled={isLoading}
-      className="justify-between"
-    >
-      <span className="text-sm">{label}</span>
-      <span className="flex items-center gap-2 text-xs text-muted-foreground">
-        {isLoading ? "Exporting..." : "CSV"}
-        <Download className="h-4 w-4" />
-      </span>
-    </Button>
-  );
 }
 
 function RangeBuilder({

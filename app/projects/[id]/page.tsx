@@ -13,6 +13,7 @@ import { Signup } from "@/types";
 import VolunteerStatusCard from "@/app/projects/_components/VolunteerStatusCard";
 import ProjectClient from "./ProjectClient";
 import { Metadata } from "next";
+import { canManageProjectAccess } from "@/lib/projects/management-access";
 
 export async function generateMetadata({
   params,
@@ -138,9 +139,9 @@ export default async function ProjectPage({
   // Get current user using getClaims() for better performance
   const { user } = await getAuthUser();
   const isCreator = user?.id === project.creator_id;
-  let canManageProject = isCreator;
+  let organizationRole: string | null = null;
 
-  if (user && project.organization_id && !canManageProject) {
+  if (user && project.organization_id && user.id !== project.creator_id) {
     const { data: membership } = await supabase
       .from("organization_members")
       .select("role")
@@ -148,8 +149,17 @@ export default async function ProjectPage({
       .eq("user_id", user.id)
       .single();
 
-    canManageProject = membership?.role === "admin";
+    organizationRole = membership?.role ?? null;
   }
+
+  const canManageProject = user
+    ? canManageProjectAccess({
+        creatorId: project.creator_id,
+        userId: user.id,
+        organizationRole,
+        canBeManagedByStaff: project.can_be_managed_by_staff,
+      })
+    : false;
 
   // If redirected after check-in, render the status card
   if (checkedIn === "true" && schedule && user) {

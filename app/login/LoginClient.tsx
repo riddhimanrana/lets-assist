@@ -57,7 +57,6 @@ export default function LoginClient({
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);

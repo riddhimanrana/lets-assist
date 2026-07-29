@@ -54,6 +54,7 @@ export interface Project {
   status: ProjectStatus;
   visibility: ProjectVisibility;
   organization_id?: string;
+  can_be_managed_by_staff?: boolean;
   organization?: Organization;
   pause_signups: boolean;
   created_by_role?: OrganizationRole;

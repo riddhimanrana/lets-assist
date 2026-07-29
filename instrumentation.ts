@@ -131,15 +131,15 @@ let posthogTraceSdkStarted = false;
 // Only configure the PostHog OTLP exporter if a key is present
 if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
   processors.push(
-    new BatchLogRecordProcessor(
-      new OTLPLogExporter({
+    new BatchLogRecordProcessor({
+      exporter: new OTLPLogExporter({
         url: 'https://us.i.posthog.com/i/v1/logs',
         headers: {
           Authorization: `Bearer ${process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN}`,
           'Content-Type': 'application/json',
         },
-      })
-    )
+      }),
+    })
   );
 } else {
   // Avoid leaking undefined Authorization headers when no key is configured

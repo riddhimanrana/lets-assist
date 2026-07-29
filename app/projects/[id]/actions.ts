@@ -19,8 +19,6 @@ import { headers } from "next/headers";
 import crypto from 'crypto';
 // Import centralized email service
 import { sendEmail } from '@/services/email';
-// Import date-fns utilities
-import { parseISO, isAfter } from 'date-fns';
 // Import React Email templates
 import AnonymousSignupConfirmation from '@/emails/anonymous-signup-confirmation';
 import UserSignupConfirmation from '@/emails/user-signup-confirmation';
@@ -44,6 +42,7 @@ import {
 } from "@/lib/anonymous-signup-continuation";
 import { resolveServerCheckoutTime } from "@/lib/attendance/checkout";
 import { confirmAnonymousSignupWithCapacity } from "@/lib/projects/signup-capacity";
+import { canManageProjectAccess } from "@/lib/projects/management-access";
 
 // Define your site URL (replace with environment variable ideally)
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -289,7 +288,7 @@ function getScheduleDetails(project: Project, scheduleId: string) {
   } else if (project.event_type === "multiDay") {
     const slotData = getMultiDaySlotByScheduleId(project, scheduleId);
     if (slotData) {
-      const { day, slot, slotIndex, dayIndex } = slotData;
+      const { day, slot, slotIndex } = slotData;
       const date = formatDateWithWeekday(day.date);
 
       const start12 = formatTimeTo12Hour(slot.startTime);
@@ -371,33 +370,21 @@ type CurrentUserProjectPermissions = {
 const getManageableProjectOrganizationId = (project?: ManageableProjectRecord | null) =>
   project?.organization_id ?? project?.organization?.id ?? null;
 
-async function isUserOrganizationAdmin(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  organizationId: string | null | undefined,
-  userId: string,
-) {
-  if (!organizationId) return false;
-
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("role")
-    .eq("organization_id", organizationId)
-    .eq("user_id", userId)
-    .single();
-
-  return membership?.role === "admin";
-}
-
 async function canUserManageProject(
   supabase: Awaited<ReturnType<typeof createClient>>,
   project: ManageableProjectRecord | null | undefined,
   userId: string,
 ) {
   if (!project) return false;
-  if (project.creator_id === userId) return true;
 
   const orgId = getManageableProjectOrganizationId(project);
-  if (!orgId) return false;
+  if (project.creator_id === userId || !orgId) {
+    return canManageProjectAccess({
+      creatorId: project.creator_id ?? null,
+      userId,
+      canBeManagedByStaff: project.can_be_managed_by_staff,
+    });
+  }
 
   const { data: membership } = await supabase
     .from("organization_members")
@@ -406,15 +393,12 @@ async function canUserManageProject(
     .eq("user_id", userId)
     .single();
 
-  if (!membership) return false;
-
-  // 1. Org Admins always have management permissions for projects in their org
-  if (membership.role === "admin") return true;
-
-  // 2. Org Staff ONLY have permissions if the creator enabled 'can_be_managed_by_staff'
-  if (membership.role === "staff" && project.can_be_managed_by_staff === true) return true;
-
-  return false;
+  return canManageProjectAccess({
+    creatorId: project.creator_id ?? null,
+    userId,
+    organizationRole: membership?.role,
+    canBeManagedByStaff: project.can_be_managed_by_staff,
+  });
 }
 
 export async function getCurrentUserProjectPermissions(
@@ -2677,20 +2661,7 @@ export async function cloneProject(projectId: string) {
 
   if (fetchError || !source) return { error: "Project not found" };
 
-  // Permission check: only org staff/admin or project creator can clone
-  let hasPermission = source.creator_id === user.id;
-  if (source.organization_id && !hasPermission) {
-    const { data: orgMember } = await supabase
-      .from("organization_members")
-      .select("role")
-      .eq("organization_id", source.organization_id)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (orgMember?.role) {
-      hasPermission = orgMember.role === "admin" || orgMember.role === "staff";
-    }
-  }
+  const hasPermission = await canUserManageProject(supabase, source, user.id);
 
   if (!hasPermission) {
     return { error: "You don't have permission to clone this project" };

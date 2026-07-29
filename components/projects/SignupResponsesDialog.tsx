@@ -45,8 +45,6 @@ export function SignupResponsesDialog({
   const renderMappedData = () => {
     if (!formSchema) return renderRawData();
 
-    const allFields = formSchema.sections.flatMap(s => s.fields);
-    
     return (
       <div className="space-y-6">
         {formSchema.sections.map((section, sIdx) => (
