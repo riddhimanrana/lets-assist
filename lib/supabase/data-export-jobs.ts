@@ -8,6 +8,7 @@ import { getAdminClient } from "./admin";
 import { createUserDataExportArchive } from "./user-data-export";
 
 const EXPORT_BUCKET = "data-exports";
+const EXPORT_BUCKET_FILE_SIZE_LIMIT = "50MB";
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const DEFAULT_ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024; // 8MB
 
@@ -52,7 +53,7 @@ async function ensureExportBucket() {
 
   const { error: createError } = await supabase.storage.createBucket(EXPORT_BUCKET, {
     public: false,
-    fileSizeLimit: "100MB",
+    fileSizeLimit: EXPORT_BUCKET_FILE_SIZE_LIMIT,
   });
 
   if (createError) {

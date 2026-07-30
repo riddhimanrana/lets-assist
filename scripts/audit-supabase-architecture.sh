@@ -309,7 +309,7 @@ storage_bucket_drift="$(
         ('project-documents', true, 20971520::bigint, array['application/pdf']::text[]),
         ('waiver-uploads', true, 20971520::bigint, array['application/pdf']::text[]),
         ('waivers', true, 20971520::bigint, array['application/pdf']::text[]),
-        ('data-exports', false, 104857600::bigint, array['application/zip']::text[]),
+        ('data-exports', false, 52428800::bigint, array['application/zip']::text[]),
         ('plugin_form_uploads', false, 10485760::bigint, array['application/pdf', 'image/jpeg', 'image/png']::text[]),
         ('waiver-signatures', false, 10485760::bigint, array['application/pdf', 'image/png', 'image/jpeg', 'image/jpg']::text[])
     )
