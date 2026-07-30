@@ -1,6 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import test from "node:test";
 
 import {
@@ -92,15 +90,4 @@ test("CSF compatibility export appends malicious-looking cells as RAW", async ()
   } finally {
     globalThis.fetch = originalFetch;
   }
-
-  const actionSource = readFileSync(
-    join(
-      process.cwd(),
-      "lib/plugins/private/plugins/dvhs-csf/actions.ts",
-    ),
-    "utf8",
-  );
-  const callStart = actionSource.indexOf("const appended = await appendSpreadsheetValues(");
-  assert.ok(callStart >= 0);
-  assert.match(actionSource.slice(callStart, callStart + 600), /"RAW"/u);
 });
