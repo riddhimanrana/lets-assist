@@ -12,19 +12,29 @@ function getResendClient(): Resend | null {
 
 export type EmailType = 'project_updates' | 'general' | 'transactional';
 
-interface EmailAttachment {
+export interface EmailAttachment {
     filename: string;
     content: string;
 }
 
-interface SendEmailParams {
+export type EmailTag = {
+    name: string;
+    value: string;
+};
+
+export interface SendEmailParams {
     to: string | string[];
     subject: string;
     html?: string;
+    text?: string;
     react?: React.ReactElement;
     userId?: string; // Optional: if provided, checks user preferences
     type: EmailType;
     attachments?: EmailAttachment[];
+    from?: string;
+    replyTo?: string | string[];
+    tags?: EmailTag[];
+    idempotencyKey?: string;
 }
 
 export type SendEmailResult = {
@@ -49,18 +59,40 @@ async function sendViaMailpit({
     to,
     subject,
     html,
+    text,
     attachments,
+    from,
+    replyTo,
+    tags,
+    idempotencyKey,
 }: {
     to: string | string[];
     subject: string;
-    html: string;
+    html?: string;
+    text?: string;
     attachments?: EmailAttachment[];
+    from?: string;
+    replyTo?: string | string[];
+    tags?: EmailTag[];
+    idempotencyKey?: string;
 }) {
     const nodemailer = await import('nodemailer');
 
     const host = process.env.MAILPIT_HOST?.trim() || '127.0.0.1';
     const port = Number(process.env.MAILPIT_SMTP_PORT || '54325');
-    const from = process.env.MAILPIT_FROM_EMAIL?.trim() || "Let's Assist <no-reply@local.lets-assist.test>";
+    const localFrom =
+        from ??
+        process.env.MAILPIT_FROM_EMAIL?.trim() ??
+        "Let's Assist <no-reply@local.lets-assist.test>";
+    const headers = Object.fromEntries([
+        ...(idempotencyKey
+            ? [["X-Lets-Assist-Idempotency-Key", idempotencyKey] as const]
+            : []),
+        ...(tags ?? []).map((tag) => [
+            `X-Lets-Assist-Tag-${tag.name}`,
+            tag.value,
+        ] as const),
+    ]);
 
     const transporter = nodemailer.createTransport({
         host,
@@ -69,10 +101,13 @@ async function sendViaMailpit({
     });
 
     const response = await transporter.sendMail({
-        from,
+        from: localFrom,
         to,
         subject,
         html,
+        text,
+        replyTo,
+        headers,
         attachments: attachments?.map((attachment) => ({
             filename: attachment.filename,
             content: attachment.content,
@@ -89,19 +124,34 @@ async function sendViaMailpit({
     };
 }
 
-export async function sendEmail({ to, subject, html, react, userId, type, attachments }: SendEmailParams): Promise<SendEmailResult> {
+export async function sendEmail({
+    to,
+    subject,
+    html,
+    text,
+    react,
+    userId,
+    type,
+    attachments,
+    from,
+    replyTo,
+    tags,
+    idempotencyKey,
+}: SendEmailParams): Promise<SendEmailResult> {
     const shouldLog = process.env.NODE_ENV !== "test";
 
-    // Validate that either html or react is provided
-    if (!html && !react) {
+    // Require at least one supported representation. Transactional callers
+    // should normally provide both HTML and plain text, while small operational
+    // notices may intentionally be text-only.
+    if (!html && !react && !text) {
         if (shouldLog) {
-            logError('Email validation failed: Neither html nor react provided', new Error('Invalid email parameters'), {
+            logError('Email validation failed: No message body provided', new Error('Invalid email parameters'), {
                 to: Array.isArray(to) ? to.join(',') : to,
                 subject,
                 type,
             });
         }
-        return { success: false, error: 'Either html or react must be provided' };
+        return { success: false, error: 'At least one of html, react, or text must be provided' };
     }
 
     // 1. Check preferences if userId is provided and type is not transactional
@@ -170,14 +220,19 @@ export async function sendEmail({ to, subject, html, react, userId, type, attach
     try {
         const resend = getResendClient();
         // Render React component to HTML if provided
-        const emailHtml = react ? await render(react) : html!;
+        const emailHtml = react ? await render(react) : html;
 
         if (shouldUseMailpitTransport()) {
             const mailpitResult = await sendViaMailpit({
                 to,
                 subject,
                 html: emailHtml,
+                text,
                 attachments,
+                from,
+                replyTo,
+                tags,
+                idempotencyKey,
             });
 
             if (shouldLog) {
@@ -204,13 +259,21 @@ export async function sendEmail({ to, subject, html, react, userId, type, attach
             return { success: false, skipped: true, reason: 'Email service not configured' };
         }
 
+        const content = emailHtml
+            ? { html: emailHtml, ...(text ? { text } : {}) }
+            : { text: text! };
         const { data, error } = await resend.emails.send({
-            from: "Let's Assist <projects@notifications.lets-assist.com>",
+            from:
+                from ??
+                process.env.EMAIL_FROM?.trim() ??
+                "Let's Assist <projects@notifications.lets-assist.com>",
             to,
             subject,
-            html: emailHtml,
+            ...content,
+            replyTo,
+            tags,
             attachments,
-        });
+        }, idempotencyKey ? { idempotencyKey } : undefined);
 
         if (error) {
             if (shouldLog) {
