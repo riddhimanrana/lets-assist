@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { readOrganizationPluginContext } from "@/lib/plugins/organization-plugin-context";
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
 import { resolveOrganizationPluginByKey } from "@/lib/plugins/resolve-org-plugins";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -103,21 +104,17 @@ export async function renderOrganizationPluginPage(options: {
       organizationIdentifier,
     );
 
-  const orgByIdQuery = supabase
-    .from("organizations")
-    .select("id, name, username")
-    .eq("id", organizationIdentifier)
-    .single();
-
-  const orgByUsernameQuery = supabase
-    .from("organizations")
-    .select("id, name, username")
-    .eq("username", organizationIdentifier)
-    .single();
-
-  const { data: organization } = isUUID
-    ? ((await orgByIdQuery) as { data: OrganizationRecord | null })
-    : ((await orgByUsernameQuery) as { data: OrganizationRecord | null });
+  const organization = await readOrganizationPluginContext<OrganizationRecord>(
+    "organization",
+    () => {
+      const query = supabase
+        .from("organizations")
+        .select("id, name, username");
+      return isUUID
+        ? query.eq("id", organizationIdentifier).maybeSingle()
+        : query.eq("username", organizationIdentifier).maybeSingle();
+    },
+  );
 
   if (!organization) {
     notFound();
@@ -142,14 +139,18 @@ export async function renderOrganizationPluginPage(options: {
     redirect(`/login?redirect=${encodeURIComponent(targetPath)}`);
   }
 
-  const { data: membership } = user
-    ? ((await supabase
-        .from("organization_members")
-        .select("role")
-        .eq("organization_id", organization.id)
-        .eq("user_id", user.id)
-        .maybeSingle()) as { data: MembershipRow | null })
-    : { data: null };
+  const membership = user
+    ? await readOrganizationPluginContext<MembershipRow>(
+        "membership",
+        () =>
+          supabase
+            .from("organization_members")
+            .select("role")
+            .eq("organization_id", organization.id)
+            .eq("user_id", user.id)
+            .maybeSingle(),
+      )
+    : null;
 
   const userRole = toRole(membership?.role ?? null);
   if (!userRole && !isPublicManifestRoute) {
@@ -161,6 +162,7 @@ export async function renderOrganizationPluginPage(options: {
     organizationId: organization.id,
     userRole: effectiveUserRole,
     pluginKey,
+    failureMode: "throw",
   });
 
   if (!resolvedPlugin) {

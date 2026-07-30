@@ -69,7 +69,28 @@ export async function withRetryableSupabaseQuery<TResult extends SupabaseQueryRe
 	let lastResult: TResult | null = null;
 
 	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-		lastResult = await query();
+		try {
+			lastResult = await query();
+		} catch (error) {
+			const retryableError =
+				error && typeof error === "object"
+					? (error as SupabaseQueryErrorLike)
+					: { message: String(error) };
+
+			if (
+				attempt >= maxAttempts ||
+				!isRetryableSupabaseQueryError(retryableError)
+			) {
+				throw error;
+			}
+
+			const backoff = Math.min(
+				maxDelayMs,
+				initialDelayMs * 2 ** (attempt - 1),
+			);
+			await sleep(backoff);
+			continue;
+		}
 
 		if (!lastResult.error || !isRetryableSupabaseQueryError(lastResult.error as SupabaseQueryErrorLike)) {
 			return lastResult;

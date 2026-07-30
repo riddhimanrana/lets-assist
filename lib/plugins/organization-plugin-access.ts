@@ -6,8 +6,17 @@ import {
   coalescePluginVersion,
   isPluginVersionBehind,
 } from "@/lib/plugins/versioning";
+import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
 
 export type PluginAccessQueryClient = Pick<SupabaseClient, "from">;
+export type PluginAccessFailureMode = "empty" | "throw";
+
+export class OrganizationPluginAccessUnavailableError extends Error {
+  constructor(cause?: unknown) {
+    super("Organization plugin access is temporarily unavailable.", { cause });
+    this.name = "OrganizationPluginAccessUnavailableError";
+  }
+}
 
 type PluginCatalogRow = {
   key: string;
@@ -109,6 +118,16 @@ function isBlockedByForcedUpdate(row: {
     row.force_update_version &&
       isPluginVersionBehind(installedVersion, row.force_update_version),
   );
+}
+
+function handlePluginAccessReadFailure(
+  failureMode: PluginAccessFailureMode,
+  cause?: unknown,
+): [] {
+  if (failureMode === "throw") {
+    throw new OrganizationPluginAccessUnavailableError(cause);
+  }
+  return [];
 }
 
 export function filterConsolidatedPluginAccessRows(
@@ -214,20 +233,26 @@ export async function loadAccessibleOrganizationPluginAccess(input: {
   supabase: PluginAccessQueryClient;
   organizationIds: string[];
   now?: Date;
+  failureMode?: PluginAccessFailureMode;
 }): Promise<OrganizationPluginAccessRow[]> {
   const organizationIds = Array.from(
     new Set(input.organizationIds.filter(Boolean)),
   );
   if (organizationIds.length === 0) return [];
+  const failureMode = input.failureMode ?? "empty";
 
   try {
-    const accessResult = await input.supabase
-      .from("organization_plugin_access")
-      .select(
-        "organization_id, plugin_key, enabled, configuration, installed_at, installed_version, visibility, is_active, latest_version, force_update_version, is_accessible",
-      )
-      .in("organization_id", organizationIds)
-      .eq("enabled", true);
+    const accessResult = await withRetryableSupabaseQuery(
+      () =>
+        input.supabase
+          .from("organization_plugin_access")
+          .select(
+            "organization_id, plugin_key, enabled, configuration, installed_at, installed_version, visibility, is_active, latest_version, force_update_version, is_accessible",
+          )
+          .in("organization_id", organizationIds)
+          .eq("enabled", true),
+      { maxAttempts: 2, initialDelayMs: 75, maxDelayMs: 75 },
+    );
 
     if (!accessResult.error) {
       return filterConsolidatedPluginAccessRows(
@@ -236,29 +261,41 @@ export async function loadAccessibleOrganizationPluginAccess(input: {
     }
 
     if (!isMissingPluginAccessReadModelError(accessResult.error)) {
-      return [];
+      return handlePluginAccessReadFailure(failureMode, accessResult.error);
     }
 
     const [catalogResult, entitlementResult, installResult] = await Promise.all([
-      input.supabase
-        .from("plugins")
-        .select(
-          "key, visibility, is_active, latest_version, force_update_version",
-        )
-        .eq("is_active", true),
-      input.supabase
-        .from("organization_plugin_entitlements")
-        .select(
-          "organization_id, plugin_key, status, starts_at, ends_at, is_forced",
-        )
-        .in("organization_id", organizationIds),
-      input.supabase
-        .from("organization_plugin_installs")
-        .select(
-          "organization_id, plugin_key, enabled, configuration, installed_at, installed_version",
-        )
-        .in("organization_id", organizationIds)
-        .eq("enabled", true),
+      withRetryableSupabaseQuery(
+        () =>
+          input.supabase
+            .from("plugins")
+            .select(
+              "key, visibility, is_active, latest_version, force_update_version",
+            )
+            .eq("is_active", true),
+        { maxAttempts: 2, initialDelayMs: 75, maxDelayMs: 75 },
+      ),
+      withRetryableSupabaseQuery(
+        () =>
+          input.supabase
+            .from("organization_plugin_entitlements")
+            .select(
+              "organization_id, plugin_key, status, starts_at, ends_at, is_forced",
+            )
+            .in("organization_id", organizationIds),
+        { maxAttempts: 2, initialDelayMs: 75, maxDelayMs: 75 },
+      ),
+      withRetryableSupabaseQuery(
+        () =>
+          input.supabase
+            .from("organization_plugin_installs")
+            .select(
+              "organization_id, plugin_key, enabled, configuration, installed_at, installed_version",
+            )
+            .in("organization_id", organizationIds)
+            .eq("enabled", true),
+        { maxAttempts: 2, initialDelayMs: 75, maxDelayMs: 75 },
+      ),
     ]);
 
     if (
@@ -266,7 +303,12 @@ export async function loadAccessibleOrganizationPluginAccess(input: {
       entitlementResult.error ||
       installResult.error
     ) {
-      return [];
+      return handlePluginAccessReadFailure(
+        failureMode,
+        catalogResult.error ??
+          entitlementResult.error ??
+          installResult.error,
+      );
     }
 
     return resolveLegacyOrganizationPluginAccess({
@@ -275,7 +317,10 @@ export async function loadAccessibleOrganizationPluginAccess(input: {
       installs: (installResult.data ?? []) as PluginInstallRow[],
       now: input.now,
     });
-  } catch {
-    return [];
+  } catch (error) {
+    if (error instanceof OrganizationPluginAccessUnavailableError) {
+      throw error;
+    }
+    return handlePluginAccessReadFailure(failureMode, error);
   }
 }
