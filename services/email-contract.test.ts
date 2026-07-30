@@ -9,7 +9,7 @@ import {
 
 type MockResendResponse = {
   data: { id: string } | null;
-  error: { name: string; message: string } | null;
+  error: { name: string; message: string; statusCode?: number | null } | null;
 };
 
 const resendSend = mock(
@@ -23,11 +23,14 @@ const resendSend = mock(
 );
 const resendApiKeys: string[] = [];
 
+let constructorImpl: ((apiKey: string) => void) | null = null;
+
 class MockResend {
   readonly emails = { send: resendSend };
 
   constructor(apiKey: string) {
     resendApiKeys.push(apiKey);
+    constructorImpl?.(apiKey);
   }
 }
 
@@ -107,6 +110,7 @@ beforeEach(() => {
     error: null,
   }));
   resendApiKeys.length = 0;
+  constructorImpl = null;
   createClient.mockClear();
   render.mockClear();
   logError.mockClear();
@@ -117,6 +121,7 @@ beforeEach(() => {
     messageId: "<mailpit-message-id>",
   }));
   createTransport.mockClear();
+  createTransport.mockImplementation(() => ({ sendMail }));
 });
 
 afterAll(restoreEnvironment);
@@ -147,8 +152,13 @@ describe("shared email transport contract", () => {
       ],
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
+      outcome: "accepted",
       success: true,
+      skipped: false,
+      phase: "provider_response",
+      messageId: "provider-message-id",
+      transport: "resend",
       data: { id: "provider-message-id" },
     });
     expect(resendApiKeys).toEqual(["synthetic-resend-key"]);
@@ -174,6 +184,50 @@ describe("shared email transport contract", () => {
       },
       { idempotencyKey: "csf/application-decision/synthetic-1" },
     ]);
+  });
+
+  test("forwards exact provider headers so a hashed payload can actually be sent", async () => {
+    // The CSF ledger hashes the COMPLETE canonical provider request, headers
+    // included, and derives the attempt's idempotency key from that digest. If the
+    // transport dropped headers, the request sent would differ from the one the
+    // stored key was allocated against.
+    process.env.EMAIL_TRANSPORT = "resend";
+    process.env.RESEND_API_KEY = "synthetic-resend-key";
+
+    const result = await sendEmail({
+      to: "adviser@example.test",
+      subject: "Synthetic tagged send",
+      text: "Body",
+      type: "transactional",
+      headers: { "X-CSF-Attempt": "synthetic-attempt-1" },
+      tags: [{ name: "csf_plugin", value: "dvhs_csf" }],
+      idempotencyKey: "csf-att-synthetic-1",
+    });
+
+    expect(result.success).toBe(true);
+    expect(resendSend.mock.calls[0][0]).toMatchObject({
+      headers: { "X-CSF-Attempt": "synthetic-attempt-1" },
+      tags: [{ name: "csf_plugin", value: "dvhs_csf" }],
+    });
+  });
+
+  test("omitting headers leaves the outbound request shape unchanged", async () => {
+    process.env.EMAIL_TRANSPORT = "resend";
+    process.env.RESEND_API_KEY = "synthetic-resend-key";
+
+    await sendEmail({
+      to: "adviser@example.test",
+      subject: "Synthetic untagged send",
+      text: "Body",
+      type: "transactional",
+    });
+
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        resendSend.mock.calls[0][0] as Record<string, unknown>,
+        "headers",
+      ),
+    ).toBe(false);
   });
 
   test("keeps text-only operational messages valid", async () => {
@@ -219,14 +273,20 @@ describe("shared email transport contract", () => {
       idempotencyKey: "csf/local/synthetic-1",
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
+      outcome: "accepted",
       success: true,
+      phase: "provider_response",
+      messageId: "<mailpit-message-id>",
+      transport: "mailpit",
       data: {
         id: "<mailpit-message-id>",
         transport: "mailpit",
       },
     });
     expect(createTransport).toHaveBeenCalledWith({
+      disableFileAccess: true,
+      disableUrlAccess: true,
       host: "127.0.0.1",
       port: 54325,
       secure: false,
@@ -244,6 +304,331 @@ describe("shared email transport contract", () => {
       },
       attachments: undefined,
     });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Transport outcomes are represented honestly.
+  //
+  // The distinction every one of these fixtures exists to pin down is whether the
+  // request could possibly have been ACCEPTED. Collapsing them to a boolean is what
+  // forces a caller to choose between losing mail and sending it twice.
+  // ---------------------------------------------------------------------------
+
+  test("local validation before the request is a definitive failure", async () => {
+    process.env.EMAIL_TRANSPORT = "resend";
+    process.env.RESEND_API_KEY = "synthetic-resend-key";
+
+    const result = await sendEmail({
+      to: "student@example.test",
+      subject: "Synthetic notice with no body at all",
+      type: "transactional",
+    });
+
+    expect(result).toMatchObject({
+      outcome: "definitive_failure",
+      success: false,
+      skipped: false,
+      phase: "local_validation",
+      code: "missing_body",
+    });
+    // Nothing reached the provider, which is the point of the phase.
+    expect(resendSend).toHaveBeenCalledTimes(0);
+  });
+
+  test("a definitive HTTP rejection is not retryable", async () => {
+    process.env.EMAIL_TRANSPORT = "resend";
+    process.env.RESEND_API_KEY = "synthetic-resend-key";
+    resendSend.mockImplementation(async () => ({
+      data: null,
+      error: {
+        name: "validation_error",
+        message: "The from address is not verified for student@example.test",
+        statusCode: 422,
+      },
+    }));
+
+    const result = await sendEmail({
+      to: "student@example.test",
+      subject: "Synthetic rejected notice",
+      text: "Body",
+      type: "transactional",
+    });
+
+    expect(result).toMatchObject({
+      outcome: "definitive_failure",
+      success: false,
+      phase: "provider_response",
+      code: "validation_error",
+      status: 422,
+    });
+    // The provider's message named the recipient; the sanitized summary must not.
+    expect(String(result.error)).not.toContain("student@example.test");
+  });
+
+  test("a throttled rejection is retryable because nothing was accepted", async () => {
+    process.env.EMAIL_TRANSPORT = "resend";
+    process.env.RESEND_API_KEY = "synthetic-resend-key";
+    resendSend.mockImplementation(async () => ({
+      data: null,
+      error: {
+        name: "rate_limit_exceeded",
+        message: "Too many requests",
+        statusCode: 429,
+      },
+    }));
+
+    const result = await sendEmail({
+      to: "student@example.test",
+      subject: "Synthetic throttled notice",
+      text: "Body",
+      type: "transactional",
+    });
+
+    expect(result).toMatchObject({
+      outcome: "retryable_pre_send",
+      success: false,
+      phase: "provider_response",
+      code: "rate_limit_exceeded",
+      status: 429,
+    });
+  });
+
+  test("a provider-side fault is an unknown outcome, never a retry", async () => {
+    process.env.EMAIL_TRANSPORT = "resend";
+    process.env.RESEND_API_KEY = "synthetic-resend-key";
+    resendSend.mockImplementation(async () => ({
+      data: null,
+      error: {
+        name: "internal_server_error",
+        message: "Something went wrong",
+        statusCode: 500,
+      },
+    }));
+
+    const result = await sendEmail({
+      to: "student@example.test",
+      subject: "Synthetic ambiguous notice",
+      text: "Body",
+      type: "transactional",
+    });
+
+    // A 5xx may have been accepted before the failure. Retrying can double-send.
+    expect(result).toMatchObject({
+      outcome: "unknown_outcome",
+      success: false,
+      phase: "provider_response",
+      code: "internal_server_error",
+    });
+  });
+
+  test("an unrecognized provider error is ambiguous rather than assumed safe", async () => {
+    process.env.EMAIL_TRANSPORT = "resend";
+    process.env.RESEND_API_KEY = "synthetic-resend-key";
+    resendSend.mockImplementation(async () => ({
+      data: null,
+      error: { name: "some_future_error_code", message: "New failure mode" },
+    }));
+
+    const result = await sendEmail({
+      to: "student@example.test",
+      subject: "Synthetic future error",
+      text: "Body",
+      type: "transactional",
+    });
+
+    expect(result).toMatchObject({ outcome: "unknown_outcome" });
+  });
+
+  test("a timeout or reset after dispatch is an unknown outcome at the request phase", async () => {
+    process.env.EMAIL_TRANSPORT = "resend";
+    process.env.RESEND_API_KEY = "synthetic-resend-key";
+    resendSend.mockImplementation(async () => {
+      // Control left the process inside emails.send(). Whether Resend received and
+      // queued the request before the socket died is unknowable from here.
+      const reset = new Error("socket hang up for student@example.test");
+      reset.name = "ECONNRESET";
+      throw reset;
+    });
+
+    const result = await sendEmail({
+      to: "student@example.test",
+      subject: "Synthetic reset notice",
+      text: "Body",
+      type: "transactional",
+    });
+
+    expect(result).toMatchObject({
+      outcome: "unknown_outcome",
+      success: false,
+      phase: "provider_request",
+      code: "transport_exception",
+    });
+    expect(String(result.error)).not.toContain("student@example.test");
+  });
+
+  test("a 2xx with no message identity is unknown, not success", async () => {
+    process.env.EMAIL_TRANSPORT = "resend";
+    process.env.RESEND_API_KEY = "synthetic-resend-key";
+    resendSend.mockImplementation(async () => ({ data: null, error: null }));
+
+    const result = await sendEmail({
+      to: "student@example.test",
+      subject: "Synthetic unnamed acceptance",
+      text: "Body",
+      type: "transactional",
+    });
+
+    expect(result).toMatchObject({
+      outcome: "unknown_outcome",
+      code: "missing_provider_message_id",
+    });
+  });
+
+  test("a provider client that cannot be constructed is a pre-send fault, not ambiguity", async () => {
+    // A key is present, so somebody meant to send. The SDK refusing to build a
+    // client opens no socket, so nothing can have been accepted -- classifying it as
+    // unknown_outcome would make the CSF ledger treat it as terminal and demand a
+    // human reconciliation for a message that never existed.
+    process.env.EMAIL_TRANSPORT = "resend";
+    process.env.RESEND_API_KEY = "synthetic-resend-key";
+    constructorImpl = () => {
+      throw new Error("Missing API key. Pass it to the constructor");
+    };
+
+    const result = await sendEmail({
+      to: "student@example.test",
+      subject: "Synthetic setup failure",
+      text: "Body",
+      type: "transactional",
+    });
+
+    expect(result).toMatchObject({
+      outcome: "retryable_pre_send",
+      success: false,
+      skipped: false,
+      phase: "transport_setup",
+      code: "resend_client_setup_failed",
+    });
+    expect(result.outcome).not.toBe("unknown_outcome");
+    expect(resendSend).toHaveBeenCalledTimes(0);
+  });
+
+  test("an unusable local transport port is a definitive local failure", async () => {
+    process.env.EMAIL_TRANSPORT = "mailpit";
+    process.env.MAILPIT_SMTP_PORT = "not-a-port";
+
+    const result = await sendEmail({
+      to: "student@example.test",
+      subject: "Synthetic bad port",
+      text: "Body",
+      type: "transactional",
+    });
+
+    expect(result).toMatchObject({
+      outcome: "definitive_failure",
+      phase: "transport_setup",
+      code: "mailpit_port_invalid",
+    });
+    expect(createTransport).toHaveBeenCalledTimes(0);
+  });
+
+  test("a local transport that cannot be constructed is retryable pre-send, never unknown", async () => {
+    process.env.EMAIL_TRANSPORT = "mailpit";
+    createTransport.mockImplementation(() => {
+      throw new Error("bad transport options");
+    });
+
+    const result = await sendEmail({
+      to: "student@example.test",
+      subject: "Synthetic transport setup failure",
+      text: "Body",
+      type: "transactional",
+    });
+
+    expect(result).toMatchObject({
+      outcome: "retryable_pre_send",
+      phase: "transport_setup",
+      code: "mailpit_transport_setup_failed",
+    });
+    expect(result.outcome).not.toBe("unknown_outcome");
+    // Nothing was dispatched, so nothing is ambiguous.
+    expect(sendMail).toHaveBeenCalledTimes(0);
+  });
+
+  test("the local transporter disables file and URL content access", async () => {
+    process.env.EMAIL_TRANSPORT = "mailpit";
+    process.env.MAILPIT_HOST = "127.0.0.1";
+    process.env.MAILPIT_SMTP_PORT = "54325";
+
+    await sendEmail({
+      to: "student@example.test",
+      subject: "Synthetic hardened local send",
+      text: "Body",
+      type: "transactional",
+    });
+
+    // GHSA-p6gq-j5cr-w38f: nodemailer will read a local path or fetch a URL from a
+    // message part unless both are disabled. This wrapper only ever sends inline
+    // content, so leaving them on is a pure local-file-read/SSRF primitive.
+    expect(createTransport).toHaveBeenCalledWith({
+      host: "127.0.0.1",
+      port: 54325,
+      secure: false,
+      disableFileAccess: true,
+      disableUrlAccess: true,
+    });
+  });
+
+  test("a transport that is not configured is skipped, not failed", async () => {
+    process.env.EMAIL_TRANSPORT = "resend";
+    delete process.env.RESEND_API_KEY;
+
+    const result = await sendEmail({
+      to: "student@example.test",
+      subject: "Synthetic unconfigured notice",
+      text: "Body",
+      type: "transactional",
+    });
+
+    expect(result).toMatchObject({
+      outcome: "skipped",
+      success: false,
+      skipped: true,
+      phase: "transport_setup",
+      code: "transport_not_configured",
+    });
+    expect(resendSend).toHaveBeenCalledTimes(0);
+  });
+
+  test("the sanitized error summary is always a string, never a raw cause", async () => {
+    process.env.EMAIL_TRANSPORT = "resend";
+    process.env.RESEND_API_KEY = "synthetic-resend-key";
+
+    const causes: Array<() => Promise<MockResendResponse>> = [
+      async () => ({
+        data: null,
+        error: { name: "validation_error", message: "x", statusCode: 422 },
+      }),
+      async () => {
+        throw new Error("raw cause with secret-token-value");
+      },
+    ];
+
+    for (const cause of causes) {
+      resendSend.mockImplementation(cause);
+      const result = await sendEmail({
+        to: "student@example.test",
+        subject: "Synthetic sanitization check",
+        text: "Body",
+        type: "transactional",
+      });
+
+      // The TYPE permits Error for backward compatibility with existing narrowing
+      // call sites; the runtime never produces one.
+      expect(typeof result.error).toBe("string");
+      expect(result.error).not.toBeInstanceOf(Error);
+      expect(String(result.error)).not.toContain("secret-token-value");
+    }
   });
 
   test("never writes recipient, content, provider secrets, or durable keys to logs", async () => {

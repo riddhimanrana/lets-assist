@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(168);
+SELECT extensions.plan(169);
 
 -- ---------------------------------------------------------------------------
 -- Server-only boundaries for the new recovery-foundation tables
@@ -68,6 +68,24 @@ SELECT extensions.ok(
   'anon and authenticated hold no table privileges at all on the new tables'
 );
 
+-- THE WRITE BOUNDARY IS A PRIVILEGE, NOT A FLAG.
+--
+-- This used to require SELECT, INSERT, and UPDATE on all six tables plus DELETE on
+-- all six. Both halves were wrong about where 20260730001003 actually drew the
+-- line, and the read/write half was wrong in the dangerous direction: it asserted
+-- a broader grant than the migration leaves in place, so it would have failed
+-- against the very boundary it was meant to protect -- and passed only if someone
+-- widened service_role back out.
+--
+-- What that migration does is revoke ALL direct DML from service_role on the four
+-- durable communications ledgers and grant SELECT alone. Every write to them goes
+-- through the SECURITY DEFINER RPCs, which is what makes the campaign lock order,
+-- the lifecycle triggers, and the immutability guards unavoidable rather than
+-- merely customary. Removal of communications history happens solely through the
+-- owner-run purge entry point, which needs no grant at all.
+--
+-- The two mutable partner-club projections are genuinely ordinary tables and keep
+-- the full read/write/delete grant.
 SELECT extensions.ok(
   (
     SELECT bool_and(
@@ -75,15 +93,44 @@ SELECT extensions.ok(
     )
     FROM unnest(ARRAY[
       'plugin_data.csf_partner_club_representatives',
-      'plugin_data.csf_partner_club_term_events',
+      'plugin_data.csf_partner_club_term_events'
+    ]) AS target(relation)
+    CROSS JOIN unnest(ARRAY[
+      'SELECT', 'INSERT', 'UPDATE', 'DELETE'
+    ]) AS wanted(privilege)
+  ),
+  'the server role reads, writes, and deletes the two mutable partner-club projections directly'
+);
+
+-- The other four are append-and-amend-only through the RPCs. A direct INSERT,
+-- UPDATE, or DELETE from service_role would bypass the campaign advisory lock and
+-- every trigger that enforces immutability, so the privilege simply is not there.
+--
+-- Both halves are asserted: SELECT must be present (or this proves nothing about a
+-- table that was never granted anything, and the anti-tautology control is the
+-- positive half itself), and the three mutating privileges must be absent.
+SELECT extensions.ok(
+  (
+    SELECT bool_and(has_table_privilege('service_role', ledger.relation, 'SELECT'))
+    FROM unnest(ARRAY[
       'plugin_data.csf_communication_campaigns',
       'plugin_data.csf_communication_recipient_snapshots',
       'plugin_data.csf_communication_deliveries',
       'plugin_data.csf_communication_provider_events'
-    ]) AS target(relation)
-    CROSS JOIN unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE']) AS wanted(privilege)
+    ]) AS ledger(relation)
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM unnest(ARRAY[
+      'plugin_data.csf_communication_campaigns',
+      'plugin_data.csf_communication_recipient_snapshots',
+      'plugin_data.csf_communication_deliveries',
+      'plugin_data.csf_communication_provider_events'
+    ]) AS ledger(relation)
+    CROSS JOIN unnest(ARRAY['INSERT', 'UPDATE', 'DELETE']) AS forbidden(privilege)
+    WHERE has_table_privilege('service_role', ledger.relation, forbidden.privilege)
   ),
-  'the server role retains exactly the row access these projections need'
+  'the four durable communications ledgers grant the server role SELECT and no INSERT, UPDATE, or DELETE'
 );
 
 -- TRUNCATE would erase an audited ledger without firing a single row trigger.
