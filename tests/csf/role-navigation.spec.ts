@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   CSF_ORGANIZATION_PATH,
   expectNoBrowserFailures,
+  expectNoHorizontalOverflow,
   expectNoPrivateBoundaryMarkers,
   loginAs,
   type LocalActor,
@@ -191,27 +192,61 @@ test.describe("DVHS CSF role-aware navigation", () => {
   test("phone navigation keeps every primary officer destination reachable", async ({
     page,
   }) => {
+    const failures = watchBrowserFailures(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await loginAs(page, "admin");
 
-    await expect(page.getByRole("tab", { name: "Home", exact: true })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Applications", exact: true })).toBeVisible();
-    for (const tab of ["Members", "Service", "Semester"]) {
-      await expect(page.getByRole("tab", { name: tab, exact: true })).toBeHidden();
+    const switcher = page.getByTestId("organization-section-switcher");
+    await expect(switcher).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    // The phone layout replaces the horizontal category strip and its desktop
+    // utility menu with one full-section switcher, so neither may survive here.
+    await expect(page.getByRole("tab")).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "More", exact: true }),
+    ).toBeHidden();
+
+    // Disclosure semantics only: the trigger names the active section without
+    // claiming to be the current page — aria-current lives on the menu item.
+    await expect(switcher).toHaveAccessibleName(/^Home\b/);
+    await expect(switcher).toHaveAttribute("aria-haspopup", "menu");
+    await expect(switcher).not.toHaveAttribute("aria-current", /.*/);
+
+    await switcher.click();
+    const switcherMenu = page.getByRole("menu");
+    await expect(switcherMenu).toBeVisible();
+    await expect(
+      switcherMenu.getByRole("group", { name: "Workspace", exact: true }),
+    ).toBeVisible();
+    await expect(
+      switcherMenu.getByRole("group", { name: "Administration", exact: true }),
+    ).toBeVisible();
+
+    // Every destination the desktop chrome splits between the strip and the
+    // utility menu must appear exactly once inside the single phone switcher.
+    for (const destination of [...canonicalTabs, ...canonicalMoreItems]) {
+      const item = switcherMenu.getByRole("menuitem", {
+        name: destination,
+        exact: true,
+      });
+      await expect(item, `${destination} should be listed once`).toHaveCount(1);
+      await expect(item, `${destination} should be visible`).toBeVisible();
     }
 
-    await page.getByRole("button", { name: "More", exact: true }).click();
-    for (const destination of ["Members", "Service", "Semester"]) {
-      await expect(
-        page.getByRole("menuitem", { name: destination, exact: true }),
-      ).toBeVisible();
-    }
-
-    await page.getByRole("menuitem", { name: "Members", exact: true }).click();
+    await switcherMenu
+      .getByRole("menuitem", { name: "Members", exact: true })
+      .click();
     await expect(page).toHaveURL(/[?&]tab=csf-members(?:&|$)/);
     await expect(
       page.getByRole("navigation", { name: "Member views" }),
     ).toBeVisible();
+
+    await expect(switcherMenu).toBeHidden();
+    await expect(switcher).toHaveAccessibleName(/^Members\b/);
+    await expectNoHorizontalOverflow(page);
+
+    expectNoBrowserFailures(failures);
   });
 
   test("organization admin sees the complete canonical CSF navigation", async ({
@@ -250,6 +285,27 @@ test.describe("DVHS CSF role-aware navigation", () => {
       expectNoBrowserFailures(failures);
     });
   }
+
+  test("an authorized internal CSF route redirects to the canonical organization tab", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await loginAs(page, "admin");
+
+    await page.goto(`${CSF_ORGANIZATION_PATH}/plugins/dvhs-csf/overview`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    await expect(page).toHaveURL(`${CSF_ORGANIZATION_PATH}?tab=csf-overview`);
+    await expect(page.getByRole("tab", { name: "Home", exact: true })).toBeVisible();
+    // The canonical tab owns the CSF chrome; the plugin must not nest a second
+    // workspace shell inside it.
+    await expect(
+      page.getByRole("navigation", { name: "DVHS CSF workspace" }),
+    ).toHaveCount(0);
+
+    expectNoBrowserFailures(failures);
+  });
 
   test("member sees only My CSF, Activities, and Point submissions", async ({
     page,

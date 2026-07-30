@@ -37,6 +37,12 @@ import { getProjectStatus } from "@/utils/project";
 import ReportsTab from "@/app/organization/[id]/ReportsTab";
 import { formatOrganizationWebsiteDisplay } from "@/lib/organization/website";
 import { cn } from "@/lib/utils";
+import {
+  buildNavigationDestinationGroups,
+  findActiveNavigationDestination,
+  isNavigationValueActive,
+  type OrganizationNavigationDestination,
+} from "./organization-navigation-destinations";
 import type { Organization, Project, OrganizationTabBehavior, ResolvedOrganizationPluginSurface, OrganizationNavigationBehavior } from "@/types";
 
 type OrganizationMember = {
@@ -248,12 +254,14 @@ export default function OrganizationTabs({
   );
   const primaryPluginTabs = pluginTabs.filter((tab) => !tab.navigationSection || tab.navigationSection === "primary");
   const morePluginTabs = pluginTabs.filter((tab) => tab.navigationSection === "more");
-  const compactMobileOverflowTabs = pluginNavigationOverrides.compactHeader
-    ? primaryPluginTabs.slice(2)
-    : [];
-  const activeMoreTab = [...morePluginTabs, ...compactMobileOverflowTabs]
-    .find((tab) => tab.value === activeTab);
   const activePluginParentValue = pluginTabs.find((tab) => tab.value === activeTab)?.parentValue;
+  /**
+   * The utility menu reads as selected both for a directly active entry and for
+   * the entry that owns the active child tab.
+   */
+  const activeMoreTab = morePluginTabs.find((tab) =>
+    isNavigationValueActive(tab.value, activeTab, activePluginParentValue),
+  );
   const routeBackedTabs = new Map<string, string>();
   for (const tab of visiblePluginRouteTabs) {
     routeBackedTabs.set(tab.value, tab.href);
@@ -272,6 +280,97 @@ export default function OrganizationTabs({
   ) => coreTabReplacements[tabKey]?.label ?? fallback;
   const isCoreReplaced = (tabKey: "overview" | "members" | "projects" | "reports") =>
     Boolean(coreTabReplacements[tabKey] && routeBackedTabs.has(tabKey));
+  const canViewReports =
+    !pluginNavigationOverrides.hideReportsTab &&
+    (userRole === "admin" || userRole === "staff" || Boolean(demoReportsContent));
+  const showOverviewTab =
+    !pluginNavigationOverrides.hideOverviewTab &&
+    (!coreTabReplacements.overview || routeBackedTabs.has("overview"));
+  const showMembersTab =
+    canViewMembers &&
+    !pluginNavigationOverrides.hideMembersTab &&
+    (!coreTabReplacements.members || routeBackedTabs.has("members"));
+  const showProjectsTab =
+    !pluginNavigationOverrides.hideProjectsTab &&
+    (!coreTabReplacements.projects || routeBackedTabs.has("projects"));
+  const showReportsTab =
+    canViewReports && (!coreTabReplacements.reports || routeBackedTabs.has("reports"));
+
+  /**
+   * Phone navigation collapses into a single full-section switcher only for
+   * organizations that opt into the compact workspace chrome. Generic
+   * organizations keep the horizontal category strip plus utility menu at every
+   * width.
+   */
+  const usesFullSectionMobileNav = Boolean(pluginNavigationOverrides.compactHeader);
+  const sectionGroupLabel = pluginNavigationOverrides.sectionMenuLabel ?? "Workspace";
+  const utilityGroupLabel = pluginNavigationOverrides.utilityMenuGroupLabel ?? "Administration";
+  const workspaceCandidateDestinations: OrganizationNavigationDestination[] = [
+    ...(showOverviewTab
+      ? [{
+          value: "overview",
+          label: getCoreLabel("overview", "Overview"),
+          icon: <LayoutDashboard className="h-4 w-4 shrink-0" />,
+          href: routeBackedTabs.get("overview"),
+        }]
+      : []),
+    ...(showMembersTab
+      ? [{
+          value: "members",
+          label: getCoreLabel("members", pluginNavigationOverrides.membersTabLabel || "Members"),
+          icon: <Users className="h-4 w-4 shrink-0" />,
+          href: routeBackedTabs.get("members"),
+        }]
+      : []),
+    ...(showProjectsTab
+      ? [{
+          value: "projects",
+          label: getCoreLabel("projects", pluginNavigationOverrides.projectsTabLabel || "Projects"),
+          icon: <Folders className="h-4 w-4 shrink-0" />,
+          href: routeBackedTabs.get("projects"),
+        }]
+      : []),
+    ...(showReportsTab
+      ? [{
+          value: "reports",
+          label: getCoreLabel("reports", "Reports"),
+          icon: <BarChart3 className="h-4 w-4 shrink-0" />,
+          href: routeBackedTabs.get("reports"),
+        }]
+      : []),
+    ...primaryPluginTabs.map((tab) => ({
+      value: tab.value,
+      label: tab.label,
+      icon: tab.icon,
+    })),
+    ...visiblePluginRouteTabs.map((tab) => ({
+      value: tab.value,
+      label: tab.label,
+      icon: <ShieldCheck className="h-4 w-4 shrink-0" />,
+      href: tab.href,
+    })),
+  ];
+  const utilityCandidateDestinations: OrganizationNavigationDestination[] = morePluginTabs.map((tab) => ({
+    value: tab.value,
+    label: tab.label,
+    icon: tab.icon,
+  }));
+  /**
+   * Overlapping inputs (a core replacement that is also a plugin route tab, a
+   * primary tab repeated under the utility menu, …) must collapse to one entry
+   * so the switcher never renders duplicate values or React keys.
+   */
+  const { workspaceDestinations, utilityDestinations, switcherDestinations } =
+    buildNavigationDestinationGroups(
+      workspaceCandidateDestinations,
+      utilityCandidateDestinations,
+    );
+  const activeDestination = findActiveNavigationDestination(
+    switcherDestinations,
+    activeTab,
+    activePluginParentValue,
+  );
+  const activeDestinationLabel = activeDestination?.label ?? sectionGroupLabel;
 
   useEffect(() => {
     const requestedTab = searchParams.get("tab");
@@ -279,10 +378,10 @@ export default function OrganizationTabs({
       ? resolveOrganizationTabAlias(requestedTab, pluginNavigationOverrides.tabAliases)
       : null;
     const validTabs = [
-      ...(!pluginNavigationOverrides.hideOverviewTab && (!coreTabReplacements.overview || routeBackedTabs.has("overview")) ? ["overview"] : []),
-      ...(canViewMembers && !pluginNavigationOverrides.hideMembersTab && (!coreTabReplacements.members || routeBackedTabs.has("members")) ? ["members"] : []),
-      ...(!pluginNavigationOverrides.hideProjectsTab && (!coreTabReplacements.projects || routeBackedTabs.has("projects")) ? ["projects"] : []),
-      ...(!pluginNavigationOverrides.hideReportsTab && (userRole === "admin" || userRole === "staff" || Boolean(demoReportsContent)) && (!coreTabReplacements.reports || routeBackedTabs.has("reports")) ? ["reports"] : []),
+      ...(showOverviewTab ? ["overview"] : []),
+      ...(showMembersTab ? ["members"] : []),
+      ...(showProjectsTab ? ["projects"] : []),
+      ...(showReportsTab ? ["reports"] : []),
       ...pluginTabs.map(t => t.value),
       ...visiblePluginRouteTabs.map((t) => t.value),
     ];
@@ -300,20 +399,15 @@ export default function OrganizationTabs({
       router.replace(`?${params.toString()}`, { scroll: false });
     }
   }, [
-    canViewMembers,
-    coreTabReplacements,
-    demoReportsContent,
     pluginNavigationOverrides.defaultTab,
-    pluginNavigationOverrides.hideMembersTab,
-    pluginNavigationOverrides.hideOverviewTab,
-    pluginNavigationOverrides.hideProjectsTab,
-    pluginNavigationOverrides.hideReportsTab,
     pluginNavigationOverrides.tabAliases,
     pluginTabs,
-    routeBackedTabs,
     router,
     searchParams,
-    userRole,
+    showMembersTab,
+    showOverviewTab,
+    showProjectsTab,
+    showReportsTab,
     visiblePluginRouteTabs,
   ]);
 
@@ -344,6 +438,25 @@ export default function OrganizationTabs({
     }
     params.set("tab", resolveOrganizationTabAlias(value, pluginNavigationOverrides.tabAliases));
     return `?${params.toString()}`;
+  };
+
+  const renderSectionSwitcherItem = (destination: OrganizationNavigationDestination) => {
+    const isActive = destination.value === activeDestination?.value;
+
+    return (
+      <DropdownMenuItem
+        key={`section-${destination.value}`}
+        render={<Link href={destination.href ?? getTabHref(destination.value)} />}
+        aria-current={isActive ? "page" : undefined}
+        className="justify-between"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          {destination.icon}
+          <span className="truncate">{destination.label}</span>
+        </span>
+        {isActive ? <Check aria-hidden="true" /> : null}
+      </DropdownMenuItem>
+    );
   };
 
   useEffect(() => {
@@ -394,9 +507,6 @@ export default function OrganizationTabs({
   const upcomingProjects = projects.filter(p => getProjectStatus(p) === "upcoming").length;
   const completedProjects = projects.filter(p => getProjectStatus(p) === "completed").length;
   const cancelledProjects = projects.filter(p => getProjectStatus(p) === "cancelled").length;
-  const canViewReports =
-    !pluginNavigationOverrides.hideReportsTab &&
-    (userRole === "admin" || userRole === "staff" || Boolean(demoReportsContent));
   const totalHours = reportSummary?.totalHours ?? 0;
 
   const quickStats = [
@@ -458,32 +568,72 @@ export default function OrganizationTabs({
       className="w-full"
     >
       <div className={cn("flex min-w-0 items-center gap-2", pluginNavigationOverrides.compactHeader ? "mb-2" : "mb-5")}>
-      <TabsList className="flex h-auto min-w-0 flex-1 items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {!pluginNavigationOverrides.hideOverviewTab && (!coreTabReplacements.overview || routeBackedTabs.has("overview")) && (
+      {usesFullSectionMobileNav && switcherDestinations.length > 0 ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger render={
+            <Button
+              variant="outline"
+              size="sm"
+              // Disclosure trigger, not a navigation item: Base UI supplies the
+              // expanded/controls semantics and aria-current stays on the
+              // selected menu item.
+              aria-label={`${activeDestinationLabel} — change section`}
+              data-testid="organization-section-switcher"
+              className="w-full min-w-0 justify-between sm:hidden"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                {activeDestination?.icon}
+                <span className="truncate">{activeDestinationLabel}</span>
+              </span>
+              <ChevronDown data-icon="inline-end" />
+            </Button>
+          } />
+          <DropdownMenuContent align="start">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>{sectionGroupLabel}</DropdownMenuLabel>
+              {workspaceDestinations.map(renderSectionSwitcherItem)}
+            </DropdownMenuGroup>
+            {utilityDestinations.length > 0 ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>{utilityGroupLabel}</DropdownMenuLabel>
+                  {utilityDestinations.map(renderSectionSwitcherItem)}
+                </DropdownMenuGroup>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+      <TabsList className={cn(
+        "flex h-auto min-w-0 flex-1 items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
+        usesFullSectionMobileNav && "hidden sm:flex",
+      )}>
+        {showOverviewTab && (
           <TabsTrigger value="overview" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
             <LayoutDashboard className="h-4 w-4 shrink-0" />
             <span className="truncate">{getCoreLabel("overview", "Overview")}</span>
           </TabsTrigger>
         )}
-        {canViewMembers && !pluginNavigationOverrides.hideMembersTab && (!coreTabReplacements.members || routeBackedTabs.has("members")) && (
+        {showMembersTab && (
           <TabsTrigger value="members" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
             <Users className="h-4 w-4 shrink-0" />
             <span className="truncate">{getCoreLabel("members", pluginNavigationOverrides.membersTabLabel || "Members")}</span>
           </TabsTrigger>
         )}
-        {!pluginNavigationOverrides.hideProjectsTab && (!coreTabReplacements.projects || routeBackedTabs.has("projects")) && (
+        {showProjectsTab && (
           <TabsTrigger value="projects" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
             <Folders className="h-4 w-4 shrink-0" />
             <span className="truncate">{getCoreLabel("projects", pluginNavigationOverrides.projectsTabLabel || "Projects")}</span>
           </TabsTrigger>
         )}
-        {canViewReports && (!coreTabReplacements.reports || routeBackedTabs.has("reports")) && (
+        {showReportsTab && (
           <TabsTrigger value="reports" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
             <BarChart3 className="h-4 w-4 shrink-0" />
             <span className="truncate">{getCoreLabel("reports", "Reports")}</span>
           </TabsTrigger>
         )}
-        {primaryPluginTabs.map((pt, index) => {
+        {primaryPluginTabs.map((pt) => {
           return (
             <TabsTrigger
               key={pt.value}
@@ -491,7 +641,6 @@ export default function OrganizationTabs({
               aria-current={activePluginParentValue === pt.value ? "page" : undefined}
               className={cn(
                 "min-w-max flex-none shrink-0 gap-2 px-3",
-                index >= 2 && pluginNavigationOverrides.compactHeader && "hidden sm:flex",
                 activePluginParentValue === pt.value && "bg-background text-foreground shadow-sm",
               )}
             >
@@ -510,13 +659,13 @@ export default function OrganizationTabs({
         })}
       </TabsList>
 
-        {morePluginTabs.length > 0 || compactMobileOverflowTabs.length > 0 ? (
+        {morePluginTabs.length > 0 ? (
           <DropdownMenu>
             <DropdownMenuTrigger render={
               <Button
                 variant={activeMoreTab ? "secondary" : "outline"}
                 size="sm"
-                className={cn("shrink-0", morePluginTabs.length === 0 && "sm:hidden")}
+                className={cn("shrink-0", usesFullSectionMobileNav && "hidden sm:flex")}
               >
                 <span>{pluginNavigationOverrides.utilityMenuLabel ?? "More"}</span>
                 <ChevronDown data-icon="inline-end" />
@@ -526,35 +675,28 @@ export default function OrganizationTabs({
               <DropdownMenuGroup>
                 <DropdownMenuLabel>{pluginNavigationOverrides.utilityMenuLabel ?? "More"}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {compactMobileOverflowTabs.map((pt) => (
-                  <DropdownMenuItem
-                    key={`mobile-${pt.value}`}
-                    render={<Link href={getTabHref(pt.value)} />}
-                    className="justify-between sm:hidden"
-                  >
-                    <span className="flex min-w-0 items-center gap-2">
-                      {pt.icon}
-                      <span className="truncate">{pt.label}</span>
-                    </span>
-                    {pt.value === activeTab ? <Check aria-hidden="true" /> : null}
-                  </DropdownMenuItem>
-                ))}
-                {compactMobileOverflowTabs.length > 0 && morePluginTabs.length > 0 ? (
-                  <DropdownMenuSeparator className="sm:hidden" />
-                ) : null}
-                {morePluginTabs.map((pt) => (
-                  <DropdownMenuItem
-                    key={pt.value}
-                    render={<Link href={getTabHref(pt.value)} />}
-                    className="justify-between"
-                  >
-                    <span className="flex min-w-0 items-center gap-2">
-                      {pt.icon}
-                      <span className="truncate">{pt.label}</span>
-                    </span>
-                    {pt.value === activeTab ? <Check aria-hidden="true" /> : null}
-                  </DropdownMenuItem>
-                ))}
+                {morePluginTabs.map((pt) => {
+                  const isActive = isNavigationValueActive(
+                    pt.value,
+                    activeTab,
+                    activePluginParentValue,
+                  );
+
+                  return (
+                    <DropdownMenuItem
+                      key={pt.value}
+                      render={<Link href={getTabHref(pt.value)} />}
+                      aria-current={isActive ? "page" : undefined}
+                      className="justify-between"
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        {pt.icon}
+                        <span className="truncate">{pt.label}</span>
+                      </span>
+                      {isActive ? <Check aria-hidden="true" /> : null}
+                    </DropdownMenuItem>
+                  );
+                })}
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>

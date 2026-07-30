@@ -6,14 +6,18 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getCsfIsolatedSupabaseEnv } from "../../scripts/local-dev/dv-local-env.mjs";
 import {
   CSF_ORGANIZATION_PATH,
+  CSF_PUBLIC_PATH,
   expectNoBrowserFailures,
+  expectNoPrivateBoundaryMarkers,
   localActors,
   loginAs,
   watchBrowserFailures,
 } from "./helpers";
 
 const onboardingCode = "S26-2028";
-const connectPath = `${CSF_ORGANIZATION_PATH}/plugins/dvhs-csf/connect/${onboardingCode}`;
+const noCodeConnectPath = `${CSF_ORGANIZATION_PATH}/plugins/dvhs-csf/connect`;
+const connectPath = `${noCodeConnectPath}/${onboardingCode}`;
+const unusableConnectPath = `${noCodeConnectPath}/not-a-real-csf-link`;
 
 type ClaimFixture = {
   admin: SupabaseClient;
@@ -208,6 +212,12 @@ test.describe("reusable class-link profile claiming", () => {
     ).toBeVisible();
     await expect(page.getByText(localActors.outsider.email, { exact: true })).toHaveCount(0);
 
+    // Neither the matched email nor the internal profile identifier may reach
+    // the rendered document, including hidden inputs and the RSC payload.
+    const candidateHtml = await page.content();
+    expect(candidateHtml).not.toContain(localActors.outsider.email);
+    expect(candidateHtml).not.toContain(profileId);
+
     await page.getByRole("button", { name: "Yes, connect this record" }).click();
     await expect
       .poll(async () => {
@@ -302,6 +312,107 @@ test.describe("reusable class-link profile claiming", () => {
           candidate_profile_ids: [profileId],
         },
       });
+
+    expectNoBrowserFailures(failures);
+  });
+});
+
+test.describe("signed-out CSF connection states", () => {
+  test("the no-code page explains that a class invitation is required", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await page.goto(noCodeConnectPath, { waitUntil: "domcontentloaded" });
+
+    await expect(
+      page.getByRole("heading", { name: "Claim an existing CSF profile" }),
+    ).toBeVisible();
+    const body = await page.locator("body").innerText();
+    expect(body).toContain("class invitation");
+    expect(body).toContain("cannot search the CSF roster");
+    expectNoPrivateBoundaryMarkers(body);
+
+    // No profile or candidate controls exist without an invitation.
+    await expect(page.locator("main form")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Find my record/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Add profile details/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Not me/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Yes, connect this record/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Accept invitation/ })).toHaveCount(0);
+
+    const returnLink = page.locator('a[data-slot="button"]', { hasText: "Back to the CSF page" });
+    await expect(returnLink).toHaveAttribute("href", CSF_PUBLIC_PATH);
+
+    // Signing in is offered separately from claiming, and it returns to the
+    // canonical organization route rather than to this page.
+    const signIn = page.locator('a[data-slot="button"]', { hasText: "Sign in to My CSF" });
+    await expect(signIn).toHaveAttribute(
+      "href",
+      `/login?redirect=${encodeURIComponent(`${CSF_ORGANIZATION_PATH}?tab=csf-profile`)}`,
+    );
+
+    await expect(
+      page.getByRole("navigation", { name: "DVHS CSF workspace" }),
+    ).toHaveCount(0);
+    expectNoBrowserFailures(failures);
+  });
+
+  test("an unusable invitation is reported honestly and is never carried through login", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await page.goto(unusableConnectPath, { waitUntil: "domcontentloaded" });
+
+    await expect(
+      page.getByRole("heading", { name: "This CSF invitation is unavailable" }),
+    ).toBeVisible();
+    const body = await page.locator("body").innerText();
+    expect(body).toContain("invalid, inactive, replaced, or expired");
+    expect(body).toContain("Ask a CSF officer for a new invitation");
+    expectNoPrivateBoundaryMarkers(body);
+
+    // No connection form, and no sign-in tied to the unusable code.
+    await expect(page.locator("main form")).toHaveCount(0);
+    await expect(page.locator("main").getByRole("button", { name: /Sign in/ })).toHaveCount(0);
+    await expect(page.locator("main").getByRole("button", { name: /claim profile/i })).toHaveCount(0);
+
+    const hrefs = await page.locator("main a").evaluateAll((links) =>
+      links.map((link) => (link as HTMLAnchorElement).getAttribute("href") ?? ""),
+    );
+    expect(hrefs.some((href) => href.includes("not-a-real-csf-link"))).toBe(false);
+    expect(hrefs.some((href) => href.includes("/login"))).toBe(false);
+
+    await expect(
+      page.locator('a[data-slot="button"]', { hasText: "Back to the CSF page" }),
+    ).toHaveAttribute("href", CSF_PUBLIC_PATH);
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("a valid class invitation preserves its full route through sign in", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await page.goto(connectPath, { waitUntil: "domcontentloaded" });
+
+    const body = await page.locator("body").innerText();
+    expect(body).toContain("Class of 2028");
+    expect(body).toContain("Spring 2026");
+    expectNoPrivateBoundaryMarkers(body);
+    // Safe class and semester context only — never the code itself.
+    expect(body).not.toContain(onboardingCode);
+
+    const signIn = page.locator('a[data-slot="button"]', { hasText: "Sign in to claim profile" });
+    await expect(signIn).toBeVisible();
+    await expect(signIn).toHaveAttribute(
+      "href",
+      `/login?redirect=${encodeURIComponent(connectPath)}`,
+    );
+
+    // A signed-out visitor sees no candidate and no officer-review form.
+    await expect(page.getByRole("button", { name: /Not me/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Yes, connect this record/ })).toHaveCount(0);
+    await expect(page.locator("main form")).toHaveCount(0);
 
     expectNoBrowserFailures(failures);
   });
