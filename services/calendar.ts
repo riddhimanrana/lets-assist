@@ -22,11 +22,17 @@ import {
   Project,
   CalendarConnection,
 } from "@/types";
+import {
+  classifyGoogleCalendarLookupError,
+  classifyGoogleCalendarLookupResponse,
+  type GoogleCalendarAccessState,
+} from "@/services/google-calendar-access-state";
 
 // Google Calendar API endpoints
 const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
+const GOOGLE_CALENDAR_LOOKUP_TIMEOUT_MS = 10_000;
 
 export const GOOGLE_SHEETS_SCOPES = [
   "https://www.googleapis.com/auth/drive.file",
@@ -464,10 +470,10 @@ async function getOrCreateVolunteeringCalendar(
   }
 }
 
-async function calendarExists(
+async function getGoogleCalendarAccessState(
   accessToken: string,
   calendarId: string
-): Promise<boolean> {
+): Promise<GoogleCalendarAccessState> {
   try {
     const response = await fetch(
       `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}`,
@@ -475,13 +481,18 @@ async function calendarExists(
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
+        signal: AbortSignal.timeout(GOOGLE_CALENDAR_LOOKUP_TIMEOUT_MS),
       }
     );
 
-    return response.ok;
+    return classifyGoogleCalendarLookupResponse(response);
   } catch (error) {
-    console.error("Error checking calendar existence:", error);
-    return false;
+    const state = classifyGoogleCalendarLookupError(error);
+    console.error("Error checking organization calendar access:", {
+      status: state.status,
+      reason: state.status === "retryable_error" ? state.reason : undefined,
+    });
+    return state;
   }
 }
 
@@ -491,9 +502,28 @@ export async function ensureOrganizationCalendar(
   calendarName: string
 ): Promise<{ calendarId: string; created: boolean } | null> {
   if (calendarId) {
-    const exists = await calendarExists(accessToken, calendarId);
-    if (exists) {
+    const accessState = await getGoogleCalendarAccessState(
+      accessToken,
+      calendarId,
+    );
+    if (accessState.status === "accessible") {
       return { calendarId, created: false };
+    }
+
+    // Only a positively reconciled 404 proves that replacing the configured
+    // calendar is safe. Authorization, rate-limit, provider, timeout, network,
+    // malformed, and unknown failures retain the existing calendar identity.
+    if (accessState.status !== "missing") {
+      console.error("Organization calendar lookup was inconclusive:", {
+        status: accessState.status,
+        httpStatus:
+          "httpStatus" in accessState ? accessState.httpStatus : undefined,
+        reason:
+          accessState.status === "retryable_error"
+            ? accessState.reason
+            : undefined,
+      });
+      return null;
     }
   }
 
