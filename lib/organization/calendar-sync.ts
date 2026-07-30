@@ -18,6 +18,14 @@ import type { Project } from "@/types";
 
 const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
 
+// organization_calendar_events is a generalized binding table: one row per
+// projected occurrence of some published record, tagged by source_kind. This
+// sync owns exactly one of those kinds. CSF projections live in the same table
+// and are written by a separate server-only path, so every read and every
+// tracking-row mutation here is scoped to project bindings — an unscoped
+// select would report CSF rows as stale project bindings and delete them.
+const PROJECT_SCHEDULE_SOURCE_KIND = "project_schedule";
+
 export type OrganizationCalendarSyncResult = {
   success: boolean;
   createdCount?: number;
@@ -108,10 +116,13 @@ export async function syncOrganizationCalendarInternal(
     .eq("organization_id", organizationId)
     .neq("status", "cancelled");
 
+  // source_kind is both the filter and the returned evidence: the reconciler
+  // may only ever see rows this sync is authoritative for.
   const existingEventsResult = await serviceSupabase
     .from("organization_calendar_events")
-    .select("id, project_id, schedule_id, event_id")
-    .eq("organization_id", organizationId);
+    .select("id, project_id, schedule_id, event_id, source_kind")
+    .eq("organization_id", organizationId)
+    .eq("source_kind", PROJECT_SCHEDULE_SOURCE_KIND);
 
   const sources = resolveCalendarSyncSources(
     projectsResult,
@@ -180,11 +191,16 @@ export async function syncOrganizationCalendarInternal(
       scheduleId,
     }));
   });
-  const trackedEvents = existingEvents.map((event) => ({
-    id: event.id,
-    key: `${event.project_id}:${event.schedule_id}`,
-    eventId: event.event_id,
-  }));
+  // Re-checking source_kind in memory keeps the deletion pass safe even if the
+  // query filter above is ever weakened; a non-project row is dropped rather
+  // than handed to the reconciler as a stale project binding.
+  const trackedEvents = existingEvents
+    .filter((event) => event.source_kind === PROJECT_SCHEDULE_SOURCE_KIND)
+    .map((event) => ({
+      id: event.id,
+      key: `${event.project_id}:${event.schedule_id}`,
+      eventId: event.event_id,
+    }));
 
   const eventSyncResult = await synchronizeCalendarEvents(
     desiredEvents,
@@ -216,8 +232,15 @@ export async function syncOrganizationCalendarInternal(
           .from("organization_calendar_events")
           .insert({
             organization_id: organizationId,
+            // Legacy project coordinates stay written so existing readers,
+            // constraints, and client RLS predicates keep working.
             project_id: desired.projectId,
             schedule_id: desired.scheduleId,
+            // Generalized binding coordinates are declared here rather than
+            // left to the database trigger to derive.
+            source_kind: PROJECT_SCHEDULE_SOURCE_KIND,
+            source_id: desired.projectId,
+            occurrence_key: desired.scheduleId,
             event_id: eventId,
           })
           .select("id")
@@ -233,6 +256,7 @@ export async function syncOrganizationCalendarInternal(
           .from("organization_calendar_events")
           .update({ updated_at: new Date().toISOString() })
           .eq("id", tracked.id)
+          .eq("source_kind", PROJECT_SCHEDULE_SOURCE_KIND)
           .select("id")
           .maybeSingle();
         if (error || !data) {
@@ -246,6 +270,7 @@ export async function syncOrganizationCalendarInternal(
           .from("organization_calendar_events")
           .delete()
           .eq("id", tracked.id)
+          .eq("source_kind", PROJECT_SCHEDULE_SOURCE_KIND)
           .select("id")
           .maybeSingle();
         if (error || !data) {
