@@ -45,7 +45,49 @@ type Notification = {
   data?: Record<string, unknown> | null;
 };
 
-export function NotificationPopover() {
+/** Drawer below this width, Popover above it. */
+export const NOTIFICATION_MOBILE_MEDIA_QUERY = "(max-width: 768px)";
+/** Exact complement of Navbar's `lg:` split, i.e. which container is visible. */
+export const NOTIFICATION_DESKTOP_NAV_MEDIA_QUERY = "(min-width: 1024px)";
+
+/**
+ * Navbar mounts one NotificationPopover per responsive container, so each
+ * instance has to be told which container it lives in. Without that contract
+ * both instances resolve the same media query, both pick the same surface, and
+ * the copy the parent hides with CSS stays mounted, focusable and querying.
+ */
+export type NotificationViewport = "mobile" | "desktop";
+
+export type NotificationSurface = "placeholder" | "drawer" | "popover" | "none";
+
+/**
+ * Resolves what a single instance may render. Ownership follows the navbar
+ * breakpoint so exactly the visible container renders a trigger, while the
+ * drawer/popover choice keeps its own narrower breakpoint. Before the media
+ * queries hydrate neither instance owns the active mode, so both fall back to
+ * the inert placeholder that matches the server HTML.
+ */
+export function resolveNotificationSurface({
+  viewport,
+  mounted,
+  isDesktopNav,
+  isMobile,
+}: {
+  viewport: NotificationViewport;
+  mounted: boolean;
+  isDesktopNav: boolean;
+  isMobile: boolean;
+}): NotificationSurface {
+  if (!mounted) return "placeholder";
+  if (viewport !== (isDesktopNav ? "desktop" : "mobile")) return "none";
+  return isMobile ? "drawer" : "popover";
+}
+
+export function isActiveNotificationSurface(surface: NotificationSurface): boolean {
+  return surface === "drawer" || surface === "popover";
+}
+
+export function NotificationPopover({ viewport }: { viewport: NotificationViewport }) {
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
@@ -57,7 +99,15 @@ export function NotificationPopover() {
   // Use useState to keep supabase client stable across renders for data manipulation
   const [supabase] = useState(() => createClient());
   const router = useRouter();
-  const isMobile = useMediaQuery("(max-width: 768px)");
+  const isMobile = useMediaQuery(NOTIFICATION_MOBILE_MEDIA_QUERY);
+  const isDesktopNav = useMediaQuery(NOTIFICATION_DESKTOP_NAV_MEDIA_QUERY);
+  const surface = resolveNotificationSurface({
+    viewport,
+    mounted,
+    isDesktopNav,
+    isMobile,
+  });
+  const isActiveSurface = isActiveNotificationSurface(surface);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const notificationsQueryHandler = useCallback<SupabaseQueryHandler<"notifications">>(
@@ -82,7 +132,9 @@ export function NotificationPopover() {
     columns: "*",
     pageSize: 10,
     trailingQuery: notificationsQueryHandler,
-    enabled: !!user?.id,
+    // The instance that does not own the active viewport never renders, so it
+    // must not fetch notifications either.
+    enabled: !!user?.id && isActiveSurface,
     client: supabase, // Pass the authenticated client
   });
 
@@ -331,7 +383,10 @@ export function NotificationPopover() {
 
   const notificationTriggerContent = (
     <div className="relative">
-      <Bell className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+      <Bell
+        aria-hidden="true"
+        className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors"
+      />
       {unreadCount > 0 && (
         <Badge
           className="absolute -top-2 -right-2 h-[16px] min-w-[16px] px-1 flex items-center justify-center bg-destructive hover:bg-destructive text-[10px] font-bold border-2rounded-full shadow-sm select-none"
@@ -397,21 +452,35 @@ export function NotificationPopover() {
     </Dialog>
   );
 
-  if (!mounted) {
+  if (surface === "placeholder") {
+    // Matches the server HTML in both responsive containers so hydration stays
+    // clean, but is never focusable — the two containers must not contribute
+    // two tab stops while the media query is still unresolved.
     return (
-      <Button variant="ghost" size="icon" className="relative h-9 w-9 p-0 rounded-full border">
-        <Bell className="h-5 w-5 text-muted-foreground" />
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Notifications"
+        aria-disabled="true"
+        tabIndex={-1}
+        className="relative h-9 w-9 p-0 rounded-full border"
+      >
+        <Bell aria-hidden="true" className="h-5 w-5 text-muted-foreground" />
       </Button>
     );
   }
 
+  if (surface === "none") {
+    return null;
+  }
+
   const NotificationTrigger = (
-    <Button className={triggerClasses} variant="ghost">
+    <Button className={triggerClasses} variant="ghost" aria-label="Notifications">
       {notificationTriggerContent}
     </Button>
   );
 
-  if (isMobile) {
+  if (surface === "drawer") {
     return (
       <>
         <Drawer open={open} onOpenChange={setOpen}>
