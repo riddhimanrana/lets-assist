@@ -132,7 +132,7 @@ allowed_mime_types = ["application/pdf"]
 
 [storage.buckets."data-exports"]
 public = false
-file_size_limit = "100MiB"
+file_size_limit = "50MiB"
 allowed_mime_types = ["application/zip"]
 
 [storage.buckets."plugin_form_uploads"]
