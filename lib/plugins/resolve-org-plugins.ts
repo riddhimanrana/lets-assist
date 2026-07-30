@@ -4,6 +4,7 @@ import { getRegisteredPlugin } from "@/lib/plugins/registry";
 import {
   isEntitlementActive,
   loadAccessibleOrganizationPluginAccess,
+  type PluginAccessFailureMode,
 } from "@/lib/plugins/organization-plugin-access";
 import {
   coalescePluginVersion,
@@ -76,6 +77,7 @@ export async function resolveOrganizationPluginExperiences(
 export async function resolveOrganizationPlugins(options: {
   organizationId: string;
   userRole: OrganizationPluginAccessRole | null;
+  failureMode?: PluginAccessFailureMode;
 }): Promise<ResolvedOrganizationPlugin[]> {
   const { organizationId, userRole } = options;
 
@@ -93,6 +95,7 @@ export async function resolveOrganizationPlugins(options: {
   const accessRows = await loadAccessibleOrganizationPluginAccess({
     supabase,
     organizationIds: [organizationId],
+    failureMode: options.failureMode,
   });
   const resolved: ResolvedOrganizationPlugin[] = [];
 
@@ -144,10 +147,12 @@ export async function resolveOrganizationPluginByKey(options: {
   organizationId: string;
   userRole: OrganizationPluginAccessRole | null;
   pluginKey: string;
+  failureMode?: PluginAccessFailureMode;
 }): Promise<ResolvedOrganizationPlugin | null> {
   const plugins = await resolveOrganizationPlugins({
     organizationId: options.organizationId,
     userRole: options.userRole,
+    failureMode: options.failureMode,
   });
 
   return plugins.find((plugin) => plugin.key === options.pluginKey) ?? null;

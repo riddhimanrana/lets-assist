@@ -138,6 +138,15 @@ jobs:
             scripts/verify-deployment-environment.test.ts \
             scripts/verify-production-schema-deployment.test.ts
 
+      - name: CSF root acquisition and harness safety tests
+        run: |
+          bun test --preload ./scripts/local-dev/server-only-test-preload.ts \
+            lib/auth/theme-script-boundary.test.ts \
+            scripts/local-dev/csf-browser-harness.test.ts \
+            services/google-drive-metadata.test.ts \
+            services/google-sheets-report-safety.test.ts \
+            services/google-sheets-source-snapshot.test.ts
+
       - name: Plugin unit and security tests
         run: bun run plugin:test:unit
 
@@ -160,6 +169,7 @@ jobs:
       CSF_ISOLATED_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}
       CSF_ISOLATED_WORK_DIR: /tmp/lets-assist-csf-browser-ci-${{ github.run_id }}-${{ github.run_attempt }}
       CSF_ISOLATED_BASE_PORT: '56350'
+      CSF_E2E_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Require private submodule access
         env:
@@ -228,10 +238,14 @@ jobs:
         run: bun run csf:test:db:isolated
 
       - name: Start isolated Let’s Assist Supabase
+        id: start-isolated
         run: |
           scripts/local-dev/start-dvhs-csf-isolated-stack.sh
           source "${CSF_ISOLATED_WORK_DIR}/lets-assist-browser.sh"
-          node scripts/local-dev/dv-local-env.mjs --health
+
+          printf '::add-mask::%s\n' \
+            "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-DvTest!" \
+            "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-CsfTest!"
 
           for key in \
             API_URL ANON_KEY SERVICE_ROLE_KEY DB_URL \
@@ -239,10 +253,20 @@ jobs:
             NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY \
             NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SECRET_KEY \
             SUPABASE_SERVICE_ROLE_KEY NEXT_PUBLIC_SITE_URL SITE_URL \
-            NEXT_PUBLIC_VERCEL_URL CSF_ISOLATED_WORK_DIR
+            NEXT_PUBLIC_VERCEL_URL CSF_ISOLATED_WORK_DIR \
+            CSF_PROFILE_CLAIM_SECRET
           do
+            case "${key}" in
+              ANON_KEY|SERVICE_ROLE_KEY|DB_URL|SUPABASE_ANON_KEY|SUPABASE_DB_URL|\
+              NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY|NEXT_PUBLIC_SUPABASE_ANON_KEY|\
+              SUPABASE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY|CSF_PROFILE_CLAIM_SECRET)
+                printf '::add-mask::%s\n' "${!key}"
+                ;;
+            esac
             printf '%s=%s\n' "${key}" "${!key}" >> "${GITHUB_ENV}"
           done
+
+          node scripts/local-dev/dv-local-env.mjs --health
 
       - name: Validate DB reset replay
         run: |
@@ -283,9 +307,38 @@ jobs:
           CSF_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-CsfTest!
 
       - name: Verify isolated Supabase remains healthy
+        if: ${{ always() && steps.start-isolated.outcome == 'success' }}
         run: |
           source "${CSF_ISOLATED_WORK_DIR}/lets-assist-browser.sh"
           node scripts/local-dev/dv-local-env.mjs --health
+
+      - name: Validate retained CSF browser traces
+        if: ${{ always() }}
+        run: |
+          artifact_dir="artifacts/dvhs-csf-e2e/${CSF_E2E_RUN_ID}/playwright"
+          if [[ ! -d "${artifact_dir}" ]]; then
+            exit 0
+          fi
+
+          invalid_trace=0
+          while IFS= read -r -d '' trace_file; do
+            if ! unzip -tq "${trace_file}" >/dev/null; then
+              echo "::error file=${trace_file}::Playwright trace archive is incomplete."
+              invalid_trace=1
+            fi
+          done < <(find "${artifact_dir}" -type f -name 'trace.zip' -print0)
+          exit "${invalid_trace}"
+
+      - name: Upload CSF browser evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: csf-browser-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/dvhs-csf-e2e/${{ env.CSF_E2E_RUN_ID }}/playwright/
+          if-no-files-found: warn
+          retention-days: 7
+          compression-level: 6
+          include-hidden-files: false
 
       - name: Stop isolated Let’s Assist Supabase
         if: always()

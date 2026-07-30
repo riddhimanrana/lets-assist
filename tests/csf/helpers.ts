@@ -106,13 +106,37 @@ export async function loginAs(
 
 export function watchBrowserFailures(page: Page) {
   const failures: string[] = [];
+  let projectFeedState = "not-requested";
+
+  page.on("request", (request) => {
+    try {
+      if (new URL(request.url()).pathname === "/api/projects") {
+        projectFeedState = `pending ${request.method()} /api/projects`;
+      }
+    } catch {
+      // Playwright request URLs are normally absolute. An unparsable diagnostic
+      // value must not affect the page under test.
+    }
+  });
   page.on("pageerror", (error) => failures.push(`pageerror: ${error.message}`));
   page.on("console", (message) => {
     if (message.type() === "error") {
-      failures.push(`console: ${message.text()}`);
+      const diagnostic = message
+        .text()
+        .includes("Error loading project feed:")
+        ? ` [page=${new URL(page.url()).pathname} project-feed=${projectFeedState}]`
+        : "";
+      failures.push(`console: ${message.text()}${diagnostic}`);
     }
   });
   page.on("response", (response) => {
+    try {
+      if (new URL(response.url()).pathname === "/api/projects") {
+        projectFeedState = `response ${response.status()} ${response.request().method()} /api/projects`;
+      }
+    } catch {
+      // Diagnostic only.
+    }
     if (response.status() >= 500) {
       failures.push(
         `response: ${response.status()} ${response.request().method()} ${response.url()}`,
@@ -122,6 +146,13 @@ export function watchBrowserFailures(page: Page) {
   page.on("requestfailed", (request) => {
     const failure = request.failure();
     const url = request.url();
+    try {
+      if (new URL(url).pathname === "/api/projects") {
+        projectFeedState = `failed ${request.method()} /api/projects ${failure?.errorText ?? "unknown"}`;
+      }
+    } catch {
+      // Diagnostic only.
+    }
     if (url.includes("/_next/webpack-hmr") || url.endsWith("/favicon.ico"))
       return;
     if (failure?.errorText === "net::ERR_ABORTED") return;

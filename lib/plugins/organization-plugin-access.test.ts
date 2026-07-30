@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   filterConsolidatedPluginAccessRows,
   loadAccessibleOrganizationPluginAccess,
+  OrganizationPluginAccessUnavailableError,
   resolveLegacyOrganizationPluginAccess,
   type OrganizationPluginAccessRow,
   type PluginAccessQueryClient,
@@ -208,6 +209,7 @@ describe("organization plugin access resolution", () => {
     expect(rows.map((row) => row.plugin_key)).toEqual(["free"]);
     expect(visited.sort()).toEqual([
       "organization_plugin_access",
+      "organization_plugin_access",
       "organization_plugin_entitlements",
       "organization_plugin_installs",
       "plugins",
@@ -252,6 +254,94 @@ describe("organization plugin access resolution", () => {
     });
 
     expect(partialRows).toEqual([]);
+  });
+
+  test("strict route reads preserve access uncertainty as an operational failure", async () => {
+    await expect(
+      loadAccessibleOrganizationPluginAccess({
+        supabase: queryClient({
+          organization_plugin_access: {
+            data: null,
+            error: {
+              code: "500",
+              message: "invalid response was received from the upstream server",
+            },
+          },
+        }),
+        organizationIds: ["org-1"],
+        failureMode: "throw",
+      }),
+    ).rejects.toBeInstanceOf(OrganizationPluginAccessUnavailableError);
+
+    await expect(
+      loadAccessibleOrganizationPluginAccess({
+        supabase: queryClient({
+          organization_plugin_access: {
+            data: null,
+            error: { code: "42P01", message: "view missing" },
+          },
+          plugins: { data: [], error: null },
+          organization_plugin_entitlements: {
+            data: null,
+            error: { message: "entitlement query failed" },
+          },
+          organization_plugin_installs: { data: [], error: null },
+        }),
+        organizationIds: ["org-1"],
+        failureMode: "throw",
+      }),
+    ).rejects.toBeInstanceOf(OrganizationPluginAccessUnavailableError);
+  });
+
+  test("strict route reads retry a transient access response before resolving", async () => {
+    let attempts = 0;
+    const supabase = {
+      from(table: string) {
+        expect(table).toBe("organization_plugin_access");
+        attempts += 1;
+        const response =
+          attempts === 1
+            ? {
+                data: null,
+                error: {
+                  message:
+                    "invalid response was received from the upstream server",
+                },
+              }
+            : { data: [accessRow()], error: null };
+        const builder = {
+          select() {
+            return builder;
+          },
+          in() {
+            return builder;
+          },
+          eq() {
+            return builder;
+          },
+          then<TResult1 = QueryResponse, TResult2 = never>(
+            onfulfilled?:
+              | ((value: QueryResponse) => TResult1 | PromiseLike<TResult1>)
+              | null,
+            onrejected?:
+              | ((reason: unknown) => TResult2 | PromiseLike<TResult2>)
+              | null,
+          ) {
+            return Promise.resolve(response).then(onfulfilled, onrejected);
+          },
+        };
+        return builder;
+      },
+    } as unknown as PluginAccessQueryClient;
+
+    const rows = await loadAccessibleOrganizationPluginAccess({
+      supabase,
+      organizationIds: ["org-1"],
+      failureMode: "throw",
+    });
+
+    expect(attempts).toBe(2);
+    expect(rows.map((row) => row.plugin_key)).toEqual(["calendar-tools"]);
   });
 
   test("thrown query failures fail closed", async () => {

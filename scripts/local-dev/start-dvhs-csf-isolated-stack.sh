@@ -27,6 +27,7 @@ ENV_FILE="${WORK_DIR}/supabase-browser.env"
 APP_ENV_FILE="${WORK_DIR}/lets-assist-browser.sh"
 START_LOG="${WORK_DIR}/supabase-start.log"
 MARKER_FILE="${WORK_DIR}/.lets-assist-csf-isolated-stack"
+PROFILE_CLAIM_SECRET_FILE="${WORK_DIR}/csf-profile-claim-secret"
 
 if [[ -e "${WORK_DIR}" ]]; then
   echo "Isolated work directory already exists: ${WORK_DIR}" >&2
@@ -80,6 +81,9 @@ NODE
   printf 'base_port=%s\n' "${BASE_PORT}"
 } >"${MARKER_FILE}"
 chmod 600 "${MARKER_FILE}"
+node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"));' \
+  >"${PROFILE_CLAIM_SECRET_FILE}"
+chmod 600 "${PROFILE_CLAIM_SECRET_FILE}"
 
 on_error() {
   supabase stop \
@@ -101,6 +105,11 @@ set -a
 # shellcheck disable=SC1090
 source "${ENV_FILE}"
 set +a
+CSF_PROFILE_CLAIM_SECRET="$(<"${PROFILE_CLAIM_SECRET_FILE}")"
+if [[ ! "${CSF_PROFILE_CLAIM_SECRET}" =~ ^[a-f0-9]{64}$ ]]; then
+  echo "Generated CSF profile-claim secret is invalid." >&2
+  exit 1
+fi
 {
   printf 'export API_URL=%q\n' "${API_URL}"
   printf 'export ANON_KEY=%q\n' "${ANON_KEY}"
@@ -114,12 +123,13 @@ set +a
   printf 'export NEXT_PUBLIC_SUPABASE_ANON_KEY=%q\n' "${ANON_KEY}"
   printf 'export SUPABASE_SECRET_KEY=%q\n' "${SECRET_KEY}"
   printf 'export SUPABASE_SERVICE_ROLE_KEY=%q\n' "${SERVICE_ROLE_KEY}"
+  printf 'export CSF_PROFILE_CLAIM_SECRET=%q\n' "${CSF_PROFILE_CLAIM_SECRET}"
   printf 'export NEXT_PUBLIC_SITE_URL=%q\n' "http://localhost:3001"
   printf 'export SITE_URL=%q\n' "http://localhost:3001"
   printf 'export NEXT_PUBLIC_VERCEL_URL=%q\n' "localhost:3001"
   printf 'export CSF_ISOLATED_WORK_DIR=%q\n' "${WORK_DIR}"
 } >"${APP_ENV_FILE}"
-chmod 600 "${ENV_FILE}" "${APP_ENV_FILE}" "${START_LOG}"
+chmod 600 "${ENV_FILE}" "${APP_ENV_FILE}" "${START_LOG}" "${PROFILE_CLAIM_SECRET_FILE}"
 
 trap - ERR
 

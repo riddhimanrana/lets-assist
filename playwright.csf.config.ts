@@ -1,13 +1,36 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { loadEnvConfig } from "@next/env";
 import { defineConfig, devices } from "@playwright/test";
 
-import { getCsfIsolatedSupabaseEnv } from "./scripts/local-dev/dv-local-env.mjs";
+import {
+  getCsfIsolatedSupabaseEnv,
+  inspectCsfIsolatedWorkDir,
+} from "./scripts/local-dev/dv-local-env.mjs";
 
 loadEnvConfig(process.cwd());
 
 const localSupabase = getCsfIsolatedSupabaseEnv();
+const isolatedStack = inspectCsfIsolatedWorkDir(
+  process.env.CSF_ISOLATED_WORK_DIR,
+);
+const profileClaimSecret = readFileSync(
+  path.join(isolatedStack.workDir, "csf-profile-claim-secret"),
+  "utf8",
+).trim();
+if (!/^[a-f0-9]{64}$/u.test(profileClaimSecret)) {
+  throw new Error("The isolated CSF profile-claim secret is missing or invalid.");
+}
+const ambientProfileClaimSecret = process.env.CSF_PROFILE_CLAIM_SECRET?.trim();
+if (
+  ambientProfileClaimSecret
+  && ambientProfileClaimSecret !== profileClaimSecret
+) {
+  throw new Error(
+    "CSF_PROFILE_CLAIM_SECRET does not belong to the selected isolated stack.",
+  );
+}
 const port = Number(process.env.CSF_E2E_PORT ?? 3113);
 const baseURL = process.env.CSF_E2E_BASE_URL ?? `http://127.0.0.1:${port}`;
 const artifactRoot = path.join(
@@ -63,6 +86,7 @@ export default defineConfig({
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: localSupabase.anonKey,
           SUPABASE_SECRET_KEY: localSupabase.serviceRoleKey,
           SUPABASE_DB_URL: localSupabase.dbUrl,
+          CSF_PROFILE_CLAIM_SECRET: profileClaimSecret,
           NEXT_PUBLIC_TURNSTILE_BYPASS: "true",
           DV_TABROOM_LIVE: "0",
         },

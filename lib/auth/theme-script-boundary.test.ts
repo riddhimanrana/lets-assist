@@ -20,8 +20,11 @@ describe("root theme bootstrap", () => {
     expect(instrumentation).toContain("applyInitialTheme();");
 
     const themeIndex = instrumentation.indexOf("applyInitialTheme();");
+    const analyticsGuardIndex = instrumentation.indexOf("if (posthogToken)");
     const analyticsIndex = instrumentation.indexOf("posthog.init(");
     expect(themeIndex).toBeGreaterThan(-1);
+    expect(analyticsGuardIndex).toBeGreaterThan(themeIndex);
+    expect(analyticsIndex).toBeGreaterThan(analyticsGuardIndex);
     expect(themeIndex).toBeLessThan(analyticsIndex);
   });
 });
