@@ -264,8 +264,25 @@ export interface OrganizationNavigationBehavior {
   hideMemberCount?: boolean;
   hideInviteAction?: boolean;
   hideProjectAction?: boolean;
+  /**
+   * Opts the organization into the compact workspace chrome. On phones this
+   * also replaces the horizontal category strip with a single full-section
+   * switcher that lists every permitted top-level destination. Organizations
+   * that do not set this keep the horizontal strip at every width.
+   */
   compactHeader?: boolean;
+  /** Label for the desktop utility/overflow menu trigger. */
   utilityMenuLabel?: string;
+  /**
+   * Group label for workspace destinations inside the phone section switcher.
+   * Defaults to `Workspace`.
+   */
+  sectionMenuLabel?: string;
+  /**
+   * Group label for administration/utility destinations inside the phone
+   * section switcher. Defaults to `Administration`.
+   */
+  utilityMenuGroupLabel?: string;
   /** Legacy organization tab values mapped to their canonical replacement. */
   tabAliases?: Record<string, string>;
   /** Query parameters that should be cleared when the host navigation changes tabs. */
