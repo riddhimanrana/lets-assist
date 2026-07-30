@@ -68,19 +68,37 @@ jobs:
     steps:
       - name: Require private submodule access
         env:
-          PRIVATE_SUBMODULE_TOKEN: ${{ secrets.PRIVATE_SUBMODULE_TOKEN }}
+          PRIVATE_SUBMODULE_SSH_KEY: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
         run: |
-          if [[ -z "${PRIVATE_SUBMODULE_TOKEN}" ]]; then
-            echo "PRIVATE_SUBMODULE_TOKEN is required to validate the exact private plugin gitlink."
+          if [[ -z "${PRIVATE_SUBMODULE_SSH_KEY}" ]]; then
+            echo "PRIVATE_SUBMODULE_SSH_KEY is required to validate the exact private plugin gitlink."
             exit 1
           fi
 
-      - name: Checkout
+      - name: Checkout root
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-          token: ${{ secrets.PRIVATE_SUBMODULE_TOKEN }}
           persist-credentials: false
+
+      - name: Resolve exact private plugin gitlink
+        id: private-plugin-gitlink
+        run: |
+          git submodule init
+          echo "sha=$(git rev-parse HEAD:lib/plugins/private)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact private plugin gitlink
+        uses: actions/checkout@v4
+        with:
+          repository: riddhimanrana/lets-assist-plugins
+          ref: ${{ steps.private-plugin-gitlink.outputs.sha }}
+          path: lib/plugins/private
+          ssh-key: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
+          persist-credentials: false
+
+      - name: Normalize private plugin remote metadata
+        run: |
+          git -C lib/plugins/private remote set-url origin https://github.com/riddhimanrana/lets-assist-plugins.git
+          git submodule absorbgitdirs lib/plugins/private
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
@@ -145,19 +163,37 @@ jobs:
     steps:
       - name: Require private submodule access
         env:
-          PRIVATE_SUBMODULE_TOKEN: ${{ secrets.PRIVATE_SUBMODULE_TOKEN }}
+          PRIVATE_SUBMODULE_SSH_KEY: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
         run: |
-          if [[ -z "${PRIVATE_SUBMODULE_TOKEN}" ]]; then
-            echo "PRIVATE_SUBMODULE_TOKEN is required to validate the exact private plugin gitlink."
+          if [[ -z "${PRIVATE_SUBMODULE_SSH_KEY}" ]]; then
+            echo "PRIVATE_SUBMODULE_SSH_KEY is required to validate the exact private plugin gitlink."
             exit 1
           fi
 
-      - name: Checkout
+      - name: Checkout root
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-          token: ${{ secrets.PRIVATE_SUBMODULE_TOKEN }}
           persist-credentials: false
+
+      - name: Resolve exact private plugin gitlink
+        id: private-plugin-gitlink
+        run: |
+          git submodule init
+          echo "sha=$(git rev-parse HEAD:lib/plugins/private)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact private plugin gitlink
+        uses: actions/checkout@v4
+        with:
+          repository: riddhimanrana/lets-assist-plugins
+          ref: ${{ steps.private-plugin-gitlink.outputs.sha }}
+          path: lib/plugins/private
+          ssh-key: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
+          persist-credentials: false
+
+      - name: Normalize private plugin remote metadata
+        run: |
+          git -C lib/plugins/private remote set-url origin https://github.com/riddhimanrana/lets-assist-plugins.git
+          git submodule absorbgitdirs lib/plugins/private
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
