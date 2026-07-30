@@ -97,8 +97,11 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
 
     for (const [name, route, marker] of routes) {
       await openGalleryRoute(page, route);
-      await expect(page.getByRole("tabpanel").first()).toBeVisible();
-      await expect(page.getByText(marker, { exact: false }).first()).toBeVisible();
+      const tabpanel = page.locator('[role="tabpanel"]:visible').first();
+      await expect(tabpanel).toBeVisible();
+      await expect(
+        tabpanel.getByText(marker, { exact: false }).first(),
+      ).toBeVisible();
       await capture(page, name);
 
       if (name === "41-applications-list") {
