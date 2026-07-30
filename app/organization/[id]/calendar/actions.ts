@@ -82,7 +82,7 @@ export async function getOrganizationCalendarStatus(
   const { data: syncConfig, error: syncError } = await serviceSupabase
     .from("organization_calendar_syncs")
     .select(
-      "calendar_id, created_by, auto_sync, last_synced_at"
+      "calendar_id, calendar_email, created_by, auto_sync, last_synced_at"
     )
     .eq("organization_id", organizationId)
     .maybeSingle();
@@ -119,7 +119,8 @@ export async function getOrganizationCalendarStatus(
     : null;
 
   const connected = !!ownerConnection;
-  const connectedEmail = ownerConnection?.calendar_email ?? null;
+  const connectedEmail =
+    ownerConnection?.calendar_email ?? syncConfig.calendar_email ?? null;
 
   return {
     connected,
@@ -171,6 +172,26 @@ export async function disconnectOrganizationCalendarConnection(
     };
   }
 
+  // Pause before removing the local purpose-bound credential. The configured
+  // calendar identity and event bindings remain authoritative reconciliation
+  // state; deleting them without confirmed remote cleanup could duplicate
+  // events after reconnect.
+  const { error: pauseError } = await serviceSupabase
+    .from("organization_calendar_syncs")
+    .update({
+      auto_sync: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("organization_id", organizationId);
+
+  if (pauseError) {
+    console.error(
+      "Failed to pause org calendar sync before account disconnect:",
+      pauseError,
+    );
+    return { success: false, error: "Failed to pause calendar sync" };
+  }
+
   const deactivateResult = await deactivateGoogleConnection(access.userId, {
     expectedBinding: organizationCalendarGoogleBinding(organizationId),
     useServiceRole: true,
@@ -178,26 +199,6 @@ export async function disconnectOrganizationCalendarConnection(
   });
   if (!deactivateResult.success) {
     return { success: false, error: deactivateResult.error || "Failed to disconnect Google account" };
-  }
-
-  const { error: eventsError } = await serviceSupabase
-    .from("organization_calendar_events")
-    .delete()
-    .eq("organization_id", organizationId);
-
-  if (eventsError) {
-    console.error("Failed to delete org calendar events during account disconnect:", eventsError);
-    return { success: false, error: "Failed to remove calendar events" };
-  }
-
-  const { error: syncErrorDelete } = await serviceSupabase
-    .from("organization_calendar_syncs")
-    .delete()
-    .eq("organization_id", organizationId);
-
-  if (syncErrorDelete) {
-    console.error("Failed to delete org calendar sync during account disconnect:", syncErrorDelete);
-    return { success: false, error: "Failed to disconnect calendar" };
   }
 
   revalidatePath(`/organization/${organizationId}/settings`);
@@ -240,23 +241,19 @@ export async function disconnectOrganizationCalendar(
   }
 
   const serviceSupabase = getAdminClient();
-  const { error: eventsError } = await serviceSupabase
-    .from("organization_calendar_events")
-    .delete()
-    .eq("organization_id", organizationId);
-
-  if (eventsError) {
-    console.error("Failed to delete org calendar events:", eventsError);
-    return { success: false, error: "Failed to remove calendar events" };
-  }
-
+  // "Disconnect" is a reversible local pause. Preserve the calendar ID and
+  // event bindings until a separately confirmed remote-cleanup workflow has
+  // removed the Google resources they describe.
   const { error: syncError } = await serviceSupabase
     .from("organization_calendar_syncs")
-    .delete()
+    .update({
+      auto_sync: false,
+      updated_at: new Date().toISOString(),
+    })
     .eq("organization_id", organizationId);
 
   if (syncError) {
-    console.error("Failed to delete org calendar sync:", syncError);
+    console.error("Failed to pause org calendar sync:", syncError);
     return { success: false, error: "Failed to disconnect calendar" };
   }
 
