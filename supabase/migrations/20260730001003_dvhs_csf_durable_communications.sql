@@ -123,7 +123,24 @@ DECLARE
     'smtpcode', 'smtpstatuscode', 'statuscode', 'errorcode', 'errorname',
     'bouncetype', 'bouncesubtype', 'bounceclassification',
     'complainttype', 'complaintsubtype', 'feedbacktype',
-    'delayreason', 'suppressionreason', 'reasoncode', 'retryable',
+    -- 'suppressiontype' is the BOUNDED PROVIDER TOKEN from data.suppressed.type,
+    -- and it is the only input to the address-block decision for a suppression
+    -- event. Its sibling data.suppressed.message is provider free text and has
+    -- no key here on purpose: 'suppressionmessage' is absent from this allowlist,
+    -- so an attempt to store it is rejected rather than truncated.
+    'suppressiontype',
+    -- 'suppressionreason' IS DELIBERATELY ABSENT.
+    --
+    -- The route never emits it, but route omission is not an at-rest boundary:
+    -- this allowlist is what a direct service-role caller runs into, and while
+    -- the key existed such a caller could persist data.suppressed.message --
+    -- provider free text carrying a recipient address, control bytes, and
+    -- log-injection payloads -- simply by renaming it 'suppressionReason'. The
+    -- name normalizes to 'suppressionreason' and would have been admitted.
+    --
+    -- 'suppressionType' above is the single bounded token the suppression
+    -- decision reads, and it is the only suppression key there is.
+    'delayreason', 'reasoncode', 'retryable',
     'recipienthash', 'tohash', 'fromhash', 'domainhash', 'linkhosthash',
     'iphash', 'useragenthash',
     'tags', 'topickey', 'attemptnumber', 'providerregion', 'emailid',
@@ -650,27 +667,56 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_comm_safety_kind_rank(text)
 
 -- Resend's bounce vocabulary mapped to what we are allowed to do about it.
 --
--- 'Permanent'/'HardBounce' means the mailbox does not exist: suppress
--- indefinitely. 'Transient'/'SoftBounce' means it exists but could not accept the
--- message right now -- full, greylisted, temporarily deferred -- so it earns a
--- delivery HOLD that lapses rather than a permanent block. 'Undetermined' means
--- the provider itself could not tell, and guessing either way is worse than
--- asking a human.
+-- EXACTLY TWO VALUES ARE ACTIONABLE, AND THEY ARE SPELLED EXACTLY AS RESEND
+-- SPELLS THEM.
+--
+-- 'Permanent' means the mailbox does not exist: suppress indefinitely.
+-- 'Transient' means it exists but could not accept the message right now --
+-- full, greylisted, temporarily deferred -- so it earns a delivery HOLD that
+-- lapses rather than a permanent block.
+--
+-- EVERYTHING ELSE IS review_required. That includes Resend's own documented
+-- 'Undetermined', the fixed token 'Unknown' the route substitutes for anything
+-- unreviewed, and every alias, case variant, and future value -- 'HardBounce',
+-- 'SoftBounce', 'hard', 'soft', 'permanent', 'delayed' and the rest. None of
+-- them is accepted, and none is normalized into one that is.
+--
+-- The comment here used to advertise 'Permanent'/'HardBounce' and
+-- 'Transient'/'SoftBounce' as equivalent pairs, which described an earlier
+-- normalizing classifier and not the exact one below. That mismatch is exactly
+-- how somebody re-widens a classifier in good faith: the comment tells them the
+-- aliases are supposed to work. They are not, deliberately -- this value decides
+-- how long a real address stays blocked, so an unreviewed spelling must reach a
+-- human rather than a permanent block.
 CREATE OR REPLACE FUNCTION plugin_data.csf_comm_bounce_class(p_bounce_type text)
 RETURNS text
 LANGUAGE sql
 IMMUTABLE
 SET search_path = ''
 AS $$
-  SELECT CASE
-    WHEN pg_catalog.regexp_replace(
-      pg_catalog.lower(pg_catalog.btrim(coalesce(p_bounce_type, ''))), '[^a-z]', '', 'g'
-    ) IN ('permanent', 'hardbounce', 'hard', 'permanentfailure')
-      THEN 'permanent'
-    WHEN pg_catalog.regexp_replace(
-      pg_catalog.lower(pg_catalog.btrim(coalesce(p_bounce_type, ''))), '[^a-z]', '', 'g'
-    ) IN ('transient', 'softbounce', 'soft', 'temporaryfailure', 'delayed')
-      THEN 'transient'
+  -- EXACT, CASE-SENSITIVE, NO NORMALIZATION.
+  --
+  -- This previously lowercased the value and stripped every non-letter before
+  -- comparing, against a list that included undocumented aliases ('hard', 'soft',
+  -- 'delayed', 'hardbounce', ...). Two things followed, both bad:
+  --
+  --   1. Normalization made the decision reachable from values Resend never
+  --      sends. 'p e r m a n e n t', 'PERMANENT!!!', and 'Permanent<NUL>' all
+  --      collapsed to 'permanent' and indefinitely blocked a real address.
+  --   2. The alias list asserted a provider contract nobody had reviewed. Resend
+  --      documents exactly Permanent, Transient, and Undetermined
+  --      (https://resend.com/docs/webhooks/emails/bounced) and types the field as
+  --      a bare string, so an alias list is a guess that silently decides how long
+  --      somebody's mailbox stays blocked.
+  --
+  -- The route now persists only a reviewed exact literal or the fixed token
+  -- 'Unknown', and this compares that literal with no transformation at all.
+  -- Anything unreviewed -- including 'Unknown' and every future subtype -- lands
+  -- on 'undetermined', which earns a review hold rather than a permanent block.
+  -- Guessing in either direction is worse than asking a human.
+  SELECT CASE p_bounce_type
+    WHEN 'Permanent' THEN 'permanent'
+    WHEN 'Transient' THEN 'transient'
     ELSE 'undetermined'
   END;
 $$;
@@ -683,7 +729,7 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_comm_bounce_class(text)
 COMMENT ON FUNCTION plugin_data.csf_comm_safety_kind_rank(text) IS
   'Severity order for address-safety blocks: expiring hold < review hold < indefinite suppression. Blocks tighten and never loosen, so a soft bounce arriving after a hard one cannot unblock a dead mailbox.';
 COMMENT ON FUNCTION plugin_data.csf_comm_bounce_class(text) IS
-  'Maps a Resend bounce type to permanent, transient, or undetermined, comparing with case and punctuation removed. A permanent bounce suppresses indefinitely, a transient one earns an expiring delivery hold, and an undetermined one goes to a human rather than being guessed either way.';
+  'Maps a Resend bounce type to permanent, transient, or undetermined by EXACT, case-sensitive comparison against the two literals Resend documents as actionable: ''Permanent'' and ''Transient''. There is deliberately no normalization, alias, case folding, or punctuation stripping -- this value decides how long a real address stays blocked, so it is only ever a reviewed literal the route already validated. ''Undetermined'', the fixed token ''Unknown'', and every unreviewed or future value classify as undetermined, which earns a review hold rather than an indefinite block.';
 
 -- Review state is monotonic: an attempt or delivery under review never quietly
 -- returns to an earlier stage.
@@ -3923,10 +3969,29 @@ CREATE TABLE plugin_data.csf_communication_dispatch_attempts (
     ),
   -- 'human_review' is an escalation, not a final outcome, so it is recorded in
   -- its own write-once columns and is deliberately absent from this list.
+  --
+  -- 'accepted' IS HERE BECAUSE THE PROVIDER CAN SAY IT LATE.
+  --
+  -- A signed, bound email.sent event means the provider accepted this exact
+  -- message. When it arrives after the attempt has already settled as
+  -- unknown_outcome -- the worker's own HTTP response was lost, or its lease was
+  -- reaped -- that event is real evidence resolving the ambiguity, and the honest
+  -- record of it is 'accepted'. Omitting it here meant the reconciliation branch
+  -- in csf_resolve_communication_provider_evidence() wrote a value this CHECK
+  -- rejected, so the webhook transaction raised 23514 and retried forever while
+  -- the verified evidence was never recorded.
+  --
+  -- This does NOT open a staff path to it: csf_reconcile_communication_unknown_
+  -- outcome() rejects 'accepted' by name, and the lifecycle trigger admits the
+  -- unknown_outcome -> accepted edge only for provider-actor evidence.
+  --
+  -- email.sent is NOT relabelled 'delivered'. The provider accepted the message;
+  -- whether a mailbox took it is a different event and a later state.
   CONSTRAINT csf_communication_dispatch_attempts_reconciled_outcome_check
     CHECK (
       reconciled_outcome IS NULL
       OR reconciled_outcome IN (
+        'accepted',
         'delivered',
         'bounced',
         'complained',
@@ -3948,8 +4013,30 @@ CREATE TABLE plugin_data.csf_communication_dispatch_attempts (
   -- A settled non-unknown state that carries a reconciliation must agree with
   -- it. This is what makes "every exit from unknown_outcome has coherent
   -- evidence" checkable at rest and not only at transition time.
+  --
+  -- RECONCILIATION IS A FACT ABOUT THE MOMENT OF RESOLUTION, NOT A FREEZE ON THE
+  -- LIFECYCLE. reconciled_outcome records the outcome that RESOLVED the
+  -- ambiguity; the attempt then continues along its ordinary forward edges as
+  -- more provider evidence arrives. A plain `reconciled_outcome = state` made
+  -- every such advance unsatisfiable at rest while the lifecycle trigger happily
+  -- permitted it -- the two disagreed, and the disagreement only surfaced as a
+  -- constraint violation inside a webhook transaction.
+  --
+  -- The permitted drift is exactly the forward closure of each resolved state in
+  -- the lifecycle transition table below, and nothing more:
+  --   accepted  -> delivered | bounced | complained | suppressed | failed
+  --   delivered -> complained
+  -- Every other reconciled outcome is terminal and must still equal the state.
   CONSTRAINT csf_comm_attempt_reconciled_state_check
-    CHECK (reconciled_outcome IS NULL OR reconciled_outcome = state),
+    CHECK (
+      reconciled_outcome IS NULL
+      OR reconciled_outcome = state
+      OR (
+        reconciled_outcome = 'accepted'
+        AND state IN ('delivered', 'bounced', 'complained', 'suppressed', 'failed')
+      )
+      OR (reconciled_outcome = 'delivered' AND state = 'complained')
+    ),
   CONSTRAINT csf_communication_dispatch_attempts_status_code_check
     CHECK (provider_status_code IS NULL OR provider_status_code BETWEEN 100 AND 599),
   CONSTRAINT csf_communication_dispatch_attempts_bounded_text_check
@@ -4468,6 +4555,40 @@ BEGIN
         USING ERRCODE = '23514';
     END IF;
 
+    -- unknown_outcome -> accepted IS A PROVIDER-ONLY EDGE.
+    --
+    -- It exists for exactly one situation: a signed, tenant-bound email.sent event
+    -- that arrived AFTER the attempt already settled ambiguous, because the
+    -- worker's own HTTP response was lost or its lease was reaped. The provider is
+    -- stating in writing that it accepted this exact message, which is strictly
+    -- better evidence than the ambiguity it replaces.
+    --
+    -- It is emphatically NOT a general "mark it sent" edge. Acceptance is a claim
+    -- only the provider can make, so a human decision can never travel this way --
+    -- csf_reconcile_communication_unknown_outcome() already rejects 'accepted' by
+    -- name, and this is the layer behind that for the one role no privilege stops.
+    -- The conditions below are what distinguish evidence from assertion, and they
+    -- are checked here rather than left to the general table so a service-role
+    -- UPDATE that merely sets state = 'accepted' gets told exactly what is missing.
+    IF OLD.state = 'unknown_outcome' AND NEW.state = 'accepted' THEN
+      IF NEW.reconciled_actor_kind IS DISTINCT FROM 'provider'
+        -- Provider evidence names no account. A row that names one is somebody's
+        -- judgement call wearing the provider's clothes.
+        OR NEW.reconciled_by IS NOT NULL
+        OR NEW.reconciled_by_identity IS NOT NULL
+        OR NEW.reconciled_outcome IS DISTINCT FROM 'accepted'
+        OR NEW.review_state <> 'resolved'
+        -- Acceptance that names no message is not acceptance. The binding is what
+        -- ties this row to the event the provider signed.
+        OR NEW.provider_message_id IS NULL
+        OR NEW.settlement_source IS DISTINCT FROM 'provider'
+      THEN
+        RAISE EXCEPTION
+          'Only verified, message-bound provider evidence can resolve a CSF unknown provider outcome as accepted; a human decision cannot assert provider acceptance.'
+          USING ERRCODE = '23514';
+      END IF;
+    END IF;
+
     -- NO REQUEUE, EVER. Checked before the general table so a caller that tries
     -- the obvious lease-reaper edge gets told why it is unsafe rather than a
     -- generic transition error.
@@ -4496,8 +4617,11 @@ BEGIN
         'delivered', 'bounced', 'complained', 'suppressed', 'failed'
       ))
       OR (OLD.state = 'delivered' AND NEW.state = 'complained')
+      -- 'accepted' is admitted here only because the provider-evidence gate above
+      -- has already proven this particular move is signed, message-bound, and
+      -- actor-kind 'provider'. Removing that gate does not widen this edge safely.
       OR (OLD.state = 'unknown_outcome' AND NEW.state IN (
-        'delivered', 'bounced', 'complained', 'suppressed', 'failed'
+        'accepted', 'delivered', 'bounced', 'complained', 'suppressed', 'failed'
       ))
     ) THEN
       RAISE EXCEPTION
@@ -7299,6 +7423,14 @@ DECLARE
   v_safety_class text;
   v_safety jsonb;
   v_occurred timestamptz;
+  -- The bounded provider token from data.suppressed.type, as the route persisted
+  -- it. Read once, compared exactly, never normalized. See step 6.
+  v_suppression_type text;
+  v_recognized_suppression boolean := false;
+  -- "This ledger accepted this event as evidence about a recipient-bound
+  -- address", which is a different question from "the delivery status moved".
+  -- See step 6.
+  v_address_evidence boolean := false;
   -- Coordinates learned by the bounded UNLOCKED discovery pass, then re-proved
   -- under lock. Fail-closed comparison happens against these, never against a
   -- second read of the same untrusted row.
@@ -7629,11 +7761,10 @@ BEGIN
     v_applied := false;
     v_processing_state := 'ignored_conflict';
     v_target := NULL;
-    v_reason := pg_catalog.left(
-      'signed provider evidence "' || v_event.event_type
-        || '" names a CSF dispatch attempt that was never authorized for dispatch',
-      500
-    );
+    -- A fixed code. event_type is a provider-supplied string with no closed-set
+    -- CHECK behind it, so interpolating it put provider-controlled text into a
+    -- durable, human-read column. The type itself stays on the event row.
+    v_reason := 'unauthorized_attempt_evidence';
 
     IF v_attempt.state IN ('queued', 'processing') THEN
       UPDATE plugin_data.csf_communication_dispatch_attempts
@@ -7813,11 +7944,9 @@ BEGIN
       SET
         state = 'accepted',
         provider_message_id = coalesce(provider_message_id, v_event.provider_message_id),
-        outcome_detail = pg_catalog.left(
-          'provider evidence "' || v_event.event_type
-            || '" arrived before the worker reported back',
-          1000
-        ),
+        -- Fixed code, not interpolated provider text. See the note on
+        -- v_reason above.
+        outcome_detail = 'provider_evidence_preceded_worker',
         settlement_source = 'provider',
         lease_owner = NULL,
         leased_at = NULL,
@@ -7840,6 +7969,17 @@ BEGIN
         v_attempt.state IN ('accepted', 'unknown_outcome')
         OR (v_attempt.state = 'delivered' AND v_attempt_target = 'complained')
       )
+      -- AN UNKNOWN OUTCOME RESOLVES TO 'accepted' ONLY ON EVIDENCE THAT NAMES THE
+      -- MESSAGE. A sent event whose message identity never reached us -- a signed
+      -- csf_attempt_id tag with no provider message on the event or the attempt --
+      -- is an assertion, not a binding. The lifecycle trigger refuses it, and the
+      -- honest behaviour is to leave the attempt ambiguous until better evidence
+      -- arrives rather than to raise inside the webhook transaction.
+      AND NOT (
+        v_attempt.state = 'unknown_outcome'
+        AND v_attempt_target = 'accepted'
+        AND coalesce(v_attempt.provider_message_id, v_event.provider_message_id) IS NULL
+      )
     THEN
       IF v_attempt.state = 'unknown_outcome' THEN
         -- PROVIDER EVIDENCE IS A LEGITIMATE EXIT FROM AN UNKNOWN OUTCOME, and it
@@ -7853,11 +7993,33 @@ BEGIN
           reconciled_outcome = v_attempt_target,
           reconciled_at = v_now,
           reconciled_actor_kind = 'provider',
-          reconciliation_reason = pg_catalog.left(
-            'verified provider evidence "' || v_event.event_type
-            || '" resolved this unknown outcome',
-            300
-          ),
+          -- ACCEPTANCE MUST NAME THE MESSAGE IT IS ACCEPTING, and must record that
+          -- the provider is what settled it. The lifecycle trigger admits
+          -- unknown_outcome -> accepted only for signed, message-bound provider
+          -- evidence, so the binding and the settlement provenance are written in
+          -- the same statement that makes the claim.
+          --
+          -- Setting settlement_source here also keeps a LATE worker settlement
+          -- coherent: csf_settle_communication_dispatch_attempt() treats a worker
+          -- reporting 'accepted' against an attempt already settled by the provider
+          -- as a confirmation rather than a contradiction.
+          --
+          -- The terminal targets are deliberately left alone. delivered, bounced,
+          -- complained, suppressed, and failed describe what became of a message
+          -- the ledger had already accounted for, and their existing settlement
+          -- provenance is the honest record of who settled it first.
+          provider_message_id = CASE
+            WHEN v_attempt_target = 'accepted'
+              THEN coalesce(provider_message_id, v_event.provider_message_id)
+            ELSE provider_message_id
+          END,
+          settlement_source = CASE
+            WHEN v_attempt_target = 'accepted' THEN 'provider'
+            ELSE settlement_source
+          END,
+          -- Fixed code, not interpolated provider text. See the note on
+          -- v_reason above.
+          reconciliation_reason = 'resolved_by_verified_provider_evidence',
           updated_at = v_now
         WHERE id = v_attempt.id;
       ELSE
@@ -7882,10 +8044,7 @@ BEGIN
     UPDATE plugin_data.csf_communication_deliveries
     SET
       review_state = 'resolved',
-      review_reason = coalesce(
-        review_reason,
-        'resolved by verified provider evidence'
-      ),
+      review_reason = coalesce(review_reason, 'resolved_by_verified_provider_evidence'),
       updated_at = v_now
     WHERE id = v_delivery.id
       AND organization_id = p_organization_id;
@@ -7895,7 +8054,97 @@ BEGIN
   -- the ADDRESS, so it updates the safety projection in this same transaction --
   -- not the topic-scoped preference table, which is about consent and would let
   -- the block leak into transactional mail as a fake opt-out.
-  IF v_applied AND v_target IN ('bounced', 'complained', 'suppressed') THEN
+  --
+  -- NOT EVERY email.suppressed IS AN ADDRESS FACT.
+  --
+  -- Resend documents exactly one subtype for this event -- the case-sensitive
+  -- literal 'OnAccountSuppressionList' (https://resend.com/docs/webhooks/emails/
+  -- suppressed) -- and types the field as a bare `string`, not an enum, so the
+  -- provider may add subtypes at any time without warning. Treating every
+  -- suppression as an account-level block therefore meant the FIRST new subtype
+  -- Resend shipped would silently create indefinite, tenant-wide blocks against
+  -- real addresses, including for mandatory transactional mail, on evidence that
+  -- says nothing of the sort.
+  --
+  -- So the comparison is exact and the unrecognized path is honest rather than
+  -- severe: the individual delivery and its attempt still reduce to 'suppressed'
+  -- (the provider did refuse THIS message, and it is never auto-retried), the
+  -- signed evidence is still durable, and a human is told why -- but no address
+  -- block is manufactured from a token we do not model.
+  --
+  -- WHAT IS DELIBERATELY NOT AN INPUT HERE: data.suppressed.message (provider
+  -- free text, never stored at all), broadcast_id, the provider topic, the CSF
+  -- topic tag, and any lower()/btrim()/normalized form of the subtype. Case
+  -- folding would make 'onaccountsuppressionlist' -- a value the provider never
+  -- documented -- create a permanent block.
+  v_suppression_type := v_event.metadata->>'suppressionType';
+  v_recognized_suppression :=
+    v_target = 'suppressed'
+    AND v_suppression_type = 'OnAccountSuppressionList';
+
+  -- ADDRESS EVIDENCE IS NOT GATED ON WHETHER DELIVERY STATUS MOVED.
+  --
+  -- This block used to require v_applied, i.e. "the delivery status reducer
+  -- changed state". Those are two different questions about two different
+  -- subjects, and conflating them lost real safety evidence:
+  --
+  --   * an unknown-subtype suppression settles the delivery at 'suppressed' with
+  --     no address block. The EXACT account suppression that follows reduces to
+  --     the same rank, so the reducer answers 'ignored_stale', v_applied is
+  --     false, and the terminal address block was never created -- the ledger had
+  --     the provider's account-level statement in writing and kept mailing.
+  --   * a 'Permanent' bounce after a 'Transient' one is also equal-rank at the
+  --     DELIVERY level (both are 'bounced'), so the address projection could
+  --     never be tightened from an expiring hold to an indefinite block.
+  --
+  -- The delivery reducer stays exactly as it was -- monotonic, non-regressing,
+  -- and still the only thing that decides delivery status. What changes is that
+  -- address evidence now gets its own gate: any event this ledger ACCEPTED as
+  -- evidence about a recipient-bound address is offered to the address reducer
+  -- once, whether or not the delivery row moved. Tightening is that reducer's
+  -- own rule (csf_comm_safety_kind_rank), so a weaker later event still cannot
+  -- loosen a stronger state.
+  --
+  -- Still excluded, deliberately: 'unmatched' (no delivery yet -- the rebind path
+  -- runs this same primitive once the delivery exists), 'ignored_unknown_type'
+  -- (nothing to conclude), 'ignored_conflict' (evidence naming an unauthorized
+  -- attempt), and any event with no provider occurrence time, which cannot be
+  -- ordered against what is already recorded and so is never authoritative.
+  v_address_evidence :=
+    v_target IS NOT NULL
+    AND v_occurred IS NOT NULL
+    AND NOT v_unauthorized_evidence
+    AND v_processing_state IN ('reduced', 'ignored_stale');
+
+  IF v_address_evidence
+    AND v_target = 'suppressed'
+    AND NOT v_recognized_suppression
+  THEN
+    -- A FIXED, BOUNDED REASON CODE, ASSIGNED RATHER THAN COALESCED.
+    --
+    -- The coalesce here kept whatever reason happened to be on the row already.
+    -- When the attempt had been settled 'unknown_outcome', step 5 above had just
+    -- written 'resolved_by_verified_provider_evidence', so the delivery ended up
+    -- review_state = 'escalated' carrying a reason that says it was resolved --
+    -- the operator is told the opposite of why it is in their queue.
+    --
+    -- The escalation is the newer and stronger statement about this delivery, so
+    -- it names itself. The provider's own words are not here and never will be;
+    -- the subtype lives on the event's bounded metadata, which is the only place
+    -- it exists.
+    UPDATE plugin_data.csf_communication_deliveries
+    SET
+      review_state = 'escalated',
+      review_reason = 'unknown_suppression_type',
+      updated_at = v_now
+    WHERE id = v_delivery.id
+      AND organization_id = p_organization_id;
+  END IF;
+
+  IF v_address_evidence AND (
+    v_target IN ('bounced', 'complained')
+    OR v_recognized_suppression
+  ) THEN
     v_safety_class := CASE v_target
       WHEN 'bounced' THEN 'bounce'
       WHEN 'complained' THEN 'complaint'
@@ -7908,18 +8157,53 @@ BEGIN
     WHERE snapshot.id = v_delivery.recipient_snapshot_id
       AND snapshot.organization_id = p_organization_id;
 
-    IF v_recipient_email IS NOT NULL THEN
+    -- EXACTLY ONE OPPORTUNITY PER PROVIDER EVENT.
+    --
+    -- csf_apply_communication_address_safety() increments observation_count and
+    -- appends an evidence row unconditionally, so running it twice for one
+    -- envelope would inflate the observation history and duplicate the evidence.
+    -- Envelope-level deduplication upstream already makes that hard to reach, but
+    -- "hard to reach" is not "cannot happen", and widening the gate above widened
+    -- the set of paths that get here. This makes the guarantee structural and
+    -- local: an envelope that has already produced an address observation never
+    -- produces a second one, whichever path re-runs this primitive.
+    IF v_recipient_email IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM plugin_data.csf_communication_address_safety_events AS observed
+        WHERE observed.organization_id = p_organization_id
+          AND observed.provider_event_id = v_event.provider_event_id
+      )
+    THEN
       v_safety := plugin_data.csf_apply_communication_address_safety(
         p_organization_id,
         v_recipient_email,
         v_safety_class,
-        pg_catalog.left(
-          'provider reported "' || v_event.event_type || '"'
-          || coalesce(
-            ' (' || (v_event.metadata->>'bounceType') || ')', ''
-          ),
-          300
-        ),
+        -- A FIXED APPLICATION REASON CODE, WITH NOTHING INTERPOLATED.
+        --
+        -- This used to concatenate the event type, the bounce type, and the
+        -- suppression type into an operator-facing string. Every one of those was
+        -- "bounded and allowlisted" -- and that argument is exactly the kind that
+        -- stops being true one schema change later, because the safety of a
+        -- durable, human-read column then depends on a guarantee enforced three
+        -- files away. A reason built by concatenating provider input is a
+        -- provider-controlled string no matter how carefully the inputs are
+        -- filtered today.
+        --
+        -- So the reason is a closed vocabulary chosen HERE. The provider's own
+        -- tokens remain available for diagnosis on the event row's bounded
+        -- metadata, which is where they belong and where nothing renders them as
+        -- prose.
+        CASE
+          WHEN v_target = 'bounced' THEN
+            CASE plugin_data.csf_comm_bounce_class(v_event.metadata->>'bounceType')
+              WHEN 'permanent' THEN 'provider_bounce_permanent'
+              WHEN 'transient' THEN 'provider_bounce_transient'
+              ELSE 'provider_bounce_undetermined'
+            END
+          WHEN v_target = 'complained' THEN 'provider_complaint'
+          ELSE 'provider_account_suppression'
+        END,
         v_occurred,
         v_event.provider_event_id,
         'provider',
@@ -7985,7 +8269,7 @@ REVOKE ALL ON FUNCTION plugin_data.csf_resolve_communication_provider_evidence(u
   FROM PUBLIC, anon, authenticated, service_role;
 
 COMMENT ON FUNCTION plugin_data.csf_resolve_communication_provider_evidence(uuid, uuid) IS
-  'The ONE atomic provider-evidence resolution primitive, shared by the recording and rebind paths so they cannot drift. Binds the delivery provider-message identity and the attempt named by the signed csf_attempt_id tag, advances an accepted or unknown_outcome attempt to the evidence-backed outcome, reduces delivery truth, resolves review state, updates the address-safety projection for a bounce/complaint/suppression, and leaves every evidential column of the event itself frozen.';
+  'The ONE atomic provider-evidence resolution primitive, shared by the recording and rebind paths so they cannot drift. Binds the delivery provider-message identity and the attempt named by the signed csf_attempt_id tag, advances an accepted or unknown_outcome attempt to the evidence-backed outcome, reduces delivery truth, resolves review state, updates the address-safety projection for a bounce/complaint/suppression, and leaves every evidential column of the event itself frozen. SUPPRESSION SUBTYPE SEPARATION: any verified, authorized, time-stamped email.suppressed reduces that delivery and its bound attempt to suppressed and is never auto-retried, but ONLY the exact case-sensitive metadata token suppressionType = ''OnAccountSuppressionList'' -- the single subtype Resend documents -- creates a provider_suppression address-safety block. An unknown, missing, case-mutated, padded, prefixed, or future subtype keeps the signed evidence, suppresses that one delivery and attempt, escalates the delivery for review with the fixed reason code unknown_suppression_type, and creates ZERO address-safety rows and ZERO preference rows, so a later otherwise-safe transactional send to that address is still allowed. Classification never reads data.suppressed.message, broadcast_id, the provider topic, the CSF topic tag, or any normalized form of the subtype. No provider event of any type ever mutates plugin_data.csf_communication_broadcast_preferences: topic opt-out is a broadcast-only consent decision and never becomes address safety.';
 
 -- I.6 Record one verified provider webhook event and reduce it.
 --
@@ -10518,5 +10802,717 @@ COMMENT ON COLUMN plugin_data.csf_communication_broadcast_preferences.topic_key 
 
 COMMENT ON COLUMN plugin_data.csf_communication_broadcast_preferences.user_id IS
   'Optional signed-in account. Accountless recipients are first-class: identity here is the normalized address, and an adviser who has never signed in still gets a durable, honored opt-out.';
+
+-- ---------------------------------------------------------------------------
+-- M. Authorized authoring and preference entrypoints
+--
+-- Section J leaves all ten ledgers SELECT-only to service_role, which is the
+-- correct boundary and stays exactly as it is. But a boundary with no door is not
+-- a boundary, it is a wall: before this section there was NO way to create a
+-- campaign and NO way to record a consent decision except by holding privileges
+-- nobody holds. The dispatch path was reachable only from a test fixture.
+--
+-- The door is a least-privilege SECURITY DEFINER RPC, on the same footing as
+-- every other consequential write in this migration: the function runs as the
+-- ledger owner, needs no table grant at all, proves tenant-scoped authority
+-- itself, and derives every safety-relevant field rather than accepting it.
+-- ---------------------------------------------------------------------------
+
+-- M1. CREATE ONE DRAFT CAMPAIGN.
+--
+-- WHAT THE CALLER MAY NOT CHOOSE, and why each one is derived here:
+--
+--   sender name / sender email / reply-to -- fixed to the chapter contract. A
+--     caller-chosen From is a phishing primitive and a deliverability incident:
+--     the domain's reputation is shared with every other message the chapter
+--     sends. csf_communication_campaigns_dispatch_identity_check enforces the
+--     same three values at rest; setting them here means a caller never even
+--     gets to propose a different one.
+--   content_hash / body_text_hash -- derived by the ledger's own trigger from the
+--     stored bytes, so the digest describes what is actually stored.
+--   provider_idempotency_key -- derived from the campaign coordinate.
+--   status / lifecycle timestamps -- this creates a DRAFT and nothing else.
+--     Finalization, queueing, and dispatch are separate authorized transitions.
+CREATE OR REPLACE FUNCTION plugin_data.csf_create_communication_campaign_draft(
+  p_organization_id uuid,
+  p_campaign_kind text,
+  p_subject text,
+  p_body_text text,
+  p_actor_user_id uuid,
+  p_term_id uuid DEFAULT NULL,
+  p_audience_kind text DEFAULT NULL,
+  p_body_html text DEFAULT NULL,
+  p_broadcast_topic_key text DEFAULT NULL,
+  p_resend_topic_id text DEFAULT NULL,
+  p_tags jsonb DEFAULT '{}'::jsonb,
+  p_correlation_id text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  -- The same chapter-administration capability cancellation, content
+  -- finalization, and reconciliation require. csf_actor_has_permission() is
+  -- tenant-scoped and admits an organization admin -- the owner/adviser seat --
+  -- or an ACTIVE staff position whose role holds the capability, with the
+  -- position's own date window respected. An ordinary member, an applicant, a
+  -- club representative, an inactive position, and an officer of another chapter
+  -- all fail it.
+  c_capability constant text := 'manage_settings';
+  c_sender_name constant text := 'DVHS CSF';
+  c_sender_email constant text := 'csf@notifications.lets-assist.com';
+  c_reply_to constant text := 'dvhighcsf@gmail.com';
+  v_subject text := nullif(btrim(coalesce(p_subject, '')), '');
+  v_body_text text := nullif(btrim(coalesce(p_body_text, '')), '');
+  v_body_html text := nullif(btrim(coalesce(p_body_html, '')), '');
+  v_topic text := nullif(btrim(coalesce(p_broadcast_topic_key, '')), '');
+  v_resend_topic text := nullif(btrim(coalesce(p_resend_topic_id, '')), '');
+  v_correlation text := nullif(btrim(coalesce(p_correlation_id, '')), '');
+  v_tags jsonb := coalesce(p_tags, '{}'::jsonb);
+  v_actor_identity text;
+  v_campaign_id uuid;
+BEGIN
+  IF p_organization_id IS NULL THEN
+    RAISE EXCEPTION 'A CSF campaign draft requires an organization.'
+      USING ERRCODE = '22004';
+  END IF;
+
+  IF p_actor_user_id IS NULL THEN
+    RAISE EXCEPTION
+      'A CSF campaign draft must record the account that authored it.'
+      USING ERRCODE = '22004';
+  END IF;
+
+  -- AUTHORIZATION BEFORE ANYTHING ELSE, and before any lock is taken.
+  IF NOT plugin_data.csf_actor_has_permission(
+    p_organization_id, p_actor_user_id, c_capability
+  ) THEN
+    RAISE EXCEPTION
+      'That account does not hold the CSF staff capability required to author a communications campaign in this organization.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF p_campaign_kind IS DISTINCT FROM 'broadcast'
+    AND p_campaign_kind IS DISTINCT FROM 'transactional'
+  THEN
+    RAISE EXCEPTION
+      'A CSF campaign is exactly one of broadcast or transactional.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- BOUNDED INPUTS. The subject travels in a mail header and the body is stored
+  -- and hashed; both are bounded here so a caller cannot author a row the ledger
+  -- would later refuse to finalize, or push an unbounded document into evidence.
+  IF v_subject IS NULL OR pg_catalog.char_length(v_subject) > 200 THEN
+    RAISE EXCEPTION
+      'A CSF campaign subject is 1 to 200 characters.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_body_text IS NULL OR pg_catalog.char_length(v_body_text) > 20000 THEN
+    RAISE EXCEPTION
+      'A CSF campaign plain-text body is 1 to 20000 characters.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_body_html IS NOT NULL AND pg_catalog.char_length(v_body_html) > 60000 THEN
+    RAISE EXCEPTION
+      'A CSF campaign HTML body is at most 60000 characters.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_correlation IS NOT NULL
+    AND (v_correlation ~ '\s' OR pg_catalog.char_length(v_correlation) > 128)
+  THEN
+    RAISE EXCEPTION
+      'A CSF campaign correlation identifier is whitespace-free and at most 128 characters.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF jsonb_typeof(v_tags) <> 'object' THEN
+    RAISE EXCEPTION 'CSF campaign tags are a JSON object.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF (SELECT count(*) FROM jsonb_object_keys(v_tags)) > 10 THEN
+    RAISE EXCEPTION 'A CSF campaign carries at most 10 tags.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- Content-bearing metadata is refused at any depth by the table CHECK; saying
+  -- so here gives the caller the reason rather than a constraint name.
+  IF plugin_data.csf_jsonb_carries_raw_content(v_tags) THEN
+    RAISE EXCEPTION
+      'CSF campaign tags are routing metadata and may not carry message content.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- MANDATORY TRANSACTIONAL VERSUS BROADCAST, refused at the door. A
+  -- transactional campaign cannot be refused by a recipient, so attaching a
+  -- topic to it would offer an unsubscribe from mail the chapter is obliged to
+  -- send -- and one click would then suppress it.
+  IF p_campaign_kind = 'transactional' AND (v_topic IS NOT NULL OR v_resend_topic IS NOT NULL) THEN
+    RAISE EXCEPTION
+      'A CSF transactional campaign carries no preference topic and no provider topic; it cannot be refused.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF p_campaign_kind = 'broadcast' AND v_topic IS NULL THEN
+    RAISE EXCEPTION
+      'A CSF broadcast campaign is scoped to exactly one preference topic.'
+      USING ERRCODE = '22004';
+  END IF;
+
+  IF p_term_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1
+    FROM plugin_data.csf_terms AS term
+    WHERE term.id = p_term_id
+      AND term.organization_id = p_organization_id
+  ) THEN
+    RAISE EXCEPTION
+      'That CSF term does not belong to this organization.'
+      USING ERRCODE = '23503';
+  END IF;
+
+  SELECT lower(btrim(coalesce(account.email, '')))
+  INTO v_actor_identity
+  FROM auth.users AS account
+  WHERE account.id = p_actor_user_id;
+
+  v_actor_identity := coalesce(
+    nullif(v_actor_identity, ''), 'user:' || p_actor_user_id::text
+  );
+
+  v_campaign_id := pg_catalog.gen_random_uuid();
+
+  INSERT INTO plugin_data.csf_communication_campaigns (
+    id, organization_id, campaign_kind, status, channel,
+    sender_name, sender_email, reply_to_email,
+    subject, body_text, body_html, term_id, audience_kind,
+    broadcast_topic_key, resend_topic_id,
+    created_by, created_by_identity, metadata,
+    audience_snapshot_version, provider_idempotency_key
+  ) VALUES (
+    v_campaign_id, p_organization_id, p_campaign_kind, 'draft', 'email',
+    -- Fixed, not accepted. See the header note.
+    c_sender_name, c_sender_email, c_reply_to,
+    v_subject, v_body_text, v_body_html, p_term_id, p_audience_kind,
+    v_topic, v_resend_topic,
+    p_actor_user_id, v_actor_identity, v_tags,
+    1,
+    -- Derived from the campaign coordinate, never supplied.
+    'csf-campaign-' || v_campaign_id::text
+  );
+
+  RETURN pg_catalog.jsonb_build_object(
+    'campaignId', v_campaign_id,
+    'status', 'draft',
+    'campaignKind', p_campaign_kind,
+    'correlationId', v_correlation
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_create_communication_campaign_draft(
+  uuid, text, text, text, uuid, uuid, text, text, text, text, jsonb, text
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_create_communication_campaign_draft(
+  uuid, text, text, text, uuid, uuid, text, text, text, text, jsonb, text
+) TO service_role;
+
+COMMENT ON FUNCTION plugin_data.csf_create_communication_campaign_draft(
+  uuid, text, text, text, uuid, uuid, text, text, text, text, jsonb, text
+) IS
+  'Creates one DRAFT CSF campaign for a single organization. Requires the tenant-scoped manage_settings capability and raises 42501 otherwise, so ordinary members, applicants, club representatives, inactive positions, and actors from another chapter cannot author. The sender identity (DVHS CSF <csf@notifications.lets-assist.com>), the dvhighcsf@gmail.com reply-to, the content and body digests, the provider idempotency key, and every lifecycle timestamp are DERIVED, never accepted: a caller can never choose an arbitrary From or Reply-To. A transactional campaign is refused a preference or provider topic; a broadcast campaign requires one. Creates a draft only -- finalization, audience closure, and dispatch remain separate authorized transitions.';
+
+-- M2. EDIT A DRAFT, AND ONLY A DRAFT.
+--
+-- The moment a campaign leaves 'draft' its copy is frozen: content finalization
+-- derives the digest that the recipient snapshot, every allocated provider
+-- idempotency key, and every stored request digest are bound to. Editing behind
+-- that would make the stored digest a statement about a document nobody sent.
+CREATE OR REPLACE FUNCTION plugin_data.csf_update_communication_campaign_draft(
+  p_organization_id uuid,
+  p_campaign_id uuid,
+  p_actor_user_id uuid,
+  p_subject text DEFAULT NULL,
+  p_body_text text DEFAULT NULL,
+  p_body_html text DEFAULT NULL,
+  p_correlation_id text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  c_capability constant text := 'manage_settings';
+  v_subject text := nullif(btrim(coalesce(p_subject, '')), '');
+  v_body_text text := nullif(btrim(coalesce(p_body_text, '')), '');
+  v_body_html text := nullif(btrim(coalesce(p_body_html, '')), '');
+  v_correlation text := nullif(btrim(coalesce(p_correlation_id, '')), '');
+  v_campaign plugin_data.csf_communication_campaigns%ROWTYPE;
+BEGIN
+  IF p_organization_id IS NULL OR p_campaign_id IS NULL THEN
+    RAISE EXCEPTION
+      'A CSF campaign draft edit requires an organization and a campaign.'
+      USING ERRCODE = '22004';
+  END IF;
+
+  IF p_actor_user_id IS NULL THEN
+    RAISE EXCEPTION
+      'A CSF campaign draft edit must record the account that made it.'
+      USING ERRCODE = '22004';
+  END IF;
+
+  IF NOT plugin_data.csf_actor_has_permission(
+    p_organization_id, p_actor_user_id, c_capability
+  ) THEN
+    RAISE EXCEPTION
+      'That account does not hold the CSF staff capability required to edit a communications campaign in this organization.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF v_subject IS NOT NULL AND pg_catalog.char_length(v_subject) > 200 THEN
+    RAISE EXCEPTION 'A CSF campaign subject is 1 to 200 characters.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_body_text IS NOT NULL AND pg_catalog.char_length(v_body_text) > 20000 THEN
+    RAISE EXCEPTION 'A CSF campaign plain-text body is 1 to 20000 characters.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_body_html IS NOT NULL AND pg_catalog.char_length(v_body_html) > 60000 THEN
+    RAISE EXCEPTION 'A CSF campaign HTML body is at most 60000 characters.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_correlation IS NOT NULL
+    AND (v_correlation ~ '\s' OR pg_catalog.char_length(v_correlation) > 128)
+  THEN
+    RAISE EXCEPTION
+      'A CSF campaign correlation identifier is whitespace-free and at most 128 characters.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- CANONICAL LOCK ORDER, STEPS 2-3: the campaign advisory lock, then the
+  -- campaign row. Editing takes exactly the two locks cancellation and
+  -- finalization take, in the same order, so an edit racing a finalize cannot
+  -- interleave and cannot deadlock against either.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      'csf-communication-campaign:' || p_organization_id::text || ':'
+        || p_campaign_id::text,
+      0
+    )
+  );
+
+  SELECT campaign.*
+  INTO v_campaign
+  FROM plugin_data.csf_communication_campaigns AS campaign
+  WHERE campaign.id = p_campaign_id
+    AND campaign.organization_id = p_organization_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    -- Deliberately the same answer for "no such campaign" and "another chapter's
+    -- campaign": the tenant predicate is part of the lookup, so this path never
+    -- confirms the existence of a row the caller may not see.
+    RAISE EXCEPTION
+      'That CSF campaign does not exist in this organization.'
+      USING ERRCODE = '23503';
+  END IF;
+
+  -- IMMUTABLE ONCE IT LEAVES THE DRAFT. 'queued', 'sending', 'sent',
+  -- 'cancelled', and every other terminal status are all refused by name.
+  IF v_campaign.status <> 'draft' THEN
+    RAISE EXCEPTION
+      'A CSF campaign is editable only while it is a draft; "%" is already published or settled.',
+      v_campaign.status
+      USING ERRCODE = '23514';
+  END IF;
+
+  -- Belt and braces against a future status that forgets to leave 'draft': the
+  -- content digest is what binds recipient snapshots and provider idempotency
+  -- keys, and its presence means the copy is already committed to.
+  IF v_campaign.content_finalized_at IS NOT NULL OR v_campaign.content_hash IS NOT NULL THEN
+    RAISE EXCEPTION
+      'This CSF campaign''s content is already finalized and can no longer be edited.'
+      USING ERRCODE = '23514';
+  END IF;
+
+  UPDATE plugin_data.csf_communication_campaigns
+  SET
+    -- Only the editable content. Sender identity, reply-to, kind, topic, term,
+    -- audience kind, and every lifecycle field are deliberately absent: this
+    -- path cannot be used to re-point a campaign at a different sender or a
+    -- different audience.
+    subject = coalesce(v_subject, subject),
+    body_text = coalesce(v_body_text, body_text),
+    body_html = CASE WHEN p_body_html IS NULL THEN body_html ELSE v_body_html END,
+    updated_at = now()
+  WHERE id = p_campaign_id
+    AND organization_id = p_organization_id;
+
+  RETURN pg_catalog.jsonb_build_object(
+    'campaignId', p_campaign_id,
+    'status', 'draft',
+    'updated', true,
+    'correlationId', v_correlation
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_update_communication_campaign_draft(
+  uuid, uuid, uuid, text, text, text, text
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_update_communication_campaign_draft(
+  uuid, uuid, uuid, text, text, text, text
+) TO service_role;
+
+COMMENT ON FUNCTION plugin_data.csf_update_communication_campaign_draft(
+  uuid, uuid, uuid, text, text, text, text
+) IS
+  'Updates the editable content -- subject, plain-text body, optional HTML body -- of a DRAFT CSF campaign only. Requires the tenant-scoped manage_settings capability and raises 42501 otherwise. A campaign that is published, queued, sending, or terminal is immutable through this path and raises 23514, as is any campaign whose content is already finalized, because the content digest binds the recipient snapshot and every allocated provider idempotency key. Sender identity, reply-to, campaign kind, topic, term, and audience are not editable here at all. Takes the campaign advisory lock then the campaign row, matching the canonical lock order used by cancellation and finalization.';
+
+-- M3. RECORD ONE BROADCAST CONSENT DECISION.
+--
+-- BROADCAST CONSENT IS NOT ADDRESS SAFETY AND IT IS NOT TRANSACTIONAL POLICY.
+-- This writes the topic-scoped preference projection and, through the existing
+-- history trigger, the append-only decision record beside it. It structurally
+-- cannot affect mandatory operational mail: topic_key has a CHECK forbidding the
+-- reserved key 'transactional', and csf_communication_preference_decision()
+-- returns 'mandatory_transactional' for a transactional requirement without
+-- reading this table at all.
+--
+-- THE TWO ACTOR PATHS ARE DIFFERENT CLAIMS AND ARE KEPT DIFFERENT.
+--
+--   recipient -- a self-service unsubscribe or resubscribe. Names no account, and
+--     is bound to ONE address: the caller must present the SHA-256 of the address
+--     it verified, and it must match the address being decided. That is what
+--     stops a verified link for one address from opting out another.
+--
+--     THE TOKEN ITSELF IS NOT VERIFIED HERE. The database has no token surface;
+--     the server verifies the token and asserts the binding. There is no browser
+--     token route yet -- see the note on the wrapper.
+--
+--   staff -- a documented request relayed by an officer. Names an account, that
+--     account must hold the tenant capability, and a reason is mandatory.
+--
+-- THERE IS DELIBERATELY NO PROVIDER PATH, AND THE PARAMETER FOR IT IS GONE.
+--
+-- A draft of this function accepted actor kind 'provider' against any
+-- signature-verified event in the organization. That was not an authorization
+-- check in any meaningful sense:
+--
+--   * a verified event proves Resend sent us something about SOME message in
+--     this tenant. It does not name the address being decided, and it does not
+--     name a CSF topic -- so ANY verified event authorized opting ANY address out
+--     of ANY topic. The binding the check appeared to make did not exist.
+--   * consent ordering was compared against server now() rather than the
+--     provider's own occurrence time, so a delayed or re-delivered event could
+--     overwrite a newer decision the recipient had just made.
+--
+-- And the provider does not have the facts required to fix it. Per Resend's
+-- current contract, email.bounced / email.complained / email.suppressed are
+-- statements about an ADDRESS and a MESSAGE, and contact.updated carries
+-- contact-level or global subscription state with no CSF organization and no CSF
+-- topic in it (https://resend.com/docs/webhooks/event-types,
+-- https://resend.com/docs/dashboard/topics/introduction). None of them can be
+-- mapped onto "this person withdrew consent for THIS chapter's THIS topic"
+-- without a durable provider-contact binding this schema does not have.
+--
+-- So provider feedback stays where it belongs: email.bounced, email.complained,
+-- and email.suppressed update the ADDRESS SAFETY projection, which blocks
+-- delivery on its own terms and is deliberately separate from consent. Topic
+-- opt-out remains a decision only a recipient or an officer can record.
+--
+-- p_provider_event_row_id is removed from the signature rather than ignored: an
+-- ignored parameter is still a callable shape that reads as supported, and a
+-- later edit re-attaches meaning to it. The DROP below removes the draft overload
+-- so it cannot remain executable alongside this one.
+DROP FUNCTION IF EXISTS plugin_data.csf_record_broadcast_preference_decision(
+  uuid, text, text, text, text, text, uuid, text, uuid, text
+);
+
+CREATE OR REPLACE FUNCTION plugin_data.csf_record_broadcast_preference_decision(
+  p_organization_id uuid,
+  p_topic_key text,
+  p_recipient_email text,
+  p_decision text,
+  p_actor_kind text,
+  p_reason text DEFAULT NULL,
+  p_actor_user_id uuid DEFAULT NULL,
+  p_verified_recipient_email_hash text DEFAULT NULL,
+  p_correlation_id text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  c_capability constant text := 'manage_settings';
+  v_topic text := nullif(btrim(coalesce(p_topic_key, '')), '');
+  v_email text := lower(btrim(coalesce(p_recipient_email, '')));
+  v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
+  v_correlation text := nullif(btrim(coalesce(p_correlation_id, '')), '');
+  v_expected_hash text;
+  v_actor_identity text;
+  v_source text;
+  v_now timestamptz := now();
+  v_existing plugin_data.csf_communication_broadcast_preferences%ROWTYPE;
+  v_state text;
+  v_created boolean := false;
+BEGIN
+  IF p_organization_id IS NULL THEN
+    RAISE EXCEPTION 'A CSF broadcast preference decision requires an organization.'
+      USING ERRCODE = '22004';
+  END IF;
+
+  IF p_decision IS DISTINCT FROM 'opt_out' AND p_decision IS DISTINCT FROM 'resubscribe' THEN
+    RAISE EXCEPTION
+      'A CSF broadcast preference decision is exactly one of opt_out or resubscribe.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_topic IS NULL THEN
+    RAISE EXCEPTION
+      'A CSF broadcast preference decision requires the topic it is scoped to.'
+      USING ERRCODE = '22004';
+  END IF;
+
+  -- THE STRUCTURAL SEPARATION, RESTATED AT THE DOOR. The table CHECK already
+  -- refuses this key; refusing it here names the reason.
+  IF v_topic = 'transactional' THEN
+    RAISE EXCEPTION
+      'CSF transactional mail is mandatory and carries no preference topic; a broadcast opt-out can never suppress it.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_email = '' OR NOT plugin_data.csf_communication_email_is_storable(v_email) THEN
+    RAISE EXCEPTION
+      'A CSF broadcast preference decision requires a storable recipient address.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_reason IS NOT NULL AND pg_catalog.char_length(v_reason) > 300 THEN
+    RAISE EXCEPTION
+      'A CSF broadcast preference reason is at most 300 characters.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_correlation IS NOT NULL
+    AND (v_correlation ~ '\s' OR pg_catalog.char_length(v_correlation) > 128)
+  THEN
+    RAISE EXCEPTION
+      'A CSF preference correlation identifier is whitespace-free and at most 128 characters.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- 'provider' IS REFUSED BY NAME, with the reason, rather than falling into a
+  -- generic "unrecognized actor" message. A caller reaching for it is reaching
+  -- for a capability that was withdrawn on purpose, and the error should say so.
+  IF p_actor_kind = 'provider' THEN
+    RAISE EXCEPTION
+      'CSF provider feedback is not topic-consent authority: a provider event names an address and a message, never a chapter and a CSF topic. Bounces, complaints, and suppressions update address safety instead; a topic opt-out is recorded by the recipient or by staff.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF p_actor_kind NOT IN ('recipient', 'staff') THEN
+    RAISE EXCEPTION
+      'A CSF broadcast preference decision is recorded by a recipient or by a staff account.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- ---- Actor path: recipient -------------------------------------------------
+  IF p_actor_kind = 'recipient' THEN
+    IF p_actor_user_id IS NOT NULL THEN
+      RAISE EXCEPTION
+        'A CSF recipient preference decision names no staff account; record it as a staff decision instead.'
+        USING ERRCODE = '22023';
+    END IF;
+
+    v_expected_hash := encode(
+      extensions.digest(v_email, 'sha256'), 'hex'
+    );
+
+    -- ADDRESS-BOUND, NOT MERELY AUTHENTICATED. A verified self-service path may
+    -- only affect the one identity it was verified for.
+    IF nullif(btrim(coalesce(p_verified_recipient_email_hash, '')), '') IS NULL
+      OR lower(btrim(p_verified_recipient_email_hash)) <> v_expected_hash
+    THEN
+      RAISE EXCEPTION
+        'A CSF recipient preference decision must present the verified hash of the exact address it is deciding.'
+        USING ERRCODE = '42501';
+    END IF;
+
+    v_source := CASE
+      WHEN p_decision = 'opt_out' THEN 'recipient_unsubscribe_link'
+      ELSE 'recipient_action'
+    END;
+
+  -- ---- Actor path: staff -----------------------------------------------------
+  ELSE
+    IF p_actor_user_id IS NULL THEN
+      RAISE EXCEPTION
+        'A CSF staff preference decision must record the account that made it.'
+        USING ERRCODE = '22004';
+    END IF;
+
+    IF NOT plugin_data.csf_actor_has_permission(
+      p_organization_id, p_actor_user_id, c_capability
+    ) THEN
+      RAISE EXCEPTION
+        'That account does not hold the CSF staff capability required to record a broadcast preference decision in this organization.'
+        USING ERRCODE = '42501';
+    END IF;
+
+    -- A STAFF DECISION IS SOMEBODY OVERRIDING A RECIPIENT'S OWN CHANNEL, so it
+    -- documents the request it is relaying.
+    IF v_reason IS NULL THEN
+      RAISE EXCEPTION
+        'A CSF staff preference decision records the request it is acting on.'
+        USING ERRCODE = '22004';
+    END IF;
+
+    SELECT lower(btrim(coalesce(account.email, '')))
+    INTO v_actor_identity
+    FROM auth.users AS account
+    WHERE account.id = p_actor_user_id;
+
+    v_actor_identity := coalesce(
+      nullif(v_actor_identity, ''), 'user:' || p_actor_user_id::text
+    );
+
+    v_source := 'staff_action';
+  END IF;
+
+  v_state := CASE WHEN p_decision = 'opt_out' THEN 'unsubscribed' ELSE 'subscribed' END;
+
+  -- CANONICAL LOCK ORDER for a consent coordinate: the decision's own advisory
+  -- lock FIRST. An absent row locks nothing, so two concurrent first decisions
+  -- for the same address and topic would otherwise both insert and one would
+  -- lose to the unique key with no evidence of the race.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      'csf-communication-preference:' || p_organization_id::text || ':'
+        || v_topic || ':' || v_email,
+      0
+    )
+  );
+
+  SELECT preference.*
+  INTO v_existing
+  FROM plugin_data.csf_communication_broadcast_preferences AS preference
+  WHERE preference.organization_id = p_organization_id
+    AND preference.topic_key = v_topic
+    AND preference.normalized_recipient_email = v_email
+  FOR UPDATE;
+
+  IF FOUND THEN
+    -- NO SILENT OVERWRITE OF A NEWER DECISION. The transition trigger refuses a
+    -- backwards last_decision_at outright; answering here means a late-arriving
+    -- provider retry or a duplicated click reports what actually stands instead
+    -- of raising.
+    IF v_existing.last_decision_at > v_now THEN
+      RETURN pg_catalog.jsonb_build_object(
+        'organizationId', p_organization_id,
+        'topicKey', v_topic,
+        'recipientEmailHash', v_existing.recipient_email_hash,
+        'subscriptionState', v_existing.subscription_state,
+        'applied', false,
+        'reason', 'a_newer_decision_stands',
+        'created', false
+      );
+    END IF;
+
+    IF v_existing.subscription_state = v_state THEN
+      RETURN pg_catalog.jsonb_build_object(
+        'organizationId', p_organization_id,
+        'topicKey', v_topic,
+        'recipientEmailHash', v_existing.recipient_email_hash,
+        'subscriptionState', v_existing.subscription_state,
+        'applied', false,
+        'reason', 'already_in_this_state',
+        'created', false
+      );
+    END IF;
+
+    UPDATE plugin_data.csf_communication_broadcast_preferences
+    SET
+      subscription_state = v_state,
+      -- A recorded opt-out is never erased. Resubscribing keeps the opt-out
+      -- timestamp and source as history and stamps the resubscribe beside it.
+      opt_out_at = CASE WHEN v_state = 'unsubscribed' THEN v_now ELSE opt_out_at END,
+      opt_out_source = CASE WHEN v_state = 'unsubscribed' THEN v_source ELSE opt_out_source END,
+      opt_out_reason = CASE WHEN v_state = 'unsubscribed' THEN v_reason ELSE opt_out_reason END,
+      resubscribed_at = CASE WHEN v_state = 'subscribed' THEN v_now ELSE resubscribed_at END,
+      resubscribe_source = CASE WHEN v_state = 'subscribed' THEN v_source ELSE resubscribe_source END,
+      last_decision_at = v_now,
+      decision_actor_kind = p_actor_kind,
+      decision_actor_user_id = p_actor_user_id,
+      decision_actor_identity = v_actor_identity,
+      decision_correlation_id = v_correlation,
+      updated_at = v_now
+    WHERE id = v_existing.id
+      AND organization_id = p_organization_id;
+  ELSE
+    -- A first decision that is already 'subscribed' is a no-op: absent means
+    -- subscribed, and writing a pristine row would only manufacture history.
+    IF v_state = 'subscribed' THEN
+      RETURN pg_catalog.jsonb_build_object(
+        'organizationId', p_organization_id,
+        'topicKey', v_topic,
+        'recipientEmailHash', encode(extensions.digest(v_email, 'sha256'), 'hex'),
+        'subscriptionState', 'subscribed',
+        'applied', false,
+        'reason', 'already_in_this_state',
+        'created', false
+      );
+    END IF;
+
+    INSERT INTO plugin_data.csf_communication_broadcast_preferences (
+      organization_id, topic_key, recipient_email, subscription_state,
+      opt_out_source, opt_out_reason, opt_out_at, last_decision_at,
+      decision_actor_kind, decision_actor_user_id, decision_actor_identity,
+      decision_correlation_id
+    ) VALUES (
+      p_organization_id, v_topic, v_email, 'unsubscribed',
+      v_source, v_reason, v_now, v_now,
+      p_actor_kind, p_actor_user_id, v_actor_identity,
+      v_correlation
+    );
+
+    v_created := true;
+  END IF;
+
+  RETURN pg_catalog.jsonb_build_object(
+    'organizationId', p_organization_id,
+    'topicKey', v_topic,
+    -- The HASH, never the address. This value is safe to log and to return.
+    'recipientEmailHash', encode(extensions.digest(v_email, 'sha256'), 'hex'),
+    'subscriptionState', v_state,
+    'applied', true,
+    'created', v_created,
+    'actorKind', p_actor_kind
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_record_broadcast_preference_decision(
+  uuid, text, text, text, text, text, uuid, text, text
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_record_broadcast_preference_decision(
+  uuid, text, text, text, text, text, uuid, text, text
+) TO service_role;
+
+COMMENT ON FUNCTION plugin_data.csf_record_broadcast_preference_decision(
+  uuid, text, text, text, text, text, uuid, text, text
+) IS
+  'Records one durable, organization-scoped and topic-scoped broadcast opt-out or resubscribe, writing the preference projection and -- through the existing history trigger -- the frozen append-only decision beside it. OPERATIONAL MAIL IS UNAFFECTED: the reserved topic ''transactional'' is refused by name here and by CHECK at rest, and plugin_data.csf_communication_preference_decision() answers a transactional requirement without reading this table. EXACTLY TWO ACTOR PATHS, kept structurally distinct: a recipient decision names no account and must present the SHA-256 of the exact address it verified, so a verified self-service path can only affect its own address-bound identity; a staff decision names an account holding the tenant manage_settings capability and a mandatory documented reason. THERE IS NO PROVIDER PATH: actor kind ''provider'' is refused with 42501, and the draft p_provider_event_row_id parameter is dropped rather than ignored. A Resend event names an address and a message, never a chapter and a CSF topic -- email.bounced, email.complained, email.suppressed, suppression.added, and contact.updated therefore carry no topic-consent authority through this function, and provider feedback updates the separate address-safety projection instead. Occurred-at is server-stamped, so a caller cannot backdate; a decision older than the one on record is reported as not applied rather than silently overwriting it. Returns the recipient email HASH, never the address. Takes the consent-coordinate advisory lock before the row so two concurrent first decisions cannot race.';
 
 COMMIT;

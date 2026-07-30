@@ -8,11 +8,17 @@ import { Resend } from "resend";
  *
  * Ordering is the whole security property here:
  *
- *   1. read the raw body as an exact string,
- *   2. verify the provider signature over THAT string,
- *   3. only then look at anything inside it.
+ *   1. require the three Svix headers, before any body is consumed,
+ *   2. read the raw body as an exact string,
+ *   3. verify the provider signature over THAT string,
+ *   4. only then look at anything inside it.
  *
- * Nothing in this file parses, routes on, or logs the payload before step 2.
+ * Step 1 exists so a request that cannot possibly verify is refused without
+ * buffering an arbitrary payload from an unauthenticated caller. It reads no
+ * body, so it cannot weaken step 3: the bytes handed to the verifier are still
+ * the exact bytes that arrived, read once and inspected by nothing before it.
+ *
+ * Nothing in this file parses, routes on, or logs the payload before step 3.
  * The routing decision is taken from signed, allowlisted tags carried inside
  * the verified body -- never from a query parameter, header, or any other
  * caller-controlled channel outside the signature.
@@ -173,6 +179,126 @@ export function resolveOccurredAt(event: unknown): string | null {
   return parsed.toISOString();
 }
 
+/**
+ * The one documented `email.suppressed` subtype, exact and case-sensitive.
+ *
+ * https://resend.com/docs/webhooks/emails/suppressed
+ *
+ * Resend types `EmailSuppressed.type` as a plain `string`, not an enum (resend
+ * 6.18.1), so this is a value the provider may extend at any time. That is
+ * precisely why the comparison lives in SQL against this exact literal and why
+ * anything else is treated as unrecognized rather than guessed at.
+ */
+export const RESEND_ACCOUNT_SUPPRESSION_TYPE = "OnAccountSuppressionList";
+
+/**
+ * A provider token we are willing to persist: ASCII, 1-64 characters, starting
+ * with a letter.
+ *
+ * Anchored with `^`/`$` and no `m` flag, so in JavaScript this matches the whole
+ * string with no trailing-newline exception. `[A-Za-z]` is ASCII-only, so a
+ * Cyrillic or fullwidth confusable never satisfies it.
+ */
+const PROVIDER_TOKEN_PATTERN = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
+
+/** What we persist when the provider gave us anything that is not a token. */
+export const UNKNOWN_PROVIDER_TOKEN = "Unknown";
+
+/**
+ * Read `data.suppressed.type` and nothing else.
+ *
+ * `data.suppressed.message` IS DELIBERATELY NEVER READ. It is provider free text:
+ * it can contain the recipient's address, the documented token itself, SQL-shaped
+ * text, and log-injection control characters. Retaining it -- in metadata, in a
+ * hashed operator reason, in a log line, or as a classification input -- would
+ * hand an outside party a channel into our own audit trail. There is no code path
+ * from that field to anywhere, and this function is the reason.
+ *
+ * Classification is likewise never derived from `broadcast_id`, the provider
+ * topic, the CSF topic tag, or a case-folded subtype. Only this one field, only
+ * as an exact bounded token.
+ *
+ * Anything that is not a well-formed token -- missing, null, a number, an object,
+ * an array, overlong, padded, control-bearing, or Unicode-confusable -- becomes
+ * the fixed literal `Unknown`. Persisting `Unknown` rather than omitting the key
+ * is deliberate: "we looked and it was not a token" and "we never looked" must be
+ * distinguishable to whoever reads this evidence later.
+ */
+/**
+ * The bounce types Resend documents, exact and case-sensitive.
+ *
+ * https://resend.com/docs/webhooks/emails/bounced
+ *
+ * The installed SDK types this field as a bare `string`, so the provider may
+ * extend it. That is why the reviewed set lives here and anything outside it
+ * becomes `Unknown` rather than being passed through: the database decides how
+ * long to block a real address from this value, and an unreviewed token must
+ * never reach that decision.
+ */
+export const RESEND_BOUNCE_TYPES = [
+  "Permanent",
+  "Transient",
+  "Undetermined",
+] as const;
+
+/**
+ * Read `data.bounce.type` as a reviewed, exact token.
+ *
+ * Previously this went through a generic `slice(0, 200)`, so any 200-character
+ * prefix of anything the provider sent -- an address, a paragraph of prose, SQL,
+ * control bytes -- was persisted and then interpolated into a durable
+ * operator-facing safety reason. Exactness is the whole contract: no trimming, no
+ * case folding, no alias.
+ */
+export function resolveBounceType(event: unknown): string {
+  const type = (event as { data?: { bounce?: { type?: unknown } } })?.data
+    ?.bounce?.type;
+  if (typeof type !== "string") return UNKNOWN_PROVIDER_TOKEN;
+  return (RESEND_BOUNCE_TYPES as readonly string[]).includes(type)
+    ? type
+    : UNKNOWN_PROVIDER_TOKEN;
+}
+
+/**
+ * Read `data.bounce.subType` as a bounded token, and never classify on it.
+ *
+ * Resend's subtype values are provider-evolving strings with no documented closed
+ * set, so there is no reviewed vocabulary to pin them against. Rather than invent
+ * one, this keeps the subtype as diagnostic evidence only: it is bounded to the
+ * same ASCII token shape as every other provider token, and NOTHING in the
+ * database reads it to decide anything. An address block is decided by
+ * `bounceType` alone.
+ *
+ * That bound is what keeps a confusable, padded, newline-bearing, NUL-bearing,
+ * escape-bearing, address-shaped, SQL-shaped, or overlong value from surviving:
+ * none of them is a token, so all of them become `Unknown`.
+ */
+export function resolveBounceSubtype(event: unknown): string {
+  const bounce = (event as {
+    data?: { bounce?: { subType?: unknown; sub_type?: unknown } };
+  })?.data?.bounce;
+  const subtype = bounce?.subType ?? bounce?.sub_type;
+  if (typeof subtype !== "string") return UNKNOWN_PROVIDER_TOKEN;
+  return PROVIDER_TOKEN_PATTERN.test(subtype)
+    ? subtype
+    : UNKNOWN_PROVIDER_TOKEN;
+}
+
+export function resolveSuppressionType(event: unknown): string {
+  const suppressed = (event as { data?: { suppressed?: unknown } })?.data
+    ?.suppressed;
+
+  if (typeof suppressed !== "object" || suppressed === null) {
+    return UNKNOWN_PROVIDER_TOKEN;
+  }
+  if (Array.isArray(suppressed)) return UNKNOWN_PROVIDER_TOKEN;
+
+  const type = (suppressed as { type?: unknown }).type;
+  if (typeof type !== "string") return UNKNOWN_PROVIDER_TOKEN;
+
+  return PROVIDER_TOKEN_PATTERN.test(type) ? type : UNKNOWN_PROVIDER_TOKEN;
+}
+
 function boundedScalar(value: unknown): string | number | boolean | null {
   if (typeof value === "boolean") return value;
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -194,14 +320,37 @@ export function buildProviderEventMetadata(
   routing: CsfRouting,
 ): Record<string, string | number | boolean> {
   const data = (event as { data?: Record<string, unknown> })?.data ?? {};
-  const bounce = (data.bounce ?? {}) as Record<string, unknown>;
+  const eventType = (event as { type?: unknown })?.type;
 
   const candidates: Record<string, unknown> = {
     emailId: data.email_id,
     broadcastId: data.broadcast_id,
-    bounceType: bounce.type,
-    bounceSubtype: bounce.subType ?? bounce.sub_type,
     topicKey: routing.topicKey,
+    // ALWAYS PRESENT ON A BOUNCE EVENT, EVEN WHEN UNREVIEWED, for the same
+    // reason as suppressionType below: "the provider sent a type we do not
+    // model" must be a recorded fact rather than an absence. bounceType decides
+    // how long a real address stays blocked, so only a reviewed exact literal
+    // reaches it; bounceSubtype is bounded diagnostic evidence that nothing
+    // classifies on.
+    ...(eventType === "email.bounced"
+      ? {
+          bounceType: resolveBounceType(event),
+          bounceSubtype: resolveBounceSubtype(event),
+        }
+      : {}),
+    // ALWAYS PRESENT ON A SUPPRESSION EVENT, EVEN WHEN UNRECOGNIZED.
+    //
+    // The database decides what an address-level block means from this key
+    // alone, and only the exact literal above earns one. Emitting `Unknown`
+    // rather than omitting the key makes "the provider sent a subtype we do not
+    // model" a recorded fact instead of an absence, which is what the SQL
+    // escalation path and any later audit both need.
+    //
+    // Note the key is `suppressionType`, not `suppressionReason`: a *Reason* key
+    // invites somebody to put the provider's free-text message in it.
+    ...(eventType === "email.suppressed"
+      ? { suppressionType: resolveSuppressionType(event) }
+      : {}),
   };
 
   const metadata: Record<string, string | number | boolean> = {};
@@ -606,10 +755,20 @@ export async function POST(req: NextRequest) {
   // VERIFICATION NEEDS THE WEBHOOK SECRET AND NOTHING ELSE.
   //
   // Resend's `webhooks.verify()` is a pure local Svix HMAC over the raw body; it
-  // never touches the API key or the network. Requiring RESEND_API_KEY here meant
-  // an environment configured only to RECEIVE webhooks rejected every legitimate
-  // event with a 400, which Resend does not retry -- so a missing send credential
-  // silently destroyed inbound delivery evidence.
+  // never touches the API key or the network. A deployment configured only to
+  // RECEIVE webhooks therefore has everything it needs, and requiring
+  // RESEND_API_KEY here would reject every legitimate event over a credential
+  // that plays no part in verifying or storing one.
+  //
+  // The cost of getting this wrong is not a single lost event. Resend delivers at
+  // least once and retries anything that is not a 200, so an endpoint that 4xxs
+  // on a missing SEND credential does not fail quietly -- it fails repeatedly,
+  // turning a configuration gap into a growing redelivery backlog while never
+  // recording the evidence it was retrying to deliver.
+  //
+  // A missing WEBHOOK secret is different, and answers 500 below on purpose: that
+  // is a real server-side fault, and being retried is exactly what we want, so the
+  // event is still deliverable once an operator supplies the secret.
   if (!webhookSecret) {
     return NextResponse.json(
       { error: "RESEND_WEBHOOK_SECRET is not configured." },
@@ -617,8 +776,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Step 1: the exact bytes, as a string. Nothing is parsed yet.
-  const payload = await req.text();
+  // Step 1: the required Svix headers, BEFORE the body is consumed.
+  //
+  // A request missing any of the three cannot be verified no matter what it
+  // carries, so reading its body first would mean buffering an arbitrary,
+  // unauthenticated payload from any caller purely to discard it. Checking the
+  // headers first makes an obviously unverifiable request cost a few header
+  // lookups instead.
+  //
+  // This reordering does NOT weaken the verification contract below: nothing here
+  // parses, hashes, logs, or routes anything, and once the headers exist the body
+  // is still read exactly once, as a string, and handed to the verifier byte for
+  // byte before anything else looks at it.
   const signature = req.headers.get("svix-signature");
   const timestamp = req.headers.get("svix-timestamp");
   const id = req.headers.get("svix-id");
@@ -626,6 +795,9 @@ export async function POST(req: NextRequest) {
   if (!signature || !timestamp || !id) {
     return NextResponse.json({ error: "Missing webhook headers." }, { status: 400 });
   }
+
+  // Step 2: the exact bytes, as a string. Nothing is parsed yet.
+  const payload = await req.text();
 
   /**
    * `svix-id` IS ATTACKER-CONTROLLED UNTIL THE SIGNATURE CHECKS OUT.
@@ -645,7 +817,7 @@ export async function POST(req: NextRequest) {
     process.env.RESEND_API_KEY ?? "re_local_verification_only",
   );
 
-  // Step 2: verify. An unverified body is never inspected, hashed for storage,
+  // Step 3: verify. An unverified body is never inspected, hashed for storage,
   // routed, or logged.
   let event: unknown;
   try {
@@ -664,7 +836,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid webhook signature." }, { status: 400 });
   }
 
-  // Step 3: everything below runs only on verified content.
+  // Step 4: everything below runs only on verified content.
   const eventType = (event as { type?: unknown })?.type;
   const routing = extractCsfRouting(event);
 
@@ -706,15 +878,22 @@ export async function POST(req: NextRequest) {
   /**
    * Durably capture a signed event we cannot route or apply, then acknowledge.
    *
-   * RESEND RETRIES EVERY NON-2XX RESPONSE. The previous 409 was written on the
-   * assumption that a 4xx tells the provider to stop; it does not. A signed event we
-   * kept refusing came back on a retry schedule forever, failed identically each
-   * time, and -- because nothing was ever written -- did so invisibly.
+   * RESEND EXPECTS HTTP 200 AND RETRIES EVERY OTHER RESPONSE. The previous 409 was
+   * written on the assumption that a 4xx tells the provider to stop; it does not. A
+   * signed event we kept refusing came back on a retry schedule forever, failed
+   * identically each time, and -- because nothing was ever written -- did so
+   * invisibly.
+   *
+   * The status is 200 exactly, not merely a 2xx. That distinction is load-bearing:
+   * under this contract a 202 or 204 is not an acknowledgement either, so an
+   * "acknowledge without a body" tidy-up here would silently restore the same
+   * retry loop this branch exists to end.
    *
    * So the fault is made durable first and acknowledged second. 200 here does not
    * mean "applied": it means "we have taken responsibility for this event and an
    * operator can see it". If the quarantine write itself fails we return 5xx,
-   * because then we genuinely have not.
+   * because then we genuinely have not -- and being retried is then the correct
+   * outcome.
    */
   async function quarantineAndAcknowledge(
     reasonCode: CsfQuarantineReasonCode,
@@ -903,9 +1082,9 @@ export async function POST(req: NextRequest) {
         // A permanent application conflict -- a replayed envelope carrying
         // different immutable evidence, contradictory routing tags, a coordinate
         // owned by another tenant, or one that does not exist here. Retrying
-        // cannot fix any of them, and a non-2xx would make Resend retry anyway,
-        // so the conflict itself becomes the durable record -- filed under the
-        // reason actually derived, with the sentence that matches it.
+        // cannot fix any of them, and anything other than a 200 would make Resend
+        // retry anyway, so the conflict itself becomes the durable record -- filed
+        // under the reason actually derived, with the sentence that matches it.
         return quarantineAndAcknowledge(fault.code, fault.detail);
       }
 

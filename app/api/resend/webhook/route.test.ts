@@ -63,6 +63,13 @@ mock.module("@/lib/plugins/supabase", () => ({
 }));
 
 const route = await import("./route");
+/**
+ * Imported after the module mocks above, for the same reason `route` is: a static
+ * import would be hoisted ahead of them. Used only by the body-consumption probe,
+ * which needs a REAL request object rather than the plain `Request` the other
+ * helpers cast.
+ */
+const { NextRequest } = await import("next/server");
 
 const ORG = "bd100000-0000-4000-8000-000000000001";
 const CAMPAIGN = "bd400000-0000-4000-8000-000000000001";
@@ -204,11 +211,131 @@ describe("signature verification happens before the body is interpreted", () => 
 
     const response = await route.POST(makeRequest(raw));
 
-    // A receive-only deployment must still record evidence. Rejecting here would
-    // return a status Resend does not retry, discarding the event permanently.
+    // A receive-only deployment must still record evidence: verification is a
+    // local HMAC over the raw body and never touches the send credential.
+    //
+    // Rejecting here would not lose the event -- Resend delivers at least once
+    // and retries anything that is not a 200 -- it would do something worse. The
+    // same event would be redelivered on every retry, each attempt refused over a
+    // credential that plays no part in verifying or storing it, so a missing SEND
+    // key would convert into an accumulating redelivery backlog while the
+    // evidence it was retrying to deliver was still never recorded.
     expect(response.status).toBe(200);
     expect(verifyCalls).toHaveLength(1);
     expect(rpcCalls).toHaveLength(1);
+  });
+
+  /**
+   * A request that cannot possibly verify must not have its body buffered.
+   *
+   * Anyone can POST here. If the handler reads the body before checking that the
+   * three Svix headers are even present, then an unauthenticated caller decides
+   * how many bytes this endpoint buffers, for a request it was always going to
+   * refuse. Checking the headers first makes that cost a few header lookups.
+   *
+   * THE OBSERVABLE IS `bodyUsed`, NOT STREAM PULLS.
+   *
+   * A `ReadableStream` body whose `pull` is counted looks like the stronger
+   * signal, and it is not: this runtime drains a request stream into an internal
+   * buffer on a microtask after construction, for both `Request` and
+   * `NextRequest`, whether or not the consumer ever reads it. A pull counter
+   * therefore measures the transport, reaches 1 on a request the route refused
+   * without touching, and would assert something false.
+   *
+   * `bodyUsed` is the per-spec consumer signal and behaves correctly here: it
+   * stays `false` through construction and through that eager buffering, and
+   * flips to `true` only when something calls a body-reading method. So it says
+   * exactly what this test needs -- "the route did not call `req.text()`" -- with
+   * no network and no timing dependence. The positive control below is what keeps
+   * it honest.
+   *
+   * The stream body is retained so the request is a realistic streamed POST
+   * rather than a pre-materialized string, and so the payload handed to the
+   * verifier can be checked byte for byte in the positive control.
+   */
+  function streamBodyRequest(headers: Record<string, string>) {
+    const body = new ReadableStream({
+      pull(controller) {
+        controller.enqueue(
+          new TextEncoder().encode('{"type":"email.sent","data":{}}'),
+        );
+        controller.close();
+      },
+    });
+
+    // `duplex: "half"` is required to construct a request from a stream and is
+    // absent from the init type, hence the widening cast. It is taken from the
+    // constructor's own parameter type rather than the DOM `RequestInit`, which
+    // NextRequest does not accept.
+    const request = new NextRequest("https://example.test/api/resend/webhook", {
+      method: "POST",
+      body,
+      duplex: "half",
+      headers,
+    } as unknown as ConstructorParameters<typeof NextRequest>[1]);
+
+    return {
+      request: request as unknown as Parameters<typeof route.POST>[0],
+      bodyUsed: () => request.bodyUsed,
+    };
+  }
+
+  test("a request missing the Svix headers is refused without reading its body", async () => {
+    const missingHeaderCases: Array<[string, Record<string, string>]> = [
+      ["no svix headers at all", {}],
+      [
+        "no svix-id",
+        { "svix-timestamp": "1700000000", "svix-signature": "v1,synthetic" },
+      ],
+      [
+        "no svix-timestamp",
+        { "svix-id": SVIX_ID, "svix-signature": "v1,synthetic" },
+      ],
+      [
+        "no svix-signature",
+        { "svix-id": SVIX_ID, "svix-timestamp": "1700000000" },
+      ],
+    ];
+
+    for (const [label, headers] of missingHeaderCases) {
+      verifyCalls.length = 0;
+      rpcCalls.length = 0;
+
+      const probe = streamBodyRequest(headers);
+      const response = await route.POST(probe.request);
+
+      expect(`${label}=${response.status}`).toBe(`${label}=400`);
+      // THE ASSERTION THAT MATTERS: the route never consumed the body, i.e. it
+      // never called req.text() on a request it was always going to refuse.
+      expect(`${label} bodyUsed=${probe.bodyUsed()}`).toBe(
+        `${label} bodyUsed=false`,
+      );
+      // And nothing downstream ran either.
+      expect(`${label} verify=${verifyCalls.length}`).toBe(`${label} verify=0`);
+      expect(`${label} rpc=${rpcCalls.length}`).toBe(`${label} rpc=0`);
+    }
+  });
+
+  test("the same probe DOES observe consumption once the headers are present", async () => {
+    // The positive control. Without it, the assertion above would still pass if
+    // the probe simply never reported consumption -- proving nothing about the
+    // ordering, only that the counter was broken.
+    verifyImpl = () => ({ type: "email.sent", data: {} });
+
+    const probe = streamBodyRequest({
+      "svix-id": SVIX_ID,
+      "svix-timestamp": "1700000000",
+      "svix-signature": "v1,synthetic-signature",
+    });
+    const response = await route.POST(probe.request);
+
+    expect(response.status).toBe(200);
+    // bodyUsed does flip when the route reads, so `false` above is a real
+    // observation about the route and not a probe that never reports anything.
+    expect(probe.bodyUsed()).toBe(true);
+    // And the verifier received the exact bytes the stream produced.
+    expect(verifyCalls).toHaveLength(1);
+    expect(verifyCalls[0].payload).toBe('{"type":"email.sent","data":{}}');
   });
 
   test("a missing webhook secret asks the provider to retry rather than giving up", async () => {
@@ -391,10 +518,13 @@ describe("ledger failures are classified by structured error code", () => {
   });
 
   test("an immutable replay conflict is quarantined and then acknowledged", async () => {
-    // REPLACES A 409 EXPECTATION. Resend retries every non-2xx response, so 409 never
-    // stopped anything -- it just meant the event came back forever while nothing was
-    // ever written. The conflict itself becomes the durable record, and only then is
-    // the event acknowledged.
+    // REPLACES A 409 EXPECTATION. Resend expects HTTP 200 and retries every other
+    // response, so 409 never stopped anything -- it just meant the event came back
+    // forever while nothing was ever written. The conflict itself becomes the
+    // durable record, and only then is the event acknowledged.
+    //
+    // The assertion below is `200` exactly, not "any 2xx", because the contract is
+    // exactly that: a 202 or 204 would be retried too.
     rpcResult = {
       data: null,
       error: {
@@ -647,7 +777,7 @@ describe("ledger failures are classified by structured error code", () => {
       "23505 ",
       "23505\n",
       "23505; DROP",
-      "23505 ",
+      "23505\u0000",
       "23e05".toLowerCase(),
       "abcde",
     ];
@@ -903,7 +1033,7 @@ describe("signed CSF poison is quarantined rather than discarded", () => {
   const HOSTILE_EVENT_TYPES = [
     {
       label: "control characters",
-      value: "email. [31mclicked\r\n\tINJECTED",
+      value: "email.\u0000\u001b[31mclicked\r\n\tINJECTED",
     },
     { label: "an address-looking value", value: "victim.student@school.test" },
     { label: "a long token", value: `email.${"z".repeat(80)}` },
@@ -984,7 +1114,7 @@ describe("signed CSF poison is quarantined rather than discarded", () => {
     // Another product's type is no more trustworthy than ours and is modelled
     // even less. It takes the same closed treatment on the acknowledge path.
     const foreign = JSON.stringify({
-      type: "vendor.[31mexploit ATTACKER",
+      type: "vendor.\u001b[31mexploit\u0000ATTACKER",
       created_at: "2032-04-01T10:00:00.000Z",
       data: { email_id: "synthetic-message-z", tags: { other_plugin: "not_csf" } },
     });
@@ -1060,6 +1190,11 @@ describe("metadata is allowlisted, never content", () => {
   test("only named operational scalars are forwarded", () => {
     const metadata = route.buildProviderEventMetadata(
       {
+        // Bounce detail only arrives on a bounce event, and the resolvers are
+        // scoped to that envelope type for the same reason suppressionType is
+        // scoped to email.suppressed: a bounce block must not be derivable from
+        // a `bounce` object attached to some other event.
+        type: "email.bounced",
         data: {
           email_id: "synthetic-message-a",
           broadcast_id: "synthetic-broadcast",
@@ -1315,5 +1450,499 @@ describe("a ledger failure is logged as a bounded code, never as raw database te
     expect(route.thrownFaultKind({ message: "student@example.test" })).toBe(
       "non_error",
     );
+  });
+});
+
+/**
+ * email.suppressed subtype handling.
+ *
+ * https://resend.com/docs/webhooks/emails/suppressed documents the payload as
+ * `data.suppressed = { message, type }` with exactly one literal for `type`: the
+ * case-sensitive "OnAccountSuppressionList". Installed resend 6.18.1 types
+ * `EmailSuppressed.type` as a bare `string`, not an enum, so the provider can add
+ * subtypes at any time with no signal to us.
+ *
+ * Two separate properties are under test:
+ *
+ *   1. `message` -- provider free text that can carry the recipient's address,
+ *      the documented token itself, SQL-shaped text, and log-injection controls
+ *      -- is never read, stored, logged, or used to classify.
+ *   2. `type` is persisted only as a bounded ASCII token. Anything else becomes
+ *      the fixed literal "Unknown", so SQL sees "the provider said something we
+ *      do not model" rather than an absence it might guess about.
+ */
+/**
+ * email.bounced type and subtype handling.
+ *
+ * https://resend.com/docs/webhooks/emails/bounced documents three bounce types --
+ * Permanent, Transient, Undetermined -- and the installed SDK types the field as
+ * a bare `string`, so the provider can extend it. Subtype values are
+ * provider-evolving strings with no documented closed set.
+ *
+ * `bounceType` decides how long a real address stays blocked, so it is pinned to
+ * the reviewed literals and nothing else. `bounceSubtype` is bounded diagnostic
+ * evidence that nothing classifies on. Previously both went through a generic
+ * `slice(0, 200)`, so any 200-character prefix of anything -- an address, prose,
+ * SQL, control bytes -- was persisted and then interpolated into a durable
+ * operator-facing safety reason.
+ */
+describe("email.bounced carries only reviewed, bounded tokens", () => {
+  function bouncedEvent(bounce: unknown) {
+    return {
+      type: "email.bounced",
+      created_at: "2032-04-01T10:00:00.000Z",
+      data: {
+        email_id: "synthetic-message-bounced",
+        tags: csfTags({ csf_attempt_id: ATTEMPT, csf_campaign_id: CAMPAIGN }),
+        bounce,
+      },
+    };
+  }
+
+  function metadataFor(event: unknown) {
+    return route.buildProviderEventMetadata(event, route.extractCsfRouting(event));
+  }
+
+  test("each documented bounce type survives exactly", () => {
+    for (const type of ["Permanent", "Transient", "Undetermined"]) {
+      expect(
+        `${type}=${route.resolveBounceType(bouncedEvent({ type }))}`,
+      ).toBe(`${type}=${type}`);
+    }
+    expect([...route.RESEND_BOUNCE_TYPES]).toEqual([
+      "Permanent",
+      "Transient",
+      "Undetermined",
+    ]);
+  });
+
+  test("no case, padding, or confusable mutation reproduces a reviewed type", () => {
+    const mutations: Array<[string, string]> = [
+      ["lowercase", "permanent"],
+      ["uppercase", "PERMANENT"],
+      ["legacy hard alias", "hard"],
+      ["legacy soft alias", "soft"],
+      ["legacy HardBounce", "HardBounce"],
+      ["legacy delayed", "delayed"],
+      ["leading space", " Permanent"],
+      ["trailing space", "Permanent "],
+      ["trailing newline", "Permanent\n"],
+      ["embedded NUL", "Perma\u0000nent"],
+      ["embedded escape", "Permanent\u001b[31m"],
+      ["spaced out", "P e r m a n e n t"],
+      ["punctuated", "Permanent!!!"],
+      ["prefixed", "XPermanent"],
+      ["suffixed", "PermanentX"],
+      // Cyrillic small a (U+0430) inside an otherwise correct token.
+      ["cyrillic confusable", "Permаnent"],
+      // Fullwidth P (U+FF30).
+      ["fullwidth confusable", "Ｐermanent"],
+    ];
+
+    for (const [label, type] of mutations) {
+      const resolved = route.resolveBounceType(bouncedEvent({ type }));
+      // The invariant: nothing here becomes a reviewed literal, so nothing here
+      // can reach the permanent-block branch in SQL.
+      expect(`${label}=${resolved}`).toBe(`${label}=Unknown`);
+    }
+  });
+
+  test("a non-string or absent bounce type becomes Unknown", () => {
+    const cases: Array<[string, unknown]> = [
+      ["missing bounce", bouncedEvent(undefined)],
+      ["null bounce", bouncedEvent(null)],
+      ["bounce is array", bouncedEvent([{ type: "Permanent" }])],
+      ["type null", bouncedEvent({ type: null })],
+      ["type number", bouncedEvent({ type: 1 })],
+      ["type object", bouncedEvent({ type: { value: "Permanent" } })],
+      ["type empty", bouncedEvent({ type: "" })],
+    ];
+    for (const [label, event] of cases) {
+      expect(`${label}=${route.resolveBounceType(event)}`).toBe(
+        `${label}=Unknown`,
+      );
+    }
+  });
+
+  test("no hostile subtype value survives as anything but a bounded token", () => {
+    const hostile: Array<[string, string]> = [
+      ["address-shaped", "student@example.test"],
+      ["SQL-shaped", "General'; DROP TABLE csf_communication_deliveries; --"],
+      ["prose", "The mailbox you are trying to reach does not exist."],
+      ["newline", "General\nInjected"],
+      ["carriage return", "General\r\nInjected"],
+      ["NUL", "General\u0000"],
+      ["escape", "General\u001b[31m"],
+      ["padded", " General "],
+      ["overlong", `A${"b".repeat(64)}`],
+      ["cyrillic confusable", "Generаl"],
+      ["punctuated", "General/Suppressed"],
+    ];
+
+    for (const [label, subType] of hostile) {
+      const resolved = route.resolveBounceSubtype(
+        bouncedEvent({ type: "Permanent", subType }),
+      );
+      expect(`${label}=${resolved}`).toBe(`${label}=Unknown`);
+    }
+  });
+
+  test("a well-formed subtype is kept verbatim as diagnostic evidence", () => {
+    // Bounded, so it is safe to persist -- and nothing in the database reads it
+    // to decide anything, so keeping the provider's exact word costs nothing.
+    for (const subType of ["General", "NoEmail", "Suppressed", "MailboxFull"]) {
+      expect(
+        route.resolveBounceSubtype(bouncedEvent({ type: "Transient", subType })),
+      ).toBe(subType);
+    }
+  });
+
+  test("the free-text bounce message never reaches metadata", () => {
+    const event = bouncedEvent({
+      type: "Permanent",
+      subType: "General",
+      message:
+        "550 5.1.1 student@example.test rejected; DROP TABLE csf_communication_deliveries; --",
+    });
+    const metadata = metadataFor(event);
+    const serialized = JSON.stringify(metadata);
+
+    expect(metadata.bounceType).toBe("Permanent");
+    expect(metadata.bounceSubtype).toBe("General");
+    for (const fragment of [
+      "student@example.test",
+      "DROP TABLE",
+      "550 5.1.1",
+      "csf_communication_deliveries",
+    ]) {
+      expect(serialized).not.toContain(fragment);
+    }
+    expect(Object.keys(metadata)).not.toContain("bounceMessage");
+  });
+
+  test("a hostile bounce reaches the RPC only as Unknown", async () => {
+    const raw = JSON.stringify(
+      bouncedEvent({
+        type: "hard",
+        subType: "student@example.test',(SELECT 1)",
+        message: "prose the provider wrote",
+      }),
+    );
+    verifyImpl = () => JSON.parse(raw);
+
+    await route.POST(makeRequest(raw));
+
+    const recorded = rpcCalls.find(
+      (call) => call.fn === "csf_record_communication_provider_event",
+    );
+    const metadata = recorded!.args.p_metadata as Record<string, unknown>;
+
+    // 'hard' is an alias the provider does not document. It must not become a
+    // permanent block, and the only way to guarantee that end to end is for it
+    // never to leave this route as anything but Unknown.
+    expect(metadata.bounceType).toBe("Unknown");
+    expect(metadata.bounceSubtype).toBe("Unknown");
+    expect(JSON.stringify(recorded)).not.toContain("student@example.test");
+    expect(JSON.stringify(recorded)).not.toContain("prose the provider wrote");
+  });
+
+  test("non-bounce events carry no bounce keys at all", () => {
+    const delivered = {
+      type: "email.delivered",
+      created_at: "2032-04-01T10:00:00.000Z",
+      data: {
+        email_id: "synthetic-message-delivered",
+        tags: csfTags(),
+        // Attached to the wrong event on purpose: a block must not be derivable
+        // from a bounce object riding on a delivery.
+        bounce: { type: "Permanent", subType: "General" },
+      },
+    };
+
+    const keys = Object.keys(metadataFor(delivered));
+    expect(keys).not.toContain("bounceType");
+    expect(keys).not.toContain("bounceSubtype");
+  });
+});
+
+describe("email.suppressed carries only a bounded subtype token", () => {
+  /** Free text engineered to be maximally hostile if it were ever retained. */
+  const HOSTILE_MESSAGE =
+    "OnAccountSuppressionList student@example.test'; DROP TABLE csf_communication_deliveries; --\n\r INFO fake log line";
+
+  function suppressedEvent(
+    suppressed: unknown,
+    extraData: Record<string, unknown> = {},
+  ) {
+    return {
+      type: "email.suppressed",
+      created_at: "2032-04-01T10:00:00.000Z",
+      data: {
+        email_id: "synthetic-message-suppressed",
+        tags: csfTags({ csf_attempt_id: ATTEMPT, csf_campaign_id: CAMPAIGN }),
+        suppressed,
+        ...extraData,
+      },
+    };
+  }
+
+  function metadataFor(event: unknown) {
+    return route.buildProviderEventMetadata(event, route.extractCsfRouting(event));
+  }
+
+  test("the official documented payload classifies exactly", () => {
+    const event = suppressedEvent({
+      message: "The recipient is on the account suppression list.",
+      type: "OnAccountSuppressionList",
+    });
+
+    expect(route.resolveSuppressionType(event)).toBe("OnAccountSuppressionList");
+    expect(metadataFor(event).suppressionType).toBe("OnAccountSuppressionList");
+    // The exported constant and the behaviour agree, so a typo in either fails.
+    expect(route.RESEND_ACCOUNT_SUPPRESSION_TYPE).toBe("OnAccountSuppressionList");
+  });
+
+  test("only data.suppressed.type is read; every other path is ignored", () => {
+    const wrongPaths: Array<[string, unknown]> = [
+      // The envelope type, not the subtype.
+      [
+        "data.type",
+        suppressedEvent({ message: "m" }, { type: "OnAccountSuppressionList" }),
+      ],
+      // A sibling object with a plausible name.
+      [
+        "data.suppression.type",
+        suppressedEvent(
+          { message: "m" },
+          { suppression: { type: "OnAccountSuppressionList" } },
+        ),
+      ],
+      // The right object, the wrong field.
+      [
+        "data.suppressed.subType",
+        suppressedEvent({ message: "m", subType: "OnAccountSuppressionList" }),
+      ],
+      [
+        "data.suppressed.sub_type",
+        suppressedEvent({ message: "m", sub_type: "OnAccountSuppressionList" }),
+      ],
+      // The free-text field, which is where the token most plausibly appears.
+      ["data.suppressed.message", suppressedEvent({ message: "OnAccountSuppressionList" })],
+    ];
+
+    for (const [label, event] of wrongPaths) {
+      expect(`${label}=${route.resolveSuppressionType(event)}`).toBe(
+        `${label}=Unknown`,
+      );
+    }
+  });
+
+  test("every malformed shape becomes the fixed literal Unknown", () => {
+    const cases: Array<[string, unknown]> = [
+      ["missing", suppressedEvent(undefined)],
+      ["null", suppressedEvent(null)],
+      ["suppressed-is-number", suppressedEvent(42)],
+      ["suppressed-is-string", suppressedEvent("OnAccountSuppressionList")],
+      ["suppressed-is-array", suppressedEvent([{ type: "OnAccountSuppressionList" }])],
+      ["type-null", suppressedEvent({ type: null })],
+      ["type-number", suppressedEvent({ type: 1 })],
+      ["type-boolean", suppressedEvent({ type: true })],
+      ["type-object", suppressedEvent({ type: { value: "OnAccountSuppressionList" } })],
+      ["type-array", suppressedEvent({ type: ["OnAccountSuppressionList"] })],
+      ["type-empty", suppressedEvent({ type: "" })],
+      // 65 characters: one past the bound.
+      ["overlong", suppressedEvent({ type: `A${"b".repeat(64)}` })],
+      ["leading-digit", suppressedEvent({ type: "1OnAccountSuppressionList" })],
+      ["hyphenated", suppressedEvent({ type: "On-Account-Suppression-List" })],
+      ["dotted", suppressedEvent({ type: "On.Account.Suppression.List" })],
+    ];
+
+    for (const [label, event] of cases) {
+      expect(`${label}=${route.resolveSuppressionType(event)}`).toBe(
+        `${label}=Unknown`,
+      );
+    }
+  });
+
+  test("no exactness mutation ever reproduces the documented literal", () => {
+    const LITERAL = "OnAccountSuppressionList";
+    const mutations: Array<[string, string]> = [
+      ["lowercased", "onaccountsuppressionlist"],
+      ["uppercased", "ONACCOUNTSUPPRESSIONLIST"],
+      ["leading-space", " OnAccountSuppressionList"],
+      ["trailing-space", "OnAccountSuppressionList "],
+      ["trailing-newline", "OnAccountSuppressionList\n"],
+      ["trailing-cr", "OnAccountSuppressionList\r"],
+      ["tab-padded", "\tOnAccountSuppressionList"],
+      ["embedded-nul", "OnAccount\u0000SuppressionList"],
+      ["trailing-nul", "OnAccountSuppressionList\u0000"],
+      ["embedded-control", "OnAccountSuppressionList\u0001"],
+      ["prefixed", "XOnAccountSuppressionList"],
+      ["suffixed", "OnAccountSuppressionListX"],
+      ["underscore-suffixed", "OnAccountSuppressionList_v2"],
+      // Cyrillic capital O (U+041E) standing in for ASCII 'O'.
+      ["cyrillic-confusable", "\u041enAccountSuppressionList"],
+      // Fullwidth Latin capital O (U+FF2F).
+      ["fullwidth-confusable", "\uff2fnAccountSuppressionList"],
+      // Zero-width space (U+200B) hidden mid-token.
+      ["zero-width-split", "OnAccount\u200bSuppressionList"],
+    ];
+
+    for (const [label, type] of mutations) {
+      const resolved = route.resolveSuppressionType(suppressedEvent({ type }));
+
+      // THE INVARIANT: whatever is persisted, it is not the documented literal,
+      // so the SQL exact comparison cannot grant an address-level block.
+      expect(`${label}:${resolved === LITERAL ? "MATCHED" : "no-match"}`).toBe(
+        `${label}:no-match`,
+      );
+
+      // Padded, control-bearing, and confusable values are not tokens at all, so
+      // they flatten to Unknown rather than being stored verbatim.
+      if (!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(type)) {
+        expect(`${label}=${resolved}`).toBe(`${label}=Unknown`);
+      }
+    }
+  });
+
+  test("a case-mutated token is stored verbatim and is still not the literal", () => {
+    // 'onaccountsuppressionlist' IS a well-formed token, so it is persisted as
+    // itself and an operator can see exactly what the provider sent. SQL still
+    // refuses it, because the comparison is exact and never case-folds.
+    const resolved = route.resolveSuppressionType(
+      suppressedEvent({ type: "onaccountsuppressionlist" }),
+    );
+    expect(resolved).toBe("onaccountsuppressionlist");
+    expect(resolved).not.toBe("OnAccountSuppressionList");
+  });
+
+  test("the free-text message cannot influence classification", () => {
+    const event = suppressedEvent({
+      message: HOSTILE_MESSAGE,
+      type: "SomeFutureSubtype",
+    });
+
+    // The message contains the documented token verbatim. Classification does
+    // not care, because it never reads that field.
+    expect(route.resolveSuppressionType(event)).toBe("SomeFutureSubtype");
+    expect(route.resolveSuppressionType(event)).not.toBe(
+      "OnAccountSuppressionList",
+    );
+  });
+
+  test("the free-text message appears in no stored metadata", () => {
+    const event = suppressedEvent({
+      message: HOSTILE_MESSAGE,
+      type: "OnAccountSuppressionList",
+    });
+    const metadata = metadataFor(event);
+    const serialized = JSON.stringify(metadata);
+
+    expect(metadata.suppressionType).toBe("OnAccountSuppressionList");
+    // No key smuggles it under any name. 'suppressionReason' in particular is
+    // absent by design: a *Reason* key invites free text into it.
+    for (const forbiddenKey of [
+      "suppressionMessage",
+      "suppressionReason",
+      "message",
+    ]) {
+      expect(Object.keys(metadata)).not.toContain(forbiddenKey);
+    }
+    for (const fragment of [
+      "student@example.test",
+      "DROP TABLE",
+      "csf_communication_deliveries",
+      "INFO fake log line",
+    ]) {
+      expect(serialized).not.toContain(fragment);
+    }
+  });
+
+  test("the free-text message reaches neither the RPC arguments nor the logs", async () => {
+    const raw = JSON.stringify(
+      suppressedEvent({ message: HOSTILE_MESSAGE, type: "OnAccountSuppressionList" }),
+    );
+    verifyImpl = () => JSON.parse(raw);
+
+    const response = await route.POST(makeRequest(raw));
+    expect(response.status).toBe(200);
+
+    const recorded = rpcCalls.find(
+      (call) => call.fn === "csf_record_communication_provider_event",
+    );
+    expect(recorded).toBeDefined();
+
+    const rpcSerialized = JSON.stringify(recorded);
+    const logSerialized = JSON.stringify(logged);
+    const bodySerialized = await response.text();
+
+    for (const fragment of [
+      "student@example.test",
+      "DROP TABLE",
+      "csf_communication_deliveries",
+      "INFO fake log line",
+    ]) {
+      expect(rpcSerialized).not.toContain(fragment);
+      expect(logSerialized).not.toContain(fragment);
+      expect(bodySerialized).not.toContain(fragment);
+    }
+
+    // The bounded token did travel, because SQL needs it to classify.
+    expect(
+      (recorded!.args.p_metadata as Record<string, unknown>).suppressionType,
+    ).toBe("OnAccountSuppressionList");
+  });
+
+  test("an unrecognized subtype still travels as Unknown, never as absence", async () => {
+    const raw = JSON.stringify(
+      suppressedEvent({ message: HOSTILE_MESSAGE, type: { nested: true } }),
+    );
+    verifyImpl = () => JSON.parse(raw);
+
+    await route.POST(makeRequest(raw));
+
+    const recorded = rpcCalls.find(
+      (call) => call.fn === "csf_record_communication_provider_event",
+    );
+    const metadata = recorded!.args.p_metadata as Record<string, unknown>;
+
+    // "We looked and it was not a token" must stay distinguishable from "we
+    // never looked": the SQL escalation path reports on exactly that difference.
+    expect(metadata.suppressionType).toBe("Unknown");
+  });
+
+  test("non-suppression events carry no suppression key at all", () => {
+    const delivered = {
+      type: "email.delivered",
+      created_at: "2032-04-01T10:00:00.000Z",
+      data: {
+        email_id: "synthetic-message-delivered",
+        tags: csfTags(),
+        // Even if the provider attached one, a delivered event is not a
+        // suppression and must never be classified as one.
+        suppressed: { type: "OnAccountSuppressionList", message: HOSTILE_MESSAGE },
+      },
+    };
+
+    expect(Object.keys(metadataFor(delivered))).not.toContain("suppressionType");
+  });
+
+  test("the signature is still verified against the raw body before any persistence", async () => {
+    const raw = JSON.stringify(
+      suppressedEvent({ message: HOSTILE_MESSAGE, type: "OnAccountSuppressionList" }),
+    );
+    let rpcCallsAtVerify = -1;
+    verifyImpl = () => {
+      rpcCallsAtVerify = rpcCalls.length;
+      return JSON.parse(raw);
+    };
+
+    await route.POST(makeRequest(raw));
+
+    // Ordering, not merely presence: nothing was persisted before verify ran.
+    expect(rpcCallsAtVerify).toBe(0);
+    expect(verifyCalls).toHaveLength(1);
+    expect(verifyCalls[0].payload).toBe(raw);
+    expect(rpcCalls.length).toBeGreaterThan(0);
   });
 });
