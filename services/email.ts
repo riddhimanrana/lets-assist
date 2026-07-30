@@ -45,6 +45,29 @@ export type SendEmailResult = {
     error?: string | Error;
 };
 
+type EmailLogAttributes = {
+    type: EmailType;
+    recipient_count: number;
+    has_user_context: boolean;
+};
+
+function emailLogAttributes({
+    to,
+    type,
+    userId,
+}: Pick<SendEmailParams, 'to' | 'type' | 'userId'>): EmailLogAttributes {
+    return {
+        type,
+        recipient_count: Array.isArray(to) ? to.length : 1,
+        has_user_context: Boolean(userId),
+    };
+}
+
+function safeLogToken(value: unknown): string {
+    if (typeof value !== 'string') return 'unknown';
+    return /^[a-z0-9_.:-]{1,64}$/iu.test(value) ? value : 'unknown';
+}
+
 function shouldUseMailpitTransport(): boolean {
     const configured = process.env.EMAIL_TRANSPORT?.trim().toLowerCase();
     if (configured === 'mailpit') return true;
@@ -139,6 +162,7 @@ export async function sendEmail({
     idempotencyKey,
 }: SendEmailParams): Promise<SendEmailResult> {
     const shouldLog = process.env.NODE_ENV !== "test";
+    const safeLogAttributes = emailLogAttributes({ to, type, userId });
 
     // Require at least one supported representation. Transactional callers
     // should normally provide both HTML and plain text, while small operational
@@ -146,9 +170,8 @@ export async function sendEmail({
     if (!html && !react && !text) {
         if (shouldLog) {
             logError('Email validation failed: No message body provided', new Error('Invalid email parameters'), {
-                to: Array.isArray(to) ? to.join(',') : to,
-                subject,
-                type,
+                ...safeLogAttributes,
+                reason: 'missing_body',
             });
         }
         return { success: false, error: 'At least one of html, react, or text must be provided' };
@@ -167,10 +190,9 @@ export async function sendEmail({
 
         if (error && error.code !== 'PGRST116') {
             if (shouldLog) {
-                logError('Failed to fetch notification settings', error, {
-                    user_id: userId,
-                    type,
-                    error_code: error.code,
+                logError('Failed to fetch notification settings', new Error('Notification settings query failed'), {
+                    ...safeLogAttributes,
+                    error_code: safeLogToken(error.code),
                 });
             }
             // If error fetching settings, default to sending (fail open) or skipping?
@@ -182,9 +204,8 @@ export async function sendEmail({
             if (settings.email_notifications === false) {
                 if (shouldLog) {
                     logInfo('Email skipped due to user preferences', {
-                        user_id: userId,
+                        ...safeLogAttributes,
                         reason: 'global_email_disabled',
-                        type,
                     });
                 }
                 return { success: false, skipped: true, reason: 'Global email notifications disabled' };
@@ -195,9 +216,8 @@ export async function sendEmail({
             if (type === 'project_updates' && settings.project_updates === false) {
                 if (shouldLog) {
                     logInfo('Email skipped due to user preferences', {
-                        user_id: userId,
+                        ...safeLogAttributes,
                         reason: 'project_updates_disabled',
-                        type,
                     });
                 }
                 return { success: false, skipped: true, reason: 'Project updates disabled' };
@@ -206,9 +226,8 @@ export async function sendEmail({
             if (type === 'general' && settings.general === false) {
                 if (shouldLog) {
                     logInfo('Email skipped due to user preferences', {
-                        user_id: userId,
+                        ...safeLogAttributes,
                         reason: 'general_notifications_disabled',
-                        type,
                     });
                 }
                 return { success: false, skipped: true, reason: 'General notifications disabled' };
@@ -237,10 +256,8 @@ export async function sendEmail({
 
             if (shouldLog) {
                 logInfo('Email delivered via local Mailpit transport', {
-                    to: Array.isArray(to) ? to.join(',') : to,
-                    subject,
-                    type,
-                    user_id: userId,
+                    ...safeLogAttributes,
+                    transport: 'mailpit',
                 });
             }
 
@@ -250,10 +267,8 @@ export async function sendEmail({
         if (!resend) {
             if (shouldLog) {
                 logWarn('Email transport unavailable (set EMAIL_TRANSPORT=mailpit locally or configure RESEND_API_KEY)', {
-                    to: Array.isArray(to) ? to.join(',') : to,
-                    subject,
-                    type,
-                    user_id: userId,
+                    ...safeLogAttributes,
+                    transport: 'resend',
                 });
             }
             return { success: false, skipped: true, reason: 'Email service not configured' };
@@ -277,11 +292,13 @@ export async function sendEmail({
 
         if (error) {
             if (shouldLog) {
-                logError('Failed to send email via Resend', error, {
-                    to: Array.isArray(to) ? to.join(',') : to,
-                    subject,
-                    type,
-                    user_id: userId,
+                logError('Failed to send email via Resend', new Error('Email provider request failed'), {
+                    ...safeLogAttributes,
+                    provider_error: safeLogToken(
+                        typeof error === 'object' && error !== null && 'name' in error
+                            ? error.name
+                            : undefined,
+                    ),
                 });
             }
             return { success: false, error };
@@ -290,11 +307,9 @@ export async function sendEmail({
         return { success: true, data };
     } catch (error) {
         if (shouldLog) {
-            logError('Exception while sending email', error, {
-                to: Array.isArray(to) ? to.join(',') : to,
-                subject,
-                type,
-                user_id: userId,
+            logError('Exception while sending email', new Error('Email transport failed'), {
+                ...safeLogAttributes,
+                error_kind: safeLogToken(error instanceof Error ? error.name : undefined),
             });
         }
         return { success: false, error: error as Error };
