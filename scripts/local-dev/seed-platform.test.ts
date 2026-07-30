@@ -43,6 +43,21 @@ describe("local platform seed authorization", () => {
     expect(seedSource).toContain("ignoreDuplicates: true");
   });
 
+  test("keeps the synthetic commit job linked to its immutable preview", () => {
+    const jobsSource = sourceSection(
+      '"csf-expanded-sheet-jobs"',
+      '"csf-expanded-sheet-rows"',
+    );
+    const commitStart = jobsSource.indexOf("id: IDS.csfSheetJobCommit");
+    const commitSource = jobsSource.slice(commitStart);
+
+    expect(commitStart).toBeGreaterThanOrEqual(0);
+    expect(commitSource).toContain(
+      "preview_job_id: IDS.csfSheetJobPreview",
+    );
+    expect(commitSource).toContain("previewJobId: IDS.csfSheetJobPreview");
+  });
+
   test("resets every mutable lifecycle table before reseeding the CSF fixture", () => {
     const resetList = seedSource.slice(
       seedSource.indexOf("const csfTablesToReset"),
