@@ -3379,7 +3379,7 @@ SELECT extensions.ok(
 
 SELECT extensions.ok(
   plugin_data.csf_provider_event_metadata_allowlisted(
-    '{"smtpCode":550,"bounceType":"hard","tags":["a","b"]}'::jsonb
+    '{"smtpCode":550,"bounceType":"Permanent","tags":["a","b"]}'::jsonb
   ),
   'ordinary allowlisted operational metadata is accepted'
 );
@@ -3427,7 +3427,7 @@ SELECT plugin_data.csf_record_communication_provider_event(
   'bd100000-0000-4000-8000-000000000001', 'evt_bounce_0001',
   'email.bounced', 'resend-message-a', now() + interval '10 minutes',
   repeat('e', 64), true, 'svix', 'whsec_test_key',
-  '{"smtpCode":550,"bounceType":"hard"}'::jsonb
+  '{"smtpCode":550,"bounceType":"Permanent"}'::jsonb
 ) AS result;
 
 SELECT extensions.is(
@@ -3753,7 +3753,7 @@ SELECT extensions.is(
       'bd100000-0000-4000-8000-000000000001', 'evt_bounce_0001',
       'email.bounced', 'resend-message-a', now() + interval '10 minutes',
       repeat('e', 64), true, 'svix', 'whsec_test_key',
-      '{"smtpCode":550,"bounceType":"hard"}'::jsonb
+      '{"smtpCode":550,"bounceType":"Permanent"}'::jsonb
     )->>'duplicate'
   ),
   'true',
@@ -4614,7 +4614,7 @@ SELECT plugin_data.csf_record_communication_provider_event(
   true,
   'svix',
   'whsec_test_key',
-  '{"smtpCode":550,"bounceType":"hard"}'::jsonb,
+  '{"smtpCode":550,"bounceType":"Permanent"}'::jsonb,
   (
     SELECT attempt.id
     FROM plugin_data.csf_communication_dispatch_attempts AS attempt

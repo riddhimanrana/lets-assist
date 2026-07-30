@@ -163,6 +163,10 @@ function defaultHandlers(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   sendCalls.length = 0;
+  // Reset alongside sendCalls. Left accumulating, "how many times did we transmit,
+  // and under which idempotency key" becomes a function of test ordering rather
+  // than of the code under test.
+  sendOptions.length = 0;
   resendImpl = async () => ({
     data: { id: "resend-message-synthetic-a" },
     error: null,
@@ -310,6 +314,65 @@ describe("the claim -> authorize -> send -> settle path", () => {
 
     expect(report.attempts[0].status).toBe("unknown");
     expect(calls[2].args.p_outcome).toBe("unknown_outcome");
+  });
+
+  test("a concurrent idempotent request settles unknown and enqueues no successor", async () => {
+    // Resend says: another request carrying THIS EXACT idempotency key is still in
+    // progress. That in-flight request may be accepted a moment from now, and this
+    // worker cannot observe it.
+    resendImpl = async () => ({
+      data: null,
+      error: {
+        name: "concurrent_idempotent_requests",
+        message:
+          "Another request with the same idempotency key for rep.one@local.test is in progress",
+        statusCode: 409,
+      },
+    });
+    const { calls, plugin } = pluginHarness(defaultHandlers());
+
+    const report = await worker.runCsfDispatchWorker(plugin, {
+      organizationId: ORG,
+      workerId: "worker-1",
+    });
+
+    expect(report.attempts[0].status).toBe("unknown");
+
+    // EXACTLY ONE PROVIDER CALL. Nothing here loops or re-sends to find out.
+    expect(sendCalls).toHaveLength(1);
+    expect(sendOptions).toHaveLength(1);
+
+    const settle = calls[2].args;
+    expect(settle.p_outcome).toBe("unknown_outcome");
+    // THE SUCCESSOR TEST. 'retryable_failure' is the single value that makes the
+    // ledger insert another attempt, and that successor's provider idempotency key
+    // is derived from attempt_number + 1 -- a DIFFERENT key, which Resend's own
+    // deduplication window would not catch. Mailing the same person twice is
+    // exactly what settling this as retryable would cause.
+    expect(settle.p_outcome).not.toBe("retryable_failure");
+    expect(settle.p_outcome).not.toBe("accepted");
+
+    // Nothing was accepted, so no message identity may be claimed.
+    expect(settle.p_provider_message_id).toBeNull();
+    // The provider code survives as bounded diagnostic evidence: an operator
+    // reconciling this by hand looks up a concurrency collision differently from
+    // a dead socket.
+    expect(settle.p_failure_class).toBe("concurrent_idempotent_requests");
+    expect(settle.p_provider_status_code).toBe(409);
+    // ...but the provider's message named the recipient, and the settlement must not.
+    expect(JSON.stringify(settle)).not.toContain("rep.one@local.test");
+
+    // No changed-key resend: the one transmission carried the key the ledger
+    // allocated, unchanged.
+    expect(sendOptions[0]?.idempotencyKey).toBe(IDEMPOTENCY_KEY);
+    expect(sendCalls[0].to).toBe("rep.one@local.test");
+
+    // The worker never asked the ledger to open another attempt.
+    expect(calls.map((call) => call.fn)).toEqual([
+      "csf_claim_communication_dispatch_batch",
+      "csf_authorize_communication_dispatch",
+      "csf_settle_communication_dispatch_attempt",
+    ]);
   });
 
   test("a lost settlement response does not resend", async () => {

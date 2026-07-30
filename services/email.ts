@@ -229,10 +229,23 @@ const PROVIDER_ERROR_CLASSIFICATION: Record<string, 'rejected' | 'throttled' | '
     rate_limit_exceeded: 'throttled',
     daily_quota_exceeded: 'throttled',
     monthly_quota_exceeded: 'throttled',
-    concurrent_idempotent_requests: 'throttled',
 
     application_error: 'ambiguous',
     internal_server_error: 'ambiguous',
+    // NOT THROTTLING. Resend returns this when ANOTHER REQUEST CARRYING THE SAME
+    // IDEMPOTENCY KEY IS CURRENTLY IN PROGRESS -- not when it refused this one for
+    // capacity. The in-flight request may be accepted immediately after this
+    // response is written, and nothing observable from here distinguishes that
+    // from a request that will fail.
+    //
+    // Calling it throttled made it `retryable_pre_send`, which asserts "nothing
+    // was sent". The CSF ledger believes that assertion: it settles
+    // `retryable_failure` and inserts a SUCCESSOR attempt, whose provider
+    // idempotency key is derived from attempt_number + 1 and is therefore
+    // DIFFERENT from the key already in flight. Resend's own deduplication cannot
+    // catch the successor, so the concurrent request and the retry both land and
+    // a real person is mailed twice.
+    concurrent_idempotent_requests: 'ambiguous',
     // The same idempotency key was presented with a different payload, which means
     // Resend already holds a request under that key. Whether THAT request was
     // accepted is exactly what we cannot tell from here.
