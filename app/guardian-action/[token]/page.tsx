@@ -16,7 +16,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmGuardianAvailability } from "./actions";
 
@@ -86,33 +85,47 @@ export default async function GuardianActionPage({
             <input type="hidden" name="token" value={token} />
             <FieldGroup>
               <Field>
-                <FieldLabel>Availability</FieldLabel>
-                <RadioGroup name="status" defaultValue="available">
+                <FieldLabel id="availability-label">Availability</FieldLabel>
+                <div
+                  role="radiogroup"
+                  aria-labelledby="availability-label"
+                  className="grid w-full gap-3"
+                >
                   <Field orientation="horizontal">
-                    <RadioGroupItem
+                    <input
+                      type="radio"
+                      name="status"
                       value="available"
                       id="available"
                       aria-label="Available"
+                      defaultChecked
+                      className="border-input text-primary focus-visible:border-ring focus-visible:ring-ring/50 size-4 shrink-0 appearance-none rounded-full border shadow-xs outline-none checked:border-[5px] checked:border-primary focus-visible:ring-[3px]"
                     />
                     <FieldLabel htmlFor="available">Available</FieldLabel>
                   </Field>
                   <Field orientation="horizontal">
-                    <RadioGroupItem
+                    <input
+                      type="radio"
+                      name="status"
                       value="limited"
                       id="limited"
                       aria-label="Available for some rounds"
+                      className="border-input text-primary focus-visible:border-ring focus-visible:ring-ring/50 size-4 shrink-0 appearance-none rounded-full border shadow-xs outline-none checked:border-[5px] checked:border-primary focus-visible:ring-[3px]"
                     />
                     <FieldLabel htmlFor="limited">Available for some rounds</FieldLabel>
                   </Field>
                   <Field orientation="horizontal">
-                    <RadioGroupItem
+                    <input
+                      type="radio"
+                      name="status"
                       value="unavailable"
                       id="unavailable"
                       aria-label="Unavailable"
+                      className="border-input text-primary focus-visible:border-ring focus-visible:ring-ring/50 size-4 shrink-0 appearance-none rounded-full border shadow-xs outline-none checked:border-[5px] checked:border-primary focus-visible:ring-[3px]"
                     />
                     <FieldLabel htmlFor="unavailable">Unavailable</FieldLabel>
                   </Field>
-                </RadioGroup>
+                </div>
                 <FieldDescription>
                   Submitting consumes this single-purpose link.
                 </FieldDescription>

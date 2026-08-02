@@ -2742,12 +2742,19 @@ describe("both browser suites start only the isolated app runner", () => {
 
   test("the DV suite keeps its route and project selection", () => {
     const source = readFileSync(join(repositoryRoot, "playwright.dv.config.ts"), "utf8");
+    const workflow = readFileSync(
+      join(repositoryRoot, "tests/dv/vertical-workflow.spec.ts"),
+      "utf8",
+    );
     expect(source).toContain('testDir: "./tests/dv"');
     expect(source).toContain('name: "chromium"');
     expect(source).toContain("timeout: 90_000");
     expect(source).toContain("globalTimeout: process.env.CI ? 600_000 : undefined");
     expect(source).toContain('outputDir: path.join(artifactRoot, "dv-test-results")');
     expect(source).toContain('url: `${baseURL}/login`');
+    expect(workflow).toContain("new URL(page.url()).pathname");
+    expect(workflow).toContain('page.reload({ waitUntil: "domcontentloaded" })');
+    expect(workflow).toContain("await expect(limitedAvailability).toBeChecked()");
   });
 });
 
