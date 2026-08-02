@@ -96,6 +96,10 @@ export default defineConfig({
     url: `${baseURL}/login`,
     reuseExistingServer: false,
     timeout: 180_000,
+    gracefulShutdown: {
+      signal: "SIGTERM",
+      timeout: 15_000,
+    },
     env: {
       PATH: process.env.PATH ?? "/usr/bin:/bin",
       HOME: process.env.HOME ?? "",

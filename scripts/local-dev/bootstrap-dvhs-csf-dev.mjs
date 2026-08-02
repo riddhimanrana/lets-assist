@@ -241,13 +241,19 @@ async function runApp(workDir) {
     },
     stdio: "inherit",
   });
+  const signalHandlers = new Map();
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
-    process.once(signal, () => child.kill(signal));
+    const handler = () => child.kill(signal);
+    signalHandlers.set(signal, handler);
+    process.once(signal, handler);
   }
   const result = await new Promise((resolve, reject) => {
     child.once("error", reject);
     child.once("exit", (code, signal) => resolve({ code, signal }));
   });
+  for (const [signal, handler] of signalHandlers) {
+    process.removeListener(signal, handler);
+  }
   process.exitCode = result.signal ? 1 : (result.code ?? 1);
 }
 

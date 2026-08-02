@@ -2723,6 +2723,8 @@ describe("both browser suites start only the isolated app runner", () => {
       );
       expect(source, file).toContain("CSF_ISOLATED_APP_PORT");
       expect(source, file).toContain("reuseExistingServer: false");
+      expect(source, file).toContain('signal: "SIGTERM"');
+      expect(source, file).toContain("timeout: 15_000");
       expect(source, file).not.toContain("...process.env");
       expect(source, file).not.toContain("next dev");
       expect(source, file).not.toContain("3100");
@@ -2745,6 +2747,7 @@ describe("both browser suites start only the isolated app runner", () => {
     expect(source).toContain("timeout: 90_000");
     expect(source).toContain("globalTimeout: process.env.CI ? 600_000 : undefined");
     expect(source).toContain('outputDir: path.join(artifactRoot, "dv-test-results")');
+    expect(source).toContain('url: `${baseURL}/login`');
   });
 });
 
