@@ -77,9 +77,16 @@ export default defineConfig({
     // Invoke the signal-owning bootstrap directly. A package-runner wrapper can
     // absorb Playwright's teardown signal and orphan the owned Next group.
     command: "node scripts/local-dev/bootstrap-dvhs-csf-dev.mjs",
-    url: baseURL,
+    // Readiness must compile the first interactive route, not only the static
+    // root shell. Otherwise Next's initial webpack HMR refresh can replace the
+    // layout chunks while LoginClient is hydrating in the first test.
+    url: `${baseURL}/login`,
     reuseExistingServer: false,
     timeout: 180_000,
+    gracefulShutdown: {
+      signal: "SIGTERM",
+      timeout: 15_000,
+    },
     env: {
       PATH: process.env.PATH ?? "/usr/bin:/bin",
       HOME: process.env.HOME ?? "",

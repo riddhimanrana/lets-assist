@@ -595,13 +595,31 @@ async function main() {
     }
   };
 
+  const signalHandlers = new Map();
+  let forcedShutdown = null;
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
-    process.on(signal, () => forward(signal));
+    const handler = () => {
+      forward(signal);
+      // A Next development child that is stuck during compiler teardown must
+      // not keep Playwright's owned web-server plugin alive indefinitely. The
+      // child has five seconds to exit cleanly before this runner terminates
+      // only its own detached process group.
+      if (!forcedShutdown) {
+        forcedShutdown = setTimeout(() => forward("SIGKILL"), 5_000);
+        forcedShutdown.unref();
+      }
+    };
+    signalHandlers.set(signal, handler);
+    process.on(signal, handler);
   }
 
   // Wait for the whole group to be gone before the claim goes back: releasing
   // first would let a peer take a port this runner is still vacating.
   const { code, signal } = await exited;
+  if (forcedShutdown) clearTimeout(forcedShutdown);
+  for (const [registeredSignal, handler] of signalHandlers) {
+    process.removeListener(registeredSignal, handler);
+  }
   release();
   process.exitCode = signal ? 1 : (code ?? 1);
 }

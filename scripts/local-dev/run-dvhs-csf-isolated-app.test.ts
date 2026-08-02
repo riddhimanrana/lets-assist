@@ -511,6 +511,8 @@ describe("the fixed app port is owned through one atomic claim", () => {
   test("termination is forwarded to the child group and the claim is released after exit", () => {
     expect(runnerSource).toContain("detached: true");
     expect(runnerSource).toContain("process.kill(-child.pid, signal)");
+    expect(runnerSource).toContain('forward("SIGKILL")');
+    expect(runnerSource).toContain("process.removeListener(registeredSignal, handler)");
     for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
       expect(runnerSource).toContain(signal);
     }

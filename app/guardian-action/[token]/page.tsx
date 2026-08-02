@@ -89,15 +89,27 @@ export default async function GuardianActionPage({
                 <FieldLabel>Availability</FieldLabel>
                 <RadioGroup name="status" defaultValue="available">
                   <Field orientation="horizontal">
-                    <RadioGroupItem value="available" id="available" />
+                    <RadioGroupItem
+                      value="available"
+                      id="available"
+                      aria-label="Available"
+                    />
                     <FieldLabel htmlFor="available">Available</FieldLabel>
                   </Field>
                   <Field orientation="horizontal">
-                    <RadioGroupItem value="limited" id="limited" />
+                    <RadioGroupItem
+                      value="limited"
+                      id="limited"
+                      aria-label="Available for some rounds"
+                    />
                     <FieldLabel htmlFor="limited">Available for some rounds</FieldLabel>
                   </Field>
                   <Field orientation="horizontal">
-                    <RadioGroupItem value="unavailable" id="unavailable" />
+                    <RadioGroupItem
+                      value="unavailable"
+                      id="unavailable"
+                      aria-label="Unavailable"
+                    />
                     <FieldLabel htmlFor="unavailable">Unavailable</FieldLabel>
                   </Field>
                 </RadioGroup>
