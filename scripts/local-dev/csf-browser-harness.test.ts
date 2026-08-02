@@ -695,14 +695,33 @@ describe("teardown retains evidence unless Docker residual proof succeeds", () =
       await cp(join(sandbox.fakeBin, name), join(dockerlessBin, name));
       await chmod(join(dockerlessBin, name), 0o700);
     }
-    const nodeDirectory = dirname(resolveNodeExecutable());
+    // Do not put /usr/bin or /bin back on PATH: hosted Linux runners ship a
+    // real Docker CLI there, which made this negative capability test depend
+    // on the runner image. Copy only the ordinary tools the teardown needs.
+    for (const name of [
+      "cat",
+      "dirname",
+      "git",
+      "grep",
+      "head",
+      "id",
+      "node",
+      "rm",
+      "tr",
+    ]) {
+      const executable = Bun.which(name);
+      if (!executable) throw new Error(`${name} is required for this test`);
+      const target = join(dockerlessBin, name);
+      await writeFile(target, `#!/bin/sh\nexec ${JSON.stringify(executable)} "$@"\n`);
+      await chmod(target, 0o700);
+    }
 
     const result = stop(
       sandbox,
       workDir,
       ["--delete-workdir"],
       {},
-      `${dockerlessBin}:${nodeDirectory}:/usr/bin:/bin`,
+      dockerlessBin,
     );
 
     expect(result.exitCode).not.toBe(0);
