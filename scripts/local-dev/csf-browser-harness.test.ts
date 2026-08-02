@@ -76,7 +76,7 @@ const FAKE_SUPABASE = [
   'project_id=""',
   'api_port=""',
   'if [ -n "$workdir" ] && [ -f "$workdir/supabase/config.toml" ]; then',
-  "  project_id=$(sed -n 's/^project_id = \"\\(.*\\)\"$/\\1/p' \"$workdir/supabase/config.toml\")",
+  "  project_id=$(sed -n 's/^project_id = \"\\(.*\\)\"$/\\1/p' \"$workdir/supabase/config.toml\" | head -n 1)",
   "  api_port=$(awk '/^\\[api\\]/{f=1} f && /^port = /{print $3; exit}' \"$workdir/supabase/config.toml\")",
   "fi",
   'case "$1" in',
