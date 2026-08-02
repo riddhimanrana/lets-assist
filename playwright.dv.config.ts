@@ -50,7 +50,9 @@ export default defineConfig({
   // the runner's exclusive claim model: it refuses an occupied 3000 rather than
   // adopting it, so a reused server would be one it never validated.
   webServer: {
-    command: "bun run csf:dev:isolated",
+    // Invoke the signal-owning bootstrap directly. A package-runner wrapper can
+    // absorb Playwright's teardown signal and orphan the owned Next group.
+    command: "node scripts/local-dev/bootstrap-dvhs-csf-dev.mjs",
     url: baseURL,
     reuseExistingServer: false,
     timeout: 180_000,

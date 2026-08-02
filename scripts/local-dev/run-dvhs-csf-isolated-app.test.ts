@@ -608,7 +608,9 @@ describe("browser web servers cannot fall back to an ambient next dev", () => {
   test("each config starts only the isolated runner on the owned port", () => {
     for (const file of configs) {
       const source = readFileSync(join(repositoryRoot, file), "utf8");
-      expect(source, file).toContain('command: "bun run csf:dev:isolated"');
+      expect(source, file).toContain(
+        'command: "node scripts/local-dev/bootstrap-dvhs-csf-dev.mjs"',
+      );
       expect(source, file).toContain("CSF_ISOLATED_APP_PORT");
       expect(source, file).toContain("reuseExistingServer: false");
     }
