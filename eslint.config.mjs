@@ -15,6 +15,7 @@ export default tseslint.config(
     ignores: [
       'node_modules',
       '.next',
+      '.next-csf-isolated',
       'dist',
       'coverage',
       'artifacts/dvhs-csf-e2e/**/playwright/**',

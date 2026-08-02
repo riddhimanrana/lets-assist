@@ -229,7 +229,7 @@ SELECT extensions.ok(
 -- can never shadow a function it calls.
 SELECT extensions.ok(
   (
-    SELECT bool_and('search_path=' = ANY(routine.proconfig))
+    SELECT bool_and(routine.proconfig @> ARRAY['search_path=""'])
     FROM unnest(ARRAY[
       'plugin_data.csf_create_communication_campaign_draft(uuid,text,text,text,uuid,uuid,text,text,text,text,jsonb,text)',
       'plugin_data.csf_update_communication_campaign_draft(uuid,uuid,uuid,text,text,text,text)',

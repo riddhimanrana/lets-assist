@@ -119,69 +119,9 @@ if (typeof globalThis.ImageData === 'undefined') {
 }
 // ---------------------------------------------------------------------------
 
-import { BatchLogRecordProcessor, LoggerProvider } from '@opentelemetry/sdk-logs'
-import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http'
-import { logs } from '@opentelemetry/api-logs'
-import { resourceFromAttributes } from '@opentelemetry/resources'
-
-// Create LoggerProvider outside register() so it can be exported and flushed in route handlers
-const processors: BatchLogRecordProcessor[] = [];
-let posthogTraceSdkStarted = false;
-
-// Only configure the PostHog OTLP exporter if a key is present
-if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
-  processors.push(
-    new BatchLogRecordProcessor({
-      exporter: new OTLPLogExporter({
-        url: 'https://us.i.posthog.com/i/v1/logs',
-        headers: {
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-      }),
-    })
-  );
-} else {
-  // Avoid leaking undefined Authorization headers when no key is configured
-  // and make it obvious in logs that instrumentation is disabled.
-  // Note: this is useful for local dev where you don't want to send logs.
-  console.warn('[Instrumentation] NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN not set — skipping PostHog log exporter');
-}
-
-export const loggerProvider = new LoggerProvider({
-  resource: resourceFromAttributes({ 'service.name': 'lets-assist' }),
-  processors,
-})
-
-async function startPostHogTraceExporter() {
-  if (posthogTraceSdkStarted || !process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
-    return;
-  }
-
-  try {
-    const [{ NodeSDK }, { PostHogTraceExporter }] = await Promise.all([
-      import('@opentelemetry/sdk-node'),
-      import('@posthog/ai/otel'),
-    ]);
-
-    const sdk = new NodeSDK({
-      resource: resourceFromAttributes({ 'service.name': 'lets-assist' }),
-      traceExporter: new PostHogTraceExporter({
-        apiKey: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
-        host: 'https://us.i.posthog.com',
-      }),
-    });
-
-    await sdk.start();
-    posthogTraceSdkStarted = true;
-  } catch (error) {
-    console.warn('[Instrumentation] Failed to start PostHog trace exporter', error);
-  }
-}
-
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    logs.setGlobalLoggerProvider(loggerProvider)
-    await startPostHogTraceExporter()
+    const { registerNodeInstrumentation } = await import('./instrumentation.node')
+    await registerNodeInstrumentation()
   }
 }

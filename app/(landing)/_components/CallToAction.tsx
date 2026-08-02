@@ -38,7 +38,7 @@ export const CallToAction = () => {
           </div>
 
           <div className="flex flex-col items-center gap-6">
-            <h2 className="text-3xl md:text-4xl font-nohemi text-center">
+            <h2 className="text-center text-3xl font-semibold tracking-tight md:text-4xl">
               <AnimatedText text="Who will you help next?" mode="words" />
             </h2>
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">

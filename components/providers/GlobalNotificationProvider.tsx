@@ -36,9 +36,11 @@ function GlobalNotificationProviderInner({
   const onboardingCompletedRef = useRef(false);
   const introCompletedRef = useRef(false);
 
+  // LoginClient owns the post-sign-in continuation. Including /login here
+  // races its redirect-aware hard navigation with an unconditional /home.
+  // LoginPage still redirects users who arrive with an existing session.
   const restrictedPathsForLoggedInUsers = useRef([
     "/",
-    "/login",
     "/signup",
     "/reset-password",
     "/faq",

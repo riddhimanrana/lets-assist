@@ -1,6 +1,17 @@
 import type { NextConfig } from "next";
 
+const requestedDistDir = process.env.NEXT_DIST_DIR?.trim();
+if (requestedDistDir && requestedDistDir !== ".next-csf-isolated") {
+  throw new Error(
+    `Unsupported NEXT_DIST_DIR ${JSON.stringify(requestedDistDir)}. ` +
+      "Only the isolated CSF runner may select an alternate Next.js output directory.",
+  );
+}
+
 const nextConfig: NextConfig = {
+  // Next 16 locks each development output directory. The CSF runner uses a
+  // separate directory so it can coexist with the developer's normal server.
+  distDir: requestedDistDir || ".next",
   cacheComponents: false,
 
   // Playwright and agent-browser use the loopback host so the app and local

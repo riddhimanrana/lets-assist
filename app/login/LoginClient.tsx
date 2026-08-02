@@ -45,6 +45,7 @@ interface LoginClientProps {
   orgUsername?: string;
   inviteToken?: string;
   prefilledEmail?: string;
+  localFixtureMode?: boolean;
 }
 
 export default function LoginClient({
@@ -53,6 +54,7 @@ export default function LoginClient({
   orgUsername,
   inviteToken,
   prefilledEmail,
+  localFixtureMode = false,
 }: LoginClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -277,39 +279,50 @@ export default function LoginClient({
             className="space-y-5"
             data-hydrated={isHydrated ? "true" : "false"}
           >
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 w-full rounded-full border-border/80 bg-background/80 font-semibold shadow-xs hover:border-primary/30 hover:bg-primary/5"
-              onClick={handleGoogleSignIn}
-              disabled={isGoogleLoading || !isHydrated}
-            >
-              {isGoogleLoading ? (
-                "Connecting..."
-              ) : (
-                <>
-                  <Image
-                    src="/resources/google-logo-2026.png"
-                    alt=""
-                    width={18}
-                    height={18}
-                    className="mr-2 h-4.5 w-4.5 object-contain"
-                  />
-                  Login with Google
-                </>
-              )}
-            </Button>
+            {localFixtureMode ? (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+                <p className="font-semibold">Local CSF test account</p>
+                <p className="mt-1 text-muted-foreground">
+                  Use <span className="font-medium text-foreground">csf.officer@local.test</span> and the password printed by <span className="font-medium text-foreground">bun run dev</span>.
+                </p>
+              </div>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 w-full rounded-full border-border/80 bg-background/80 font-semibold shadow-xs hover:border-primary/30 hover:bg-primary/5"
+                  onClick={handleGoogleSignIn}
+                  disabled={isGoogleLoading || !isHydrated}
+                >
+                  {isGoogleLoading ? (
+                    "Connecting..."
+                  ) : (
+                    <>
+                      <Image
+                        src="/resources/google-logo-2026.png"
+                        alt=""
+                        width={18}
+                        height={18}
+                        className="mr-2 h-4.5 w-4.5 object-contain"
+                      />
+                      Login with Google
+                    </>
+                  )}
+                </Button>
 
-            <div className="relative py-1">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border/80" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-3 font-semibold tracking-wide text-muted-foreground/80">
-                  Or continue with
-                </span>
-              </div>
-            </div>
+                <div className="relative py-1">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border/80" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-3 font-semibold tracking-wide text-muted-foreground/80">
+                      Or continue with
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="grid gap-4">
               <Controller

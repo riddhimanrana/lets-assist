@@ -5,6 +5,10 @@ import { notFound, redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { readOrganizationPluginContext } from "@/lib/plugins/organization-plugin-context";
+import {
+  hasOrganizationPluginRoleAccess,
+  toOrganizationPluginAccessRole,
+} from "@/lib/plugins/access-role";
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
 import { resolveOrganizationPluginByKey } from "@/lib/plugins/resolve-org-plugins";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -34,28 +38,11 @@ type OrganizationPluginRouteRow = {
   minimum_role: OrganizationPluginAccessRole;
 };
 
-const ROLE_ORDER: Record<OrganizationPluginAccessRole, number> = {
-  member: 1,
-  staff: 2,
-  admin: 3,
-};
-
-function toRole(value: string | null): OrganizationPluginAccessRole | null {
-  if (value === "admin" || value === "staff" || value === "member") {
-    return value;
-  }
-  return null;
-}
-
 function hasPluginRouteAccess(
   minimumAccess: OrganizationPluginSurfaceAccessLevel | undefined,
   userRole: OrganizationPluginAccessRole,
 ) {
-  if (!minimumAccess || minimumAccess === "public") {
-    return true;
-  }
-
-  return ROLE_ORDER[userRole] >= ROLE_ORDER[minimumAccess];
+  return hasOrganizationPluginRoleAccess(userRole, minimumAccess);
 }
 
 function findPluginRoute(
@@ -152,7 +139,7 @@ export async function renderOrganizationPluginPage(options: {
       )
     : null;
 
-  const userRole = toRole(membership?.role ?? null);
+  const userRole = toOrganizationPluginAccessRole(membership?.role ?? null);
   if (!userRole && !isPublicManifestRoute) {
     notFound();
   }

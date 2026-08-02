@@ -39,6 +39,16 @@ VALUES
   ('d4100000-0000-4000-8000-000000000001', 'CSF Club One', 'csf-club-one', 'school', '994101'),
   ('d4100000-0000-4000-8000-000000000002', 'CSF Club Two', 'csf-club-two', 'school', '994102');
 
+-- The standing RPC now re-authorizes the human actor at the database boundary.
+-- Keep this legacy fixture explicit instead of relying on service_role alone.
+INSERT INTO public.organization_members (organization_id, user_id, role, status)
+VALUES (
+  'd4100000-0000-4000-8000-000000000001',
+  'd4000000-0000-4000-8000-000000000001',
+  'admin',
+  'active'
+);
+
 INSERT INTO plugin_data.csf_terms (id, organization_id, code, label, school_year, semester, is_current)
 VALUES
   ('d4200000-0000-4000-8000-000000000001', 'd4100000-0000-4000-8000-000000000001', 'F30', 'Fall 2030', '2030-2031', 'fall', true),

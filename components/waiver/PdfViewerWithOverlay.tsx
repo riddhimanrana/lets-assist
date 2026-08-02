@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import * as pdfjsLib from 'pdfjs-dist/webpack.mjs';
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,11 +12,6 @@ import {
 import { DetectedPdfField, PdfRect } from "@/lib/waiver/pdf-field-detect";
 import { WaiverFieldType } from "@/types/waiver-definitions";
 import type { SignerData } from "@/types/waiver-definitions";
-
-// Configure worker
-if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/legacy/build/pdf.worker.min.mjs`;
-}
 
 export interface CustomPlacement {
   id: string;
@@ -77,7 +72,7 @@ export function PdfViewerWithOverlay({
   // Load PDF
   useEffect(() => {
     let isStale = false;
-    let loadingTask: any | null = null;
+    let loadingTask: pdfjsLib.PDFDocumentLoadingTask | null = null;
 
     const loadPdf = async () => {
       try {
@@ -229,18 +224,15 @@ function PdfPage({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<pdfjsLib.PageViewport | null>(null);
-  const renderTaskRef = useRef<any | null>(null);
+  const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
   const [renderAttempts, setRenderAttempts] = useState(0);
 
   const clampRectToPage = useCallback(
     (rect: PdfRect, minWidth = 0, minHeight = 0): PdfRect => {
       if (!viewport) return rect;
 
-      const viewBox = (viewport as any).viewBox as [number, number, number, number] | undefined;
-      const xMin = viewBox?.[0] ?? 0;
-      const yMin = viewBox?.[1] ?? 0;
-      const xMax = viewBox?.[2] ?? viewport.width / viewport.scale;
-      const yMax = viewBox?.[3] ?? viewport.height / viewport.scale;
+      const [xMin = 0, yMin = 0, xMax = viewport.width / viewport.scale, yMax = viewport.height / viewport.scale] =
+        viewport.viewBox;
 
       const pageWidth = Math.max(0, xMax - xMin);
       const pageHeight = Math.max(0, yMax - yMin);
@@ -305,14 +297,14 @@ function PdfPage({
           }
         }
 
-        const renderTask = page.render(renderContext as any);
+        const renderTask = page.render(renderContext);
         renderTaskRef.current = renderTask;
         await renderTask.promise;
         renderTaskRef.current = null;
         setRenderAttempts(0); // Reset attempts on successful render
       } catch (err) {
         if (isStale) return;
-        const name = (err as any)?.name;
+        const name = err instanceof Error ? err.name : undefined;
         // RenderingCancelledException is expected on fast navigation/zoom.
         if (name !== 'RenderingCancelledException') {
           console.error("Page render error:", err);

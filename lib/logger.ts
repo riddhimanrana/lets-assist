@@ -1,5 +1,5 @@
 import { SeverityNumber } from '@opentelemetry/api-logs'
-import { loggerProvider } from '@/instrumentation'
+import { loggerProvider } from '@/instrumentation.node'
 
 const logger = loggerProvider.getLogger('lets-assist')
 

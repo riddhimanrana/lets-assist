@@ -1,10 +1,11 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import {
   CSF_ORGANIZATION_PATH,
   CSF_PUBLIC_PATH,
   expectNoPrivateBoundaryMarkers,
   responseText,
+  soleAccessibleAction,
 } from "./helpers";
 
 const CSF_CONNECT_PATH = `${CSF_ORGANIZATION_PATH}/plugins/dvhs-csf/connect`;
@@ -14,10 +15,6 @@ const CSF_CANONICAL_PROFILE_PATH = `${CSF_ORGANIZATION_PATH}?tab=csf-profile`;
 // this fictional Google Form URL, so the public projection must resolve to it.
 const FIXTURE_APPLICATION_URL =
   "https://docs.google.com/forms/d/local-csf-form-fixture/viewform";
-
-function publicButtonLink(page: Page, label: string) {
-  return page.locator('a[data-slot="button"]', { hasText: label });
-}
 
 test.describe("DVHS CSF public privacy boundary", () => {
   test("public HTML contains only public organization and activity structure", async ({
@@ -67,8 +64,7 @@ test.describe("DVHS CSF public privacy boundary", () => {
 
     await page.goto(CSF_PUBLIC_PATH);
 
-    const applyCta = publicButtonLink(page, "Apply with Google Forms");
-    await expect(applyCta).toBeVisible();
+    const applyCta = await soleAccessibleAction(page, "Apply with Google Forms");
     await expect(applyCta).toHaveAttribute("href", FIXTURE_APPLICATION_URL);
     await expect(applyCta).toHaveAttribute("target", "_blank");
     expect(await applyCta.getAttribute("rel")).toContain("noreferrer");
@@ -91,16 +87,14 @@ test.describe("DVHS CSF public privacy boundary", () => {
   }) => {
     await page.goto(CSF_PUBLIC_PATH);
 
-    const signIn = publicButtonLink(page, "Sign in to My CSF");
-    await expect(signIn).toBeVisible();
+    const signIn = await soleAccessibleAction(page, "Sign in to My CSF");
     const signInHref = await signIn.getAttribute("href");
     expect(signInHref).toBe(
       `/login?redirect=${encodeURIComponent(CSF_CANONICAL_PROFILE_PATH)}`,
     );
     expect(decodeURIComponent(signInHref ?? "")).toContain("tab=csf-profile");
 
-    const claim = publicButtonLink(page, "Claim existing profile");
-    await expect(claim).toBeVisible();
+    const claim = await soleAccessibleAction(page, "Claim existing profile");
     await expect(claim).toHaveAttribute("href", CSF_CONNECT_PATH);
 
     await claim.click();

@@ -51,6 +51,9 @@ function getStripeWebhookSecret(): string {
 
 // Lazy-loaded Stripe instance
 let _stripe: import("stripe").default | null = null;
+type StripeConfig = NonNullable<
+  ConstructorParameters<typeof import("stripe").default>[1]
+>;
 
 async function getStripe(): Promise<import("stripe").default> {
   if (_stripe) return _stripe;
@@ -58,7 +61,7 @@ async function getStripe(): Promise<import("stripe").default> {
   try {
     const Stripe = (await import("stripe")).default;
     _stripe = new Stripe(getStripeSecretKey(), {
-      apiVersion: "2025-03-31.basil" as any,
+      apiVersion: "2025-03-31.basil" as StripeConfig["apiVersion"],
       typescript: true,
     });
     return _stripe;

@@ -61,7 +61,7 @@ type Signup = {
   anonymous_id: string | null; // FK to anonymous_signups
   schedule_id: string;
   volunteer_comment?: string | null;
-  response_data?: Record<string, any> | null;
+  response_data?: Record<string, unknown> | null;
   waiver_signature?: WaiverPreviewSignature | WaiverPreviewSignature[];
   profile?: { // Data from profiles table (if user_id exists)
     full_name: string;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { isLocalSupabaseEndpoint } from "./status-utils";
 
 type CheckState = "pass" | "warn" | "fail";
 
@@ -11,15 +12,6 @@ type StatusCheck = {
   message: string;
   details?: Record<string, unknown>;
 };
-
-export function isLocalSupabaseEndpoint(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.hostname === "127.0.0.1" || url.hostname === "localhost";
-  } catch {
-    return false;
-  }
-}
 
 function isDeepCheckEnabled(request: NextRequest): boolean {
   const value = request.nextUrl.searchParams.get("deep");

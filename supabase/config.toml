@@ -53,9 +53,16 @@ enabled = true
 
 [db.seed]
 # If enabled, seeds the database after migrations during a db reset.
+# The CLI also applies these paths when it initializes a genuinely new database
+# volume, which is exactly what scripts/local-dev/start-dvhs-csf-isolated-stack.sh
+# relies on: a new namespaced volume applies the timestamped migrations and then
+# these configured SQL seed paths once. Starting an existing volume reruns
+# neither, so a stopped-and-restarted stack is not migration-replay evidence.
 enabled = true
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
+# These SQL seeds are not the fictional platform/DV fixtures: those records are
+# created later by `bun run supabase:seed:local-dev` and `bun run dv:fixtures`.
 sql_paths = [
 	"./seeds/local-only.sql"
 ]

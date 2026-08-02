@@ -826,7 +826,7 @@ export default function ProjectDetails({
   };
 
   // Handle confirmation modal actions
-  const handleConfirmSignup = (comment?: string, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, any>) => {
+  const handleConfirmSignup = (comment?: string, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, unknown>) => {
     logSignupClientDebug({
       step: "confirmation_modal_submit",
       projectId: project.id,
@@ -852,7 +852,7 @@ export default function ProjectDetails({
     anonymousData?: AnonymousSignupData,
     volunteerComment?: string,
     waiverSignature?: WaiverSignatureInput | null,
-    formData?: Record<string, any>,
+    formData?: Record<string, unknown>,
   ) => {
     setLoadingStates(prev => ({ ...prev, [scheduleId]: true }));
     // Reset alert state on new signup attempt
@@ -1005,7 +1005,7 @@ export default function ProjectDetails({
   };
 
   // Handle anonymous form submit
-  const handleAnonymousSubmit = (values: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, any>) => {
+  const handleAnonymousSubmit = (values: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, unknown>) => {
     logSignupClientDebug({
       step: "anonymous_submit",
       projectId: project.id,
@@ -1826,6 +1826,7 @@ export default function ProjectDetails({
                           alt={project.title}
                           width={300}
                           height={180}
+                          loading={demoMode ? "eager" : "lazy"}
                           className="object-cover w-full aspect-video h-auto hover:scale-105 transition-transform"
                         />
                       </div>

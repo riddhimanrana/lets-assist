@@ -31,7 +31,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'anon',
-    'plugin_data.csf_create_activity(uuid,uuid,uuid,jsonb,uuid)',
+    'plugin_data.csf_create_activity(uuid,uuid,uuid,jsonb,uuid,uuid)',
     'EXECUTE'
   ),
   'anonymous clients cannot create CSF activities'
@@ -39,7 +39,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'authenticated',
-    'plugin_data.csf_create_activity(uuid,uuid,uuid,jsonb,uuid)',
+    'plugin_data.csf_create_activity(uuid,uuid,uuid,jsonb,uuid,uuid)',
     'EXECUTE'
   ),
   'authenticated clients cannot create CSF activities'
@@ -47,7 +47,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   has_function_privilege(
     'service_role',
-    'plugin_data.csf_create_activity(uuid,uuid,uuid,jsonb,uuid)',
+    'plugin_data.csf_create_activity(uuid,uuid,uuid,jsonb,uuid,uuid)',
     'EXECUTE'
   ),
   'the server role can create CSF activities'
@@ -55,7 +55,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'anon',
-    'plugin_data.csf_update_activity(uuid,uuid,uuid,uuid,jsonb,uuid)',
+    'plugin_data.csf_update_activity(uuid,uuid,uuid,uuid,jsonb,uuid,uuid)',
     'EXECUTE'
   ),
   'anonymous clients cannot edit CSF activities'
@@ -63,7 +63,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'authenticated',
-    'plugin_data.csf_update_activity(uuid,uuid,uuid,uuid,jsonb,uuid)',
+    'plugin_data.csf_update_activity(uuid,uuid,uuid,uuid,jsonb,uuid,uuid)',
     'EXECUTE'
   ),
   'authenticated clients cannot edit CSF activities'
@@ -71,7 +71,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   has_function_privilege(
     'service_role',
-    'plugin_data.csf_update_activity(uuid,uuid,uuid,uuid,jsonb,uuid)',
+    'plugin_data.csf_update_activity(uuid,uuid,uuid,uuid,jsonb,uuid,uuid)',
     'EXECUTE'
   ),
   'the server role can edit CSF activities'
@@ -79,7 +79,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'anon',
-    'plugin_data.csf_set_activity_status(uuid,uuid,text,text,uuid)',
+    'plugin_data.csf_set_activity_status(uuid,uuid,text,text,uuid,uuid)',
     'EXECUTE'
   ),
   'anonymous clients cannot change CSF activity status'
@@ -87,7 +87,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'authenticated',
-    'plugin_data.csf_set_activity_status(uuid,uuid,text,text,uuid)',
+    'plugin_data.csf_set_activity_status(uuid,uuid,text,text,uuid,uuid)',
     'EXECUTE'
   ),
   'authenticated clients cannot change CSF activity status'
@@ -95,7 +95,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   has_function_privilege(
     'service_role',
-    'plugin_data.csf_set_activity_status(uuid,uuid,text,text,uuid)',
+    'plugin_data.csf_set_activity_status(uuid,uuid,text,text,uuid,uuid)',
     'EXECUTE'
   ),
   'the server role can change CSF activity status'
@@ -141,6 +141,21 @@ VALUES
     '985002'
   );
 
+INSERT INTO public.organization_members (organization_id, user_id, role, status)
+VALUES
+  (
+    'ce100000-0000-4000-8000-000000000001',
+    'ce000000-0000-4000-8000-000000000001',
+    'admin',
+    'active'
+  ),
+  (
+    'ce100000-0000-4000-8000-000000000002',
+    'ce000000-0000-4000-8000-000000000001',
+    'admin',
+    'active'
+  );
+
 INSERT INTO plugin_data.csf_terms (
   id, organization_id, code, label, school_year, semester, starts_at, ends_at, lifecycle_status
 ) VALUES
@@ -167,6 +182,22 @@ INSERT INTO plugin_data.csf_cohorts (
     'ce300000-0000-4000-8000-000000000002',
     'ce100000-0000-4000-8000-000000000002',
     2030, 'Class of 2030'
+  );
+
+INSERT INTO plugin_data.csf_cohort_terms (
+  organization_id, cohort_id, term_id, status
+) VALUES
+  (
+    'ce100000-0000-4000-8000-000000000001',
+    'ce300000-0000-4000-8000-000000000001',
+    'ce200000-0000-4000-8000-000000000001',
+    'active'
+  ),
+  (
+    'ce100000-0000-4000-8000-000000000002',
+    'ce300000-0000-4000-8000-000000000002',
+    'ce200000-0000-4000-8000-000000000002',
+    'active'
   );
 
 INSERT INTO plugin_data.csf_term_policies (
@@ -386,7 +417,8 @@ SELECT extensions.lives_ok(
         'requiresPointSubmission', true,
         'evidencePolicy', 'required'
       ),
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000001'
     )
   $$,
   'an officer can create a structured draft activity'
@@ -443,7 +475,8 @@ SELECT extensions.lives_ok(
         'requiresPointSubmission', true,
         'evidencePolicy', 'required'
       ),
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000002'
     )
     FROM csf_semester_service_results
     WHERE kind = 'activity-draft'
@@ -477,13 +510,14 @@ SELECT extensions.throws_ok(
       'ce200000-0000-4000-8000-000000000002',
       NULL,
       '{"title":"Wrong tenant edit"}'::jsonb,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000003'
     )
     FROM csf_semester_service_results
     WHERE kind = 'activity-draft'
   $$,
   'P0001',
-  'CSF activity not found.',
+  'CSF activity was not found in this organization.',
   'activity edits cannot address another organization activity'
 );
 SELECT extensions.throws_ok(
@@ -493,11 +527,12 @@ SELECT extensions.throws_ok(
       'ce200000-0000-4000-8000-000000000002',
       NULL,
       '{"status":"draft","title":"Wrong tenant term"}'::jsonb,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000004'
     )
   $$,
   'P0001',
-  'CSF semester not found.',
+  'CSF semester was not found in this organization.',
   'an activity cannot use another organization semester'
 );
 SELECT extensions.throws_ok(
@@ -507,11 +542,12 @@ SELECT extensions.throws_ok(
       'ce200000-0000-4000-8000-000000000001',
       'ce300000-0000-4000-8000-000000000002',
       '{"status":"draft","title":"Wrong tenant class"}'::jsonb,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000005'
     )
   $$,
   'P0001',
-  'CSF class audience not found.',
+  'That semester is not active for the selected graduating class in this organization.',
   'an activity cannot use another organization class audience'
 );
 SELECT extensions.ok(
@@ -536,7 +572,8 @@ SELECT extensions.lives_ok(
       (payload->>'activityId')::uuid,
       'published',
       NULL,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000006'
     )
     FROM csf_semester_service_results
     WHERE kind = 'activity-draft'
@@ -568,7 +605,8 @@ SELECT extensions.throws_ok(
       (payload->>'activityId')::uuid,
       'draft',
       NULL,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000007'
     )
     FROM csf_semester_service_results
     WHERE kind = 'activity-draft'
@@ -584,13 +622,14 @@ SELECT extensions.throws_ok(
       (payload->>'activityId')::uuid,
       'closed',
       NULL,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000008'
     )
     FROM csf_semester_service_results
     WHERE kind = 'activity-draft'
   $$,
   'P0001',
-  'CSF activity not found.',
+  'CSF activity was not found in this organization.',
   'status changes cannot address another organization activity'
 );
 SELECT extensions.lives_ok(
@@ -601,7 +640,8 @@ SELECT extensions.lives_ok(
       (payload->>'activityId')::uuid,
       'closed',
       NULL,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000009'
     )
     FROM csf_semester_service_results
     WHERE kind = 'activity-draft'
@@ -633,7 +673,8 @@ SELECT extensions.throws_ok(
       'ce200000-0000-4000-8000-000000000001',
       NULL,
       '{"title":"Edited after closure"}'::jsonb,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000010'
     )
     FROM csf_semester_service_results
     WHERE kind = 'activity-draft'
@@ -649,7 +690,8 @@ SELECT extensions.throws_ok(
       (payload->>'activityId')::uuid,
       'closed',
       NULL,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000011'
     )
     FROM csf_semester_service_results
     WHERE kind = 'activity-draft'
@@ -666,7 +708,8 @@ SELECT extensions.lives_ok(
       'ce200000-0000-4000-8000-000000000001',
       NULL,
       '{"status":"published","title":"Food bank sorting","body":"Sort donations.","startsAt":"2028-10-03T22:00:00Z","pointValue":2,"pointType":"non_drive","signupMode":"none","evidencePolicy":"optional"}'::jsonb,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000012'
     )
   $$,
   'an officer can create an immediately published activity'
@@ -678,7 +721,8 @@ SELECT extensions.throws_ok(
       (payload->>'activityId')::uuid,
       'cancelled',
       '   ',
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000013'
     )
     FROM csf_semester_service_results
     WHERE kind = 'activity-cancel-candidate'
@@ -695,7 +739,8 @@ SELECT extensions.lives_ok(
       (payload->>'activityId')::uuid,
       'cancelled',
       'Host cancelled the event.',
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000014'
     )
     FROM csf_semester_service_results
     WHERE kind = 'activity-cancel-candidate'
@@ -728,7 +773,8 @@ SELECT extensions.lives_ok(
       (payload->>'activityId')::uuid,
       'archived',
       NULL,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000015'
     )
     FROM csf_semester_service_results
     WHERE kind = 'activity-cancel-candidate'
@@ -757,7 +803,8 @@ SELECT extensions.throws_ok(
       (payload->>'activityId')::uuid,
       'published',
       NULL,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000016'
     )
     FROM csf_semester_service_results
     WHERE kind = 'activity-cancel-candidate'
@@ -774,7 +821,8 @@ SELECT extensions.lives_ok(
       'ce200000-0000-4000-8000-000000000001',
       NULL,
       '{"status":"draft","title":"Library tutoring","body":"Tutor after school.","startsAt":"2028-10-10T22:00:00Z","pointValue":1,"pointType":"non_drive","signupMode":"none","evidencePolicy":"optional"}'::jsonb,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000017'
     )
   $$,
   'an open semester accepts another draft activity'
@@ -862,7 +910,8 @@ SELECT extensions.throws_ok(
       'ce200000-0000-4000-8000-000000000001',
       NULL,
       '{"status":"draft","title":"Late activity"}'::jsonb,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000018'
     )
   $$,
   'P0001',
@@ -876,7 +925,8 @@ SELECT extensions.throws_ok(
       (payload->>'activityId')::uuid,
       'published',
       NULL,
-      'ce000000-0000-4000-8000-000000000001'
+      'ce000000-0000-4000-8000-000000000001',
+      'ce800000-0000-4000-8000-000000000019'
     )
     FROM csf_semester_service_results
     WHERE kind = 'activity-awaiting-publish'

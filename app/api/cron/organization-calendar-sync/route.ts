@@ -5,6 +5,7 @@ import {
 } from "@/lib/async/map-with-concurrency";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { syncOrganizationCalendarInternal } from "@/lib/organization/calendar-sync";
+import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 
 const WORKER_ENABLED = process.env.ORG_CALENDAR_SYNC_WORKER_ENABLED !== "false";
 const WORKER_TOKEN = process.env.ORG_CALENDAR_SYNC_WORKER_SECRET_TOKEN;
@@ -44,6 +45,11 @@ export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Strictly after real authentication and before the worker-enable check,
+  // getAdminClient(), any query, and syncOrganizationCalendarInternal().
+  const probe = cronAuthShapeProbe("organization-calendar-sync", request);
+  if (probe) return probe;
 
   if (!WORKER_ENABLED) {
     return NextResponse.json({ message: "Calendar sync worker disabled" }, { status: 200 });

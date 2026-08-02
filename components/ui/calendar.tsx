@@ -6,16 +6,18 @@ import {
   getDefaultClassNames,
   type DayButton,
   type DayPickerProps,
+  type DateRange,
   type Matcher,
+  type OnSelectHandler,
 } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
 
-type CalendarProps = Omit<
+type CalendarBaseProps = Omit<
   Partial<DayPickerProps>,
-  "components" | "className" | "classNames" | "disabled" | "formatters" | "mode" | "onSelect" | "selected"
+  "components" | "className" | "classNames" | "disabled" | "formatters" | "mode" | "onSelect" | "required" | "selected"
 > & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
   className?: string
@@ -24,11 +26,30 @@ type CalendarProps = Omit<
   disabled?: Matcher | Matcher[]
   formatters?: DayPickerProps["formatters"]
   initialFocus?: boolean
-  mode?: DayPickerProps["mode"]
-  selected?: any
   defaultMonth?: Date
-  onSelect?: (date: any) => void
 }
+
+type CalendarSelectionProps =
+  | {
+      mode?: "single"
+      required?: false
+      selected?: Date
+      onSelect?: OnSelectHandler<Date | undefined>
+    }
+  | {
+      mode: "multiple"
+      required?: false
+      selected?: Date[]
+      onSelect?: OnSelectHandler<Date[] | undefined>
+    }
+  | {
+      mode: "range"
+      required?: false
+      selected?: DateRange
+      onSelect?: OnSelectHandler<DateRange | undefined>
+    }
+
+type CalendarProps = CalendarBaseProps & CalendarSelectionProps
 
 function Calendar({
   className,

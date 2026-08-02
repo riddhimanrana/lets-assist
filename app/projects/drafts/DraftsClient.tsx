@@ -87,11 +87,10 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
   const handlePublish = async (draftId: string) => {
     setIsPublishing(draftId);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await publishDraft(draftId) as any;
-      if (result.error) {
+      const result = await publishDraft(draftId);
+      if ("error" in result && result.error) {
         toast.error(result.error);
-      } else if (result.success && result.id) {
+      } else if ("success" in result && result.success && result.id) {
         toast.success("Project published successfully!");
         router.push(`/projects/${result.id}`);
       }

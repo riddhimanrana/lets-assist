@@ -1,15 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import * as pdfjsLib from 'pdfjs-dist/webpack.mjs';
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, Download, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// Configure worker (same as in PdfViewerWithOverlay)
-if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/legacy/build/pdf.worker.min.mjs`;
-}
 
 interface WaiverSigningPdfPaneProps {
   pdfUrl: string;

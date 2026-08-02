@@ -2,8 +2,10 @@ import { Metadata } from "next";
 import ProjectCreator from "./ProjectCreator";
 import { createClient } from "@/lib/supabase/server";
 import { resolveOrganizationPluginBehaviorHook } from "@/lib/plugins/resolve-plugin-behaviors";
+import { toOrganizationPluginAccessRole } from "@/lib/plugins/access-role";
 import { redirect } from "next/navigation";
 import type { EventFormState } from "@/hooks/use-event-form";
+import type { ProjectCreateAdditionalStep } from "@/types/plugin";
 import { headers } from "next/headers";
 
 // Define a type for the combobox options
@@ -38,7 +40,7 @@ type DraftRow = {
   draft_data: Partial<EventFormState> | null;
   created_at: string;
 };
- 
+
 export const metadata: Metadata = {
   title: "Create Project",
   description: "Start a new volunteering project on Let's Assist and connect with volunteers to make a difference in your community.",
@@ -208,7 +210,7 @@ export default async function CreateProjectPage({
   }
 
   // Fetch plugin steps if an organization is selected
-  let pluginSteps: any[] = [];
+  let pluginSteps: ProjectCreateAdditionalStep[] = [];
   if (initialOrgId) {
     const { data: member } = await supabase
       .from("organization_members")
@@ -221,7 +223,7 @@ export default async function CreateProjectPage({
       const contributions = await resolveOrganizationPluginBehaviorHook({
         organizationId: initialOrgId,
         hook: "project.create.additional_steps",
-        viewerRole: member.role as any,
+        viewerRole: toOrganizationPluginAccessRole(member.role),
       });
       
       pluginSteps = contributions.flatMap(c => c.behavior || []);

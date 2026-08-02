@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from "bun:test";
 
 mock.module("server-only", () => ({}));
 
-const { isLocalSupabaseEndpoint } = await import("./route");
+const { isLocalSupabaseEndpoint } = await import("./status-utils");
 
 describe("status endpoint local Supabase detection", () => {
   test("accepts isolated localhost stacks on arbitrary ports", () => {

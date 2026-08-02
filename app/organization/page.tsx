@@ -27,6 +27,15 @@ export const metadata: Metadata = {
   description: "Explore and join organizations",
 };
 
+function isLoopbackUrl(value: string | undefined) {
+  if (!value) return false;
+  try {
+    return ["127.0.0.1", "localhost", "::1"].includes(new URL(value).hostname);
+  } catch {
+    return false;
+  }
+}
+
 export default async function OrganizationsPage() {
   const supabase = await createClient();
   const previewSource = await getServerPreviewSource();
@@ -41,6 +50,11 @@ export default async function OrganizationsPage() {
       ? "Remote preview requested, but remote Supabase keys are missing or invalid. Falling back to local data."
       : null;
   const sourceBadge = usingRemotePreview ? "remote-preview" : "local-only";
+  const isCsfFixturePresentation =
+    !usingRemotePreview &&
+    (process.env.CSF_LOCAL_FIXTURE_MODE === "1" ||
+      Boolean(process.env.CSF_ISOLATED_WORK_DIR) ||
+      isLoopbackUrl(process.env.NEXT_PUBLIC_SUPABASE_URL));
   const isLoggedIn = !!user;
   let isTrusted = false;
   let applicationStatus: boolean | null | undefined = undefined;
@@ -85,7 +99,14 @@ export default async function OrganizationsPage() {
     error: { message: string } | null;
   };
 
-  const orgMemberCounts = (organizations || []).reduce((acc, organization) => {
+  const visibleOrganizations =
+    isCsfFixturePresentation
+      ? (organizations || []).filter(
+          (organization) => organization.username === "dvhs-csf",
+        )
+      : organizations || [];
+
+  const orgMemberCounts = visibleOrganizations.reduce((acc, organization) => {
     acc[organization.id] = organization.public_member_count ?? 0;
     return acc;
   }, {} as Record<string, number>);
@@ -137,15 +158,21 @@ export default async function OrganizationsPage() {
       membershipOrganizations.map((organization) => [organization.id, organization]),
     );
 
-    userMemberships = (memberships || []).map((membership) => ({
-      ...membership,
-      organizations: organizationById.get(membership.organization_id) ?? null,
-    }));
+    userMemberships = (memberships || [])
+      .map((membership) => ({
+        ...membership,
+        organizations: organizationById.get(membership.organization_id) ?? null,
+      }))
+      .filter(
+        (membership) =>
+          !isCsfFixturePresentation ||
+          membership.organizations?.username === "dvhs-csf",
+      );
   }
 
   return (
     <OrganizationsDisplay
-      organizations={organizations || []}
+      organizations={visibleOrganizations}
       memberCounts={orgMemberCounts}
       isLoggedIn={isLoggedIn}
       userMemberships={userMemberships}

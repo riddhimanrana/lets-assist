@@ -19,11 +19,14 @@ import { AlertCircle, CloudUpload, FileText, Loader2 } from "lucide-react";
 import { FormSchema, FormFieldDefinition } from "@/lib/forms/engine";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
+type FormResponseValue = string | number | boolean | string[] | File | null | undefined;
+type FormResponseData = Record<string, FormResponseValue>;
+
 interface ModernFormRendererProps {
   schema: FormSchema;
   title: string;
   description?: string;
-  onSubmit: (data: Record<string, any>) => void;
+  onSubmit: (data: Record<string, unknown>) => void;
   isSubmitting?: boolean;
   userEmail?: string;
 }
@@ -36,11 +39,11 @@ export function ModernFormRenderer({
   isSubmitting = false,
   userEmail
 }: ModernFormRendererProps) {
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<FormResponseData>({});
   const [activeSection, setActiveSection] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleFieldChange = (key: string, value: any) => {
+  const handleFieldChange = (key: string, value: FormResponseValue) => {
     setFormData(prev => ({ ...prev, [key]: value }));
     if (errors[key]) {
       const newErrors = { ...errors };
@@ -174,11 +177,13 @@ function FormQuestionCard({
   error
 }: {
   field: FormFieldDefinition;
-  value: any;
-  onChange: (val: any) => void;
+  value: FormResponseValue;
+  onChange: (value: FormResponseValue) => void;
   error?: string;
 }) {
   const [isFocused, setIsFocused] = useState(false);
+  const scalarValue =
+    typeof value === "string" || typeof value === "number" ? value : "";
 
   return (
     <Card
@@ -207,7 +212,7 @@ function FormQuestionCard({
             <div className="relative">
               <Input
                 placeholder="Your answer"
-                value={value || ""}
+                value={scalarValue}
                 onChange={(e) => onChange(e.target.value)}
                 className="border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-b-2 focus-visible:border-primary transition-all bg-transparent shadow-none h-9 text-[14px]"
               />
@@ -218,7 +223,7 @@ function FormQuestionCard({
             <Input
               type="email"
               placeholder="Your email"
-              value={value || ""}
+              value={scalarValue}
               onChange={(e) => onChange(e.target.value)}
               className="border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-b-2 focus-visible:border-primary transition-all bg-transparent shadow-none h-9 text-[14px]"
             />
@@ -228,7 +233,7 @@ function FormQuestionCard({
             <Input
               type="tel"
               placeholder="Your answer"
-              value={value || ""}
+              value={scalarValue}
               onChange={(e) => onChange(e.target.value)}
               className="border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-b-2 focus-visible:border-primary transition-all bg-transparent shadow-none h-9 text-[14px]"
             />
@@ -237,7 +242,7 @@ function FormQuestionCard({
           {field.type === "textarea" && (
             <Textarea
               placeholder="Your answer"
-              value={value || ""}
+              value={scalarValue}
               onChange={(e) => onChange(e.target.value)}
               className="border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-b-2 focus-visible:border-primary transition-all bg-transparent shadow-none min-h-[40px] resize-none text-[14px]"
             />
@@ -245,7 +250,10 @@ function FormQuestionCard({
 
           {(field.type === "select" || field.type === "radio") && field.options && (
             <div className="space-y-3">
-              <RadioGroup value={value} onValueChange={onChange}>
+              <RadioGroup
+                value={typeof value === "string" ? value : undefined}
+                onValueChange={onChange}
+              >
                 {field.options.map((option) => (
                   <div key={option.value} className="flex items-center space-x-3 space-y-0">
                     <RadioGroupItem

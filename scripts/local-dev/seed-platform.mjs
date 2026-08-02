@@ -1,7 +1,285 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto";
+import { appendFileSync } from "node:fs";
+
 import { createClient } from "@supabase/supabase-js";
-import { getLocalSupabaseEnv } from "./dv-local-env.mjs";
+import {
+  getCsfIsolatedSupabaseEnv,
+  getLocalSupabaseEnv,
+} from "./dv-local-env.mjs";
+
+// ---------------------------------------------------------------------------
+// Explicit, typo-safe seed mode. This is the first thing that runs.
+//
+// This script deletes and reset-upserts dozens of CSF tables. It used to call
+// getLocalSupabaseEnv() unconditionally, which meant a run without
+// CSF_ISOLATED_WORK_DIR silently selected the *shared* local 54321 stack and
+// then wiped its CSF data. The stack it destroys must be stated by the caller,
+// never inferred from which environment variables happen to be exported.
+//
+// There are exactly three modes, no default, and no cross-mode fallback. A
+// missing, empty, or misspelled value fails here — before the fixture password,
+// before either environment helper, before the client, before the Supabase CLI,
+// and before any database access.
+// ---------------------------------------------------------------------------
+const PLATFORM_SEED_MODES = [
+  "shared-local-v1",
+  "csf-isolated-v1",
+  "hosted-development-v1",
+];
+const PRODUCTION_SUPABASE_PROJECT_REF = "fotdmeakexgrkronxlof";
+
+function resolvePlatformSeedMode(env = process.env) {
+  const requested = env.PLATFORM_SEED_MODE;
+
+  if (typeof requested !== "string" || requested.length === 0) {
+    throw new Error(
+      "PLATFORM_SEED_MODE is required and has no default. Use exactly " +
+        "PLATFORM_SEED_MODE=shared-local-v1 (bun run supabase:seed:local-dev) for the " +
+        "shared local stack, or PLATFORM_SEED_MODE=csf-isolated-v1 " +
+        "(bun run csf:seed:platform:isolated) for a generated CSF isolated stack, or " +
+        "PLATFORM_SEED_MODE=hosted-development-v1 (bun run csf:seed:hosted-development) " +
+        "for the persistent hosted development branch.",
+    );
+  }
+
+  if (!PLATFORM_SEED_MODES.includes(requested)) {
+    throw new Error(
+      `Unknown PLATFORM_SEED_MODE: ${requested}. Expected exactly one of ` +
+        `${PLATFORM_SEED_MODES.join(", ")}. Refusing to guess which stack to seed.`,
+    );
+  }
+
+  const isolatedWorkDir = env.CSF_ISOLATED_WORK_DIR?.trim();
+
+  if (requested === "shared-local-v1" && isolatedWorkDir) {
+    throw new Error(
+      "PLATFORM_SEED_MODE=shared-local-v1 refuses CSF_ISOLATED_WORK_DIR. A shared-local " +
+        "seed must never be pointed at a generated isolated stack; run " +
+        "bun run csf:seed:platform:isolated instead.",
+    );
+  }
+
+  if (requested === "csf-isolated-v1" && !isolatedWorkDir) {
+    throw new Error(
+      "PLATFORM_SEED_MODE=csf-isolated-v1 requires CSF_ISOLATED_WORK_DIR from " +
+        "scripts/local-dev/start-dvhs-csf-isolated-stack.sh. It never falls back to the " +
+        "shared local stack.",
+    );
+  }
+
+  if (requested === "hosted-development-v1" && isolatedWorkDir) {
+    throw new Error(
+      "PLATFORM_SEED_MODE=hosted-development-v1 refuses CSF_ISOLATED_WORK_DIR. " +
+        "Hosted development and local isolated targets can never be combined.",
+    );
+  }
+
+  return requested;
+}
+
+const PLATFORM_SEED_MODE = resolvePlatformSeedMode();
+
+// The one place the mode turns into behavior.
+//
+// This used to be false only in name: both modes ran the whole DVHS CSF fixture
+// footprint, so `bun run supabase:seed:local-dev` deleted and reset-upserted
+// dozens of CSF tables on the shared local stack while the runbooks described it
+// as the non-CSF path. Isolated mode keeps the deterministic synthetic CSF
+// fixtures the browser and replay acceptance path depends on; shared local mode
+// now creates, replaces, and deletes none of them.
+const SEEDS_DVHS_CSF = PLATFORM_SEED_MODE !== "shared-local-v1";
+
+function getHostedDevelopmentSupabaseEnv(env = process.env) {
+  const projectRef = env.EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF
+    ?.trim()
+    .toLowerCase();
+  if (!projectRef || !/^[a-z0-9]{20}$/u.test(projectRef)) {
+    throw new Error(
+      "Hosted development seeding requires a valid EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF.",
+    );
+  }
+  if (projectRef === PRODUCTION_SUPABASE_PROJECT_REF) {
+    throw new Error("Hosted development seeding refuses the Production Supabase project ref.");
+  }
+
+  const url = env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const expectedUrl = `https://${projectRef}.supabase.co`;
+  if (url !== expectedUrl) {
+    throw new Error(
+      `Hosted development seeding requires NEXT_PUBLIC_SUPABASE_URL to equal ${expectedUrl}.`,
+    );
+  }
+
+  const serviceRoleKey =
+    env.SUPABASE_SECRET_KEY?.trim() ||
+    env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    env.SERVICE_ROLE_KEY?.trim();
+  if (!serviceRoleKey) {
+    throw new Error(
+      "Hosted development seeding requires SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY.",
+    );
+  }
+
+  return { url, serviceRoleKey };
+}
+
+function resolveSeedSupabaseEnv() {
+  // Each mode reaches exactly one helper. The isolated helper enforces the
+  // strict generated-stack contract and scopes its `supabase status` to the
+  // validated work directory; the shared helper is only ever reached in
+  // shared-local-v1, which has already refused an isolated work directory.
+  if (PLATFORM_SEED_MODE === "csf-isolated-v1") {
+    return getCsfIsolatedSupabaseEnv();
+  }
+  if (PLATFORM_SEED_MODE === "hosted-development-v1") {
+    return getHostedDevelopmentSupabaseEnv();
+  }
+  return getLocalSupabaseEnv();
+}
+
+// ---------------------------------------------------------------------------
+// Hermetic execution-plan ledger — test-only, and unreachable without the exact
+// opt-in value.
+//
+// "Which tables does this mode actually touch?" is not answerable by reading
+// 2,800 lines of fixture data, and a filename or string assertion would only
+// prove the source mentions a table. This seam runs the real main() against a
+// recording client that performs no I/O of any kind and appends one JSON line
+// per database call, so "shared local mode performs zero DVHS CSF mutations" is
+// a checked ledger rather than a grep. No Supabase client is constructed on this
+// path, so it can never reach a database.
+// ---------------------------------------------------------------------------
+const PLATFORM_SEED_PLAN_MODE = "hermetic-plan-v1";
+
+function resolvePlanLedgerPath(env = process.env) {
+  const requested = env.PLATFORM_SEED_PLAN_LEDGER?.trim();
+  if (!requested) return null;
+  if (env.PLATFORM_SEED_PLAN_ONLY !== PLATFORM_SEED_PLAN_MODE) {
+    throw new Error(
+      "PLATFORM_SEED_PLAN_LEDGER is a test-only seam; it requires " +
+        `PLATFORM_SEED_PLAN_ONLY=${PLATFORM_SEED_PLAN_MODE}.`,
+    );
+  }
+  return requested;
+}
+
+const PLAN_LEDGER_PATH = resolvePlanLedgerPath();
+
+function syntheticLedgerId(seed) {
+  const hash = createHash("sha256").update(seed).digest("hex");
+  return [
+    hash.slice(0, 8),
+    hash.slice(8, 12),
+    `4${hash.slice(13, 16)}`,
+    `8${hash.slice(17, 20)}`,
+    hash.slice(20, 32),
+  ].join("-");
+}
+
+/**
+ * A Supabase-shaped recorder. It opens no socket, reads no credential, and
+ * returns the rows it was handed so the fixture code downstream behaves exactly
+ * as it would against a real database.
+ */
+function createPlanRecordingClient(ledgerPath) {
+  let sequence = 0;
+  const record = (entry) => {
+    sequence += 1;
+    appendFileSync(ledgerPath, `${JSON.stringify({ seq: sequence, ...entry })}\n`);
+  };
+
+  const settle = (data) => {
+    const settled = Promise.resolve({ data, error: null });
+    const chain = {
+      select: () => chain,
+      eq: () => chain,
+      in: () => chain,
+      order: () => chain,
+      limit: () => chain,
+      single: () =>
+        Promise.resolve({
+          data: Array.isArray(data) ? (data[0] ?? null) : data,
+          error: null,
+        }),
+      maybeSingle: () =>
+        Promise.resolve({
+          data: Array.isArray(data) ? (data[0] ?? null) : data,
+          error: null,
+        }),
+      then: (onFulfilled, onRejected) => settled.then(onFulfilled, onRejected),
+      catch: (onRejected) => settled.catch(onRejected),
+      finally: (onFinally) => settled.finally(onFinally),
+    };
+    return chain;
+  };
+
+  const writeRows = (schema, table, op, rows) => {
+    const list = (Array.isArray(rows) ? rows : [rows]).map((row, index) => ({
+      ...row,
+      id: row?.id ?? syntheticLedgerId(`${schema}.${table}:${op}:${index}`),
+    }));
+    record({ schema, table, op, rows: list.length });
+    return settle(list);
+  };
+
+  const clientForSchema = (schema) => ({
+    schema: (next) => clientForSchema(next),
+    from: (table) => ({
+      upsert: (rows) => writeRows(schema, table, "upsert", rows),
+      insert: (rows) => writeRows(schema, table, "insert", rows),
+      update: () => {
+        record({ schema, table, op: "update" });
+        return settle(null);
+      },
+      delete: () => {
+        record({ schema, table, op: "delete" });
+        return settle(null);
+      },
+      select: () => settle([]),
+    }),
+    rpc: (name) => {
+      record({ schema, rpc: name, op: "rpc" });
+      return settle(null);
+    },
+    auth: {
+      admin: {
+        listUsers: async () => {
+          record({ schema: "auth", op: "auth.listUsers" });
+          return { data: { users: [] }, error: null };
+        },
+        createUser: async (payload) => {
+          record({ schema: "auth", op: "auth.createUser", email: payload.email });
+          return {
+            data: {
+              user: {
+                id: syntheticLedgerId(`auth:${payload.email}`),
+                email: payload.email,
+              },
+            },
+            error: null,
+          };
+        },
+        updateUserById: async (id) => {
+          record({ schema: "auth", op: "auth.updateUserById" });
+          return { data: { user: { id } }, error: null };
+        },
+      },
+    },
+  });
+
+  return clientForSchema("public");
+}
+
+if (process.argv.slice(2).includes("--print-resolved-target")) {
+  // Non-seeding introspection seam. It resolves the mode and the validated
+  // target, prints the mode and the API origin only — never a credential — and
+  // exits before the fixture password, the client, and every database call.
+  const { url } = resolveSeedSupabaseEnv();
+  process.stdout.write(`mode=${PLATFORM_SEED_MODE}\nurl=${url}\n`);
+  process.exit(0);
+}
 
 const IDS = {
   primaryOrg: "10000000-0000-4000-8000-000000000001",
@@ -90,7 +368,8 @@ const accounts = [
   {
     key: "developer",
     email: "platform.admin@local.test",
-    fullName: "Platform Admin Fixture",
+    fullName: "Riddhiman Rana",
+    avatarUrl: "/demo/avatars/riddhiman-rana.png",
     superAdmin: true,
     roles: ["admin", "admin", "admin", "admin"],
   },
@@ -115,103 +394,108 @@ const accounts = [
   {
     key: "csfAdmin",
     email: "csf.admin@local.test",
-    fullName: "CSF Admin Fixture",
+    fullName: "Riddhiman Rana",
+    avatarUrl: "/demo/avatars/riddhiman-rana.png",
     roles: [null, null, null, "admin"],
   },
   {
     key: "csfOfficer",
     email: "csf.officer@local.test",
-    fullName: "CSF Officer",
+    fullName: "Priya Shah",
+    avatarUrl: "/demo/avatars/priya-shah.png",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfAdviser",
     email: "csf.adviser@local.test",
-    fullName: "Adviser Fixture",
+    fullName: "Dr. Elena Park",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfCoPresidentOne",
     email: "csf.co-president-one@local.test",
-    fullName: "Co-President One Fixture",
+    fullName: "Maya Chen",
+    avatarUrl: "/demo/avatars/maya-chen.png",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfCoPresidentTwo",
     email: "csf.co-president-two@local.test",
-    fullName: "Co-President Two Fixture",
+    fullName: "Jordan Lee",
+    avatarUrl: "/demo/avatars/jordan-lee.png",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfVpMembership",
     email: "csf.vp-membership@local.test",
-    fullName: "VP Membership Fixture",
+    fullName: "Avery Patel",
+    avatarUrl: "/demo/avatars/avery-patel.png",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfVpPublicity",
     email: "csf.vp-publicity@local.test",
-    fullName: "VP Publicity Fixture",
+    fullName: "Sofia Nguyen",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfVpClubs",
     email: "csf.vp-clubs@local.test",
-    fullName: "VP Clubs Fixture",
+    fullName: "Ethan Wong",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfTreasurer",
     email: "csf.treasurer@local.test",
-    fullName: "Treasurer Fixture",
+    fullName: "Nina Brooks",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfSecretary",
     email: "csf.secretary@local.test",
-    fullName: "Secretary Fixture",
+    fullName: "Lena Kim",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfWebMaster",
     email: "csf.web-master@local.test",
-    fullName: "Web Master Fixture",
+    fullName: "Marcus Reed",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfActivityCoordinatorTwo",
     email: "csf.activity-two@local.test",
-    fullName: "Activity Coordinator Two Fixture",
+    fullName: "Grace Lin",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfActivityCoordinatorThree",
     email: "csf.activity-three@local.test",
-    fullName: "Activity Coordinator Three Fixture",
+    fullName: "Noah Singh",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfActivityCoordinatorFour",
     email: "csf.activity-four@local.test",
-    fullName: "Activity Coordinator Four Fixture",
+    fullName: "Isabella Nguyen",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfActivityCoordinatorFive",
     email: "csf.activity-five@local.test",
-    fullName: "Activity Coordinator Five Fixture",
+    fullName: "Lucas Brown",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfDataManagement",
     email: "csf.data-management@local.test",
-    fullName: "Data Management Fixture",
+    fullName: "Aarav Mehta",
     roles: [null, null, null, "staff"],
   },
   {
     key: "csfApplicant",
     email: "csf.applicant@local.test",
-    fullName: "Evan Chen Fixture",
+    fullName: "Evan Chen",
     roles: [null, null, null, "member"],
   },
   {
@@ -222,12 +506,22 @@ const accounts = [
   },
 ];
 
+// Every CSF fixture actor is a DVHS CSF profile record, so shared local mode
+// never creates one. The non-CSF platform accounts are untouched.
+const seededAccounts = SEEDS_DVHS_CSF
+  ? accounts
+  : accounts.filter((account) => !account.key.startsWith("csf"));
+
 const pluginKeys = [
   "calendar-tools",
   "community-impact-radar",
   "dvhs-csf",
   "family-liaison-workbench",
 ];
+
+const seededPluginKeys = SEEDS_DVHS_CSF
+  ? pluginKeys
+  : pluginKeys.filter((key) => key !== "dvhs-csf");
 
 const pluginCatalogRows = [
   {
@@ -271,6 +565,10 @@ const pluginCatalogRows = [
     private_codebase: true,
   },
 ];
+
+const seededPluginCatalogRows = pluginCatalogRows.filter((row) =>
+  seededPluginKeys.includes(row.key),
+);
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -326,6 +624,7 @@ async function upsertAuthUser(admin, account) {
       : {}),
     user_metadata: {
       full_name: account.fullName,
+      avatar_url: account.avatarUrl,
       username: account.email.split("@")[0].replaceAll(".", "-"),
       has_completed_onboarding: true,
       has_completed_intro_tour: true,
@@ -357,13 +656,16 @@ async function must(label, promise) {
 }
 
 async function main() {
-  const { url, serviceRoleKey } = getLocalSupabaseEnv();
-  const admin = createClient(url, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  const { url, serviceRoleKey } = resolveSeedSupabaseEnv();
+  console.log(`Seeding platform fixtures in ${PLATFORM_SEED_MODE} mode against ${url}`);
+  const admin = PLAN_LEDGER_PATH
+    ? createPlanRecordingClient(PLAN_LEDGER_PATH)
+    : createClient(url, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
 
   const users = {};
-  for (const account of accounts) {
+  for (const account of seededAccounts) {
     users[account.key] = await upsertAuthUser(admin, account);
   }
 
@@ -422,7 +724,7 @@ async function main() {
       username: "dvhs-csf",
       type: "school",
       description:
-        "Deterministic local fixture for the DVHS CSF private plugin.",
+        "Dougherty Valley High School's California Scholarship Federation chapter.",
       logo_url: "/logos/dvhigh-csf.png",
       show_members_publicly: false,
       join_code: fixtureJoinCode("dvhs-csf"),
@@ -430,14 +732,23 @@ async function main() {
     },
   ];
 
+  // The DVHS CSF organization is itself a CSF record, so shared local mode does
+  // not create or replace it — and the membership loop below indexes
+  // `account.roles` positionally, which is why csfOrg stays last in both shapes.
+  const seededOrganizations = SEEDS_DVHS_CSF
+    ? organizations
+    : organizations.filter((organization) => organization.id !== IDS.csfOrg);
+
   await must(
     "organizations",
-    admin.from("organizations").upsert(organizations),
+    admin.from("organizations").upsert(seededOrganizations),
   );
 
-  const orgIds = [IDS.primaryOrg, IDS.nonprofitOrg, IDS.schoolOrg, IDS.csfOrg];
+  const orgIds = SEEDS_DVHS_CSF
+    ? [IDS.primaryOrg, IDS.nonprofitOrg, IDS.schoolOrg, IDS.csfOrg]
+    : [IDS.primaryOrg, IDS.nonprofitOrg, IDS.schoolOrg];
   const membershipRows = [];
-  for (const account of accounts) {
+  for (const account of seededAccounts) {
     const userId = users[account.key].id;
     for (let orgIdx = 0; orgIdx < orgIds.length; orgIdx += 1) {
       const role = account.roles[orgIdx];
@@ -460,12 +771,12 @@ async function main() {
 
   await must(
     "plugin catalog",
-    admin.from("plugins").upsert(pluginCatalogRows, {
+    admin.from("plugins").upsert(seededPluginCatalogRows, {
       onConflict: "key",
     }),
   );
 
-  for (const pluginKey of pluginKeys) {
+  for (const pluginKey of seededPluginKeys) {
     const entitledOrgIds =
       pluginKey === "dvhs-csf"
         ? [IDS.csfOrg]
@@ -505,6 +816,20 @@ async function main() {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // DVHS CSF fixtures — isolated and hosted-development modes only.
+  //
+  // Everything between this brace and its close is the deterministic synthetic
+  // DVHS CSF footprint the isolated browser and replay acceptance path depends
+  // on: the reset list, the roles, terms, cohorts, applications, meetings,
+  // opportunities, points, partner clubs, and the owned synthetic import seam.
+  // In shared-local-v1 none of it runs, so that mode creates, replaces, and
+  // deletes no DVHS CSF record at all.
+  //
+  // The body deliberately keeps its original indentation. Re-flowing two
+  // thousand unchanged lines to add one branch would have hidden the branch.
+  // -------------------------------------------------------------------------
+  if (SEEDS_DVHS_CSF) {
   const pluginDb = admin.schema("plugin_data");
   const csfTablesToReset = [
     "csf_storage_deletion_queue",
@@ -512,15 +837,17 @@ async function main() {
     "csf_profile_merge_reviews",
     "csf_profile_link_requests",
     "csf_sheet_sync_logs",
-    "csf_sheet_import_rows",
-    "csf_sheet_import_jobs",
+    // csf_sheet_import_rows, csf_sheet_import_jobs and csf_sheet_sources are
+    // absent deliberately: they are SELECT-only to service_role, so a direct
+    // delete cannot succeed. csf_seed_reset_synthetic_import below retires them
+    // through the owned fixture seam, which refuses any organization outside the
+    // reserved synthetic UUID namespace.
     "csf_partner_submission_rows",
     "csf_partner_submission_batches",
     "csf_partner_club_terms",
     "csf_partner_club_aliases",
     "csf_partner_clubs",
     "csf_onboarding_links",
-    "csf_sheet_sources",
     "csf_meeting_attendance",
     "csf_meeting_sessions",
     "csf_meetings",
@@ -565,6 +892,13 @@ async function main() {
     "csf_term_policy_drafts",
     "csf_term_policies",
   ];
+
+  // The import footprint first, through the owned seam. It has to precede the
+  // generic loop because onboarding links reference sheet sources.
+  await must(
+    "csf-reset-synthetic-import",
+    pluginDb.rpc("csf_seed_reset_synthetic_import", { p_organization_id: IDS.csfOrg }),
+  );
 
   for (const table of csfTablesToReset) {
     await must(
@@ -794,26 +1128,32 @@ async function main() {
 
   await must(
     "csf-sheet-source",
-    pluginDb.from("csf_sheet_sources").upsert(
-      {
+    pluginDb.rpc("csf_seed_synthetic_import_fixture", {
+      p_organization_id: IDS.csfOrg,
+      p_sources: [{
         id: IDS.csfSheetSource,
-        organization_id: IDS.csfOrg,
-        cohort_id: IDS.csfCohort2028,
+        cohortId: IDS.csfCohort2028,
+        // Stated explicitly rather than defaulted: the fixture seam applies
+        // column defaults, but a roster source whose kind, target strategy and
+        // access state were implicit is not the row the workspace reads.
+        sourceType: "student_roster",
+        targetStrategy: "fixed",
+        driveAccessState: "accessible",
         title: "Class of 2028 workbook",
         provider: "google_sheets",
-        spreadsheet_id: "local-csf-sheet-fixture",
-        sheet_url:
+        spreadsheetId: "local-csf-sheet-fixture",
+        sheetUrl:
           "https://docs.google.com/spreadsheets/d/local-csf-sheet-fixture",
-        sync_owner_user_id: users.developer.id,
-        sync_mode: "manual",
-        sync_status: "needs_attention",
-        last_sync_status: "preview_completed",
-        last_sync_error: "2 rows need officer review before commit.",
-        last_previewed_at: "2026-03-18T18:10:00-07:00",
-        last_committed_at: "2026-03-17T17:30:00-07:00",
-        last_synced_at: "2026-03-17T17:30:00-07:00",
-        duplicate_policy: "match_email_then_name",
-        column_mappings: {
+        syncOwnerUserId: users.developer.id,
+        syncMode: "manual",
+        syncStatus: "needs_attention",
+        lastSyncStatus: "preview_completed",
+        lastSyncError: "2 rows need officer review before commit.",
+        lastPreviewedAt: "2026-03-18T18:10:00-07:00",
+        lastCommittedAt: "2026-03-17T17:30:00-07:00",
+        lastSyncedAt: "2026-03-17T17:30:00-07:00",
+        duplicatePolicy: "match_email_then_name",
+        columnMappings: {
           firstName: "First",
           lastName: "Last",
           schoolEmail: "SRVUSD Email",
@@ -822,7 +1162,7 @@ async function main() {
           meetings: "Meeting*",
           requirementsMet: "All Reqs Met?",
         },
-        tab_mappings: [
+        tabMappings: [
           {
             cohortYear: 2028,
             termCode: "S26",
@@ -830,9 +1170,13 @@ async function main() {
             rangeA1: "A1:Z1000",
           },
         ],
-      },
-      { onConflict: "organization_id,cohort_id,title" },
-    ),
+        settings: {
+          sourceKind: "student_roster",
+          mappingVersion: 1,
+          selectedTabs: ["S26"],
+        },
+      }],
+    }),
   );
 
   await must(
@@ -2430,14 +2774,17 @@ async function main() {
 
   await must(
     "csf-expanded-sheet-jobs",
-    pluginDb.from("csf_sheet_import_jobs").upsert([
+    pluginDb.rpc("csf_seed_synthetic_import_fixture", {
+      p_organization_id: IDS.csfOrg,
+      p_jobs: [
       {
         id: IDS.csfSheetJobPreview,
-        organization_id: IDS.csfOrg,
-        source_id: IDS.csfSheetSource,
-        initiated_by: users.csfOfficer.id,
+        sourceId: IDS.csfSheetSource,
+        initiatedBy: users.csfOfficer.id,
         mode: "preview",
         status: "completed",
+        sourceType: "student_roster",
+        mappingVersion: 1,
         summary: {
           rows: 6,
           uniqueProfiles: 5,
@@ -2448,117 +2795,117 @@ async function main() {
           activityCount: 9,
           requirementsMet: 3,
         },
-        started_at: "2026-03-18T18:09:00-07:00",
-        completed_at: "2026-03-18T18:10:00-07:00",
-        created_at: "2026-03-18T18:09:00-07:00",
+        startedAt: "2026-03-18T18:09:00-07:00",
+        completedAt: "2026-03-18T18:10:00-07:00",
       },
       {
         id: IDS.csfSheetJobCommit,
-        organization_id: IDS.csfOrg,
-        source_id: IDS.csfSheetSource,
-        preview_job_id: IDS.csfSheetJobPreview,
-        initiated_by: users.csfOfficer.id,
+        sourceId: IDS.csfSheetSource,
+        previewJobId: IDS.csfSheetJobPreview,
+        initiatedBy: users.csfOfficer.id,
         mode: "commit",
         status: "completed",
+        sourceType: "student_roster",
+        mappingVersion: 1,
         summary: {
           previewJobId: IDS.csfSheetJobPreview,
           committed: 4,
           ambiguous: 1,
           failed: 1,
         },
-        started_at: "2026-03-18T18:11:00-07:00",
-        completed_at: "2026-03-18T18:12:00-07:00",
-        created_at: "2026-03-18T18:11:00-07:00",
+        startedAt: "2026-03-18T18:11:00-07:00",
+        completedAt: "2026-03-18T18:12:00-07:00",
       },
-    ]),
+    ],
+    }),
   );
 
   await must(
     "csf-expanded-sheet-rows",
-    pluginDb.from("csf_sheet_import_rows").upsert([
+    pluginDb.rpc("csf_seed_synthetic_import_fixture", {
+      p_organization_id: IDS.csfOrg,
+      p_rows: [
       {
         id: "10000000-0000-4000-8000-000000000214",
-        organization_id: IDS.csfOrg,
-        job_id: IDS.csfSheetJobPreview,
-        source_id: IDS.csfSheetSource,
-        cohort_id: IDS.csfCohort2028,
-        term_id: IDS.csfTermS26,
-        sheet_tab_name: "S26",
-        row_number: 12,
-        source_range: "'S26'!A1:Z1000",
-        raw_data: {
+        jobId: IDS.csfSheetJobPreview,
+        sourceId: IDS.csfSheetSource,
+        cohortId: IDS.csfCohort2028,
+        termId: IDS.csfTermS26,
+        sheetTabName: "S26",
+        rowNumber: 12,
+        sourceRange: "'S26'!A1:Z1000",
+        rawData: {
           First: "Maya",
           Last: "Patel",
           "SRVUSD Email": "maya.patel28@students.local.test",
           "All Reqs Met?": "TRUE",
         },
-        normalized_data: {
+        normalizedData: {
           firstName: "Maya",
           lastName: "Patel",
           matchBasis: "email",
           schoolEmail: "maya.patel28@students.local.test",
         },
-        row_hash: "local-maya-patel-row",
-        matched_profile_id: IDS.csfProfileComplete,
-        import_status: "updated",
+        rowHash: "local-maya-patel-row",
+        matchedProfileId: IDS.csfProfileComplete,
+        importStatus: "updated",
         warnings: [],
         errors: [],
       },
       {
         id: "10000000-0000-4000-8000-000000000215",
-        organization_id: IDS.csfOrg,
-        job_id: IDS.csfSheetJobPreview,
-        source_id: IDS.csfSheetSource,
-        cohort_id: IDS.csfCohort2028,
-        term_id: IDS.csfTermS26,
-        sheet_tab_name: "S26",
-        row_number: 18,
-        source_range: "'S26'!A1:Z1000",
-        raw_data: {
+        jobId: IDS.csfSheetJobPreview,
+        sourceId: IDS.csfSheetSource,
+        cohortId: IDS.csfCohort2028,
+        termId: IDS.csfTermS26,
+        sheetTabName: "S26",
+        rowNumber: 18,
+        sourceRange: "'S26'!A1:Z1000",
+        rawData: {
           First: "Maya",
           Last: "Patel",
           "SRVUSD Email": "",
           "All Reqs Met?": "TRUE",
         },
-        normalized_data: {
+        normalizedData: {
           firstName: "Maya",
           lastName: "Patel",
           matchBasis: "name",
         },
-        row_hash: "local-maya-patel-ambiguous-row",
-        matched_profile_id: null,
-        import_status: "ambiguous",
+        rowHash: "local-maya-patel-ambiguous-row",
+        matchedProfileId: null,
+        importStatus: "ambiguous",
         warnings: ["Two CSF profiles share this normalized name."],
         errors: [],
       },
       {
         id: "10000000-0000-4000-8000-000000000216",
-        organization_id: IDS.csfOrg,
-        job_id: IDS.csfSheetJobPreview,
-        source_id: IDS.csfSheetSource,
-        cohort_id: IDS.csfCohort2029,
-        term_id: IDS.csfTermS26,
-        sheet_tab_name: "S26",
-        row_number: 24,
-        source_range: "'S26'!A1:Z1000",
-        raw_data: {
+        jobId: IDS.csfSheetJobPreview,
+        sourceId: IDS.csfSheetSource,
+        cohortId: IDS.csfCohort2029,
+        termId: IDS.csfTermS26,
+        sheetTabName: "S26",
+        rowNumber: 24,
+        sourceRange: "'S26'!A1:Z1000",
+        rawData: {
           First: "Sofia",
           Last: "",
           "SRVUSD Email": "sofia.nguyen29@students.local.test",
         },
-        normalized_data: {
+        normalizedData: {
           firstName: "Sofia",
           lastName: "",
           matchBasis: "email",
           schoolEmail: "sofia.nguyen29@students.local.test",
         },
-        row_hash: "local-sofia-incomplete-row",
-        matched_profile_id: IDS.csfProfileMissingHours,
-        import_status: "error",
+        rowHash: "local-sofia-incomplete-row",
+        matchedProfileId: IDS.csfProfileMissingHours,
+        importStatus: "error",
         warnings: ["Row has an incomplete name."],
         errors: ["Row has an incomplete name."],
       },
-    ]),
+    ],
+    }),
   );
 
   await must(
@@ -2652,17 +2999,23 @@ async function main() {
       { onConflict: "id", ignoreDuplicates: true },
     ),
   );
+  } // end DVHS CSF fixtures (isolated and hosted-development modes only)
 
   await must(
     "public-project",
     admin.from("projects").upsert({
       id: IDS.publicProject,
-      creator_id: users.developer.id,
-      organization_id: IDS.nonprofitOrg,
-      title: "Local Community Food Drive",
-      location: "San Ramon Community Center",
-      description:
-        "Public local fixture project for discovery, signup, and plugin platform smoke tests.",
+      creator_id: SEEDS_DVHS_CSF ? users.csfAdmin.id : users.developer.id,
+      organization_id: SEEDS_DVHS_CSF ? IDS.csfOrg : IDS.nonprofitOrg,
+      title: SEEDS_DVHS_CSF
+        ? "Santa Cruz Beach Cleanup"
+        : "Local Community Food Drive",
+      location: SEEDS_DVHS_CSF
+        ? "Santa Cruz Beach Boardwalk Parking"
+        : "San Ramon Community Center",
+      description: SEEDS_DVHS_CSF
+        ? "A community beach cleanup with shoreline teams, a supply table, and recycling support."
+        : "Public local fixture project for discovery, signup, and plugin platform smoke tests.",
       event_type: "oneTime",
       verification_method: "manual",
       schedule: {
@@ -2676,6 +3029,7 @@ async function main() {
       status: "upcoming",
       visibility: "public",
       require_login: false,
+      cover_image_url: "/demo/projects/santa-cruz-beach-cleanup.png",
     }),
   );
 
@@ -2710,6 +3064,9 @@ async function main() {
     email: "platform.admin@local.test",
     role: "admin (all 3 platform orgs)",
     dvPlugin: "catalog enabled; run bun run dv:fixtures for the full workspace",
+    dvhsCsf: SEEDS_DVHS_CSF
+      ? `${PLATFORM_SEED_MODE}: deterministic synthetic DVHS CSF fixtures seeded`
+      : "shared local, non-CSF only: no DVHS CSF record was created, replaced, or deleted",
   });
 }
 

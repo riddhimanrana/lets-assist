@@ -5,13 +5,18 @@ import { loadEnvConfig } from "@next/env";
 import { defineConfig, devices } from "@playwright/test";
 
 import {
+  CSF_ISOLATED_APP_PORT,
   getCsfIsolatedSupabaseEnv,
   inspectCsfIsolatedWorkDir,
 } from "./scripts/local-dev/dv-local-env.mjs";
 
 loadEnvConfig(process.cwd());
 
-const localSupabase = getCsfIsolatedSupabaseEnv();
+// Live status/credential validation bound to the selected isolated stack. The
+// browser child gets its Supabase values from the runner's own validated app
+// environment rather than from here, so nothing is bound: this call exists to
+// refuse a stopped, mismatched, or ambient stack before a single test starts.
+getCsfIsolatedSupabaseEnv();
 const isolatedStack = inspectCsfIsolatedWorkDir(
   process.env.CSF_ISOLATED_WORK_DIR,
 );
@@ -31,8 +36,13 @@ if (
     "CSF_PROFILE_CLAIM_SECRET does not belong to the selected isolated stack.",
   );
 }
-const port = Number(process.env.CSF_E2E_PORT ?? 3113);
-const baseURL = process.env.CSF_E2E_BASE_URL ?? `http://127.0.0.1:${port}`;
+// The isolated app runner owns exactly one port, and the browser suite talks to
+// exactly that port. There is no overridable port or base URL left in this file
+// and no ambient-server fallback: an overridable target meant the browser run
+// could be pointed at a server whose environment nobody validated, which is the
+// same adoption defect the cron harness already refuses.
+const port = CSF_ISOLATED_APP_PORT;
+const baseURL = `http://127.0.0.1:${port}`;
 const artifactRoot = path.join(
   process.cwd(),
   "artifacts",
@@ -71,24 +81,23 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: process.env.CSF_E2E_BASE_URL
-    ? undefined
-    : {
-        command: `bunx next dev --hostname 127.0.0.1 --port ${port}`,
-        url: `${baseURL}/login`,
-        reuseExistingServer: false,
-        timeout: 180_000,
-        env: {
-          ...process.env,
-          NEXT_PUBLIC_SITE_URL: baseURL,
-          GOOGLE_REDIRECT_URI: `${baseURL}/api/calendar/google/callback`,
-          NEXT_PUBLIC_SUPABASE_URL: localSupabase.url,
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: localSupabase.anonKey,
-          SUPABASE_SECRET_KEY: localSupabase.serviceRoleKey,
-          SUPABASE_DB_URL: localSupabase.dbUrl,
-          CSF_PROFILE_CLAIM_SECRET: profileClaimSecret,
-          NEXT_PUBLIC_TURNSTILE_BYPASS: "true",
-          DV_TABROOM_LIVE: "0",
-        },
-      },
+  // One web server, started only through the isolated app runner. The runner
+  // builds its own child environment from the validated marker, so nothing is
+  // spread from this process into it: the two values below are the runner's own
+  // strict inputs, not app configuration.
+  //
+  // `reuseExistingServer: false` matches the runner's exclusive claim model —
+  // the runner refuses an occupied 3000 rather than adopting it, so a reused
+  // server would be a server it never validated.
+  webServer: {
+    command: "bun run csf:dev:isolated",
+    url: `${baseURL}/login`,
+    reuseExistingServer: false,
+    timeout: 180_000,
+    env: {
+      PATH: process.env.PATH ?? "/usr/bin:/bin",
+      HOME: process.env.HOME ?? "",
+      CSF_ISOLATED_WORK_DIR: isolatedStack.workDir,
+    },
+  },
 });

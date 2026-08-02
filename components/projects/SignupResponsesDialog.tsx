@@ -15,7 +15,7 @@ import { FormSchema } from "@/lib/forms/engine";
 interface SignupResponsesDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  responseData: Record<string, any> | null;
+  responseData: Record<string, unknown> | null;
   formSchema: FormSchema | null;
   participantName: string;
 }

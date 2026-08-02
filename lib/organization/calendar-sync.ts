@@ -12,11 +12,10 @@ import {
 } from "@/services/calendar";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { synchronizeCalendarEvents } from "@/lib/organization/calendar-event-sync-core";
+import { syncCsfCalendarProjections } from "@/lib/organization/csf-calendar-sync";
 import { resolveCalendarSyncSources } from "@/lib/organization/calendar-sync-safety";
 import { authorizeGoogleOAuthOrganizationRequest } from "@/lib/auth/google-oauth-authorization";
 import type { Project } from "@/types";
-
-const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
 
 // organization_calendar_events is a generalized binding table: one row per
 // projected occurrence of some published record, tagged by source_kind. This
@@ -138,7 +137,6 @@ export async function syncOrganizationCalendarInternal(
     syncConfig.created_by,
     true,
     {
-      requiredScopes: [CALENDAR_SCOPE],
       connectionType: "calendar",
       expectedBinding: organizationCalendarGoogleBinding(organizationId),
     },
@@ -280,16 +278,8 @@ export async function syncOrganizationCalendarInternal(
         return true;
       },
       markSyncComplete: async () => {
-        const { data, error } = await serviceSupabase
-          .from("organization_calendar_syncs")
-          .update({ last_synced_at: new Date().toISOString() })
-          .eq("organization_id", organizationId)
-          .select("organization_id")
-          .maybeSingle();
-        if (error || !data) {
-          console.error("Failed to record organization calendar sync completion", error);
-          return false;
-        }
+        // Completion covers both project and CSF projections and is recorded
+        // once, after the second reconciler succeeds below.
         return true;
       },
     },
@@ -299,8 +289,36 @@ export async function syncOrganizationCalendarInternal(
     return eventSyncResult;
   }
 
+  const csfSyncResult = await syncCsfCalendarProjections({
+    organizationId,
+    accessToken,
+    calendarId: ensured.calendarId,
+  });
+  if (!csfSyncResult.success) {
+    return csfSyncResult;
+  }
+
+  const { data: completedSync, error: completionError } = await serviceSupabase
+    .from("organization_calendar_syncs")
+    .update({ last_synced_at: new Date().toISOString() })
+    .eq("organization_id", organizationId)
+    .select("organization_id")
+    .maybeSingle();
+  if (completionError || !completedSync) {
+    console.error("Failed to record organization calendar sync completion", completionError);
+    return {
+      success: false,
+      error: "Calendar events synced, but completion could not be recorded",
+    };
+  }
+
   revalidatePath(`/organization/${organizationId}`);
   revalidatePath(`/organization/${organizationId}/settings`);
 
-  return eventSyncResult;
+  return {
+    success: true,
+    createdCount: eventSyncResult.createdCount + csfSyncResult.createdCount,
+    updatedCount: eventSyncResult.updatedCount + csfSyncResult.updatedCount,
+    removedCount: eventSyncResult.removedCount + csfSyncResult.removedCount,
+  };
 }

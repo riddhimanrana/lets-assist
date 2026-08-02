@@ -13,6 +13,10 @@ import {
   authorizeGoogleOAuthOrganizationRequest,
   googleOAuthAuthorizationError,
 } from "@/lib/auth/google-oauth-authorization";
+import {
+  hasGoogleCalendarWriteScope,
+  hasGoogleDriveFileScope,
+} from "@/lib/auth/google-oauth-scopes";
 import { NextRequest, NextResponse } from "next/server";
 import { encrypt } from "@/lib/encryption";
 import { ensureOrganizationCalendar } from "@/services/calendar";
@@ -191,12 +195,8 @@ export async function GET(request: NextRequest) {
     const grantedScopes =
       typeof tokens.scope === "string" ? tokens.scope : null;
     // Determine connection type based on granted scopes
-    const hasSheetsScopes =
-      !!grantedScopes &&
-      grantedScopes.includes("https://www.googleapis.com/auth/drive.file");
-    const hasCalendarScopes = Boolean(
-      grantedScopes && grantedScopes.includes("calendar"),
-    );
+    const hasSheetsScopes = hasGoogleDriveFileScope(grantedScopes);
+    const hasCalendarScopes = hasGoogleCalendarWriteScope(grantedScopes);
     const requiresSheetsScopes =
       stateData.purpose === "personal_sheets" ||
       stateData.purpose === "organization_sheets" ||

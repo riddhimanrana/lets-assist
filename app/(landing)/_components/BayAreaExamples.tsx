@@ -39,7 +39,7 @@ export default function BayAreaExamples() {
     <section id="partners" className="border-y bg-muted/20 py-12 sm:py-16">
       <div className="container mx-auto px-4 sm:px-6">
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center">
-          <h3 className="font-nohemi text-2xl font-semibold tracking-normal text-foreground sm:text-3xl">
+          <h3 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             Built for clubs, schools, and community teams
           </h3>
           <p className="max-w-xl font-sans text-sm leading-6 text-muted-foreground">

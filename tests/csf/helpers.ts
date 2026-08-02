@@ -167,6 +167,16 @@ export function expectNoBrowserFailures(failures: string[]) {
   expect(failures, failures.join("\n")).toEqual([]);
 }
 
+export async function soleAccessibleAction(page: Page, name: string) {
+  const action = page.getByRole("button", { name, exact: true });
+  await expect(
+    action,
+    `Expected exactly one accessible "${name}" action`,
+  ).toHaveCount(1);
+  await expect(action).toBeVisible();
+  return action;
+}
+
 export async function expectNoHorizontalOverflow(page: Page) {
   const dimensions = await page.evaluate(() => ({
     documentWidth: document.documentElement.scrollWidth,

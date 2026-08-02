@@ -459,7 +459,7 @@ export default function ReportsTab({
   }, [organizationId, sheetMetadata, sheetReportType, sheetTabName, rangeA1, layoutConfig, handleLoadSheetStatus]);
 
   const loadGoogleApi = useCallback(() => {
-    const win = window as any as GoogleApiWindow;
+    const win = window as unknown as GoogleApiWindow;
     if (win.gapi?.load) return Promise.resolve(true);
 
     return new Promise<boolean>((resolve, reject) => {
@@ -482,7 +482,7 @@ export default function ReportsTab({
   }, []);
 
   const initPicker = useCallback(async () => {
-    const win = window as any as GoogleApiWindow;
+    const win = window as unknown as GoogleApiWindow;
     if (win.google?.picker) {
       setPickerReady(true);
       return true;
@@ -528,7 +528,7 @@ export default function ReportsTab({
         return;
       }
 
-      const win = window as any as GoogleApiWindow;
+      const win = window as unknown as GoogleApiWindow;
       const google = win.google;
       if (!google?.picker) {
         setSetupError("Google Picker is not available.");

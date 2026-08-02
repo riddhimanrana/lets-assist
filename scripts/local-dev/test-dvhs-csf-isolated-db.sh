@@ -48,15 +48,41 @@ if [[ -e "${TMP_DIR}" ]]; then
 fi
 OWNERSHIP_MARKER="${TMP_DIR}/.lets-assist-csf-replay-owned"
 
+probe_loopback_port() {
+  node - "$1" <<'NODE'
+const { createServer } = require("node:net");
+
+const port = Number(process.argv[2]);
+if (!Number.isInteger(port) || port < 1 || port > 65535) process.exit(2);
+
+const probe = createServer();
+probe.once("error", (error) => {
+  process.exitCode = error?.code === "EADDRINUSE" ? 1 : 2;
+});
+probe.listen({ host: "127.0.0.1", port, exclusive: true }, () => {
+  probe.close((error) => {
+    process.exitCode = error ? 2 : 0;
+  });
+});
+NODE
+}
+
 ports_are_available() {
   local candidate="$1"
-  local offset port
+  local offset port probe_status
 
   for offset in 0 1 2 3 4 5 6 7 9; do
     port=$((candidate + offset))
-    if lsof -nP -iTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1; then
-      return 1
-    fi
+    probe_status=0
+    probe_loopback_port "${port}" || probe_status=$?
+    case "${probe_status}" in
+      0) ;;
+      1) return 1 ;;
+      *)
+        echo "Could not verify whether loopback port ${port} is available; refusing to start." >&2
+        return 2
+        ;;
+    esac
   done
 
   return 0
@@ -64,14 +90,24 @@ ports_are_available() {
 
 if [[ -z "${CSF_REPLAY_BASE_PORT:-}" ]]; then
   for _attempt in $(seq 1 50); do
-    if ports_are_available "${BASE_PORT}"; then
+    port_status=0
+    ports_are_available "${BASE_PORT}" || port_status=$?
+    if ((port_status == 0)); then
       break
+    fi
+    if ((port_status != 1)); then
+      exit "${port_status}"
     fi
     BASE_PORT=$((BASE_PORT + 10))
   done
 fi
 
-if ! ports_are_available "${BASE_PORT}"; then
+port_status=0
+ports_are_available "${BASE_PORT}" || port_status=$?
+if ((port_status != 0)); then
+  if ((port_status != 1)); then
+    exit "${port_status}"
+  fi
   echo "No free isolated Supabase port range was found near ${BASE_PORT}." >&2
   echo "Set CSF_REPLAY_BASE_PORT to an unused base port and retry." >&2
   exit 1
