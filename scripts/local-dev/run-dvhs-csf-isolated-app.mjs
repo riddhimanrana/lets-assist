@@ -296,6 +296,12 @@ export function buildIsolatedChildEnvironment(options) {
   // Mailpit" can never stand in for "no provider was contacted".
   childEnv.CRON_EGRESS_SMTP_PORTS = String(isolated.smtpPort);
   if (mode === "isolated-app") {
+    // The status endpoint requires a cron secret in production mode. Give the
+    // provider-disabled browser app a fresh local-only value so its health
+    // check reflects the healthy isolated database instead of reporting a
+    // configuration outage. No worker is enabled and the value is never
+    // inherited from the operator or a repository env file.
+    childEnv.CRON_SECRET = randomBytes(32).toString("hex");
     childEnv.CRON_EGRESS_ALLOWED_SMTP_PORTS = String(isolated.smtpPort);
     // Loopback Supabase, loopback database, loopback Mailpit, and the local app.
     // Nothing else, not even another loopback port.
