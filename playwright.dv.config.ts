@@ -18,13 +18,17 @@ const isolatedStack = inspectCsfIsolatedWorkDir(
 // environment, which meant the DV browser run reached whatever providers that
 // shell happened to be configured for.
 const port = CSF_ISOLATED_APP_PORT;
-const baseURL = `http://127.0.0.1:${port}`;
+// Match the canonical origin written into the generated Supabase/Auth config.
+// Mixing 127.0.0.1 browser cookies with a localhost canonical origin made the
+// first SSR request after sign-in intermittently fall back to /login.
+const baseURL = `http://localhost:${port}`;
 
 export default defineConfig({
   testDir: "./tests/dv",
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
+  globalTimeout: process.env.CI ? 300_000 : undefined,
   workers: 1,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {

@@ -221,7 +221,7 @@ function seedFixturesOnce(workDir, password) {
 
 function printHandoff(workDir, password) {
   console.log("\nDVHS CSF local workspace is ready");
-  console.log("  app      : http://127.0.0.1:3000/login");
+  console.log("  app      : http://localhost:3000/login");
   console.log(`  work dir : ${workDir}`);
   console.log(`  password : ${password}`);
   console.log("  officer  : csf.officer@local.test (CSF Officer)");

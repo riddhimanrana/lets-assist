@@ -172,8 +172,21 @@ describe("the isolated app child environment is built, not inherited", () => {
     ]);
 
     expect(new Set(Object.keys(childEnv))).toEqual(expected);
-    expect(childEnv.NEXT_DIST_DIR).toBe(".next-csf-isolated");
+    expect(childEnv.NEXT_DIST_DIR).toBe(".next-csf-isolated/browser-app");
     expect(childEnv.CSF_LOCAL_FIXTURE_MODE).toBe("1");
+  });
+
+  test("separates abruptly terminated cron output from browser output", () => {
+    const { childEnv: browserEnv } = build();
+    const { childEnv: cronEnv } = build({
+      mode: "cron-probe",
+      secret: "run-scoped-cron-secret",
+      probeMode: "authenticated-empty",
+    });
+
+    expect(browserEnv.NEXT_DIST_DIR).toBe(".next-csf-isolated/browser-app");
+    expect(cronEnv.NEXT_DIST_DIR).toBe(".next-csf-isolated/cron-probe");
+    expect(cronEnv.NEXT_DIST_DIR).not.toBe(browserEnv.NEXT_DIST_DIR);
   });
 
   test("the validated local Supabase values stay exact", () => {
