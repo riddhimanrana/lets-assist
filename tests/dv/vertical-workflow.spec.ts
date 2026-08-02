@@ -28,16 +28,22 @@ test("approved student can open the current seasonal membership workspace", asyn
       `/organization/${ORGANIZATION_SLUG}/plugins/dv-speech-debate`,
     )}`,
   );
-  await page.getByRole("textbox", { name: "Email" }).fill(STUDENT_EMAIL);
-  await page.getByLabel("Password").fill(password);
-  await page
-    .getByRole("main")
-    .getByRole("button", { name: "Login", exact: true })
-    .click();
-
-  await expect(page).toHaveURL(
-    new RegExp(`/organization/${ORGANIZATION_SLUG}/plugins/dv-speech-debate`),
-  );
+  const main = page.getByRole("main");
+  // The server-rendered form is intentionally inert until LoginClient hydrates.
+  // Filling controlled fields before these markers are present can lose the
+  // values or submit without the client auth handler on a slower CI compiler.
+  await expect(main.locator('form[data-hydrated="true"]')).toBeVisible();
+  await expect(main.getByText("Secure check ready", { exact: true })).toBeVisible();
+  const email = main.getByRole("textbox", { name: "Email" });
+  await email.fill(STUDENT_EMAIL);
+  await main.getByLabel("Password").fill(password);
+  await expect(email).toHaveValue(STUDENT_EMAIL);
+  const expectedPath = `/organization/${ORGANIZATION_SLUG}/plugins/dv-speech-debate`;
+  await main.getByRole("button", { name: "Login", exact: true }).click();
+  await page.waitForURL((url) => url.pathname === expectedPath, {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
   await expect(
     page.getByRole("heading", { name: /DV Speech & Debate/i }).first(),
   ).toBeVisible();
