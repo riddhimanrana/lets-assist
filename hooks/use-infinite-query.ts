@@ -9,34 +9,36 @@ import { useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
 // Create a temporary client just for type inference
 type SupabaseClientType = ReturnType<typeof createClient>
 
+type GenericTable = {
+  Row: Record<string, unknown>
+  Insert: Record<string, unknown>
+  Update: Record<string, unknown>
+  Relationships: []
+}
+
+type GenericFunction = {
+  Args: Record<string, unknown>
+  Returns: unknown
+}
+
+type GenericDatabase = {
+  public: {
+    Tables: Record<string, GenericTable>
+    Views: Record<string, GenericTable>
+    Functions: Record<string, GenericFunction>
+  }
+}
+
 // Utility type to check if the type is any
 type IfAny<T, Y, N> = 0 extends 1 & T ? Y : N
 type Database =
   SupabaseClientType extends SupabaseClient<infer U>
     ? IfAny<
         U,
-        {
-          public: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            Tables: Record<string, any>
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            Views: Record<string, any>
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            Functions: Record<string, any>
-          }
-        },
+        GenericDatabase,
         U
       >
-    : {
-        public: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          Tables: Record<string, any>
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          Views: Record<string, any>
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          Functions: Record<string, any>
-        }
-      }
+    : GenericDatabase
 
 type DatabaseSchema = Database['public']
 type SupabaseTableName = keyof DatabaseSchema['Tables']
@@ -148,8 +150,7 @@ function createStore<TData extends SupabaseTableData<T>, T extends SupabaseTable
 
       if (error) {
       console.error('An unexpected error occurred:', error)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setState({ error: error as any })
+      setState({ error: new Error(error.message, { cause: error }) })
     } else {
       setState({
          
@@ -245,18 +246,6 @@ function createStore<TData extends SupabaseTableData<T>, T extends SupabaseTable
   }
 }
 
-// Global initial state to avoid hydration mismatch
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const initialState: any = {
-  data: [],
-  count: 0,
-  isSuccess: false,
-  isLoading: false,
-  isFetching: false,
-  error: null,
-  hasInitialFetch: false,
-}
-
 function useInfiniteQuery<
   TData extends SupabaseTableData<T>,
   T extends SupabaseTableName = SupabaseTableName,
@@ -267,11 +256,15 @@ function useInfiniteQuery<
   if (!storeRef.current) {
     storeRef.current = createStore<TData, T>(props)
   }
+  const serverSnapshotRef = useRef<StoreState<TData, T> | null>(null)
+  if (!serverSnapshotRef.current) {
+    serverSnapshotRef.current = storeRef.current.getState()
+  }
 
   const state = useSyncExternalStore(
     storeRef.current.subscribe,
     () => storeRef.current!.getState(),
-    () => initialState as StoreState<TData, T>
+    () => serverSnapshotRef.current!
   )
 
   // Update store props when they change

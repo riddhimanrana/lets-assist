@@ -46,12 +46,17 @@ SELECT extensions.ok(
   'authenticated clients cannot normalize imported CSF credit'
 );
 SELECT extensions.ok(
-  has_function_privilege(
+  -- 20260730001004 revoked direct service access on purpose: the fenced wrapper
+  -- plugin_data.csf_commit_import_row_for_attempt is the only reachable central
+  -- import path. It is SECURITY DEFINER and owned, so it still calls this RPC, and
+  -- the behavior assertions below still exercise it because pgTAP runs as the
+  -- migration owner rather than as service_role.
+  NOT has_function_privilege(
     'service_role',
     'plugin_data.csf_import_class_history_row_v2(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,jsonb,boolean,uuid)',
     'EXECUTE'
   ),
-  'the server role can atomically normalize imported CSF credit'
+  'the server role cannot bypass the fenced wrapper to normalize imported CSF credit directly'
 );
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -70,12 +75,14 @@ SELECT extensions.ok(
   'authenticated clients cannot import a CSF student roster'
 );
 SELECT extensions.ok(
-  has_function_privilege(
+  -- Revoked by 20260730001004 for the same reason as the class-history v2 RPC
+  -- above: the fenced wrapper owns the only reachable central import path.
+  NOT has_function_privilege(
     'service_role',
     'plugin_data.csf_import_student_roster_row(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,text,uuid)',
     'EXECUTE'
   ),
-  'the server role can atomically import a CSF student roster'
+  'the server role cannot bypass the fenced wrapper to import a CSF student roster directly'
 );
 
 INSERT INTO auth.users (

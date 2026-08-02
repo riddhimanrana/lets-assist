@@ -3,6 +3,7 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/services/email";
 import ProjectCancellation from "@/emails/project-cancellation";
 import * as React from "react";
+import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 
 type JobStatus = "pending" | "processing" | "completed" | "failed";
 
@@ -22,11 +23,23 @@ type SignupRow = {
   id: string;
   user_id: string | null;
   anonymous_id: string | null;
-  // Join aliases; shapes depend on PostgREST response.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  user?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  anonymous_signup?: any;
+  user?: Array<{ email: string | null; full_name: string | null }> | null;
+  anonymous_signup?: Array<{ email: string | null; name: string | null }> | null;
+};
+
+type CancellationNotificationInsert = {
+  user_id: string;
+  title: string;
+  body: string;
+  type: "project_updates";
+  severity: "warning";
+  action_url: string;
+  data: {
+    projectId: string;
+    event: "project_cancelled";
+    cancelledAt: string;
+  };
+  displayed: false;
 };
 
 type NotificationSettingsRow = {
@@ -191,7 +204,7 @@ async function processOneJob(job: CancellationJobRow) {
   const errors: string[] = [];
 
   const emailPromises: Promise<void>[] = [];
-  const notificationsToInsert: any[] = [];
+  const notificationsToInsert: CancellationNotificationInsert[] = [];
 
   for (let i = 0; i < signupRows.length; i++) {
     const signup = signupRows[i];
@@ -199,10 +212,8 @@ async function processOneJob(job: CancellationJobRow) {
     let email: string | null = null;
     let name = "Volunteer";
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userJoin: any = (signup as any).user;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const anonJoin: any = (signup as any).anonymous_signup;
+    const userJoin = signup.user?.[0];
+    const anonJoin = signup.anonymous_signup?.[0];
 
     if (signup.user_id && userJoin) {
       email = userJoin.email ?? null;
@@ -338,6 +349,11 @@ export async function POST(request: NextRequest) {
   const auth = isAuthorized(request);
   if (!auth.ok) return auth.response;
 
+  // Strictly after real authentication and before the worker-enable check,
+  // getAdminClient(), any query, any email, and processPendingJobs().
+  const probe = cronAuthShapeProbe("project-cancellations", request);
+  if (probe) return probe;
+
   if (!isWorkerEnabled()) {
     return NextResponse.json(
       { message: "Project cancellation worker is disabled" },
@@ -367,6 +383,9 @@ export async function GET(request: NextRequest) {
   if (request.nextUrl.searchParams.get("status") === "1") {
     const auth = isAuthorized(request);
     if (!auth.ok) return auth.response;
+
+    const probe = cronAuthShapeProbe("project-cancellations", request);
+    if (probe) return probe;
 
     return NextResponse.json(
       {

@@ -112,7 +112,7 @@ export default function OrganizationHeader({
             </Avatar>
             {organization.verified && (
               <div className="absolute -bottom-0.5 -right-0.5 bg-background rounded-full shadow-sm border flex items-center justify-center p-0.5 md:hidden">
-                <BadgeCheck className="h-4 w-4 text-primary fill-background" />
+                <BadgeCheck className="h-4 w-4 text-primary fill-background" aria-hidden="true" />
               </div>
             )}
           </div>
@@ -125,6 +125,7 @@ export default function OrganizationHeader({
               {organization.verified && (
                 <BadgeCheck
                   className="hidden md:block h-6 w-6 text-primary"
+                  aria-hidden="true"
                 />
               )}
             </div>
@@ -173,7 +174,7 @@ export default function OrganizationHeader({
                     compact && "min-w-0",
                   )}
                 >
-                  <GlobeIcon className={cn("h-3.5 w-3.5", compact && "shrink-0")} />
+                  <GlobeIcon className={cn("h-3.5 w-3.5", compact && "shrink-0")} aria-hidden="true" />
                   <span className={cn(compact && "truncate")}>
                     {formatOrganizationWebsiteDisplay(organization.website)}
                   </span>
@@ -182,7 +183,7 @@ export default function OrganizationHeader({
 
               {showMemberCount ? (
                 <div className={cn("flex items-center gap-1", compact && "shrink-0 whitespace-nowrap")}>
-                  <UsersIcon className="h-3.5 w-3.5" />
+                  <UsersIcon className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>{memberCount} {memberCount === 1 ? 'Member' : 'Members'}</span>
                 </div>
               ) : null}
@@ -202,7 +203,7 @@ export default function OrganizationHeader({
             className={cn(compact ? "w-auto shrink-0" : "w-full sm:w-auto")}
             onClick={handleShare}
           >
-            <Share2 className="mr-2 h-4 w-4" />
+            <Share2 className="mr-2 h-4 w-4" aria-hidden="true" />
             Share
           </Button>
 
@@ -213,7 +214,7 @@ export default function OrganizationHeader({
               className={cn(compact ? "w-auto shrink-0" : "w-full sm:w-auto")}
               onClick={() => setShowJoinCode(true)}
             >
-              <UsersIcon className="mr-2 h-4 w-4" />
+              <UsersIcon className="mr-2 h-4 w-4" aria-hidden="true" />
               Invite
             </Button>
           )}
@@ -230,7 +231,7 @@ export default function OrganizationHeader({
                 }
               })}
             >
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
               Join
             </Button>
           )}
@@ -241,7 +242,7 @@ export default function OrganizationHeader({
               size="sm"
               className={cn(compact ? "w-auto shrink-0" : "w-full sm:w-auto")}
             >
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
               Project
             </Button>
           )}

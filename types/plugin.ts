@@ -12,6 +12,11 @@ export interface OrganizationWithRole extends Organization {
   role: OrganizationPluginAccessRole;
 }
 
+export interface OrganizationPluginLifecycleOrganization {
+  id: string;
+  role: OrganizationPluginAccessRole;
+}
+
 /**
  * Plugin permission scopes for granular access control
  */
@@ -213,6 +218,7 @@ export interface SignupFormField {
   type: "text" | "email" | "tel" | "select" | "checkbox" | "textarea" | "number";
   label: string;
   placeholder?: string;
+  helpText?: string;
   required?: boolean;
   options?: Array<{ value: string; label: string }>;  // For select type
   validation?: {
@@ -294,7 +300,10 @@ export interface ProjectCreateAdditionalStep {
   title: string;
   description?: string;
   content: ReactNode;
-  validate?: () => Promise<{ valid: boolean; errors?: any }>;
+  validate?: () => Promise<{
+    valid: boolean;
+    errors?: Array<{ field?: string; message: string }>;
+  }>;
   onComplete?: () => Promise<void>;
 }
 
@@ -411,7 +420,7 @@ export interface OrganizationPluginPageProps {
  * Context passed to lifecycle hooks
  */
 export interface OrganizationPluginLifecycleContext {
-  organization: OrganizationWithRole;
+  organization: OrganizationPluginLifecycleOrganization;
   pluginKey: string;
   config?: Record<string, unknown>;
   previousConfig?: Record<string, unknown>;
@@ -474,7 +483,7 @@ export interface OrganizationPluginLifecycleHooks {
   onProjectCreate?: (
     context: OrganizationPluginLifecycleContext & {
       projectId: string;
-      pluginData?: Record<string, any>;
+      pluginData?: Record<string, unknown>;
     },
   ) => Promise<void>;
 
@@ -499,7 +508,7 @@ export interface OrganizationPluginLifecycleHooks {
       signupId: string;
       userId?: string | null;
       anonymousId?: string | null;
-      formData?: Record<string, any> | null;
+      formData?: Record<string, unknown> | null;
     },
   ) => Promise<void>;
 }

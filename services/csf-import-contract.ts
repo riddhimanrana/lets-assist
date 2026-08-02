@@ -13,6 +13,22 @@ export const CSF_IMPORT_PROVIDERS = [
   "legacy_export",
 ] as const;
 
+/**
+ * The provider families whose evidence semantics this contract actually
+ * defines.
+ *
+ * `CSF_IMPORT_PROVIDERS` is the historical enumeration of families the plugin
+ * may one day acquire from. It is NOT a statement that each of them has a
+ * checkable provenance model: `google_drive`, `gmail_attachment` and
+ * `legacy_export` have no adapter, so there is no answer to "what is this
+ * family's file identity, revision and time, and how does a later gate verify
+ * them". Accepting one of those here would record a snapshot whose source
+ * evidence nothing downstream can bind, which is exactly the fail-open the
+ * exact-coordinate contract exists to close. They fail closed until their
+ * adapters define those semantics.
+ */
+export const CSF_IMPORT_IMPLEMENTED_PROVIDERS = ["google_sheets", "uploaded_file"] as const;
+
 export const CSF_IMPORT_SENSITIVITIES = [
   "public",
   "internal",
@@ -21,6 +37,7 @@ export const CSF_IMPORT_SENSITIVITIES = [
 ] as const;
 
 export type CsfImportProvider = (typeof CSF_IMPORT_PROVIDERS)[number];
+export type CsfImportImplementedProvider = (typeof CSF_IMPORT_IMPLEMENTED_PROVIDERS)[number];
 export type CsfImportSensitivity = (typeof CSF_IMPORT_SENSITIVITIES)[number];
 export type CsfImportTermSelection = "officer_selected" | "published_policy";
 export type CsfImportTabVisibility = "visible" | "hidden" | "very_hidden";
@@ -35,12 +52,51 @@ export type CsfImportJsonValue =
 export type CsfImportJsonObject = { readonly [key: string]: CsfImportJsonValue };
 
 export type CsfImportSourceInput = {
-  provider: CsfImportProvider;
+  /**
+   * The acquired family, which selects the evidence grammar below. Only the
+   * two families with adapters are accepted; see
+   * {@link CSF_IMPORT_IMPLEMENTED_PROVIDERS}.
+   */
+  provider: CsfImportImplementedProvider;
+  /**
+   * Exact provider file identity, as written.
+   *
+   * `google_sheets`: the opaque Sheet id the provider itself returned.
+   * `uploaded_file`: the claimed staging object's canonical lowercase UUID.
+   *
+   * Never trimmed, never case-folded. A padded identifier is a coordinate whose
+   * recorded spelling is not the coordinate, and repairing it here would
+   * manufacture the agreement every later gate exists to test.
+   */
   fileId: string;
-  revision?: string | null;
-  modifiedAt?: string | Date | null;
+  /**
+   * Exact freshness revision, required, and family-specific:
+   *
+   * `google_sheets`: Drive's `version`, as canonical bounded positive decimal
+   *   int64 TEXT. A Docs Editors file has no content revision at all, so this
+   *   is the only coordinate that moves when a Sheet is edited.
+   * `uploaded_file`: the WHOLE-FILE lowercase sha256 of the claimed bytes.
+   *
+   * Deliberately not optional and deliberately not interchangeable. The
+   * predecessor accepted "a revision or a modifiedAt, either will do", which
+   * let a Google source carry an sha256, an upload carry a Drive version, and
+   * either carry nothing but a timestamp.
+   */
+  revision: string;
+  /**
+   * Exact source time, required, and family-specific:
+   *
+   * `google_sheets`: Drive's own `modifiedTime` output spelling (UTC `Z`, with
+   *   a fractional part of exactly 0, 3, 6 or 9 digits).
+   * `uploaded_file`: the staging object's `readyAt`, as the database renders it.
+   *
+   * Returned in the exact spelling it was validated in. Re-rendering it through
+   * `Date` would silently drop sub-millisecond digits the stored column keeps.
+   */
+  modifiedAt: string;
   contentHash: {
     algorithm: "sha256";
+    /** Canonical LOWERCASE sha256 hex, as written. Never folded into validity. */
     value: string;
     scope: "file" | "selected_range";
   };
@@ -101,10 +157,10 @@ export type CsfImportWarningCode =
 export type CsfNormalizedImportSnapshot = {
   readonly contractVersion: typeof CSF_IMPORT_CONTRACT_VERSION;
   readonly source: {
-    readonly provider: CsfImportProvider;
+    readonly provider: CsfImportImplementedProvider;
     readonly fileId: string;
-    readonly revision: string | null;
-    readonly modifiedAt: string | null;
+    readonly revision: string;
+    readonly modifiedAt: string;
     readonly contentHash: {
       readonly algorithm: "sha256";
       readonly value: string;
@@ -201,6 +257,47 @@ const SAFE_DIAGNOSTIC_KEY = /^[A-Za-z][A-Za-z0-9_]{0,63}$/u;
 const ALLOWLIST_PATH =
   /^[A-Za-z][A-Za-z0-9_]*(?:\[\])?(?:\.[A-Za-z][A-Za-z0-9_]*(?:\[\])?)*$/u;
 const SHA256_HEX = /^[a-f0-9]{64}$/u;
+/**
+ * A claimed staging object's own primary key: canonical lowercase 8-4-4-4-12.
+ *
+ * An uploaded workbook's file identity is the staging generation the preview
+ * claimed, never the source row's mutable `uploaded_file_path`. Anything that
+ * is not this shape is not an identity the commit boundary can bind.
+ */
+const STAGING_OBJECT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+/**
+ * Edge padding DETECTION for an exact coordinate. Never repair.
+ *
+ * The three properties are named rather than approximated: `\s` misses U+0085,
+ * ECMAScript `trim()` misses U+200B and NUL, and `Cf` is where the invisible
+ * formatting characters live. Only the EDGES are refused -- an opaque provider
+ * identifier stays opaque, so an ordinary internal character is not this
+ * boundary's business.
+ */
+const EDGE_PADDING = /^[\p{White_Space}\p{Cc}\p{Cf}]|[\p{White_Space}\p{Cc}\p{Cf}]$/u;
+/** A positive decimal integer with no sign, no leading zero, no separators. */
+const PROVIDER_VERSION_SHAPE = /^[1-9][0-9]*$/u;
+/** Drive documents `version` as an int64. This is its exact ceiling as text. */
+const PROVIDER_VERSION_MAX = "9223372036854775807";
+/**
+ * Drive's OWN output spelling for `modifiedTime`: UTC `Z`, with a fractional
+ * part of exactly 0, 3, 6 or 9 digits. A `+00:00`, a `-00:00` or a `.1234` is
+ * not something the provider produced, so accepting one would accept a
+ * coordinate authored somewhere between the provider and this contract.
+ */
+const DRIVE_INSTANT =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{3}|\d{6}|\d{9}))?Z$/u;
+/**
+ * A staging object's `readyAt`, which is a database `timestamptz` rendering
+ * rather than provider text: PostgREST writes `+00:00`, PostgreSQL's own text
+ * output may use a space separator and abbreviate a whole-hour offset. All of
+ * those name an instant, so all are read -- but the zone must be EXPLICIT and
+ * real, and the value must be unpadded.
+ */
+const STORED_INSTANT =
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}(?::?\d{2})?)$/u;
+/** Gregorian month lengths. February is decided by the year, not this table. */
+const MONTH_LENGTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const URL_VALUE = /(?:https?|ftp):\/\/|mailto:|(?:^|\s)www\./iu;
 const FORMULA_VALUE = /^(?:=|\+|@)|^-\s*[A-Za-z(@=+]/u;
 const RAW_MARKUP_VALUE = /^\s*(?:<!doctype\s+html|<html\b|<script\b|<iframe\b)/iu;
@@ -238,8 +335,188 @@ export function hashCsfImportContent(input: string | Uint8Array) {
   return sha256(input);
 }
 
+/**
+ * The ONE ordering rule every persisted CSF import digest depends on:
+ * deterministic UTF-16 code-unit comparison.
+ *
+ * `String.prototype.localeCompare` with no locale argument uses the HOST's
+ * default collation, which is an ambient input. ICU orders `a` before `A` in
+ * most locales and after it in some, treats punctuation and combining marks as
+ * ignorable at the primary strength, and tailors per language -- so a
+ * selected-range manifest, a child manifest, a normalized row array or a
+ * warnings list sorted on one machine could come out in a different order on
+ * another, and the digest built over it would differ for one identical workbook.
+ * A content address that depends on the machine that computed it is not a
+ * content address.
+ *
+ * `<` and `>` on strings ARE the UTF-16 code-unit ordering the language
+ * specifies, with no locale input at all. This is deliberately NOT "alphabetical
+ * for a human": these arrays are hashed, not displayed, and the only property
+ * required is a total order every runtime agrees on. Ordering meant for an
+ * officer to read belongs at the presentation boundary, not here.
+ */
+export function compareCsfImportCodeUnits(left: string, right: string): number {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+}
+
+/**
+ * The one canonical-form failure. Separate from a plain TypeError so the
+ * boundary can tell "this value cannot be canonicalized" apart from every other
+ * validation error and refuse before anything is hashed or stored.
+ */
+export class CsfCanonicalFormError extends TypeError {
+  constructor(message: string) {
+    super(message);
+    this.name = "CsfCanonicalFormError";
+  }
+}
+
+/**
+ * Keys a canonical record may carry.
+ *
+ * Deliberately ASCII-only. JCS orders object members by UTF-16 code unit, and
+ * PostgreSQL has no UTF-16 collation -- for ASCII, `COLLATE "C"` byte order and
+ * UTF-16 order are the same sequence, so restricting the key charset is what
+ * makes the two implementations provably agree instead of agreeing by luck.
+ * String *values* are unrestricted; only key spelling is narrowed.
+ */
+const CANONICAL_KEY = /^[A-Za-z][A-Za-z0-9_]{0,63}$/u;
+
+/**
+ * RFC 8785 §3.2.2.3 number serialization: ECMAScript `Number::toString`.
+ *
+ * For a finite double `String(value)` *is* that algorithm, so this does not
+ * reimplement it -- it only enforces the two preconditions JCS states, because
+ * a non-finite value has no JSON spelling at all and `-0` and `0` are the same
+ * number but not the same text.
+ */
+export function csfCanonicalNumber(value: number): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new CsfCanonicalFormError(
+      `A canonical number must be a finite IEEE-754 double; received ${String(value)}.`,
+    );
+  }
+  return String(Object.is(value, -0) ? 0 : value);
+}
+
+/**
+ * The exact decimal value a JSON number *literal* denotes, before any rounding.
+ *
+ * Exact, not shortest: `1.0000000000000001` and `1` have the same shortest
+ * spelling but different exact values, and telling those apart is the entire
+ * job here.
+ */
+// Written as constructor calls rather than `0n` literals: this module compiles
+// under a target below ES2020, where BigInt *literals* are a syntax error but
+// the BigInt function is available.
+const BIG_ZERO = BigInt(0);
+const BIG_TEN = BigInt(10);
+
+/** Strip trailing decimal zeros so two spellings of one exact value compare equal. */
+function normalizeExactDecimal(input: { negative: boolean; digits: bigint; exponent: number }) {
+  let { digits, exponent } = input;
+  if (digits === BIG_ZERO) return { negative: false, digits: BIG_ZERO, exponent: 0 };
+  while (digits % BIG_TEN === BIG_ZERO) {
+    digits /= BIG_TEN;
+    exponent += 1;
+  }
+  return { negative: input.negative, digits, exponent };
+}
+
+const JSON_NUMBER_LITERAL = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/u;
+
+/** The exact decimal value a JSON number *literal* denotes, before any rounding. */
+function exactDecimalOfLiteral(literal: string) {
+  if (!JSON_NUMBER_LITERAL.test(literal)) {
+    throw new CsfCanonicalFormError(`"${literal}" is not a JSON number literal.`);
+  }
+  const negative = literal.startsWith("-");
+  const unsigned = negative ? literal.slice(1) : literal;
+  const [mantissa, exponentText = "0"] = unsigned.split(/[eE]/u);
+  const [integerPart, fractionPart = ""] = mantissa.split(".");
+  return normalizeExactDecimal({
+    negative,
+    digits: BigInt(`${integerPart}${fractionPart}`),
+    exponent: Number.parseInt(exponentText, 10) - fractionPart.length,
+  });
+}
+
+/**
+ * Whether a JSON number literal survives binary64 unchanged.
+ *
+ * A literal PostgreSQL can hold exactly in `numeric` but JavaScript silently
+ * rounds -- `9007199254740993`, `1.0000000000000001` -- is not a number the two
+ * sides can agree on. Accepting it would produce two different canonical
+ * strings for one stored row, so it is refused before anything is hashed rather
+ * than allowed to collide.
+ */
+export function isCsfCanonicalNumberLiteral(literal: string): boolean {
+  const parsed = Number(literal);
+  if (!Number.isFinite(parsed)) return false;
+
+  // Round-trip through the canonical spelling and compare EXACT decimal values,
+  // not spellings. Comparing spellings would reject `1e-6`, which canonicalizes
+  // to `0.000001` and is a perfectly good literal; comparing the literal against
+  // the double's own exact binary value would reject `0.1`, whose exact double
+  // is 0.1000000000000000055511151231257827. What matters is only whether the
+  // literal and its canonical form denote the same number.
+  const fromLiteral = exactDecimalOfLiteral(literal);
+  const fromCanonical = exactDecimalOfLiteral(csfCanonicalNumber(parsed));
+  return (
+    fromLiteral.digits === fromCanonical.digits &&
+    fromLiteral.exponent === fromCanonical.exponent &&
+    // -0 and 0 denote one number, so their signs are allowed to differ.
+    (fromLiteral.digits === BIG_ZERO || fromLiteral.negative === fromCanonical.negative)
+  );
+}
+
+/**
+ * Parse JSON text under the canonical number contract.
+ *
+ * `JSON.parse` rounds silently, so a literal that binary64 cannot hold is gone
+ * by the time a reviver sees it. The literals are therefore scanned in the
+ * source text first, which is the only place the original digits still exist.
+ */
+export function parseCsfCanonicalJsonText(text: string): CsfImportJsonValue {
+  if (typeof text !== "string") {
+    throw new CsfCanonicalFormError("Canonical JSON text must be a string.");
+  }
+  // Number literals only: anything inside a string is skipped by consuming
+  // whole string tokens, escapes included, before looking for numbers.
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (character === '"') {
+      index += 1;
+      while (index < text.length && text[index] !== '"') {
+        index += text[index] === "\\" ? 2 : 1;
+      }
+      continue;
+    }
+    if (character !== "-" && (character < "0" || character > "9")) continue;
+
+    let end = index;
+    while (end < text.length && /[-+.0-9eE]/u.test(text[end])) end += 1;
+    const literal = text.slice(index, end);
+    if (!isCsfCanonicalNumberLiteral(literal)) {
+      throw new CsfCanonicalFormError(
+        `The number ${literal} is not exactly representable as an IEEE-754 double, so it cannot have one canonical form.`,
+      );
+    }
+    index = end - 1;
+  }
+
+  return JSON.parse(text) as CsfImportJsonValue;
+}
+
 function canonicalJson(value: CsfImportJsonValue): string {
+  if (typeof value === "number") {
+    return csfCanonicalNumber(value);
+  }
   if (value === null || typeof value !== "object") {
+    if (value !== null && typeof value !== "string" && typeof value !== "boolean") {
+      throw new CsfCanonicalFormError(`A canonical value may not be ${typeof value}.`);
+    }
     return JSON.stringify(value);
   }
 
@@ -249,9 +526,31 @@ function canonicalJson(value: CsfImportJsonValue): string {
 
   const objectValue = value as CsfImportJsonObject;
   return `{${Object.keys(objectValue)
+    // JCS orders members by UTF-16 code unit, which is what `Array.sort` does
+    // by default. The key charset above keeps that identical to `COLLATE "C"`.
     .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonicalJson(objectValue[key])}`)
+    .map((key) => {
+      if (!CANONICAL_KEY.test(key)) {
+        throw new CsfCanonicalFormError(
+          `"${key}" is not a canonical object key; keys must match ${CANONICAL_KEY.source}.`,
+        );
+      }
+      return `${JSON.stringify(key)}:${canonicalJson(objectValue[key])}`;
+    })
     .join(",")}}`;
+}
+
+/**
+ * The shared canonical form. One function, used by every producer of a digest
+ * so no second serializer can drift away from the one PostgreSQL mirrors.
+ */
+export function csfCanonicalJson(value: CsfImportJsonValue): string {
+  return canonicalJson(value);
+}
+
+/** Canonical form, then SHA-256. The only digest the import boundary accepts. */
+export function csfCanonicalDigest(value: CsfImportJsonValue): string {
+  return sha256(csfCanonicalJson(value));
 }
 
 export function hashCsfNormalizedImportRow(row: CsfImportJsonObject) {
@@ -289,15 +588,167 @@ function positiveInteger(value: unknown, label: string) {
   return Number(value);
 }
 
-function normalizeModifiedAt(value: string | Date | null | undefined) {
-  if (value === null || value === undefined || value === "") {
-    return null;
+/**
+ * An exact provenance coordinate: a primitive string, nonempty, bounded, and
+ * already unpadded -- returned in the spelling it arrived in.
+ *
+ * Deliberately NOT {@link requiredBoundedString}, which trims. Trimming an
+ * identifier or a revision on the way in repaired ` 1AbC ` into `1AbC`, which
+ * then compared equal to the coordinate it was supposed to be checked against.
+ * Display strings keep the trimming reader; provenance does not.
+ */
+function exactCoordinate(value: unknown, label: string, maxLength: number) {
+  if (typeof value !== "string") {
+    throw new TypeError(`${label} must be a string.`);
   }
-  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
-  if (!Number.isFinite(date.getTime())) {
-    throw new TypeError("source.modifiedAt must be a valid timestamp.");
+  if (value.length === 0) {
+    throw new TypeError(`${label} is required.`);
   }
-  return date.toISOString();
+  if (value.length > maxLength) {
+    throw new TypeError(`${label} must be at most ${maxLength} characters.`);
+  }
+  if (EDGE_PADDING.test(value)) {
+    throw new TypeError(`${label} must not be padded; an exact coordinate is taken as written.`);
+  }
+  return value;
+}
+
+/**
+ * Drive's `version` as canonical bounded positive decimal int64 TEXT.
+ *
+ * Never touches `Number`, `parseInt` or `BigInt`: Drive serializes int64 fields
+ * as JSON strings precisely because the value does not survive a double, and a
+ * version past 2^53 rounds onto a neighbour it is not. With no leading zeros a
+ * shorter string is the smaller integer and equal lengths compare
+ * lexicographically in numeric order, so shape and bound are both decided on
+ * the text.
+ */
+function isCanonicalProviderVersionText(value: string) {
+  if (!PROVIDER_VERSION_SHAPE.test(value)) return false;
+  if (value.length > PROVIDER_VERSION_MAX.length) return false;
+  return !(value.length === PROVIDER_VERSION_MAX.length && value > PROVIDER_VERSION_MAX);
+}
+
+/**
+ * Whether the captured fields name a day and a clock time that exist.
+ *
+ * A shape is not a date: `2026-02-30T00:00:00Z` satisfies every character class
+ * in both grammars above, and so do 2025-02-29, April 31, hour 24 and second
+ * 60. Hour 24 and second 60 are refused outright rather than rolled forward,
+ * because a lenient parser moves them to a different instant instead of
+ * representing them.
+ */
+function isRealCivilDateTime(fields: RegExpExecArray) {
+  const [, year, month, day, hour, minute, second] = fields;
+  const monthNumber = Number(month);
+  if (monthNumber < 1 || monthNumber > 12) return false;
+  const yearNumber = Number(year);
+  // `0000` satisfies `\d{4}` and names a proleptic year PostgreSQL `timestamptz`
+  // cannot retain as the same Gregorian year -- the AD era it stores has no year
+  // zero, so a round trip returns 1 BC. A coordinate that cannot survive the
+  // column it will be compared against is not evidence, in either grammar.
+  if (yearNumber < 1) return false;
+  const leap = (yearNumber % 4 === 0 && yearNumber % 100 !== 0) || yearNumber % 400 === 0;
+  const dayCount = monthNumber === 2 ? (leap ? 29 : 28) : MONTH_LENGTHS[monthNumber - 1];
+  const dayNumber = Number(day);
+  if (dayNumber < 1 || dayNumber > dayCount) return false;
+  return Number(hour) <= 23 && Number(minute) <= 59 && Number(second) <= 59;
+}
+
+/**
+ * A real numeric offset, or false. `-00:00` is RFC 3339's "offset unknown"
+ * spelling: it names no zone at all, so reading it as UTC would invent evidence
+ * rather than read it.
+ */
+function hasRealUtcOffset(zone: string) {
+  if (zone === "Z") return true;
+  const negative = zone[0] === "-";
+  const hour = Number(zone.slice(1, 3));
+  const minuteText = zone.slice(3).replace(":", "");
+  const minute = minuteText.length === 0 ? 0 : Number(minuteText);
+  if (hour > 23 || minute > 59) return false;
+  return !(negative && hour === 0 && minute === 0);
+}
+
+/** Drive's own `modifiedTime` spelling, naming an instant that exists. */
+function isProviderInstantText(value: string) {
+  const fields = DRIVE_INSTANT.exec(value);
+  if (fields === null || !isRealCivilDateTime(fields)) return false;
+  // PostgreSQL `timestamptz` retains MICROseconds. A 9-digit fraction whose
+  // final three digits are nonzero names a nanosecond the typed column never
+  // stored, so no later comparison against the stored side can be honest about
+  // it -- truncating it into equality would manufacture agreement. Refused here,
+  // before a snapshot exists, and decided on the TEXT so no digit passes through
+  // a numeric parse on the way to the answer.
+  const fraction = fields[7] ?? "";
+  return !(fraction.length === 9 && fraction.slice(6) !== "000");
+}
+
+/** A stored `timestamptz` rendering with an explicit real zone. */
+function isStoredInstantText(value: string) {
+  const fields = STORED_INSTANT.exec(value);
+  return fields !== null && isRealCivilDateTime(fields) && hasRealUtcOffset(fields[8]);
+}
+
+/**
+ * The one provenance decision in this contract: which coordinates a family
+ * exposes, and what each of them must exactly be.
+ *
+ * Runtime discrimination, not a shared "revision or modifiedAt" shape. The
+ * predecessor took either coordinate from either family and normalized both,
+ * so a Google source carrying a content digest, an uploaded source carrying a
+ * Drive version, and a source carrying only a timestamp were all accepted --
+ * three snapshots whose recorded evidence no later gate can bind to anything.
+ */
+function validateSourceEvidence(input: CsfImportSourceInput) {
+  switch (input.provider) {
+    case "google_sheets": {
+      const fileId = exactCoordinate(input.fileId, "source.fileId", 512);
+      if (/^[a-z][a-z0-9+.-]*:\/\//iu.test(fileId)) {
+        throw new TypeError("source.fileId must be a provider identifier, not a public URL.");
+      }
+      const revision = exactCoordinate(input.revision, "source.revision", 256);
+      if (!isCanonicalProviderVersionText(revision)) {
+        throw new TypeError(
+          "source.revision must be the provider's canonical positive int64 version text for a Google Sheets source.",
+        );
+      }
+      const modifiedAt = exactCoordinate(input.modifiedAt, "source.modifiedAt", 64);
+      if (!isProviderInstantText(modifiedAt)) {
+        throw new TypeError(
+          "source.modifiedAt must be the provider's own UTC modified-time spelling for a Google Sheets source.",
+        );
+      }
+      return { provider: "google_sheets" as const, fileId, revision, modifiedAt };
+    }
+    case "uploaded_file": {
+      const fileId = exactCoordinate(input.fileId, "source.fileId", 512);
+      if (!STAGING_OBJECT_UUID.test(fileId)) {
+        throw new TypeError(
+          "source.fileId must be the claimed staging object identifier for an uploaded source.",
+        );
+      }
+      // Required even when a valid ready time is also present. The time says
+      // when the generation became readable; only the digest says which bytes.
+      const revision = exactCoordinate(input.revision, "source.revision", 256);
+      if (!SHA256_HEX.test(revision)) {
+        throw new TypeError(
+          "source.revision must be the canonical lowercase sha256 of the claimed bytes for an uploaded source.",
+        );
+      }
+      const modifiedAt = exactCoordinate(input.modifiedAt, "source.modifiedAt", 64);
+      if (!isStoredInstantText(modifiedAt)) {
+        throw new TypeError(
+          "source.modifiedAt must be the claimed staging object's ready timestamp for an uploaded source.",
+        );
+      }
+      return { provider: "uploaded_file" as const, fileId, revision, modifiedAt };
+    }
+    default:
+      throw new TypeError(
+        "source.provider is not an implemented CSF import provider; its evidence semantics are undefined.",
+      );
+  }
 }
 
 function normalizedKeyTokens(key: string) {
@@ -622,32 +1073,22 @@ function hasSubstantiveValue(value: CsfImportJsonValue): boolean {
 }
 
 function validateSource(input: CsfImportSourceInput) {
-  if (!CSF_IMPORT_PROVIDERS.includes(input.provider)) {
-    throw new TypeError("source.provider is not supported.");
-  }
   if (!CSF_IMPORT_SENSITIVITIES.includes(input.sensitivity)) {
     throw new TypeError("source.sensitivity is not supported.");
   }
+  // Family first, then that family's own exact coordinates. Nothing below may
+  // read `input.provider` again: the discriminated result IS the provenance.
+  const evidence = validateSourceEvidence(input);
 
-  const fileId = requiredBoundedString(input.fileId, "source.fileId", 512);
-  if (/^[a-z][a-z0-9+.-]*:\/\//iu.test(fileId)) {
-    throw new TypeError("source.fileId must be a provider identifier, not a public URL.");
-  }
-
-  const revision =
-    input.revision === null || input.revision === undefined || input.revision === ""
-      ? null
-      : requiredBoundedString(input.revision, "source.revision", 256);
-  const modifiedAt = normalizeModifiedAt(input.modifiedAt);
-  if (!revision && !modifiedAt) {
-    throw new TypeError("source requires a revision or modifiedAt timestamp.");
-  }
-
+  // Read as written: `.toLowerCase()` here folded an uppercase digest into the
+  // canonical form it is not, which destroys the one property a content
+  // address has -- that it names exactly one sequence of bytes.
   if (
+    typeof input.contentHash?.value !== "string" ||
     input.contentHash.algorithm !== "sha256" ||
-    !SHA256_HEX.test(input.contentHash.value.toLowerCase())
+    !SHA256_HEX.test(input.contentHash.value)
   ) {
-    throw new TypeError("source.contentHash must be a SHA-256 hex digest.");
+    throw new TypeError("source.contentHash must be a canonical lowercase SHA-256 hex digest.");
   }
   if (!["file", "selected_range"].includes(input.contentHash.scope)) {
     throw new TypeError("source.contentHash.scope is not supported.");
@@ -703,13 +1144,13 @@ function validateSource(input: CsfImportSourceInput) {
   }
 
   return {
-    provider: input.provider,
-    fileId,
-    revision,
-    modifiedAt,
+    provider: evidence.provider,
+    fileId: evidence.fileId,
+    revision: evidence.revision,
+    modifiedAt: evidence.modifiedAt,
     contentHash: {
       algorithm: "sha256" as const,
-      value: input.contentHash.value.toLowerCase(),
+      value: input.contentHash.value,
       scope: input.contentHash.scope,
     },
     populatedRange: {
@@ -842,8 +1283,8 @@ export function buildCsfNormalizedImportSnapshot(input: {
   rejectedFields.sort(
     (left, right) =>
       left.sourceRowNumber - right.sourceRowNumber ||
-      left.fieldPath.localeCompare(right.fieldPath) ||
-      left.reason.localeCompare(right.reason),
+      compareCsfImportCodeUnits(left.fieldPath, right.fieldPath) ||
+      compareCsfImportCodeUnits(left.reason, right.reason),
   );
 
   const hiddenTabs = source.workbookTabs

@@ -17,6 +17,12 @@ import {
   resolveGoogleOAuthRequestIntent,
 } from "@/lib/auth/google-oauth-authorization";
 import { getGoogleOAuthConnectionForBinding } from "@/lib/auth/google-oauth-connection-store";
+import {
+  GOOGLE_CALENDAR_APP_CREATED_SCOPE,
+  GOOGLE_DRIVE_FILE_SCOPE,
+  hasGoogleCalendarWriteScope,
+  hasGoogleDriveFileScope,
+} from "@/lib/auth/google-oauth-scopes";
 import { NextResponse } from "next/server";
 
 function attachGoogleOAuthStateCookie(
@@ -133,14 +139,16 @@ export async function GET(request: Request) {
     );
     const existingTypeMatches = existingConnection
       ? wantsSheetsScopes
-        ? ["sheets", "both"].includes(existingConnection.connection_type ?? "")
-        : ["calendar", "both"].includes(existingConnection.connection_type ?? "")
+        ? ["sheets", "both"].includes(existingConnection.connection_type ?? "") &&
+          hasGoogleDriveFileScope(existingConnection.granted_scopes)
+        : ["calendar", "both"].includes(existingConnection.connection_type ?? "") &&
+          hasGoogleCalendarWriteScope(existingConnection.granted_scopes)
       : false;
 
     const shouldPromptConsent =
       forceConsent || !existingTypeMatches || !existingConnection?.refresh_token;
 
-    const sheetsScopes = ["https://www.googleapis.com/auth/drive.file"];
+    const sheetsScopes = [GOOGLE_DRIVE_FILE_SCOPE];
 
     // Build Google OAuth URL
     // IMPORTANT: redirect_uri must exactly match what's configured in Google Cloud Console
@@ -159,7 +167,7 @@ export async function GET(request: Request) {
     if (wantsSheetsScopes) {
       scopes.push(...sheetsScopes);
     } else {
-      scopes.push("https://www.googleapis.com/auth/calendar");
+      scopes.push(GOOGLE_CALENDAR_APP_CREATED_SCOPE);
     }
 
     googleAuthUrl.searchParams.set("scope", scopes.join(" "));

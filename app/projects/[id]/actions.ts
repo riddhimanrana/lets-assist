@@ -14,7 +14,8 @@ import {
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
 // Make sure AnonymousSignup is imported from the correct types definition
-import { type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type WaiverSignatureInput } from "@/types";
+import { type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type WaiverSignatureInput, type WaiverDefinitionFull } from "@/types";
+import { toOrganizationPluginAccessRole } from "@/lib/plugins/access-role";
 import { headers } from "next/headers";
 import crypto from 'crypto';
 // Import centralized email service
@@ -1324,7 +1325,7 @@ export async function signUpForProject(
   anonymousData?: AnonymousSignupData,
   volunteerComment?: string,
   waiverSignature?: WaiverSignatureInput | null,
-  formData?: Record<string, any>
+  formData?: Record<string, unknown>
 ) {
   const supabase = await createClient();
   const serviceSupabase = getAdminClient();
@@ -2142,7 +2143,7 @@ export async function signUpForProject(
           .eq("user_id", user?.id || "00000000-0000-0000-0000-000000000000") // Fallback for anon
           .maybeSingle();
 
-        const viewerRole = (orgMember?.role as any) || "member";
+        const viewerRole = toOrganizationPluginAccessRole(orgMember?.role) ?? "member";
         const installedPlugins = await resolveOrganizationPlugins({
           organizationId: project.organization_id,
           userRole: viewerRole,
@@ -2153,14 +2154,14 @@ export async function signUpForProject(
         // Prepare formData with a compatibility shim for plugins that expect .get()
         const pluginFormData = {
           ...(formData || {}),
-          get: (key: string) => (formData as any)?.[key] ?? null,
+          get: (key: string) => formData?.[key] ?? null,
         };
 
         for (const resolved of installedPlugins) {
           const definition = registry.get(resolved.key);
           if (definition && definition.lifecycle?.onSignup) {
             await runPluginOnSignup(definition, {
-              organization: { id: project.organization_id, role: viewerRole } as any,
+              organization: { id: project.organization_id, role: viewerRole },
               actor: user ? { id: user.id, type: "user" } : undefined,
               projectId: project.id,
               signupId: createdSignupId,
@@ -2712,7 +2713,7 @@ export async function cloneProject(projectId: string) {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      const viewerRole = (orgMember?.role as any) || null;
+      const viewerRole = toOrganizationPluginAccessRole(orgMember?.role);
       const installedPlugins = await resolveOrganizationPlugins({
         organizationId: source.organization_id,
         userRole: viewerRole,
@@ -2724,7 +2725,7 @@ export async function cloneProject(projectId: string) {
         const definition = registry.get(resolved.key);
         if (definition && definition.lifecycle?.onProjectClone) {
           await runProjectClone(definition, {
-            organization: { id: source.organization_id, role: viewerRole } as any,
+            organization: { id: source.organization_id, role: viewerRole ?? "member" },
             actor: { id: user.id, type: "user" },
             sourceProjectId: projectId,
             newProjectId: newProject.id,
@@ -3384,7 +3385,7 @@ export async function getMyWaiverSignatures(projectId: string): Promise<
       return { error: 'Failed to load waivers' };
     }
 
-    return { signatures: (data ?? []) as any };
+    return { signatures: data ?? [] };
   } catch (error) {
     console.error('Error in getMyWaiverSignatures:', error);
     return { error: 'Failed to load waivers' };
@@ -3532,7 +3533,7 @@ export async function resendAnonymousConfirmationEmail(
 // Get waiver definition for a project
 export async function getWaiverDefinition(projectId: string): Promise<{
   success: boolean;
-  definition?: any;
+  definition?: WaiverDefinitionFull | null;
   error?: string;
 }> {
   try {
@@ -3568,7 +3569,10 @@ export async function getWaiverDefinition(projectId: string): Promise<{
       return { success: false, error: "Failed to fetch waiver definition" };
     }
 
-    return { success: true, definition };
+    return {
+      success: true,
+      definition: definition as WaiverDefinitionFull,
+    };
   } catch (error) {
     console.error("Error in getWaiverDefinition:", error);
     return { success: false, error: "An unexpected error occurred" };

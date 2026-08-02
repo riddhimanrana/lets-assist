@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { 
   Dialog, 
   DialogContent, 
@@ -12,8 +13,7 @@ import { Button } from "@/components/ui/button";
 import { SignerData, SignaturePayload, WaiverDefinitionSigner, WaiverDefinitionFull, WaiverDefinitionField } from "@/types/waiver-definitions";
 import { WaiverSignatureInput } from "@/types/waiver";
 import { SignatureCapture } from "./SignatureCapture";
-import { WaiverSigningPdfPane } from "./WaiverSigningPdfPane";
-import { PdfViewerWithOverlay, CustomPlacement } from "./PdfViewerWithOverlay";
+import type { CustomPlacement } from "./PdfViewerWithOverlay";
 import { validateWaiverFieldValue, WaiverFieldForm } from "./WaiverFieldForm";
 import { WaiverConsentStep } from "./WaiverConsentStep";
 import { Loader2, ArrowLeft, ArrowRight, CheckCircle, Upload, PenTool, ExternalLink, Download, Printer } from "lucide-react";
@@ -21,6 +21,22 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+
+const PdfViewerWithOverlay = dynamic(
+  () => import("./PdfViewerWithOverlay").then((module) => module.PdfViewerWithOverlay),
+  {
+    ssr: false,
+    loading: () => <Loader2 className="h-8 w-8 animate-spin text-primary" />,
+  },
+);
+
+const WaiverSigningPdfPane = dynamic(
+  () => import("./WaiverSigningPdfPane").then((module) => module.WaiverSigningPdfPane),
+  {
+    ssr: false,
+    loading: () => <Loader2 className="h-8 w-8 animate-spin text-primary" />,
+  },
+);
 
 interface WaiverSigningDialogProps {
   isOpen: boolean;

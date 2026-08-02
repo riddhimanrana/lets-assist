@@ -20,7 +20,9 @@ export const dynamic = "force-dynamic";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com";
 
 export const metadata: Metadata = {
-  title: "Let's Assist: Connect Volunteers with Opportunities",
+  title: {
+    absolute: "Let's Assist: Connect Volunteers with Opportunities",
+  },
   description:
     "A platform connecting volunteers with opportunities to make a difference in their communities. Find local volunteer projects, track your hours, and earn recognition for your service.",
   metadataBase: new URL(siteUrl),

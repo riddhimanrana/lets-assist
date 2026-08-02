@@ -3,7 +3,7 @@
 # Keep disposable CSF stacks reproducible and isolated from ambient toolchains.
 # This file is sourced by start/stop/replay scripts and may also be run directly.
 
-SUPABASE_CLI_REQUIRED_VERSION="2.109.1"
+SUPABASE_CLI_REQUIRED_VERSION="2.111.0"
 
 require_supabase_cli_version() {
   if ! command -v supabase >/dev/null 2>&1; then

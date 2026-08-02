@@ -16,6 +16,7 @@ import {
   organizationSheetsGoogleBinding,
 } from "@/services/calendar";
 import { authorizeGoogleOAuthOrganizationRequest } from "@/lib/auth/google-oauth-authorization";
+import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 
 const WORKER_ENABLED = process.env.ORG_SHEET_SYNC_WORKER_ENABLED === "true";
 const WORKER_TOKEN = process.env.ORG_SHEET_SYNC_WORKER_SECRET_TOKEN;
@@ -56,6 +57,12 @@ export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Strictly after real authentication and before the worker-enable check,
+  // getAdminClient(), any query, the Google OAuth authorization, the Sheets
+  // access token, and replaceSpreadsheetReportValues().
+  const probe = cronAuthShapeProbe("organization-sheet-sync", request);
+  if (probe) return probe;
 
   if (!WORKER_ENABLED) {
     return NextResponse.json({ message: "Sheet sync worker disabled" }, { status: 200 });

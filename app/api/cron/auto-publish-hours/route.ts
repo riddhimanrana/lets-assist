@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import CertificatePublished from '@/emails/certificate-published';
 import * as React from 'react';
 import { sendEmail } from '@/services/email';
+import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 
 /**
  * Canonical cron endpoint implementation.
@@ -588,6 +589,11 @@ export async function POST(request: NextRequest) {
     const auth = authorizeCronRequest(request);
     if (!auth.ok) return auth.response;
 
+    // Strictly after real authentication and before the worker-enable check,
+    // the service client, any query, any email, and processExpiredSessions().
+    const probe = cronAuthShapeProbe("auto-publish-hours", request);
+    if (probe) return probe;
+
     // Check if auto-publish is enabled
     if (process.env.AUTO_PUBLISH_ENABLED !== 'true') {
       console.log("Auto-publish is disabled");
@@ -629,6 +635,9 @@ export async function GET(request: NextRequest) {
   if (request.nextUrl.searchParams.get("status") === "1") {
     const auth = authorizeCronRequest(request);
     if (!auth.ok) return auth.response;
+
+    const probe = cronAuthShapeProbe("auto-publish-hours", request);
+    if (probe) return probe;
 
     return NextResponse.json({
       message: "Auto-publish service is running",

@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import type { RealtimeChannel } from "@supabase/realtime-js";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
 // Types

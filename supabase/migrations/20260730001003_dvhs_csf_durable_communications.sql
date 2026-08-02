@@ -2152,6 +2152,17 @@ CREATE INDEX csf_comm_addr_safety_events_safety_idx
   ON plugin_data.csf_communication_address_safety_events (organization_id, safety_id)
   WHERE safety_id IS NOT NULL;
 
+-- One verified provider envelope can justify at most one address-safety
+-- observation in an organization. The resolver normally deduplicates before it
+-- reaches the primitive, but this index keeps that exactly-once property true at
+-- rest even if another owner path calls the primitive directly or two calls race.
+CREATE UNIQUE INDEX csf_comm_addr_safety_events_provider_event_uidx
+  ON plugin_data.csf_communication_address_safety_events (
+    organization_id,
+    provider_event_id
+  )
+  WHERE provider_event_id IS NOT NULL;
+
 -- Safety only ever tightens. An address that bounced is never quietly declared
 -- healthy again by a later write, and a terminal lock is written once.
 CREATE OR REPLACE FUNCTION plugin_data.csf_enforce_address_safety_transition()
@@ -2561,6 +2572,10 @@ DECLARE
   v_bounce_class text;
   v_kind text;
   v_hold_expires timestamptz;
+  v_provider_event_id text := nullif(btrim(coalesce(p_provider_event_id, '')), '');
+  v_actor_identity text := nullif(btrim(coalesce(p_actor_identity, '')), '');
+  v_correlation_id text := nullif(btrim(coalesce(p_correlation_id, '')), '');
+  v_existing_event plugin_data.csf_communication_address_safety_events%ROWTYPE;
   -- A complaint or an explicit provider suppression is a standing decision, not
   -- a transient condition, so it locks terminally: no later event and no audited
   -- release reopens it.
@@ -2617,6 +2632,64 @@ BEGIN
       'csf-address-safety:' || p_organization_id::text || ':' || v_email, 0
     )
   );
+
+  -- IDEMPOTENT PROVIDER-EVENT REPLAY. A provider envelope is one observation,
+  -- not one observation per delivery retry or resolver entry. The address lock
+  -- serializes same-address replays; the unique index above is the cross-address
+  -- backstop. An exact replay reports the existing observation without touching
+  -- the projection, while a reused event id carrying different immutable evidence
+  -- is a conflict rather than a silent overwrite.
+  IF v_provider_event_id IS NOT NULL THEN
+    SELECT event.*
+    INTO v_existing_event
+    FROM plugin_data.csf_communication_address_safety_events AS event
+    WHERE event.organization_id = p_organization_id
+      AND event.provider_event_id = v_provider_event_id;
+
+    IF FOUND THEN
+      IF ROW(
+        v_existing_event.normalized_recipient_email,
+        v_existing_event.event_class,
+        v_existing_event.event_kind,
+        v_existing_event.event_bounce_class,
+        v_existing_event.hold_expires_at,
+        v_existing_event.event_reason,
+        v_existing_event.observed_at,
+        v_existing_event.actor_kind,
+        v_existing_event.actor_identity,
+        v_existing_event.correlation_id
+      ) IS DISTINCT FROM ROW(
+        v_email,
+        p_event_class,
+        v_kind,
+        v_bounce_class,
+        v_hold_expires,
+        v_reason,
+        v_observed,
+        p_actor_kind,
+        v_actor_identity,
+        v_correlation_id
+      ) THEN
+        RAISE EXCEPTION
+          'CSF address-safety provider event "%" was already recorded with different immutable evidence; refusing a conflicting replay.',
+          v_provider_event_id
+          USING ERRCODE = '23505';
+      END IF;
+
+      RETURN pg_catalog.jsonb_build_object(
+        'organizationId', p_organization_id,
+        'safetyId', v_existing_event.safety_id,
+        'previousState', v_existing_event.previous_state,
+        'safetyState', v_existing_event.next_state,
+        'suppressionClass', v_existing_event.event_class,
+        'suppressionKind', v_existing_event.event_kind,
+        'bounceClass', v_existing_event.event_bounce_class,
+        'holdExpiresAt', v_existing_event.hold_expires_at,
+        'terminal', v_existing_event.event_class IN ('complaint', 'provider_suppression'),
+        'idempotentReplay', true
+      );
+    END IF;
+  END IF;
 
   SELECT safety.id, safety.safety_state
   INTO v_safety_id, v_previous
@@ -2725,10 +2798,10 @@ BEGIN
     p_organization_id, v_safety_id, v_email,
     pg_catalog.encode(extensions.digest(v_email, 'sha256'), 'hex'),
     p_event_class, v_kind, v_bounce_class, v_hold_expires, v_reason,
-    nullif(btrim(coalesce(p_provider_event_id, '')), ''),
+    v_provider_event_id,
     v_observed, v_previous, 'suppressed', p_actor_kind,
-    nullif(btrim(coalesce(p_actor_identity, '')), ''),
-    nullif(btrim(coalesce(p_correlation_id, '')), '')
+    v_actor_identity,
+    v_correlation_id
   );
 
   RETURN pg_catalog.jsonb_build_object(
@@ -2740,7 +2813,8 @@ BEGIN
     'suppressionKind', v_kind,
     'bounceClass', v_bounce_class,
     'holdExpiresAt', v_hold_expires,
-    'terminal', v_terminal
+    'terminal', v_terminal,
+    'idempotentReplay', false
   );
 END;
 $$;
@@ -8080,7 +8154,7 @@ BEGIN
   v_suppression_type := v_event.metadata->>'suppressionType';
   v_recognized_suppression :=
     v_target = 'suppressed'
-    AND v_suppression_type = 'OnAccountSuppressionList';
+    AND coalesce(v_suppression_type = 'OnAccountSuppressionList', false);
 
   -- ADDRESS EVIDENCE IS NOT GATED ON WHETHER DELIVERY STATUS MOVED.
   --
@@ -8225,7 +8299,13 @@ BEGIN
       -- csf_communication_provider_events_linked_message_check requires a linked
       -- event to name a message, so an event with no message identity stays
       -- unlinked even when the attempt tag told us which delivery it belongs to.
-      WHEN v_delivery.id IS NOT NULL AND v_event.provider_message_id IS NOT NULL
+      -- Unauthorized-attempt evidence also stays unlinked: the event retains the
+      -- claimed message id as evidence, but the delivery deliberately does not
+      -- reserve it, so attaching the event to that delivery would contradict the
+      -- delivery/message identity guard.
+      WHEN NOT v_attempt_unauthorized
+        AND v_delivery.id IS NOT NULL
+        AND v_event.provider_message_id IS NOT NULL
         THEN v_delivery.id
       ELSE delivery_id
     END,

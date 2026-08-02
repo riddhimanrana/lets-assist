@@ -173,3 +173,36 @@ test("organization calendar replacement is gated on the missing state", () => {
     "calendar existence checks must have a bounded timeout",
   );
 });
+
+test("personal volunteering calendar replacement is gated on the missing state", () => {
+  const calendarService = readFileSync(
+    join(process.cwd(), "services/calendar.ts"),
+    "utf8",
+  );
+  const ensureStart = calendarService.indexOf(
+    "async function getOrCreateVolunteeringCalendar",
+  );
+  const ensureEnd = calendarService.indexOf(
+    "\nasync function getGoogleCalendarAccessState",
+    ensureStart,
+  );
+  assert.ok(ensureStart >= 0 && ensureEnd > ensureStart);
+
+  const source = calendarService.slice(ensureStart, ensureEnd);
+  const lookup = source.indexOf("getGoogleCalendarAccessState(");
+  const accessible = source.indexOf(
+    'if (accessState.status === "accessible")',
+  );
+  const failClosed = source.indexOf(
+    'if (accessState.status !== "missing")',
+  );
+  const create = source.indexOf(
+    "await fetch(`${GOOGLE_CALENDAR_API}/calendars`",
+  );
+
+  assert.ok(lookup >= 0, "configured personal calendars must be reconciled");
+  assert.ok(accessible > lookup, "accessible personal calendars must be preserved");
+  assert.ok(failClosed > accessible, "ambiguous lookups must stop replacement");
+  assert.ok(create > failClosed, "creation must follow the missing-state guard");
+  assert.ok(source.slice(failClosed, create).includes("return null"));
+});

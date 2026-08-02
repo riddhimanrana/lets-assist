@@ -61,6 +61,34 @@ describe("compact organization header actions", () => {
     );
   });
 
+  test("marks every decorative header icon aria-hidden without changing the layout", () => {
+    // Each icon sits beside its own visible text, or is a purely decorative
+    // verification mark, so none may contribute a duplicate accessible name.
+    for (const icon of [
+      '<BadgeCheck className="h-4 w-4 text-primary fill-background" aria-hidden="true" />',
+      '<GlobeIcon className={cn("h-3.5 w-3.5", compact && "shrink-0")} aria-hidden="true" />',
+      '<UsersIcon className="h-3.5 w-3.5" aria-hidden="true" />',
+      '<Share2 className="mr-2 h-4 w-4" aria-hidden="true" />',
+      '<UsersIcon className="mr-2 h-4 w-4" aria-hidden="true" />',
+      '<Plus className="mr-2 h-4 w-4" aria-hidden="true" />',
+    ]) {
+      expect(source, `${icon} should be hidden from assistive technology`).toContain(icon);
+    }
+    expect(source).toContain(
+      '<BadgeCheck\n                  className="hidden md:block h-6 w-6 text-primary"\n                  aria-hidden="true"\n                />',
+    );
+  });
+
+  test("leaves no header icon exposed to assistive technology", () => {
+    const iconElements =
+      source.match(/<(BadgeCheck|GlobeIcon|UsersIcon|Share2|Plus)\b[^>]*?\/>/g) ?? [];
+    // Two BadgeCheck marks, two UsersIcon, two Plus, one GlobeIcon, one Share2.
+    expect(iconElements).toHaveLength(8);
+    for (const element of iconElements) {
+      expect(element, `${element} is missing aria-hidden`).toContain('aria-hidden="true"');
+    }
+  });
+
   test("preserves generic non-compact header layout", () => {
     expect(source).toContain(
       ': "flex-col gap-6 md:flex-row md:items-start md:justify-between"',

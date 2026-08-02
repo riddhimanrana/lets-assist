@@ -1,8 +1,23 @@
 import { defineConfig, devices } from "@playwright/test";
-import { getLocalSupabaseEnv } from "./scripts/local-dev/dv-local-env.mjs";
+import {
+  CSF_ISOLATED_APP_PORT,
+  getCsfIsolatedSupabaseEnv,
+  inspectCsfIsolatedWorkDir,
+} from "./scripts/local-dev/dv-local-env.mjs";
 
-const localSupabase = getLocalSupabaseEnv();
-const port = 3100;
+// Live status/credential validation bound to the selected isolated stack. The
+// browser child gets its Supabase values from the isolated app runner's own
+// validated app environment rather than from here, so nothing is bound.
+getCsfIsolatedSupabaseEnv();
+const isolatedStack = inspectCsfIsolatedWorkDir(
+  process.env.CSF_ISOLATED_WORK_DIR,
+);
+
+// The isolated app runner owns exactly one port. This suite used to start its
+// own ambient Next server on a port of its own, in the operator's full
+// environment, which meant the DV browser run reached whatever providers that
+// shell happened to be configured for.
+const port = CSF_ISOLATED_APP_PORT;
 const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
@@ -23,19 +38,22 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
+  // One web server, started only through the isolated app runner, which builds
+  // its own provider-disabled child environment from the validated marker.
+  // Nothing is spread from this process into it.
+  //
+  // `reuseExistingServer: false` unconditionally — including locally — matches
+  // the runner's exclusive claim model: it refuses an occupied 3000 rather than
+  // adopting it, so a reused server would be one it never validated.
   webServer: {
-    command: `bunx next dev --hostname 127.0.0.1 --port ${port}`,
+    command: "bun run csf:dev:isolated",
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    reuseExistingServer: false,
+    timeout: 180_000,
     env: {
-      ...process.env,
-      NEXT_PUBLIC_SUPABASE_URL: localSupabase.url,
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: localSupabase.anonKey,
-      SUPABASE_SECRET_KEY: localSupabase.serviceRoleKey,
-      SUPABASE_DB_URL: localSupabase.dbUrl,
-      NEXT_PUBLIC_TURNSTILE_BYPASS: "true",
-      DV_TABROOM_LIVE: "0",
+      PATH: process.env.PATH ?? "/usr/bin:/bin",
+      HOME: process.env.HOME ?? "",
+      CSF_ISOLATED_WORK_DIR: isolatedStack.workDir,
     },
   },
 });

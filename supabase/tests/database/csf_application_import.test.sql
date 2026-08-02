@@ -20,13 +20,18 @@ SELECT extensions.ok(
   ),
   'authenticated clients cannot import CSF applications'
 );
+-- 20260730001004 revoked direct service access to this row RPC on purpose: the
+-- fenced wrapper plugin_data.csf_commit_import_row_for_attempt is the only
+-- reachable central import path, and it is SECURITY DEFINER and owned, so it can
+-- still call this function. The behavior assertions below continue to exercise the
+-- RPC directly because pgTAP runs as the migration owner, not as service_role.
 SELECT extensions.ok(
-  has_function_privilege(
+  NOT has_function_privilege(
     'service_role',
     'plugin_data.csf_import_application_response_row(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,uuid)',
     'EXECUTE'
   ),
-  'the server role can atomically import a reviewed CSF application row'
+  'the server role cannot bypass the fenced wrapper to import a CSF application row directly'
 );
 
 INSERT INTO auth.users (

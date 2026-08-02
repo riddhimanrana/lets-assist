@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ModernFormRenderer } from "@/components/forms/ModernFormRenderer";
+import type { FormSchema } from "@/lib/forms/engine";
 import { ArrowLeft } from "lucide-react";
 
 // Constants for phone validation
@@ -154,7 +155,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface ProjectFormProps {
-  onSubmit: (data: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, any>) => void;
+  onSubmit: (data: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, unknown>) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
   showCommentField?: boolean;
@@ -165,7 +166,7 @@ interface ProjectFormProps {
   waiverDisableEsignature?: boolean;
   waiverPdfUrl?: string | null;
   waiverDefinition?: WaiverDefinitionFull | null;
-  signupFormSchema?: any | null;
+  signupFormSchema?: FormSchema | null;
 }
 
 // ... rest of imports
@@ -368,7 +369,7 @@ export function ProjectSignupForm({
     onSubmit(payload, waiverSignature);
   };
 
-  const handleCustomFormSubmit = (data: Record<string, any>) => {
+  const handleCustomFormSubmit = (data: Record<string, unknown>) => {
     if (pendingAnonData) {
       onSubmit(pendingAnonData, pendingWaiverSignature, data);
     }
@@ -388,7 +389,7 @@ export function ProjectSignupForm({
   };
 
 
-  if (step === "custom-form") {
+  if (step === "custom-form" && signupFormSchema) {
     return (
       <div className="space-y-4">
         <Button variant="ghost" size="sm" onClick={() => setStep("anonymous-info")} className="gap-2 -ml-2">

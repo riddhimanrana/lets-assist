@@ -14,6 +14,7 @@ import type {
 import type { ProjectSchedule } from './schedule';
 import type { Profile } from './profile';
 import type { Organization } from './organization';
+import type { FormSchema } from '@/lib/forms/engine';
 
 // Project document attachment
 export interface ProjectDocument {
@@ -74,5 +75,5 @@ export interface Project {
   recurrence_parent_id?: string;
   recurrence_sequence?: number;
   restrict_to_org_domains?: boolean;
-  signup_form_schema?: any | null;
+  signup_form_schema?: FormSchema | null;
 }

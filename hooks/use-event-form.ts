@@ -12,6 +12,7 @@ import {
 } from '@/types';
 import { DetectedPdfField } from '@/lib/waiver/pdf-field-detect';
 import { WaiverDefinitionInput } from '@/components/waiver/WaiverBuilderDialog';
+import type { FormSchema } from '@/lib/forms/engine';
 
 // --- Helper Functions --- 
 
@@ -130,8 +131,8 @@ export interface EventFormState {
     endOccurrences?: number;
     weekdays: RecurrenceWeekday[];
   };
-  signupFormSchema: any | null;
-  pluginData: Record<string, any>;
+  signupFormSchema: FormSchema | null;
+  pluginData: Record<string, unknown>;
 }
 
 type EventFormAction =
@@ -139,8 +140,8 @@ type EventFormAction =
   | { type: 'PREV_STEP' }
   | { type: 'SET_EVENT_TYPE'; payload: EventType }
   | { type: 'UPDATE_BASIC_INFO'; payload: { field: string; value: string | number | boolean | LocationData | null | undefined } }
-  | { type: 'UPDATE_SIGNUP_FORM_SCHEMA'; payload: any }
-  | { type: 'UPDATE_PLUGIN_DATA'; payload: { field: string; value: any } }
+  | { type: 'UPDATE_SIGNUP_FORM_SCHEMA'; payload: FormSchema | null }
+  | { type: 'UPDATE_PLUGIN_DATA'; payload: { field: string; value: unknown } }
   | { type: 'UPDATE_ONE_TIME_SCHEDULE'; payload: { field: string; value: string | number } }
   | {
     type: 'UPDATE_MULTI_DAY_SCHEDULE';
@@ -674,10 +675,10 @@ export const useEventForm = () => {
   const updateBasicInfo = (field: string, value: string | number | boolean | LocationData | null | undefined) =>
     dispatch({ type: 'UPDATE_BASIC_INFO', payload: { field, value } });
 
-  const updateSignupFormSchema = (schema: any) =>
+  const updateSignupFormSchema = (schema: FormSchema | null) =>
     dispatch({ type: 'UPDATE_SIGNUP_FORM_SCHEMA', payload: schema });
 
-  const updatePluginData = (field: string, value: any) =>
+  const updatePluginData = (field: string, value: unknown) =>
     dispatch({ type: 'UPDATE_PLUGIN_DATA', payload: { field, value } });
 
   const updateOneTimeSchedule = (field: string, value: string | number) =>

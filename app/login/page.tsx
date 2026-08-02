@@ -82,6 +82,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       orgUsername={org}
       inviteToken={inviteToken}
       prefilledEmail={email}
+      localFixtureMode={process.env.CSF_LOCAL_FIXTURE_MODE === "1"}
     />
   );
 }

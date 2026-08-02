@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { runCsfStorageCleanup } from "@/lib/plugins/private/plugins/dvhs-csf/services/csf-cleanup-orchestration";
 import {
   drainCsfProofStorageDeletionQueue,
   enqueueStaleCsfProofUploads,
+  sweepCsfStagingObjects,
 } from "@/lib/plugins/private/plugins/dvhs-csf/services/proof-storage";
 
 const STALE_AFTER_MS = 60 * 60 * 1000;
@@ -22,23 +24,18 @@ export async function GET(request: NextRequest) {
   const denied = authorizeCronRequest(request);
   if (denied) return denied;
 
-  const initialDrain = await drainCsfProofStorageDeletionQueue();
-  if (initialDrain.error) {
-    return NextResponse.json(initialDrain, { status: 500 });
-  }
+  // The ordering and the failure semantics live in the orchestration seam, so
+  // they are proved by execution rather than by reading this handler. The route
+  // keeps only what is genuinely its own: the secret check and the status code.
+  const report = await runCsfStorageCleanup({
+    drainDeletionQueue: () => drainCsfProofStorageDeletionQueue(),
+    // The staging sweeper. It has been granted and unused since the recovery
+    // migration, so abandoned uploads, expired claims and pending retirements
+    // were never settled by any deploy.
+    sweepStagingObjects: () => sweepCsfStagingObjects(),
+    enqueueStaleProofUploads: () =>
+      enqueueStaleCsfProofUploads(new Date(Date.now() - STALE_AFTER_MS)),
+  });
 
-  const cutoff = new Date(Date.now() - STALE_AFTER_MS);
-  const enqueue = await enqueueStaleCsfProofUploads(cutoff);
-  if (enqueue.error) {
-    return NextResponse.json({ ...enqueue, initialDrain }, { status: 500 });
-  }
-
-  const finalDrain = await drainCsfProofStorageDeletionQueue();
-  const result = {
-    enqueued: enqueue.enqueued,
-    deleted: initialDrain.deleted + finalDrain.deleted,
-    failed: initialDrain.failed + finalDrain.failed,
-    error: finalDrain.error,
-  };
-  return NextResponse.json(result, { status: finalDrain.error ? 500 : 200 });
+  return NextResponse.json(report, { status: report.ok ? 200 : 500 });
 }

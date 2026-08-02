@@ -1050,22 +1050,16 @@ SELECT extensions.throws_ok(
 );
 
 SELECT extensions.throws_ok(
-  format(
-    $fmt$
-      SELECT plugin_data.csf_record_broadcast_preference_decision(
-        'ce100000-0000-4000-8000-000000000001'::uuid, 'partner_clubs',
-        'claimed@local.test', 'resubscribe', 'provider', NULL, NULL, NULL, %L::uuid
-      )
-    $fmt$,
-    (
-      SELECT event.id
-      FROM plugin_data.csf_communication_provider_events AS event
-      WHERE event.provider_event_id = 'evt_contract_late_accept_1'
+  $$
+    SELECT plugin_data.csf_record_broadcast_preference_decision(
+      'ce100000-0000-4000-8000-000000000001'::uuid, 'partner_clubs',
+      'claimed@local.test', 'resubscribe', 'provider', NULL, NULL, NULL,
+      'corr-provider-resubscribe-refused'
     )
-  ),
-  '22023',
+  $$,
+  '42501',
   NULL,
-  'provider feedback can withdraw consent but never restores it'
+  'provider feedback cannot restore topic consent either'
 );
 
 -- NO SILENT OVERWRITE, AND NO BACKDATING. occurred-at is server-stamped, and a
@@ -1705,7 +1699,7 @@ SELECT extensions.is(
 
 SELECT extensions.is(
   (
-    SELECT pg_get_function_identity_arguments(routine.oid)
+    SELECT pg_catalog.oidvectortypes(routine.proargtypes)
     FROM pg_proc AS routine
     JOIN pg_namespace AS ns ON ns.oid = routine.pronamespace
     WHERE ns.nspname = 'plugin_data'
@@ -1904,7 +1898,11 @@ SELECT plugin_data.csf_record_communication_provider_event(
   'ce100000-0000-4000-8000-000000000002',
   'evt_contract_bounce_permanent',
   'email.bounced',
-  'resend-message-bounce-permanent',
+  -- A second event about the SAME send carries the same provider message id.
+  -- Using a different id here described contradictory evidence for one attempt
+  -- and correctly tripped the delivery/message binding guard before this
+  -- address-severity regression could run.
+  'resend-message-bounce-transient',
   now() + interval '5 minutes',
   repeat('c', 64),
   true, 'svix', 'whsec_test_key',
@@ -1935,7 +1933,7 @@ SELECT plugin_data.csf_record_communication_provider_event(
   'ce100000-0000-4000-8000-000000000002',
   'evt_contract_bounce_transient_late',
   'email.bounced',
-  'resend-message-bounce-transient-late',
+  'resend-message-bounce-transient',
   now() + interval '8 minutes',
   repeat('d', 64),
   true, 'svix', 'whsec_test_key',
@@ -2120,11 +2118,15 @@ INSERT INTO plugin_data.csf_communication_campaigns (
   audience_snapshot_version, provider_idempotency_key
 ) VALUES (
   'ce400000-0000-4000-8000-000000000015', 'ce100000-0000-4000-8000-000000000002',
-  'broadcast', 'draft', 'DVHS CSF', 'csf@notifications.lets-assist.com',
+  -- The address is deliberately opted out of partner-club broadcasts above. Use
+  -- mandatory transactional mail here so it remains an included recipient and
+  -- the provider-evidence test can prove that address safety never mutates the
+  -- separate topic-consent history.
+  'transactional', 'draft', 'DVHS CSF', 'csf@notifications.lets-assist.com',
   'dvhighcsf@gmail.com', 'Consent probe',
   'A provider event about an address that has a consent decision.', repeat('e', 64),
-  'ce200000-0000-4000-8000-000000000002', 'term_members', 'partner_clubs',
-  'topic_synthetic_contract_s5', 'contract-other-officer@local.test',
+  'ce200000-0000-4000-8000-000000000002', 'applicants', NULL,
+  NULL, 'contract-other-officer@local.test',
   now(), 'contract-other-officer@local.test', 1, 'contract-consent-probe-key'
 );
 
@@ -2268,7 +2270,10 @@ SELECT extensions.is(
   'unmatched evidence creates no address observation'
 );
 
--- Now the deliveries exist and report those message identities.
+-- Now the deliveries exist and the provider message identities are bound to
+-- both sides of the per-try ledger. A delivery-level identity alone cannot prove
+-- which retry produced the message, so the resolver correctly refuses to guess
+-- an attempt unless its matching identity (or a signed attempt tag) exists.
 CREATE TEMP TABLE t_rebind_attempts AS
 SELECT
   pg_temp.inflight(
@@ -2277,6 +2282,14 @@ SELECT
   pg_temp.inflight(
     'ce400000-0000-4000-8000-000000000017', 'rebind.unknown@local.test', 'worker-s7'
   ) AS unknown_attempt;
+
+UPDATE plugin_data.csf_communication_dispatch_attempts AS attempt
+SET provider_message_id = 'resend-message-rebind-known'
+WHERE attempt.id = (SELECT known_attempt FROM t_rebind_attempts);
+
+UPDATE plugin_data.csf_communication_dispatch_attempts AS attempt
+SET provider_message_id = 'resend-message-rebind-unknown'
+WHERE attempt.id = (SELECT unknown_attempt FROM t_rebind_attempts);
 
 UPDATE plugin_data.csf_communication_deliveries AS delivery
 SET provider_message_id = 'resend-message-rebind-known'

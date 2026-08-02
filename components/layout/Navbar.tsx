@@ -302,7 +302,7 @@ export default function Navbar() {
                 width={30}
                 height={30}
               />
-              <span className="text-md font-nohemi font-bold sm:font-semibold">
+              <span className="text-md font-semibold tracking-tight">
                 Let's Assist
               </span>
             </div>

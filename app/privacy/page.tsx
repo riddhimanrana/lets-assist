@@ -84,7 +84,7 @@ const PrivacyPage = () => {
                 <li><strong>Email and Profile (userinfo.email, userinfo.profile):</strong> To identify and link your Google account to your Let's Assist profile.</li>
                 <li><strong>Google Drive Files (drive.file):</strong> To access only the specific Google Drive files you select or create through our app, such as spreadsheets.</li>
                 <li><strong>Google Sheets access via Drive Files (https://www.googleapis.com/auth/drive.file):</strong> To create spreadsheets and access only the spreadsheets you explicitly select or create through Let&apos;s Assist for reporting and sync workflows.</li>
-                <li><strong>Google Calendar (https://www.googleapis.com/auth/calendar):</strong> To create, update, share, and remove calendars and events for scheduling features and sync.</li>
+                <li><strong>Google Calendar (https://www.googleapis.com/auth/calendar.app.created):</strong> To create, update, and remove only the calendars and events Let&apos;s Assist creates. Existing connections that previously granted the full Calendar scope remain compatible while ownership migration is verified; we do not expand a new connection to that legacy scope.</li>
               </ul>
             </li>
             <li>

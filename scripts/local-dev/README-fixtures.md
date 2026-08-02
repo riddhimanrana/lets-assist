@@ -26,6 +26,10 @@
 | `local-school-volunteers` | Local School Volunteers | School    | `340992`  |
 | `dvhs-csf`                | DVHS CSF                | School    | `621478`  |
 
+> `dvhs-csf` and every CSF account below it are **isolated-mode only**. They are
+> created by `bun run csf:seed:platform:isolated` on a generated isolated stack;
+> the shared local seed creates none of them.
+
 ---
 
 ## 👥 Optional DV Speech & Debate fixtures
@@ -108,6 +112,42 @@ across the three organizations in groups of five.
 
 ---
 
+## 🎓 Isolated DVHS CSF testing accounts
+
+These accounts exist only after `bun run csf:seed:platform:isolated`. Every
+account uses the run-scoped `CSF_LOCAL_TEST_PASSWORD`; the repository stores no
+fixture password. The titles mirror the DVHS CSF office structure, while every
+identity and email address is fictional.
+
+| Email | Host role | CSF responsibility |
+| --- | --- | --- |
+| `csf.admin@local.test` | Admin | Full organization and plugin administration |
+| `csf.adviser@local.test` | Staff | Adviser and academic override review |
+| `csf.co-president-one@local.test` | Staff | Co-President seat 1 |
+| `csf.co-president-two@local.test` | Staff | Co-President seat 2 |
+| `csf.vp-membership@local.test` | Staff | Vice President — Membership |
+| `csf.vp-publicity@local.test` | Staff | Vice President — Publicity |
+| `csf.vp-clubs@local.test` | Staff | Vice President — Clubs |
+| `csf.treasurer@local.test` | Staff | Treasurer |
+| `csf.secretary@local.test` | Staff | Secretary |
+| `csf.web-master@local.test` | Staff | Web Master |
+| `csf.officer@local.test` | Staff | Activity Coordinator seat 1 |
+| `csf.activity-two@local.test` | Staff | Activity Coordinator seat 2 |
+| `csf.activity-three@local.test` | Staff | Activity Coordinator seat 3 |
+| `csf.activity-four@local.test` | Staff | Activity Coordinator seat 4 |
+| `csf.activity-five@local.test` | Staff | Activity Coordinator seat 5 |
+| `csf.data-management@local.test` | Staff | Data Management |
+| `student.2028@local.test` | Member | Linked Class of 2028 member |
+| `csf.applicant@local.test` | Member | Applicant and account-link workflow |
+
+The dataset includes Classes of 2027, 2028, and 2029; Fall 2025 and Spring 2026
+terms; accepted, needs-review, and needs-action applications; active and
+accepted memberships; meetings and attendance; opportunities; point
+submissions and awarded credit; partner clubs; announcements; and import
+preview/commit states.
+
+---
+
 ## 🔗 Remote Preview Mode
 
 Remote Preview has no built-in user mapping. If a developer explicitly enables
@@ -117,7 +157,7 @@ user IDs or expose the mapping through a `NEXT_PUBLIC_*` variable.
 
 ---
 
-## 🚀 How to Re-Seed
+## 🚀 How to Re-Seed — shared local, non-CSF only
 
 ```bash
 export CSF_LOCAL_TEST_PASSWORD="$(openssl rand -base64 24)"
@@ -126,36 +166,96 @@ bun run supabase
 bun run dv:fixtures
 ```
 
-> `bun run supabase` starts local Supabase, resets the database, and seeds the
-> default platform and DVHS CSF fixtures. `bun run dv:fixtures` adds the optional
-> DV Speech & Debate workspace.
+> `bun run supabase` starts the shared local Supabase stack, resets its database,
+> and seeds the default non-CSF platform fixtures. It seeds **no** DVHS CSF data:
+> `PLATFORM_SEED_MODE=shared-local-v1` creates, replaces, and deletes no DVHS CSF
+> organization, plugin, profile, membership, import, or synthetic fixture record.
+> `bun run dv:fixtures` adds the optional DV Speech & Debate workspace.
+>
+> The DVHS CSF rows in the tables above are seeded only by
+> `bun run csf:seed:platform:isolated` on a generated isolated stack — see the
+> next section.
 
-## Isolated DVHS CSF stack
+## Isolated DVHS CSF stack — the only supported CSF recovery path
 
-Start a separate stack without touching the shared local Supabase project:
+For ordinary development, start Let’s Assist and its fictional CSF dataset with
+one command:
+
+```bash
+bun run dev
+# Equivalent explicit aliases:
+bun run dev:csf
+bun run csf:dev:isolated
+```
+
+The command prints the generated password and useful fake accounts. Re-running
+it preserves local edits; `CSF_LOCAL_RESEED=1 bun run dev` deliberately
+restores the fixtures.
+
+For lower-level recovery, start a separate stack without touching the shared
+local Supabase project:
 
 ```bash
 scripts/local-dev/start-dvhs-csf-isolated-stack.sh
 ```
 
-Source the generated Supabase environment and seed fictional login accounts:
+That single launcher owns one project ID, one port bundle (base `55320`), and one
+new database volume. The new volume is what makes the Supabase CLI apply the
+current timestamped migrations and then the configured `db.seed.sql_paths`; a
+later start of an existing volume replays neither.
+
+Load the generated app environment **before** seeding, through the exact-byte
+validated loader. Do not `source` or `eval` the generated file on this path:
 
 ```bash
-source /tmp/lets-assist-csf-browser-<run-id>/supabase-browser.env
-bun run supabase:seed:local-dev
+export CSF_ISOLATED_WORK_DIR=/tmp/lets-assist-csf-browser-<run-id>
+node scripts/local-dev/dv-local-env.mjs --print-app-env   # 17 allowlisted KEY=VALUE lines
+# export each line after checking its key against the allowlist — see README.md
+bun run csf:seed:platform:isolated
+bun run dv:fixtures   # optional DV workspace
 ```
 
-Then source the generated app environment before starting Let’s Assist on port 3001:
+`supabase-browser.env` in the same directory is only the raw `supabase status`
+snapshot and is not sufficient for app or seed validation.
+
+`bun run csf:seed:platform:isolated` and `bun run dv:fixtures` create the
+fictional JavaScript-managed platform and DV records shown above — they do not
+replay migrations or SQL seeds. The isolated seed script carries
+`PLATFORM_SEED_MODE=csf-isolated-v1`, refuses to run without a validated
+`CSF_ISOLATED_WORK_DIR`, and is the only mode that seeds the deterministic
+synthetic DVHS CSF fixtures. `bun run supabase:seed:local-dev` is shared local,
+non-CSF only: it refuses an isolated work directory and seeds no DVHS CSF data,
+so it is not a fallback here.
+
+Then start the low-level Let’s Assist runner on owned port 3000 in that same
+manually exported environment:
 
 ```bash
-source /tmp/lets-assist-csf-browser-<run-id>/lets-assist-browser.sh
-bun run dev -- --port 3001
+node scripts/local-dev/run-dvhs-csf-isolated-app.mjs
 ```
 
-Use the exact work directory printed by that command when stopping it:
+That runner validates the same 17 isolated values, builds its child environment
+from a positive allowlist rather than by spreading `process.env`, shadows every
+key the repository's `.env*` files declare unless it is validated local-safe,
+forces every worker flag false, selects Mailpit explicitly for local mail,
+permits only loopback Supabase, database, SMTP, and local-app traffic, and holds
+one atomic claim on port `3000` for the child's lifetime. `bun run dev` is not a
+fallback on this path.
+
+Tear down with a dry run first, using the exact work directory the launcher
+printed:
 
 ```bash
+scripts/local-dev/stop-dvhs-csf-isolated-stack.sh --dry-run /tmp/lets-assist-csf-browser-<run-id>
 scripts/local-dev/stop-dvhs-csf-isolated-stack.sh /tmp/lets-assist-csf-browser-<run-id>
 ```
 
-Pass `--delete-workdir` only when its local logs and environment file are no longer needed.
+Pass `--delete-workdir` only when the local logs and environment file are no
+longer needed. It is unreachable unless the post-stop Docker **residual proof**
+succeeded; if Docker is missing, enumeration fails, or anything unexpected
+remains, the stop exits nonzero and retains every piece of recovery evidence.
+
+`bun run db:test:redesign` drives the same launcher itself. When it generates the
+stack it loads `lets-assist-browser.sh` through its own validated exact-byte
+loader (`node scripts/local-dev/dv-local-env.mjs --print-app-env`) rather than a
+second `source` of that pathname, then seeds these fixtures on that one stack.

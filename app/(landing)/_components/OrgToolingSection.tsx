@@ -1367,7 +1367,7 @@ export default function OrgToolingSection() {
           <Badge variant="outline" className="mb-3 border-primary/40 bg-primary/10 text-primary">
             For organizations
           </Badge>
-          <h2 className="font-nohemi text-3xl sm:text-4xl tracking-tight">
+          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             <AnimatedText text="The workspace SignUpGenius never built" mode="words" />
           </h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">

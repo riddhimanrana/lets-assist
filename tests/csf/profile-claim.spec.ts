@@ -11,6 +11,7 @@ import {
   expectNoPrivateBoundaryMarkers,
   localActors,
   loginAs,
+  soleAccessibleAction,
   watchBrowserFailures,
 } from "./helpers";
 
@@ -340,12 +341,12 @@ test.describe("signed-out CSF connection states", () => {
     await expect(page.getByRole("button", { name: /Yes, connect this record/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Accept invitation/ })).toHaveCount(0);
 
-    const returnLink = page.locator('a[data-slot="button"]', { hasText: "Back to the CSF page" });
+    const returnLink = await soleAccessibleAction(page, "Back to the CSF page");
     await expect(returnLink).toHaveAttribute("href", CSF_PUBLIC_PATH);
 
     // Signing in is offered separately from claiming, and it returns to the
     // canonical organization route rather than to this page.
-    const signIn = page.locator('a[data-slot="button"]', { hasText: "Sign in to My CSF" });
+    const signIn = await soleAccessibleAction(page, "Sign in to My CSF");
     await expect(signIn).toHaveAttribute(
       "href",
       `/login?redirect=${encodeURIComponent(`${CSF_ORGANIZATION_PATH}?tab=csf-profile`)}`,
@@ -382,9 +383,8 @@ test.describe("signed-out CSF connection states", () => {
     expect(hrefs.some((href) => href.includes("not-a-real-csf-link"))).toBe(false);
     expect(hrefs.some((href) => href.includes("/login"))).toBe(false);
 
-    await expect(
-      page.locator('a[data-slot="button"]', { hasText: "Back to the CSF page" }),
-    ).toHaveAttribute("href", CSF_PUBLIC_PATH);
+    const returnLink = await soleAccessibleAction(page, "Back to the CSF page");
+    await expect(returnLink).toHaveAttribute("href", CSF_PUBLIC_PATH);
 
     expectNoBrowserFailures(failures);
   });
@@ -402,8 +402,7 @@ test.describe("signed-out CSF connection states", () => {
     // Safe class and semester context only — never the code itself.
     expect(body).not.toContain(onboardingCode);
 
-    const signIn = page.locator('a[data-slot="button"]', { hasText: "Sign in to claim profile" });
-    await expect(signIn).toBeVisible();
+    const signIn = await soleAccessibleAction(page, "Sign in to claim profile");
     await expect(signIn).toHaveAttribute(
       "href",
       `/login?redirect=${encodeURIComponent(connectPath)}`,

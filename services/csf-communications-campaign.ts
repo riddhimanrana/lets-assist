@@ -237,10 +237,12 @@ export async function updateCsfCampaignDraft(
  * Provider feedback updates address safety instead, which blocks delivery on its
  * own terms and is deliberately separate from consent.
  *
- * REMAINING ITEM, STATED PLAINLY: there is no browser-facing unsubscribe token
- * route yet. This wrapper and its RPC are the server contract a token route would
- * call once it has verified a token and resolved it to an address; the token
- * surface itself is not implemented and is not simulated here.
+ * The officer campaign workspace is implemented by the private DVHS CSF plugin;
+ * it creates and advances campaigns without exposing addresses or topic ids to
+ * the browser. A separate recipient-facing unsubscribe-token route does not yet
+ * exist. This wrapper and its RPC are the server contract that route would call
+ * after verifying a token and resolving it to one address; no fake token surface
+ * is implied here.
  */
 export async function recordCsfBroadcastPreferenceDecision(
   plugin: CsfPluginRpc,
@@ -419,7 +421,11 @@ export async function cancelCsfCampaign(
     actorUserId: string;
     correlationId?: string;
   },
-): Promise<{ status: string; attemptsSettled: number; idempotentReplay: boolean }> {
+): Promise<{
+  status: string;
+  attemptsSettled: number;
+  idempotentReplay: boolean;
+}> {
   const response = await plugin.rpc("csf_cancel_communication_campaign", {
     p_organization_id: input.organizationId,
     p_campaign_id: input.campaignId,
@@ -428,7 +434,10 @@ export async function cancelCsfCampaign(
     p_correlation_id: input.correlationId ?? null,
   });
 
-  const data = unwrap<Record<string, unknown>>(response, "cancelling a campaign");
+  const data = unwrap<Record<string, unknown>>(
+    response,
+    "cancelling a campaign",
+  );
 
   return {
     status: String(data.status ?? "unknown"),

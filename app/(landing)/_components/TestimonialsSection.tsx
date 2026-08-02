@@ -121,7 +121,7 @@ export default function TestimonialsSection() {
           <p className="[font-family:var(--font-geist-sans)] text-xs font-medium uppercase tracking-[0.28em] text-primary">
             Testimonials from demos
           </p>
-          <h2 className="font-nohemi mt-3 text-4xl font-medium leading-tight tracking-normal text-foreground sm:text-5xl">
+          <h2 className="mt-3 text-4xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
             <AnimatedText text="Trusted by the people leading service." mode="words" />
           </h2>
           <p className="mx-auto mt-4 max-w-2xl font-sans text-base leading-8 text-muted-foreground">

@@ -120,6 +120,12 @@ unexpected_missing_tenant="$(
       )
       and not exists (
         select 1
+        from private.plugin_data_user_scope_contracts user_scope
+        where user_scope.schema_name = t.table_schema
+          and user_scope.table_name = t.table_name
+      )
+      and not exists (
+        select 1
         from information_schema.columns c
         where c.table_schema = t.table_schema
           and c.table_name = t.table_name

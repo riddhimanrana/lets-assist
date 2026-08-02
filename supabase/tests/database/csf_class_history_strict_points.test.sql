@@ -22,13 +22,19 @@ SELECT extensions.ok(
   'authenticated clients cannot call the strict class-history importer'
 );
 
+-- 20260730001004 revoked direct service access to the strict importer as well:
+-- reaching it requires the fenced wrapper
+-- plugin_data.csf_commit_import_row_for_attempt, which derives every authoritative
+-- argument from the immutable preview row. The strict-validation behavior
+-- assertions below still call it directly because pgTAP runs as the migration
+-- owner. The unsafe legacy importer stays revoked for everyone, as asserted next.
 SELECT extensions.ok(
-  has_function_privilege(
+  NOT has_function_privilege(
     'service_role',
     'plugin_data.csf_import_class_history_row_v2(uuid,uuid,text,text,text,text,text,text,text,text,uuid,uuid,uuid,uuid,text,jsonb,jsonb,boolean,uuid)',
     'EXECUTE'
   ),
-  'the server role can call the strict class-history importer'
+  'the server role cannot bypass the fenced wrapper to call the strict class-history importer directly'
 );
 
 SELECT extensions.ok(

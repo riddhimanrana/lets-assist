@@ -60,7 +60,7 @@ function TextFlip({ words }: { words: string[] }) {
           animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
           exit={{ y: -20, opacity: 0, filter: "blur(8px)" }}
           transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-          className="text-orange-400 font-bold font-nohemi"
+          className="font-bold text-orange-400"
         >
           {words[currentIndex]}
         </motion.span>
@@ -998,10 +998,10 @@ export default function ComparisonSection() {
           className="text-center mx-auto max-w-4xl mb-12 sm:mb-16"
         >
           <div className="space-y-1 sm:space-y-2">
-            <h2 className="font-nohemi text-[1.7rem] sm:text-3xl md:text-4xl lg:text-5xl tracking-tight font-bold">
+            <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
               SignUpGenius is <TextFlip words={flipWords} />
             </h2>
-            <h2 className="font-nohemi text-[1.7rem] sm:text-3xl md:text-4xl lg:text-5xl tracking-tight font-bold">
+            <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
               <span className="text-transparent bg-linear-to-r from-primary via-chart-2 to-primary bg-clip-text bg-size-[200%_auto] animate-gradient">
                 Let&apos;s Assist is built for today.
               </span>

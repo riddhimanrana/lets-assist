@@ -18,6 +18,9 @@ const SYNTHETIC_SOURCE_CONTENT = [
   "response_email,preferred_contact_email,course,grade",
   "avery.member@example.test,avery.family@example.test,Honors English,A",
 ].join("\n");
+const SYNTHETIC_PASSWORD = ["Synthetic", "Secret", "Do", "Not", "Retain"].join("-");
+const NESTED_SYNTHETIC_PASSWORD = ["Nested", "Synthetic", "Secret"].join("-");
+const FORMULA_SYNTHETIC_PASSWORD = ["Synthetic", "Formula", "Secret"].join("-");
 
 function sourceInput(
   overrides: Partial<CsfImportSourceInput> = {},
@@ -25,7 +28,10 @@ function sourceInput(
   return {
     provider: "google_sheets",
     fileId: "synthetic-sheet-file-id",
-    revision: "synthetic-revision-7",
+    // A native Sheet's revision is Drive's `version`: canonical bounded
+    // positive decimal int64 TEXT, required for this family and never
+    // interchangeable with a content digest.
+    revision: "7",
     modifiedAt: "2026-07-29T19:30:00.000Z",
     contentHash: {
       algorithm: "sha256",
@@ -126,7 +132,7 @@ describe("CSF normalized import contract", () => {
     expect(snapshot.source).toEqual({
       provider: "google_sheets",
       fileId: "synthetic-sheet-file-id",
-      revision: "synthetic-revision-7",
+      revision: "7",
       modifiedAt: "2026-07-29T19:30:00.000Z",
       contentHash: {
         algorithm: "sha256",
@@ -238,7 +244,7 @@ describe("CSF normalized import contract", () => {
       rows: [
         visibleRow(2, {
           responseEmail: "avery.member@example.test",
-          password: "SyntheticSecret-Do-Not-Retain",
+          password: SYNTHETIC_PASSWORD,
           token: "SyntheticAccessToken-Do-Not-Retain",
           rawData: {
             transcript: "Synthetic raw transcript content",
@@ -249,7 +255,7 @@ describe("CSF normalized import contract", () => {
             {
               name: "Honors English",
               grade: "A",
-              password: "NestedSyntheticSecret",
+              password: NESTED_SYNTHETIC_PASSWORD,
               rawPayload: {
                 source: "Nested raw payload",
               },
@@ -318,9 +324,9 @@ describe("CSF normalized import contract", () => {
 
     const serialized = JSON.stringify(snapshot);
     for (const excludedValue of [
-      "SyntheticSecret-Do-Not-Retain",
+      SYNTHETIC_PASSWORD,
       "SyntheticAccessToken-Do-Not-Retain",
-      "NestedSyntheticSecret",
+      NESTED_SYNTHETIC_PASSWORD,
       "Synthetic raw transcript content",
       "Nested raw payload",
       "Synthetic qualitative response that is not needed",
@@ -473,7 +479,7 @@ describe("CSF normalized import contract", () => {
           population: "formula_capacity",
           candidateData: {
             responseEmail: "formula.placeholder@example.test",
-            password: "SyntheticFormulaSecret",
+            password: FORMULA_SYNTHETIC_PASSWORD,
           },
         },
       ],
@@ -490,6 +496,156 @@ describe("CSF normalized import contract", () => {
 });
 
 describe("CSF import contract validation", () => {
+  /** U+200B. ECMAScript `trim()` does not remove it; the padding rule notices it. */
+  const ZERO_WIDTH_SPACE = String.fromCharCode(0x200b);
+
+  /**
+   * The ONE provider-timestamp corpus, restated value for value.
+   *
+   * Identical to the corpus the acquisition reader, the frozen provenance and the
+   * readiness boundary are exercised against. Four boundaries decide whether a
+   * `modifiedTime` is evidence, and a disagreement between them is exactly how a
+   * value one of them rewrote into validity reaches a gate that would have
+   * refused the original. These modules share no runtime import, so nothing but
+   * this table keeps them in agreement.
+   */
+  const EXACT_PROVIDER_INSTANTS = [
+    "2026-07-15T12:00:00Z",
+    "2026-07-15T12:00:00.000Z",
+    "2026-07-15T12:00:00.123456Z",
+    "2026-07-15T12:00:00.123456000Z",
+    "2024-02-29T23:59:59Z",
+  ] as const;
+
+  const REFUSED_PROVIDER_INSTANTS = [
+    ["nanoseconds Postgres cannot retain", "2026-07-15T12:00:00.123456789Z"],
+    // `\d{4}` accepts it, but PostgreSQL `timestamptz` stores an AD-era year and
+    // has no year zero, so it cannot round-trip as the Gregorian year it names.
+    ["year 0000", "0000-07-15T12:00:00Z"],
+    ["a numeric UTC offset", "2026-07-15T12:00:00+00:00"],
+    ["the offset-unknown spelling", "2026-07-15T12:00:00-00:00"],
+    ["a non-UTC offset", "2026-07-15T12:00:00-07:00"],
+    ["four fractional digits", "2026-07-15T12:00:00.1234Z"],
+    ["two fractional digits", "2026-07-15T12:00:00.12Z"],
+    ["an empty fractional part", "2026-07-15T12:00:00.Z"],
+    ["February 30", "2026-02-30T00:00:00Z"],
+    ["February 29 in a common year", "2025-02-29T00:00:00Z"],
+    ["April 31", "2026-04-31T00:00:00Z"],
+    ["month 13", "2026-13-01T00:00:00Z"],
+    ["month 00", "2026-00-10T00:00:00Z"],
+    ["day 00", "2026-07-00T00:00:00Z"],
+    ["hour 24", "2026-07-15T24:00:00Z"],
+    ["minute 60", "2026-07-15T12:60:00Z"],
+    ["second 60", "2026-07-15T12:00:60Z"],
+    ["leading padding", " 2026-07-15T12:00:00Z"],
+    ["trailing padding", "2026-07-15T12:00:00Z "],
+    ["a zero-width padded value", ZERO_WIDTH_SPACE + "2026-07-15T12:00:00Z"],
+    ["a space date/time separator", "2026-07-15 12:00:00Z"],
+    ["lowercase designators", "2026-07-15t12:00:00z"],
+    ["a bare date", "2026-07-15"],
+    ["prose", "not a timestamp"],
+    ["an empty string", ""],
+  ] as const;
+
+  // A shallow mutable view; see the identical note in the provenance suite. The
+  // corpus stays `as const`, in the same order, byte-identical.
+  test.each([...EXACT_PROVIDER_INSTANTS])(
+    "records the provider modified time %p exactly as given",
+    (modifiedAt) => {
+      const snapshot = buildSnapshot({ source: sourceInput({ modifiedAt }) });
+      expect(snapshot.source.modifiedAt).toBe(modifiedAt);
+    },
+  );
+
+  test.each(REFUSED_PROVIDER_INSTANTS)(
+    "refuses a Google modified time with %s",
+    (_label, modifiedAt) => {
+      expect(() =>
+        buildSnapshot({ source: sourceInput({ modifiedAt: modifiedAt as never }) }),
+      ).toThrow();
+    },
+  );
+
+  test("a nanosecond Postgres cannot retain is refused, and its microsecond twin is not", () => {
+    // `timestamptz` keeps microseconds. Recording `.123456789Z` would put
+    // precision into the snapshot that the stored column can never hold, so
+    // every later comparison would have to truncate -- manufacturing agreement
+    // rather than proving it. Only the final three digits separate the two.
+    expect(() =>
+      buildSnapshot({ source: sourceInput({ modifiedAt: "2026-07-15T12:00:00.123456789Z" }) }),
+    ).toThrow("provider's own UTC modified-time spelling");
+    expect(
+      buildSnapshot({ source: sourceInput({ modifiedAt: "2026-07-15T12:00:00.123456000Z" }) })
+        .source.modifiedAt,
+    ).toBe("2026-07-15T12:00:00.123456000Z");
+  });
+
+  /**
+   * The uploaded family's STORED grammar, held to the same civil-time rules.
+   *
+   * Its `modifiedAt` is a staging object's `readyAt` -- a `timestamptz`
+   * rendering rather than provider text -- and it is validated by the same
+   * shared civil-date check the Google spelling uses. Testing only the frozen
+   * Google parser would leave this family free to record a year `timestamptz`
+   * cannot hold.
+   */
+  const uploadedSourceInput = (
+    overrides: Partial<CsfImportSourceInput> = {},
+  ): CsfImportSourceInput => ({
+    ...sourceInput(),
+    provider: "uploaded_file",
+    // A claimed staging object's own primary key, synthetic and reserved.
+    fileId: "00000000-0000-4000-8000-000000000abc",
+    // An uploaded source's revision is the canonical sha256 of the claimed bytes.
+    revision: hashCsfImportContent(SYNTHETIC_SOURCE_CONTENT),
+    modifiedAt: "2026-07-15T12:00:00+00:00",
+    ...overrides,
+  });
+
+  test("an uploaded source records a real stored ready time exactly as given", () => {
+    for (const modifiedAt of [
+      "2026-07-15T12:00:00+00:00",
+      "2026-07-15 12:00:00+00",
+      "2026-07-15T12:00:00.123456+00:00",
+      "2026-07-15T12:00:00Z",
+      "2024-02-29T23:59:59-07:00",
+      "0001-01-01T00:00:00+00:00",
+    ]) {
+      expect(
+        buildSnapshot({ source: uploadedSourceInput({ modifiedAt }) }).source.modifiedAt,
+        `${modifiedAt} was refused`,
+      ).toBe(modifiedAt);
+    }
+  });
+
+  test.each([
+    // The year rule, on the stored side of the same shared validator.
+    ["year 0000 with an offset", "0000-07-15T12:00:00+00:00"],
+    ["year 0000 with a space separator", "0000-07-15 12:00:00Z"],
+    ["year 0000 in UTC", "0000-07-15T12:00:00Z"],
+    // And the civil-date and zone rules this family already shares.
+    ["February 30", "2026-02-30T00:00:00+00:00"],
+    ["February 29 in a common year", "2025-02-29T00:00:00+00:00"],
+    ["hour 24", "2026-07-15T24:00:00+00:00"],
+    ["second 60", "2026-07-15T12:00:60+00:00"],
+    ["the offset-unknown spelling", "2026-07-15T12:00:00-00:00"],
+    ["no zone at all", "2026-07-15T12:00:00"],
+    ["prose", "not a timestamp"],
+  ] as const)("refuses an uploaded stored ready time with %s", (_label, modifiedAt) => {
+    expect(() =>
+      buildSnapshot({ source: uploadedSourceInput({ modifiedAt: modifiedAt as never }) }),
+    ).toThrow("claimed staging object's ready timestamp");
+  });
+
+  test("an uploaded stored ready time is refused when padded, before the grammar runs", () => {
+    // Refused by the exact-coordinate rule rather than the civil-time one, so it
+    // carries its own distinct message. Stated separately so the corpus above
+    // keeps asserting the grammar it is about.
+    expect(() =>
+      buildSnapshot({ source: uploadedSourceInput({ modifiedAt: " 2026-07-15T12:00:00+00:00" }) }),
+    ).toThrow("must not be padded");
+  });
+
   test("requires provider identity, revision evidence, a content hash, and officer/policy term selection", () => {
     expect(() =>
       buildSnapshot({
@@ -502,11 +658,11 @@ describe("CSF import contract validation", () => {
     expect(() =>
       buildSnapshot({
         source: sourceInput({
-          revision: null,
-          modifiedAt: null,
+          revision: null as never,
+          modifiedAt: null as never,
         }),
       }),
-    ).toThrow("requires a revision or modifiedAt");
+    ).toThrow("source.revision must be a string");
 
     expect(() =>
       buildSnapshot({
@@ -538,7 +694,17 @@ describe("CSF import contract validation", () => {
           provider: "unknown_provider" as never,
         }),
       }),
-    ).toThrow("provider is not supported");
+    ).toThrow("not an implemented CSF import provider");
+
+    // The three enumerated-but-unadapted families fail closed for the same
+    // reason: no adapter defines what their file identity, revision and time
+    // mean, so a snapshot recording one could never be verified.
+    for (const provider of ["google_drive", "gmail_attachment", "legacy_export"] as const) {
+      expect(
+        () => buildSnapshot({ source: sourceInput({ provider: provider as never }) }),
+        `${provider} was accepted`,
+      ).toThrow("not an implemented CSF import provider");
+    }
   });
 
   test("requires a structurally bounded populated range and a complete tab inventory", () => {

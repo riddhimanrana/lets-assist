@@ -40,7 +40,8 @@ jobs:
               - 'supabase/**'
               - '.github/workflows/**'
               - 'app/api/calendar/google/**'
-              - 'app/api/cron/organization-sheet-sync/**'
+              - 'app/api/cron/**'
+              - 'lib/cron/**'
               - 'app/organization/**/calendar/**'
               - 'app/organization/**/reports/sheets-actions.ts'
               - 'lib/supabase/**'
@@ -141,11 +142,33 @@ jobs:
       - name: CSF root acquisition and harness safety tests
         run: |
           bun test --preload ./scripts/local-dev/server-only-test-preload.ts \
+            components/projects/project-feed-lifecycle.test.ts \
             lib/auth/theme-script-boundary.test.ts \
+            lib/supabase/retry-query.test.ts \
             scripts/local-dev/csf-browser-harness.test.ts \
             services/google-drive-metadata.test.ts \
             services/google-sheets-report-safety.test.ts \
             services/google-sheets-source-snapshot.test.ts
+
+      # Each of these runs in its own Bun process on purpose. They install global
+      # module mocks (`mock.module` for @supabase/supabase-js, server-only, the
+      # cron danger boundaries) and Bun's module registry is per-process, so a
+      # combined `bun test` invocation lets one file's mocks decide another
+      # file's result. Splitting them is the difference between four real gates
+      # and one gate that happens to pass.
+      - name: Seed mode execution-plan tests
+        run: bun test scripts/local-dev/seed-platform.test.ts
+
+      - name: Cron auth/shape probe tests
+        run: |
+          bun test --preload ./scripts/local-dev/server-only-test-preload.ts \
+            scripts/local-dev/cron-auth-shape-probe.test.ts
+
+      - name: Cron harness contract tests
+        run: bun test scripts/local-dev/test-cron-endpoints.test.ts
+
+      - name: Isolated app runner tests
+        run: bun test scripts/local-dev/run-dvhs-csf-isolated-app.test.ts
 
       - name: Plugin unit and security tests
         run: bun run plugin:test:unit
@@ -166,9 +189,7 @@ jobs:
     runs-on: ubuntu-latest
     if: needs.changes.outputs.db == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     env:
-      CSF_ISOLATED_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}
-      CSF_ISOLATED_WORK_DIR: /tmp/lets-assist-csf-browser-ci-${{ github.run_id }}-${{ github.run_attempt }}
-      CSF_ISOLATED_BASE_PORT: '56350'
+      CSF_ISOLATED_BASE_PORT: '55320'
       CSF_E2E_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Require private submodule access
@@ -234,14 +255,50 @@ jobs:
         with:
           version: 2.109.1
 
-      - name: Validate isolated migration replay and database tests
-        run: bun run csf:test:db:isolated
+      - name: Allocate one bounded isolated run identity
+        run: |
+          # The launcher caps run IDs at 16 characters, and a reused ID would
+          # reuse the derived Docker project and database volume. Generate a
+          # bounded, collision-resistant ID and require an absent work directory.
+          run_id="ci$(node -e 'process.stdout.write(require("node:crypto").randomBytes(7).toString("hex"));')"
+          if [[ ! "${run_id}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,15}$ ]]; then
+            echo "Generated isolated run ID does not satisfy the launcher contract: ${run_id}"
+            exit 1
+          fi
+          work_dir="/tmp/lets-assist-csf-browser-${run_id}"
+          if [[ -e "${work_dir}" || -L "${work_dir}" ]]; then
+            echo "Isolated work directory already exists: ${work_dir}"
+            exit 1
+          fi
+          printf 'CSF_ISOLATED_RUN_ID=%s\n' "${run_id}" >> "${GITHUB_ENV}"
+          printf 'CSF_ISOLATED_WORK_DIR=%s\n' "${work_dir}" >> "${GITHUB_ENV}"
 
-      - name: Start isolated Let’s Assist Supabase
+      - name: Start one isolated Let’s Assist Supabase
         id: start-isolated
         run: |
+          # Exactly one launcher-owned stack. Its new database volume is what
+          # applies the current migrations and the configured SQL seed paths.
           scripts/local-dev/start-dvhs-csf-isolated-stack.sh
-          source "${CSF_ISOLATED_WORK_DIR}/lets-assist-browser.sh"
+
+          # Load only the exact bytes that passed the non-executing validation.
+          # The loader re-reads its own held descriptor and rechecks
+          # inode/size/digest, so nothing here sources or re-opens the file.
+          validated_app_env="$(node scripts/local-dev/dv-local-env.mjs --print-app-env)"
+          while IFS= read -r assignment; do
+            [[ -n "${assignment}" ]] || continue
+            case "${assignment%%=*}" in
+              API_URL|ANON_KEY|SERVICE_ROLE_KEY|DB_URL|SUPABASE_URL|SUPABASE_ANON_KEY|\
+              SUPABASE_DB_URL|NEXT_PUBLIC_SUPABASE_URL|NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY|\
+              NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY|\
+              CSF_PROFILE_CLAIM_SECRET|NEXT_PUBLIC_SITE_URL|SITE_URL|NEXT_PUBLIC_VERCEL_URL|\
+              CSF_ISOLATED_WORK_DIR) ;;
+              *)
+                echo "Refusing an unexpected isolated app environment key: ${assignment%%=*}"
+                exit 1
+                ;;
+            esac
+            export "${assignment%%=*}=${assignment#*=}"
+          done <<< "${validated_app_env}"
 
           printf '::add-mask::%s\n' \
             "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-DvTest!" \
@@ -266,12 +323,23 @@ jobs:
             printf '%s=%s\n' "${key}" "${!key}" >> "${GITHUB_ENV}"
           done
 
-          node scripts/local-dev/dv-local-env.mjs --health
+          # Exact live identity: --csf-health requires the launcher marker,
+          # project, base port, and recorded database volume to agree.
+          node scripts/local-dev/dv-local-env.mjs --csf-health
 
-      - name: Validate DB reset replay
+      - name: Validate database tests on the same running isolated stack
+        run: supabase test db --workdir "${CSF_ISOLATED_WORK_DIR}"
+
+      - name: Seed fictional platform and DV fixtures
         run: |
-          supabase db reset --local --yes --workdir "${CSF_ISOLATED_WORK_DIR}"
-          bun run supabase:seed:local-dev
+          # JavaScript-managed fictional records only. The migration and SQL-seed
+          # replay already happened when the launcher created its new volume.
+          #
+          # The isolated seed script carries PLATFORM_SEED_MODE=csf-isolated-v1,
+          # which refuses to run without a validated CSF_ISOLATED_WORK_DIR. The
+          # shared-local script must never appear in this job: it would select
+          # the shared 54321 stack and then reset-upsert its CSF tables.
+          bun run csf:seed:platform:isolated
           bun run dv:fixtures
         env:
           DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
@@ -282,11 +350,19 @@ jobs:
         env:
           DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
 
-      - name: Validate CSF workflows and public privacy boundary
+      - name: Validate CSF database workflows
         run: bun run csf:test:workflows
 
       - name: Validate CSF scale and cleanup
         run: bun run csf:test:scale
+
+      # After seeding and before any browser run: the five selected worker routes
+      # (auto-publish-hours, project-cancellations, organization-calendar-sync,
+      # organization-sheet-sync, and data-exports) must authenticate and return
+      # without dispatching on a stack that now has fixture rows in it. Running it
+      # before the seed would prove only that empty queues do nothing.
+      - name: Validate cron auth/shape on the seeded isolated stack
+        run: bun run dev:test:cron
 
       - name: Install Playwright Chromium
         run: bunx playwright install --with-deps chromium
@@ -309,8 +385,9 @@ jobs:
       - name: Verify isolated Supabase remains healthy
         if: ${{ always() && steps.start-isolated.outcome == 'success' }}
         run: |
-          source "${CSF_ISOLATED_WORK_DIR}/lets-assist-browser.sh"
-          node scripts/local-dev/dv-local-env.mjs --health
+          # Reuses the values the start step already exported after their
+          # exact-byte validated handoff; no step re-opens or sources that file.
+          node scripts/local-dev/dv-local-env.mjs --csf-health
 
       - name: Validate retained CSF browser traces
         if: ${{ always() }}

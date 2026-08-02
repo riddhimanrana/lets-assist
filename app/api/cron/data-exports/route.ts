@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { processPendingDataExportJobs } from "@/lib/supabase/data-export-jobs";
+import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 
 function authorizeCronRequest(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -23,6 +24,12 @@ function authorizeCronRequest(request: NextRequest) {
 async function runProcessor(request: NextRequest) {
   const auth = authorizeCronRequest(request);
   if (!auth.ok) return auth.response;
+
+  // Strictly after real authentication and before the limit parse, Storage, and
+  // processPendingDataExportJobs(). This single seam covers GET and POST, both
+  // of which dispatch through runProcessor().
+  const probe = cronAuthShapeProbe("data-exports", request);
+  if (probe) return probe;
 
   const limitParam = Number(request.nextUrl.searchParams.get("limit") || "5");
   const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 25) : 5;

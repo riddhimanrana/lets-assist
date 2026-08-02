@@ -1,12 +1,12 @@
 import { Project, ProjectStatus } from "@/types";
 import { format, parseISO, isAfter, isBefore, isEqual, addHours, subHours, isWithinInterval } from "date-fns";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const shouldLogProjectDebug = process.env.NODE_ENV === "development";
 
 type SupabaseFromClient = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  from: (table: string) => any;
+  from: SupabaseClient["from"];
 };
 
 type MultiDaySlotLike = {

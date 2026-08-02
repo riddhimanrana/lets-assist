@@ -26,6 +26,7 @@ import { WaiverSigningDialog } from '@/components/waiver/WaiverSigningDialog';
 import { Check, PenTool, ArrowLeft } from 'lucide-react';
 import type { Project, WaiverSignatureInput, WaiverDefinitionFull } from '@/types';
 import { ModernFormRenderer } from '@/components/forms/ModernFormRenderer';
+import type { FormSchema } from '@/lib/forms/engine';
 
 interface UserProfile {
   full_name: string | null;
@@ -36,14 +37,14 @@ interface UserProfile {
 interface SignupConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (comment?: string, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, any>) => void;
+  onConfirm: (comment?: string, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, unknown>) => void;
   enableVolunteerComments?: boolean;
   waiverRequired?: boolean;
   waiverAllowUpload?: boolean;
   waiverDisableEsignature?: boolean;
   waiverPdfUrl?: string | null;
   waiverDefinition?: WaiverDefinitionFull | null;
-  signupFormSchema?: any | null;
+  signupFormSchema?: FormSchema | null;
   project: {
     id: string;
     title: string;
@@ -73,7 +74,7 @@ export function SignupConfirmationModal({
   isLoading = false,
 }: SignupConfirmationModalProps) {
   const [step, setStep] = useState<"confirmation" | "custom-form">("confirmation");
-  const [formData, setFormData] = useState<Record<string, any> | null>(null);
+  const [formData, setFormData] = useState<Record<string, unknown> | null>(null);
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -261,7 +262,7 @@ export function SignupConfirmationModal({
     );
   };
 
-  const handleCustomFormSubmit = (data: Record<string, any>) => {
+  const handleCustomFormSubmit = (data: Record<string, unknown>) => {
     setFormData(data);
     const trimmed = comment.trim();
     onConfirm(
@@ -562,14 +563,16 @@ export function SignupConfirmationModal({
           </>
         ) : (
           <div className="py-4">
-            <ModernFormRenderer
-              schema={signupFormSchema}
-              title={project.title}
-              description="Tournament Registration Form"
-              onSubmit={handleCustomFormSubmit}
-              isSubmitting={isLoading}
-              userEmail={currentUserProfile?.email || undefined}
-            />
+            {signupFormSchema ? (
+              <ModernFormRenderer
+                schema={signupFormSchema}
+                title={project.title}
+                description="Tournament Registration Form"
+                onSubmit={handleCustomFormSubmit}
+                isSubmitting={isLoading}
+                userEmail={currentUserProfile?.email || undefined}
+              />
+            ) : null}
           </div>
         )}
       </DialogContent>

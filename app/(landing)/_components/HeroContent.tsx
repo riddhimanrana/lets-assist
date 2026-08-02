@@ -39,20 +39,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { landingDemoAssets } from "./landing-demo-assets";
 
-const PROJECT_ID = "7b3e75d0-78d6-4857-9b21-4bcbf3b744d3";
+const {
+  projectId: PROJECT_ID,
+  projectImage: PROJECT_IMAGE,
+  coordinatorImage: COORDINATOR_IMAGE,
+} = landingDemoAssets(process.env.NEXT_PUBLIC_SUPABASE_URL);
 const PROJECT_HREF = `/projects/${PROJECT_ID}`;
 const PROJECT_DISPLAY_URL = `lets-assist.com/projects/${PROJECT_ID}`;
-const PROJECT_IMAGE =
-  "https://api.lets-assist.com/storage/v1/object/public/project-images/project_7b3e75d0-78d6-4857-9b21-4bcbf3b744d3_cover_1775090232973.jpeg";
-const COORDINATOR_IMAGE =
-  "https://api.lets-assist.com/storage/v1/object/public/avatars/b6ee0559-a406-4992-b621-9c5af015adce-1768611242931.jpg?v=1768611243727";
 
 const attendees = [
-  { name: "Maya", avatar: "/logos/dvhs.png" },
-  { name: "Jordan", avatar: "/logos/sanramon.jpg" },
-  { name: "Avery", avatar: "/logos/troop941.png" },
-  { name: "Nina", avatar: "/logos/wrms.png" },
+  { name: "Maya", avatar: "/demo/avatars/maya-chen.png" },
+  { name: "Jordan", avatar: "/demo/avatars/jordan-lee.png" },
+  { name: "Avery", avatar: "/demo/avatars/avery-patel.png" },
+  { name: "Priya", avatar: "/demo/avatars/priya-shah.png" },
   { name: "Anonymous", avatar: null },
 ];
 
@@ -353,7 +354,7 @@ export function ProjectDemo() {
               </div>
 
               <Link href={PROJECT_HREF} className="group block">
-                <h2 className="font-nohemi text-3xl font-medium leading-tight tracking-normal text-foreground sm:text-4xl">
+                <h2 className="text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl">
                   Santa Cruz Beach Cleanup
                 </h2>
               </Link>
@@ -418,6 +419,7 @@ export function ProjectDemo() {
                       alt="Santa Cruz Beach Cleanup"
                       fill
                       priority
+                      loading="eager"
                       sizes="(min-width: 1024px) 360px, 90vw"
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
@@ -668,11 +670,12 @@ function buildDemoProject(): {
     project_timezone: "America/Los_Angeles",
   };
 
-  const profileAvatars = [
-    "/logos/dvhs.png",
-    "/logos/troop941.png",
-    "/logos/wrms.png",
-  ];
+  const profileAvatarByName: Record<string, string> = {
+    "Maya Chen": "/demo/avatars/maya-chen.png",
+    "Jordan Lee": "/demo/avatars/jordan-lee.png",
+    "Avery Patel": "/demo/avatars/avery-patel.png",
+    "Priya Shah": "/demo/avatars/priya-shah.png",
+  };
   const makeAttendee = (
     scheduleId: string,
     index: number,
@@ -688,9 +691,7 @@ function buildDemoProject(): {
       user_id: anonymous ? null : `demo-user-${username}`,
       full_name: name,
       username: anonymous ? "" : username,
-      avatar_url: anonymous
-        ? ""
-        : profileAvatars[index % profileAvatars.length],
+      avatar_url: anonymous ? "" : (profileAvatarByName[name] ?? ""),
       volunteer_comment: comment,
       is_anonymous: anonymous,
       anonymous_name: anonymous ? name : "",
@@ -922,7 +923,7 @@ function RealProjectDemoWindow() {
             strokeLinejoin="round"
           />
         </svg>
-        <p className="font-cheese-milky absolute bottom-2 left-1/2 m-0 -translate-x-1/2 text-balance text-center text-[1.55rem] font-normal leading-none text-foreground sm:bottom-0 sm:left-auto sm:right-0 sm:translate-x-0 sm:text-[1.95rem]">
+        <p className="absolute bottom-2 left-1/2 m-0 -translate-x-1/2 text-balance text-center text-sm font-medium text-foreground sm:bottom-0 sm:left-auto sm:right-0 sm:translate-x-0 sm:text-base">
           try our interactive demo
         </p>
       </div>
@@ -969,7 +970,7 @@ export const HeroContent = () => {
               />
             </div>
             <DialogHeader className="px-6 pb-6 text-left">
-              <DialogTitle className="font-nohemi text-2xl font-medium tracking-normal">
+              <DialogTitle className="text-2xl font-semibold tracking-tight">
                 Congressional recognition
               </DialogTitle>
               <DialogDescription className="text-sm leading-6">
@@ -984,7 +985,7 @@ export const HeroContent = () => {
           </DialogContent>
         </Dialog>
 
-        <h1 className="font-nohemi mt-5 max-w-5xl text-[2.7rem] font-medium leading-[0.96] tracking-normal text-foreground sm:text-6xl md:text-[5rem]">
+        <h1 className="mt-5 max-w-5xl text-[2.7rem] font-semibold leading-[0.96] tracking-tight text-foreground sm:text-6xl md:text-[5rem]">
           <AnimatedText
             text="The modern way to do"
             mode="letters"

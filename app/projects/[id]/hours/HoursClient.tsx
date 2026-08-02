@@ -119,16 +119,7 @@ export function HoursClient({ project, initialSignups }: Props): React.JSX.Eleme
     setEditedTimes(initialEdits);
   }, [initialSignups]);
 
-
-  // --- TODO: Add functions for: ---
-  // - handleTimeChange(signupId, field, value) -> Update editedTimes state
-  // - calculateDuration(checkIn, checkOut) -> Calculate and format duration string
-  // - handlePublishHours() -> Call server action to save hours and generate certificates
-  // - loadSignups() -> Function to refresh data from server if needed
-  // - formatSessionName() -> Adapt from AttendanceClient or import
-  // ---------------------------------
-
-  // Enhanced formatSessionName function
+  // Keep session labels consistent across the review, publish, and certificate flows.
   const formatSessionName = (proj: Project, sessionId: string): string => {
     if (!proj) return sessionId; // Added missing return statement
 

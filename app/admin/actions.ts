@@ -33,6 +33,11 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function readBannedUntil(user: unknown): string | null {
+  if (!isObjectRecord(user)) return null;
+  return typeof user.banned_until === "string" ? user.banned_until : null;
+}
+
 function extractMetadataModeration(metadata: unknown): FeedbackModerationSnapshot | null {
   if (!isObjectRecord(metadata)) {
     return null;
@@ -641,8 +646,7 @@ export async function getUserAccessControl(userId: string): Promise<{ data?: Use
   }
 
   const access = readAccountAccessFromMetadata(targetAuthUser.app_metadata);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const bannedUntil = (targetAuthUser as any).banned_until ?? null;
+  const bannedUntil = readBannedUntil(targetAuthUser);
 
   return {
     data: {
@@ -650,7 +654,7 @@ export async function getUserAccessControl(userId: string): Promise<{ data?: Use
       email: targetAuthUser.email ?? profile?.email ?? null,
       fullName: profile?.full_name ?? null,
       username: profile?.username ?? null,
-      bannedUntil: typeof bannedUntil === "string" ? bannedUntil : null,
+      bannedUntil,
       access,
     },
   };
@@ -782,15 +786,14 @@ export async function updateUserAccessControl(input: {
       });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const bannedUntilBan = (banResult?.user as any)?.banned_until ?? null;
+    const bannedUntilBan = readBannedUntil(banResult?.user);
     return {
       data: {
         userId: input.userId,
         status: "banned",
         reason: normalizedReason,
         updatedAt,
-        bannedUntil: typeof bannedUntilBan === "string" ? bannedUntilBan : null,
+        bannedUntil: bannedUntilBan,
       },
     };
   }
@@ -826,15 +829,14 @@ export async function updateUserAccessControl(input: {
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const bannedUntilActive = (activeResult?.user as any)?.banned_until ?? null;
+  const bannedUntilActive = readBannedUntil(activeResult?.user);
   return {
     data: {
       userId: input.userId,
       status: "active",
       reason: null,
       updatedAt,
-      bannedUntil: typeof bannedUntilActive === "string" ? bannedUntilActive : null,
+      bannedUntil: bannedUntilActive,
     },
   };
 }

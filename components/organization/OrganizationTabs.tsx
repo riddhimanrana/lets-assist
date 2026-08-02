@@ -606,7 +606,7 @@ export default function OrganizationTabs({
         </DropdownMenu>
       ) : null}
       <TabsList className={cn(
-        "flex h-auto min-w-0 flex-1 items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
+        "flex h-auto min-w-0 w-full sm:w-fit max-w-full items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
         usesFullSectionMobileNav && "hidden sm:flex",
       )}>
         {showOverviewTab && (

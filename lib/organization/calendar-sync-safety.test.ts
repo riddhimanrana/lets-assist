@@ -100,18 +100,42 @@ test("calendar sync loads and validates both sources before calling Google", () 
   assert.ok(googleMutation > googleAccess);
 });
 
+test("organization calendar accepts the minimum app-created or staged legacy write grant", () => {
+  const functionSource = readSyncFunctionSource();
+  const tokenRead = statementAt(functionSource, "const accessToken");
+  const calendarService = readFileSync(
+    join(process.cwd(), "services/calendar.ts"),
+    "utf8",
+  );
+
+  assert.ok(tokenRead.includes('connectionType: "calendar"'));
+  assert.ok(
+    !tokenRead.includes("requiredScopes"),
+    "the consumer must not require the legacy full-Calendar token in addition to the shared write-scope gate",
+  );
+  assert.ok(
+    calendarService.includes(
+      'options.connectionType === "calendar" &&\n      !hasGoogleCalendarWriteScope(connection.granted_scopes)',
+    ),
+    "calendar credential consumers must use the exact minimum-or-legacy token gate",
+  );
+});
+
 test("the Sheets worker reauthorizes its owner and disables stale syncs before export", () => {
   const source = readFileSync(
     join(process.cwd(), "app/api/cron/organization-sheet-sync/route.ts"),
     "utf8",
   );
-  const authorization = source.indexOf(
+  const postSource = source.slice(source.indexOf("export async function POST"));
+  const authorization = postSource.indexOf(
     "authorizeGoogleOAuthOrganizationRequest({",
   );
-  const disableAutoSync = source.indexOf(".update({ auto_sync: false");
-  const tokenRead = source.indexOf("getGoogleAccessTokenForSheetsForUser(");
-  const reportRead = source.indexOf("buildOrganizationReportRowsForSync(");
-  const googleWrite = source.indexOf("replaceSpreadsheetReportValues(");
+  const disableAutoSync = postSource.indexOf(".update({ auto_sync: false");
+  const tokenRead = postSource.indexOf("getGoogleAccessTokenForSheetsForUser(");
+  const reportRead = postSource.indexOf("buildOrganizationReportRowsForSync(");
+  const googleWrite = postSource.indexOf(
+    "const replacement = await replaceSpreadsheetReportValues(",
+  );
 
   assert.ok(authorization >= 0);
   assert.ok(disableAutoSync > authorization);

@@ -56,6 +56,10 @@ import {
   getProjectVolunteerCapacity,
 } from "@/lib/projects/availability";
 import { getProjectStatus } from "@/utils/project";
+import {
+  observeProjectFeedPageLifecycle,
+  shouldReportProjectFeedFailure,
+} from "./project-feed-lifecycle";
 
 
 
@@ -85,6 +89,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const latestRequestIdRef = useRef(0);
   const activeRequestAbortRef = useRef<AbortController | null>(null);
+  const pageTeardownRef = useRef(false);
 
   // Debug local storage issue with hydration
   useEffect(() => {
@@ -104,6 +109,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     async (offset: number, mode: "replace" | "append" = "append") => {
       const requestId = ++latestRequestIdRef.current;
       activeRequestAbortRef.current?.abort();
+      pageTeardownRef.current = false;
       const abortController = new AbortController();
       activeRequestAbortRef.current = abortController;
 
@@ -153,11 +159,13 @@ export const ProjectsInfiniteScroll: React.FC = () => {
         setHasMore(nextProjects.length === limit);
         setIsSuccess(true);
       } catch (fetchError) {
-        if (abortController.signal.aborted) {
-          return;
-        }
-
-        if (requestId !== latestRequestIdRef.current) {
+        if (
+          !shouldReportProjectFeedFailure({
+            signalAborted: abortController.signal.aborted,
+            pageTearingDown: pageTeardownRef.current,
+            isLatestRequest: requestId === latestRequestIdRef.current,
+          })
+        ) {
           return;
         }
 
@@ -194,6 +202,24 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       activeRequestAbortRef.current?.abort();
       activeRequestAbortRef.current = null;
     };
+  }, [fetchProjectsPage]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    return observeProjectFeedPageLifecycle({
+      target: window,
+      getActiveRequest: () => activeRequestAbortRef.current,
+      onTeardown: () => {
+        pageTeardownRef.current = true;
+        latestRequestIdRef.current += 1;
+        activeRequestAbortRef.current = null;
+      },
+      onPersistedRestore: () => {
+        pageTeardownRef.current = false;
+        void fetchProjectsPage(0, "replace");
+      },
+    });
   }, [fetchProjectsPage]);
 
   const { ref, inView } = useInView({

@@ -219,9 +219,14 @@ test.describe("DVHS CSF role-aware navigation", () => {
     await expect(
       switcherMenu.getByRole("group", { name: "Workspace", exact: true }),
     ).toBeVisible();
+    // CSF names its utility group "More" so the phone switcher and the desktop
+    // overflow trigger read identically; the host default stays "Administration".
+    await expect(
+      switcherMenu.getByRole("group", { name: "More", exact: true }),
+    ).toBeVisible();
     await expect(
       switcherMenu.getByRole("group", { name: "Administration", exact: true }),
-    ).toBeVisible();
+    ).toHaveCount(0);
 
     // Every destination the desktop chrome splits between the strip and the
     // utility menu must appear exactly once inside the single phone switcher.

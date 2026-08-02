@@ -578,7 +578,7 @@ SELECT extensions.lives_ok(
       'bd400000-0000-4000-8000-000000000001', 'bd100000-0000-4000-8000-000000000001',
       'broadcast', 'draft', 'DVHS CSF', 'csf@notifications.lets-assist.com',
       'dvhighcsf@gmail.com', 'Spring 2032 partner club audit',
-      'Please submit your Spring 2032 audit.', '<p>Please submit.</p>',
+      'Please submit your Spring 2032 audit.', NULL,
       repeat('a', 64), repeat('9', 64), 'bd200000-0000-4000-8000-000000000001',
       'partner_club_representatives', 'partner_clubs',
       -- A dispatch-ready broadcast must carry the provider topic: it is what puts a
@@ -602,7 +602,7 @@ SELECT extensions.is(
   plugin_data.csf_communication_campaign_content_hash(
     'broadcast', 'email', 'DVHS CSF', 'csf@notifications.lets-assist.com',
     'dvhighcsf@gmail.com', 'Spring 2032 partner club audit',
-    'Please submit your Spring 2032 audit.', '<p>Please submit.</p>',
+    'Please submit your Spring 2032 audit.', NULL,
     '{}'::jsonb, 'partner_clubs'
   ),
   'the stored content digest is derived from the stored content, not from what the caller declared'
@@ -952,8 +952,9 @@ SELECT extensions.lives_ok(
 -- distinguish which of several RPCs acquired it. The row locks it would have to
 -- be compared against are themselves already released or coalesced by the time
 -- any assertion runs. Ordering is enforced by the canonical prologue in the
--- migration and probed across sessions in scratch/csf_lock_race_probe.py; the
--- assertions below are deliberately worded as acquisition, not sequence.
+-- migration. Cross-session ordering needs a dedicated two-connection integration
+-- harness; the assertions below are deliberately worded as acquisition, not
+-- sequence, so this pgTAP file never claims evidence it cannot produce.
 --
 -- A 64-bit advisory key is stored split across classid (high 32 bits) and objid
 -- (low 32), with objsubid = 1. Both halves are compared as unsigned, which is why
@@ -1133,7 +1134,7 @@ SELECT extensions.throws_ok(
     WHERE id = 'bd400000-0000-4000-8000-000000000007'
   $$,
   '23514',
-  'CSF campaign audience identity and dispatch markers are recorded once and never rewritten.',
+  'CSF campaign sender identity, subject, and body are frozen once the campaign content is finalized.',
   'the broadcast topic freezes together with the content'
 );
 
@@ -1986,25 +1987,6 @@ SELECT extensions.is(
   'a broadcast payload forwards the frozen chapter provider topic and the transport routing flag'
 );
 
--- A TRANSACTIONAL PAYLOAD CARRIES NO TOPIC AT ALL.
---
--- Not `null`: the key is ABSENT. A present-but-null topicId would reach the provider
--- as topic_id and offer an unsubscribe from mail the chapter is obliged to send.
-SELECT extensions.ok(
-  (
-    SELECT NOT (
-      plugin_data.csf_communication_provider_request(
-        attempt.organization_id, attempt.campaign_id,
-        attempt.recipient_snapshot_id, attempt.id, attempt.attempt_number
-      )->'providerPayload' ? 'topicId'
-    )
-    FROM plugin_data.csf_communication_dispatch_attempts AS attempt
-    WHERE attempt.campaign_id = 'bd400000-0000-4000-8000-000000000002'
-    LIMIT 1
-  ),
-  'a transactional payload omits topicId entirely rather than sending a null topic'
-);
-
 -- COORDINATE AND SENDABLE PAYLOAD ARE SEPARATE HALVES.
 SELECT extensions.ok(
   (
@@ -2436,6 +2418,28 @@ SELECT extensions.is(
   ),
   '1',
   'the transactional campaign enqueues its one mandatory recipient'
+);
+
+-- A TRANSACTIONAL PAYLOAD CARRIES NO TOPIC AT ALL.
+--
+-- This assertion belongs after the transactional audience is finalized and its
+-- attempt exists. Before that, the scalar subquery returned NULL and the test was
+-- checking fixture order rather than the request contract.
+-- Not `null`: the key is ABSENT. A present-but-null topicId would reach the provider
+-- as topic_id and offer an unsubscribe from mail the chapter is obliged to send.
+SELECT extensions.ok(
+  (
+    SELECT NOT (
+      plugin_data.csf_communication_provider_request(
+        attempt.organization_id, attempt.campaign_id,
+        attempt.recipient_snapshot_id, attempt.id, attempt.attempt_number
+      )->'providerPayload' ? 'topicId'
+    )
+    FROM plugin_data.csf_communication_dispatch_attempts AS attempt
+    WHERE attempt.campaign_id = 'bd400000-0000-4000-8000-000000000002'
+    LIMIT 1
+  ),
+  'a transactional payload omits topicId entirely rather than sending a null topic'
 );
 
 SELECT extensions.is(
@@ -3287,7 +3291,7 @@ SELECT extensions.throws_ok(
     )
   $$,
   '23514',
-  'That CSF unknown outcome was already reconciled as "delivered" and is not reconciled twice.',
+  'That CSF unknown outcome was already reconciled as "delivered" with different evidence -- outcome, reason, deciding account, correlation, or provider message identity -- and is not reconciled twice.',
   'a conflicting reconciliation replay is refused'
 );
 
@@ -3517,7 +3521,7 @@ SELECT extensions.throws_ok(
     WHERE normalized_recipient_email = 'rep.one@local.test'
   $$,
   '23514',
-  'A CSF address suppressed by provider evidence is never returned to safe by an ordinary write.',
+  'A CSF address suppressed by provider evidence returns to safe only through an audited release recording the actor and reason.',
   'an address suppressed by provider evidence is never quietly declared healthy again'
 );
 
@@ -4000,6 +4004,20 @@ SELECT extensions.throws_ok(
 -- resolve review -- all in one transaction.
 -- ---------------------------------------------------------------------------
 
+-- Campaign ...0010 deliberately reuses the same address as ...0001 to prove
+-- campaign-scoped idempotency. Section K2 subsequently recorded a bounce for
+-- that address, so another real send is only valid after the existing audited
+-- release path restores it. Without this fixture transition the claim correctly
+-- suppresses the queued attempt and the webhook race below has no send to race.
+CREATE TEMP TABLE t_repeat_recipient_release AS
+SELECT plugin_data.csf_release_communication_address_safety(
+  'bd100000-0000-4000-8000-000000000001',
+  'rep.one@local.test',
+  'Synthetic audited release before the later campaign send.',
+  'bd000000-0000-4000-8000-000000000001',
+  'corr-repeat-recipient-release'
+) AS result;
+
 SELECT extensions.is(
   (
     SELECT plugin_data.csf_claim_communication_dispatch_batch(
@@ -4464,11 +4482,12 @@ SELECT extensions.is(
       || '|' || event.provider_message_id
       || '|' || event.reduction_applied::text
       || '|' || (event.reduced_to_status IS NULL)::text
+      || '|' || (event.delivery_id IS NULL)::text
     FROM plugin_data.csf_communication_provider_events AS event
     WHERE event.provider_event_id = 'evt_unauth_sent_0001'
   ),
-  'true|' || repeat('8', 64) || '|email.sent|resend-message-unauthorized|false|true',
-  'the signed event is retained with every evidential column intact'
+  'true|' || repeat('8', 64) || '|email.sent|resend-message-unauthorized|false|true|true',
+  'the signed event is retained with every evidential column intact without binding the unreserved message identity to a delivery'
 );
 
 -- UNAUTHORIZED EVIDENCE MUST NOT RESERVE A PROVIDER IDENTITY.
@@ -4817,11 +4836,8 @@ SELECT extensions.ok(
 
 -- CANCELLATION AND SETTLEMENT SERIALIZE ON ONE LOCK, IN ONE ORDER.
 --
--- A single session cannot exhibit a two-session wait graph, so the genuine
--- deadlock probe lives in scratch/csf_lock_race_probe.py, which opens two
--- connections under a bounded lock_timeout. (The webhook quarantine has its own
--- two-session probe, scratch/csf_quarantine_race_probe.py, for the same reason.)
--- Neither is a .sql file: a single psql script cannot hold two sessions open.
+-- A single session cannot exhibit a two-session wait graph; that proof belongs in
+-- a bounded two-connection integration harness, not an untracked scratch script.
 -- What IS provable here is that both
 -- paths take the SAME advisory lock and that taking it twice in one transaction --
 -- which is what re-entering it from a nested RPC does -- never blocks.
@@ -5182,7 +5198,9 @@ SELECT extensions.is(
     SELECT plugin_data.csf_record_communication_provider_event(
       'bd100000-0000-4000-8000-000000000001', 'evt_supp_after_sent_0001',
       'email.suppressed', 'resend-message-suppressed-later',
-      now() + interval '5 minutes', repeat('a', 64), true
+      now() + interval '5 minutes', repeat('a', 64), true,
+      'svix', 'whsec_test_key',
+      '{"suppressionType":"OnAccountSuppressionList"}'::jsonb
     )->>'reducedToStatus'
   ),
   'suppressed',
@@ -6485,7 +6503,7 @@ SELECT extensions.is(
     WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
       AND recipient_email = 'resuppressible@local.test'
   ),
-  'suppressed|indefinite|false',
+  'suppressed|indefinite|true',
   'the later bounce supersedes the release and re-suppresses the address indefinitely'
 );
 
