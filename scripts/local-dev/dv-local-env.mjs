@@ -215,7 +215,13 @@ function parseEnvOutput(output) {
 }
 
 function parseSingleConfigValue(source, key) {
-  const matches = [...source.matchAll(
+  // Named `[remotes.*]` blocks may intentionally repeat keys such as
+  // `project_id`. Isolated-stack identity comes only from the TOML root before
+  // the first section, so remote metadata must not be mistaken for a second
+  // local runtime identity.
+  const firstSection = source.search(/^\s*\[/mu);
+  const root = firstSection === -1 ? source : source.slice(0, firstSection);
+  const matches = [...root.matchAll(
     new RegExp(`^\\s*${key}\\s*=\\s*(?:"([^"]+)"|(\\d+))\\s*$`, "gmu"),
   )];
   if (matches.length !== 1) {
