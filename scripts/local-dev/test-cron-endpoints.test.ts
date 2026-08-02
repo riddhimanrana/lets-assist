@@ -367,11 +367,13 @@ describe("the child environment is a positive allowlist", () => {
       "CRON_EGRESS_SMTP_PORTS",
       "NODE_OPTIONS",
       "NEXT_TELEMETRY_DISABLED",
+      "NEXT_DIST_DIR",
+      "CSF_LOCAL_FIXTURE_MODE",
       "PORT",
       "NODE_ENV",
     ]);
 
-    expect(new Set(Object.keys(childEnv))).toEqual(expected);
+    expect(Object.keys(childEnv).sort()).toEqual([...expected].sort());
   });
 
   test("the cron child refuses Mailpit while the app runner permits it", () => {
@@ -662,7 +664,13 @@ describe("the run-scoped egress guard rejects and records", () => {
   test("ordinary loopback traffic is allowed and records nothing", () => {
     const result = runGuarded(`
       const http = require("node:http");
-      const request = http.request({ host: "127.0.0.1", port: 55321, path: "/" });
+      const request = http.request(
+        { host: "127.0.0.1", port: 55321, path: "/" },
+        (response) => {
+          console.log("ALLOWED");
+          response.destroy();
+        },
+      );
       request.on("error", () => { console.log("ALLOWED"); });
       request.end();
     `);
@@ -681,6 +689,10 @@ describe("the run-scoped egress guard rejects and records", () => {
       const net = require("node:net");
       try {
         const socket = net.connect(55325, "127.0.0.1");
+        socket.on("connect", () => {
+          console.log("ALLOWED");
+          socket.destroy();
+        });
         socket.on("error", () => { console.log("ALLOWED"); });
       } catch (error) { console.log("BLOCKED:" + error.message); }
     `,
