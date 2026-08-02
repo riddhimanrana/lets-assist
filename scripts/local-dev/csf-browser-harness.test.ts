@@ -2718,7 +2718,9 @@ describe("both browser suites start only the isolated app runner", () => {
   test("each web server is the runner on the owned fixed port", () => {
     for (const file of configs) {
       const source = readFileSync(join(repositoryRoot, file), "utf8");
-      expect(source, file).toContain('command: "bun run csf:dev:isolated"');
+      expect(source, file).toContain(
+        'command: "node scripts/local-dev/bootstrap-dvhs-csf-dev.mjs"',
+      );
       expect(source, file).toContain("CSF_ISOLATED_APP_PORT");
       expect(source, file).toContain("reuseExistingServer: false");
       expect(source, file).not.toContain("...process.env");
