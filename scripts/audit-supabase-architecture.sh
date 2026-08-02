@@ -381,17 +381,7 @@ fail_if_rows "auth schema tables directly granted to anon/authenticated roles" "
 
 unexpected_security_definer_exec="$(
   psql "$DB_URL" -AtF $'\t' -c "
-    with allowed(schema_name, function_name, identity_arguments, role_name) as (
-      values
-        ('public', 'can_insert_project', 'p_user uuid', 'authenticated'),
-        ('public', 'can_insert_project', 'p_user uuid, p_visibility text, p_organization_id uuid', 'authenticated'),
-        ('public', 'can_keep_or_set_public_visibility', 'p_project_id uuid, p_user uuid', 'authenticated'),
-        ('public', 'get_public_attendees', 'p_project_id uuid', 'anon'),
-        ('public', 'get_public_attendees', 'p_project_id uuid', 'authenticated'),
-        ('public', 'is_project_organizer', 'p_project_id uuid, p_user uuid', 'authenticated'),
-        ('public', 'is_trusted_member', 'p_user uuid', 'authenticated')
-    ),
-    grants as (
+    with grants as (
       select n.nspname, p.proname, pg_get_function_identity_arguments(p.oid) as identity_arguments, r.rolname
       from pg_proc p
       join pg_namespace n on n.oid = p.pronamespace
@@ -402,16 +392,10 @@ unexpected_security_definer_exec="$(
     )
     select g.nspname, g.proname, g.identity_arguments, g.rolname
     from grants g
-    left join allowed a
-      on a.schema_name = g.nspname
-     and a.function_name = g.proname
-     and a.identity_arguments = g.identity_arguments
-     and a.role_name = g.rolname
-    where a.schema_name is null
     order by g.nspname, g.proname, g.identity_arguments, g.rolname;
   "
 )"
-fail_if_rows "unexpected client EXECUTE grants on public SECURITY DEFINER functions" "$unexpected_security_definer_exec"
+fail_if_rows "client EXECUTE grants on public SECURITY DEFINER functions" "$unexpected_security_definer_exec"
 
 allowed_security_definer_exec="$(
   psql "$DB_URL" -AtF $'\t' -c "
@@ -425,7 +409,7 @@ allowed_security_definer_exec="$(
     order by n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), r.rolname;
   "
 )"
-warn_if_rows "allowlisted client EXECUTE grants on public SECURITY DEFINER functions" "$allowed_security_definer_exec"
+fail_if_rows "client-callable public SECURITY DEFINER functions" "$allowed_security_definer_exec"
 
 summary="$(
   psql "$DB_URL" -AtF $'\t' -c "
