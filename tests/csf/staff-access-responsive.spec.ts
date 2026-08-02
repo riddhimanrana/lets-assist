@@ -90,7 +90,7 @@ test.describe("DVHS CSF staff access presentation", () => {
       "Access status",
     ]) {
       await expect(
-        roster.getByText(concept, { exact: true }).first(),
+        roster.getByText(concept, { exact: true }).filter({ visible: true }).first(),
         `${concept} should be labelled on the phone card`,
       ).toBeVisible();
     }

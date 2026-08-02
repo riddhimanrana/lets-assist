@@ -29,11 +29,11 @@ jobs:
       db: ${{ steps.filter.outputs.db }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
 
       - name: Detect DB-related changes
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             db:
@@ -77,7 +77,7 @@ jobs:
           fi
 
       - name: Checkout root
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
         with:
           persist-credentials: false
 
@@ -88,7 +88,7 @@ jobs:
           echo "sha=$(git rev-parse HEAD:lib/plugins/private)" >> "$GITHUB_OUTPUT"
 
       - name: Checkout exact private plugin gitlink
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
         with:
           repository: riddhimanrana/lets-assist-plugins
           ref: ${{ steps.private-plugin-gitlink.outputs.sha }}
@@ -102,7 +102,7 @@ jobs:
           git submodule absorbgitdirs lib/plugins/private
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
 
@@ -203,7 +203,7 @@ jobs:
           fi
 
       - name: Checkout root
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
         with:
           persist-credentials: false
 
@@ -214,7 +214,7 @@ jobs:
           echo "sha=$(git rev-parse HEAD:lib/plugins/private)" >> "$GITHUB_OUTPUT"
 
       - name: Checkout exact private plugin gitlink
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
         with:
           repository: riddhimanrana/lets-assist-plugins
           ref: ${{ steps.private-plugin-gitlink.outputs.sha }}
@@ -228,7 +228,7 @@ jobs:
           git submodule absorbgitdirs lib/plugins/private
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
 
