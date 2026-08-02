@@ -169,12 +169,14 @@ describe("the isolated app child environment is built, not inherited", () => {
       "CRON_EGRESS_SMTP_PORTS",
       "CRON_EGRESS_ALLOWED_SMTP_PORTS",
       "CRON_EGRESS_ALLOWED_LOOPBACK_PORTS",
+      "CRON_SECRET",
       "NODE_OPTIONS",
     ]);
 
     expect(new Set(Object.keys(childEnv))).toEqual(expected);
     expect(childEnv.NEXT_DIST_DIR).toBe(".next-csf-isolated/browser-app");
     expect(childEnv.CSF_LOCAL_FIXTURE_MODE).toBe("1");
+    expect(childEnv.CRON_SECRET).toMatch(/^[a-f0-9]{64}$/);
   });
 
   test("separates abruptly terminated cron output from browser output", () => {

@@ -1,4 +1,8 @@
 import { expect, type Page, type Response } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+import { inspectCsfIsolatedWorkDir } from "../../scripts/local-dev/dv-local-env.mjs";
 
 export const CSF_ORGANIZATION_SLUG = "dvhs-csf";
 export const CSF_ORGANIZATION_PATH = `/organization/${CSF_ORGANIZATION_SLUG}`;
@@ -66,6 +70,19 @@ export const localActors = {
 export type LocalActor = keyof typeof localActors;
 
 export function localTestPassword() {
+  const isolatedWorkDir = process.env.CSF_ISOLATED_WORK_DIR?.trim();
+  if (isolatedWorkDir) {
+    const isolated = inspectCsfIsolatedWorkDir(isolatedWorkDir);
+    const password = readFileSync(
+      path.join(isolated.workDir, "csf-local-test-password"),
+      "utf8",
+    ).trim();
+    if (password.length < 16 || /[\r\n]/u.test(password)) {
+      throw new Error("The isolated CSF fixture password is malformed.");
+    }
+    return password;
+  }
+
   const password =
     process.env.CSF_LOCAL_TEST_PASSWORD ?? process.env.DV_LOCAL_TEST_PASSWORD;
   if (!password) {
