@@ -253,7 +253,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v2
         with:
-          version: 2.109.1
+          version: 2.111.0
 
       - name: Allocate one bounded isolated run identity
         run: |

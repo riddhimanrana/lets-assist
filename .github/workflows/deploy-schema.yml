@@ -117,7 +117,7 @@ jobs:
 
       - uses: supabase/setup-cli@v2
         with:
-          version: 2.109.1
+          version: 2.111.0
 
       - name: Start Supabase local instance
         run: |
@@ -182,7 +182,7 @@ jobs:
 
       - uses: supabase/setup-cli@v2
         with:
-          version: 2.109.1
+          version: 2.111.0
 
       - name: Start Supabase local instance
         run: bun run supabase:start
@@ -232,7 +232,7 @@ jobs:
 
       - uses: supabase/setup-cli@v2
         with:
-          version: 2.109.1
+          version: 2.111.0
 
       - name: Require exact production deployment authorization
         env:
