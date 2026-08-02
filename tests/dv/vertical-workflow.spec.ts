@@ -40,14 +40,25 @@ test("approved student can open the current seasonal membership workspace", asyn
   await expect(email).toHaveValue(STUDENT_EMAIL);
   const expectedPath = `/organization/${ORGANIZATION_SLUG}/plugins/dv-speech-debate`;
   await main.getByRole("button", { name: "Login", exact: true }).click();
-  await page.waitForURL((url) => url.pathname === expectedPath, {
-    waitUntil: "domcontentloaded",
-    timeout: 60_000,
-  });
+  await expect
+    .poll(() => new URL(page.url()).pathname, { timeout: 60_000 })
+    .toBe(expectedPath);
   await expect(
     page.getByRole("heading", { name: /DV Speech & Debate/i }).first(),
   ).toBeVisible();
-  await expect(page.getByText("2026-2027 membership")).toBeVisible();
+  const membership = page.getByText("2026-2027 membership");
+  // The first authenticated request cold-compiles the private plugin route.
+  // Next's development HMR can replace that route's client-action chunks after
+  // the shell is already visible. Reload only that proven shell once so the
+  // workflow assertion runs against the completed compiler generation.
+  const loadedWithoutRefresh = await membership
+    .waitFor({ state: "visible", timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!loadedWithoutRefresh) {
+    await page.reload({ waitUntil: "domcontentloaded" });
+  }
+  await expect(membership).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("Approved", { exact: true })).toBeVisible();
 });
 
@@ -84,12 +95,16 @@ test("guardian availability link is single-use and updates judge availability", 
 
   await page.goto(`/guardian-action/${token}`);
   await expect(page.getByText("Confirm judging availability")).toBeVisible();
-  await page
-    .getByRole("radio", { name: "Available for some rounds" })
-    .click();
+  const limitedAvailability = page.getByRole("radio", {
+    name: "Available for some rounds",
+  });
+  await limitedAvailability.click();
+  await expect(limitedAvailability).toBeChecked();
   await page.getByLabel("Notes").fill("Available after the first round.");
   await page.getByRole("button", { name: "Confirm availability" }).click();
-  await expect(page.getByText("Availability recorded")).toBeVisible();
+  await expect(
+    page.getByRole("alert").getByText("Availability recorded"),
+  ).toBeVisible();
 
   const { data: availability, error: availabilityError } = await plugin
     .from("dv_sd_judge_availability")
