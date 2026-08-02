@@ -404,7 +404,7 @@ function getMaxVisionAreaRatio(fieldType: typeof FIELD_TYPES[number]): number {
   }
 }
 
-export function stabilizeVisionFallbackFields(
+function stabilizeVisionFallbackFields(
   fields: ParsedField[],
   selectableCandidates: SelectableCandidate[],
   pageDimensions: PageDimension[],
@@ -774,7 +774,7 @@ function getRelevantSignerRole(labelType: string, roles: ParsedRole[], defaultRo
   return defaultRole;
 }
 
-export function buildSelectableCandidates(
+function buildSelectableCandidates(
   candidates: CandidateArea[],
   widgets: DetectedPdfField[]
 ): SelectableCandidate[] {
@@ -819,7 +819,7 @@ export function buildSelectableCandidates(
   });
 }
 
-export function mapSelectionsToFields(
+function mapSelectionsToFields(
   selections: z.infer<typeof SelectedFieldSchema>[],
   selectableCandidates: SelectableCandidate[]
 ): ParsedField[] {
@@ -876,7 +876,7 @@ export function mapSelectionsToFields(
   return mapped.filter((f): f is ParsedField => f !== null);
 }
 
-export function mapWidgetsToFields(widgets: DetectedPdfField[]): ParsedField[] {
+function mapWidgetsToFields(widgets: DetectedPdfField[]): ParsedField[] {
   return widgets
     .filter((w) => w.fieldType !== 'unknown' && w.fieldType !== 'button')
     .map((w) => ({
@@ -895,7 +895,7 @@ export function mapWidgetsToFields(widgets: DetectedPdfField[]): ParsedField[] {
     }));
 }
 
-export function mapVisionFallbackFields(
+function mapVisionFallbackFields(
   fields: z.infer<typeof VisionDetectedFieldSchema>[],
   pageDimensions: PageDimension[],
   pageCount: number
@@ -933,7 +933,7 @@ export function mapVisionFallbackFields(
   return normalizeFieldsForOverlay(mapped, pageDimensions, pageCount, { convertFromOneBased: false });
 }
 
-export function mergeFieldsPreferWidgets(widgetFields: ParsedField[], aiFields: ParsedField[]): ParsedField[] {
+function mergeFieldsPreferWidgets(widgetFields: ParsedField[], aiFields: ParsedField[]): ParsedField[] {
   const merged: ParsedField[] = [...widgetFields];
 
   for (const aiField of aiFields) {
@@ -1006,7 +1006,7 @@ function normalizePageIndex(rawPageIndex: number, pageCount: number, convertFrom
  * 
  * No coordinate system inference or conversion is performed.
  */
-export function normalizeFieldsForOverlay(
+function normalizeFieldsForOverlay(
   fields: ParsedField[],
   pageDimensions: PageDimension[],
   pageCount: number,

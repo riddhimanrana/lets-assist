@@ -36,7 +36,7 @@ const MIGRATION = resolve(
   import.meta.dir,
   "../../../../supabase/migrations/20260730001003_dvhs_csf_durable_communications.sql",
 );
-const ROUTE_SOURCE = resolve(import.meta.dir, "./route.ts");
+const ROUTE_SOURCE = resolve(import.meta.dir, "./implementation.ts");
 
 /**
  * Every single-quoted literal in `sql`, ignoring `--` comments.
@@ -106,7 +106,7 @@ const rpcCallerCodes = sqlLiterals(
 ).sort();
 
 describe("quarantine reason vocabulary is identical across the route and the SQL", () => {
-  const route = require("./route") as typeof import("./route");
+  const route = require("./implementation") as typeof import("./implementation");
 
   // Widened to string[] on purpose: these are compared against text parsed out of
   // the migration, which TypeScript cannot know anything about. Keeping the

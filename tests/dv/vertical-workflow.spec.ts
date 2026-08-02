@@ -94,16 +94,20 @@ test("guardian availability link is single-use and updates judge availability", 
   expect(tokenError).toBeNull();
 
   await page.goto(`/guardian-action/${token}`);
-  await expect(page.getByText("Confirm judging availability")).toBeVisible();
-  const limitedAvailability = page.getByRole("radio", {
+  const actionCard = page
+    .locator('[data-slot="card"]')
+    .filter({ hasText: "Confirm judging availability" })
+    .first();
+  await expect(actionCard.getByText("Confirm judging availability")).toBeVisible();
+  const limitedAvailability = actionCard.getByRole("radio", {
     name: "Available for some rounds",
   });
   await limitedAvailability.click();
   await expect(limitedAvailability).toBeChecked();
-  await page.getByLabel("Notes").fill("Available after the first round.");
-  await page.getByRole("button", { name: "Confirm availability" }).click();
+  await actionCard.getByLabel("Notes").fill("Available after the first round.");
+  await actionCard.getByRole("button", { name: "Confirm availability" }).click();
   await expect(
-    page.getByRole("alert").getByText("Availability recorded"),
+    page.getByRole("alert").getByText("Availability recorded").first(),
   ).toBeVisible();
 
   const { data: availability, error: availabilityError } = await plugin
@@ -123,5 +127,5 @@ test("guardian availability link is single-use and updates judge availability", 
 
 test("expired guardian links fail closed", async ({ page }) => {
   await page.goto(`/guardian-action/${randomBytes(32).toString("base64url")}`);
-  await expect(page.getByText("Link unavailable")).toBeVisible();
+  await expect(page.getByText("Link unavailable", { exact: true }).first()).toBeVisible();
 });
