@@ -233,11 +233,16 @@ function printHandoff(workDir, password) {
 }
 
 async function runApp(workDir) {
+  const serverMode = process.env.CSF_BROWSER_SERVER_MODE ?? "development";
+  if (serverMode !== "development" && serverMode !== "production") {
+    throw new Error(`Unknown isolated browser server mode: ${serverMode}`);
+  }
   const child = spawn(process.execPath, [APP_RUNNER], {
     cwd: REPO_ROOT,
     env: {
       ...positiveRuntimeEnvironment(),
       CSF_ISOLATED_WORK_DIR: workDir,
+      CSF_BROWSER_SERVER_MODE: serverMode,
     },
     stdio: "inherit",
   });

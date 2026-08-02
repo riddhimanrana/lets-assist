@@ -62,7 +62,7 @@ mock.module("@/lib/plugins/supabase", () => ({
   }),
 }));
 
-const route = await import("./route");
+const route = await import("./implementation");
 /**
  * Imported after the module mocks above, for the same reason `route` is: a static
  * import would be hoisted ahead of them. Used only by the body-consumption probe,

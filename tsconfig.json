@@ -36,7 +36,9 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next-csf-isolated/types/**/*.ts",
-    ".next-csf-isolated/dev/types/**/*.ts"
+    ".next-csf-isolated/dev/types/**/*.ts",
+    ".next-csf-isolated/browser-app/types/**/*.ts",
+    ".next-csf-isolated/browser-app/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

@@ -215,6 +215,7 @@ export function discoverRepositoryEnvFileKeys(repoRoot = REPO_ROOT) {
  *   secret?: string,
  *   probeMode?: string,
  *   workDirOverride?: string,
+ *   serverMode?: "development" | "production",
  *   hostEnv?: Record<string, string | undefined>,
  * }} options
  */
@@ -229,6 +230,7 @@ export function buildIsolatedChildEnvironment(options) {
     secret,
     probeMode,
     workDirOverride,
+    serverMode = "development",
     hostEnv = process.env,
   } = options;
 
@@ -237,6 +239,9 @@ export function buildIsolatedChildEnvironment(options) {
   }
   if (mode === "cron-probe" && (!secret || !probeMode)) {
     throw new Error("The cron-probe child environment requires a run-scoped secret and probe mode.");
+  }
+  if (serverMode !== "development" && serverMode !== "production") {
+    throw new Error(`Unknown isolated browser server mode: ${serverMode}`);
   }
 
   /** @type {Record<string, string>} */
@@ -260,7 +265,7 @@ export function buildIsolatedChildEnvironment(options) {
 
   // Generated local-safe values. Every one of these is either a constant, a
   // loopback endpoint derived from the validated marker, or an explicit "off".
-  childEnv.NODE_ENV = "development";
+  childEnv.NODE_ENV = serverMode;
   childEnv.NEXT_TELEMETRY_DISABLED = "1";
   // Cron probes are terminated as soon as their one request completes. Sharing
   // their partially-written development output with a later browser server can
@@ -384,6 +389,37 @@ export function resolveNextDevCommand(port, repoRoot = REPO_ROOT, bundler = "web
       "--port",
       String(port),
     ],
+  };
+}
+
+/**
+ * Build and serve the browser suite through Next's production runtime. CI uses
+ * this path so authenticated Server Actions are never coupled to a cold HMR
+ * compiler generation. Both commands still run in the same provider-disabled
+ * isolated environment as the development server.
+ *
+ * @param {number} port
+ * @param {string} [repoRoot]
+ */
+export function resolveNextProductionCommands(port, repoRoot = REPO_ROOT) {
+  const nextBin = path.join(repoRoot, "node_modules", "next", "dist", "bin", "next");
+  if (!existsSync(nextBin)) {
+    throw new Error(`Missing the local Next executable: ${nextBin}`);
+  }
+  const command = resolveNodeExecutable();
+  return {
+    build: { command, args: [nextBin, "build", "--webpack"] },
+    start: {
+      command,
+      args: [
+        nextBin,
+        "start",
+        "--hostname",
+        "127.0.0.1",
+        "--port",
+        String(port),
+      ],
+    },
   };
 }
 
@@ -529,7 +565,14 @@ async function main() {
   const isolated = inspectCsfIsolatedWorkDir(process.env.CSF_ISOLATED_WORK_DIR);
   const appEnv = loadCsfIsolatedAppEnvironment(process.env.CSF_ISOLATED_WORK_DIR);
 
-  const next = resolveNextDevCommand(APP_PORT, REPO_ROOT);
+  const serverMode = process.env.CSF_BROWSER_SERVER_MODE ?? "development";
+  if (serverMode !== "development" && serverMode !== "production") {
+    throw new Error(`Unknown isolated browser server mode: ${serverMode}`);
+  }
+  const next =
+    serverMode === "production"
+      ? resolveNextProductionCommands(APP_PORT, REPO_ROOT)
+      : { start: resolveNextDevCommand(APP_PORT, REPO_ROOT) };
   const envFileKeys = discoverRepositoryEnvFileKeys(REPO_ROOT);
   const ledgerPath = path.join(isolated.workDir, "isolated-app-egress-ledger.jsonl");
   writeFileSync(ledgerPath, "", { mode: 0o600 });
@@ -541,6 +584,7 @@ async function main() {
     port: APP_PORT,
     ledgerPath,
     envFileKeys,
+    serverMode,
   });
 
   // Free before the claim, so an occupied port never even takes one.
@@ -573,7 +617,23 @@ async function main() {
   console.log(`  .env* keys shadowed: ${shadowedEnvFileKeys.length}`);
   console.log(`  egress ledger    : ${ledgerPath}`);
 
-  child = spawn(next.command, next.args, {
+  if ("build" in next) {
+    console.log("  browser runtime  : production build");
+    const build = spawnSync(next.build.command, next.build.args, {
+      cwd: REPO_ROOT,
+      env: childEnv,
+      stdio: "inherit",
+    });
+    if (build.error) throw build.error;
+    if (build.status !== 0) {
+      release();
+      throw new Error(`The isolated Next production build exited with code ${build.status}.`);
+    }
+  } else {
+    console.log("  browser runtime  : development server");
+  }
+
+  child = spawn(next.start.command, next.start.args, {
     cwd: REPO_ROOT,
     env: childEnv,
     stdio: ["ignore", "inherit", "inherit"],

@@ -26,6 +26,7 @@ import {
   discoverRepositoryEnvFileKeys,
   releaseAppPort,
   resolveNextDevCommand,
+  resolveNextProductionCommands,
 } from "./run-dvhs-csf-isolated-app.mjs";
 
 /**
@@ -269,6 +270,14 @@ describe("the isolated app child environment is built, not inherited", () => {
       }),
     ).toThrow(/Unknown isolated child environment mode/u);
   });
+
+  test("production browser mode changes only the runtime mode", () => {
+    const { childEnv } = build({ serverMode: "production" });
+    expect(childEnv.NODE_ENV).toBe("production");
+    expect(() => build({ serverMode: "preview" as "development" })).toThrow(
+      /Unknown isolated browser server mode/u,
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -500,7 +509,7 @@ describe("the fixed app port is owned through one atomic claim", () => {
       claimIndex,
     );
     const releaseOnFailure = runnerSource.indexOf("release();\n    throw error;");
-    const spawnIndex = runnerSource.indexOf("child = spawn(next.command");
+    const spawnIndex = runnerSource.indexOf("child = spawn(next.start.command");
 
     expect(claimIndex).toBeGreaterThan(-1);
     expect(secondCheck).toBeGreaterThan(claimIndex);
@@ -561,10 +570,24 @@ describe("the runner starts Next directly through Node", () => {
     ).toThrow("Unknown isolated Next bundler: unknown");
   });
 
+  test("builds and starts the CI browser runtime through the local Next binary", () => {
+    const commands = resolveNextProductionCommands(APP_PORT, repositoryRoot);
+    expect(commands.build.args.slice(1)).toEqual(["build", "--webpack"]);
+    expect(commands.start.args.slice(1)).toEqual([
+      "start",
+      "--hostname",
+      "127.0.0.1",
+      "--port",
+      "3000",
+    ]);
+    expect(commands.build.command).toMatch(/(^|\/)node(\.exe)?$/u);
+    expect(commands.start.command).toBe(commands.build.command);
+  });
+
   test("never shells out to a package script or a bun runtime", () => {
     // Structural, not textual: the prose above the code explains what it
     // replaced, so the assertion has to look at the spawn itself.
-    expect(runnerSource).toContain("child = spawn(next.command, next.args, {");
+    expect(runnerSource).toContain("child = spawn(next.start.command, next.start.args, {");
     expect(runnerSource).not.toMatch(/spawn(Sync)?\(\s*"bun"/u);
     expect(runnerSource).not.toMatch(/"run",\s*"dev"/u);
     expect(runnerSource).not.toMatch(/shell:\s*true/u);

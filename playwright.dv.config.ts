@@ -91,6 +91,7 @@ export default defineConfig({
       PATH: process.env.PATH ?? "/usr/bin:/bin",
       HOME: process.env.HOME ?? "",
       CSF_ISOLATED_WORK_DIR: isolatedStack.workDir,
+      CSF_BROWSER_SERVER_MODE: process.env.CI ? "production" : "development",
     },
   },
 });

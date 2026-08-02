@@ -242,7 +242,7 @@
   --font-overusedgrotesk: var(--font-overusedgrotesk), sans-serif;
   --font-nohemi: var(--font-nohemi), sans-serif;
   --font-cheese-milky: var(--font-cheese-milky), cursive;
-  --font-sans: var(--font-sans), sans-serif;
+  --font-sans: var(--font-geist-sans), sans-serif;
   --font-mono: var(--font-geist-mono), sans-serif;
 
   --animate-accordion-down: accordion-down 0.2s ease-out;
