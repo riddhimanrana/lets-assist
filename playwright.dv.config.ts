@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { defineConfig, devices } from "@playwright/test";
 import {
   CSF_ISOLATED_APP_PORT,
@@ -22,17 +24,39 @@ const port = CSF_ISOLATED_APP_PORT;
 // Mixing 127.0.0.1 browser cookies with a localhost canonical origin made the
 // first SSR request after sign-in intermittently fall back to /login.
 const baseURL = `http://localhost:${port}`;
+const artifactRoot = path.join(
+  process.cwd(),
+  "artifacts",
+  "dvhs-csf-e2e",
+  process.env.CSF_E2E_RUN_ID ?? "playwright-local",
+  "playwright",
+);
 
 export default defineConfig({
   testDir: "./tests/dv",
+  outputDir: path.join(artifactRoot, "dv-test-results"),
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  globalTimeout: process.env.CI ? 300_000 : undefined,
+  // CI cold-compiles three unrelated route trees through the isolated Next
+  // server. Keep each test bounded while allowing the full suite and teardown
+  // to finish after those one-time compiles.
+  timeout: 90_000,
+  globalTimeout: process.env.CI ? 600_000 : undefined,
   workers: 1,
-  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
+  expect: {
+    timeout: 15_000,
+  },
+  reporter: process.env.CI
+    ? [
+        ["github"],
+        ["html", { outputFolder: path.join(artifactRoot, "dv-html"), open: "never" }],
+      ]
+    : "list",
   use: {
     baseURL,
+    actionTimeout: 15_000,
+    navigationTimeout: 60_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

@@ -2742,6 +2742,9 @@ describe("both browser suites start only the isolated app runner", () => {
     const source = readFileSync(join(repositoryRoot, "playwright.dv.config.ts"), "utf8");
     expect(source).toContain('testDir: "./tests/dv"');
     expect(source).toContain('name: "chromium"');
+    expect(source).toContain("timeout: 90_000");
+    expect(source).toContain("globalTimeout: process.env.CI ? 600_000 : undefined");
+    expect(source).toContain('outputDir: path.join(artifactRoot, "dv-test-results")');
   });
 });
 
