@@ -262,7 +262,15 @@ export function buildIsolatedChildEnvironment(options) {
   // loopback endpoint derived from the validated marker, or an explicit "off".
   childEnv.NODE_ENV = "development";
   childEnv.NEXT_TELEMETRY_DISABLED = "1";
-  childEnv.NEXT_DIST_DIR = ".next-csf-isolated";
+  // Cron probes are terminated as soon as their one request completes. Sharing
+  // their partially-written development output with a later browser server can
+  // leave Webpack's module table inconsistent (for example, "undefined.call")
+  // even though the database remains healthy. Keep the two process lifecycles
+  // in separate, bounded directories.
+  childEnv.NEXT_DIST_DIR =
+    mode === "cron-probe"
+      ? ".next-csf-isolated/cron-probe"
+      : ".next-csf-isolated/browser-app";
   childEnv.CSF_LOCAL_FIXTURE_MODE = "1";
   childEnv.PORT = String(port);
   childEnv.EMAIL_TRANSPORT = "mailpit";

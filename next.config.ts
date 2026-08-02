@@ -1,10 +1,14 @@
 import type { NextConfig } from "next";
 
 const requestedDistDir = process.env.NEXT_DIST_DIR?.trim();
-if (requestedDistDir && requestedDistDir !== ".next-csf-isolated") {
+const isolatedDistDirs = new Set([
+  ".next-csf-isolated/browser-app",
+  ".next-csf-isolated/cron-probe",
+]);
+if (requestedDistDir && !isolatedDistDirs.has(requestedDistDir)) {
   throw new Error(
     `Unsupported NEXT_DIST_DIR ${JSON.stringify(requestedDistDir)}. ` +
-      "Only the isolated CSF runner may select an alternate Next.js output directory.",
+      "Only an isolated CSF child may select an alternate Next.js output directory.",
   );
 }
 

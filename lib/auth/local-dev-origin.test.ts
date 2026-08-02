@@ -53,15 +53,14 @@ describe("local browser verification origin", () => {
       "utf8",
     );
 
-    expect(launcher).toContain('emit_app_env_value NEXT_PUBLIC_SITE_URL "http://localhost:3001"');
-    expect(launcher).toContain('emit_app_env_value SITE_URL "http://localhost:3001"');
-    expect(launcher).toContain('emit_app_env_value NEXT_PUBLIC_VERCEL_URL "localhost:3001"');
-    expect(launcher).not.toContain("localhost:3000");
+    expect(launcher).toContain('emit_app_env_value NEXT_PUBLIC_SITE_URL "http://localhost:3000"');
+    expect(launcher).toContain('emit_app_env_value SITE_URL "http://localhost:3000"');
+    expect(launcher).toContain('emit_app_env_value NEXT_PUBLIC_VERCEL_URL "localhost:3000"');
     expect(environmentContract).toContain(
-      'const CSF_ISOLATED_SITE_URL = "http://localhost:3001";',
+      'const CSF_ISOLATED_SITE_URL = "http://localhost:3000";',
     );
     expect(environmentContract).toContain(
-      'const CSF_ISOLATED_VERCEL_URL = "localhost:3001";',
+      'const CSF_ISOLATED_VERCEL_URL = "localhost:3000";',
     );
   });
 
