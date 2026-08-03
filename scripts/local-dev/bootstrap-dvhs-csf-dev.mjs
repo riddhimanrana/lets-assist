@@ -41,6 +41,14 @@ const APP_RUNNER = path.join(SCRIPT_DIR, "run-dvhs-csf-isolated-app.mjs");
 const SEED_SCRIPT = path.join(SCRIPT_DIR, "seed-platform.mjs");
 const PASSWORD_FILE = "csf-local-test-password";
 const SEEDED_MARKER = "csf-platform-fixtures-v2.seeded";
+const MIGRATION_FILE_PATTERN = /^(\d{14})_[^/]+\.sql$/u;
+
+class StaleMigrationStackError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "StaleMigrationStackError";
+  }
+}
 
 export const BOOTSTRAP_OS_ENV_KEYS = [
   "PATH",
@@ -92,6 +100,74 @@ export function candidateWorkDirectories(tempRoot = tmpdir()) {
     .sort();
 }
 
+function migrationVersionsInDirectory(directory) {
+  const versions = readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name.match(MIGRATION_FILE_PATTERN)?.[1])
+    .filter((version) => typeof version === "string")
+    .sort();
+  if (new Set(versions).size !== versions.length) {
+    throw new Error(`Duplicate migration version found in ${directory}.`);
+  }
+  return versions;
+}
+
+export function assertMigrationVersionParity({
+  repositoryVersions,
+  isolatedVersions,
+  appliedVersions,
+}) {
+  const expected = JSON.stringify([...repositoryVersions].sort());
+  const copied = JSON.stringify([...isolatedVersions].sort());
+  const applied = JSON.stringify([...appliedVersions].sort());
+  if (copied !== expected || applied !== expected) {
+    throw new StaleMigrationStackError(
+      "The running isolated CSF stack does not match the current repository migration tree.",
+    );
+  }
+}
+
+function assertCurrentRepositoryMigrations(workDir) {
+  const repositoryVersions = migrationVersionsInDirectory(
+    path.join(REPO_ROOT, "supabase", "migrations"),
+  );
+  const isolatedVersions = migrationVersionsInDirectory(
+    path.join(workDir, "supabase", "migrations"),
+  );
+  const result = spawnSync(
+    "supabase",
+    [
+      "--workdir",
+      workDir,
+      "--output-format",
+      "json",
+      "migration",
+      "list",
+      "--local",
+    ],
+    { cwd: REPO_ROOT, encoding: "utf8" },
+  );
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error("Could not read the isolated stack migration history.");
+  }
+  let payload;
+  try {
+    payload = JSON.parse(result.stdout);
+  } catch {
+    throw new Error("The isolated stack migration history was not valid JSON.");
+  }
+  const migrations = Array.isArray(payload?.migrations) ? payload.migrations : [];
+  const appliedVersions = migrations
+    .map((migration) => migration?.remote)
+    .filter((version) => typeof version === "string" && version.length > 0);
+  assertMigrationVersionParity({
+    repositoryVersions,
+    isolatedVersions,
+    appliedVersions,
+  });
+}
+
 export function findReusableWorkDirectories(
   candidates,
   validate = (candidate) => {
@@ -105,14 +181,17 @@ export function findReusableWorkDirectories(
     if (container.status !== 0) throw new Error("isolated database container is stopped");
     getCsfIsolatedSupabaseEnv({ CSF_ISOLATED_WORK_DIR: isolated.workDir });
     loadCsfIsolatedAppEnvironment(isolated.workDir);
+    assertCurrentRepositoryMigrations(isolated.workDir);
     return isolated.workDir;
   },
+  onRejected = /** @type {(candidate: string, error: unknown) => void} */ (() => {}),
 ) {
   const reusable = [];
   for (const candidate of candidates) {
     try {
       reusable.push(validate(candidate));
-    } catch {
+    } catch (error) {
+      onRejected(candidate, error);
       // Retained evidence from a stopped or failed stack is expected. It is not
       // reusable and is never deleted or adopted here.
     }
@@ -178,7 +257,21 @@ function resolveWorkDirectory() {
     return isolated.workDir;
   }
 
-  const reusable = findReusableWorkDirectories(candidateWorkDirectories());
+  const staleMigrationStacks = [];
+  const reusable = findReusableWorkDirectories(
+    candidateWorkDirectories(),
+    undefined,
+    (candidate, error) => {
+      if (error instanceof StaleMigrationStackError) staleMigrationStacks.push(candidate);
+    },
+  );
+  if (staleMigrationStacks.length > 0) {
+    throw new Error(
+      "Found a running isolated CSF stack built from a different migration tree. " +
+        "Stop it with scripts/local-dev/stop-dvhs-csf-isolated-stack.sh before starting the current tree:\n" +
+        staleMigrationStacks.join("\n"),
+    );
+  }
   return selectReusableWorkDirectory(reusable) ?? createFreshStack();
 }
 

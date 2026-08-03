@@ -49,10 +49,13 @@ bun run csf:dev:isolated
 
 It creates or safely reuses the isolated Docker stack, seeds fictional CSF data
 on first use, prints the generated local password and useful accounts, and
-starts the normal Let’s Assist application on port `3000`. Re-running it keeps
-changes made while testing. Use `CSF_LOCAL_RESEED=1 bun run dev` only when
-you intentionally want to restore the deterministic fixture corpus. Ordinary
-`bun run dev:next` remains the raw, non-bootstrapping Next.js command.
+starts the normal Let’s Assist application on port `3000`. A running stack is
+reusable only when its copied migration files and applied migration history
+exactly match the current repository tree; stop a reported stale stack before
+starting the current tree. Re-running a current stack keeps changes made while
+testing. Use `CSF_LOCAL_RESEED=1 bun run dev` only when you intentionally want
+to restore the deterministic fixture corpus. Ordinary `bun run dev:next`
+remains the raw, non-bootstrapping Next.js command.
 
 ### Prohibited for DVHS CSF recovery
 
