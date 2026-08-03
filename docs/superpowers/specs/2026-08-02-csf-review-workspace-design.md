@@ -241,6 +241,41 @@ consistency check.
 period; an officer sees only their assigned range; walks the queue; records a decision; is
 required to give a reason on reject; and finds a closed period read-only.
 
+## What implementation changed
+
+Recorded after the build, so the document matches what shipped.
+
+**Both campaigns share one route.** Phase 2 did not get its own nav entry. The period bar,
+roster, range split, queue, and notes are identical for points and applications, so a second
+nav entry would have duplicated all of it to vary one panel. `verification` now carries a
+kind switch backed by `?csf_review_kind=`.
+
+**A roster entry has both a subject and a person.** `subjectId` is the application in an
+application campaign and the profile in a point one; `profileId` stays the person either way
+so names and notes read the same. Decisions, notes, and the override all key off `subjectId`.
+
+**Two defects surfaced that the design had not anticipated:**
+
+- `csf_set_review_submission_override` hardcoded `kind = 'member_points'` and
+  `subject_kind = 'profile'`. The override row the new application freeze looks for could
+  never have been written. It now derives the subject from the period, like everything else.
+- `csf_add_review_note` never loaded the period at all, so it could not have checked anything
+  about it. It does now, which is what let the subject-kind rule apply to notes as well as
+  decisions.
+
+**The freeze trigger was kept** as defense in depth rather than dropped. Applicants still have
+no direct write path to `csf_term_applications`, so it is inert against every caller that
+exists; the test proves both that inertness and that it bites an applicant session when one
+appears. It only treats a `verified`, non-revoked account link as ownership, so a pending or
+rejected profile claim cannot freeze anyone.
+
+## Not built
+
+**The Playwright spec.** `tests/csf/verification.spec.ts` was scoped in the testing section
+above and was not written. Coverage today is 58 SQL assertions across two files, plus unit
+tests for range arithmetic, action authorization, and route wiring — but nothing drives the
+workspace through a browser. That is the largest remaining gap.
+
 ## Constraints on execution
 
 - Work happens in a separate git worktree, not the `development` checkout. A second agent
