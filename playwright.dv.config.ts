@@ -82,7 +82,7 @@ export default defineConfig({
     // layout chunks while LoginClient is hydrating in the first test.
     url: `${baseURL}/login`,
     reuseExistingServer: false,
-    timeout: 180_000,
+    timeout: 300_000,
     gracefulShutdown: {
       signal: "SIGTERM",
       timeout: 15_000,

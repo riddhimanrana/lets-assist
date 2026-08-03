@@ -97,7 +97,7 @@ export default defineConfig({
     command: "node scripts/local-dev/bootstrap-dvhs-csf-dev.mjs",
     url: `${baseURL}/login`,
     reuseExistingServer: false,
-    timeout: 180_000,
+    timeout: 300_000,
     gracefulShutdown: {
       signal: "SIGTERM",
       timeout: 15_000,
