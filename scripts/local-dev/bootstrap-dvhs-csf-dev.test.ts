@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { realpathSync } from "node:fs";
 
 import {
+  assertMigrationVersionParity,
   candidateWorkDirectories,
   ensureFixturePassword,
   findReusableWorkDirectories,
@@ -47,6 +48,43 @@ describe("one-command CSF local bootstrap", () => {
     expect(() => selectReusableWorkDirectory(["/tmp/a", "/tmp/b"])).toThrow(
       "Found 2 running isolated CSF stacks",
     );
+  });
+
+  test("reuses a stack only when copied and applied migrations match the repository", () => {
+    const current = ["20260101000000", "20260102000000"];
+    expect(() =>
+      assertMigrationVersionParity({
+        repositoryVersions: current,
+        isolatedVersions: [...current].reverse(),
+        appliedVersions: current,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertMigrationVersionParity({
+        repositoryVersions: current,
+        isolatedVersions: [current[0]],
+        appliedVersions: [current[0]],
+      }),
+    ).toThrow("does not match the current repository migration tree");
+  });
+
+  test("reports rejected candidates without making them reusable", () => {
+    const root = scratch("csf-bootstrap-rejections-");
+    const stale = join(root, "stale");
+    const current = join(root, "current");
+    mkdirSync(stale);
+    mkdirSync(current);
+    const rejected: string[] = [];
+    const reusable = findReusableWorkDirectories(
+      [stale, current],
+      (candidate) => {
+        if (candidate.endsWith("stale")) throw new Error("stale migrations");
+        return candidate;
+      },
+      (candidate) => rejected.push(candidate),
+    );
+    expect(reusable).toEqual([realpathSync(current)]);
+    expect(rejected).toEqual([stale]);
   });
 
   test("creates one owner-only password and preserves it across runs", () => {
