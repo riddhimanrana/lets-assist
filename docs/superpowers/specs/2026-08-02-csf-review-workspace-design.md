@@ -2,7 +2,7 @@
 
 Date: 2026-08-02
 Branch: `development`
-Status: approved, not yet implemented
+Status: implemented and merged. See "What implementation changed" and "Not built" below.
 
 ## Problem
 
