@@ -254,6 +254,7 @@ function resolveWorkDirectory() {
   if (requested) {
     const isolated = inspectCsfIsolatedWorkDir(requested);
     getCsfIsolatedSupabaseEnv({ CSF_ISOLATED_WORK_DIR: isolated.workDir });
+    assertCurrentRepositoryMigrations(isolated.workDir);
     return isolated.workDir;
   }
 
