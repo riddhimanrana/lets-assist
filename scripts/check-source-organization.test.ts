@@ -41,6 +41,11 @@ describe("source organization guard", () => {
       findMaintainabilityIssues(
         [
           { file: "components/NewPanel.tsx", lines: 601 },
+          {
+            file: "plugins/dvhs-csf/components/NestedPanel.tsx",
+            lines: 601,
+          },
+          { file: "app/organizations/[id]/layout.tsx", lines: 601 },
           { file: "services/new-service.ts", lines: 801 },
           { file: "services/new-service.test.ts", lines: 1201 },
           { file: "components/SmallPanel.tsx", lines: 600 },
@@ -49,6 +54,8 @@ describe("source organization guard", () => {
       ).map((issue: { file: string }) => issue.file),
     ).toEqual([
       "components/NewPanel.tsx",
+      "plugins/dvhs-csf/components/NestedPanel.tsx",
+      "app/organizations/[id]/layout.tsx",
       "services/new-service.ts",
       "services/new-service.test.ts",
     ]);

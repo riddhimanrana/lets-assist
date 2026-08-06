@@ -51,25 +51,7 @@ const BINARY_EXTENSIONS = new Set([
 // entries as modules are split below their category limit.
 const OVERSIZED_BASELINE = Object.freeze({
   "lets-assist": Object.freeze({}),
-  private: Object.freeze({
-    "plugins/dvhs-csf/actions.ts": 11145,
-    "plugins/dvhs-csf/services/import-integrity.test.ts": 10065,
-    "plugins/dvhs-csf/services/dashboard.ts": 3218,
-    "plugins/dv-speech-debate/actions.ts": 2101,
-    "plugins/dvhs-csf/services/import-actor-authorization.test.ts": 2022,
-    "plugins/dvhs-csf/services/import-upload-source-preflight.test.ts": 1919,
-    "plugins/dvhs-csf/services/import-preview-readiness.test.ts": 1835,
-    "plugins/dvhs-csf/services/import-contract-parity.test.ts": 1619,
-    "plugins/dvhs-csf/services/sheet-import.ts": 1453,
-    "plugins/dvhs-csf/services/csf-cleanup-orchestration.test.ts": 1343,
-    "plugins/dvhs-csf/services/import-upload-attachment-lifecycle.test.ts": 1243,
-    "plugins/dvhs-csf/services/import-preview-readiness.ts": 1225,
-    "plugins/dvhs-csf/services/import-preview-readiness-boundary.test.ts": 1205,
-    "plugins/dvhs-csf/services/personal-calendar.ts": 1152,
-    "plugins/dvhs-csf/services/normalized-import-adapters.ts": 1053,
-    "plugins/dvhs-csf/services/communications-workspace.ts": 1022,
-    "plugins/dvhs-csf/services/import-upload-source-preflight.ts": 860,
-  }),
+  private: Object.freeze({}),
 });
 
 const SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".mjs", ".ts", ".tsx"]);
@@ -186,10 +168,16 @@ function maintainabilityLimit(file) {
   if (/(?:^|\/)(?:supabase\/migrations|generated)(?:\/|$)/u.test(file))
     return null;
   if (/\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(file)) return 1200;
+  if (/(?:^|\/)components\/CsfDashboard[A-Za-z]*Phase\.[jt]sx?$/u.test(file))
+    return 800;
   if (/(?:^|\/)(?:actions?|services?)(?:\/|\.|$)/u.test(file)) return 800;
   if (
     file.endsWith(".tsx") &&
-    (file.includes("/page.tsx") || file.startsWith("components/"))
+    (/(?:^|\/)(?:page|layout|template|loading|error|not-found)\.tsx$/u.test(
+      file,
+    ) ||
+      file.startsWith("components/") ||
+      file.includes("/components/"))
   )
     return 600;
   return null;

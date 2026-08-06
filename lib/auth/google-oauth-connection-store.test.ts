@@ -165,14 +165,14 @@ describe("Google OAuth credential purpose boundaries", () => {
     const store = readSource("lib/auth/google-oauth-connection-store.ts");
     const service = readCalendarServiceSource();
     const calendarPage = readSource("app/account/calendar/page.tsx");
-    const csfActions = readSource(
-      "lib/plugins/private/plugins/dvhs-csf/actions.ts",
+    const csfGoogleImportActions = readSource(
+      "lib/plugins/private/plugins/dvhs-csf/server/actions/import-google.ts",
     );
 
     expect(store).toContain("hasUnboundActiveGoogleOAuthConnection(");
     expect(store).toContain("if (!connectionId) return null;");
     expect(service).toContain("hasLegacyGoogleOAuthReconnectRequired");
     expect(calendarPage).toContain("legacyReconnectRequired");
-    expect(csfActions).toContain('"legacy_unbound"');
+    expect(csfGoogleImportActions).toContain('"legacy_unbound"');
   });
 });
