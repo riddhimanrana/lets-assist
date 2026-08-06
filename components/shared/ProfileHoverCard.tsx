@@ -5,9 +5,19 @@ import type { ReactNode } from "react";
 
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
-import { BadgeCheck, Building2, GraduationCap, Briefcase, Users } from "lucide-react";
+import {
+  BadgeCheck,
+  Building2,
+  GraduationCap,
+  Briefcase,
+  Users,
+} from "lucide-react";
 import { format } from "date-fns";
 
 interface ProfileHoverCardProps {
@@ -59,7 +69,10 @@ export function ProfileHoverCard({
   if (isDisabled) return <>{children}</>;
 
   const resolvedHref =
-    href ?? (variant === "organization" ? `/organization/${username}` : `/profile/${username}`);
+    href ??
+    (variant === "organization"
+      ? `/organization/${username}`
+      : `/profile/${username}`);
 
   const showTrustedBadge = variant === "profile" && isTrusted;
   const showVerifiedBadge = variant === "organization" && verified;
@@ -73,10 +86,18 @@ export function ProfileHoverCard({
     if (lowerType.includes("nonprofit") || lowerType.includes("non-profit")) {
       return <Building2 className="h-3.5 w-3.5 opacity-70" />;
     }
-    if (lowerType.includes("school") || lowerType.includes("education") || lowerType.includes("educational")) {
+    if (
+      lowerType.includes("school") ||
+      lowerType.includes("education") ||
+      lowerType.includes("educational")
+    ) {
       return <GraduationCap className="h-3.5 w-3.5 opacity-70" />;
     }
-    if (lowerType.includes("business") || lowerType.includes("company") || lowerType.includes("corporate")) {
+    if (
+      lowerType.includes("business") ||
+      lowerType.includes("company") ||
+      lowerType.includes("corporate")
+    ) {
       return <Briefcase className="h-3.5 w-3.5 opacity-70" />;
     }
     if (lowerType.includes("community") || lowerType.includes("group")) {
@@ -87,25 +108,22 @@ export function ProfileHoverCard({
 
   return (
     <HoverCard>
-      <HoverCardTrigger render={
-        <span className="inline-flex">{children}</span>
-      } />
+      <HoverCardTrigger
+        render={<span className="inline-flex">{children}</span>}
+      />
 
       <HoverCardContent
         side={side}
         sideOffset={sideOffset}
         className={cn(
           "w-auto max-w-[calc(100vw-2rem)] rounded-lg p-4 bg-popover border border-border shadow-lg",
-          contentClassName
+          contentClassName,
         )}
       >
         <Link href={resolvedHref} className="block group transition-colors">
           <div className="flex justify-between gap-4">
             <Avatar className="h-10 w-10 border border-border">
-              <AvatarImage
-                src={avatarUrl}
-                alt={fullName}
-              />
+              <AvatarImage src={avatarUrl} alt={fullName} />
               <AvatarFallback>
                 <NoAvatar fullName={fullName} />
               </AvatarFallback>
@@ -123,9 +141,7 @@ export function ProfileHoverCard({
                   />
                 )}
                 {showVerifiedBadge && (
-                  <BadgeCheck
-                    className="h-4 w-4 text-primary shrink-0"
-                  />
+                  <BadgeCheck className="h-4 w-4 text-primary shrink-0" />
                 )}
               </div>
 
@@ -145,7 +161,9 @@ export function ProfileHoverCard({
                   <span>{description}</span>
                 </div>
               ) : !description && joinDate ? (
-                <div className="text-muted-foreground text-xs pt-0.5">Joined {joinDate}</div>
+                <div className="text-muted-foreground text-xs pt-0.5">
+                  Joined {joinDate}
+                </div>
               ) : null}
             </div>
           </div>

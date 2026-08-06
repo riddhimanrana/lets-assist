@@ -13,14 +13,24 @@ import {
 
 test("parses Google grants as exact whitespace-delimited scope tokens", () => {
   assert.deepEqual(
-    [...parseGoogleGrantedScopes(`  ${GOOGLE_DRIVE_FILE_SCOPE}\n${GOOGLE_CALENDAR_APP_CREATED_SCOPE}  `)],
+    [
+      ...parseGoogleGrantedScopes(
+        `  ${GOOGLE_DRIVE_FILE_SCOPE}\n${GOOGLE_CALENDAR_APP_CREATED_SCOPE}  `,
+      ),
+    ],
     [GOOGLE_DRIVE_FILE_SCOPE, GOOGLE_CALENDAR_APP_CREATED_SCOPE],
   );
 });
 
 test("accepts minimum and legacy Calendar write grants", () => {
-  assert.equal(hasGoogleCalendarWriteScope(GOOGLE_CALENDAR_APP_CREATED_SCOPE), true);
-  assert.equal(hasGoogleCalendarWriteScope(GOOGLE_CALENDAR_LEGACY_FULL_SCOPE), true);
+  assert.equal(
+    hasGoogleCalendarWriteScope(GOOGLE_CALENDAR_APP_CREATED_SCOPE),
+    true,
+  );
+  assert.equal(
+    hasGoogleCalendarWriteScope(GOOGLE_CALENDAR_LEGACY_FULL_SCOPE),
+    true,
+  );
   assert.equal(
     hasGoogleCalendarWriteScope(
       `openid ${GOOGLE_CALENDAR_APP_CREATED_SCOPE} https://www.googleapis.com/auth/userinfo.email`,
@@ -52,7 +62,10 @@ test("rejects read-only and substring lookalike Calendar grants", () => {
 
 test("matches Drive file grants exactly", () => {
   assert.equal(hasGoogleDriveFileScope(GOOGLE_DRIVE_FILE_SCOPE), true);
-  assert.equal(hasGoogleDriveFileScope(`${GOOGLE_DRIVE_FILE_SCOPE}.readonly`), false);
+  assert.equal(
+    hasGoogleDriveFileScope(`${GOOGLE_DRIVE_FILE_SCOPE}.readonly`),
+    false,
+  );
 });
 
 test("connect and callback routes share the exact scope boundary", () => {

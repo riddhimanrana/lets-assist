@@ -44,10 +44,14 @@ mock.module("resend", () => ({
 
 mock.module("@/lib/supabase/server", () => ({
   createClient: async () => {
-    throw new Error("notification settings must not be queried for CSF dispatch");
+    throw new Error(
+      "notification settings must not be queried for CSF dispatch",
+    );
   },
 }));
-mock.module("@react-email/components", () => ({ render: async () => "<p>x</p>" }));
+mock.module("@react-email/components", () => ({
+  render: async () => "<p>x</p>",
+}));
 
 /**
  * Everything the permitted logger is asked to emit, recorded rather than dropped.
@@ -73,7 +77,8 @@ mock.module("@supabase/supabase-js", () => ({
   createClient: () => ({
     rpc: async (fn: string, args: Record<string, unknown>) => {
       rpcCalls.push({ fn, args });
-      if (fn === "csf_claim_communication_dispatch_batch") return claimHandler();
+      if (fn === "csf_claim_communication_dispatch_batch")
+        return claimHandler();
       if (fn === "csf_authorize_communication_dispatch") {
         return {
           data: {
@@ -229,8 +234,9 @@ describe("the bounded CSF dispatch worker route", () => {
 
       expect(`${label}=${response.status}`).toBe(`${label}=401`);
       // Not merely a 401: the ledger was never touched and nothing was mailed.
-      expect(`${label}=${rpcCalls.length}/${sendCalls.length}/${fromCalls.length}`)
-        .toBe(`${label}=0/0/0`);
+      expect(
+        `${label}=${rpcCalls.length}/${sendCalls.length}/${fromCalls.length}`,
+      ).toBe(`${label}=0/0/0`);
     }
   });
 
@@ -301,7 +307,8 @@ describe("the bounded CSF dispatch worker route", () => {
   test("the dedicated worker token is accepted under the same grammar", async () => {
     delete process.env.CRON_TOKEN;
     delete process.env.CRON_SECRET;
-    process.env.CSF_COMMUNICATIONS_WORKER_SECRET_TOKEN = "synthetic-worker-token";
+    process.env.CSF_COMMUNICATIONS_WORKER_SECRET_TOKEN =
+      "synthetic-worker-token";
 
     expect(
       (await POST(request({ authorization: "Bearer synthetic-worker-token" })))
@@ -326,7 +333,7 @@ describe("the bounded CSF dispatch worker route", () => {
       info: console.info,
       warn: console.warn,
       error: console.error,
-              debug: console.debug,
+      debug: console.debug,
     };
     for (const level of ["log", "info", "warn", "error", "debug"] as const) {
       console[level] = ((...args: unknown[]) => {
@@ -519,7 +526,8 @@ describe("the bounded CSF dispatch worker route", () => {
     claimHandler = () => ({
       data: null,
       error: {
-        message: "row csf_communication_dispatch_attempts for rep.one@local.test",
+        message:
+          "row csf_communication_dispatch_attempts for rep.one@local.test",
         code: "08006",
       },
     });

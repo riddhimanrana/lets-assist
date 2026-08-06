@@ -21,7 +21,11 @@ const navbarSource = readFileSync(
 
 const VIEWPORTS: NotificationViewport[] = ["mobile", "desktop"];
 
-type MediaState = { mounted: boolean; isDesktopNav: boolean; isMobile: boolean };
+type MediaState = {
+  mounted: boolean;
+  isDesktopNav: boolean;
+  isMobile: boolean;
+};
 
 // Only these combinations are reachable: the navbar splits at 1024px and the
 // drawer breakpoint is 768px, so "desktop nav and phone width" cannot occur.
@@ -47,10 +51,12 @@ describe("resolveNotificationSurface", () => {
   });
 
   test("gives desktop width exactly one popover and no mobile drawer", () => {
-    expect(surfacesFor({ mounted: true, ...WIDTHS["1440px desktop"] })).toEqual({
-      mobile: "none",
-      desktop: "popover",
-    });
+    expect(surfacesFor({ mounted: true, ...WIDTHS["1440px desktop"] })).toEqual(
+      {
+        mobile: "none",
+        desktop: "popover",
+      },
+    );
   });
 
   test("keeps the popover in the visible container between the two breakpoints", () => {
@@ -105,20 +111,22 @@ describe("resolveNotificationSurface", () => {
 describe("notification trigger accessibility", () => {
   test("names every real and fallback trigger without adding visible text", () => {
     // Real trigger, hydration fallback: both labelled, both icon-only.
-    expect(
-      source.match(/aria-label="Notifications"/g),
-    ).toHaveLength(2);
+    expect(source.match(/aria-label="Notifications"/g)).toHaveLength(2);
     expect(source).toContain(
       '<Button className={triggerClasses} variant="ghost" aria-label="Notifications">',
     );
     // The bell is decorative once the button itself carries the name.
     expect(source).toContain('<Bell\n        aria-hidden="true"');
-    expect(source).toContain('<Bell aria-hidden="true" className="h-5 w-5 text-muted-foreground" />');
+    expect(source).toContain(
+      '<Bell aria-hidden="true" className="h-5 w-5 text-muted-foreground" />',
+    );
     // No unlabelled trigger button may linger.
     expect(source).not.toContain(
       '<Button variant="ghost" size="icon" className="relative h-9 w-9 p-0 rounded-full border">',
     );
-    expect(source).not.toContain('<Button className={triggerClasses} variant="ghost">');
+    expect(source).not.toContain(
+      '<Button className={triggerClasses} variant="ghost">',
+    );
   });
 
   test("keeps the hydration fallback out of the tab order", () => {
@@ -129,7 +137,9 @@ describe("notification trigger accessibility", () => {
 
 describe("single-instance mounting", () => {
   test("renders nothing for the instance that does not own the active viewport", () => {
-    expect(source).toContain('if (surface === "none") {\n    return null;\n  }');
+    expect(source).toContain(
+      'if (surface === "none") {\n    return null;\n  }',
+    );
     expect(source).toContain('if (surface === "drawer") {');
     expect(source).toContain('if (surface === "placeholder") {');
     // The old CSS-only split keyed rendering off the raw media query.

@@ -4,7 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
-import { getRegisteredPlugin, listRegisteredPlugins } from "@/lib/plugins/registry";
+import {
+  getRegisteredPlugin,
+  listRegisteredPlugins,
+} from "@/lib/plugins/registry";
 import { transitionOrganizationPluginInstall } from "@/lib/plugins/control-plane-transition";
 import { buildOrganizationPluginAdminSettings } from "@/lib/plugins/organization-plugin-settings";
 import {
@@ -17,10 +20,10 @@ import { validateOrganizationAutojoinDomain } from "@/lib/organization/domain-po
 
 // Allowed image MIME types
 const ALLOWED_FILE_TYPES = [
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
 ];
 
 // Max file size (5MB)
@@ -32,7 +35,7 @@ type OrganizationUpdateData = {
   username: string;
   description: string | undefined;
   website: string | undefined;
-  type: 'nonprofit' | 'school' | 'company' | 'government' | 'other';
+  type: "nonprofit" | "school" | "company" | "government" | "other";
   logoUrl: string | null | undefined;
   autoJoinDomain?: string | null;
   showMembersPublicly?: boolean;
@@ -41,24 +44,26 @@ type OrganizationUpdateData = {
 /**
  * Check if an organization username is available (excluding the current org's username)
  */
-export async function checkUsernameAvailability(username: string): Promise<boolean> {
+export async function checkUsernameAvailability(
+  username: string,
+): Promise<boolean> {
   const supabase = await createClient();
-  
+
   if (!username || username.length < 3) {
     return false;
   }
-  
+
   const { data, error } = await supabase
     .from("organizations")
     .select("username")
     .eq("username", username)
     .maybeSingle();
-  
+
   if (error) {
     console.error("Error checking username availability:", error);
     return false;
   }
-  
+
   return !data; // If data is null, username is available
 }
 
@@ -105,106 +110,115 @@ export async function updateOrganization(data: OrganizationUpdateData) {
     const autoJoinDomain: string | null = currentOrg.auto_join_domain;
 
     if (data.autoJoinDomain) {
-      const domainResult = validateOrganizationAutojoinDomain(data.autoJoinDomain);
+      const domainResult = validateOrganizationAutojoinDomain(
+        data.autoJoinDomain,
+      );
       if (!domainResult.ok) {
         return {
-          error: domainResult.reason === "public_provider"
-            ? "Public email providers cannot be used for automatic organization membership"
-            : "Enter a valid organization-owned email domain",
+          error:
+            domainResult.reason === "public_provider"
+              ? "Public email providers cannot be used for automatic organization membership"
+              : "Enter a valid organization-owned email domain",
         };
       }
 
       if (domainResult.domain !== currentOrg.auto_join_domain) {
         return {
-          error: "Contact Let's Assist support to verify or change an automatic-membership domain",
+          error:
+            "Contact Let's Assist support to verify or change an automatic-membership domain",
         };
       }
     } else if (currentOrg.auto_join_domain) {
       return {
-        error: "Contact Let's Assist support to disable a verified automatic-membership domain",
+        error:
+          "Contact Let's Assist support to disable a verified automatic-membership domain",
       };
     }
-    
+
     // Handle logo update
     if (data.logoUrl !== undefined) {
       // Case: Logo was explicitly set to null - remove the current logo
       if (data.logoUrl === null) {
         logoUrl = null;
-        
+
         // If there was a previous logo, delete it from storage
         if (currentOrg.logo_url) {
           try {
-            const fileName = currentOrg.logo_url.split('/').pop();
+            const fileName = currentOrg.logo_url.split("/").pop();
             if (fileName) {
-              await supabase.storage.from('organization-logos').remove([fileName]);
+              await supabase.storage
+                .from("organization-logos")
+                .remove([fileName]);
             }
           } catch (error) {
             console.error("Error removing old logo:", error);
             // Continue even if logo deletion fails
           }
         }
-      } 
+      }
       // Case: New logo provided
-      else if (data.logoUrl && data.logoUrl.startsWith('data:')) {
+      else if (data.logoUrl && data.logoUrl.startsWith("data:")) {
         // Extract the MIME type and verify it's allowed
-        const mimeType = data.logoUrl.split(';')[0].split(':')[1];
-        
+        const mimeType = data.logoUrl.split(";")[0].split(":")[1];
+
         if (!ALLOWED_FILE_TYPES.includes(mimeType)) {
           return { error: "Invalid file type. Allowed types: JPEG, PNG, WebP" };
         }
-        
+
         // Extract the base64 content and determine file extension
-        const base64Data = data.logoUrl.split(',')[1];
-        
+        const base64Data = data.logoUrl.split(",")[1];
+
         // Size check
-        const approxFileSize = (base64Data.length * 0.75);
+        const approxFileSize = base64Data.length * 0.75;
         if (approxFileSize > MAX_FILE_SIZE) {
           return { error: "File size exceeds the 5MB limit" };
         }
-        
+
         // Determine file extension from MIME type
         let fileExt;
-        if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
-          fileExt = 'jpg';
-        } else if (mimeType === 'image/png') {
-          fileExt = 'png';
-        } else if (mimeType === 'image/webp') {
-          fileExt = 'webp';
+        if (mimeType === "image/jpeg" || mimeType === "image/jpg") {
+          fileExt = "jpg";
+        } else if (mimeType === "image/png") {
+          fileExt = "png";
+        } else if (mimeType === "image/webp") {
+          fileExt = "webp";
         } else {
-          fileExt = 'jpg';
+          fileExt = "jpg";
         }
-        
+
         // File name based on organization ID
         const fileName = `${data.id}.${fileExt}`;
-        
+
         // Delete previous logo if it exists
         if (currentOrg.logo_url) {
           try {
-            const oldFileName = currentOrg.logo_url.split('/').pop();
+            const oldFileName = currentOrg.logo_url.split("/").pop();
             if (oldFileName) {
-              await supabase.storage.from('organization-logos').remove([oldFileName]);
+              await supabase.storage
+                .from("organization-logos")
+                .remove([oldFileName]);
             }
           } catch (error) {
             console.error("Error removing old logo:", error);
             // Continue even if logo deletion fails
           }
         }
-        
+
         // Upload new logo
         const { error: uploadError } = await supabase.storage
-          .from('organization-logos')
-          .upload(fileName, Buffer.from(base64Data, 'base64'), {
+          .from("organization-logos")
+          .upload(fileName, Buffer.from(base64Data, "base64"), {
             contentType: mimeType,
-            upsert: false
+            upsert: false,
           });
-        
+
         if (uploadError) throw uploadError;
-        
+
         // Get public URL for the uploaded image
         const { data: publicUrlData } = supabase.storage
-          .from('organization-logos')
+          .from("organization-logos")
           .getPublicUrl(fileName);
-        
+
         logoUrl = publicUrlData.publicUrl;
       }
     }
@@ -225,16 +239,21 @@ export async function updateOrganization(data: OrganizationUpdateData) {
       .eq("id", data.id);
 
     if (updateError) throw updateError;
-    
+
     // Revalidate paths
     revalidatePath(`/organization/${currentOrg.username}`);
     revalidatePath(`/organization/${data.username}`);
-    revalidatePath('/organization');
-    
+    revalidatePath("/organization");
+
     return { success: true };
   } catch (error) {
     console.error("Error updating organization:", error);
-    return { error: error instanceof Error ? error.message : "Failed to update organization" };
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update organization",
+    };
   }
 }
 
@@ -271,20 +290,20 @@ export async function deleteOrganization(organizationId: string) {
       .select("logo_url")
       .eq("id", organizationId)
       .single();
-    
+
     // Delete the organization logo if it exists
     if (organization?.logo_url) {
       try {
-        const fileName = organization.logo_url.split('/').pop();
+        const fileName = organization.logo_url.split("/").pop();
         if (fileName) {
-          await supabase.storage.from('organization-logos').remove([fileName]);
+          await supabase.storage.from("organization-logos").remove([fileName]);
         }
       } catch (error) {
         console.error("Error removing organization logo:", error);
         // Continue even if logo deletion fails
       }
     }
-    
+
     // Delete the organization (cascade should handle related data)
     const { error: deleteError } = await supabase
       .from("organizations")
@@ -295,14 +314,19 @@ export async function deleteOrganization(organizationId: string) {
       console.error("Error deleting organization from database:", deleteError);
       throw deleteError;
     }
-    
+
     // Revalidate paths
-    revalidatePath('/organization');
-    
+    revalidatePath("/organization");
+
     return { success: true };
   } catch (error) {
     console.error("Error deleting organization:", error);
-    return { error: error instanceof Error ? error.message : "Failed to delete organization" };
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to delete organization",
+    };
   }
 }
 
@@ -310,7 +334,10 @@ export async function deleteOrganization(organizationId: string) {
  * Generate a staff invite link for an organization
  * This link allows teachers/staff to join directly with staff role
  */
-export async function generateStaffLink(organizationId: string, expiresInDays: number = 30) {
+export async function generateStaffLink(
+  organizationId: string,
+  expiresInDays: number = 30,
+) {
   const supabase = await createClient();
 
   // Verify that user is authenticated using getClaims() for better performance
@@ -357,14 +384,19 @@ export async function generateStaffLink(organizationId: string, expiresInDays: n
     // Revalidate the settings page
     revalidatePath(`/organization/${organizationId}/settings`);
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       token,
       expiresAt: expiresAt.toISOString(),
     };
   } catch (error) {
     console.error("Error generating staff link:", error);
-    return { error: error instanceof Error ? error.message : "Failed to generate staff link" };
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to generate staff link",
+    };
   }
 }
 
@@ -415,7 +447,10 @@ export async function revokeStaffLink(organizationId: string) {
     return { success: true };
   } catch (error) {
     console.error("Error revoking staff link:", error);
-    return { error: error instanceof Error ? error.message : "Failed to revoke staff link" };
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to revoke staff link",
+    };
   }
 }
 
@@ -448,7 +483,9 @@ export async function getStaffLinkDetails(organizationId: string) {
     const admin = getAdminClient();
     const { data: org, error } = await admin
       .from("organizations")
-      .select("staff_join_token, staff_join_token_created_at, staff_join_token_expires_at")
+      .select(
+        "staff_join_token, staff_join_token_created_at, staff_join_token_expires_at",
+      )
       .eq("id", organizationId)
       .single();
 
@@ -457,7 +494,7 @@ export async function getStaffLinkDetails(organizationId: string) {
     }
 
     // Check if token is expired
-    const isExpired = org.staff_join_token_expires_at 
+    const isExpired = org.staff_join_token_expires_at
       ? new Date(org.staff_join_token_expires_at) < new Date()
       : false;
 
@@ -470,7 +507,12 @@ export async function getStaffLinkDetails(organizationId: string) {
     };
   } catch (error) {
     console.error("Error getting staff link details:", error);
-    return { error: error instanceof Error ? error.message : "Failed to get staff link details" };
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to get staff link details",
+    };
   }
 }
 
@@ -570,12 +612,18 @@ export async function getOrganizationPluginSettings(
   const { user } = await getAuthUser();
 
   if (!user) {
-    return { plugins: [], error: "You must be logged in to view plugin settings" };
+    return {
+      plugins: [],
+      error: "You must be logged in to view plugin settings",
+    };
   }
 
   const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
   if (!isAdmin) {
-    return { plugins: [], error: "Only organization admins can manage plugins" };
+    return {
+      plugins: [],
+      error: "Only organization admins can manage plugins",
+    };
   }
 
   const [catalogResult, accessResult] = await Promise.all([
@@ -620,7 +668,10 @@ export async function getOrganizationPluginSettings(
     }
 
     if (catalogResult.error) {
-      return { plugins: [], error: `Failed to load plugin catalog: ${catalogResult.error.message}` };
+      return {
+        plugins: [],
+        error: `Failed to load plugin catalog: ${catalogResult.error.message}`,
+      };
     }
 
     if (entitlementResult.error) {
@@ -651,7 +702,8 @@ export async function getOrganizationPluginSettings(
       capabilityHighlights: plugin.manifest.capabilityHighlights ?? [],
       dataAccess:
         plugin.manifest.dataAccess?.map(
-          (entry) => `${entry.access}: ${entry.schema}.${entry.relation} - ${entry.purpose}`,
+          (entry) =>
+            `${entry.access}: ${entry.schema}.${entry.relation} - ${entry.purpose}`,
         ) ??
         plugin.manifest.dataScope ??
         [],
@@ -672,7 +724,10 @@ export async function getOrganizationPluginSettings(
   }
 
   if (catalogResult.error) {
-    return { plugins: [], error: `Failed to load plugin catalog: ${catalogResult.error.message}` };
+    return {
+      plugins: [],
+      error: `Failed to load plugin catalog: ${catalogResult.error.message}`,
+    };
   }
 
   if (accessResult.error) {
@@ -696,7 +751,8 @@ export async function getOrganizationPluginSettings(
     capabilityHighlights: plugin.manifest.capabilityHighlights ?? [],
     dataAccess:
       plugin.manifest.dataAccess?.map(
-        (entry) => `${entry.access}: ${entry.schema}.${entry.relation} - ${entry.purpose}`,
+        (entry) =>
+          `${entry.access}: ${entry.schema}.${entry.relation} - ${entry.purpose}`,
       ) ??
       plugin.manifest.dataScope ??
       [],
@@ -753,7 +809,10 @@ export async function setOrganizationPluginInstallState(options: {
 
   const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
   if (!isAdmin) {
-    return { success: false, error: "Only organization admins can manage plugins" };
+    return {
+      success: false,
+      error: "Only organization admins can manage plugins",
+    };
   }
 
   const definition = getRegisteredPlugin(pluginKey);
@@ -765,25 +824,27 @@ export async function setOrganizationPluginInstallState(options: {
     };
   }
 
-  const { data: pluginCatalog, error: pluginCatalogError } = (await adminSupabase
-    .from("plugins")
-    .select("key, visibility, is_active, latest_version")
-    .eq("key", pluginKey)
-    .eq("is_active", true)
-    .maybeSingle()) as {
-    data: {
-      key: string;
-      visibility: "global" | "private";
-      is_active: boolean;
-      latest_version: string;
-    } | null;
-    error: SupabaseLikeError | null;
-  };
+  const { data: pluginCatalog, error: pluginCatalogError } =
+    (await adminSupabase
+      .from("plugins")
+      .select("key, visibility, is_active, latest_version")
+      .eq("key", pluginKey)
+      .eq("is_active", true)
+      .maybeSingle()) as {
+      data: {
+        key: string;
+        visibility: "global" | "private";
+        is_active: boolean;
+        latest_version: string;
+      } | null;
+      error: SupabaseLikeError | null;
+    };
 
   if (isMissingPluginTableError(pluginCatalogError)) {
     return {
       success: false,
-      error: "Plugin platform tables are not initialized in this environment yet.",
+      error:
+        "Plugin platform tables are not initialized in this environment yet.",
     };
   }
 
@@ -809,7 +870,8 @@ export async function setOrganizationPluginInstallState(options: {
   if (entitlement?.is_forced && !enabled) {
     return {
       success: false,
-      error: "This plugin is managed by platform administrators and cannot be disabled.",
+      error:
+        "This plugin is managed by platform administrators and cannot be disabled.",
     };
   }
 
@@ -844,14 +906,19 @@ export async function setOrganizationPluginInstallState(options: {
     actor: { id: user.id, type: "user" },
     organizationRole: "admin",
     transition: enabled
-      ? { kind: "install_or_enable", targetVersion: pluginCatalog.latest_version }
+      ? {
+          kind: "install_or_enable",
+          targetVersion: pluginCatalog.latest_version,
+        }
       : { kind: "disable" },
   });
 
   if (!transitionResult.success) {
     return {
       success: false,
-      error: transitionResult.error ?? `Failed to ${enabled ? "enable" : "disable"} plugin.`,
+      error:
+        transitionResult.error ??
+        `Failed to ${enabled ? "enable" : "disable"} plugin.`,
     };
   }
 
@@ -888,25 +955,30 @@ export async function uninstallOrganizationPlugin(options: {
   const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
 
   if (!isAdmin) {
-    return { success: false, error: "Only organization admins can manage plugins" };
+    return {
+      success: false,
+      error: "Only organization admins can manage plugins",
+    };
   }
 
-  const { data: pluginCatalog, error: pluginCatalogError } = (await adminSupabase
-    .from("plugins")
-    .select("key, visibility")
-    .eq("key", pluginKey)
-    .maybeSingle()) as {
-    data: {
-      key: string;
-      visibility: "global" | "private";
-    } | null;
-    error: SupabaseLikeError | null;
-  };
+  const { data: pluginCatalog, error: pluginCatalogError } =
+    (await adminSupabase
+      .from("plugins")
+      .select("key, visibility")
+      .eq("key", pluginKey)
+      .maybeSingle()) as {
+      data: {
+        key: string;
+        visibility: "global" | "private";
+      } | null;
+      error: SupabaseLikeError | null;
+    };
 
   if (isMissingPluginTableError(pluginCatalogError)) {
     return {
       success: false,
-      error: "Plugin platform tables are not initialized in this environment yet.",
+      error:
+        "Plugin platform tables are not initialized in this environment yet.",
     };
   }
 
@@ -928,7 +1000,8 @@ export async function uninstallOrganizationPlugin(options: {
   if (entitlement?.is_forced) {
     return {
       success: false,
-      error: "This plugin is managed by platform administrators and cannot be uninstalled.",
+      error:
+        "This plugin is managed by platform administrators and cannot be uninstalled.",
     };
   }
 
@@ -1005,23 +1078,27 @@ export async function updateOrganizationPluginToLatest(options: {
 
   const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
   if (!isAdmin) {
-    return { success: false, error: "Only organization admins can update plugins" };
+    return {
+      success: false,
+      error: "Only organization admins can update plugins",
+    };
   }
 
-  const { data: pluginCatalog, error: pluginCatalogError } = (await adminSupabase
-    .from("plugins")
-    .select("key, visibility, is_active, latest_version")
-    .eq("key", pluginKey)
-    .eq("is_active", true)
-    .maybeSingle()) as {
-    data: {
-      key: string;
-      visibility: "global" | "private";
-      is_active: boolean;
-      latest_version: string;
-    } | null;
-    error: SupabaseLikeError | null;
-  };
+  const { data: pluginCatalog, error: pluginCatalogError } =
+    (await adminSupabase
+      .from("plugins")
+      .select("key, visibility, is_active, latest_version")
+      .eq("key", pluginKey)
+      .eq("is_active", true)
+      .maybeSingle()) as {
+      data: {
+        key: string;
+        visibility: "global" | "private";
+        is_active: boolean;
+        latest_version: string;
+      } | null;
+      error: SupabaseLikeError | null;
+    };
 
   if (pluginCatalogError) {
     return {
@@ -1104,14 +1181,20 @@ export async function updateOrganizationPluginConfiguration(options: {
   const { user } = await getAuthUser();
 
   if (!user) {
-    return { success: false, error: "You must be logged in to update plugin settings" };
+    return {
+      success: false,
+      error: "You must be logged in to update plugin settings",
+    };
   }
 
   const adminSupabase = getAdminClient();
 
   const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
   if (!isAdmin) {
-    return { success: false, error: "Only organization admins can update plugin settings" };
+    return {
+      success: false,
+      error: "Only organization admins can update plugin settings",
+    };
   }
 
   const definition = getRegisteredPlugin(pluginKey);
@@ -1147,15 +1230,20 @@ export async function updateOrganizationPluginConfiguration(options: {
     }
   }
 
-  const { data: pluginCatalog, error: pluginCatalogError } = (await adminSupabase
-    .from("plugins")
-    .select("key, visibility, is_active")
-    .eq("key", pluginKey)
-    .eq("is_active", true)
-    .maybeSingle()) as {
-    data: { key: string; visibility: "global" | "private"; is_active: boolean } | null;
-    error: SupabaseLikeError | null;
-  };
+  const { data: pluginCatalog, error: pluginCatalogError } =
+    (await adminSupabase
+      .from("plugins")
+      .select("key, visibility, is_active")
+      .eq("key", pluginKey)
+      .eq("is_active", true)
+      .maybeSingle()) as {
+      data: {
+        key: string;
+        visibility: "global" | "private";
+        is_active: boolean;
+      } | null;
+      error: SupabaseLikeError | null;
+    };
 
   if (pluginCatalogError) {
     return {
@@ -1176,15 +1264,16 @@ export async function updateOrganizationPluginConfiguration(options: {
     };
   }
 
-  const { data: existingInstall, error: existingInstallError } = (await adminSupabase
-    .from("organization_plugin_installs")
-    .select("id")
-    .eq("organization_id", organizationId)
-    .eq("plugin_key", pluginKey)
-    .maybeSingle()) as {
-    data: { id: string } | null;
-    error: SupabaseLikeError | null;
-  };
+  const { data: existingInstall, error: existingInstallError } =
+    (await adminSupabase
+      .from("organization_plugin_installs")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("plugin_key", pluginKey)
+      .maybeSingle()) as {
+      data: { id: string } | null;
+      error: SupabaseLikeError | null;
+    };
 
   if (existingInstallError) {
     return {
@@ -1238,9 +1327,8 @@ export async function updateOrganizationPluginConfiguration(options: {
 
     if (!validation.valid) {
       const firstError = validation.errors[0];
-      const fieldPath = firstError?.path && firstError.path !== "/"
-        ? firstError.path
-        : "root";
+      const fieldPath =
+        firstError?.path && firstError.path !== "/" ? firstError.path : "root";
 
       return {
         success: false,

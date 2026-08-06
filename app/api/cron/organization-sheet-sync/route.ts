@@ -8,9 +8,7 @@ import {
   buildOrganizationReportRowsForSync,
   type ReportType,
 } from "@/lib/organization/report-service";
-import {
-  replaceSpreadsheetReportValues,
-} from "@/services/google-sheets";
+import { replaceSpreadsheetReportValues } from "@/services/google-sheets";
 import {
   getGoogleAccessTokenForSheetsForUser,
   organizationSheetsGoogleBinding,
@@ -33,7 +31,7 @@ function isAuthorized(request: NextRequest) {
   const token = authHeader.replace("Bearer ", "");
 
   const allowedTokens = [WORKER_TOKEN, CRON_SECRET].filter(
-    (value): value is string => Boolean(value)
+    (value): value is string => Boolean(value),
   );
 
   if (allowedTokens.length === 0) {
@@ -65,14 +63,17 @@ export async function POST(request: NextRequest) {
   if (probe) return probe;
 
   if (!WORKER_ENABLED) {
-    return NextResponse.json({ message: "Sheet sync worker disabled" }, { status: 200 });
+    return NextResponse.json(
+      { message: "Sheet sync worker disabled" },
+      { status: 200 },
+    );
   }
 
   const supabase = getAdminClient();
   const { data: syncRows, error } = await supabase
     .from("organization_sheet_syncs")
     .select(
-      "organization_id, sheet_id, sheet_url, tab_name, range_a1, report_type, auto_sync, sync_interval_minutes, last_synced_at, created_by"
+      "organization_id, sheet_id, sheet_url, tab_name, range_a1, report_type, auto_sync, sync_interval_minutes, last_synced_at, created_by",
     )
     .eq("auto_sync", true);
 
@@ -88,13 +89,14 @@ export async function POST(request: NextRequest) {
     SHEET_SYNC_CONCURRENCY,
     async (row) => {
       try {
-        const ownerAuthorization = await authorizeGoogleOAuthOrganizationRequest({
-          userId: row.created_by,
-          organizationId: row.organization_id,
-          pluginKey: null,
-          purpose: "organization_sheets",
-          requestedCapability: null,
-        });
+        const ownerAuthorization =
+          await authorizeGoogleOAuthOrganizationRequest({
+            userId: row.created_by,
+            organizationId: row.organization_id,
+            pluginKey: null,
+            purpose: "organization_sheets",
+            requestedCapability: null,
+          });
         if (!ownerAuthorization.allowed) {
           await supabase
             .from("organization_sheet_syncs")
@@ -113,16 +115,25 @@ export async function POST(request: NextRequest) {
           organizationSheetsGoogleBinding(row.organization_id),
         );
         if (!accessToken) {
-          return { organizationId: row.organization_id, success: false, error: "No Google token" };
+          return {
+            organizationId: row.organization_id,
+            success: false,
+            error: "No Google token",
+          };
         }
 
-        const { rows, error: rowsError } = await buildOrganizationReportRowsForSync(
-          row.organization_id,
-          row.report_type as ReportType
-        );
+        const { rows, error: rowsError } =
+          await buildOrganizationReportRowsForSync(
+            row.organization_id,
+            row.report_type as ReportType,
+          );
 
         if (rowsError || !rows) {
-          return { organizationId: row.organization_id, success: false, error: rowsError || "Report error" };
+          return {
+            organizationId: row.organization_id,
+            success: false,
+            error: rowsError || "Report error",
+          };
         }
 
         const replacement = await replaceSpreadsheetReportValues(
@@ -134,7 +145,11 @@ export async function POST(request: NextRequest) {
         );
 
         if (!replacement.success && replacement.stage === "write") {
-          return { organizationId: row.organization_id, success: false, error: "Sheet update failed" };
+          return {
+            organizationId: row.organization_id,
+            success: false,
+            error: "Sheet update failed",
+          };
         }
 
         if (!replacement.success) {
@@ -161,7 +176,10 @@ export async function POST(request: NextRequest) {
     },
   );
 
-  return NextResponse.json({ processed: results.length, results }, { status: 200 });
+  return NextResponse.json(
+    { processed: results.length, results },
+    { status: 200 },
+  );
 }
 
 export async function GET(request: NextRequest) {

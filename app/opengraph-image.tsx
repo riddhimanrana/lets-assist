@@ -84,98 +84,96 @@ export default async function Image() {
   }
 
   return new ImageResponse(
-    (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#ffffff",
+        backgroundImage:
+          "radial-gradient(ellipse at 50% -5%, rgba(34, 197, 94, 0.4) 0%, transparent 100%)",
+        fontFamily: 'Overused Grotesk, "sans-serif"',
+        color: palette.text,
+        textAlign: "center",
+      }}
+    >
+      {/* Branding Section */}
       <div
         style={{
-          width: "100%",
-          height: "100%",
+          display: "flex",
+          position: "absolute",
+          top: 100,
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+        }}
+      >
+        {logoSrc ? (
+          <img
+            src={logoSrc}
+            alt="Logo"
+            width={54}
+            height={54}
+            style={{ borderRadius: 12 }}
+          />
+        ) : null}
+        <div
+          style={{
+            fontSize: 34,
+            fontWeight: 700,
+            letterSpacing: "-0.03em",
+            color: palette.subtext,
+          }}
+        >
+          Let's Assist
+        </div>
+      </div>
+
+      {/* Main Content Stack */}
+      <div
+        style={{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#ffffff",
-          backgroundImage:
-            "radial-gradient(ellipse at 50% -5%, rgba(34, 197, 94, 0.4) 0%, transparent 100%)",
-          fontFamily: 'Overused Grotesk, "sans-serif"',
-          color: palette.text,
-          textAlign: "center",
+          width: "100%",
         }}
       >
-        {/* Branding Section */}
-        <div
-          style={{
-            display: "flex",
-            position: "absolute",
-            top: 100,
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 16,
-          }}
-        >
-          {logoSrc ? (
-            <img
-              src={logoSrc}
-              alt="Logo"
-              width={54}
-              height={54}
-              style={{ borderRadius: 12 }}
-            />
-          ) : null}
-          <div
-            style={{
-              fontSize: 34,
-              fontWeight: 700,
-              letterSpacing: "-0.03em",
-              color: palette.subtext,
-            }}
-          >
-            Let's Assist
-          </div>
-        </div>
-
-        {/* Main Content Stack */}
+        {/* Huge Headline */}
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
-            width: "100%",
+            fontSize: 106,
+            fontWeight: 900,
+            lineHeight: 1.0,
+            letterSpacing: "-0.04em",
+            maxWidth: 1100,
           }}
         >
-          {/* Huge Headline */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              fontSize: 106,
-              fontWeight: 900,
-              lineHeight: 1.0,
-              letterSpacing: "-0.04em",
-              maxWidth: 1100,
-            }}
-          >
-            <div style={{ display: "flex" }}>Give back to your</div>
-            <div style={{ display: "flex", gap: 16 }}>
-              <div
-                style={{
-                  backgroundImage: "linear-gradient(to right, #4ed247, #1AA54A)",
-                  backgroundClip: "text",
-                  // @ts-ignore
-                  "-webkit-background-clip": "text",
-                  color: "transparent",
-                  display: "flex",
-                }}
-              >
-                community
-              </div>
-              <div style={{ display: "flex" }}>your way</div>
+          <div style={{ display: "flex" }}>Give back to your</div>
+          <div style={{ display: "flex", gap: 16 }}>
+            <div
+              style={{
+                backgroundImage: "linear-gradient(to right, #4ed247, #1AA54A)",
+                backgroundClip: "text",
+                // @ts-ignore
+                "-webkit-background-clip": "text",
+                color: "transparent",
+                display: "flex",
+              }}
+            >
+              community
             </div>
+            <div style={{ display: "flex" }}>your way</div>
           </div>
         </div>
       </div>
-    ),
+    </div>,
     {
       ...size,
       fonts: fonts.length ? fonts : undefined,

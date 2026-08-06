@@ -47,7 +47,9 @@ if (!looksLikePostMigrationStorage502) {
 console.warn(
   "[local-reset] Supabase reset applied migrations but storage health returned 502 during container restart.",
 );
-console.warn("[local-reset] Restarting the local Supabase stack and verifying migration history.");
+console.warn(
+  "[local-reset] Restarting the local Supabase stack and verifying migration history.",
+);
 
 const stop = run("supabase", ["stop"]);
 if (stop.status !== 0) process.exit(stop.status ?? 1);

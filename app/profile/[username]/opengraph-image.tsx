@@ -56,12 +56,7 @@ function getInitials(name: string) {
 
 async function loadFont(fileName: string) {
   try {
-    const fontPath = path.join(
-      process.cwd(),
-      "public",
-      "fonts",
-      fileName,
-    );
+    const fontPath = path.join(process.cwd(), "public", "fonts", fileName);
     const fontBuffer = await readFile(fontPath);
     return fontBuffer.buffer.slice(
       fontBuffer.byteOffset,
@@ -126,10 +121,13 @@ export default async function Image({
   const displayName = isPublicProfile
     ? profile?.full_name || profile?.username || "Volunteer"
     : "Profile unavailable";
-  const handle = isPublicProfile && profile?.username
-    ? `@${profile.username}`
-    : "lets-assist.com";
-  const joinedLabel = isPublicProfile ? formatMonthYear(profile?.created_at) : null;
+  const handle =
+    isPublicProfile && profile?.username
+      ? `@${profile.username}`
+      : "lets-assist.com";
+  const joinedLabel = isPublicProfile
+    ? formatMonthYear(profile?.created_at)
+    : null;
   const avatarUrl = isPublicProfile ? profile?.avatar_url : null;
   const initials = getInitials(displayName);
 
@@ -141,157 +139,171 @@ export default async function Image({
   const avatarSrc = avatarUrl ?? undefined;
   const fonts: OgFont[] = [];
   if (interRegular) {
-    fonts.push({ name: "Inter", data: interRegular, weight: 400, style: "normal" });
+    fonts.push({
+      name: "Inter",
+      data: interRegular,
+      weight: 400,
+      style: "normal",
+    });
   }
   if (interBold) {
-    fonts.push({ name: "Inter", data: interBold, weight: 700, style: "normal" });
+    fonts.push({
+      name: "Inter",
+      data: interBold,
+      weight: 700,
+      style: "normal",
+    });
   }
 
   return new ImageResponse(
-    (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        gap: "48px",
+        padding: "64px",
+        backgroundColor: palette.background,
+        fontFamily: "Inter, ui-sans-serif, system-ui",
+        color: palette.text,
+        boxSizing: "border-box",
+      }}
+    >
       <div
         style={{
-          width: "100%",
-          height: "100%",
           display: "flex",
-          gap: "48px",
-          padding: "64px",
-          backgroundColor: palette.background,
-          fontFamily: "Inter, ui-sans-serif, system-ui",
-          color: palette.text,
-          boxSizing: "border-box",
+          flexDirection: "column",
+          flex: 1,
+          gap: "18px",
+          justifyContent: "center",
         }}
       >
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          {fallbackLogoUrl ? (
+            <img
+              src={fallbackLogoUrl}
+              alt="Let's Assist"
+              width={42}
+              height={42}
+              style={{ width: "42px", height: "42px", objectFit: "contain" }}
+            />
+          ) : null}
+          <div style={{ fontSize: "30px", fontWeight: 700, display: "flex" }}>
+            Let&apos;s Assist
+          </div>
+        </div>
+
         <div
           style={{
+            fontSize: "54px",
+            fontWeight: 700,
+            lineHeight: 1.1,
             display: "flex",
             flexDirection: "column",
-            flex: 1,
-            gap: "18px",
-            justifyContent: "center",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            {fallbackLogoUrl ? (
-              <img
-                src={fallbackLogoUrl}
-                alt="Let's Assist"
-                width={42}
-                height={42}
-                style={{ width: "42px", height: "42px", objectFit: "contain" }}
-              />
-            ) : null}
-            <div style={{ fontSize: "30px", fontWeight: 700, display: "flex" }}>
-              Let&apos;s Assist
-            </div>
-          </div>
+          {displayName}
+        </div>
 
-          <div
-            style={{
-              fontSize: "54px",
-              fontWeight: 700,
-              lineHeight: 1.1,
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            {displayName}
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <div style={{ fontSize: "22px", color: palette.mutedText, display: "flex" }}>
-              {handle}
-            </div>
-          </div>
-
+        <div style={{ display: "flex", alignItems: "center" }}>
           <div
             style={{
               fontSize: "22px",
               color: palette.mutedText,
-              lineHeight: 1.4,
-              maxWidth: "640px",
               display: "flex",
             }}
           >
-            {isPublicProfile
-              ? "Volunteer profile on Let’s Assist."
-              : "This profile is private or unavailable."}
+            {handle}
           </div>
-
-          {joinedLabel ? (
-            <div
-              style={{
-                fontSize: "18px",
-                color: palette.text,
-                backgroundColor: palette.surface,
-                border: `1px solid ${palette.border}`,
-                borderRadius: "999px",
-                padding: "8px 14px",
-                alignSelf: "flex-start",
-                display: "flex",
-              }}
-            >
-              Joined {joinedLabel}
-            </div>
-          ) : null}
         </div>
 
         <div
           style={{
-            width: "360px",
-            height: "360px",
-            borderRadius: "24px",
-            backgroundColor: palette.surface,
-            border: `1px solid ${palette.border}`,
+            fontSize: "22px",
+            color: palette.mutedText,
+            lineHeight: 1.4,
+            maxWidth: "640px",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden",
           }}
         >
-          {avatarSrc ? (
-            <div
-              style={{
-                width: "220px",
-                height: "220px",
-                borderRadius: "999px",
-                overflow: "hidden",
-                border: `1px solid ${palette.border}`,
-                backgroundColor: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <img
-                src={avatarSrc}
-                alt={displayName}
-                width={220}
-                height={220}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            </div>
-          ) : (
-            <div
-              style={{
-                width: "200px",
-                height: "200px",
-                borderRadius: "999px",
-                backgroundColor: palette.accent,
-                color: palette.accentText,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "64px",
-                fontWeight: 700,
-              }}
-            >
-              {initials}
-            </div>
-          )}
+          {isPublicProfile
+            ? "Volunteer profile on Let’s Assist."
+            : "This profile is private or unavailable."}
         </div>
+
+        {joinedLabel ? (
+          <div
+            style={{
+              fontSize: "18px",
+              color: palette.text,
+              backgroundColor: palette.surface,
+              border: `1px solid ${palette.border}`,
+              borderRadius: "999px",
+              padding: "8px 14px",
+              alignSelf: "flex-start",
+              display: "flex",
+            }}
+          >
+            Joined {joinedLabel}
+          </div>
+        ) : null}
       </div>
-    ),
+
+      <div
+        style={{
+          width: "360px",
+          height: "360px",
+          borderRadius: "24px",
+          backgroundColor: palette.surface,
+          border: `1px solid ${palette.border}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+        }}
+      >
+        {avatarSrc ? (
+          <div
+            style={{
+              width: "220px",
+              height: "220px",
+              borderRadius: "999px",
+              overflow: "hidden",
+              border: `1px solid ${palette.border}`,
+              backgroundColor: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <img
+              src={avatarSrc}
+              alt={displayName}
+              width={220}
+              height={220}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          </div>
+        ) : (
+          <div
+            style={{
+              width: "200px",
+              height: "200px",
+              borderRadius: "999px",
+              backgroundColor: palette.accent,
+              color: palette.accentText,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "64px",
+              fontWeight: 700,
+            }}
+          >
+            {initials}
+          </div>
+        )}
+      </div>
+    </div>,
     { ...size, fonts: fonts.length ? fonts : undefined },
   );
 }

@@ -2,10 +2,28 @@
 
 import { useState, useEffect } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
-import { CalendarIcon, MapPin, Plus, Search, Calendar, CheckCircle2, AlertCircle, Clock3, LayoutGrid, Folders } from "lucide-react";
+import {
+  CalendarIcon,
+  MapPin,
+  Plus,
+  Search,
+  Calendar,
+  CheckCircle2,
+  AlertCircle,
+  Clock3,
+  LayoutGrid,
+  Folders,
+} from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProjectStatus, Project } from "@/types";
@@ -70,7 +88,9 @@ export default function ProjectsTab({
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between gap-3">
-        <h2 className="text-xl font-bold tracking-tight">Organization Projects</h2>
+        <h2 className="text-xl font-bold tracking-tight">
+          Organization Projects
+        </h2>
 
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
           <div className="relative w-full sm:w-64">
@@ -144,11 +164,11 @@ export default function ProjectsTab({
                   <Folders className="h-8 w-8 text-muted-foreground" />
                 )}
               </div>
-              
+
               <h3 className="text-lg font-semibold text-foreground mb-2">
                 {searchTerm ? "No projects found" : "None yet"}
               </h3>
-              
+
               <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6 text-center">
                 {searchTerm
                   ? `We couldn't find any projects matching "${searchTerm}". Try a different search term.`
@@ -162,16 +182,18 @@ export default function ProjectsTab({
                           ? "No completed projects yet. Create and complete a project to see it here!"
                           : "No cancelled projects."}
               </p>
-              
-              {canCreateProjects && activeTab !== "cancelled" && !searchTerm && (
-                <Link
-                  href={`/projects/create?org=${organizationId}`}
-                  className={cn(buttonVariants({ size: "sm" }), "")}
-                >
-                  <Plus className="h-4 w-4 mr-1.5" />
-                  Create First Project
-                </Link>
-              )}
+
+              {canCreateProjects &&
+                activeTab !== "cancelled" &&
+                !searchTerm && (
+                  <Link
+                    href={`/projects/create?org=${organizationId}`}
+                    className={cn(buttonVariants({ size: "sm" }), "")}
+                  >
+                    <Plus className="h-4 w-4 mr-1.5" />
+                    Create First Project
+                  </Link>
+                )}
             </div>
           )}
         </TabsContent>
@@ -188,18 +210,22 @@ function ProjectCard({ project }: { project: Project }) {
       <Card className="h-full hover:shadow-xl transition-all duration-200 overflow-hidden border-border/50 bg-card">
         <div className="px-4 flex flex-col h-full">
           <CardHeader className="p-0 mb-2">
-            <CardTitle className="text-lg font-bold truncate pr-2 leading-tight">{project.title}</CardTitle>
+            <CardTitle className="text-lg font-bold truncate pr-2 leading-tight">
+              {project.title}
+            </CardTitle>
             <CardAction>
               <ProjectStatusBadge status={currentStatus} className="shrink-0" />
             </CardAction>
           </CardHeader>
-          
+
           <CardContent className="p-0 ">
             <CardDescription className="line-clamp-2 mb-3 text-sm text-muted-foreground/90">
-              {project.description ? stripHtml(project.description) : "No description provided."}
+              {project.description
+                ? stripHtml(project.description)
+                : "No description provided."}
             </CardDescription>
 
-             <div className="space-y-1.5 text-xs font-medium text-muted-foreground/80">
+            <div className="space-y-1.5 text-xs font-medium text-muted-foreground/80">
               {project.location && (
                 <div className="flex items-center">
                   <MapPin className="h-4 w-4 mr-2 shrink-0" />
@@ -209,18 +235,22 @@ function ProjectCard({ project }: { project: Project }) {
 
               <div className="flex items-center">
                 <CalendarIcon className="h-4 w-4 mr-2 shrink-0" />
-                <span>Created {format(new Date(project.created_at), "MMM d, yyyy")}</span>
+                <span>
+                  Created {format(new Date(project.created_at), "MMM d, yyyy")}
+                </span>
               </div>
             </div>
           </CardContent>
 
           {project.organization && (
-             <div className="mt-auto flex items-center gap-2">
-                <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Organized by</div>
-                <span className="text-sm font-semibold text-foreground/80 truncate">
-                  {project.profiles?.full_name || "Anonymous"}
-                </span>
-             </div>
+            <div className="mt-auto flex items-center gap-2">
+              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">
+                Organized by
+              </div>
+              <span className="text-sm font-semibold text-foreground/80 truncate">
+                {project.profiles?.full_name || "Anonymous"}
+              </span>
+            </div>
           )}
         </div>
       </Card>

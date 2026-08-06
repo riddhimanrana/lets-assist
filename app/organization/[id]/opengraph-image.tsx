@@ -36,12 +36,7 @@ function cleanText(text: string) {
 
 async function loadFont(fileName: string) {
   try {
-    const fontPath = path.join(
-      process.cwd(),
-      "public",
-      "fonts",
-      fileName,
-    );
+    const fontPath = path.join(process.cwd(), "public", "fonts", fileName);
     const fontBuffer = await readFile(fontPath);
     return fontBuffer.buffer.slice(
       fontBuffer.byteOffset,
@@ -133,12 +128,22 @@ export default async function Image({
   const resolvedLogoSrc = logoUrl ?? logoSrc;
   const fonts: OgFont[] = [];
   if (interRegular) {
-    fonts.push({ name: "Inter", data: interRegular, weight: 400, style: "normal" });
+    fonts.push({
+      name: "Inter",
+      data: interRegular,
+      weight: 400,
+      style: "normal",
+    });
   }
   if (interBold) {
-    fonts.push({ name: "Inter", data: interBold, weight: 700, style: "normal" });
+    fonts.push({
+      name: "Inter",
+      data: interBold,
+      weight: 700,
+      style: "normal",
+    });
   }
-  
+
   const trimmedName = name.length > 46 ? `${name.substring(0, 43)}…` : name;
   const cleanedDescription = cleanText(description ?? "");
   const trimmedDescription =
@@ -147,107 +152,118 @@ export default async function Image({
       : cleanedDescription;
 
   return new ImageResponse(
-    (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        gap: "48px",
+        padding: "64px",
+        backgroundColor: palette.background,
+        fontFamily: "Inter, ui-sans-serif, system-ui",
+        color: palette.text,
+        boxSizing: "border-box",
+      }}
+    >
       <div
         style={{
-          width: "100%",
-          height: "100%",
           display: "flex",
-          gap: "48px",
-          padding: "64px",
-          backgroundColor: palette.background,
-          fontFamily: "Inter, ui-sans-serif, system-ui",
-          color: palette.text,
-          boxSizing: "border-box",
+          flexDirection: "column",
+          flex: 1,
+          gap: "18px",
+          justifyContent: "center",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            flex: 1,
-            gap: "18px",
-            justifyContent: "center",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            {logoSrc ? (
-              <img
-                src={logoSrc}
-                alt="Let's Assist"
-                width={42}
-                height={42}
-                style={{ width: "42px", height: "42px", objectFit: "contain" }}
-              />
-            ) : null}
-            <div style={{ fontSize: "30px", fontWeight: 700, display: "flex" }}>
-              Let's Assist
-            </div>
-          </div>
-
-          <div style={{ fontSize: "52px", fontWeight: 700, lineHeight: 1.1, display: "flex" }}>
-            {trimmedName}
-          </div>
-
-          <div style={{ fontSize: "20px", color: palette.mutedText, display: "flex" }}>
-            {orgTypeLabel} organization
-          </div>
-
-          <div
-            style={{
-              fontSize: "22px",
-              color: palette.mutedText,
-              lineHeight: 1.4,
-              maxWidth: "680px",
-              display: "flex",
-            }}
-          >
-            {trimmedDescription}
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          {logoSrc ? (
+            <img
+              src={logoSrc}
+              alt="Let's Assist"
+              width={42}
+              height={42}
+              style={{ width: "42px", height: "42px", objectFit: "contain" }}
+            />
+          ) : null}
+          <div style={{ fontSize: "30px", fontWeight: 700, display: "flex" }}>
+            Let's Assist
           </div>
         </div>
 
         <div
           style={{
-            width: "360px",
-            height: "360px",
-            borderRadius: "24px",
-            backgroundColor: palette.surface,
-            border: `1px solid ${palette.border}`,
+            fontSize: "52px",
+            fontWeight: 700,
+            lineHeight: 1.1,
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden",
           }}
         >
-          {resolvedLogoSrc ? (
-            <img
-              src={resolvedLogoSrc}
-              alt="Organization logo"
-              width={180}
-              height={180}
-              style={{ width: "180px", height: "180px", objectFit: "contain" }}
-            />
-          ) : (
-            <div
-              style={{
-                width: "160px",
-                height: "160px",
-                borderRadius: "28px",
-                backgroundColor: palette.accent,
-                color: palette.accentText,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "48px",
-                fontWeight: 700,
-              }}
-            >
-              LA
-            </div>
-          )}
+          {trimmedName}
+        </div>
+
+        <div
+          style={{
+            fontSize: "20px",
+            color: palette.mutedText,
+            display: "flex",
+          }}
+        >
+          {orgTypeLabel} organization
+        </div>
+
+        <div
+          style={{
+            fontSize: "22px",
+            color: palette.mutedText,
+            lineHeight: 1.4,
+            maxWidth: "680px",
+            display: "flex",
+          }}
+        >
+          {trimmedDescription}
         </div>
       </div>
-    ),
+
+      <div
+        style={{
+          width: "360px",
+          height: "360px",
+          borderRadius: "24px",
+          backgroundColor: palette.surface,
+          border: `1px solid ${palette.border}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+        }}
+      >
+        {resolvedLogoSrc ? (
+          <img
+            src={resolvedLogoSrc}
+            alt="Organization logo"
+            width={180}
+            height={180}
+            style={{ width: "180px", height: "180px", objectFit: "contain" }}
+          />
+        ) : (
+          <div
+            style={{
+              width: "160px",
+              height: "160px",
+              borderRadius: "28px",
+              backgroundColor: palette.accent,
+              color: palette.accentText,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "48px",
+              fontWeight: 700,
+            }}
+          >
+            LA
+          </div>
+        )}
+      </div>
+    </div>,
     { ...size, fonts: fonts.length ? fonts : undefined },
   );
 }

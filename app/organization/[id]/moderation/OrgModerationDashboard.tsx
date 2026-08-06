@@ -1,19 +1,25 @@
-'use client';
+"use client";
 
-import { useState, useTransition } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  AlertTriangle, 
-  ShieldAlert, 
-  Clock, 
+import { useState, useTransition } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertTriangle,
+  ShieldAlert,
+  Clock,
   CheckCircle,
   User,
   Calendar,
-} from 'lucide-react';
-import { getOrgFlaggedContent } from './actions';
-import { format } from 'date-fns';
+} from "lucide-react";
+import { getOrgFlaggedContent } from "./actions";
+import { format } from "date-fns";
 
 type FlagStatus = "pending_review" | "blocked" | "confirmed" | "dismissed";
 
@@ -55,7 +61,7 @@ export default function OrgModerationDashboard({
 }) {
   const [stats] = useState(initialStats);
   const [flaggedContent, setFlaggedContent] = useState(initialFlagged);
-  const [selectedTab, setSelectedTab] = useState<FlagStatus>('pending_review');
+  const [selectedTab, setSelectedTab] = useState<FlagStatus>("pending_review");
   const [isPending, startTransition] = useTransition();
 
   const loadFlaggedContent = async (status: FlagStatus) => {
@@ -67,20 +73,22 @@ export default function OrgModerationDashboard({
     });
   };
 
-  const getSeverityColor = (severity: string): "secondary" | "destructive" | "default" => {
+  const getSeverityColor = (
+    severity: string,
+  ): "secondary" | "destructive" | "default" => {
     switch (severity) {
-      case 'critical':
-      case 'high':
-        return 'destructive';
-      case 'medium':
-        return 'default';
+      case "critical":
+      case "high":
+        return "destructive";
+      case "medium":
+        return "default";
       default:
-        return 'secondary';
+        return "secondary";
     }
   };
 
   const getContentTypeIcon = (type: string) => {
-    return type === 'image' ? '🖼️' : '📝';
+    return type === "image" ? "🖼️" : "📝";
   };
 
   return (
@@ -100,7 +108,9 @@ export default function OrgModerationDashboard({
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Pending Review
+            </CardTitle>
             <Clock className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
@@ -111,12 +121,16 @@ export default function OrgModerationDashboard({
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Critical Issues</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Critical Issues
+            </CardTitle>
             <ShieldAlert className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.critical}</div>
-            <p className="text-xs text-muted-foreground">High/Critical severity</p>
+            <p className="text-xs text-muted-foreground">
+              High/Critical severity
+            </p>
           </CardContent>
         </Card>
 
@@ -141,11 +155,14 @@ export default function OrgModerationDashboard({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs value={selectedTab} onValueChange={(v) => {
-            if (!isFlagStatus(v)) return;
-            setSelectedTab(v);
-            loadFlaggedContent(v);
-          }}>
+          <Tabs
+            value={selectedTab}
+            onValueChange={(v) => {
+              if (!isFlagStatus(v)) return;
+              setSelectedTab(v);
+              loadFlaggedContent(v);
+            }}
+          >
             <TabsList>
               <TabsTrigger value="pending_review">
                 Pending ({stats.pending})
@@ -183,15 +200,19 @@ export default function OrgModerationDashboard({
                           <div className="flex items-start justify-between">
                             <div>
                               <div className="flex items-center gap-2">
-                                <Badge variant={getSeverityColor(item.severity)}>
+                                <Badge
+                                  variant={getSeverityColor(item.severity)}
+                                >
                                   {item.severity?.toUpperCase()}
                                 </Badge>
                                 <span className="text-sm text-muted-foreground">
-                                  {format(new Date(item.created_at), 'PPp')}
+                                  {format(new Date(item.created_at), "PPp")}
                                 </span>
                               </div>
                               <p className="mt-1 text-sm text-muted-foreground">
-                                {item.content_type === 'image' ? 'Image Content' : 'Text Content'}
+                                {item.content_type === "image"
+                                  ? "Image Content"
+                                  : "Text Content"}
                               </p>
                             </div>
                           </div>
@@ -199,28 +220,38 @@ export default function OrgModerationDashboard({
                           {/* Reason */}
                           <div>
                             <p className="text-sm font-medium">Flagged for:</p>
-                            <p className="text-sm text-muted-foreground">{item.reason}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {item.reason}
+                            </p>
                           </div>
 
                           {/* Categories */}
-                          {item.categories && Object.keys(item.categories).length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {Object.entries(item.categories).map(([key, value]) =>
-                                value ? (
-                                  <Badge key={key} variant="outline" className="text-xs">
-                                    {key.replace('_', ' ')}
-                                  </Badge>
-                                ) : null
-                              )}
-                            </div>
-                          )}
+                          {item.categories &&
+                            Object.keys(item.categories).length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {Object.entries(item.categories).map(
+                                  ([key, value]) =>
+                                    value ? (
+                                      <Badge
+                                        key={key}
+                                        variant="outline"
+                                        className="text-xs"
+                                      >
+                                        {key.replace("_", " ")}
+                                      </Badge>
+                                    ) : null,
+                                )}
+                              </div>
+                            )}
 
                           {/* User Info */}
                           {item.profiles && (
                             <div className="flex items-center gap-2 pt-2 text-sm text-muted-foreground">
                               <User className="h-4 w-4" />
                               <span>
-                                {item.profiles.full_name || item.profiles.username || item.profiles.email}
+                                {item.profiles.full_name ||
+                                  item.profiles.username ||
+                                  item.profiles.email}
                               </span>
                             </div>
                           )}
@@ -229,8 +260,9 @@ export default function OrgModerationDashboard({
                           <div className="rounded-md bg-muted p-3 text-sm">
                             <p className="font-medium">Note:</p>
                             <p className="text-muted-foreground">
-                              Only platform administrators can take action on flagged content.
-                              This dashboard is for monitoring and reporting purposes.
+                              Only platform administrators can take action on
+                              flagged content. This dashboard is for monitoring
+                              and reporting purposes.
                             </p>
                           </div>
                         </div>

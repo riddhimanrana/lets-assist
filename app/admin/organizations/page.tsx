@@ -1,5 +1,11 @@
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { checkSuperAdmin, getOrganizationsForAdmin } from "../actions";
 import { OrganizationsTab } from "../components/OrganizationsTab";
 
@@ -32,7 +38,8 @@ export default async function AdminOrganizationsPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Organizations</h1>
         <p className="text-muted-foreground">
-          Verify organizations and manage trust visibility badges across the platform.
+          Verify organizations and manage trust visibility badges across the
+          platform.
         </p>
       </div>
 

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   findSourceOrganizationIssues,
+  findMaintainabilityIssues,
   SOURCE_ORGANIZATION_RULES,
 } from "./check-source-organization.mjs";
 
@@ -12,9 +13,50 @@ describe("source organization guard", () => {
         "app/projects/page.tsx",
         "lib/plugins/access-role.test.ts",
         "scripts/local-dev/seed-platform.mjs",
-        "artifacts/csf/verification-summary.md",
+        "docs/csf/evidence/verification-summary.md",
         "fixtures/imports/sample.csv",
       ]),
+    ).toEqual([]);
+  });
+
+  test("rejects generated trees, root binaries, hidden docs, and agent worktrees", () => {
+    const issues = findSourceOrganizationIssues([
+      ".artifacts/run/trace.zip",
+      ".claude/worktrees/review/index.ts",
+      ".private-notes.md",
+      "fixture.xlsx",
+      "playwright-report/index.html",
+    ]);
+    expect(issues.map((issue) => issue.rule)).toEqual([
+      SOURCE_ORGANIZATION_RULES.GENERATED_ARTIFACT,
+      SOURCE_ORGANIZATION_RULES.AGENT_WORKTREE,
+      SOURCE_ORGANIZATION_RULES.HIDDEN_DOCUMENTATION,
+      SOURCE_ORGANIZATION_RULES.ROOT_BINARY,
+      SOURCE_ORGANIZATION_RULES.GENERATED_ARTIFACT,
+    ]);
+  });
+
+  test("enforces category limits while ratcheting reviewed legacy files", () => {
+    expect(
+      findMaintainabilityIssues(
+        [
+          { file: "components/NewPanel.tsx", lines: 601 },
+          { file: "services/new-service.ts", lines: 801 },
+          { file: "services/new-service.test.ts", lines: 1201 },
+          { file: "components/SmallPanel.tsx", lines: 600 },
+        ],
+        "lets-assist",
+      ).map((issue: { file: string }) => issue.file),
+    ).toEqual([
+      "components/NewPanel.tsx",
+      "services/new-service.ts",
+      "services/new-service.test.ts",
+    ]);
+    expect(
+      findMaintainabilityIssues(
+        [{ file: "app/projects/[id]/actions.ts", lines: 3698 }],
+        "lets-assist",
+      ),
     ).toEqual([]);
   });
 

@@ -12,7 +12,8 @@ const CSF_CALENDAR_SOURCE_KINDS = [
 
 type CsfCalendarSourceKind = (typeof CSF_CALENDAR_SOURCE_KINDS)[number];
 
-type CalendarDateTime = { dateTime: string; timeZone: string } | { date: string };
+type CalendarDateTime =
+  { dateTime: string; timeZone: string } | { date: string };
 
 export type CsfGoogleCalendarEvent = {
   summary: string;
@@ -81,7 +82,12 @@ type BuildCsfCalendarProjectionInput = {
 };
 
 export type CsfCalendarSyncResult =
-  | { success: true; createdCount: number; updatedCount: number; removedCount: number }
+  | {
+      success: true;
+      createdCount: number;
+      updatedCount: number;
+      removedCount: number;
+    }
   | { success: false; error: string };
 
 const CALENDAR_TIME_ZONE = "America/Los_Angeles";
@@ -91,15 +97,26 @@ function validDateTime(value: string | null): value is string {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
-function dateTimeRange(start: string, end: string | null, defaultMinutes: number) {
+function dateTimeRange(
+  start: string,
+  end: string | null,
+  defaultMinutes: number,
+) {
   const startTime = Date.parse(start);
   const parsedEnd = validDateTime(end) ? Date.parse(end) : Number.NaN;
-  const endTime = Number.isFinite(parsedEnd) && parsedEnd > startTime
-    ? parsedEnd
-    : startTime + defaultMinutes * 60_000;
+  const endTime =
+    Number.isFinite(parsedEnd) && parsedEnd > startTime
+      ? parsedEnd
+      : startTime + defaultMinutes * 60_000;
   return {
-    start: { dateTime: new Date(startTime).toISOString(), timeZone: CALENDAR_TIME_ZONE },
-    end: { dateTime: new Date(endTime).toISOString(), timeZone: CALENDAR_TIME_ZONE },
+    start: {
+      dateTime: new Date(startTime).toISOString(),
+      timeZone: CALENDAR_TIME_ZONE,
+    },
+    end: {
+      dateTime: new Date(endTime).toISOString(),
+      timeZone: CALENDAR_TIME_ZONE,
+    },
   } as const;
 }
 
@@ -125,7 +142,11 @@ function metadata(sourceKind: CsfCalendarSourceKind, sourceId: string) {
 function appendPublicLink(description: string | null, link: string | null) {
   const text = description?.trim() ?? "";
   const safeLink = link && /^https:\/\//u.test(link) ? link : "";
-  return [text, safeLink ? `More information: ${safeLink}` : ""].filter(Boolean).join("\n\n") || undefined;
+  return (
+    [text, safeLink ? `More information: ${safeLink}` : ""]
+      .filter(Boolean)
+      .join("\n\n") || undefined
+  );
 }
 
 /** Builds only publishable CSF calendar records; private attendance/source data is never projected. */
@@ -135,7 +156,11 @@ export function buildCsfCalendarProjections(
   const projections: CsfCalendarProjection[] = [];
 
   for (const opportunity of input.opportunities) {
-    if (opportunity.status !== "published" || !validDateTime(opportunity.starts_at)) continue;
+    if (
+      opportunity.status !== "published" ||
+      !validDateTime(opportunity.starts_at)
+    )
+      continue;
     const range = dateTimeRange(opportunity.starts_at, opportunity.ends_at, 60);
     projections.push({
       sourceKind: "csf_opportunity",
@@ -166,7 +191,11 @@ export function buildCsfCalendarProjections(
       range = dateTimeRange(session.starts_at, null, 60);
     } else if (session.session_date) {
       const endDate = nextCalendarDate(session.session_date);
-      if (endDate) range = { start: { date: session.session_date }, end: { date: endDate } };
+      if (endDate)
+        range = {
+          start: { date: session.session_date },
+          end: { date: endDate },
+        };
     }
     if (!range) continue;
 
@@ -185,20 +214,29 @@ export function buildCsfCalendarProjections(
   }
 
   for (const deadline of input.deadlines) {
-    if (!["planned", "open"].includes(deadline.status) || !validDateTime(deadline.due_at)) continue;
+    if (
+      !["planned", "open"].includes(deadline.status) ||
+      !validDateTime(deadline.due_at)
+    )
+      continue;
     const range = dateTimeRange(deadline.due_at, null, 30);
-    const safeRoute = deadline.related_route && /^\/(?!\/)/u.test(deadline.related_route)
-      ? deadline.related_route
-      : null;
+    const safeRoute =
+      deadline.related_route && /^\/(?!\/)/u.test(deadline.related_route)
+        ? deadline.related_route
+        : null;
     projections.push({
       sourceKind: "csf_deadline",
       sourceId: deadline.id,
       occurrenceKey: "primary",
       event: {
         summary: `[CSF deadline] ${deadline.title}`,
-        description: [deadline.description?.trim(), safeRoute ? `Open in Let's Assist: ${safeRoute}` : null]
-          .filter(Boolean)
-          .join("\n\n") || undefined,
+        description:
+          [
+            deadline.description?.trim(),
+            safeRoute ? `Open in Let's Assist: ${safeRoute}` : null,
+          ]
+            .filter(Boolean)
+            .join("\n\n") || undefined,
         ...range,
         transparency: "transparent",
         ...metadata("csf_deadline", deadline.id),
@@ -219,13 +257,22 @@ async function createRemoteEvent(
       `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`,
       {
         method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(event),
       },
     );
     if (!response.ok) return null;
     const result: unknown = await response.json();
-    if (!result || typeof result !== "object" || !("id" in result) || typeof result.id !== "string") return null;
+    if (
+      !result ||
+      typeof result !== "object" ||
+      !("id" in result) ||
+      typeof result.id !== "string"
+    )
+      return null;
     return result.id;
   } catch {
     return null;
@@ -243,7 +290,10 @@ async function updateRemoteEvent(
       `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
       {
         method: "PUT",
-        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(event),
       },
     );
@@ -276,10 +326,18 @@ export async function syncCsfCalendarProjections(options: {
 }): Promise<CsfCalendarSyncResult> {
   const serviceSupabase = getAdminClient();
   const pluginSupabase = createPluginAdminClient();
-  const [opportunityResult, meetingResult, sessionResult, deadlineResult, existingResult] = await Promise.all([
+  const [
+    opportunityResult,
+    meetingResult,
+    sessionResult,
+    deadlineResult,
+    existingResult,
+  ] = await Promise.all([
     pluginSupabase
       .from("csf_opportunities")
-      .select("id, title, body, starts_at, ends_at, location, signup_url, status")
+      .select(
+        "id, title, body, starts_at, ends_at, location, signup_url, status",
+      )
       .eq("organization_id", options.organizationId),
     pluginSupabase
       .from("csf_meetings")
@@ -300,7 +358,13 @@ export async function syncCsfCalendarProjections(options: {
       .in("source_kind", [...CSF_CALENDAR_SOURCE_KINDS]),
   ]);
 
-  if (opportunityResult.error || meetingResult.error || sessionResult.error || deadlineResult.error || existingResult.error) {
+  if (
+    opportunityResult.error ||
+    meetingResult.error ||
+    sessionResult.error ||
+    deadlineResult.error ||
+    existingResult.error
+  ) {
     return { success: false, error: "Failed to load CSF calendar sources." };
   }
 
@@ -317,23 +381,37 @@ export async function syncCsfCalendarProjections(options: {
     project: projection,
   }));
   const trackedEvents = (existingResult.data ?? []).flatMap((row) => {
-    if (!CSF_CALENDAR_SOURCE_KINDS.includes(row.source_kind as CsfCalendarSourceKind)) return [];
-    return [{
-      id: row.id,
-      key: `${row.source_kind}:${row.source_id}:${row.occurrence_key}`,
-      eventId: row.event_id,
-    }];
+    if (
+      !CSF_CALENDAR_SOURCE_KINDS.includes(
+        row.source_kind as CsfCalendarSourceKind,
+      )
+    )
+      return [];
+    return [
+      {
+        id: row.id,
+        key: `${row.source_kind}:${row.source_id}:${row.occurrence_key}`,
+        eventId: row.event_id,
+      },
+    ];
   });
 
   return synchronizeCalendarEvents(desiredEvents, trackedEvents, {
-    createRemoteEvent: (desired) => createRemoteEvent(options.accessToken, options.calendarId, desired.project.event),
-    updateRemoteEvent: (tracked, desired) => updateRemoteEvent(
-      options.accessToken,
-      options.calendarId,
-      tracked.eventId,
-      desired.project.event,
-    ),
-    deleteRemoteEvent: (eventId) => deleteRemoteEvent(options.accessToken, options.calendarId, eventId),
+    createRemoteEvent: (desired) =>
+      createRemoteEvent(
+        options.accessToken,
+        options.calendarId,
+        desired.project.event,
+      ),
+    updateRemoteEvent: (tracked, desired) =>
+      updateRemoteEvent(
+        options.accessToken,
+        options.calendarId,
+        tracked.eventId,
+        desired.project.event,
+      ),
+    deleteRemoteEvent: (eventId) =>
+      deleteRemoteEvent(options.accessToken, options.calendarId, eventId),
     insertTrackingEvent: async (desired, eventId) => {
       const projection = desired.project;
       const { data, error } = await serviceSupabase

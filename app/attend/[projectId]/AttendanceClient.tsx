@@ -6,11 +6,22 @@ import { Project } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress"; // Import Progress component
 import { format, parseISO, differenceInMinutes, parse } from "date-fns";
 import { formatTimeTo12Hour } from "@/lib/utils";
-import { getMultiDaySlotByScheduleId, getMultiDaySlotDisplayName, getSlotDetails } from "@/utils/project";
+import {
+  getMultiDaySlotByScheduleId,
+  getMultiDaySlotDisplayName,
+  getSlotDetails,
+} from "@/utils/project";
 import { toast } from "sonner";
 import {
   CheckCircle,
@@ -25,11 +36,16 @@ import {
   // Mail, // No longer needed
   Search,
   User,
-  LogOut
+  LogOut,
 } from "lucide-react";
 import Link from "next/link";
 // Import checkInAnonymous as well
-import { checkInUser, lookupEmailStatus, checkInAnonymous, checkOutUser } from "./actions";
+import {
+  checkInUser,
+  lookupEmailStatus,
+  checkInAnonymous,
+  checkOutUser,
+} from "./actions";
 import { LeaveEventConfirmationDialog } from "./_components/LeaveEventConfirmationDialog";
 import { SessionEndedCard } from "./_components/SessionEndedCard";
 
@@ -100,11 +116,10 @@ function formatRemainingTime(minutes: number): string {
   }
   // Ensure minutes are always shown, even if 0 when hours > 0
   if (remainingMinutes > 0 || hours === 0) {
-      result += `${remainingMinutes}m`;
+    result += `${remainingMinutes}m`;
   }
   return result.trim(); // Trim potential trailing space if only hours exist (though unlikely with rounding)
 }
-
 
 export default function AttendanceClient({
   project,
@@ -117,9 +132,13 @@ export default function AttendanceClient({
   const router = useRouter();
   // Check-in state
   const [isSubmitting, setIsSubmitting] = useState(false); // For logged-in check-in or lookup-based check-in
-  const [isCheckedIn, setIsCheckedIn] = useState(!!existingCheckIn?.check_in_time);
+  const [isCheckedIn, setIsCheckedIn] = useState(
+    !!existingCheckIn?.check_in_time,
+  );
   const [checkInTime, setCheckInTime] = useState<Date | null>(
-    existingCheckIn?.check_in_time ? new Date(existingCheckIn.check_in_time) : null
+    existingCheckIn?.check_in_time
+      ? new Date(existingCheckIn.check_in_time)
+      : null,
   );
   const [checkedInAnonymously, setCheckedInAnonymously] = useState(false);
   const [displayEmail, setDisplayEmail] = useState(user?.email || ""); // Email to show on success screen
@@ -135,11 +154,15 @@ export default function AttendanceClient({
     name?: string;
     date?: string;
   };
-  const [sessionDetails, setSessionDetails] = useState<SessionDetails | null>(null);
+  const [sessionDetails, setSessionDetails] = useState<SessionDetails | null>(
+    null,
+  );
 
   // Session ended state
   const [sessionHasEnded, setSessionHasEnded] = useState(false);
-  const [existingSignupId, setExistingSignupId] = useState<string | null>(existingCheckIn?.id || null);
+  const [existingSignupId, setExistingSignupId] = useState<string | null>(
+    existingCheckIn?.id || null,
+  );
 
   // Leave Event dialog state
   const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
@@ -163,7 +186,7 @@ export default function AttendanceClient({
   useEffect(() => {
     if (project && scheduleId) {
       const details = getSlotDetails(project, scheduleId);
-      
+
       let formattedDetails = null;
       if (details) {
         // Format depending on event type
@@ -171,7 +194,7 @@ export default function AttendanceClient({
           formattedDetails = {
             ...details,
             name: "Main Event",
-            date: project.schedule.oneTime?.date || ""
+            date: project.schedule.oneTime?.date || "",
           };
         } else if (project.event_type === "multiDay") {
           const slotData = getMultiDaySlotByScheduleId(project, scheduleId);
@@ -180,18 +203,18 @@ export default function AttendanceClient({
             formattedDetails = {
               ...details,
               name: getMultiDaySlotDisplayName(slot, slotIndex),
-              date: day.date
+              date: day.date,
             };
           }
         } else if (project.event_type === "sameDayMultiArea") {
           formattedDetails = {
             ...details,
             name: scheduleId,
-            date: project.schedule.sameDayMultiArea?.date || ""
+            date: project.schedule.sameDayMultiArea?.date || "",
           };
         }
       }
-      
+
       setSessionDetails(formattedDetails);
     }
   }, [project, scheduleId]);
@@ -199,11 +222,16 @@ export default function AttendanceClient({
   // Update progress and remaining time smoothly using requestAnimationFrame
   useEffect(() => {
     // Ensure checkInTime is valid *before* proceeding
-    if (!checkInTime || !sessionDetails?.date || !sessionDetails?.startTime || !sessionDetails?.endTime) {
-        // Clear progress if necessary data is missing
-        setProgressPercentage(0);
-        setRemainingTimeFormatted("");
-        return;
+    if (
+      !checkInTime ||
+      !sessionDetails?.date ||
+      !sessionDetails?.startTime ||
+      !sessionDetails?.endTime
+    ) {
+      // Clear progress if necessary data is missing
+      setProgressPercentage(0);
+      setRemainingTimeFormatted("");
+      return;
     }
 
     let animationFrameId: number;
@@ -213,14 +241,21 @@ export default function AttendanceClient({
       // Calculate Session Progress (based on check-in time) and Remaining Time (based on session end)
       try {
         // Combine date and time strings and parse them
-        const sessionEndDateTime = parse(`${sessionDetails.date} ${sessionDetails.endTime}`, 'yyyy-MM-dd HH:mm', new Date());
+        const sessionEndDateTime = parse(
+          `${sessionDetails.date} ${sessionDetails.endTime}`,
+          "yyyy-MM-dd HH:mm",
+          new Date(),
+        );
 
         // Check if sessionEndDateTime is valid
         if (isNaN(sessionEndDateTime.getTime())) {
-            console.error("Invalid end date/time for progress calculation", sessionDetails);
-            setProgressPercentage(0);
-            setRemainingTimeFormatted("Error: Invalid time");
-            return;
+          console.error(
+            "Invalid end date/time for progress calculation",
+            sessionDetails,
+          );
+          setProgressPercentage(0);
+          setRemainingTimeFormatted("Error: Invalid time");
+          return;
         }
 
         // Calculate remaining time until session end (for display text)
@@ -228,8 +263,14 @@ export default function AttendanceClient({
         setRemainingTimeFormatted(formatRemainingTime(remainingMinutes));
 
         // Calculate progress based on time since check-in relative to session end
-        const totalDurationMinutes = differenceInMinutes(sessionEndDateTime, checkInTime);
-        const elapsedSinceCheckInMinutes = differenceInMinutes(now, checkInTime);
+        const totalDurationMinutes = differenceInMinutes(
+          sessionEndDateTime,
+          checkInTime,
+        );
+        const elapsedSinceCheckInMinutes = differenceInMinutes(
+          now,
+          checkInTime,
+        );
 
         // Track elapsed time for the end screen
         const elapsedMs = elapsedSinceCheckInMinutes * 60 * 1000;
@@ -237,11 +278,17 @@ export default function AttendanceClient({
 
         let newProgress: number;
         if (totalDurationMinutes <= 0) {
-            // If session ended before or exactly when user checked in, or if check-in is after session end
-            newProgress = now >= sessionEndDateTime ? 100 : 0;
+          // If session ended before or exactly when user checked in, or if check-in is after session end
+          newProgress = now >= sessionEndDateTime ? 100 : 0;
         } else {
-            // Calculate progress percentage from check-in time to session end time
-            newProgress = Math.max(0, Math.min(100, (elapsedSinceCheckInMinutes / totalDurationMinutes) * 100));
+          // Calculate progress percentage from check-in time to session end time
+          newProgress = Math.max(
+            0,
+            Math.min(
+              100,
+              (elapsedSinceCheckInMinutes / totalDurationMinutes) * 100,
+            ),
+          );
         }
 
         setProgressPercentage(newProgress);
@@ -250,11 +297,10 @@ export default function AttendanceClient({
         if (newProgress >= 100 && !sessionHasEnded) {
           setSessionHasEnded(true);
         }
-
       } catch (error) {
-          console.error("Error calculating progress:", error);
-          setProgressPercentage(0);
-          setRemainingTimeFormatted("Error calculating");
+        console.error("Error calculating progress:", error);
+        setProgressPercentage(0);
+        setRemainingTimeFormatted("Error calculating");
       }
 
       // Schedule next update using requestAnimationFrame for smooth animation
@@ -265,16 +311,28 @@ export default function AttendanceClient({
 
     return () => cancelAnimationFrame(animationFrameId);
     // Depend on checkInTime and session end details
-  }, [checkInTime, sessionDetails?.date, sessionDetails?.endTime, sessionHasEnded]);
-
+  }, [
+    checkInTime,
+    sessionDetails?.date,
+    sessionDetails?.endTime,
+    sessionHasEnded,
+  ]);
 
   // Handle check-in for LOGGED-IN users or from LOOKUP results
-  const handleCheckin = async (signupIdToCheckIn?: string, isAnonymous: boolean = false, emailForDisplay?: string) => {
+  const handleCheckin = async (
+    signupIdToCheckIn?: string,
+    isAnonymous: boolean = false,
+    emailForDisplay?: string,
+  ) => {
     const targetSignupId = signupIdToCheckIn || existingCheckIn?.id;
 
     if (!targetSignupId || isSubmitting) {
-      console.warn("Check-in prevented: No targetSignupId or already submitting.", { targetSignupId, isSubmitting });
-      if (!targetSignupId) toast.error("Could not identify the signup record to check in.");
+      console.warn(
+        "Check-in prevented: No targetSignupId or already submitting.",
+        { targetSignupId, isSubmitting },
+      );
+      if (!targetSignupId)
+        toast.error("Could not identify the signup record to check in.");
       return;
     }
 
@@ -297,7 +355,8 @@ export default function AttendanceClient({
       }
     } catch (error) {
       console.error("Check-in error:", error);
-      const message = error instanceof Error ? error.message : "Check-in failed.";
+      const message =
+        error instanceof Error ? error.message : "Check-in failed.";
       toast.error(`Failed to check in: ${message}`);
       // Reset state if check-in fails but component doesn't unmount
       setIsCheckedIn(false);
@@ -330,7 +389,8 @@ export default function AttendanceClient({
       }
     } catch (error) {
       console.error("Leave event error:", error);
-      const message = error instanceof Error ? error.message : "Failed to leave event.";
+      const message =
+        error instanceof Error ? error.message : "Failed to leave event.";
       toast.error(`Failed to leave event: ${message}`);
     } finally {
       setIsCheckingOut(false);
@@ -343,7 +403,9 @@ export default function AttendanceClient({
 
     const anonymousAccess = parseAnonymousProfileLink(anonProfileLink);
     if (!anonymousAccess) {
-      toast.error("Paste the private anonymous profile link from your confirmation email.");
+      toast.error(
+        "Paste the private anonymous profile link from your confirmation email.",
+      );
       return;
     }
 
@@ -364,11 +426,17 @@ export default function AttendanceClient({
         toast.success("Successfully checked in!");
         setShowAnonInputSection(false); // Hide the input section on success
       } else {
-        toast.error(result.error || "Anonymous check-in failed. Please ensure you are signed up and approved.");
+        toast.error(
+          result.error ||
+            "Anonymous check-in failed. Please ensure you are signed up and approved.",
+        );
       }
     } catch (err) {
       console.error("Anonymous check-in error:", err);
-      const message = err instanceof Error ? err.message : "Anonymous check-in encountered an error.";
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Anonymous check-in encountered an error.";
       toast.error(message);
     } finally {
       setIsAnonSubmitting(false);
@@ -384,37 +452,54 @@ export default function AttendanceClient({
 
     try {
       // Pass lookupEmail to the action
-      const result = await lookupEmailStatus(project.id, scheduleId, lookupEmail);
+      const result = await lookupEmailStatus(
+        project.id,
+        scheduleId,
+        lookupEmail,
+      );
       setLookupResult(result);
 
       // Display toasts based on the result
       if (!result.success) {
         toast.error(result.error || result.message || "Email lookup failed.");
       } else if (!result.found) {
-         toast.info(result.message || "No signup found for this email for this specific session.");
+        toast.info(
+          result.message ||
+            "No signup found for this email for this specific session.",
+        );
       } else {
-         // Signup found (either registered or anonymous)
-         // Use different toast types based on the message content for better feedback
-         if (result.message.includes("approved") || result.message.includes("Account found. Signup status")) {
-             toast.success(result.message);
-         } else if (result.message.includes("pending") || result.message.includes("different session")) {
-             toast.warning(result.message);
-         } else {
-             toast.info(result.message); // Default info for other cases like "not signed up"
-         }
+        // Signup found (either registered or anonymous)
+        // Use different toast types based on the message content for better feedback
+        if (
+          result.message.includes("approved") ||
+          result.message.includes("Account found. Signup status")
+        ) {
+          toast.success(result.message);
+        } else if (
+          result.message.includes("pending") ||
+          result.message.includes("different session")
+        ) {
+          toast.warning(result.message);
+        } else {
+          toast.info(result.message); // Default info for other cases like "not signed up"
+        }
       }
-
     } catch (error) {
       console.error("Client-side error during email lookup call:", error);
       toast.error("Failed to communicate with server for email lookup.");
-      setLookupResult({ success: false, found: false, isRegistered: false, message: "An unexpected error occurred during lookup." });
+      setLookupResult({
+        success: false,
+        found: false,
+        isRegistered: false,
+        message: "An unexpected error occurred during lookup.",
+      });
     } finally {
       setIsLookingUp(false);
     }
   };
 
   // Redirect to auth pages
-  const redirectToAuth = (type: 'login' | 'signup') => {
+  const redirectToAuth = (type: "login" | "signup") => {
     // Use window.location.href to capture the full URL including query params
     const redirectUrl = window.location.href;
     router.push(`/${type}?redirect=${encodeURIComponent(redirectUrl)}`);
@@ -426,14 +511,17 @@ export default function AttendanceClient({
       <div className="container mx-auto py-12 px-4 md:px-6">
         <Card className="mx-auto max-w-md mb-12">
           <CardHeader>
-            <CardTitle className="text-destructive">Signup Not Found</CardTitle> {/* Changed title */}
+            <CardTitle className="text-destructive">Signup Not Found</CardTitle>{" "}
+            {/* Changed title */}
           </CardHeader>
           <CardContent>
             <p className="text-sm mb-4">
-              You are logged in as <strong>{user.email}</strong>, but we couldn&apos;t find your signup record for this specific project session ({sessionDetails?.name || scheduleId}).
+              You are logged in as <strong>{user.email}</strong>, but we
+              couldn&apos;t find your signup record for this specific project
+              session ({sessionDetails?.name || scheduleId}).
             </p>
             <p className="text-sm text-muted-foreground mb-4">
-                Please ensure you signed up for the correct session.
+              Please ensure you signed up for the correct session.
             </p>
             <Button
               variant="outline"
@@ -480,7 +568,9 @@ export default function AttendanceClient({
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
                   <CheckCircle className="h-6 w-6 text-primary" />
                 </div>
-                <CardTitle className="text-xl text-center">Check-in Successful</CardTitle>
+                <CardTitle className="text-xl text-center">
+                  Check-in Successful
+                </CardTitle>
                 {/* Modify description based on anonymous status */}
                 <CardDescription className="text-center">
                   {checkedInAnonymously
@@ -496,13 +586,18 @@ export default function AttendanceClient({
                   </div>
                   <div className="flex justify-between items-center py-3 border-b">
                     <span className="text-sm font-medium">Session</span>
-                    <span className="text-sm">{sessionDetails?.name || scheduleId}</span>
+                    <span className="text-sm">
+                      {sessionDetails?.name || scheduleId}
+                    </span>
                   </div>
                   {sessionDetails?.date && (
                     <div className="flex justify-between items-center py-3 border-b">
                       <span className="text-sm font-medium">Date</span>
                       <span className="text-sm">
-                        {format(parseISO(sessionDetails.date), "EEEE, MMMM d, yyyy")}
+                        {format(
+                          parseISO(sessionDetails.date),
+                          "EEEE, MMMM d, yyyy",
+                        )}
                       </span>
                     </div>
                   )}
@@ -510,7 +605,8 @@ export default function AttendanceClient({
                     <div className="flex justify-between items-center py-3 border-b">
                       <span className="text-sm font-medium">Time</span>
                       <span className="text-sm">
-                        {formatTimeTo12Hour(sessionDetails.startTime)} - {formatTimeTo12Hour(sessionDetails.endTime)}
+                        {formatTimeTo12Hour(sessionDetails.startTime)} -{" "}
+                        {formatTimeTo12Hour(sessionDetails.endTime)}
                       </span>
                     </div>
                   )}
@@ -522,36 +618,42 @@ export default function AttendanceClient({
                   </div>
                   {/* Conditionally show email used for check-in */}
                   {displayEmail && (
-                     <div className="flex justify-between items-center py-3 border-b">
-                       <span className="text-sm font-medium">Email</span>
-                       <span className="text-sm">{displayEmail}</span>
-                     </div>
+                    <div className="flex justify-between items-center py-3 border-b">
+                      <span className="text-sm font-medium">Email</span>
+                      <span className="text-sm">{displayEmail}</span>
+                    </div>
                   )}
                   {/* REMOVED Duration since *check-in* section */}
                   {/* <div className="flex justify-between items-center py-3 border-b"> ... </div> */}
 
                   {/* Session Progress Section (Progress starts from check-in time) */}
-                  {sessionDetails?.endTime && checkInTime && ( // Only show if we have end time and check-in time
+                  {sessionDetails?.endTime &&
+                    checkInTime && ( // Only show if we have end time and check-in time
                       <div className="space-y-2 pt-3">
-                          <div className="flex justify-between items-center text-sm mb-1">
-                              {/* Changed label slightly */}
-                              <span className="font-medium">Session Duration</span>
-                              <span className="text-muted-foreground">{remainingTimeFormatted} remaining</span>
-                          </div>
-                          <Progress
-                            value={progressPercentage}
-                            aria-label={`Your progress: ${Math.round(progressPercentage)}%`}
-                            className="h-2"
-                          />
+                        <div className="flex justify-between items-center text-sm mb-1">
+                          {/* Changed label slightly */}
+                          <span className="font-medium">Session Duration</span>
+                          <span className="text-muted-foreground">
+                            {remainingTimeFormatted} remaining
+                          </span>
+                        </div>
+                        <Progress
+                          value={progressPercentage}
+                          aria-label={`Your progress: ${Math.round(progressPercentage)}%`}
+                          className="h-2"
+                        />
                       </div>
-                  )}
+                    )}
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col gap-2">
                 <Button className="w-full">
-                  <Link href={`/projects/${project.id}`} className="flex items-center gap-2">
-                  <ExternalLink className="h-4 w-4" />
-                  View Project Details
+                  <Link
+                    href={`/projects/${project.id}`}
+                    className="flex items-center gap-2"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    View Project Details
                   </Link>
                 </Button>
                 <Button
@@ -590,24 +692,33 @@ export default function AttendanceClient({
           <CardHeader>
             <CardTitle>{project.title}</CardTitle>
             <CardDescription>
-              Confirm your attendance for the session: {sessionDetails?.name || scheduleId}
+              Confirm your attendance for the session:{" "}
+              {sessionDetails?.name || scheduleId}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Session Details */}
             {sessionDetails && (
-              <div className="bg-muted/50 p-4 rounded-lg space-y-3 mb-4"> {/* Added mb-4 */}
+              <div className="bg-muted/50 p-4 rounded-lg space-y-3 mb-4">
+                {" "}
+                {/* Added mb-4 */}
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">
-                    {sessionDetails.date ? format(parseISO(sessionDetails.date), "EEEE, MMMM d, yyyy") : "N/A"}
+                    {sessionDetails.date
+                      ? format(
+                          parseISO(sessionDetails.date),
+                          "EEEE, MMMM d, yyyy",
+                        )
+                      : "N/A"}
                   </span>
                 </div>
                 {sessionDetails.startTime && sessionDetails.endTime && (
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">
-                      {formatTimeTo12Hour(sessionDetails.startTime)} - {formatTimeTo12Hour(sessionDetails.endTime)}
+                      {formatTimeTo12Hour(sessionDetails.startTime)} -{" "}
+                      {formatTimeTo12Hour(sessionDetails.endTime)}
                     </span>
                   </div>
                 )}
@@ -622,10 +733,16 @@ export default function AttendanceClient({
 
             {/* Warning if not mobile */}
             {!scanInfo.isMobileDevice && (
-              <div className="flex items-start gap-2 rounded-md border border-amber-500/30 p-3 bg-amber-500/10 mb-4"> {/* Added mb-4 */}
+              <div className="flex items-start gap-2 rounded-md border border-amber-500/30 p-3 bg-amber-500/10 mb-4">
+                {" "}
+                {/* Added mb-4 */}
                 <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                 <div className="text-sm text-muted-foreground">
-                  <p>This page is intended for QR code scans on mobile devices. Functionality may be limited.</p> {/* Updated text */}
+                  <p>
+                    This page is intended for QR code scans on mobile devices.
+                    Functionality may be limited.
+                  </p>{" "}
+                  {/* Updated text */}
                 </div>
               </div>
             )}
@@ -634,10 +751,12 @@ export default function AttendanceClient({
             {user && existingCheckIn && (
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">
-                  Welcome, {user?.user_metadata?.full_name || user?.email || "Volunteer"}
+                  Welcome,{" "}
+                  {user?.user_metadata?.full_name || user?.email || "Volunteer"}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  You are signed up for this session. Click below to confirm your attendance.
+                  You are signed up for this session. Click below to confirm
+                  your attendance.
                 </p>
                 <Button
                   onClick={() => handleCheckin(undefined, false)} // Logged-in user, not anonymous
@@ -663,13 +782,18 @@ export default function AttendanceClient({
             {!user && (
               <>
                 <div className="space-y-2">
-                  <h3 className="text-lg font-medium">Confirm Your Attendance</h3>
+                  <h3 className="text-lg font-medium">
+                    Confirm Your Attendance
+                  </h3>
                   {/* Description is less important now as buttons guide the user */}
                 </div>
 
                 <div className="grid gap-3">
                   {/* Sign In Button (Always shown if not logged in) */}
-                  <Button onClick={() => redirectToAuth('login')} className="w-full">
+                  <Button
+                    onClick={() => redirectToAuth("login")}
+                    className="w-full"
+                  >
                     <LogIn className="h-4 w-4 mr-2" />
                     Sign in with Let&apos;s Assist Account
                   </Button>
@@ -695,25 +819,34 @@ export default function AttendanceClient({
                         id="anon-email"
                         type="email"
                         value={anonCheckinEmail} // Use anonCheckinEmail state
-                        onChange={e => setAnonCheckinEmail(e.target.value)}
+                        onChange={(e) => setAnonCheckinEmail(e.target.value)}
                         placeholder="Enter your signup email"
                         aria-label="Email address for anonymous check-in"
                       />
-                      <Label htmlFor="anon-profile-link">Private anonymous profile link</Label>
+                      <Label htmlFor="anon-profile-link">
+                        Private anonymous profile link
+                      </Label>
                       <Input
                         id="anon-profile-link"
                         type="url"
                         value={anonProfileLink}
-                        onChange={(event) => setAnonProfileLink(event.target.value)}
+                        onChange={(event) =>
+                          setAnonProfileLink(event.target.value)
+                        }
                         placeholder="Paste the link from your confirmation email"
                         aria-label="Private anonymous profile link"
                       />
                       <p className="text-xs text-muted-foreground">
-                        This verifies that the anonymous signup belongs to you. The link is never displayed to other attendees.
+                        This verifies that the anonymous signup belongs to you.
+                        The link is never displayed to other attendees.
                       </p>
                       <Button
                         onClick={handleAnonCheckin}
-                        disabled={isAnonSubmitting || !anonCheckinEmail || !anonProfileLink}
+                        disabled={
+                          isAnonSubmitting ||
+                          !anonCheckinEmail ||
+                          !anonProfileLink
+                        }
                         className="w-full"
                       >
                         {isAnonSubmitting ? (
@@ -722,7 +855,7 @@ export default function AttendanceClient({
                             Checking in...
                           </>
                         ) : (
-                          'Check in Anonymously'
+                          "Check in Anonymously"
                         )}
                       </Button>
                     </div>
@@ -738,7 +871,9 @@ export default function AttendanceClient({
 
                   {/* Email Lookup Section */}
                   <div className="space-y-2">
-                    <Label htmlFor="email-lookup">Check your signup status</Label>
+                    <Label htmlFor="email-lookup">
+                      Check your signup status
+                    </Label>
                     <div className="flex gap-2">
                       <Input
                         id="email-lookup"
@@ -766,25 +901,29 @@ export default function AttendanceClient({
 
                   {/* Display Lookup Result (Remains the same, potentially triggers handleCheckin) */}
                   {lookupResult && lookupResult.success && (
-                    <div className={`p-3 rounded-md text-sm border ${
-                      lookupResult.found
-                        ? lookupResult.isRegistered
-                          ? "bg-primary/10 border-primary/30 text-primary"
-                          : lookupResult.message.includes("approved")
-                            ? "bg-green-600/10 border-green-600/30 text-green-600"
-                            : lookupResult.message.includes("pending")
-                              ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
-                              : "bg-muted border-muted-foreground/30"
-                        : "bg-muted border-muted-foreground/30"
-                    }`}>
-                      <p className="mb-2 font-medium wrap-break-word">{lookupResult.message}</p>
+                    <div
+                      className={`p-3 rounded-md text-sm border ${
+                        lookupResult.found
+                          ? lookupResult.isRegistered
+                            ? "bg-primary/10 border-primary/30 text-primary"
+                            : lookupResult.message.includes("approved")
+                              ? "bg-green-600/10 border-green-600/30 text-green-600"
+                              : lookupResult.message.includes("pending")
+                                ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                                : "bg-muted border-muted-foreground/30"
+                          : "bg-muted border-muted-foreground/30"
+                      }`}
+                    >
+                      <p className="mb-2 font-medium wrap-break-word">
+                        {lookupResult.message}
+                      </p>
 
                       {/* Prompt to log in if registered user found */}
                       {lookupResult.isRegistered && (
                         <Button
                           size="sm"
                           variant="link" // Use link style
-                          onClick={() => redirectToAuth('login')}
+                          onClick={() => redirectToAuth("login")}
                           className="mt-1 p-0 h-auto text-primary hover:text-primary/80"
                         >
                           Log in now to check in
@@ -792,25 +931,37 @@ export default function AttendanceClient({
                         </Button>
                       )}
 
-                       {/* Message for pending anonymous signup */}
-                       {!lookupResult.isRegistered && lookupResult.found && lookupResult.message.includes("pending") && (
+                      {/* Message for pending anonymous signup */}
+                      {!lookupResult.isRegistered &&
+                        lookupResult.found &&
+                        lookupResult.message.includes("pending") && (
                           <p className="mt-2 text-xs">
-                              Your signup requires organizer approval before you can check in.
+                            Your signup requires organizer approval before you
+                            can check in.
                           </p>
-                       )}
+                        )}
                     </div>
                   )}
                   {lookupResult && !lookupResult.success && (
                     <div className="p-3 rounded-md text-sm bg-destructive/10 border border-destructive/30 text-destructive">
-                      <p>{lookupResult.error || lookupResult.message || "An error occurred during lookup."}</p>
+                      <p>
+                        {lookupResult.error ||
+                          lookupResult.message ||
+                          "An error occurred during lookup."}
+                      </p>
                     </div>
                   )}
                 </div>
               </>
             )}
           </CardContent>
-          <CardFooter className="flex justify-center border-t pt-4"> {/* Added border-t and pt-4 */}
-            <Link href={`/projects/${project.id}`} className="text-sm text-muted-foreground hover:text-primary inline-flex items-center gap-1">
+          <CardFooter className="flex justify-center border-t pt-4">
+            {" "}
+            {/* Added border-t and pt-4 */}
+            <Link
+              href={`/projects/${project.id}`}
+              className="text-sm text-muted-foreground hover:text-primary inline-flex items-center gap-1"
+            >
               <ExternalLink className="h-3 w-3" /> View project details
             </Link>
           </CardFooter>

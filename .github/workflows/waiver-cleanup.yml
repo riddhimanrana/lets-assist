@@ -2,7 +2,7 @@ name: Waiver Cleanup
 
 on:
   schedule:
-    - cron: '25 */12 * * *' # Every 12 hours
+    - cron: "25 */12 * * *" # Every 12 hours
   workflow_dispatch:
 
 permissions:

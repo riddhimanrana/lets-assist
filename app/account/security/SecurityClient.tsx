@@ -16,11 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Field,
-  FieldLabel,
-  FieldError,
-} from "@/components/ui/field";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Controller } from "react-hook-form";
 import {
   AlertDialog,
@@ -70,22 +66,24 @@ const setPasswordSchema = z
   });
 type SetPasswordValues = z.infer<typeof setPasswordSchema>;
 
-const updateEmailSchema = z.object({
-  newEmail: z
-    .string()
-    .min(1, "Email is required")
-    .email("Must be a valid email address")
-    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Must be a valid email format")
-    .refine((email) => email.includes("@"), "Email must contain @ symbol"),
-  confirmEmail: z
-    .string()
-    .min(1, "Please confirm your email")
-    .email("Must be a valid email address")
-    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Must be a valid email format"),
-}).refine((data) => data.newEmail === data.confirmEmail, {
-  message: "Email addresses don't match",
-  path: ["confirmEmail"],
-});
+const updateEmailSchema = z
+  .object({
+    newEmail: z
+      .string()
+      .min(1, "Email is required")
+      .email("Must be a valid email address")
+      .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Must be a valid email format")
+      .refine((email) => email.includes("@"), "Email must contain @ symbol"),
+    confirmEmail: z
+      .string()
+      .min(1, "Please confirm your email")
+      .email("Must be a valid email address")
+      .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Must be a valid email format"),
+  })
+  .refine((data) => data.newEmail === data.confirmEmail, {
+    message: "Email addresses don't match",
+    path: ["confirmEmail"],
+  });
 type UpdateEmailValues = z.infer<typeof updateEmailSchema>;
 
 type ExportJobStatus = "pending" | "processing" | "completed" | "failed";
@@ -111,7 +109,8 @@ export default function SecurityClient() {
   const [countdown, setCountdown] = useState(5);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
-  const [countdownInterval, setCountdownInterval] = useState<NodeJS.Timeout | null>(null);
+  const [countdownInterval, setCountdownInterval] =
+    useState<NodeJS.Timeout | null>(null);
   const [currentEmail, setCurrentEmail] = useState("");
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [isEmailLoading, setIsEmailLoading] = useState(false);
@@ -190,10 +189,11 @@ export default function SecurityClient() {
       const supabase = createClient();
 
       try {
-        const [{ data: identitiesData }, { data: userData }] = await Promise.all([
-          supabase.auth.getUserIdentities(),
-          supabase.auth.getUser(),
-        ]);
+        const [{ data: identitiesData }, { data: userData }] =
+          await Promise.all([
+            supabase.auth.getUserIdentities(),
+            supabase.auth.getUser(),
+          ]);
 
         const identities =
           identitiesData?.identities ?? userData?.user?.identities ?? [];
@@ -201,9 +201,10 @@ export default function SecurityClient() {
           .map((identity) => identity.provider)
           .filter(Boolean);
         const providersFromMetadata =
-          (userData?.user?.app_metadata?.providers as string[] | undefined) ?? [];
-        const primaryProvider = userData?.user?.app_metadata
-          ?.provider as string | undefined;
+          (userData?.user?.app_metadata?.providers as string[] | undefined) ??
+          [];
+        const primaryProvider = userData?.user?.app_metadata?.provider as
+          string | undefined;
 
         const hasEmailProvider =
           providersFromIdentities.includes("email") ||
@@ -251,10 +252,16 @@ export default function SecurityClient() {
         toast.error(result.error.server[0]);
       }
       if (result.error.newEmail) {
-        emailForm.setError("newEmail", { type: "server", message: result.error.newEmail[0] });
+        emailForm.setError("newEmail", {
+          type: "server",
+          message: result.error.newEmail[0],
+        });
       }
       if (result.error.confirmEmail) {
-        emailForm.setError("confirmEmail", { type: "server", message: result.error.confirmEmail[0] });
+        emailForm.setError("confirmEmail", {
+          type: "server",
+          message: result.error.confirmEmail[0],
+        });
       }
     } else if (result.success) {
       toast.success(result.message || "Email update initiated successfully!");
@@ -279,19 +286,19 @@ export default function SecurityClient() {
       if (result.error.currentPassword) {
         passwordForm.setError("currentPassword", {
           type: "server",
-          message: result.error.currentPassword[0]
+          message: result.error.currentPassword[0],
         });
       }
       if (result.error.newPassword) {
         passwordForm.setError("newPassword", {
           type: "server",
-          message: result.error.newPassword[0]
+          message: result.error.newPassword[0],
         });
       }
       if (result.error.confirmPassword) {
         passwordForm.setError("confirmPassword", {
           type: "server",
-          message: result.error.confirmPassword[0]
+          message: result.error.confirmPassword[0],
         });
       }
     } else if (result.success) {
@@ -316,17 +323,19 @@ export default function SecurityClient() {
       if (result.error.newPassword) {
         setPasswordForm.setError("newPassword", {
           type: "server",
-          message: result.error.newPassword[0]
+          message: result.error.newPassword[0],
         });
       }
       if (result.error.confirmPassword) {
         setPasswordForm.setError("confirmPassword", {
           type: "server",
-          message: result.error.confirmPassword[0]
+          message: result.error.confirmPassword[0],
         });
       }
     } else if (result.success) {
-      toast.success("Password set successfully! You can now use email/password to sign in.");
+      toast.success(
+        "Password set successfully! You can now use email/password to sign in.",
+      );
       setPasswordForm.reset();
       // After setting password, user now has password auth capability
       // Note: OAuth users who set a password don't get an "email" identity provider
@@ -418,7 +427,9 @@ export default function SecurityClient() {
       };
 
       setExportJobs((previousJobs) => {
-        const dedupedJobs = previousJobs.filter((job) => job.id !== queuedJobId);
+        const dedupedJobs = previousJobs.filter(
+          (job) => job.id !== queuedJobId,
+        );
         return [queuedJob, ...dedupedJobs].slice(0, 5);
       });
       setIsExportJobsLoading(false);
@@ -455,10 +466,15 @@ export default function SecurityClient() {
           <Card className="flex flex-col h-full">
             <CardHeader className="">
               <CardTitle className="text-xl">Login Email</CardTitle>
-              <CardDescription>Change the email address you use to sign in</CardDescription>
+              <CardDescription>
+                Change the email address you use to sign in
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex-1">
-              <form onSubmit={emailForm.handleSubmit(handleEmailChange)} className="space-y-4">
+              <form
+                onSubmit={emailForm.handleSubmit(handleEmailChange)}
+                className="space-y-4"
+              >
                 <Field>
                   <FieldLabel htmlFor="current-email">Current Email</FieldLabel>
                   <Input
@@ -491,7 +507,9 @@ export default function SecurityClient() {
                   name="confirmEmail"
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor={field.name}>Confirm New Email</FieldLabel>
+                      <FieldLabel htmlFor={field.name}>
+                        Confirm New Email
+                      </FieldLabel>
                       <Input
                         id={field.name}
                         type="email"
@@ -521,8 +539,7 @@ export default function SecurityClient() {
               <CardDescription>
                 {hasPassword
                   ? "Change your current password"
-                  : `You signed in with ${oauthProvider || "OAuth"}. Set a password to enable email/password login.`
-                }
+                  : `You signed in with ${oauthProvider || "OAuth"}. Set a password to enable email/password login.`}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex-1">
@@ -531,13 +548,18 @@ export default function SecurityClient() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               ) : hasPassword ? (
-                <form onSubmit={passwordForm.handleSubmit(handlePasswordChange)} className="space-y-4">
+                <form
+                  onSubmit={passwordForm.handleSubmit(handlePasswordChange)}
+                  className="space-y-4"
+                >
                   <Controller
                     control={passwordForm.control}
                     name="currentPassword"
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="update-current-password">Current Password</FieldLabel>
+                        <FieldLabel htmlFor="update-current-password">
+                          Current Password
+                        </FieldLabel>
                         <Input
                           id="update-current-password"
                           type="password"
@@ -555,7 +577,9 @@ export default function SecurityClient() {
                     name="newPassword"
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="update-new-password">New Password</FieldLabel>
+                        <FieldLabel htmlFor="update-new-password">
+                          New Password
+                        </FieldLabel>
                         <Input
                           id="update-new-password"
                           type="password"
@@ -581,7 +605,9 @@ export default function SecurityClient() {
                       </li>
                       <li className="flex items-start gap-2">
                         <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                        <span>Cannot be a commonly used or compromised password</span>
+                        <span>
+                          Cannot be a commonly used or compromised password
+                        </span>
                       </li>
                     </ul>
                   </div>
@@ -591,7 +617,9 @@ export default function SecurityClient() {
                     name="confirmPassword"
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="update-confirm-password">Confirm New Password</FieldLabel>
+                        <FieldLabel htmlFor="update-confirm-password">
+                          Confirm New Password
+                        </FieldLabel>
                         <Input
                           id="update-confirm-password"
                           type="password"
@@ -613,13 +641,18 @@ export default function SecurityClient() {
                   </Button>
                 </form>
               ) : (
-                <form onSubmit={setPasswordForm.handleSubmit(handleSetPassword)} className="space-y-4">
+                <form
+                  onSubmit={setPasswordForm.handleSubmit(handleSetPassword)}
+                  className="space-y-4"
+                >
                   <Controller
                     control={setPasswordForm.control}
                     name="newPassword"
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="set-new-password">New Password</FieldLabel>
+                        <FieldLabel htmlFor="set-new-password">
+                          New Password
+                        </FieldLabel>
                         <Input
                           id="set-new-password"
                           type="password"
@@ -645,7 +678,9 @@ export default function SecurityClient() {
                       </li>
                       <li className="flex items-start gap-2">
                         <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                        <span>Cannot be a commonly used or compromised password</span>
+                        <span>
+                          Cannot be a commonly used or compromised password
+                        </span>
                       </li>
                     </ul>
                   </div>
@@ -655,7 +690,9 @@ export default function SecurityClient() {
                     name="confirmPassword"
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="set-confirm-password">Confirm New Password</FieldLabel>
+                        <FieldLabel htmlFor="set-confirm-password">
+                          Confirm New Password
+                        </FieldLabel>
                         <Input
                           id="set-confirm-password"
                           type="password"
@@ -689,19 +726,28 @@ export default function SecurityClient() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Exports include categorized files for profile data, certificates and hours,
-              notifications, trust/safety history, auth details, and internal export logs.
-              Large exports are delivered via secure signed link to avoid attachment limits.
-              <b> Note: Background exports are processed every 20 minutes; you will receive your email within 24 hours.</b>
+              Exports include categorized files for profile data, certificates
+              and hours, notifications, trust/safety history, auth details, and
+              internal export logs. Large exports are delivered via secure
+              signed link to avoid attachment limits.
+              <b>
+                {" "}
+                Note: Background exports are processed every 20 minutes; you
+                will receive your email within 24 hours.
+              </b>
             </p>
 
             {isExportJobsLoading && (
-              <p className="text-xs text-muted-foreground">Loading export history...</p>
+              <p className="text-xs text-muted-foreground">
+                Loading export history...
+              </p>
             )}
 
             {exportJobs.length > 0 && (
               <div className="space-y-3 pt-2">
-                <Label className="text-sm font-medium">Recent Export Requests</Label>
+                <Label className="text-sm font-medium">
+                  Recent Export Requests
+                </Label>
                 <div className="grid grid-cols-1 gap-2">
                   {exportJobs.map((job) => (
                     <div
@@ -734,7 +780,8 @@ export default function SecurityClient() {
                         </span>
                         <span className="text-muted-foreground truncate">
                           To: {job.delivery_email}
-                          {job.zip_size_bytes && ` • ${(job.zip_size_bytes / 1024 / 1024).toFixed(2)} MB`}
+                          {job.zip_size_bytes &&
+                            ` • ${(job.zip_size_bytes / 1024 / 1024).toFixed(2)} MB`}
                         </span>
                       </div>
                       {job.status === "completed" && job.signed_url && (
@@ -744,13 +791,20 @@ export default function SecurityClient() {
                           className="h-8 text-xs shrink-0"
                           asChild
                         >
-                          <a href={job.signed_url} target="_blank" rel="noopener noreferrer">
+                          <a
+                            href={job.signed_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
                             Download Now
                           </a>
                         </Button>
                       )}
                       {job.status === "failed" && job.error_message && (
-                        <span className="text-destructive truncate max-w-50" title={job.error_message}>
+                        <span
+                          className="text-destructive truncate max-w-50"
+                          title={job.error_message}
+                        >
                           {job.error_message}
                         </span>
                       )}
@@ -777,7 +831,8 @@ export default function SecurityClient() {
             </div>
             {hasActiveExportRequest && (
               <p className="text-xs text-muted-foreground">
-                Your export request is already queued. No refresh needed — you&apos;re good to go.
+                Your export request is already queued. No refresh needed —
+                you&apos;re good to go.
               </p>
             )}
           </CardContent>
@@ -791,7 +846,10 @@ export default function SecurityClient() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <AlertDialog
+              open={showDeleteDialog}
+              onOpenChange={setShowDeleteDialog}
+            >
               <AlertDialogTrigger
                 render={
                   <Button variant="destructive" className="w-full sm:w-auto">
@@ -824,7 +882,9 @@ export default function SecurityClient() {
                   </div>
                 </div>
                 <AlertDialogFooter>
-                  <AlertDialogCancel onClick={handleCancelDelete}>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel onClick={handleCancelDelete}>
+                    Cancel
+                  </AlertDialogCancel>
                   <AlertDialogAction
                     variant="destructive"
                     onClick={(e) => {

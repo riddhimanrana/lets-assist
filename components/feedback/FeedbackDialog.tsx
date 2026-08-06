@@ -2,11 +2,7 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Card,
   CardContent,
@@ -58,7 +54,8 @@ export function FeedbackDialog({
       icon: AlertTriangle,
       selectedColor:
         "bg-destructive/10 border-destructive text-destructive ring-1 ring-destructive",
-      defaultColor: "bg-background border-input hover:bg-accent hover:text-accent-foreground",
+      defaultColor:
+        "bg-background border-input hover:bg-accent hover:text-accent-foreground",
       iconColor: "text-destructive",
     },
     {
@@ -67,16 +64,17 @@ export function FeedbackDialog({
       icon: Lightbulb,
       selectedColor:
         "bg-warning/10 border-warning text-warning ring-1 ring-warning",
-      defaultColor: "bg-background border-input hover:bg-accent hover:text-accent-foreground",
+      defaultColor:
+        "bg-background border-input hover:bg-accent hover:text-accent-foreground",
       iconColor: "text-warning",
     },
     {
       id: "other" as FeedbackType,
       label: "Other",
       icon: MoreHorizontal,
-      selectedColor:
-        "bg-info/10 border-info text-info ring-1 ring-info",
-      defaultColor: "bg-background border-input hover:bg-accent hover:text-accent-foreground",
+      selectedColor: "bg-info/10 border-info text-info ring-1 ring-info",
+      defaultColor:
+        "bg-background border-input hover:bg-accent hover:text-accent-foreground",
       iconColor: "text-info",
     },
   ];
@@ -95,9 +93,9 @@ export function FeedbackDialog({
         .select("full_name")
         .eq("id", user.id)
         .single()) as {
-          data: { full_name: string } | null;
-          error: { message: string } | null;
-        };
+        data: { full_name: string } | null;
+        error: { message: string } | null;
+      };
 
       setProfile(profileData);
       setEmail(user.email || "");
@@ -148,14 +146,14 @@ export function FeedbackDialog({
       const metadata =
         typeof window !== "undefined"
           ? {
-            url: window.location.href,
-            userAgent: navigator.userAgent,
-            screenSize: `${window.screen.width}x${window.screen.height}`,
-            viewport: `${window.innerWidth}x${window.innerHeight}`,
-            language: navigator.language,
-            referrer: document.referrer,
-            timestamp: new Date().toISOString(),
-          }
+              url: window.location.href,
+              userAgent: navigator.userAgent,
+              screenSize: `${window.screen.width}x${window.screen.height}`,
+              viewport: `${window.innerWidth}x${window.innerHeight}`,
+              language: navigator.language,
+              referrer: document.referrer,
+              timestamp: new Date().toISOString(),
+            }
           : {};
 
       const { error } = await supabase.from("feedback").insert({
@@ -209,7 +207,10 @@ export function FeedbackDialog({
               <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-2.5 text-sm text-muted-foreground">
                 <div className="h-2 w-2 rounded-full bg-success shrink-0" />
                 <span className="truncate">
-                  Sending as <span className="font-medium text-foreground">{profile.full_name}</span>
+                  Sending as{" "}
+                  <span className="font-medium text-foreground">
+                    {profile.full_name}
+                  </span>
                 </span>
               </div>
             )}
@@ -271,8 +272,6 @@ export function FeedbackDialog({
                 className="min-h-[120px] resize-none bg-background"
               />
             </div>
-
-
           </CardContent>
           <CardFooter className="flex h-14 py-0 items-center justify-end gap-2">
             <Button

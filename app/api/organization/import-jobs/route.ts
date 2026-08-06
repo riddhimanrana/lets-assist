@@ -29,14 +29,23 @@ export async function POST(request: Request) {
     const { user } = await getAuthUser();
 
     if (!user) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
     }
 
     const formData = await request.formData();
     const organizationId = String(formData.get("organizationId") || "").trim();
-    const roleRaw = String(formData.get("role") || "member").trim().toLowerCase();
-    const role = SUPPORTED_ROLES.has(roleRaw) ? (roleRaw as "staff" | "member") : null;
-    const invitationDuration = normalizeInvitationDuration(formData.get("invitationDuration"));
+    const roleRaw = String(formData.get("role") || "member")
+      .trim()
+      .toLowerCase();
+    const role = SUPPORTED_ROLES.has(roleRaw)
+      ? (roleRaw as "staff" | "member")
+      : null;
+    const invitationDuration = normalizeInvitationDuration(
+      formData.get("invitationDuration"),
+    );
     const file = formData.get("file");
 
     if (!organizationId) {
@@ -119,7 +128,10 @@ export async function GET(request: Request) {
     const { user } = await getAuthUser();
 
     if (!user) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
     }
 
     const { searchParams } = new URL(request.url);
@@ -141,7 +153,10 @@ export async function GET(request: Request) {
 
     if (adminMembership?.role !== "admin") {
       return NextResponse.json(
-        { success: false, error: "Only organization admins can access import jobs." },
+        {
+          success: false,
+          error: "Only organization admins can access import jobs.",
+        },
         { status: 403 },
       );
     }

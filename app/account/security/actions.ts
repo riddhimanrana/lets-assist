@@ -31,22 +31,24 @@ const setPasswordSchema = z
   });
 
 // Zod schema for email update - include confirmEmail field
-const updateEmailSchema = z.object({
-  newEmail: z
-    .string()
-    .min(1, "Email is required")
-    .email("Must be a valid email address")
-    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Must be a valid email format")
-    .refine((email) => email.includes("@"), "Email must contain @ symbol"),
-  confirmEmail: z
-    .string()
-    .min(1, "Please confirm your email")
-    .email("Must be a valid email address")
-    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Must be a valid email format"),
-}).refine((data) => data.newEmail === data.confirmEmail, {
-  message: "Email addresses don't match",
-  path: ["confirmEmail"],
-});
+const updateEmailSchema = z
+  .object({
+    newEmail: z
+      .string()
+      .min(1, "Email is required")
+      .email("Must be a valid email address")
+      .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Must be a valid email format")
+      .refine((email) => email.includes("@"), "Email must contain @ symbol"),
+    confirmEmail: z
+      .string()
+      .min(1, "Please confirm your email")
+      .email("Must be a valid email address")
+      .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Must be a valid email format"),
+  })
+  .refine((data) => data.newEmail === data.confirmEmail, {
+    message: "Email addresses don't match",
+    path: ["confirmEmail"],
+  });
 
 // Type for error responses - add currentPassword field
 type ActionErrorResponse = {
@@ -66,11 +68,16 @@ export async function updatePasswordAction(formData: FormData) {
   });
 
   if (!validatedFields.success) {
-    return { error: validatedFields.error.flatten().fieldErrors as ActionErrorResponse };
+    return {
+      error: validatedFields.error.flatten().fieldErrors as ActionErrorResponse,
+    };
   }
 
   // Use getAuthUser with sensitive: true for password changes
-  const { user, error: authError } = await getAuthUser({ sensitive: true, checkMfa: true });
+  const { user, error: authError } = await getAuthUser({
+    sensitive: true,
+    checkMfa: true,
+  });
 
   if (authError || !user || !user.email) {
     return { error: { server: ["Not authenticated"] } as ActionErrorResponse };
@@ -87,8 +94,8 @@ export async function updatePasswordAction(formData: FormData) {
   if (signInError) {
     return {
       error: {
-        currentPassword: ["Current password is incorrect"]
-      } as ActionErrorResponse
+        currentPassword: ["Current password is incorrect"],
+      } as ActionErrorResponse,
     };
   }
 
@@ -120,11 +127,16 @@ export async function setPasswordAction(formData: FormData) {
   });
 
   if (!validatedFields.success) {
-    return { error: validatedFields.error.flatten().fieldErrors as ActionErrorResponse };
+    return {
+      error: validatedFields.error.flatten().fieldErrors as ActionErrorResponse,
+    };
   }
 
   // Use getAuthUser with sensitive: true for password changes
-  const { user, error: authError } = await getAuthUser({ sensitive: true, checkMfa: true });
+  const { user, error: authError } = await getAuthUser({
+    sensitive: true,
+    checkMfa: true,
+  });
 
   if (authError || !user) {
     return { error: { server: ["Not authenticated"] } as ActionErrorResponse };
@@ -148,7 +160,9 @@ export async function setPasswordAction(formData: FormData) {
   if (alreadyHasPassword) {
     return {
       error: {
-        server: ["Use the current-password form to change an existing password."],
+        server: [
+          "Use the current-password form to change an existing password.",
+        ],
       } as ActionErrorResponse,
     };
   }
@@ -173,11 +187,16 @@ export async function updateEmailAction(formData: FormData) {
   });
 
   if (!validatedFields.success) {
-    return { error: validatedFields.error.flatten().fieldErrors as ActionErrorResponse };
+    return {
+      error: validatedFields.error.flatten().fieldErrors as ActionErrorResponse,
+    };
   }
 
   // Use getAuthUser with sensitive: true for email changes
-  const { user, error: authError } = await getAuthUser({ sensitive: true, checkMfa: true });
+  const { user, error: authError } = await getAuthUser({
+    sensitive: true,
+    checkMfa: true,
+  });
 
   if (authError || !user) {
     return { error: { server: ["Not authenticated"] } as ActionErrorResponse };
@@ -186,17 +205,17 @@ export async function updateEmailAction(formData: FormData) {
   const supabase = await createClient();
 
   // Determine the correct redirect URL
-  let redirectUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-  if (process.env.NODE_ENV === 'development') {
-    redirectUrl = 'http://localhost:3000';
+  let redirectUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  if (process.env.NODE_ENV === "development") {
+    redirectUrl = "http://localhost:3000";
   }
 
   const { error } = await supabase.auth.updateUser(
     { email: validatedFields.data.newEmail },
     {
       // Supabase will automatically append token_hash and type parameters to this URL
-      emailRedirectTo: `${redirectUrl.replace(/\/$/, "")}/auth/confirm?type=email_change`
-    }
+      emailRedirectTo: `${redirectUrl.replace(/\/$/, "")}/auth/confirm?type=email_change`,
+    },
   );
 
   if (error) {
@@ -206,19 +225,24 @@ export async function updateEmailAction(formData: FormData) {
 
   return {
     success: true,
-    message: "Verification email sent to your new address. Please check your inbox and click the link to complete the change."
+    message:
+      "Verification email sent to your new address. Please check your inbox and click the link to complete the change.",
   };
 }
 
 export async function emailDataExport() {
   try {
-    const { user, error: authError } = await getAuthUser({ sensitive: true, checkMfa: true });
+    const { user, error: authError } = await getAuthUser({
+      sensitive: true,
+      checkMfa: true,
+    });
 
     if (authError || !user || !user.email) {
       return { success: false, error: "Not authenticated" };
     }
 
-    const userMetadata = (user.user_metadata as Record<string, unknown> | null) ?? null;
+    const userMetadata =
+      (user.user_metadata as Record<string, unknown> | null) ?? null;
     const supabase = await createClient();
 
     const { data: createdJob, error: insertError } = await supabase
@@ -231,8 +255,12 @@ export async function emailDataExport() {
         delivery_email: user.email,
         request_metadata: {
           full_name:
-            (typeof userMetadata?.full_name === "string" && userMetadata.full_name) || null,
-          name: (typeof userMetadata?.name === "string" && userMetadata.name) || null,
+            (typeof userMetadata?.full_name === "string" &&
+              userMetadata.full_name) ||
+            null,
+          name:
+            (typeof userMetadata?.name === "string" && userMetadata.name) ||
+            null,
           requested_from: "account_security",
         },
       })
@@ -270,7 +298,10 @@ export async function emailDataExport() {
     console.error("emailDataExport error:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to queue your data export",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to queue your data export",
     };
   }
 }
@@ -286,7 +317,7 @@ export async function getDataExportJobs() {
     const { data, error } = await supabase
       .from("account_data_export_jobs")
       .select(
-        "id, status, delivery_email, requested_at, started_at, completed_at, failed_at, error_message, zip_size_bytes, record_count, signed_url, signed_url_expires_at"
+        "id, status, delivery_email, requested_at, started_at, completed_at, failed_at, error_message, zip_size_bytes, record_count, signed_url, signed_url_expires_at",
       )
       .eq("user_id", user.id)
       .order("requested_at", { ascending: false })
@@ -300,7 +331,8 @@ export async function getDataExportJobs() {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to fetch export jobs",
+      error:
+        error instanceof Error ? error.message : "Failed to fetch export jobs",
       jobs: [],
     };
   }
@@ -309,7 +341,10 @@ export async function getDataExportJobs() {
 export async function deleteAccount() {
   try {
     // Use getAuthUser with sensitive: true for account deletion
-    const { user, error: authError } = await getAuthUser({ sensitive: true, checkMfa: true });
+    const { user, error: authError } = await getAuthUser({
+      sensitive: true,
+      checkMfa: true,
+    });
 
     if (authError || !user) {
       throw new Error("Not authenticated");
@@ -327,7 +362,9 @@ export async function deleteAccount() {
       const orgs = report.blockedBySoleAdminOrgs
         .map((org) => org.organization_name ?? org.organization_id)
         .join(", ");
-      throw new Error(`Cannot delete account until another admin is added to: ${orgs}`);
+      throw new Error(
+        `Cannot delete account until another admin is added to: ${orgs}`,
+      );
     }
 
     const supabase = await createClient();

@@ -10,7 +10,10 @@ import {
   type PluginConfigSchema,
 } from "@/lib/plugins/config-schema";
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
-import { coalescePluginVersion, isPluginVersionBehind } from "@/lib/plugins/versioning";
+import {
+  coalescePluginVersion,
+  isPluginVersionBehind,
+} from "@/lib/plugins/versioning";
 import { syncRegisteredPluginRuntimeContracts } from "@/lib/plugins/runtime-contracts";
 import { checkSuperAdmin } from "@/app/admin/actions";
 
@@ -52,7 +55,8 @@ type PluginDataBoundaryRow = {
   boundary_status: "active" | "disabled" | "migration_pending" | "archived";
   data_schema: string;
   data_prefix: string | null;
-  isolation_mode: "shared" | "dedicated_schema" | "dedicated_project" | "external";
+  isolation_mode:
+    "shared" | "dedicated_schema" | "dedicated_project" | "external";
   direct_client_access: "blocked" | "server_preferred" | "rls_allowed";
   updated_at: string;
 };
@@ -176,7 +180,8 @@ function isEntitlementCurrentlyActive(
   now: Date,
 ) {
   if (entitlement.status !== "active") return false;
-  if (entitlement.starts_at && new Date(entitlement.starts_at) > now) return false;
+  if (entitlement.starts_at && new Date(entitlement.starts_at) > now)
+    return false;
   if (entitlement.ends_at && new Date(entitlement.ends_at) < now) return false;
   return true;
 }
@@ -269,30 +274,35 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
         : "Failed to sync plugin runtime contracts.";
   }
 
-  const [pluginsResult, organizationsResult, accessResult, boundariesResult] = await Promise.all([
-    service
-      .from("plugins")
-      .select(
-        "key, name, description, visibility, is_active, latest_version, force_update_version, code_repository, code_reference, private_codebase, updated_at",
-      )
-      .order("name", { ascending: true }),
-    service
-      .from("organizations")
-      .select("id, name, username")
-      .order("name", { ascending: true }),
-    service
-      .from("organization_plugin_access")
-      .select(
-        "organization_id, plugin_key, enabled, installed_version, install_created_at, entitlement_id, entitlement_status, entitlement_starts_at, entitlement_ends_at, entitlement_is_forced, entitlement_updated_at",
-      ),
-    service
-      .from("organization_plugin_data_boundaries")
-      .select("id, organization_id, plugin_key, boundary_status, data_schema, data_prefix, isolation_mode, direct_client_access, updated_at")
-      .order("updated_at", { ascending: false }),
-  ]);
+  const [pluginsResult, organizationsResult, accessResult, boundariesResult] =
+    await Promise.all([
+      service
+        .from("plugins")
+        .select(
+          "key, name, description, visibility, is_active, latest_version, force_update_version, code_repository, code_reference, private_codebase, updated_at",
+        )
+        .order("name", { ascending: true }),
+      service
+        .from("organizations")
+        .select("id, name, username")
+        .order("name", { ascending: true }),
+      service
+        .from("organization_plugin_access")
+        .select(
+          "organization_id, plugin_key, enabled, installed_version, install_created_at, entitlement_id, entitlement_status, entitlement_starts_at, entitlement_ends_at, entitlement_is_forced, entitlement_updated_at",
+        ),
+      service
+        .from("organization_plugin_data_boundaries")
+        .select(
+          "id, organization_id, plugin_key, boundary_status, data_schema, data_prefix, isolation_mode, direct_client_access, updated_at",
+        )
+        .order("updated_at", { ascending: false }),
+    ]);
 
   const isAccessViewMissing = isMissingPluginSchemaError(accessResult.error);
-  const isBoundariesTableMissing = isMissingPluginSchemaError(boundariesResult.error);
+  const isBoundariesTableMissing = isMissingPluginSchemaError(
+    boundariesResult.error,
+  );
 
   if (pluginsResult.error) {
     return {
@@ -314,7 +324,8 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
     };
   }
 
-  const organizations = (organizationsResult.data ?? []) as PluginOrganizationOption[];
+  const organizations = (organizationsResult.data ??
+    []) as PluginOrganizationOption[];
   const organizationNameById = new Map(
     organizations.map((organization) => [organization.id, organization]),
   );
@@ -326,7 +337,9 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
     const [entitlementsResult, installsResult] = await Promise.all([
       service
         .from("organization_plugin_entitlements")
-        .select("id, organization_id, plugin_key, status, starts_at, ends_at, is_forced, updated_at")
+        .select(
+          "id, organization_id, plugin_key, status, starts_at, ends_at, is_forced, updated_at",
+        )
         .order("updated_at", { ascending: false }),
       service
         .from("organization_plugin_installs")
@@ -375,24 +388,26 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
       installsByPlugin.get(install.plugin_key)?.push(install);
     }
 
-    entitlements = ((entitlementsResult.data ?? []) as EntitlementBaseRow[]).map(
-      (entitlement) => {
-        const organization = organizationNameById.get(entitlement.organization_id);
+    entitlements = (
+      (entitlementsResult.data ?? []) as EntitlementBaseRow[]
+    ).map((entitlement) => {
+      const organization = organizationNameById.get(
+        entitlement.organization_id,
+      );
 
-        return {
-          id: entitlement.id,
-          organization_id: entitlement.organization_id,
-          organization_name: organization?.name ?? "Unknown organization",
-          organization_slug: organization?.username ?? null,
-          plugin_key: entitlement.plugin_key,
-          status: entitlement.status,
-          starts_at: entitlement.starts_at,
-          ends_at: entitlement.ends_at,
-          is_forced: entitlement.is_forced,
-          updated_at: entitlement.updated_at,
-        } satisfies PluginEntitlementRow;
-      },
-    );
+      return {
+        id: entitlement.id,
+        organization_id: entitlement.organization_id,
+        organization_name: organization?.name ?? "Unknown organization",
+        organization_slug: organization?.username ?? null,
+        plugin_key: entitlement.plugin_key,
+        status: entitlement.status,
+        starts_at: entitlement.starts_at,
+        ends_at: entitlement.ends_at,
+        is_forced: entitlement.is_forced,
+        updated_at: entitlement.updated_at,
+      } satisfies PluginEntitlementRow;
+    });
   } else {
     if (accessResult.error) {
       return {
@@ -421,7 +436,10 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
         });
       }
 
-      if (access.entitlement_id && !entitlementById.has(access.entitlement_id)) {
+      if (
+        access.entitlement_id &&
+        !entitlementById.has(access.entitlement_id)
+      ) {
         const organization = organizationNameById.get(access.organization_id);
 
         entitlementById.set(access.entitlement_id, {
@@ -430,11 +448,13 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
           organization_name: organization?.name ?? "Unknown organization",
           organization_slug: organization?.username ?? null,
           plugin_key: access.plugin_key,
-          status: (access.entitlement_status ?? "inactive") as "active" | "inactive",
+          status: (access.entitlement_status ?? "inactive") as
+            "active" | "inactive",
           starts_at: access.entitlement_starts_at,
           ends_at: access.entitlement_ends_at,
           is_forced: access.entitlement_is_forced ?? false,
-          updated_at: access.entitlement_updated_at ?? new Date(0).toISOString(),
+          updated_at:
+            access.entitlement_updated_at ?? new Date(0).toISOString(),
         });
       }
     }
@@ -461,10 +481,12 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
       error: `Failed to load plugin data boundaries: ${boundariesResult.error.message}`,
     };
   } else {
-    dataBoundaries = ((boundariesResult.data ?? []) as Omit<
-      PluginDataBoundaryRow,
-      "organization_name" | "organization_slug"
-    >[]).map((boundary) => {
+    dataBoundaries = (
+      (boundariesResult.data ?? []) as Omit<
+        PluginDataBoundaryRow,
+        "organization_name" | "organization_slug"
+      >[]
+    ).map((boundary) => {
       const organization = organizationNameById.get(boundary.organization_id);
 
       return {
@@ -475,27 +497,34 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
     });
   }
 
-  const plugins = ((pluginsResult.data ?? []) as PluginCatalogBaseRow[]).map((plugin) => {
-    const pluginInstalls = installsByPlugin.get(plugin.key) ?? [];
+  const plugins = ((pluginsResult.data ?? []) as PluginCatalogBaseRow[]).map(
+    (plugin) => {
+      const pluginInstalls = installsByPlugin.get(plugin.key) ?? [];
 
-    const installedCount = pluginInstalls.filter((install) => install.enabled).length;
-    const forcePendingCount = plugin.force_update_version
-      ? pluginInstalls.filter((install) => {
-          if (!install.enabled) return false;
-          const installedVersion = coalescePluginVersion(
-            install.installed_version,
-            plugin.latest_version,
-          );
-          return isPluginVersionBehind(installedVersion, plugin.force_update_version);
-        }).length
-      : 0;
+      const installedCount = pluginInstalls.filter(
+        (install) => install.enabled,
+      ).length;
+      const forcePendingCount = plugin.force_update_version
+        ? pluginInstalls.filter((install) => {
+            if (!install.enabled) return false;
+            const installedVersion = coalescePluginVersion(
+              install.installed_version,
+              plugin.latest_version,
+            );
+            return isPluginVersionBehind(
+              installedVersion,
+              plugin.force_update_version,
+            );
+          }).length
+        : 0;
 
-    return {
-      ...plugin,
-      installed_count: installedCount,
-      force_pending_count: forcePendingCount,
-    } satisfies PluginCatalogControlRow;
-  });
+      return {
+        ...plugin,
+        installed_count: installedCount,
+        force_pending_count: forcePendingCount,
+      } satisfies PluginCatalogControlRow;
+    },
+  );
 
   return {
     plugins,
@@ -552,28 +581,29 @@ export async function upsertPluginCatalogControl(input: {
   }
 
   const service = getAdminClient();
-  const { error } = await service
-    .from("plugins")
-    .upsert(
-      {
-        key,
-        name: input.name.trim(),
-        description: input.description?.trim() || null,
-        visibility: input.visibility,
-        is_active: input.isActive,
-        latest_version: latestVersion,
-        force_update_version: forceUpdateVersion,
-        code_repository: input.codeRepository?.trim() || null,
-        code_reference: input.codeReference?.trim() || null,
-        private_codebase: input.privateCodebase,
-        updated_at: new Date().toISOString(),
-        updated_by: userId,
-      },
-      { onConflict: "key" },
-    );
+  const { error } = await service.from("plugins").upsert(
+    {
+      key,
+      name: input.name.trim(),
+      description: input.description?.trim() || null,
+      visibility: input.visibility,
+      is_active: input.isActive,
+      latest_version: latestVersion,
+      force_update_version: forceUpdateVersion,
+      code_repository: input.codeRepository?.trim() || null,
+      code_reference: input.codeReference?.trim() || null,
+      private_codebase: input.privateCodebase,
+      updated_at: new Date().toISOString(),
+      updated_by: userId,
+    },
+    { onConflict: "key" },
+  );
 
   if (error) {
-    return { success: false, error: `Failed to save plugin catalog control: ${error.message}` };
+    return {
+      success: false,
+      error: `Failed to save plugin catalog control: ${error.message}`,
+    };
   }
 
   revalidatePath("/admin/plugins");
@@ -623,7 +653,10 @@ export async function upsertOrganizationPluginEntitlement(input: {
     );
 
   if (error) {
-    return { success: false, error: `Failed to save entitlement: ${error.message}` };
+    return {
+      success: false,
+      error: `Failed to save entitlement: ${error.message}`,
+    };
   }
 
   const { data: organization } = await service
@@ -666,7 +699,9 @@ export async function bulkUpsertOrganizationPluginEntitlements(input: {
     return { success: false, error: "Plugin key is required." };
   }
 
-  const identifiers = parseOrganizationIdentifiers(input.organizationIdentifiers);
+  const identifiers = parseOrganizationIdentifiers(
+    input.organizationIdentifiers,
+  );
   if (identifiers.length === 0) {
     return {
       success: false,
@@ -712,12 +747,13 @@ export async function bulkUpsertOrganizationPluginEntitlements(input: {
   if (pluginCatalog.visibility !== "private") {
     return {
       success: false,
-      error:
-        "Bulk entitlement assignment is only needed for private plugins.",
+      error: "Bulk entitlement assignment is only needed for private plugins.",
     };
   }
 
-  const idTokens = identifiers.filter((identifier) => UUID_REGEX.test(identifier));
+  const idTokens = identifiers.filter((identifier) =>
+    UUID_REGEX.test(identifier),
+  );
   const usernameTokens = identifiers
     .filter((identifier) => !UUID_REGEX.test(identifier))
     .map((identifier) => identifier.toLowerCase());
@@ -770,7 +806,9 @@ export async function bulkUpsertOrganizationPluginEntitlements(input: {
   }
 
   const resolvedIdSet = new Set(
-    Array.from(resolvedOrganizationsById.values()).map((organization) => organization.id),
+    Array.from(resolvedOrganizationsById.values()).map(
+      (organization) => organization.id,
+    ),
   );
   const resolvedUsernameSet = new Set(
     Array.from(resolvedOrganizationsById.values())
@@ -917,8 +955,10 @@ export async function forceInstallOrganizationPlugin(input: {
   }
 
   const service = getAdminClient();
-  const shouldActivateEntitlement = input.activateEntitlementForPrivate !== false;
-  let entitlementCompensation: ForceInstallEntitlementCompensation | null = null;
+  const shouldActivateEntitlement =
+    input.activateEntitlementForPrivate !== false;
+  let entitlementCompensation: ForceInstallEntitlementCompensation | null =
+    null;
 
   const { data: plugin, error: pluginError } = await service
     .from("plugins")
@@ -943,12 +983,13 @@ export async function forceInstallOrganizationPlugin(input: {
 
   if (plugin.visibility === "private") {
     if (shouldActivateEntitlement) {
-      const { data: existingEntitlement, error: entitlementLookupError } = await service
-        .from("organization_plugin_entitlements")
-        .select("id, status, starts_at, ends_at, updated_at")
-        .eq("organization_id", input.organizationId)
-        .eq("plugin_key", input.pluginKey)
-        .maybeSingle();
+      const { data: existingEntitlement, error: entitlementLookupError } =
+        await service
+          .from("organization_plugin_entitlements")
+          .select("id, status, starts_at, ends_at, updated_at")
+          .eq("organization_id", input.organizationId)
+          .eq("plugin_key", input.pluginKey)
+          .maybeSingle();
 
       if (entitlementLookupError) {
         return {
@@ -957,21 +998,23 @@ export async function forceInstallOrganizationPlugin(input: {
         };
       }
 
-      const previous = existingEntitlement as ForceInstallEntitlementSnapshot | null;
+      const previous =
+        existingEntitlement as ForceInstallEntitlementSnapshot | null;
       if (!previous) {
         const activationUpdatedAt = new Date().toISOString();
-        const { data: createdEntitlement, error: entitlementError } = await service
-          .from("organization_plugin_entitlements")
-          .insert({
-            organization_id: input.organizationId,
-            plugin_key: input.pluginKey,
-            status: "active",
-            starts_at: null,
-            ends_at: null,
-            updated_at: activationUpdatedAt,
-          })
-          .select("id")
-          .single();
+        const { data: createdEntitlement, error: entitlementError } =
+          await service
+            .from("organization_plugin_entitlements")
+            .insert({
+              organization_id: input.organizationId,
+              plugin_key: input.pluginKey,
+              status: "active",
+              starts_at: null,
+              ends_at: null,
+              updated_at: activationUpdatedAt,
+            })
+            .select("id")
+            .single();
         if (entitlementError || !createdEntitlement) {
           return {
             success: false,
@@ -985,18 +1028,19 @@ export async function forceInstallOrganizationPlugin(input: {
         };
       } else if (!isEntitlementCurrentlyActive(previous, new Date())) {
         const activationUpdatedAt = new Date().toISOString();
-        const { data: reactivatedEntitlement, error: entitlementError } = await service
-          .from("organization_plugin_entitlements")
-          .update({
-            status: "active",
-            starts_at: null,
-            ends_at: null,
-            updated_at: activationUpdatedAt,
-          })
-          .eq("id", previous.id)
-          .eq("updated_at", previous.updated_at)
-          .select("id")
-          .maybeSingle();
+        const { data: reactivatedEntitlement, error: entitlementError } =
+          await service
+            .from("organization_plugin_entitlements")
+            .update({
+              status: "active",
+              starts_at: null,
+              ends_at: null,
+              updated_at: activationUpdatedAt,
+            })
+            .eq("id", previous.id)
+            .eq("updated_at", previous.updated_at)
+            .select("id")
+            .maybeSingle();
         if (entitlementError || !reactivatedEntitlement) {
           return {
             success: false,
@@ -1060,7 +1104,8 @@ export async function forceInstallOrganizationPlugin(input: {
         .select("id")
         .maybeSingle();
       if (error || !data) {
-        compensationError = error?.message ?? "created entitlement changed concurrently";
+        compensationError =
+          error?.message ?? "created entitlement changed concurrently";
       }
     } else if (entitlementCompensation?.kind === "restore_reactivated") {
       const { data, error } = await service
@@ -1076,7 +1121,8 @@ export async function forceInstallOrganizationPlugin(input: {
         .select("id")
         .maybeSingle();
       if (error || !data) {
-        compensationError = error?.message ?? "reactivated entitlement changed concurrently";
+        compensationError =
+          error?.message ?? "reactivated entitlement changed concurrently";
       }
     }
 
@@ -1087,7 +1133,9 @@ export async function forceInstallOrganizationPlugin(input: {
         compensationError
           ? `Private entitlement rollback also failed: ${compensationError}.`
           : null,
-      ].filter(Boolean).join(" "),
+      ]
+        .filter(Boolean)
+        .join(" "),
     };
   }
 
@@ -1138,7 +1186,8 @@ export async function setOrganizationPluginInstallStateByAdmin(input: {
   if (!transitionResult.success) {
     return {
       success: false,
-      error: transitionResult.error ?? "Failed to disable organization install.",
+      error:
+        transitionResult.error ?? "Failed to disable organization install.",
     };
   }
 
@@ -1214,9 +1263,8 @@ export async function upsertOrganizationPluginInstallConfiguration(input: {
     );
     if (!validation.valid) {
       const firstError = validation.errors[0];
-      const fieldPath = firstError?.path && firstError.path !== "/"
-        ? firstError.path
-        : "root";
+      const fieldPath =
+        firstError?.path && firstError.path !== "/" ? firstError.path : "root";
       return {
         success: false,
         error: `Configuration validation failed at ${fieldPath}: ${firstError?.message || "Invalid value"}`,
@@ -1261,7 +1309,8 @@ export async function upsertOrganizationPluginInstallConfiguration(input: {
   if (!transitionResult.success) {
     return {
       success: false,
-      error: transitionResult.error ?? "Failed to update install configuration.",
+      error:
+        transitionResult.error ?? "Failed to update install configuration.",
     };
   }
 

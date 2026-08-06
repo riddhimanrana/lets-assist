@@ -45,7 +45,8 @@ function QueryMessageToastContent() {
     const deleted = searchParams.get("deleted");
     if (deleted === "true") {
       toast.success("Account successfully deleted", {
-        description: "We're sorry to see you go. You can always create a new account later.",
+        description:
+          "We're sorry to see you go. You can always create a new account later.",
         duration: 5000,
       });
 

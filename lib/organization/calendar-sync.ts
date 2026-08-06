@@ -244,7 +244,10 @@ export async function syncOrganizationCalendarInternal(
           .select("id")
           .single();
         if (error || !data) {
-          console.error("Failed to insert organization calendar tracking row", error);
+          console.error(
+            "Failed to insert organization calendar tracking row",
+            error,
+          );
           return false;
         }
         return true;
@@ -258,7 +261,10 @@ export async function syncOrganizationCalendarInternal(
           .select("id")
           .maybeSingle();
         if (error || !data) {
-          console.error("Failed to update organization calendar tracking row", error);
+          console.error(
+            "Failed to update organization calendar tracking row",
+            error,
+          );
           return false;
         }
         return true;
@@ -272,7 +278,10 @@ export async function syncOrganizationCalendarInternal(
           .select("id")
           .maybeSingle();
         if (error || !data) {
-          console.error("Failed to delete organization calendar tracking row", error);
+          console.error(
+            "Failed to delete organization calendar tracking row",
+            error,
+          );
           return false;
         }
         return true;
@@ -305,7 +314,10 @@ export async function syncOrganizationCalendarInternal(
     .select("organization_id")
     .maybeSingle();
   if (completionError || !completedSync) {
-    console.error("Failed to record organization calendar sync completion", completionError);
+    console.error(
+      "Failed to record organization calendar sync completion",
+      completionError,
+    );
     return {
       success: false,
       error: "Calendar events synced, but completion could not be recorded",

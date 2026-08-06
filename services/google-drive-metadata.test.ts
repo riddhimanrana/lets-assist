@@ -15,12 +15,13 @@ afterEach(() => {
 });
 
 function respondWith(body: unknown, status = 200) {
-  globalThis.fetch = mock(async (_input: RequestInfo | URL, _init?: RequestInit) => (
-    new Response(typeof body === "string" ? body : JSON.stringify(body), {
-      status,
-      headers: { "content-type": "application/json" },
-    })
-  )) as unknown as typeof fetch;
+  globalThis.fetch = mock(
+    async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      new Response(typeof body === "string" ? body : JSON.stringify(body), {
+        status,
+        headers: { "content-type": "application/json" },
+      }),
+  ) as unknown as typeof fetch;
 }
 
 /**
@@ -119,9 +120,17 @@ describe("getGoogleDriveFileMetadata", () => {
    * statement that cannot quietly regress the next time a diagnostic is added.
    */
   const acquisitionSource = (() => {
-    const source = readFileSync(join(import.meta.dir, "google-sheets.ts"), "utf8");
-    const start = source.indexOf("export async function getGoogleDriveFileMetadata");
-    const end = source.indexOf("/** Why a commit-time evidence refresh refused.", start);
+    const source = readFileSync(
+      join(import.meta.dir, "google-sheets.ts"),
+      "utf8",
+    );
+    const start = source.indexOf(
+      "export async function getGoogleDriveFileMetadata",
+    );
+    const end = source.indexOf(
+      "/** Why a commit-time evidence refresh refused.",
+      start,
+    );
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     return source.slice(start, end);
@@ -170,20 +179,24 @@ describe("getGoogleDriveFileMetadata", () => {
         "headRevisionId",
         "boundedDisplayText",
       ]) {
-        expect(site, `${forbidden} reaches a log context`).not.toContain(forbidden);
+        expect(site, `${forbidden} reaches a log context`).not.toContain(
+          forbidden,
+        );
       }
     }
 
     // And what remains is stated exactly, so a future diagnostic cannot widen it
     // back into identity without this failing.
-    expect(acquisitionSource).toContain("        status: response.status,\n      });");
-    expect(acquisitionSource).toContain([
-      "          identity_matches: identityProven,",
-      "          is_native_sheet: isNativeSheet,",
-      "          has_modified_time: modifiedTime !== null,",
-      "          has_version: version !== null,",
-      "          has_trashed: trashed !== null,",
-    ].join("\n"));
+    expect(acquisitionSource).toContain("status: response.status,");
+    expect(acquisitionSource).toContain(
+      [
+        "          identity_matches: identityProven,",
+        "          is_native_sheet: isNativeSheet,",
+        "          has_modified_time: modifiedTime !== null,",
+        "          has_version: version !== null,",
+        "          has_trashed: trashed !== null,",
+      ].join("\n"),
+    );
   });
 
   test("the caught request failure is replaced rather than logged", () => {
@@ -194,10 +207,12 @@ describe("getGoogleDriveFileMetadata", () => {
     expect(acquisitionSource).toContain("  } catch {");
     expect(acquisitionSource).not.toContain("} catch (error) {");
     expect(acquisitionSource).toContain(
-      'new Error("Drive file metadata request failed before a response was read")',
+      '"Drive file metadata request failed before a response was read"',
     );
     // Nothing in the reader forwards a caught value into a log at all.
-    expect(acquisitionSource).not.toContain("logError(\"Exception while fetching Google Drive file metadata\", error");
+    expect(acquisitionSource).not.toContain(
+      'logError("Exception while fetching Google Drive file metadata", error',
+    );
   });
 
   test("a request that throws is reported as unknown and never rethrown", async () => {
@@ -210,7 +225,10 @@ describe("getGoogleDriveFileMetadata", () => {
       );
     }) as unknown as typeof fetch;
 
-    const result = await getGoogleDriveFileMetadata("token", "SENTINEL-FILE-ID");
+    const result = await getGoogleDriveFileMetadata(
+      "token",
+      "SENTINEL-FILE-ID",
+    );
     expect(result.accessState).toBe("unknown");
     expect(result.id).toBeNull();
     expect(result.modifiedTime).toBeNull();
@@ -228,16 +246,19 @@ describe("getGoogleDriveFileMetadata", () => {
     ["a PDF", { mimeType: "application/pdf" }],
     ["an empty provider id", { id: "" }],
     ["a padded provider id", { id: " sheet-1" }],
-  ])("a 200 answering with %s is unknown at acquisition", async (_label, override) => {
-    respondWith({ ...NATIVE_SHEET, ...override });
+  ])(
+    "a 200 answering with %s is unknown at acquisition",
+    async (_label, override) => {
+      respondWith({ ...NATIVE_SHEET, ...override });
 
-    const result = await getGoogleDriveFileMetadata("token", "sheet-1");
-    // Not normalized, not repaired, not reported as a successful read.
-    expect(result.accessState).toBe("unknown");
-    // The requested coordinate is unchanged, so a caller can still say what it
-    // asked for -- the answer simply is not evidence about it.
-    expect(result.requestedFileId).toBe("sheet-1");
-  });
+      const result = await getGoogleDriveFileMetadata("token", "sheet-1");
+      // Not normalized, not repaired, not reported as a successful read.
+      expect(result.accessState).toBe("unknown");
+      // The requested coordinate is unchanged, so a caller can still say what it
+      // asked for -- the answer simply is not evidence about it.
+      expect(result.requestedFileId).toBe("sheet-1");
+    },
+  );
 
   test("identity and type are proven, not assumed, for an accessible read", async () => {
     respondWith(NATIVE_SHEET);
@@ -248,13 +269,21 @@ describe("getGoogleDriveFileMetadata", () => {
   });
 
   test("returns the selected file provenance without fetching row values", async () => {
-    const fetchMock = mock(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
-      ...NATIVE_SHEET,
-      headRevisionId: "revision-7",
-    }), { status: 200, headers: { "content-type": "application/json" } }));
+    const fetchMock = mock(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify({
+            ...NATIVE_SHEET,
+            headRevisionId: "revision-7",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    await expect(getGoogleDriveFileMetadata("token", "sheet-1")).resolves.toEqual({
+    await expect(
+      getGoogleDriveFileMetadata("token", "sheet-1"),
+    ).resolves.toEqual({
       requestedFileId: "sheet-1",
       id: "sheet-1",
       name: "CSF responses",
@@ -313,17 +342,20 @@ describe("getGoogleDriveFileMetadata", () => {
     ["a leading space", " 58"],
     ["a trailing newline", "58\n"],
     ["a zero-width prefix", ZERO_WIDTH_SPACE + "58"],
-  ] as const)("a version with %s fails closed instead of being repaired", async (_label, version) => {
-    // The predecessor trimmed this into "58" and reported the read accessible.
-    // That is the whole failure mode: a coordinate the provider did not send
-    // was rewritten into one that then compared EQUAL to frozen evidence, so
-    // the one check whose entire subject is exactness passed on a repair.
-    respondWith({ ...NATIVE_SHEET, version });
+  ] as const)(
+    "a version with %s fails closed instead of being repaired",
+    async (_label, version) => {
+      // The predecessor trimmed this into "58" and reported the read accessible.
+      // That is the whole failure mode: a coordinate the provider did not send
+      // was rewritten into one that then compared EQUAL to frozen evidence, so
+      // the one check whose entire subject is exactness passed on a repair.
+      respondWith({ ...NATIVE_SHEET, version });
 
-    const result = await getGoogleDriveFileMetadata("token", "sheet-1");
-    expect(result.version).toBeNull();
-    expect(result.accessState).toBe("unknown");
-  });
+      const result = await getGoogleDriveFileMetadata("token", "sheet-1");
+      expect(result.version).toBeNull();
+      expect(result.accessState).toBe("unknown");
+    },
+  );
 
   // A shallow mutable view; the corpus stays `as const`, in the same order,
   // byte-identical.
@@ -342,7 +374,10 @@ describe("getGoogleDriveFileMetadata", () => {
   );
 
   test("a provider fraction is never re-rendered to milliseconds", async () => {
-    respondWith({ ...NATIVE_SHEET, modifiedTime: "2026-07-15T12:00:00.123456Z" });
+    respondWith({
+      ...NATIVE_SHEET,
+      modifiedTime: "2026-07-15T12:00:00.123456Z",
+    });
 
     const result = await getGoogleDriveFileMetadata("token", "sheet-1");
     expect(result.modifiedTime).toBe("2026-07-15T12:00:00.123456Z");
@@ -369,7 +404,9 @@ describe("getGoogleDriveFileMetadata", () => {
 
     const result = await getGoogleDriveFileMetadata("token", "sheet-1");
     expect(result.modifiedTime).toBeNull();
-    expect(new Date("2026-02-30T00:00:00Z").toISOString()).toBe("2026-03-02T00:00:00.000Z");
+    expect(new Date("2026-02-30T00:00:00Z").toISOString()).toBe(
+      "2026-03-02T00:00:00.000Z",
+    );
   });
 
   test.each([
@@ -377,19 +414,27 @@ describe("getGoogleDriveFileMetadata", () => {
     ["a zero-width padded provider id", { id: ZERO_WIDTH_SPACE + "sheet-1" }],
     ["a padded MIME", { mimeType: ` ${GOOGLE_SHEETS_MIME_TYPE} ` }],
     ["an overlong provider id", { id: "a".repeat(513) }],
-  ] as const)("%s fails closed instead of being trimmed into agreement", async (_label, override) => {
-    respondWith({ ...NATIVE_SHEET, ...override });
+  ] as const)(
+    "%s fails closed instead of being trimmed into agreement",
+    async (_label, override) => {
+      respondWith({ ...NATIVE_SHEET, ...override });
 
-    await expect(getGoogleDriveFileMetadata("token", "sheet-1")).resolves.toMatchObject({
-      accessState: "unknown",
-    });
-  });
+      await expect(
+        getGoogleDriveFileMetadata("token", "sheet-1"),
+      ).resolves.toMatchObject({
+        accessState: "unknown",
+      });
+    },
+  );
 
   test("a padded requested id is refused before the provider is asked", async () => {
-    const fetchMock = mock(async () => new Response(JSON.stringify(NATIVE_SHEET), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    }));
+    const fetchMock = mock(
+      async () =>
+        new Response(JSON.stringify(NATIVE_SHEET), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     // Our own request is a coordinate too: a padded id would be carried to the
@@ -405,16 +450,19 @@ describe("getGoogleDriveFileMetadata", () => {
     // it is never identity, never compared and never a freshness coordinate.
     respondWith({ ...NATIVE_SHEET, name: "  CSF responses  " });
 
-    await expect(getGoogleDriveFileMetadata("token", "sheet-1")).resolves.toMatchObject({
+    await expect(
+      getGoogleDriveFileMetadata("token", "sheet-1"),
+    ).resolves.toMatchObject({
       name: "CSF responses",
       accessState: "accessible",
     });
   });
 
   test("turns lost consent into a reconnect state without exposing an error body", async () => {
-    globalThis.fetch = mock(async (_input: RequestInfo | URL, _init?: RequestInit) => (
-      new Response("private provider detail", { status: 403 })
-    )) as unknown as typeof fetch;
+    globalThis.fetch = mock(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response("private provider detail", { status: 403 }),
+    ) as unknown as typeof fetch;
     const result = await getGoogleDriveFileMetadata("token", "sheet-2");
     expect(result).toMatchObject({
       requestedFileId: "sheet-2",
@@ -431,16 +479,26 @@ describe("getGoogleDriveFileMetadata", () => {
     [404, "not_found"],
     [429, "unknown"],
   ] as const)("maps Drive HTTP %i to %s", async (status, accessState) => {
-    globalThis.fetch = mock(async (_input: RequestInfo | URL, _init?: RequestInit) => (
-      new Response("provider detail is not surfaced", { status })
-    )) as unknown as typeof fetch;
-    await expect(getGoogleDriveFileMetadata("token", `sheet-${status}`)).resolves.toMatchObject({ accessState });
+    globalThis.fetch = mock(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response("provider detail is not surfaced", { status }),
+    ) as unknown as typeof fetch;
+    await expect(
+      getGoogleDriveFileMetadata("token", `sheet-${status}`),
+    ).resolves.toMatchObject({ accessState });
   });
 
   test("marks a selected file that moved to trash without dropping its provenance", async () => {
-    respondWith({ ...NATIVE_SHEET, id: "sheet-trashed", name: "Historical CSF source", trashed: true });
+    respondWith({
+      ...NATIVE_SHEET,
+      id: "sheet-trashed",
+      name: "Historical CSF source",
+      trashed: true,
+    });
 
-    await expect(getGoogleDriveFileMetadata("token", "sheet-trashed")).resolves.toMatchObject({
+    await expect(
+      getGoogleDriveFileMetadata("token", "sheet-trashed"),
+    ).resolves.toMatchObject({
       requestedFileId: "sheet-trashed",
       id: "sheet-trashed",
       name: "Historical CSF source",
@@ -451,7 +509,9 @@ describe("getGoogleDriveFileMetadata", () => {
 
   test("a native Google Sheet with no head revision is still complete evidence", async () => {
     respondWith(NATIVE_SHEET);
-    await expect(getGoogleDriveFileMetadata("token", "sheet-1")).resolves.toMatchObject({
+    await expect(
+      getGoogleDriveFileMetadata("token", "sheet-1"),
+    ).resolves.toMatchObject({
       headRevisionId: null,
       modifiedTime: "2026-07-15T12:00:00.000Z",
       version: "58",
@@ -479,15 +539,21 @@ describe("getGoogleDriveFileMetadata", () => {
   });
 
   test("a 200 whose body is not a JSON object fails closed", async () => {
-    globalThis.fetch = mock(async () => new Response("<html>not json</html>", { status: 200 })) as unknown as typeof fetch;
-    await expect(getGoogleDriveFileMetadata("token", "sheet-1")).resolves.toMatchObject({
+    globalThis.fetch = mock(
+      async () => new Response("<html>not json</html>", { status: 200 }),
+    ) as unknown as typeof fetch;
+    await expect(
+      getGoogleDriveFileMetadata("token", "sheet-1"),
+    ).resolves.toMatchObject({
       id: null,
       trashed: null,
       accessState: "unknown",
     });
 
     respondWith([NATIVE_SHEET]);
-    await expect(getGoogleDriveFileMetadata("token", "sheet-1")).resolves.toMatchObject({
+    await expect(
+      getGoogleDriveFileMetadata("token", "sheet-1"),
+    ).resolves.toMatchObject({
       accessState: "unknown",
     });
   });
@@ -529,13 +595,17 @@ describe("getCsfSheetSourceLiveEvidence", () => {
   test("refuses a Sheet whose version is missing or malformed", async () => {
     const { version: _dropped, ...withoutVersion } = NATIVE_SHEET;
     respondWith(withoutVersion);
-    await expect(getCsfSheetSourceLiveEvidence("token", "sheet-1")).resolves.toMatchObject({
+    await expect(
+      getCsfSheetSourceLiveEvidence("token", "sheet-1"),
+    ).resolves.toMatchObject({
       status: "refused",
       reason: "unknown",
     });
 
     respondWith({ ...NATIVE_SHEET, version: "-1" });
-    await expect(getCsfSheetSourceLiveEvidence("token", "sheet-1")).resolves.toMatchObject({
+    await expect(
+      getCsfSheetSourceLiveEvidence("token", "sheet-1"),
+    ).resolves.toMatchObject({
       status: "refused",
       reason: "unknown",
     });
@@ -546,7 +616,9 @@ describe("getCsfSheetSourceLiveEvidence", () => {
 
     const evidence = await getCsfSheetSourceLiveEvidence("token", "sheet-1");
     expect(evidence.status).toBe("ok");
-    expect(evidence.status === "ok" && evidence.name).toBe("CSF responses (renamed)");
+    expect(evidence.status === "ok" && evidence.name).toBe(
+      "CSF responses (renamed)",
+    );
   });
 
   test("refuses when the provider answers about a different file", async () => {
@@ -556,7 +628,9 @@ describe("getCsfSheetSourceLiveEvidence", () => {
     // metadata object it has to catch. `unknown` rather than `identity_mismatch`
     // is the point: the read did not succeed, so nothing downstream is handed a
     // metadata object whose `accessState` claims it did.
-    await expect(getCsfSheetSourceLiveEvidence("token", "sheet-1")).resolves.toMatchObject({
+    await expect(
+      getCsfSheetSourceLiveEvidence("token", "sheet-1"),
+    ).resolves.toMatchObject({
       status: "refused",
       reason: "unknown",
     });
@@ -569,7 +643,9 @@ describe("getCsfSheetSourceLiveEvidence", () => {
     ]) {
       respondWith({ ...NATIVE_SHEET, mimeType });
 
-      await expect(getCsfSheetSourceLiveEvidence("token", "sheet-1")).resolves.toMatchObject({
+      await expect(
+        getCsfSheetSourceLiveEvidence("token", "sheet-1"),
+      ).resolves.toMatchObject({
         status: "refused",
         reason: "unknown",
       });
@@ -586,7 +662,10 @@ describe("getCsfSheetSourceLiveEvidence", () => {
    * because behaviour can no longer reach them.
    */
   test("the wrapper keeps its own independent identity and MIME refusals", () => {
-    const source = readFileSync(join(import.meta.dir, "google-sheets.ts"), "utf8");
+    const source = readFileSync(
+      join(import.meta.dir, "google-sheets.ts"),
+      "utf8",
+    );
     const wrapper = source.slice(
       source.indexOf("export async function getCsfSheetSourceLiveEvidence"),
       source.indexOf("const GOOGLE_SHEETS_MAX_COLUMN_INDEX"),
@@ -604,7 +683,9 @@ describe("getCsfSheetSourceLiveEvidence", () => {
     ["trashed file", { trashed: true }, "trashed"],
   ] as const)("refuses on %s", async (_label, override, reason) => {
     respondWith({ ...NATIVE_SHEET, ...override });
-    await expect(getCsfSheetSourceLiveEvidence("token", "sheet-1")).resolves.toMatchObject({
+    await expect(
+      getCsfSheetSourceLiveEvidence("token", "sheet-1"),
+    ).resolves.toMatchObject({
       status: "refused",
       reason,
     });
@@ -616,8 +697,12 @@ describe("getCsfSheetSourceLiveEvidence", () => {
     [404, "not_found"],
     [500, "unknown"],
   ] as const)("refuses HTTP %i as %s", async (status, reason) => {
-    globalThis.fetch = mock(async () => new Response("detail", { status })) as unknown as typeof fetch;
-    await expect(getCsfSheetSourceLiveEvidence("token", "sheet-1")).resolves.toMatchObject({
+    globalThis.fetch = mock(
+      async () => new Response("detail", { status }),
+    ) as unknown as typeof fetch;
+    await expect(
+      getCsfSheetSourceLiveEvidence("token", "sheet-1"),
+    ).resolves.toMatchObject({
       status: "refused",
       reason,
     });
@@ -630,7 +715,9 @@ describe("getCsfSheetSourceLiveEvidence", () => {
     const { modifiedTime: _dropped, ...withoutModified } = NATIVE_SHEET;
     respondWith(withoutModified);
 
-    await expect(getCsfSheetSourceLiveEvidence("token", "sheet-1")).resolves.toMatchObject({
+    await expect(
+      getCsfSheetSourceLiveEvidence("token", "sheet-1"),
+    ).resolves.toMatchObject({
       status: "refused",
       reason: "unknown",
     });

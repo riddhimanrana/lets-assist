@@ -12,7 +12,7 @@ export default async function ProfilePage() {
   // Check if user is authenticated
   // const supabase = await createClient();
   // const { data: { user } } = await supabase.auth.getUser();
-  
+
   // if (!user) {
   //   // Redirect unauthenticated users to login
   //   redirect("/login?redirect=/account/profile");

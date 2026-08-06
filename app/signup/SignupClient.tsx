@@ -140,11 +140,13 @@ export default function SignupClient({
   const handleGoogleSignIn = async () => {
     try {
       setIsGoogleLoading(true);
-      const inviteContext = (staffToken || orgUsername)
-        ? { staffToken, orgUsername }
-        : null;
-      
-      const result = await signInWithGoogle(redirectPath ?? null, inviteContext);
+      const inviteContext =
+        staffToken || orgUsername ? { staffToken, orgUsername } : null;
+
+      const result = await signInWithGoogle(
+        redirectPath ?? null,
+        inviteContext,
+      );
 
       if (result.error) {
         if (result.error.server?.[0]?.includes("email-password")) {
@@ -169,7 +171,6 @@ export default function SignupClient({
 
   return (
     <section className="relative isolate flex min-h-[calc(100svh-4.5rem)] items-center justify-center overflow-hidden bg-background px-4 py-10 shadow-[inset_0_1px_0_hsl(var(--border))] sm:px-6 lg:px-8">
-
       <Card className="relative mx-auto w-full max-w-[430px] gap-0 overflow-hidden rounded-2xl border border-border/70 bg-card/95 py-0 shadow-[0_16px_44px_rgba(0,0,0,0.12),0_1px_6px_rgba(0,0,0,0.04)] ring-0 backdrop-blur-xl">
         <CardHeader className="space-y-2 px-6 pt-6 pb-0 sm:px-7">
           <CardTitle className="text-left text-2xl font-semibold tracking-tight">
@@ -222,7 +223,10 @@ export default function SignupClient({
               name="fullName"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name} className="text-[13px] font-semibold">
+                  <FieldLabel
+                    htmlFor={field.name}
+                    className="text-[13px] font-semibold"
+                  >
                     Full Name
                     {normalizedPrefilledName && (
                       <span className="ml-2 text-xs text-muted-foreground font-normal italic">
@@ -237,7 +241,9 @@ export default function SignupClient({
                     aria-invalid={fieldState.invalid}
                     className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -246,7 +252,10 @@ export default function SignupClient({
               name="email"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name} className="text-[13px] font-semibold">
+                  <FieldLabel
+                    htmlFor={field.name}
+                    className="text-[13px] font-semibold"
+                  >
                     Email
                     {normalizedPrefilledEmail && (
                       <span className="ml-2 text-xs text-muted-foreground font-normal italic">
@@ -261,7 +270,9 @@ export default function SignupClient({
                     aria-invalid={fieldState.invalid}
                     className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -270,7 +281,10 @@ export default function SignupClient({
               name="phone"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name} className="text-[13px] font-semibold">
+                  <FieldLabel
+                    htmlFor={field.name}
+                    className="text-[13px] font-semibold"
+                  >
                     Phone Number (Optional)
                     {normalizedPrefilledPhone && (
                       <span className="ml-2 text-xs text-muted-foreground font-normal italic">
@@ -285,7 +299,9 @@ export default function SignupClient({
                     aria-invalid={fieldState.invalid}
                     className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -294,7 +310,10 @@ export default function SignupClient({
               name="password"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name} className="text-[13px] font-semibold">
+                  <FieldLabel
+                    htmlFor={field.name}
+                    className="text-[13px] font-semibold"
+                  >
                     Password
                   </FieldLabel>
                   <Input
@@ -304,7 +323,9 @@ export default function SignupClient({
                     aria-invalid={fieldState.invalid}
                     className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                   <div className="mt-2.5">
                     <div className="rounded-xl border border-warning/25 bg-warning/10 p-3 shadow-xs">
                       <p className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-warning">
@@ -318,7 +339,9 @@ export default function SignupClient({
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                          <span>Cannot be a commonly used or compromised password</span>
+                          <span>
+                            Cannot be a commonly used or compromised password
+                          </span>
                         </li>
                       </ul>
                     </div>
@@ -373,7 +396,6 @@ export default function SignupClient({
           </form>
         </CardContent>
       </Card>
-
     </section>
   );
 }

@@ -1,5 +1,11 @@
 "use client";
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import { useEventForm } from "@/hooks/use-event-form";
 import type { EventFormState } from "@/hooks/use-event-form";
 import BasicInfo from "./BasicInfo";
@@ -19,12 +25,28 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 // icon components
-import { Loader2, ChevronLeft, ChevronRight, AlertCircle, Sparkles, Save } from "lucide-react";
+import {
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
+  Sparkles,
+  Save,
+} from "lucide-react";
 // utility
 import { cn } from "@/lib/utils";
 // Replace shadcn toast with Sonner
 import { toast } from "sonner";
-import { createProject, uploadWaiverPdf, finalizeProject, saveProjectAsNewDraft, autoSaveDraft, deleteDraft, checkProfanity, linkProjectUploadedAssets } from "./actions";
+import {
+  createProject,
+  uploadWaiverPdf,
+  finalizeProject,
+  saveProjectAsNewDraft,
+  autoSaveDraft,
+  deleteDraft,
+  checkProfanity,
+  linkProjectUploadedAssets,
+} from "./actions";
 import { saveWaiverDefinition } from "../[id]/actions";
 import { useRouter } from "next/navigation";
 import { getWaiverPdfRequirementError } from "@/lib/projects/waiver-validation";
@@ -35,7 +57,7 @@ import {
   oneTimeSchema,
   multiDaySchema,
   multiRoleSchema,
-  verificationSettingsSchema
+  verificationSettingsSchema,
 } from "@/schemas/event-form-schema";
 import { z } from "zod";
 import DraftsSidebar from "./DraftsSidebar";
@@ -90,14 +112,14 @@ type UploadedProjectDocument = {
   url: string;
 };
 
-export default function ProjectCreator({ 
-  initialOrgId, 
-  initialOrgOptions, 
-  canUsePublicVisibility = true, 
-  drafts = [], 
-  initialDraftData, 
+export default function ProjectCreator({
+  initialOrgId,
+  initialOrgOptions,
+  canUsePublicVisibility = true,
+  drafts = [],
+  initialDraftData,
   initialDraftId,
-  pluginSteps = []
+  pluginSteps = [],
 }: ProjectCreatorProps) {
   const {
     state,
@@ -143,15 +165,20 @@ export default function ProjectCreator({
   // File handling states
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [documents, setDocuments] = useState<File[]>([]);
-  const [coverImageUploadState, setCoverImageUploadState] = useState<UploadStatus>("idle");
-  const [documentUploadStates, setDocumentUploadStates] = useState<Record<string, UploadStatus>>({});
+  const [coverImageUploadState, setCoverImageUploadState] =
+    useState<UploadStatus>("idle");
+  const [documentUploadStates, setDocumentUploadStates] = useState<
+    Record<string, UploadStatus>
+  >({});
 
   const _AUTOSAVE_KEY = "project-autosave";
 
   // Form validation states
   const [basicInfoErrors, setBasicInfoErrors] = useState<z.ZodIssue[]>([]);
   const [scheduleErrors, setScheduleErrors] = useState<z.ZodIssue[]>([]);
-  const [verificationErrors, setVerificationErrors] = useState<z.ZodIssue[]>([]);
+  const [verificationErrors, setVerificationErrors] = useState<z.ZodIssue[]>(
+    [],
+  );
 
   // Validation tracking - only validate after continue is clicked
   const [validationAttempted, setValidationAttempted] = useState(false);
@@ -166,18 +193,16 @@ export default function ProjectCreator({
     () =>
       Boolean(
         initialDraftData?.waiverRequired &&
-          (
-            initialDraftData?.waiverDefinition ||
-            initialDraftData?.detectedFields ||
-            initialDraftData?.waiverPdfFile ||
-            initialDraftData?.waiverPdfUrl ||
-            initialDraftData?.waiverPdfValidation
-          )
+        (initialDraftData?.waiverDefinition ||
+          initialDraftData?.detectedFields ||
+          initialDraftData?.waiverPdfFile ||
+          initialDraftData?.waiverPdfUrl ||
+          initialDraftData?.waiverPdfValidation),
       ),
-    [initialDraftData]
+    [initialDraftData],
   );
   const [showWaiverReuploadNotice, setShowWaiverReuploadNotice] = useState(
-    shouldPromptWaiverReuploadFromDraft
+    shouldPromptWaiverReuploadFromDraft,
   );
   const waiverPdfRequirementError = getWaiverPdfRequirementError(state);
   const totalSteps = 5 + pluginSteps.length;
@@ -191,21 +216,45 @@ export default function ProjectCreator({
       ...pluginSteps.map((step) => step.title),
       "Finalize",
     ],
-    [pluginSteps]
+    [pluginSteps],
   );
   const currentStepLabel = stepLabels[state.step - 1] ?? "Create Project";
   const progressValue = (state.step / totalSteps) * 100;
 
   // Autosave state - initialize with loaded draft ID if available
-  const [autosaveDraftId, setAutosaveDraftId] = useState<string | undefined>(initialDraftId || undefined);
-  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [autosaveDraftId, setAutosaveDraftId] = useState<string | undefined>(
+    initialDraftId || undefined,
+  );
+  const [autosaveStatus, setAutosaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
   const [_lastAutosaveTime, setLastAutosaveTime] = useState<Date | null>(null);
 
-  type AIScheduleSlot = { name?: string; startTime: string; endTime: string; volunteers: number };
+  type AIScheduleSlot = {
+    name?: string;
+    startTime: string;
+    endTime: string;
+    volunteers: number;
+  };
   type AIScheduleDay = { date: string; slots?: AIScheduleSlot[] };
-  type AIScheduleRole = { name: string; startTime: string; endTime: string; volunteers: number };
-  type AIScheduleSameDay = { date: string; overallStart?: string; overallEnd?: string; roles?: AIScheduleRole[] };
-  type AIScheduleOneTime = { date: string; startTime?: string; endTime?: string; volunteers?: number };
+  type AIScheduleRole = {
+    name: string;
+    startTime: string;
+    endTime: string;
+    volunteers: number;
+  };
+  type AIScheduleSameDay = {
+    date: string;
+    overallStart?: string;
+    overallEnd?: string;
+    roles?: AIScheduleRole[];
+  };
+  type AIScheduleOneTime = {
+    date: string;
+    startTime?: string;
+    endTime?: string;
+    volunteers?: number;
+  };
 
   // Load draft data on mount if provided
   const draftLoadedRef = useRef(false);
@@ -217,8 +266,9 @@ export default function ProjectCreator({
       loadDraftState(initialDraftData);
       // Show success toast after a brief delay to ensure UI is ready
       setTimeout(() => {
-        toast.success('Draft restored!', {
-          description: 'Your previous progress has been loaded. Continue where you left off!',
+        toast.success("Draft restored!", {
+          description:
+            "Your previous progress has been loaded. Continue where you left off!",
         });
       }, 500);
     }
@@ -236,7 +286,7 @@ export default function ProjectCreator({
       waiverPdfUrl: null,
       waiverPdfValidation: null,
     }),
-    [state]
+    [state],
   );
 
   useEffect(() => {
@@ -277,7 +327,7 @@ export default function ProjectCreator({
     }
 
     // Skip autosave if there's no title
-    if (!state.basicInfo.title || state.basicInfo.title.trim() === '') {
+    if (!state.basicInfo.title || state.basicInfo.title.trim() === "") {
       return;
     }
 
@@ -297,9 +347,12 @@ export default function ProjectCreator({
     // Debounce autosave by 3 seconds
     autosaveTimerRef.current = setTimeout(async () => {
       try {
-        setAutosaveStatus('saving');
+        setAutosaveStatus("saving");
 
-        const result = await autoSaveDraft(getDraftSafeState(), autosaveDraftId);
+        const result = await autoSaveDraft(
+          getDraftSafeState(),
+          autosaveDraftId,
+        );
 
         if (result.autosaved && result.id) {
           // Set the draft ID if this is the first autosave
@@ -307,27 +360,27 @@ export default function ProjectCreator({
             setAutosaveDraftId(result.id);
           }
 
-          setAutosaveStatus('saved');
+          setAutosaveStatus("saved");
           setLastAutosaveTime(new Date());
 
           // Clear saved status after 3 seconds
           setTimeout(() => {
-            setAutosaveStatus(prev => prev === 'saved' ? 'idle' : prev);
+            setAutosaveStatus((prev) => (prev === "saved" ? "idle" : prev));
           }, 3000);
         } else if (result.error) {
-          setAutosaveStatus('error');
-          console.warn('Autosave error:', result.error);
+          setAutosaveStatus("error");
+          console.warn("Autosave error:", result.error);
 
           // Clear error status after 5 seconds
           setTimeout(() => {
-            setAutosaveStatus(prev => prev === 'error' ? 'idle' : prev);
+            setAutosaveStatus((prev) => (prev === "error" ? "idle" : prev));
           }, 5000);
         }
       } catch (err) {
         console.error("Failed to autosave draft", err);
-        setAutosaveStatus('error');
+        setAutosaveStatus("error");
         setTimeout(() => {
-          setAutosaveStatus(prev => prev === 'error' ? 'idle' : prev);
+          setAutosaveStatus((prev) => (prev === "error" ? "idle" : prev));
         }, 5000);
       }
     }, 3000);
@@ -337,19 +390,26 @@ export default function ProjectCreator({
         clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [stateSnapshot, state, autosaveDraftId, isSubmitting, isSavingDraft, getDraftSafeState]);
+  }, [
+    stateSnapshot,
+    state,
+    autosaveDraftId,
+    isSubmitting,
+    isSavingDraft,
+    getDraftSafeState,
+  ]);
 
   // Handle AI-generated data
   const handleApplyAIData = (data: AIParseResult) => {
     // Apply basic info
     if (data.title) {
-      handleBasicInfoUpdate('title', data.title);
+      handleBasicInfoUpdate("title", data.title);
     }
     if (data.location) {
-      handleBasicInfoUpdate('location', data.location);
+      handleBasicInfoUpdate("location", data.location);
     }
     if (data.description) {
-      handleBasicInfoUpdate('description', data.description);
+      handleBasicInfoUpdate("description", data.description);
     }
 
     // Apply event type
@@ -359,13 +419,22 @@ export default function ProjectCreator({
 
     // Apply schedule based on event type
     if (data.schedule && data.eventType) {
-      if (data.eventType === 'oneTime' && (data.schedule as AIScheduleOneTime).date) {
+      if (
+        data.eventType === "oneTime" &&
+        (data.schedule as AIScheduleOneTime).date
+      ) {
         const schedule = data.schedule as AIScheduleOneTime;
-        handleOneTimeScheduleUpdate('date', schedule.date);
-        if (schedule.startTime) handleOneTimeScheduleUpdate('startTime', schedule.startTime);
-        if (schedule.endTime) handleOneTimeScheduleUpdate('endTime', schedule.endTime);
-        if (schedule.volunteers) handleOneTimeScheduleUpdate('volunteers', schedule.volunteers);
-      } else if (data.eventType === 'multiDay' && Array.isArray(data.schedule)) {
+        handleOneTimeScheduleUpdate("date", schedule.date);
+        if (schedule.startTime)
+          handleOneTimeScheduleUpdate("startTime", schedule.startTime);
+        if (schedule.endTime)
+          handleOneTimeScheduleUpdate("endTime", schedule.endTime);
+        if (schedule.volunteers)
+          handleOneTimeScheduleUpdate("volunteers", schedule.volunteers);
+      } else if (
+        data.eventType === "multiDay" &&
+        Array.isArray(data.schedule)
+      ) {
         // Clear existing days first
         const currentDays = state.schedule.multiDay.length;
         for (let i = currentDays - 1; i >= 0; i--) {
@@ -376,49 +445,124 @@ export default function ProjectCreator({
         (data.schedule as AIScheduleDay[]).forEach((day, dayIndex) => {
           if (dayIndex === 0) {
             // Update first day
-            handleMultiDayScheduleUpdate(0, 'date', day.date);
+            handleMultiDayScheduleUpdate(0, "date", day.date);
             if (Array.isArray(day.slots)) {
               day.slots.forEach((slot, slotIndex) => {
                 if (slotIndex === 0) {
-                  handleMultiDayScheduleUpdate(0, 'name', slot.name || '', 0);
-                  handleMultiDayScheduleUpdate(0, 'startTime', slot.startTime, 0);
-                  handleMultiDayScheduleUpdate(0, 'endTime', slot.endTime, 0);
-                  handleMultiDayScheduleUpdate(0, 'volunteers', slot.volunteers, 0);
+                  handleMultiDayScheduleUpdate(0, "name", slot.name || "", 0);
+                  handleMultiDayScheduleUpdate(
+                    0,
+                    "startTime",
+                    slot.startTime,
+                    0,
+                  );
+                  handleMultiDayScheduleUpdate(0, "endTime", slot.endTime, 0);
+                  handleMultiDayScheduleUpdate(
+                    0,
+                    "volunteers",
+                    slot.volunteers,
+                    0,
+                  );
                 } else {
                   addMultiDaySlot(0);
-                  handleMultiDayScheduleUpdate(0, 'name', slot.name || '', slotIndex);
-                  handleMultiDayScheduleUpdate(0, 'startTime', slot.startTime, slotIndex);
-                  handleMultiDayScheduleUpdate(0, 'endTime', slot.endTime, slotIndex);
-                  handleMultiDayScheduleUpdate(0, 'volunteers', slot.volunteers, slotIndex);
+                  handleMultiDayScheduleUpdate(
+                    0,
+                    "name",
+                    slot.name || "",
+                    slotIndex,
+                  );
+                  handleMultiDayScheduleUpdate(
+                    0,
+                    "startTime",
+                    slot.startTime,
+                    slotIndex,
+                  );
+                  handleMultiDayScheduleUpdate(
+                    0,
+                    "endTime",
+                    slot.endTime,
+                    slotIndex,
+                  );
+                  handleMultiDayScheduleUpdate(
+                    0,
+                    "volunteers",
+                    slot.volunteers,
+                    slotIndex,
+                  );
                 }
               });
             }
           } else {
             addMultiDayEvent();
-            handleMultiDayScheduleUpdate(dayIndex, 'date', day.date);
+            handleMultiDayScheduleUpdate(dayIndex, "date", day.date);
             if (Array.isArray(day.slots)) {
               day.slots.forEach((slot, slotIndex) => {
                 if (slotIndex === 0) {
-                  handleMultiDayScheduleUpdate(dayIndex, 'name', slot.name || '', 0);
-                  handleMultiDayScheduleUpdate(dayIndex, 'startTime', slot.startTime, 0);
-                  handleMultiDayScheduleUpdate(dayIndex, 'endTime', slot.endTime, 0);
-                  handleMultiDayScheduleUpdate(dayIndex, 'volunteers', slot.volunteers, 0);
+                  handleMultiDayScheduleUpdate(
+                    dayIndex,
+                    "name",
+                    slot.name || "",
+                    0,
+                  );
+                  handleMultiDayScheduleUpdate(
+                    dayIndex,
+                    "startTime",
+                    slot.startTime,
+                    0,
+                  );
+                  handleMultiDayScheduleUpdate(
+                    dayIndex,
+                    "endTime",
+                    slot.endTime,
+                    0,
+                  );
+                  handleMultiDayScheduleUpdate(
+                    dayIndex,
+                    "volunteers",
+                    slot.volunteers,
+                    0,
+                  );
                 } else {
                   addMultiDaySlot(dayIndex);
-                  handleMultiDayScheduleUpdate(dayIndex, 'name', slot.name || '', slotIndex);
-                  handleMultiDayScheduleUpdate(dayIndex, 'startTime', slot.startTime, slotIndex);
-                  handleMultiDayScheduleUpdate(dayIndex, 'endTime', slot.endTime, slotIndex);
-                  handleMultiDayScheduleUpdate(dayIndex, 'volunteers', slot.volunteers, slotIndex);
+                  handleMultiDayScheduleUpdate(
+                    dayIndex,
+                    "name",
+                    slot.name || "",
+                    slotIndex,
+                  );
+                  handleMultiDayScheduleUpdate(
+                    dayIndex,
+                    "startTime",
+                    slot.startTime,
+                    slotIndex,
+                  );
+                  handleMultiDayScheduleUpdate(
+                    dayIndex,
+                    "endTime",
+                    slot.endTime,
+                    slotIndex,
+                  );
+                  handleMultiDayScheduleUpdate(
+                    dayIndex,
+                    "volunteers",
+                    slot.volunteers,
+                    slotIndex,
+                  );
                 }
               });
             }
           }
         });
-      } else if (data.eventType === 'sameDayMultiArea' && (data.schedule as AIScheduleSameDay).date) {
+      } else if (
+        data.eventType === "sameDayMultiArea" &&
+        (data.schedule as AIScheduleSameDay).date
+      ) {
         const schedule = data.schedule as AIScheduleSameDay;
-        handleMultiRoleScheduleUpdate('date', schedule.date);
-        if (schedule.overallStart) handleMultiRoleScheduleUpdate('overallStart', schedule.overallStart);
-        if (schedule.overallEnd) handleMultiRoleScheduleUpdate('overallEnd', schedule.overallEnd);
+        handleMultiRoleScheduleUpdate("date", schedule.date);
+        if (schedule.overallStart)
+          handleMultiRoleScheduleUpdate("overallStart", schedule.overallStart);
+        if (schedule.overallEnd)
+          handleMultiRoleScheduleUpdate("overallEnd", schedule.overallEnd);
 
         // Clear existing roles
         const currentRoles = state.schedule.sameDayMultiArea.roles.length;
@@ -430,16 +574,24 @@ export default function ProjectCreator({
         if (Array.isArray(schedule.roles)) {
           schedule.roles.forEach((role, roleIndex) => {
             if (roleIndex === 0) {
-              handleMultiRoleScheduleUpdate('name', role.name, 0);
-              handleMultiRoleScheduleUpdate('startTime', role.startTime, 0);
-              handleMultiRoleScheduleUpdate('endTime', role.endTime, 0);
-              handleMultiRoleScheduleUpdate('volunteers', role.volunteers, 0);
+              handleMultiRoleScheduleUpdate("name", role.name, 0);
+              handleMultiRoleScheduleUpdate("startTime", role.startTime, 0);
+              handleMultiRoleScheduleUpdate("endTime", role.endTime, 0);
+              handleMultiRoleScheduleUpdate("volunteers", role.volunteers, 0);
             } else {
               addRole();
-              handleMultiRoleScheduleUpdate('name', role.name, roleIndex);
-              handleMultiRoleScheduleUpdate('startTime', role.startTime, roleIndex);
-              handleMultiRoleScheduleUpdate('endTime', role.endTime, roleIndex);
-              handleMultiRoleScheduleUpdate('volunteers', role.volunteers, roleIndex);
+              handleMultiRoleScheduleUpdate("name", role.name, roleIndex);
+              handleMultiRoleScheduleUpdate(
+                "startTime",
+                role.startTime,
+                roleIndex,
+              );
+              handleMultiRoleScheduleUpdate("endTime", role.endTime, roleIndex);
+              handleMultiRoleScheduleUpdate(
+                "volunteers",
+                role.volunteers,
+                roleIndex,
+              );
             }
           });
         }
@@ -457,31 +609,31 @@ export default function ProjectCreator({
     // Apply recurrence settings
     if (data.recurrence) {
       if (data.recurrence.enabled !== undefined) {
-        updateRecurrence('enabled', data.recurrence.enabled);
+        updateRecurrence("enabled", data.recurrence.enabled);
       }
       if (data.recurrence.frequency) {
-        updateRecurrence('frequency', data.recurrence.frequency);
+        updateRecurrence("frequency", data.recurrence.frequency);
       }
       if (data.recurrence.interval !== undefined) {
-        updateRecurrence('interval', data.recurrence.interval);
+        updateRecurrence("interval", data.recurrence.interval);
       }
       if (data.recurrence.endType) {
-        updateRecurrence('endType', data.recurrence.endType);
+        updateRecurrence("endType", data.recurrence.endType);
       }
       if (data.recurrence.endDate) {
-        updateRecurrence('endDate', data.recurrence.endDate);
+        updateRecurrence("endDate", data.recurrence.endDate);
       }
       if (data.recurrence.endOccurrences !== undefined) {
-        updateRecurrence('endOccurrences', data.recurrence.endOccurrences);
+        updateRecurrence("endOccurrences", data.recurrence.endOccurrences);
       }
       if (data.recurrence.weekdays) {
-        updateRecurrence('weekdays', data.recurrence.weekdays);
+        updateRecurrence("weekdays", data.recurrence.weekdays);
       }
     }
 
     // Close AI Assistant
     setShowAIAssistant(false);
-    
+
     // Show a pointer to the location field to encourage manual verification/filling
     setShowLocationPointer(true);
   };
@@ -489,22 +641,26 @@ export default function ProjectCreator({
   // Clear errors when a field is updated
   const handleBasicInfoUpdate = (
     field: Parameters<typeof updateBasicInfo>[0],
-    value: Parameters<typeof updateBasicInfo>[1]
+    value: Parameters<typeof updateBasicInfo>[1],
   ) => {
     // Clear errors related to this field
     if (validationAttempted) {
-      setBasicInfoErrors(prev => prev.filter(error => !error.path.includes(field)));
+      setBasicInfoErrors((prev) =>
+        prev.filter((error) => !error.path.includes(field)),
+      );
     }
     updateBasicInfo(field, value);
   };
 
   const handleOneTimeScheduleUpdate = (
     field: Parameters<typeof updateOneTimeSchedule>[0],
-    value: Parameters<typeof updateOneTimeSchedule>[1]
+    value: Parameters<typeof updateOneTimeSchedule>[1],
   ) => {
     // Clear errors related to this field
     if (validationAttempted) {
-      setScheduleErrors(prev => prev.filter(error => !error.path.includes(field)));
+      setScheduleErrors((prev) =>
+        prev.filter((error) => !error.path.includes(field)),
+      );
     }
     updateOneTimeSchedule(field, value);
   };
@@ -513,16 +669,22 @@ export default function ProjectCreator({
     dayIndex: number,
     field: Parameters<typeof updateMultiDaySchedule>[1],
     value: Parameters<typeof updateMultiDaySchedule>[2],
-    slotIndex?: number
+    slotIndex?: number,
   ) => {
     // Clear errors related to this field/slot
     if (validationAttempted) {
-      setScheduleErrors(prev => prev.filter(error => {
-        if (slotIndex !== undefined) {
-          return !(error.path[0] === dayIndex && error.path[2] === slotIndex && error.path.includes(field));
-        }
-        return !(error.path[0] === dayIndex && error.path.includes(field));
-      }));
+      setScheduleErrors((prev) =>
+        prev.filter((error) => {
+          if (slotIndex !== undefined) {
+            return !(
+              error.path[0] === dayIndex &&
+              error.path[2] === slotIndex &&
+              error.path.includes(field)
+            );
+          }
+          return !(error.path[0] === dayIndex && error.path.includes(field));
+        }),
+      );
     }
     updateMultiDaySchedule(dayIndex, field, value, slotIndex);
   };
@@ -530,25 +692,39 @@ export default function ProjectCreator({
   const handleMultiRoleScheduleUpdate = (
     field: Parameters<typeof updateMultiRoleSchedule>[0],
     value: Parameters<typeof updateMultiRoleSchedule>[1],
-    roleIndex?: number
+    roleIndex?: number,
   ) => {
     // Clear errors related to this field/role
     if (validationAttempted) {
-      setScheduleErrors(prev => prev.filter(error => {
-        if (roleIndex !== undefined) {
-          return !(error.path[0] === 'roles' && error.path[1] === roleIndex && error.path.includes(field));
-        }
-        return !error.path.includes(field);
-      }));
+      setScheduleErrors((prev) =>
+        prev.filter((error) => {
+          if (roleIndex !== undefined) {
+            return !(
+              error.path[0] === "roles" &&
+              error.path[1] === roleIndex &&
+              error.path.includes(field)
+            );
+          }
+          return !error.path.includes(field);
+        }),
+      );
     }
     updateMultiRoleSchedule(field, value, roleIndex);
   };
 
-  const getUploadKey = (file: File) => `${file.name}-${file.size}-${file.lastModified}`;
+  const getUploadKey = (file: File) =>
+    `${file.name}-${file.size}-${file.lastModified}`;
 
   const getSafeExtension = (file: File) => {
-    const extensionFromName = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "");
-    const extensionFromType = file.type.split("/")[1]?.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const extensionFromName = file.name
+      .split(".")
+      .pop()
+      ?.toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+    const extensionFromType = file.type
+      .split("/")[1]
+      ?.toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
     return extensionFromName || extensionFromType || "file";
   };
 
@@ -565,7 +741,12 @@ export default function ProjectCreator({
 
     setCoverImageUploadState(coverImage ? "idle" : "idle");
     setDocumentUploadStates(
-      Object.fromEntries(documents.map((document) => [getUploadKey(document), "idle" as UploadStatus]))
+      Object.fromEntries(
+        documents.map((document) => [
+          getUploadKey(document),
+          "idle" as UploadStatus,
+        ]),
+      ),
     );
 
     if (coverImage) {
@@ -605,12 +786,18 @@ export default function ProjectCreator({
       const uploadKey = getUploadKey(document);
 
       if (!validateFileSize(document, 10 * 1024 * 1024)) {
-        setDocumentUploadStates((current) => ({ ...current, [uploadKey]: "error" }));
+        setDocumentUploadStates((current) => ({
+          ...current,
+          [uploadKey]: "error",
+        }));
         hasErrors = true;
         continue;
       }
 
-      setDocumentUploadStates((current) => ({ ...current, [uploadKey]: "uploading" }));
+      setDocumentUploadStates((current) => ({
+        ...current,
+        [uploadKey]: "uploading",
+      }));
 
       try {
         const filePath = `project_${projectId}_${uuidv4().slice(0, 8)}_${Date.now()}.${getSafeExtension(document)}`;
@@ -637,10 +824,16 @@ export default function ProjectCreator({
           url: publicUrlData.publicUrl,
         });
 
-        setDocumentUploadStates((current) => ({ ...current, [uploadKey]: "processing" }));
+        setDocumentUploadStates((current) => ({
+          ...current,
+          [uploadKey]: "processing",
+        }));
       } catch (error) {
         console.error(`Document upload failed for ${document.name}:`, error);
-        setDocumentUploadStates((current) => ({ ...current, [uploadKey]: "error" }));
+        setDocumentUploadStates((current) => ({
+          ...current,
+          [uploadKey]: "error",
+        }));
         hasErrors = true;
       }
     }
@@ -657,21 +850,29 @@ export default function ProjectCreator({
         setDocumentUploadStates((current) => {
           const next = { ...current };
           for (const document of uploadedDocuments) {
-            const matchingFile = documents.find((file) => file.name === document.name && file.size === document.size);
+            const matchingFile = documents.find(
+              (file) =>
+                file.name === document.name && file.size === document.size,
+            );
             if (matchingFile) next[getUploadKey(matchingFile)] = "error";
           }
           return next;
         });
 
         await Promise.allSettled(
-          uploadedPaths.map((item) => supabase.storage.from(item.bucket).remove([item.path]))
+          uploadedPaths.map((item) =>
+            supabase.storage.from(item.bucket).remove([item.path]),
+          ),
         );
       } else {
         if (coverImageUrl) setCoverImageUploadState("done");
         setDocumentUploadStates((current) => {
           const next = { ...current };
           for (const document of uploadedDocuments) {
-            const matchingFile = documents.find((file) => file.name === document.name && file.size === document.size);
+            const matchingFile = documents.find(
+              (file) =>
+                file.name === document.name && file.size === document.size,
+            );
             if (matchingFile) next[getUploadKey(matchingFile)] = "done";
           }
           return next;
@@ -757,14 +958,19 @@ export default function ProjectCreator({
   };
 
   // Get field error from Zod issues
-  const getFieldError = (fieldPath: string, issues: z.ZodIssue[]): string | undefined => {
+  const getFieldError = (
+    fieldPath: string,
+    issues: z.ZodIssue[],
+  ): string | undefined => {
     if (!validationAttempted) return undefined;
 
-    const error = issues.find(issue => {
+    const error = issues.find((issue) => {
       // Match exact field or field in array (e.g., "roles.0.name")
-      return issue.path.join('.') === fieldPath ||
-        issue.path.join('.').startsWith(fieldPath + '[') ||
-        issue.path.join('.').startsWith(fieldPath + '.');
+      return (
+        issue.path.join(".") === fieldPath ||
+        issue.path.join(".").startsWith(fieldPath + "[") ||
+        issue.path.join(".").startsWith(fieldPath + ".")
+      );
     });
     return error?.message;
   };
@@ -826,7 +1032,9 @@ export default function ProjectCreator({
 
       setIsSubmitting(true);
 
-      const profanityToast = toast.loading("Checking content for inappropriate language...");
+      const profanityToast = toast.loading(
+        "Checking content for inappropriate language...",
+      );
       const profanityCheck = await checkProfanity({
         title: state.basicInfo.title || "",
         location: state.basicInfo.location || "",
@@ -836,7 +1044,9 @@ export default function ProjectCreator({
 
       if (profanityCheck?.hasProfanity) {
         setHasProfanity(true);
-        toast.error("Please fix the flagged content before creating your project");
+        toast.error(
+          "Please fix the flagged content before creating your project",
+        );
         setIsSubmitting(false);
         return;
       }
@@ -882,19 +1092,26 @@ export default function ProjectCreator({
       if (state.waiverRequired && state.waiverPdfFile) {
         try {
           const waiverBase64 = await fileToBase64(state.waiverPdfFile);
-          const waiverResult = await uploadWaiverPdf(projectId, waiverBase64, state.waiverPdfFile.name);
+          const waiverResult = await uploadWaiverPdf(
+            projectId,
+            waiverBase64,
+            state.waiverPdfFile.name,
+          );
           if (waiverResult.error) {
             console.error(`Waiver PDF: ${waiverResult.error}`);
             hasErrors = true;
           }
-          
+
           // Step 4.5: Save waiver definition if configured
           if (!waiverResult.error && state.waiverDefinition) {
-             const defResult = await saveWaiverDefinition(projectId, state.waiverDefinition);
-             if (defResult.error) {
-                console.error(`Waiver Definition: ${defResult.error}`);
-                hasErrors = true;
-             }
+            const defResult = await saveWaiverDefinition(
+              projectId,
+              state.waiverDefinition,
+            );
+            if (defResult.error) {
+              console.error(`Waiver Definition: ${defResult.error}`);
+              hasErrors = true;
+            }
           }
         } catch (error) {
           console.error("Error processing waiver PDF:", error);
@@ -903,7 +1120,7 @@ export default function ProjectCreator({
       }
 
       // Step 5: Finalize project (non-blocking)
-      finalizeProject(projectId).catch(error => {
+      finalizeProject(projectId).catch((error) => {
         console.error("Error finalizing project:", error);
       });
 
@@ -913,12 +1130,15 @@ export default function ProjectCreator({
 
         // Clear local autosave tracking first so we don't attempt further updates
         setAutosaveDraftId(undefined);
-        setAutosaveStatus('idle');
+        setAutosaveStatus("idle");
         previousStateRef.current = "";
 
         const deleteResult = await deleteDraft(draftIdToDelete);
         if (deleteResult && "error" in deleteResult && deleteResult.error) {
-          console.error("Failed to delete draft after project creation:", deleteResult.error);
+          console.error(
+            "Failed to delete draft after project creation:",
+            deleteResult.error,
+          );
         }
       }
 
@@ -940,7 +1160,6 @@ export default function ProjectCreator({
       // Force a full page redirect using window.location.href instead of Next.js router
       // This ensures the page fully loads on production
       window.location.href = `/projects/${projectId}`;
-
     } catch (error) {
       console.error("Error submitting project:", error);
       toast.dismiss();
@@ -952,7 +1171,7 @@ export default function ProjectCreator({
   // Handle saving as draft - with minimal validation
   const handleSaveDraft = async () => {
     // Only require a title for drafts
-    if (!state.basicInfo.title || state.basicInfo.title.trim() === '') {
+    if (!state.basicInfo.title || state.basicInfo.title.trim() === "") {
       toast.error("Please enter a title to save as draft");
       return;
     }
@@ -985,7 +1204,6 @@ export default function ProjectCreator({
       router.refresh();
 
       setIsSavingDraft(false);
-
     } catch (error) {
       console.error("Error saving draft:", error);
       toast.dismiss();
@@ -1018,17 +1236,26 @@ export default function ProjectCreator({
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
           <div className="space-y-1">
             <h2 className="text-xl font-bold">{pluginStep.title}</h2>
-            {pluginStep.description && <p className="text-sm text-muted-foreground">{pluginStep.description}</p>}
+            {pluginStep.description && (
+              <p className="text-sm text-muted-foreground">
+                {pluginStep.description}
+              </p>
+            )}
           </div>
           <Card className="border-primary/10 shadow-sm overflow-hidden">
             <CardContent className="pt-6">
-              {React.isValidElement(pluginStep.content) 
-                ? React.cloneElement(pluginStep.content as React.ReactElement<Record<string, unknown>>, { 
-                    pluginData: state.pluginData,
-                    updatePluginData,
-                    signupFormSchema: state.signupFormSchema,
-                    updateSignupFormSchema
-                  })
+              {React.isValidElement(pluginStep.content)
+                ? React.cloneElement(
+                    pluginStep.content as React.ReactElement<
+                      Record<string, unknown>
+                    >,
+                    {
+                      pluginData: state.pluginData,
+                      updatePluginData,
+                      signupFormSchema: state.signupFormSchema,
+                      updateSignupFormSchema,
+                    },
+                  )
                 : pluginStep.content}
             </CardContent>
           </Card>
@@ -1049,7 +1276,7 @@ export default function ProjectCreator({
             errors={{
               title: getFieldError("title", basicInfoErrors),
               location: getFieldError("location", basicInfoErrors),
-              description: getFieldError("description", basicInfoErrors)
+              description: getFieldError("description", basicInfoErrors),
             }}
           />
         );
@@ -1101,24 +1328,34 @@ export default function ProjectCreator({
             restrictToOrgDomains={state.restrictToOrgDomains}
             allowedEmailDomains={
               state.basicInfo.organizationId
-                ? initialOrgOptions?.find(o => o.id === state.basicInfo.organizationId)?.allowed_email_domains
+                ? initialOrgOptions?.find(
+                    (o) => o.id === state.basicInfo.organizationId,
+                  )?.allowed_email_domains
                 : undefined
             }
             updateVerificationMethodAction={(method) => {
               if (validationAttempted) {
-                setVerificationErrors(prev => prev.filter(error => !error.path.includes('verificationMethod')));
+                setVerificationErrors((prev) =>
+                  prev.filter(
+                    (error) => !error.path.includes("verificationMethod"),
+                  ),
+                );
               }
               updateVerificationMethod(method);
             }}
             updateRequireLoginAction={(value) => {
               if (validationAttempted) {
-                setVerificationErrors(prev => prev.filter(error => !error.path.includes('requireLogin')));
+                setVerificationErrors((prev) =>
+                  prev.filter((error) => !error.path.includes("requireLogin")),
+                );
               }
               updateRequireLogin(value);
             }}
             updateVisibilityAction={(value) => {
               if (validationAttempted) {
-                setVerificationErrors(prev => prev.filter(error => !error.path.includes('visibility')));
+                setVerificationErrors((prev) =>
+                  prev.filter((error) => !error.path.includes("visibility")),
+                );
               }
               updateVisibility(value);
             }}
@@ -1132,7 +1369,10 @@ export default function ProjectCreator({
             clearWaiverPdfAction={clearWaiverPdf}
             updateRestrictToOrgDomainsAction={updateRestrictToOrgDomains}
             errors={{
-              verificationMethod: getFieldError("verificationMethod", verificationErrors)
+              verificationMethod: getFieldError(
+                "verificationMethod",
+                verificationErrors,
+              ),
             }}
           />
         );
@@ -1150,7 +1390,9 @@ export default function ProjectCreator({
                 setDocumentUploadStates((current) => {
                   const nextKeys = new Set(nextDocuments.map(getUploadKey));
                   return Object.fromEntries(
-                    Object.entries(current).filter(([key]) => nextKeys.has(key))
+                    Object.entries(current).filter(([key]) =>
+                      nextKeys.has(key),
+                    ),
                   );
                 });
               }}
@@ -1190,16 +1432,18 @@ export default function ProjectCreator({
         </div>
 
         <Progress value={progressValue} className="h-2" />
-        <div 
+        <div
           className="grid mt-2 text-xs sm:text-sm text-muted-foreground"
-          style={{ gridTemplateColumns: `repeat(${totalSteps}, minmax(0, 1fr))` }}
+          style={{
+            gridTemplateColumns: `repeat(${totalSteps}, minmax(0, 1fr))`,
+          }}
         >
           {stepLabels.map((label, index) => (
             <span
               key={`${label}-${index}`}
               className={cn(
                 "truncate text-center first:text-left last:text-right",
-                state.step === index + 1 && "font-medium text-primary"
+                state.step === index + 1 && "font-medium text-primary",
               )}
             >
               {label}
@@ -1236,21 +1480,28 @@ export default function ProjectCreator({
             {/* Save as New Draft button */}
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger render={
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    onClick={handleSaveDraft}
-                    disabled={isSubmitting || isSavingDraft || !state.basicInfo.title?.trim() || state.waiverRequired}
-                    className="h-9 w-9"
-                  >
-                    {isSavingDraft ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4" />
-                    )}
-                  </Button>
-                } />
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      onClick={handleSaveDraft}
+                      disabled={
+                        isSubmitting ||
+                        isSavingDraft ||
+                        !state.basicInfo.title?.trim() ||
+                        state.waiverRequired
+                      }
+                      className="h-9 w-9"
+                    >
+                      {isSavingDraft ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
+                    </Button>
+                  }
+                />
                 <TooltipContent>
                   <p>Save as New Draft</p>
                 </TooltipContent>
@@ -1260,27 +1511,35 @@ export default function ProjectCreator({
             {/* Autosave Status Indicator */}
             {autosaveDraftId && (
               <div className="hidden sm:flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 text-xs text-muted-foreground">
-                {autosaveStatus === 'saving' && (
+                {autosaveStatus === "saving" && (
                   <>
                     <Loader2 className="h-3 w-3 animate-spin" />
                     <span>Saving...</span>
                   </>
                 )}
-                {autosaveStatus === 'saved' && (
+                {autosaveStatus === "saved" && (
                   <>
-                    <svg className="h-3 w-3 text-success" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    <svg
+                      className="h-3 w-3 text-success"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                     <span>Saved</span>
                   </>
                 )}
-                {autosaveStatus === 'error' && (
+                {autosaveStatus === "error" && (
                   <>
                     <AlertCircle className="h-3 w-3 text-amber-600" />
                     <span>Save failed</span>
                   </>
                 )}
-                {autosaveStatus === 'idle' && (
+                {autosaveStatus === "idle" && (
                   <>
                     <div className="h-2 w-2 rounded-full bg-success" />
                     <span>Autosave on</span>
@@ -1292,13 +1551,17 @@ export default function ProjectCreator({
             {/* Continue / Create button (full) */}
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting || isSavingDraft || (state.step === finalStep && Boolean(waiverPdfRequirementError))}
+              disabled={
+                isSubmitting ||
+                isSavingDraft ||
+                (state.step === finalStep && Boolean(waiverPdfRequirementError))
+              }
               className="w-30"
             >
               {isSubmitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : state.step === finalStep ? (
-                'Create'
+                "Create"
               ) : (
                 <>
                   Continue

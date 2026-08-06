@@ -73,7 +73,8 @@ export function WaiverDefinitionList({
                   <div className="flex flex-col gap-1">
                     <span>{definition.title}</span>
                     <span className="text-xs text-muted-foreground">
-                      {definition.scope ?? "project"} • {definition.id.slice(0, 8)}
+                      {definition.scope ?? "project"} •{" "}
+                      {definition.id.slice(0, 8)}
                     </span>
                   </div>
                 </TableCell>
@@ -85,7 +86,9 @@ export function WaiverDefinitionList({
                 <TableCell>v{definition.version}</TableCell>
                 <TableCell>{signerCount}</TableCell>
                 <TableCell>{fieldCount}</TableCell>
-                <TableCell>{formatDate(definition.updated_at ?? definition.created_at)}</TableCell>
+                <TableCell>
+                  {formatDate(definition.updated_at ?? definition.created_at)}
+                </TableCell>
                 <TableCell className="text-right">
                   {definition.pdf_public_url ? (
                     <a

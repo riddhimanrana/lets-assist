@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { GripVertical } from "lucide-react"
-import { Group, Panel, Separator } from "react-resizable-panels"
+import * as React from "react";
+import { GripVertical } from "lucide-react";
+import { Group, Panel, Separator } from "react-resizable-panels";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 function ResizablePanelGroup({
   className,
@@ -15,11 +15,11 @@ function ResizablePanelGroup({
       data-slot="resizable-panel-group"
       className={cn(
         "flex h-full w-full data-[panel-group-direction=vertical]:flex-col",
-        className
+        className,
       )}
       {...props}
     />
-  )
+  );
 }
 
 function ResizablePanel({
@@ -32,7 +32,7 @@ function ResizablePanel({
       className={cn("min-w-0 min-h-0", className)}
       {...props}
     />
-  )
+  );
 }
 
 function ResizableHandle({
@@ -40,14 +40,14 @@ function ResizableHandle({
   className,
   ...props
 }: React.ComponentProps<typeof Separator> & {
-  withHandle?: boolean
+  withHandle?: boolean;
 }) {
   return (
     <Separator
       data-slot="resizable-handle"
       className={cn(
         "bg-border/80 focus-visible:ring-ring relative z-20 flex w-2 items-center justify-center cursor-col-resize after:absolute after:inset-y-0 after:left-1/2 after:w-1 after:-translate-x-1/2 focus-visible:ring-1 focus-visible:outline-hidden data-[panel-group-direction=vertical]:h-2 data-[panel-group-direction=vertical]:w-full data-[panel-group-direction=vertical]:cursor-row-resize",
-        className
+        className,
       )}
       {...props}
     >
@@ -57,7 +57,7 @@ function ResizableHandle({
         </div>
       )}
     </Separator>
-  )
+  );
 }
 
-export { ResizablePanelGroup, ResizablePanel, ResizableHandle }
+export { ResizablePanelGroup, ResizablePanel, ResizableHandle };

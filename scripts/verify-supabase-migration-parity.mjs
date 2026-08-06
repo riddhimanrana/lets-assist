@@ -8,10 +8,14 @@ const VERSION_PATTERN = /^\d{14}$/u;
 function getMigrationRows(payload) {
   const migrations = Array.isArray(payload) ? payload : payload?.migrations;
   if (!Array.isArray(migrations)) {
-    throw new Error("Supabase migration output does not contain a migrations array.");
+    throw new Error(
+      "Supabase migration output does not contain a migrations array.",
+    );
   }
   if (migrations.length === 0) {
-    throw new Error("Supabase migration output is empty; parity cannot be verified.");
+    throw new Error(
+      "Supabase migration output is empty; parity cannot be verified.",
+    );
   }
   return migrations;
 }
@@ -36,11 +40,15 @@ function compareVersionSets(label, actualVersions, expectedVersions) {
     const details = [
       missing.length ? `missing ${missing.join(", ")}` : "",
       unexpected.length ? `unexpected ${unexpected.join(", ")}` : "",
-      duplicates.length ? `duplicate ${[...new Set(duplicates)].join(", ")}` : "",
+      duplicates.length
+        ? `duplicate ${[...new Set(duplicates)].join(", ")}`
+        : "",
     ]
       .filter(Boolean)
       .join("; ");
-    throw new Error(`${label} migration set does not match tracked files: ${details}.`);
+    throw new Error(
+      `${label} migration set does not match tracked files: ${details}.`,
+    );
   }
 }
 
@@ -58,7 +66,9 @@ export function readTrackedMigrationVersions(migrationsDirectory) {
   return filenames.map((filename) => {
     const match = /^(\d{14})_[a-z0-9_]+\.sql$/u.exec(filename);
     if (!match) {
-      throw new Error(`Invalid tracked Supabase migration filename: ${filename}`);
+      throw new Error(
+        `Invalid tracked Supabase migration filename: ${filename}`,
+      );
     }
     return match[1];
   });
@@ -81,13 +91,19 @@ export function findSupabaseMigrationMismatches(payload) {
 
 export function assertSupabaseMigrationParity(payload, trackedVersions) {
   if (!Array.isArray(trackedVersions) || trackedVersions.length === 0) {
-    throw new Error("Tracked Supabase migration versions are required for parity.");
+    throw new Error(
+      "Tracked Supabase migration versions are required for parity.",
+    );
   }
   if (trackedVersions.some((version) => !VERSION_PATTERN.test(version))) {
-    throw new Error("Tracked Supabase migration versions contain an invalid timestamp.");
+    throw new Error(
+      "Tracked Supabase migration versions contain an invalid timestamp.",
+    );
   }
   if (new Set(trackedVersions).size !== trackedVersions.length) {
-    throw new Error("Tracked Supabase migration versions contain a duplicate timestamp.");
+    throw new Error(
+      "Tracked Supabase migration versions contain a duplicate timestamp.",
+    );
   }
 
   const mismatches = findSupabaseMigrationMismatches(payload);

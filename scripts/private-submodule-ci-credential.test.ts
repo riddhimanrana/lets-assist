@@ -17,9 +17,9 @@ describe("private plugin CI credential", () => {
     expect(workflow).toContain(
       "PRIVATE_SUBMODULE_SSH_KEY: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}",
     );
-    expect(occurrences("ssh-key: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}")).toBe(
-      2,
-    );
+    expect(
+      occurrences("ssh-key: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}"),
+    ).toBe(2);
     expect(occurrences("persist-credentials: false")).toBeGreaterThanOrEqual(4);
   });
 
@@ -29,7 +29,9 @@ describe("private plugin CI credential", () => {
         'echo "sha=$(git rev-parse HEAD:lib/plugins/private)" >> "$GITHUB_OUTPUT"',
       ),
     ).toBe(2);
-    expect(occurrences("repository: riddhimanrana/lets-assist-plugins")).toBe(2);
+    expect(occurrences("repository: riddhimanrana/lets-assist-plugins")).toBe(
+      2,
+    );
     expect(
       occurrences("ref: ${{ steps.private-plugin-gitlink.outputs.sha }}"),
     ).toBe(2);
@@ -43,13 +45,13 @@ describe("private plugin CI credential", () => {
         "git -C lib/plugins/private remote set-url origin https://github.com/riddhimanrana/lets-assist-plugins.git",
       ),
     ).toBe(2);
-    expect(
-      occurrences("git submodule absorbgitdirs lib/plugins/private"),
-    ).toBe(2);
+    expect(occurrences("git submodule absorbgitdirs lib/plugins/private")).toBe(
+      2,
+    );
   });
 
   test("keeps the strict detached-gitlink validation enabled", () => {
-    expect(occurrences("PRIVATE_SUBMODULE_ALLOW_DETACHED_GITLINK: '1'")).toBe(2);
+    expect(workflow).not.toContain("PRIVATE_SUBMODULE_ALLOW_DETACHED_GITLINK");
     expect(occurrences("bun run plugin:submodules:check:strict")).toBe(2);
   });
 });

@@ -35,10 +35,7 @@ export function hashEmailAliasVerificationCode(
     .digest("hex");
 }
 
-export function emailAliasHashesMatch(
-  left: string,
-  right: string,
-): boolean {
+export function emailAliasHashesMatch(left: string, right: string): boolean {
   const leftBuffer = Buffer.from(left, "hex");
   const rightBuffer = Buffer.from(right, "hex");
   return (

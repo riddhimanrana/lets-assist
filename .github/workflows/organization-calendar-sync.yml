@@ -2,7 +2,7 @@ name: Organization Calendar Sync
 
 on:
   schedule:
-    - cron: '12 * * * *' # Every hour
+    - cron: "12 * * * *" # Every hour
   workflow_dispatch:
 
 permissions:

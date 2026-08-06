@@ -2,10 +2,8 @@
 
 import { fileURLToPath } from "node:url";
 
-export const COMMITTED_PRODUCTION_SUPABASE_REF =
-  "fotdmeakexgrkronxlof";
-export const REQUIRED_PRODUCTION_CONFIRMATION =
-  `deploy-production:${COMMITTED_PRODUCTION_SUPABASE_REF}`;
+export const COMMITTED_PRODUCTION_SUPABASE_REF = "fotdmeakexgrkronxlof";
+export const REQUIRED_PRODUCTION_CONFIRMATION = `deploy-production:${COMMITTED_PRODUCTION_SUPABASE_REF}`;
 
 /**
  * Production schema mutation is manual-only and pinned to the committed project
@@ -13,7 +11,9 @@ export const REQUIRED_PRODUCTION_CONFIRMATION =
  *
  * @param {Record<string, string | undefined>} [env]
  */
-export function assertProductionSchemaDeploymentAuthorization(env = process.env) {
+export function assertProductionSchemaDeploymentAuthorization(
+  env = process.env,
+) {
   if (env.GITHUB_EVENT_NAME !== "workflow_dispatch") {
     throw new Error("Production schema deployment requires workflow_dispatch.");
   }

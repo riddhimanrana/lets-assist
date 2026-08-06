@@ -36,7 +36,7 @@ export function MiniProjectCard({
           {location}
         </span>
       </div>
-      
+
       <div className="flex flex-wrap gap-2 mb-3">
         <Badge variant="outline" className="gap-1 text-xs">
           <Calendar className="h-3 w-3" />

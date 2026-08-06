@@ -26,12 +26,12 @@ const nextConfig: NextConfig = {
   // pdfjs-dist uses browser-only APIs (DOMMatrix, Path2D, ImageData) that are unavailable
   // in the serverless bundle. Marking it external makes Next.js load it at runtime via
   // require() instead of bundling it, so instrumentation.ts polyfills apply first.
-  serverExternalPackages: ['pdfjs-dist'],
-  transpilePackages: ['la-plugin-dv-speech-debate'],
+  serverExternalPackages: ["pdfjs-dist"],
+  transpilePackages: ["la-plugin-dv-speech-debate"],
 
   experimental: {
     serverActions: {
-      bodySizeLimit: '15mb',
+      bodySizeLimit: "15mb",
     },
   },
   images: {
@@ -63,7 +63,7 @@ const nextConfig: NextConfig = {
         hostname: "localhost",
         port: "54321",
         pathname: "/**",
-      }
+      },
     ],
   },
 };

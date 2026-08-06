@@ -4,12 +4,22 @@ import { spawnSync } from "node:child_process";
 
 const repoRoot = process.cwd();
 const gitmodulesPath = join(repoRoot, ".gitmodules");
-const privateRegistryPath = join(repoRoot, "lib", "plugins", "private", "registry.ts");
+const privateRegistryPath = join(
+  repoRoot,
+  "lib",
+  "plugins",
+  "private",
+  "registry.ts",
+);
 
-const isVercelBuild = process.env.VERCEL === "1" || process.env.VERCEL === "true";
-const githubToken = process.env.GITHUB_ACCESS_TOKEN ?? process.env.PRIVATE_SUBMODULE_TOKEN;
+const isVercelBuild =
+  process.env.VERCEL === "1" || process.env.VERCEL === "true";
+const githubToken =
+  process.env.GITHUB_ACCESS_TOKEN ?? process.env.PRIVATE_SUBMODULE_TOKEN;
 const githubUsername =
-  process.env.GITHUB_USERNAME ?? process.env.PRIVATE_SUBMODULE_USERNAME ?? "x-access-token";
+  process.env.GITHUB_USERNAME ??
+  process.env.PRIVATE_SUBMODULE_USERNAME ??
+  "x-access-token";
 
 function log(message) {
   console.log(`[private-submodules] ${message}`);
@@ -31,7 +41,9 @@ function runGit(args, options = {}) {
   });
 
   if (result.status !== 0) {
-    fail(`git ${args.join(" ")} failed with exit code ${result.status ?? "unknown"}`);
+    fail(
+      `git ${args.join(" ")} failed with exit code ${result.status ?? "unknown"}`,
+    );
   }
 }
 
@@ -46,7 +58,9 @@ if (!existsSync(gitmodulesPath)) {
 }
 
 if (!githubToken) {
-  fail("Missing GITHUB_ACCESS_TOKEN (or PRIVATE_SUBMODULE_TOKEN) in the Vercel environment.");
+  fail(
+    "Missing GITHUB_ACCESS_TOKEN (or PRIVATE_SUBMODULE_TOKEN) in the Vercel environment.",
+  );
 }
 
 runGit(["submodule", "sync", "--recursive"]);
@@ -54,7 +68,10 @@ runGit(["submodule", "sync", "--recursive"]);
 // Pass credentials only to this Git process. Keeping them out of .gitmodules,
 // command arguments, and persisted Git config avoids leaking the token in
 // diffs, strict-check errors, or later build output.
-const basicCredential = Buffer.from(`${githubUsername}:${githubToken}`, "utf8").toString("base64");
+const basicCredential = Buffer.from(
+  `${githubUsername}:${githubToken}`,
+  "utf8",
+).toString("base64");
 runGit(["submodule", "update", "--init", "--recursive"], {
   env: {
     GIT_CONFIG_COUNT: "1",

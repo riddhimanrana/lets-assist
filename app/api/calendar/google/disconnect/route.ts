@@ -18,10 +18,7 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Try to parse request body, default to revoking access if no body provided
@@ -78,7 +75,7 @@ export async function POST(request: Request) {
     console.error("Error disconnecting calendar:", error);
     return NextResponse.json(
       { error: "Failed to disconnect calendar" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

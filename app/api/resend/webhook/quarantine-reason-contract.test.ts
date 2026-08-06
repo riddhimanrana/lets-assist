@@ -106,12 +106,15 @@ const rpcCallerCodes = sqlLiterals(
 ).sort();
 
 describe("quarantine reason vocabulary is identical across the route and the SQL", () => {
-  const route = require("./implementation") as typeof import("./implementation");
+  const route =
+    require("./implementation") as typeof import("./implementation");
 
   // Widened to string[] on purpose: these are compared against text parsed out of
   // the migration, which TypeScript cannot know anything about. Keeping the
   // literal union here would only prove the constant matches itself.
-  const routeCodes: string[] = [...route.CSF_ROUTE_QUARANTINE_REASON_CODES].sort();
+  const routeCodes: string[] = [
+    ...route.CSF_ROUTE_QUARANTINE_REASON_CODES,
+  ].sort();
   const rpcAuthoredCodes: string[] = [
     ...route.CSF_RPC_AUTHORED_QUARANTINE_REASON_CODES,
   ].sort();
@@ -156,7 +159,9 @@ describe("quarantine reason vocabulary is identical across the route and the SQL
     expect(routeCodes).not.toContain("unclassified_ledger_failure");
     expect(rpcCallerCodes).not.toContain("unclassified_ledger_failure");
     expect(checkCodes).not.toContain("unclassified_ledger_failure");
-    expect(route.isQuarantineReasonCode("unclassified_ledger_failure")).toBe(false);
+    expect(route.isQuarantineReasonCode("unclassified_ledger_failure")).toBe(
+      false,
+    );
   });
 
   // The declared constant is only worth something if the CALL SITES use it. This
@@ -165,9 +170,7 @@ describe("quarantine reason vocabulary is identical across the route and the SQL
   // runtime against a CHECK.
   test("every literal quarantine call site uses a code in the closed set", () => {
     const literals = [
-      ...routeSource.matchAll(
-        /quarantineAndAcknowledge\(\s*"([a-z_]+)"/g,
-      ),
+      ...routeSource.matchAll(/quarantineAndAcknowledge\(\s*"([a-z_]+)"/g),
     ].map((match) => match[1]);
 
     expect(literals.length).toBeGreaterThan(0);
@@ -185,7 +188,10 @@ describe("quarantine reason vocabulary is identical across the route and the SQL
   // transport error carrying a ledger sentence be filed as permanent.
   test("every derived permanent code is in the closed set", () => {
     const permanentFaults = [
-      { sqlstate: "23505", marker: "was already recorded with different immutable evidence" },
+      {
+        sqlstate: "23505",
+        marker: "was already recorded with different immutable evidence",
+      },
       { sqlstate: "23514", marker: "refusing to bind contradictory evidence" },
       { sqlstate: "23503", marker: "belongs to another organization" },
       { sqlstate: "23503", marker: "does not exist in this organization" },
@@ -243,7 +249,9 @@ describe("quarantine reason vocabulary is identical across the route and the SQL
 
     for (const { marker, sqlstate } of markers) {
       const raw = countOccurrences(migrationSql, marker);
-      expect(raw, `the migration no longer raises: ${marker}`).toBeGreaterThan(0);
+      expect(raw, `the migration no longer raises: ${marker}`).toBeGreaterThan(
+        0,
+      );
 
       const observed = new Set<string>();
       let mapped = 0;

@@ -92,8 +92,14 @@ type SignupRow = {
   check_out_time?: string | null;
   project_id?: string | null;
   schedule_id?: string | null;
-  profiles?: { id: string; full_name?: string | null; email?: string | null } | { id: string; full_name?: string | null; email?: string | null }[] | null;
-  anonymous_signup?: { id: string; name?: string | null; email?: string | null } | { id: string; name?: string | null; email?: string | null }[] | null;
+  profiles?:
+    | { id: string; full_name?: string | null; email?: string | null }
+    | { id: string; full_name?: string | null; email?: string | null }[]
+    | null;
+  anonymous_signup?:
+    | { id: string; name?: string | null; email?: string | null }
+    | { id: string; name?: string | null; email?: string | null }[]
+    | null;
 };
 
 export type OrganizationReportData = {
@@ -126,17 +132,24 @@ type ResolvedReportWindow = {
   monthEnd: Date;
 };
 
-const getResolvedReportWindow = (range?: ReportDateRange): ResolvedReportWindow => {
+const getResolvedReportWindow = (
+  range?: ReportDateRange,
+): ResolvedReportWindow => {
   const now = new Date();
-  const fallbackFrom = startOfMonth(subMonths(now, DEFAULT_REPORT_MONTH_WINDOW - 1));
+  const fallbackFrom = startOfMonth(
+    subMonths(now, DEFAULT_REPORT_MONTH_WINDOW - 1),
+  );
   const fallbackTo = endOfMonth(now);
 
   const parsedFrom = range?.from ? new Date(range.from) : fallbackFrom;
   const parsedTo = range?.to ? new Date(range.to) : fallbackTo;
 
-  const safeFrom = Number.isNaN(parsedFrom.getTime()) ? fallbackFrom : parsedFrom;
+  const safeFrom = Number.isNaN(parsedFrom.getTime())
+    ? fallbackFrom
+    : parsedFrom;
   const safeTo = Number.isNaN(parsedTo.getTime()) ? fallbackTo : parsedTo;
-  const [from, to] = safeFrom <= safeTo ? [safeFrom, safeTo] : [safeTo, safeFrom];
+  const [from, to] =
+    safeFrom <= safeTo ? [safeFrom, safeTo] : [safeTo, safeFrom];
 
   return {
     queryRange: {
@@ -150,14 +163,17 @@ const getResolvedReportWindow = (range?: ReportDateRange): ResolvedReportWindow 
 
 const buildMonthlyHoursSeed = (
   monthStart: Date,
-  monthEnd: Date
-): MonthlyHours[] => eachMonthOfInterval({ start: monthStart, end: monthEnd }).map((monthDate) => ({
-  month: format(monthDate, "MMM yyyy"),
-  sortKey: format(monthDate, "yyyy-MM"),
-  verified: 0,
-  pending: 0,
-  total: 0,
-}));
+  monthEnd: Date,
+): MonthlyHours[] =>
+  eachMonthOfInterval({ start: monthStart, end: monthEnd }).map(
+    (monthDate) => ({
+      month: format(monthDate, "MMM yyyy"),
+      sortKey: format(monthDate, "yyyy-MM"),
+      verified: 0,
+      pending: 0,
+      total: 0,
+    }),
+  );
 
 const buildFilename = (reportType: ReportType, range?: ReportDateRange) => {
   const today = format(new Date(), "yyyy-MM-dd");
@@ -172,7 +188,7 @@ const buildFilename = (reportType: ReportType, range?: ReportDateRange) => {
 async function buildReportDataForOrg(
   supabase: Awaited<ReturnType<typeof createClient>>,
   organizationId: string,
-  dateRange?: ReportDateRange
+  dateRange?: ReportDateRange,
 ): Promise<{ data?: OrganizationReportData; error?: string }> {
   try {
     const reportWindow = getResolvedReportWindow(dateRange);
@@ -190,7 +206,9 @@ async function buildReportDataForOrg(
     }
 
     const projectList = projects || [];
-    const projectById = new Map(projectList.map((project) => [project.id, project]));
+    const projectById = new Map(
+      projectList.map((project) => [project.id, project]),
+    );
     const projectIds = projectList.map((project) => project.id);
     if (projectIds.length === 0) {
       return {
@@ -205,7 +223,10 @@ async function buildReportDataForOrg(
             totalProjects: 0,
           },
           volunteers: [],
-          monthlyHours: buildMonthlyHoursSeed(reportWindow.monthStart, reportWindow.monthEnd),
+          monthlyHours: buildMonthlyHoursSeed(
+            reportWindow.monthStart,
+            reportWindow.monthEnd,
+          ),
           projects: [],
           updatedAt: new Date().toISOString(),
         },
@@ -215,18 +236,25 @@ async function buildReportDataForOrg(
     let certificatesQuery = supabase
       .from("certificates")
       .select(
-        "id, user_id, volunteer_name, volunteer_email, is_certified, type, issued_at, project_id, project_title, event_start, event_end, signup_id"
+        "id, user_id, volunteer_name, volunteer_email, is_certified, type, issued_at, project_id, project_title, event_start, event_end, signup_id",
       )
       .in("project_id", projectIds);
 
     certificatesQuery = certificatesQuery
-      .gte("issued_at", startOfDay(new Date(reportWindow.queryRange.from)).toISOString())
-      .lte("issued_at", endOfDay(new Date(reportWindow.queryRange.to)).toISOString());
+      .gte(
+        "issued_at",
+        startOfDay(new Date(reportWindow.queryRange.from)).toISOString(),
+      )
+      .lte(
+        "issued_at",
+        endOfDay(new Date(reportWindow.queryRange.to)).toISOString(),
+      );
 
-    const { data: certificates, error: certificatesError } = (await certificatesQuery) as {
-      data: CertificateRow[] | null;
-      error: { message: string } | null;
-    };
+    const { data: certificates, error: certificatesError } =
+      (await certificatesQuery) as {
+        data: CertificateRow[] | null;
+        error: { message: string } | null;
+      };
     if (certificatesError) {
       console.error("Failed to fetch certificates:", certificatesError);
       return { error: "Failed to load certificate hours" };
@@ -237,7 +265,7 @@ async function buildReportDataForOrg(
       .select(
         `id, user_id, anonymous_id, check_in_time, check_out_time, project_id, schedule_id,
         profiles:user_id (id, full_name, email),
-        anonymous_signup:anonymous_id (id, name, email)`
+        anonymous_signup:anonymous_id (id, name, email)`,
       )
       .in("project_id", projectIds)
       .not("check_in_time", "is", null)
@@ -253,10 +281,11 @@ async function buildReportDataForOrg(
         endOfDay(new Date(reportWindow.queryRange.to)).toISOString(),
       );
 
-    const { data: signups, error: attendanceError } = (await attendanceQuery) as {
-      data: SignupRow[] | null;
-      error: { message: string } | null;
-    };
+    const { data: signups, error: attendanceError } =
+      (await attendanceQuery) as {
+        data: SignupRow[] | null;
+        error: { message: string } | null;
+      };
     if (attendanceError) {
       console.error("Failed to fetch attendance:", attendanceError);
       return { error: "Failed to load attendance hours" };
@@ -265,11 +294,11 @@ async function buildReportDataForOrg(
     const certificateSignupIds = new Set(
       (certificates || [])
         .map((cert) => cert.signup_id)
-        .filter((id): id is string => !!id)
+        .filter((id): id is string => !!id),
     );
 
     const attendanceWithoutCertificates = (signups || []).filter(
-      (signup) => !certificateSignupIds.has(signup.id)
+      (signup) => !certificateSignupIds.has(signup.id),
     );
 
     const volunteerMap = new Map<string, VolunteerSummary>();
@@ -277,7 +306,10 @@ async function buildReportDataForOrg(
     const projectMap = new Map<string, ProjectSummary>();
     const projectVolunteerMap = new Map<string, Set<string>>();
 
-    buildMonthlyHoursSeed(reportWindow.monthStart, reportWindow.monthEnd).forEach((monthRow) => {
+    buildMonthlyHoursSeed(
+      reportWindow.monthStart,
+      reportWindow.monthEnd,
+    ).forEach((monthRow) => {
       monthlyMap.set(monthRow.sortKey, monthRow);
     });
 
@@ -313,7 +345,7 @@ async function buildReportDataForOrg(
 
     const ensureVolunteer = (
       key: string,
-      data: Partial<VolunteerSummary>
+      data: Partial<VolunteerSummary>,
     ): VolunteerSummary => {
       if (!volunteerMap.has(key)) {
         volunteerMap.set(key, {
@@ -341,7 +373,7 @@ async function buildReportDataForOrg(
 
     for (const cert of certificates || []) {
       const hours = roundHours(
-        calculateHours(cert.event_start, cert.event_end)
+        calculateHours(cert.event_start, cert.event_end),
       );
 
       const volunteerKey = cert.user_id
@@ -355,10 +387,14 @@ async function buildReportDataForOrg(
         source: cert.user_id ? "registered" : "anonymous",
       });
 
-      const projectForCert = cert.project_id ? projectById.get(cert.project_id) : null;
-      const isProjectPublished = projectForCert?.workflow_status === "published";
+      const projectForCert = cert.project_id
+        ? projectById.get(cert.project_id)
+        : null;
+      const isProjectPublished =
+        projectForCert?.workflow_status === "published";
       const isVerifiedCertificate =
-        cert.type !== "self-reported" && (Boolean(cert.project_id) || cert.is_certified || isProjectPublished);
+        cert.type !== "self-reported" &&
+        (Boolean(cert.project_id) || cert.is_certified || isProjectPublished);
 
       volunteer.totalHours += hours;
       if (isVerifiedCertificate) {
@@ -394,11 +430,13 @@ async function buildReportDataForOrg(
 
     for (const signup of attendanceWithoutCertificates) {
       const hours = roundHours(
-        calculateHours(signup.check_in_time, signup.check_out_time)
+        calculateHours(signup.check_in_time, signup.check_out_time),
       );
       if (hours <= 0) continue;
 
-      const projectForSignup = signup.project_id ? projectById.get(signup.project_id) : null;
+      const projectForSignup = signup.project_id
+        ? projectById.get(signup.project_id)
+        : null;
       const isProjectCompleted = projectForSignup?.status === "completed";
       if (!isProjectCompleted) {
         continue;
@@ -427,7 +465,8 @@ async function buildReportDataForOrg(
       volunteer.eventsAttended += 1;
       if (
         signup.check_out_time &&
-        (!volunteer.lastActivity || signup.check_out_time > volunteer.lastActivity)
+        (!volunteer.lastActivity ||
+          signup.check_out_time > volunteer.lastActivity)
       ) {
         volunteer.lastActivity = signup.check_out_time;
       }
@@ -471,13 +510,18 @@ async function buildReportDataForOrg(
       volunteerCount: projectVolunteerMap.get(project.id)?.size || 0,
     }));
 
-    const verifiedHours = volunteers.reduce((sum, v) => sum + v.verifiedHours, 0);
+    const verifiedHours = volunteers.reduce(
+      (sum, v) => sum + v.verifiedHours,
+      0,
+    );
     const pendingHours = volunteers.reduce((sum, v) => sum + v.pendingHours, 0);
 
     const metrics: ReportMetrics = {
       totalVolunteers: volunteers.length,
-      registeredVolunteers: volunteers.filter((v) => v.source === "registered").length,
-      anonymousVolunteers: volunteers.filter((v) => v.source === "anonymous").length,
+      registeredVolunteers: volunteers.filter((v) => v.source === "registered")
+        .length,
+      anonymousVolunteers: volunteers.filter((v) => v.source === "anonymous")
+        .length,
       verifiedHours: roundHours(verifiedHours),
       pendingHours: roundHours(pendingHours),
       totalHours: roundHours(verifiedHours + pendingHours),
@@ -501,7 +545,7 @@ async function buildReportDataForOrg(
 
 export async function getOrganizationReportData(
   organizationId: string,
-  dateRange?: ReportDateRange
+  dateRange?: ReportDateRange,
 ): Promise<{ data?: OrganizationReportData; error?: string }> {
   const supabase = await createClient();
 
@@ -519,7 +563,8 @@ export async function getOrganizationReportData(
       .eq("user_id", authData.id)
       .single();
 
-    const canView = membership?.role === "admin" || membership?.role === "staff";
+    const canView =
+      membership?.role === "admin" || membership?.role === "staff";
     if (!canView) {
       return { error: "Permission denied" };
     }
@@ -533,7 +578,7 @@ export async function getOrganizationReportData(
 
 export async function getOrganizationReportDataForSync(
   organizationId: string,
-  dateRange?: ReportDateRange
+  dateRange?: ReportDateRange,
 ): Promise<{ data?: OrganizationReportData; error?: string }> {
   const supabase = getAdminClient();
   return buildReportDataForOrg(supabase, organizationId, dateRange);
@@ -553,7 +598,7 @@ export async function getPublicOrganizationReportSummary(
 export async function buildOrganizationReportRows(
   organizationId: string,
   reportType: ReportType,
-  dateRange?: ReportDateRange
+  dateRange?: ReportDateRange,
 ): Promise<{ rows?: string[][]; error?: string }> {
   const report = await getOrganizationReportData(organizationId, dateRange);
   if (!report.data || report.error) {
@@ -579,7 +624,9 @@ export async function buildOrganizationReportRows(
         (volunteer.verifiedHours ?? 0).toFixed(1),
         (volunteer.pendingHours ?? 0).toFixed(1),
         volunteer.eventsAttended.toString(),
-        volunteer.lastActivity ? format(new Date(volunteer.lastActivity), "yyyy-MM-dd") : "",
+        volunteer.lastActivity
+          ? format(new Date(volunteer.lastActivity), "yyyy-MM-dd")
+          : "",
         volunteer.source === "registered" ? "Registered" : "Anonymous",
       ]),
     ];
@@ -611,12 +658,7 @@ export async function buildOrganizationReportRows(
   }
 
   const rows = [
-    [
-      "Month",
-      "Verified Hours",
-      "Pending Hours",
-      "Total Hours",
-    ],
+    ["Month", "Verified Hours", "Pending Hours", "Total Hours"],
     ...report.data.monthlyHours.map((month) => [
       month.month,
       (month.verified ?? 0).toFixed(1),
@@ -631,9 +673,12 @@ export async function buildOrganizationReportRows(
 export async function buildOrganizationReportRowsForSync(
   organizationId: string,
   reportType: ReportType,
-  dateRange?: ReportDateRange
+  dateRange?: ReportDateRange,
 ): Promise<{ rows?: string[][]; error?: string }> {
-  const report = await getOrganizationReportDataForSync(organizationId, dateRange);
+  const report = await getOrganizationReportDataForSync(
+    organizationId,
+    dateRange,
+  );
   if (!report.data || report.error) {
     return { error: report.error || "Report unavailable" };
   }
@@ -657,7 +702,9 @@ export async function buildOrganizationReportRowsForSync(
         (volunteer.verifiedHours ?? 0).toFixed(1),
         (volunteer.pendingHours ?? 0).toFixed(1),
         volunteer.eventsAttended.toString(),
-        volunteer.lastActivity ? format(new Date(volunteer.lastActivity), "yyyy-MM-dd") : "",
+        volunteer.lastActivity
+          ? format(new Date(volunteer.lastActivity), "yyyy-MM-dd")
+          : "",
         volunteer.source === "registered" ? "Registered" : "Anonymous",
       ]),
     ];
@@ -689,12 +736,7 @@ export async function buildOrganizationReportRowsForSync(
   }
 
   const rows = [
-    [
-      "Month",
-      "Verified Hours",
-      "Pending Hours",
-      "Total Hours",
-    ],
+    ["Month", "Verified Hours", "Pending Hours", "Total Hours"],
     ...report.data.monthlyHours.map((month) => [
       month.month,
       (month.verified ?? 0).toFixed(1),
@@ -709,12 +751,12 @@ export async function buildOrganizationReportRowsForSync(
 export async function exportOrganizationReport(
   organizationId: string,
   reportType: ReportType,
-  dateRange?: ReportDateRange
+  dateRange?: ReportDateRange,
 ): Promise<{ csvData?: string; error?: string; filename?: string }> {
   const { rows, error } = await buildOrganizationReportRows(
     organizationId,
     reportType,
-    dateRange
+    dateRange,
   );
 
   if (error || !rows) {

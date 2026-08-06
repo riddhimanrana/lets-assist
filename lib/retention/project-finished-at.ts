@@ -37,7 +37,8 @@ export function getProjectRetentionFinishedAt(
   for (const scheduleId of listAttendanceScheduleIds(project as Project)) {
     const window = getAttendanceScheduleWindow(project as Project, scheduleId);
     if (!window) continue;
-    latestEnd = latestEnd === null ? window.endsAt : Math.max(latestEnd, window.endsAt);
+    latestEnd =
+      latestEnd === null ? window.endsAt : Math.max(latestEnd, window.endsAt);
   }
 
   return latestEnd === null ? null : new Date(latestEnd);

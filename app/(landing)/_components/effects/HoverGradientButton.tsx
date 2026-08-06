@@ -5,21 +5,23 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { VariantProps } from "class-variance-authority";
 
-type ButtonProps = React.ComponentProps<typeof Button> & VariantProps<typeof buttonVariants>;
+type ButtonProps = React.ComponentProps<typeof Button> &
+  VariantProps<typeof buttonVariants>;
 
-export const HoverGradientButton = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, children, ...props }, ref) => {
-    return (
-      <span className="group inline-block rounded-full p-[1.5px] bg-[linear-gradient(90deg,--theme(--color-primary/60%),--theme(--color-emerald-400/60%),--theme(--color-primary/60%))] bg-size-[200%_100%] transition-[background-position,transform] duration-500 hover:bg-position-[100%_0]">
-        <Button
-          ref={ref}
-          className={cn("rounded-full px-8", className)}
-          {...props}
-        >
-          {children}
-        </Button>
-      </span>
-    );
-  }
-);
+export const HoverGradientButton = React.forwardRef<
+  HTMLButtonElement,
+  ButtonProps
+>(({ className, children, ...props }, ref) => {
+  return (
+    <span className="group inline-block rounded-full p-[1.5px] bg-[linear-gradient(90deg,--theme(--color-primary/60%),--theme(--color-emerald-400/60%),--theme(--color-primary/60%))] bg-size-[200%_100%] transition-[background-position,transform] duration-500 hover:bg-position-[100%_0]">
+      <Button
+        ref={ref}
+        className={cn("rounded-full px-8", className)}
+        {...props}
+      >
+        {children}
+      </Button>
+    </span>
+  );
+});
 HoverGradientButton.displayName = "HoverGradientButton";

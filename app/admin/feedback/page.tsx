@@ -1,7 +1,13 @@
 import { redirect } from "next/navigation";
 import { checkSuperAdmin, getAllFeedback } from "../actions";
 import { FeedbackTab } from "../components/FeedbackTab";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 
 export const metadata = {
   title: "Feedback | Admin",
@@ -10,7 +16,7 @@ export const metadata = {
 
 export default async function FeedbackPage() {
   const { isAdmin } = await checkSuperAdmin();
-  
+
   if (!isAdmin) {
     redirect("/not-found");
   }
@@ -37,7 +43,8 @@ export default async function FeedbackPage() {
         <CardHeader>
           <CardTitle>Feedback triage queue</CardTitle>
           <CardDescription>
-            Process hundreds quickly with next/previous navigation, keyboard shortcuts, and one-click approve/flag/archive actions.
+            Process hundreds quickly with next/previous navigation, keyboard
+            shortcuts, and one-click approve/flag/archive actions.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

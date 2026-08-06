@@ -59,8 +59,9 @@ export default function FAQPage() {
             Everything you want to know about Let’s Assist
           </h1>
           <p className="mx-auto max-w-3xl text-sm sm:text-base text-muted-foreground">
-            Read through the most common questions about how we support volunteers,
-            why organizations switch from SignupGenius, and what’s next after you sign up.
+            Read through the most common questions about how we support
+            volunteers, why organizations switch from SignupGenius, and what’s
+            next after you sign up.
           </p>
         </div>
 
@@ -82,7 +83,8 @@ export default function FAQPage() {
         <div className="rounded-2xl border border-border/60 bg-primary/10 p-6 text-center">
           <p className="text-sm font-medium text-primary">Still need a demo?</p>
           <p className="text-sm text-muted-foreground">
-            Chat with us or request trusted member access to pilot Let’s Assist with your team.
+            Chat with us or request trusted member access to pilot Let’s Assist
+            with your team.
           </p>
           <div className="mt-4 flex flex-wrap justify-center gap-3">
             <Link href="/trusted-member">

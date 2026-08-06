@@ -3,11 +3,7 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import {
-  CSF_ORGANIZATION_PATH,
-  CSF_PUBLIC_PATH,
-  loginAs,
-} from "./helpers";
+import { CSF_ORGANIZATION_PATH, CSF_PUBLIC_PATH, loginAs } from "./helpers";
 
 const captureGallery = process.env.CSF_CAPTURE_GALLERY === "1";
 const screenshotDir =
@@ -26,7 +22,8 @@ async function capture(page: Page, name: string) {
     .waitForFunction(
       () =>
         Array.from(document.images).every(
-          (image) => !image.offsetParent || (image.complete && image.naturalWidth > 0),
+          (image) =>
+            !image.offsetParent || (image.complete && image.naturalWidth > 0),
         ),
       undefined,
       { timeout: 5_000 },
@@ -58,15 +55,30 @@ async function openGalleryRoute(page: Page, route: string) {
 
 test.describe("sanitized DVHS CSF screenshot gallery", () => {
   test.describe.configure({ timeout: 240_000 });
-  test.skip(!captureGallery, "Set CSF_CAPTURE_GALLERY=1 to capture the gallery.");
+  test.skip(
+    !captureGallery,
+    "Set CSF_CAPTURE_GALLERY=1 to capture the gallery.",
+  );
 
   test("captures the complete officer workspace", async ({ page }) => {
     await loginAs(page, "admin");
 
     const routes = [
-      ["40-home-admin", `${CSF_ORGANIZATION_PATH}?tab=csf-overview`, "Your tasks"],
-      ["41-applications-list", `${CSF_ORGANIZATION_PATH}?tab=csf-applications`, "Review queue"],
-      ["43-members-directory", `${CSF_ORGANIZATION_PATH}?tab=csf-members`, "Current membership"],
+      [
+        "40-home-admin",
+        `${CSF_ORGANIZATION_PATH}?tab=csf-overview`,
+        "Your tasks",
+      ],
+      [
+        "41-applications-list",
+        `${CSF_ORGANIZATION_PATH}?tab=csf-applications`,
+        "Review queue",
+      ],
+      [
+        "43-members-directory",
+        `${CSF_ORGANIZATION_PATH}?tab=csf-members`,
+        "Current membership",
+      ],
       [
         "44-service-activities",
         `${CSF_ORGANIZATION_PATH}?tab=csf-activities&csf_service=opportunities`,
@@ -87,12 +99,36 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
         `${CSF_ORGANIZATION_PATH}?tab=csf-activities&csf_service=partner-clubs`,
         "Club Directory",
       ],
-      ["48-semester", `${CSF_ORGANIZATION_PATH}?tab=csf-cohorts`, "Schedule & deadlines"],
-      ["49-imports", `${CSF_ORGANIZATION_PATH}?tab=csf-imports`, "Import records"],
-      ["50-reports", `${CSF_ORGANIZATION_PATH}?tab=csf-reports`, "Semester reports"],
-      ["51-staff-access", `${CSF_ORGANIZATION_PATH}?tab=csf-staff`, "Officer roster"],
-      ["52-change-history", `${CSF_ORGANIZATION_PATH}?tab=csf-audit`, "Change history"],
-      ["53-csf-settings", `${CSF_ORGANIZATION_PATH}?tab=csf-settings`, "Settings"],
+      [
+        "48-semester",
+        `${CSF_ORGANIZATION_PATH}?tab=csf-cohorts`,
+        "Schedule & deadlines",
+      ],
+      [
+        "49-imports",
+        `${CSF_ORGANIZATION_PATH}?tab=csf-imports`,
+        "Import records",
+      ],
+      [
+        "50-reports",
+        `${CSF_ORGANIZATION_PATH}?tab=csf-reports`,
+        "Semester reports",
+      ],
+      [
+        "51-staff-access",
+        `${CSF_ORGANIZATION_PATH}?tab=csf-staff`,
+        "Officer roster",
+      ],
+      [
+        "52-change-history",
+        `${CSF_ORGANIZATION_PATH}?tab=csf-audit`,
+        "Change history",
+      ],
+      [
+        "53-csf-settings",
+        `${CSF_ORGANIZATION_PATH}?tab=csf-settings`,
+        "Settings",
+      ],
     ] as const;
 
     for (const [name, route, marker] of routes) {
@@ -131,14 +167,19 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
       { name: "tablet", width: 768, height: 1024 },
       { name: "desktop", width: 1440, height: 1000 },
     ]) {
-      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
       for (const colorScheme of ["light", "dark"] as const) {
         await page.emulateMedia({ colorScheme });
         await openGalleryRoute(
           page,
           `${CSF_ORGANIZATION_PATH}?tab=csf-overview`,
         );
-        await expect(page.getByRole("region", { name: "Your tasks" })).toBeVisible();
+        await expect(
+          page.getByRole("region", { name: "Your tasks" }),
+        ).toBeVisible();
         await capture(page, `56-home-${viewport.name}-${colorScheme}`);
       }
     }

@@ -81,18 +81,26 @@ test("tampered, early, and expired QR challenges fail closed", () => {
   );
 
   assert.deepEqual(
-    verifyAttendanceQrChallenge(created.token, {}, {
-      now: NOW - 3 * 60 * 60 * 1_000,
-      secret: SECRET,
-    }),
+    verifyAttendanceQrChallenge(
+      created.token,
+      {},
+      {
+        now: NOW - 3 * 60 * 60 * 1_000,
+        secret: SECRET,
+      },
+    ),
     { ok: false, reason: "not_active" },
   );
 
   assert.deepEqual(
-    verifyAttendanceQrChallenge(created.token, {}, {
-      now: NOW + 4 * 60 * 60 * 1_000,
-      secret: SECRET,
-    }),
+    verifyAttendanceQrChallenge(
+      created.token,
+      {},
+      {
+        now: NOW + 4 * 60 * 60 * 1_000,
+        secret: SECRET,
+      },
+    ),
     { ok: false, reason: "expired" },
   );
 });
@@ -118,10 +126,14 @@ test("presence proof is short lived and cannot be substituted with a QR token", 
     { ok: false, reason: "invalid_token" },
   );
   assert.deepEqual(
-    verifyAttendancePresence(presence.token, {}, {
-      now: NOW + 5 * 60 * 1_000,
-      secret: SECRET,
-    }),
+    verifyAttendancePresence(
+      presence.token,
+      {},
+      {
+        now: NOW + 5 * 60 * 1_000,
+        secret: SECRET,
+      },
+    ),
     { ok: false, reason: "expired" },
   );
 });

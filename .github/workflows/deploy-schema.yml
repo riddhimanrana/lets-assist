@@ -5,12 +5,12 @@ on:
     branches:
       - main
     paths:
-      - 'supabase/migrations/**'
-      - 'supabase/config.toml'
+      - "supabase/migrations/**"
+      - "supabase/config.toml"
   workflow_dispatch:
     inputs:
       production_confirmation:
-        description: 'Type deploy-production:fotdmeakexgrkronxlof to deploy from main'
+        description: "Type deploy-production:fotdmeakexgrkronxlof to deploy from main"
         required: true
         type: string
 
@@ -72,7 +72,7 @@ jobs:
           echo "✓ Validating SQL syntax..."
           # Install postgresql-client for psql syntax validation
           sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null 2>&1
-          
+
           for file in supabase/migrations/*.sql; do
             if [[ $(basename "$file") == ".gitkeep" ]]; then
               continue
@@ -281,9 +281,9 @@ jobs:
           echo ""
           supabase db push --linked --dry-run
           echo "✓ Dry-run successful, proceeding with deployment..."
-          
+
           supabase db push --linked --yes 2>&1 | tee deploy.log
-          
+
           echo ""
           echo "✓ Deployment to production completed successfully"
 

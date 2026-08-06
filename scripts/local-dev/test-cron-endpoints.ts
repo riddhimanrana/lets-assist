@@ -46,7 +46,14 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { createServer } from "node:net";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -75,7 +82,10 @@ const PROBE_HEADER = "x-lets-assist-cron-probe";
 const ROUTES = [
   { id: "auto-publish-hours", path: "/api/cron/auto-publish-hours" },
   { id: "project-cancellations", path: "/api/cron/project-cancellations" },
-  { id: "organization-calendar-sync", path: "/api/cron/organization-calendar-sync" },
+  {
+    id: "organization-calendar-sync",
+    path: "/api/cron/organization-calendar-sync",
+  },
   { id: "organization-sheet-sync", path: "/api/cron/organization-sheet-sync" },
   { id: "data-exports", path: "/api/cron/data-exports" },
 ] as const;
@@ -118,7 +128,7 @@ export function assertPortFree(port: number) {
         new Error(
           error.code === "EADDRINUSE"
             ? `Refusing to adopt a server already listening on 127.0.0.1:${port}. ` +
-              "This harness owns its server; stop the other process or set CRON_PROBE_HARNESS_PORT."
+                "This harness owns its server; stop the other process or set CRON_PROBE_HARNESS_PORT."
             : `Could not claim 127.0.0.1:${port}: ${error.message}`,
         ),
       );
@@ -168,7 +178,12 @@ function assertNoNewEgress(ledgerPath: string, before: number, label: string) {
  */
 export function buildChildEnvironment(options: {
   appEnv: Record<string, string>;
-  isolated: { basePort: number; apiPort: number; databasePort: number; smtpPort: number };
+  isolated: {
+    basePort: number;
+    apiPort: number;
+    databasePort: number;
+    smtpPort: number;
+  };
   port: number;
   secret: string;
   ledgerPath: string;
@@ -203,7 +218,9 @@ async function startOwnedServer(
 ): Promise<OwnedServer> {
   await assertPortFree(port);
 
-  console.log(`\n=== ${label}: starting one owned server on 127.0.0.1:${port} ===`);
+  console.log(
+    `\n=== ${label}: starting one owned server on 127.0.0.1:${port} ===`,
+  );
   // Next directly through Node, never `bun run dev`: a package script adds a
   // shell that re-reads a profile and a runtime that loads `.env*` files of its
   // own, which is two more ways for a shadowed value to come back.
@@ -239,10 +256,14 @@ async function startOwnedServer(
   let ready = false;
   while (Date.now() < deadline) {
     if (child.exitCode !== null) {
-      throw new Error(`${label}: owned server exited early with code ${child.exitCode}.`);
+      throw new Error(
+        `${label}: owned server exited early with code ${child.exitCode}.`,
+      );
     }
     try {
-      const response = await fetch(`${baseUrl}/api/cron/data-exports`, { method: "GET" });
+      const response = await fetch(`${baseUrl}/api/cron/data-exports`, {
+        method: "GET",
+      });
       if (response.status === 401) {
         await response.text();
         ready = true;
@@ -255,7 +276,9 @@ async function startOwnedServer(
     await wait(500);
   }
   if (!ready) {
-    throw new Error(`${label}: owned server never answered 401 on an unauthenticated cron route.`);
+    throw new Error(
+      `${label}: owned server never answered 401 on an unauthenticated cron route.`,
+    );
   }
 
   // Prove the running server is the one carrying our run-scoped secret before
@@ -285,7 +308,8 @@ export async function terminateOwnedServer(label: string, server: OwnedServer) {
   if (!pid) return;
 
   const exited = new Promise<void>((resolve) => {
-    if (server.child.exitCode !== null || server.child.signalCode !== null) resolve();
+    if (server.child.exitCode !== null || server.child.signalCode !== null)
+      resolve();
     else server.child.once("exit", () => resolve());
   });
 
@@ -311,8 +335,13 @@ export async function terminateOwnedServer(label: string, server: OwnedServer) {
   for (let attempt = 0; attempt < 20 && groupAlive(pid); attempt += 1) {
     await wait(100);
   }
-  check(!groupAlive(pid), `${label}: owned server process group ${pid} survived teardown.`);
-  console.log(`${label}: owned server process group ${pid} terminated and proven gone.`);
+  check(
+    !groupAlive(pid),
+    `${label}: owned server process group ${pid} survived teardown.`,
+  );
+  console.log(
+    `${label}: owned server process group ${pid} terminated and proven gone.`,
+  );
 }
 
 export function groupAlive(pid: number): boolean {
@@ -328,7 +357,11 @@ export function groupAlive(pid: number): boolean {
 // Serial request contract
 // ---------------------------------------------------------------------------
 
-type RequestOutcome = { status: number; body: string; contentType: string | null };
+type RequestOutcome = {
+  status: number;
+  body: string;
+  contentType: string | null;
+};
 
 async function serialRequest(
   ledgerPath: string,
@@ -371,8 +404,19 @@ async function verifyValidIdentityRoute(
   const auth = { Authorization: `Bearer ${secret}` };
   const tag = `${method} ${route.path}`;
 
-  const noAuth = await serialRequest(ledgerPath, baseUrl, route.path, method, {}, `${tag} (no auth)`);
-  equals(noAuth.status, 401, `${tag}: an unauthenticated call must take the route's real 401 path.`);
+  const noAuth = await serialRequest(
+    ledgerPath,
+    baseUrl,
+    route.path,
+    method,
+    {},
+    `${tag} (no auth)`,
+  );
+  equals(
+    noAuth.status,
+    401,
+    `${tag}: an unauthenticated call must take the route's real 401 path.`,
+  );
 
   const wrongAuth = await serialRequest(
     ledgerPath,
@@ -382,11 +426,30 @@ async function verifyValidIdentityRoute(
     { Authorization: "Bearer not-this-runs-secret" },
     `${tag} (wrong auth)`,
   );
-  equals(wrongAuth.status, 401, `${tag}: a wrong bearer must take the route's real 401 path.`);
+  equals(
+    wrongAuth.status,
+    401,
+    `${tag}: a wrong bearer must take the route's real 401 path.`,
+  );
 
-  const missingProbe = await serialRequest(ledgerPath, baseUrl, route.path, method, auth, `${tag} (no probe header)`);
-  equals(missingProbe.status, 428, `${tag}: probe mode without the probe header must fail closed with 428.`);
-  equals(missingProbe.body, probeRequiredBody(route.id), `${tag}: 428 body must be the exact probe-required shape.`);
+  const missingProbe = await serialRequest(
+    ledgerPath,
+    baseUrl,
+    route.path,
+    method,
+    auth,
+    `${tag} (no probe header)`,
+  );
+  equals(
+    missingProbe.status,
+    428,
+    `${tag}: probe mode without the probe header must fail closed with 428.`,
+  );
+  equals(
+    missingProbe.body,
+    probeRequiredBody(route.id),
+    `${tag}: 428 body must be the exact probe-required shape.`,
+  );
 
   const wrongProbe = await serialRequest(
     ledgerPath,
@@ -396,8 +459,16 @@ async function verifyValidIdentityRoute(
     { ...auth, [PROBE_HEADER]: "auth-shape-v0" },
     `${tag} (wrong probe header)`,
   );
-  equals(wrongProbe.status, 428, `${tag}: a wrong probe header must fail closed with 428.`);
-  equals(wrongProbe.body, probeRequiredBody(route.id), `${tag}: wrong-header 428 body must be exact.`);
+  equals(
+    wrongProbe.status,
+    428,
+    `${tag}: a wrong probe header must fail closed with 428.`,
+  );
+  equals(
+    wrongProbe.body,
+    probeRequiredBody(route.id),
+    `${tag}: wrong-header 428 body must be exact.`,
+  );
 
   const probed = await serialRequest(
     ledgerPath,
@@ -407,24 +478,46 @@ async function verifyValidIdentityRoute(
     { ...auth, [PROBE_HEADER]: PROBE_MODE },
     `${tag} (exact probe)`,
   );
-  equals(probed.status, 200, `${tag}: an authenticated exact probe must return 200.`);
+  equals(
+    probed.status,
+    200,
+    `${tag}: an authenticated exact probe must return 200.`,
+  );
   check(
     probed.contentType?.includes("application/json"),
     `${tag}: probe response must be JSON, received ${probed.contentType}.`,
   );
-  equals(probed.body, probeBody(route.id), `${tag}: probe body must be the exact auth-shape-v1 shape.`);
+  equals(
+    probed.body,
+    probeBody(route.id),
+    `${tag}: probe body must be the exact auth-shape-v1 shape.`,
+  );
 
   const parsed = JSON.parse(probed.body) as Record<string, unknown>;
-  equals(parsed.route, route.id, `${tag}: probe answered under the wrong stable route ID.`);
-  equals(parsed.mode, PROBE_MODE, `${tag}: probe answered under the wrong mode.`);
-  equals(parsed.dispatched, false, `${tag}: probe must report dispatched:false.`);
+  equals(
+    parsed.route,
+    route.id,
+    `${tag}: probe answered under the wrong stable route ID.`,
+  );
+  equals(
+    parsed.mode,
+    PROBE_MODE,
+    `${tag}: probe answered under the wrong mode.`,
+  );
+  equals(
+    parsed.dispatched,
+    false,
+    `${tag}: probe must report dispatched:false.`,
+  );
   equals(
     Object.keys(parsed).join(","),
     "ok,route,mode,dispatched",
     `${tag}: probe schema must be exactly ok,route,mode,dispatched.`,
   );
 
-  console.log(`  ✅ ${tag}: 401 / 401 / 428 / 428 / 200 with no dispatch and no egress`);
+  console.log(
+    `  ✅ ${tag}: 401 / 401 / 428 / 428 / 200 with no dispatch and no egress`,
+  );
 }
 
 async function verifyInvalidIdentityRoute(
@@ -437,8 +530,19 @@ async function verifyInvalidIdentityRoute(
   const auth = { Authorization: `Bearer ${secret}` };
   const tag = `${method} ${route.path}`;
 
-  const noAuth = await serialRequest(ledgerPath, baseUrl, route.path, method, {}, `${tag} (no auth, decoy)`);
-  equals(noAuth.status, 401, `${tag}: authentication must not be weakened by an invalid isolated identity.`);
+  const noAuth = await serialRequest(
+    ledgerPath,
+    baseUrl,
+    route.path,
+    method,
+    {},
+    `${tag} (no auth, decoy)`,
+  );
+  equals(
+    noAuth.status,
+    401,
+    `${tag}: authentication must not be weakened by an invalid isolated identity.`,
+  );
 
   for (const [label, headers] of [
     ["no probe header", auth],
@@ -474,14 +578,15 @@ async function verifyInvalidIdentityRoute(
 async function main() {
   // A validated isolated stack is required before anything at all starts.
   const isolated = inspectCsfIsolatedWorkDir(process.env.CSF_ISOLATED_WORK_DIR);
-  const appEnv = loadCsfIsolatedAppEnvironment(process.env.CSF_ISOLATED_WORK_DIR) as Record<
-    string,
-    string
-  >;
+  const appEnv = loadCsfIsolatedAppEnvironment(
+    process.env.CSF_ISOLATED_WORK_DIR,
+  ) as Record<string, string>;
 
   const port = Number(process.env.CRON_PROBE_HARNESS_PORT ?? "3009");
   if (!Number.isInteger(port) || port < 1024 || port > 65535) {
-    throw new Error(`CRON_PROBE_HARNESS_PORT must be an integer between 1024 and 65535, got ${port}.`);
+    throw new Error(
+      `CRON_PROBE_HARNESS_PORT must be an integer between 1024 and 65535, got ${port}.`,
+    );
   }
   const smtpPort = isolated.smtpPort;
   const secret = `csf-cron-probe-${randomBytes(24).toString("hex")}`;
@@ -512,7 +617,9 @@ async function main() {
       "csf-proof-cleanup, generate-recurring-projects, and waiver-cleanup",
   );
   console.log(`  isolated project : ${isolated.projectId}`);
-  console.log(`  isolated base    : ${isolated.basePort} (Mailpit SMTP ${smtpPort}, blocked)`);
+  console.log(
+    `  isolated base    : ${isolated.basePort} (Mailpit SMTP ${smtpPort}, blocked)`,
+  );
   console.log(`  claimed port     : 127.0.0.1:${port} (owned, never adopted)`);
   console.log(`  .env* keys shadowed: ${envFileKeys.length}`);
   console.log(`  egress ledger    : ${ledgerPath}`);
@@ -532,14 +639,23 @@ async function main() {
     // `.env*` value for a key that is `undefined`, so an explicitly empty value
     // is what makes the file's value unreachable. What must never happen is a
     // *copied* one.
-    for (const key of ["RESEND_API_KEY", "GOOGLE_CLIENT_SECRET", "STRIPE_SECRET_KEY"]) {
+    for (const key of [
+      "RESEND_API_KEY",
+      "GOOGLE_CLIENT_SECRET",
+      "STRIPE_SECRET_KEY",
+    ]) {
       equals(
         validEnv[key],
         "",
         `Child environment must shadow ${key} to empty; provider keys are never copied.`,
       );
     }
-    const phaseOne = await startOwnedServer("phase 1 (valid identity)", port, validEnv, secret);
+    const phaseOne = await startOwnedServer(
+      "phase 1 (valid identity)",
+      port,
+      validEnv,
+      secret,
+    );
     try {
       assertNoNewEgress(
         ledgerPath,
@@ -548,7 +664,13 @@ async function main() {
       );
       for (const route of ROUTES) {
         for (const method of METHODS) {
-          await verifyValidIdentityRoute(ledgerPath, phaseOne.baseUrl, route, secret, method);
+          await verifyValidIdentityRoute(
+            ledgerPath,
+            phaseOne.baseUrl,
+            route,
+            secret,
+            method,
+          );
         }
       }
     } finally {
@@ -568,11 +690,22 @@ async function main() {
       envFileKeys,
       workDirOverride: decoyWorkDir,
     });
-    const phaseTwo = await startOwnedServer("phase 2 (invalid identity)", port, decoyEnv, secret);
+    const phaseTwo = await startOwnedServer(
+      "phase 2 (invalid identity)",
+      port,
+      decoyEnv,
+      secret,
+    );
     try {
       for (const route of ROUTES) {
         for (const method of METHODS) {
-          await verifyInvalidIdentityRoute(ledgerPath, phaseTwo.baseUrl, route, secret, method);
+          await verifyInvalidIdentityRoute(
+            ledgerPath,
+            phaseTwo.baseUrl,
+            route,
+            secret,
+            method,
+          );
         }
       }
     } finally {
@@ -586,7 +719,9 @@ async function main() {
     );
   } catch (error) {
     failed = true;
-    console.error(`\n❌ ${error instanceof Error ? error.message : String(error)}`);
+    console.error(
+      `\n❌ ${error instanceof Error ? error.message : String(error)}`,
+    );
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

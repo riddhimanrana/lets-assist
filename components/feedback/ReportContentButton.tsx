@@ -28,18 +28,19 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Flag, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
-type ContentType = 'project' | 'profile' | 'comment' | 'image' | 'organization' | 'other';
+type ContentType =
+  "project" | "profile" | "comment" | "image" | "organization" | "other";
 
 type ReportReason =
-  | 'spam'
-  | 'harassment'
-  | 'inappropriate_content'
-  | 'misinformation'
-  | 'copyright'
-  | 'privacy_violation'
-  | 'violence'
-  | 'hate_speech'
-  | 'other';
+  | "spam"
+  | "harassment"
+  | "inappropriate_content"
+  | "misinformation"
+  | "copyright"
+  | "privacy_violation"
+  | "violence"
+  | "hate_speech"
+  | "other";
 
 type TriggerElementProps = {
   onClick?: (event: MouseEvent<HTMLElement>) => void;
@@ -65,15 +66,15 @@ interface ReportContentButtonProps {
 }
 
 const REPORT_REASONS: { value: ReportReason; label: string }[] = [
-  { value: 'spam', label: 'Spam or Misleading' },
-  { value: 'harassment', label: 'Harassment or Bullying' },
-  { value: 'inappropriate_content', label: 'Inappropriate Content' },
-  { value: 'misinformation', label: 'False Information' },
-  { value: 'copyright', label: 'Copyright Violation' },
-  { value: 'privacy_violation', label: 'Privacy Violation' },
-  { value: 'violence', label: 'Violence or Threats' },
-  { value: 'hate_speech', label: 'Hate Speech' },
-  { value: 'other', label: 'Other' },
+  { value: "spam", label: "Spam or Misleading" },
+  { value: "harassment", label: "Harassment or Bullying" },
+  { value: "inappropriate_content", label: "Inappropriate Content" },
+  { value: "misinformation", label: "False Information" },
+  { value: "copyright", label: "Copyright Violation" },
+  { value: "privacy_violation", label: "Privacy Violation" },
+  { value: "violence", label: "Violence or Threats" },
+  { value: "hate_speech", label: "Hate Speech" },
+  { value: "other", label: "Other" },
 ];
 
 export function ReportContentButton({
@@ -85,7 +86,7 @@ export function ReportContentButton({
   triggerButton,
   open: controlledOpen,
   onOpenChange,
-  showTrigger = true
+  showTrigger = true,
 }: ReportContentButtonProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -94,33 +95,33 @@ export function ReportContentButton({
     onOpenChange?.(newOpen);
   };
 
-  const [reason, setReason] = useState<ReportReason | ''>('');
-  const [description, setDescription] = useState('');
+  const [reason, setReason] = useState<ReportReason | "">("");
+  const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     if (!reason) {
-      toast.error('Please select a reason for your report');
+      toast.error("Please select a reason for your report");
       return;
     }
 
     if (!description.trim()) {
-      toast.error('Please provide a description');
+      toast.error("Please provide a description");
       return;
     }
 
     if (description.trim().length < 10) {
-      toast.error('Description must be at least 10 characters');
+      toast.error("Description must be at least 10 characters");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/report-content', {
-        method: 'POST',
+      const response = await fetch("/api/report-content", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           contentType,
@@ -141,57 +142,60 @@ export function ReportContentButton({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to submit report');
+        throw new Error(data.error || "Failed to submit report");
       }
 
-      toast.success('Report submitted successfully');
+      toast.success("Report submitted successfully");
 
       // Reset form and close dialog
-      setReason('');
-      setDescription('');
+      setReason("");
+      setDescription("");
       setOpen(false);
     } catch (error) {
-      console.error('Error submitting report:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to submit report');
+      console.error("Error submitting report:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to submit report",
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const triggerElement = triggerButton || !showTrigger ? (
-    isValidElement(triggerButton)
-      ? (() => {
-        const element = triggerButton as ReactElement<TriggerElementProps>;
-        return cloneElement(element, {
-          onClick: (event: MouseEvent<HTMLElement>) => {
-            event.stopPropagation(); // Prevent dropdown from closing
-            const previousOnClick = element.props.onClick;
-            previousOnClick?.(event);
-            if (event.defaultPrevented) {
-              return;
-            }
-            setOpen(true);
-          },
-          onSelect: (event: Event) => {
-            event.preventDefault(); // Prevent dropdown menu from closing
-          },
-        });
-      })()
-      : null
-  ) : (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="text-destructive hover:text-destructive"
-      onClick={(event) => {
-        event.stopPropagation();
-        setOpen(true);
-      }}
-    >
-      <Flag className="h-4 w-4 mr-2" />
-      Report
-    </Button>
-  );
+  const triggerElement =
+    triggerButton || !showTrigger ? (
+      isValidElement(triggerButton) ? (
+        (() => {
+          const element = triggerButton as ReactElement<TriggerElementProps>;
+          return cloneElement(element, {
+            onClick: (event: MouseEvent<HTMLElement>) => {
+              event.stopPropagation(); // Prevent dropdown from closing
+              const previousOnClick = element.props.onClick;
+              previousOnClick?.(event);
+              if (event.defaultPrevented) {
+                return;
+              }
+              setOpen(true);
+            },
+            onSelect: (event: Event) => {
+              event.preventDefault(); // Prevent dropdown menu from closing
+            },
+          });
+        })()
+      ) : null
+    ) : (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-destructive hover:text-destructive"
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen(true);
+        }}
+      >
+        <Flag className="h-4 w-4 mr-2" />
+        Report
+      </Button>
+    );
 
   return (
     <>
@@ -204,17 +208,23 @@ export function ReportContentButton({
               <DialogTitle>Report Content</DialogTitle>
             </div>
             <DialogDescription>
-              Help us keep our community safe by reporting inappropriate content. Your report will be reviewed by our moderation team.
+              Help us keep our community safe by reporting inappropriate
+              content. Your report will be reviewed by our moderation team.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <Field>
               <FieldLabel htmlFor="reason">Reason for Report *</FieldLabel>
-              <Select value={reason} onValueChange={(value) => setReason(value as ReportReason)}>
+              <Select
+                value={reason}
+                onValueChange={(value) => setReason(value as ReportReason)}
+              >
                 <SelectTrigger id="reason" className="w-full">
                   <SelectValue placeholder="Select a reason">
-                    {reason ? REPORT_REASONS.find(r => r.value === reason)?.label : "Select a reason"}
+                    {reason
+                      ? REPORT_REASONS.find((r) => r.value === reason)?.label
+                      : "Select a reason"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -231,7 +241,10 @@ export function ReportContentButton({
 
             <Field>
               <FieldLabel htmlFor="description">
-                Description * <span className="text-muted-foreground text-xs">(minimum 10 characters)</span>
+                Description *{" "}
+                <span className="text-muted-foreground text-xs">
+                  (minimum 10 characters)
+                </span>
               </FieldLabel>
               <Textarea
                 id="description"
@@ -251,9 +264,10 @@ export function ReportContentButton({
               <p className="font-medium mb-1">What happens next?</p>
               <ul className="list-disc list-inside space-y-1 text-xs">
                 <li>Our moderation team will review in 1-2 weeks</li>
-                <li>Appropriate action will be taken if violations are found</li>
+                <li>
+                  Appropriate action will be taken if violations are found
+                </li>
                 <li>You may receive a notification about the outcome</li>
-
               </ul>
             </div>
           </div>
@@ -270,7 +284,7 @@ export function ReportContentButton({
               onClick={handleSubmit}
               disabled={isSubmitting || !reason || !description.trim()}
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Report'}
+              {isSubmitting ? "Submitting..." : "Submit Report"}
             </Button>
           </div>
         </DialogContent>

@@ -1,11 +1,30 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Users, Shield, Download, FileSpreadsheet, UserRoundCog, Eye, Settings } from "lucide-react";
+import {
+  Users,
+  Shield,
+  Download,
+  FileSpreadsheet,
+  UserRoundCog,
+  Eye,
+  Settings,
+} from "lucide-react";
 import Link from "next/link";
 
 export function OrganizationsSection() {
@@ -33,50 +52,86 @@ export function OrganizationsSection() {
                   <AccordionTrigger>Joining Organizations</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
                     <ol className="list-decimal list-inside space-y-1">
-                      <li>Browse available organizations on the Organizations page</li>
+                      <li>
+                        Browse available organizations on the Organizations page
+                      </li>
                       <li>Request to join or use invitation code from admin</li>
                       <li>Wait for approval from organization administrator</li>
                       <li>Start participating in organization projects</li>
                     </ol>
-                    <Link href="/organization" className={cn(buttonVariants({ size: "sm", variant: "outline", className: "mt-2" }))}>Browse Organizations</Link>
+                    <Link
+                      href="/organization"
+                      className={cn(
+                        buttonVariants({
+                          size: "sm",
+                          variant: "outline",
+                          className: "mt-2",
+                        }),
+                      )}
+                    >
+                      Browse Organizations
+                    </Link>
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="org-projects">
-                  <AccordionTrigger>Organization Projects & Benefits</AccordionTrigger>
+                  <AccordionTrigger>
+                    Organization Projects & Benefits
+                  </AccordionTrigger>
                   <AccordionContent className="space-y-3 text-sm">
                     <div className="space-y-2">
-                      <h6 className="font-medium">Benefits of Organization Projects:</h6>
+                      <h6 className="font-medium">
+                        Benefits of Organization Projects:
+                      </h6>
                       <ul className="list-disc list-inside space-y-1 ml-2">
-                        <li>View organization-specific volunteer opportunities</li>
+                        <li>
+                          View organization-specific volunteer opportunities
+                        </li>
                         <li>Join team projects with other volunteers</li>
-                        <li>Automatic hour verification by organization admins</li>
+                        <li>
+                          Automatic hour verification by organization admins
+                        </li>
                         <li>Access organization resources and guidelines</li>
-                        <li>Higher credibility for school and scholarship applications</li>
+                        <li>
+                          Higher credibility for school and scholarship
+                          applications
+                        </li>
                         <li>Networking opportunities with other volunteers</li>
                       </ul>
                     </div>
                     <div className="bg-primary/10 p-3 rounded-lg">
-                      <p className="text-xs"><strong>Note:</strong> Verified organizations provide certificates with higher authenticity for academic requirements.</p>
+                      <p className="text-xs">
+                        <strong>Note:</strong> Verified organizations provide
+                        certificates with higher authenticity for academic
+                        requirements.
+                      </p>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="organization-roles">
-                  <AccordionTrigger>Understanding Organization Roles</AccordionTrigger>
+                  <AccordionTrigger>
+                    Understanding Organization Roles
+                  </AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline">Member</Badge>
-                        <span className="text-xs">Participate in projects, track hours</span>
+                        <span className="text-xs">
+                          Participate in projects, track hours
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">Staff</Badge>
-                        <span className="text-xs">Create projects, verify hours for projects they manage</span>
+                        <span className="text-xs">
+                          Create projects, verify hours for projects they manage
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="default">Admin</Badge>
-                        <span className="text-xs">Full organization management, member oversight</span>
+                        <span className="text-xs">
+                          Full organization management, member oversight
+                        </span>
                       </div>
                     </div>
                   </AccordionContent>
@@ -86,7 +141,10 @@ export function OrganizationsSection() {
                   <AccordionTrigger>Verified Organizations</AccordionTrigger>
                   <AccordionContent className="space-y-3 text-sm">
                     <div className="space-y-2">
-                      <p>Verified organizations display a green check badge throughout the platform:</p>
+                      <p>
+                        Verified organizations display a green check badge
+                        throughout the platform:
+                      </p>
                       <ul className="list-disc list-inside space-y-1 ml-2">
                         <li>On organization profile pages and cards</li>
                         <li>Next to organization names in project listings</li>
@@ -95,10 +153,19 @@ export function OrganizationsSection() {
                       </ul>
                     </div>
                     <div className="bg-primary/10 p-3 rounded-lg">
-                      <p className="text-xs"><strong>Benefits of verified status:</strong> Enhanced credibility, higher trust from volunteers, and certificates carry more weight for academic requirements.</p>
+                      <p className="text-xs">
+                        <strong>Benefits of verified status:</strong> Enhanced
+                        credibility, higher trust from volunteers, and
+                        certificates carry more weight for academic
+                        requirements.
+                      </p>
                     </div>
                     <div className="bg-muted/50 p-3 rounded-lg">
-                      <p className="text-xs"><strong>How to get verified:</strong> Contact support with organization documentation, tax-exempt status, or official registration papers.</p>
+                      <p className="text-xs">
+                        <strong>How to get verified:</strong> Contact support
+                        with organization documentation, tax-exempt status, or
+                        official registration papers.
+                      </p>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -116,17 +183,28 @@ export function OrganizationsSection() {
                   <AccordionContent className="space-y-2 text-sm">
                     <ol className="list-decimal list-inside space-y-1">
                       <li>Apply to create an organization account</li>
-                      <li>Provide organization details and verification documents</li>
+                      <li>
+                        Provide organization details and verification documents
+                      </li>
                       <li>Set up projects and volunteer opportunities</li>
                       <li>Invite volunteers to join your organization</li>
                       <li>Apply for official verification (optional)</li>
                     </ol>
-                    <Link href="/organization/create" className={cn(buttonVariants({ size: "sm", className: "mt-2" }))}>Create Organization</Link>
+                    <Link
+                      href="/organization/create"
+                      className={cn(
+                        buttonVariants({ size: "sm", className: "mt-2" }),
+                      )}
+                    >
+                      Create Organization
+                    </Link>
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="manage-volunteers">
-                  <AccordionTrigger>Managing Volunteers & Members</AccordionTrigger>
+                  <AccordionTrigger>
+                    Managing Volunteers & Members
+                  </AccordionTrigger>
                   <AccordionContent className="space-y-3 text-sm">
                     <div className="space-y-3">
                       <div>
@@ -153,28 +231,44 @@ export function OrganizationsSection() {
                 </AccordionItem>
 
                 <AccordionItem value="organization-features">
-                  <AccordionTrigger>Advanced Organization Features</AccordionTrigger>
+                  <AccordionTrigger>
+                    Advanced Organization Features
+                  </AccordionTrigger>
                   <AccordionContent className="space-y-3 text-sm">
                     <div className="grid grid-cols-1 gap-3">
                       <div className="flex items-start gap-3 p-2 border rounded">
                         <Eye className="h-4 w-4 mt-1 text-primary" />
                         <div>
-                          <h6 className="font-medium text-xs">Member Overview</h6>
-                          <p className="text-xs text-muted-foreground">View all members, their roles, hours, and activity</p>
+                          <h6 className="font-medium text-xs">
+                            Member Overview
+                          </h6>
+                          <p className="text-xs text-muted-foreground">
+                            View all members, their roles, hours, and activity
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3 p-2 border rounded">
                         <Download className="h-4 w-4 mt-1 text-primary" />
                         <div>
-                          <h6 className="font-medium text-xs">Export Member Data</h6>
-                          <p className="text-xs text-muted-foreground">Download CSV reports of member hours and participation</p>
+                          <h6 className="font-medium text-xs">
+                            Export Member Data
+                          </h6>
+                          <p className="text-xs text-muted-foreground">
+                            Download CSV reports of member hours and
+                            participation
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3 p-2 border rounded">
                         <Settings className="h-4 w-4 mt-1 text-primary" />
                         <div>
-                          <h6 className="font-medium text-xs">Organization Settings</h6>
-                          <p className="text-xs text-muted-foreground">Manage organization profile, verification, and preferences</p>
+                          <h6 className="font-medium text-xs">
+                            Organization Settings
+                          </h6>
+                          <p className="text-xs text-muted-foreground">
+                            Manage organization profile, verification, and
+                            preferences
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -200,12 +294,19 @@ export function OrganizationsSection() {
         <CardContent>
           <Accordion>
             <AccordionItem value="export-member-data">
-              <AccordionTrigger>Exporting Member Data (Admin/Staff Only)</AccordionTrigger>
+              <AccordionTrigger>
+                Exporting Member Data (Admin/Staff Only)
+              </AccordionTrigger>
               <AccordionContent className="space-y-3 text-sm">
-                <p>As an organization admin or staff member, you can export comprehensive member data:</p>
+                <p>
+                  As an organization admin or staff member, you can export
+                  comprehensive member data:
+                </p>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <h6 className="font-medium mb-2">From Organization Page:</h6>
+                    <h6 className="font-medium mb-2">
+                      From Organization Page:
+                    </h6>
                     <ol className="list-decimal list-inside space-y-1 text-xs">
                       <li>Go to your organization&apos;s page</li>
                       <li>Click on &quot;Members&quot; tab</li>
@@ -227,13 +328,19 @@ export function OrganizationsSection() {
                   </div>
                 </div>
                 <div className="bg-primary/10 p-3 rounded-lg">
-                  <p className="text-xs"><strong>Privacy Note:</strong> Member exports respect privacy settings and only include data you have permission to access.</p>
+                  <p className="text-xs">
+                    <strong>Privacy Note:</strong> Member exports respect
+                    privacy settings and only include data you have permission
+                    to access.
+                  </p>
                 </div>
               </AccordionContent>
             </AccordionItem>
 
             <AccordionItem value="member-details">
-              <AccordionTrigger>Viewing Individual Member Details</AccordionTrigger>
+              <AccordionTrigger>
+                Viewing Individual Member Details
+              </AccordionTrigger>
               <AccordionContent className="space-y-3 text-sm">
                 <p>Get detailed information about specific members:</p>
                 <ol className="list-decimal list-inside space-y-1">
@@ -244,7 +351,9 @@ export function OrganizationsSection() {
                   <li>Verify or manage their hours</li>
                 </ol>
                 <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-                  <h6 className="font-medium text-xs mb-1">Available Actions:</h6>
+                  <h6 className="font-medium text-xs mb-1">
+                    Available Actions:
+                  </h6>
                   <ul className="text-xs space-y-1">
                     <li>• View detailed hour logs and certificates</li>
                     <li>• Export individual member data</li>
@@ -256,9 +365,13 @@ export function OrganizationsSection() {
             </AccordionItem>
 
             <AccordionItem value="organization-analytics">
-              <AccordionTrigger>Organization Analytics & Overview</AccordionTrigger>
+              <AccordionTrigger>
+                Organization Analytics & Overview
+              </AccordionTrigger>
               <AccordionContent className="space-y-3 text-sm">
-                <p>Understanding your organization&apos;s impact and activity:</p>
+                <p>
+                  Understanding your organization&apos;s impact and activity:
+                </p>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <h6 className="font-medium mb-2">Overview Tab Metrics:</h6>
@@ -285,13 +398,21 @@ export function OrganizationsSection() {
             </AccordionItem>
 
             <AccordionItem value="verification-badges">
-              <AccordionTrigger>Organization Verification & Trust Badges</AccordionTrigger>
+              <AccordionTrigger>
+                Organization Verification & Trust Badges
+              </AccordionTrigger>
               <AccordionContent className="space-y-3 text-sm">
-                <p>Getting your organization verified increases trust and credibility:</p>
+                <p>
+                  Getting your organization verified increases trust and
+                  credibility:
+                </p>
                 <div className="space-y-3">
                   <div className="p-3 border rounded-lg">
                     <h6 className="font-medium text-xs mb-1 flex items-center gap-1">
-                      <Badge variant="outline" className="bg-success/5 border-success/20 text-success">
+                      <Badge
+                        variant="outline"
+                        className="bg-success/5 border-success/20 text-success"
+                      >
                         Verified
                       </Badge>
                       Organization Benefits
@@ -304,7 +425,9 @@ export function OrganizationsSection() {
                     </ul>
                   </div>
                   <div className="text-xs">
-                    <strong>How to Apply:</strong> Go to your organization settings and click &quot;Apply for Verification&quot; to submit required documentation.
+                    <strong>How to Apply:</strong> Go to your organization
+                    settings and click &quot;Apply for Verification&quot; to
+                    submit required documentation.
                   </div>
                 </div>
               </AccordionContent>

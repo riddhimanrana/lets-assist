@@ -136,12 +136,8 @@ test("organization calendar replacement is gated on the missing state", () => {
 
   const source = calendarService.slice(ensureStart, ensureEnd);
   const lookup = source.indexOf("getGoogleCalendarAccessState(");
-  const accessible = source.indexOf(
-    'if (accessState.status === "accessible")',
-  );
-  const failClosed = source.indexOf(
-    'if (accessState.status !== "missing")',
-  );
+  const accessible = source.indexOf('if (accessState.status === "accessible")');
+  const failClosed = source.indexOf('if (accessState.status !== "missing")');
   const create = source.indexOf(
     "await fetch(`${GOOGLE_CALENDAR_API}/calendars`",
   );
@@ -152,7 +148,10 @@ test("organization calendar replacement is gated on the missing state", () => {
     failClosed > accessible,
     "every non-missing failure must return before replacement",
   );
-  assert.ok(create > failClosed, "creation must follow the missing-state guard");
+  assert.ok(
+    create > failClosed,
+    "creation must follow the missing-state guard",
+  );
   assert.ok(
     source.slice(failClosed, create).includes("return null"),
     "inconclusive lookups must stop before creation",
@@ -190,19 +189,21 @@ test("personal volunteering calendar replacement is gated on the missing state",
 
   const source = calendarService.slice(ensureStart, ensureEnd);
   const lookup = source.indexOf("getGoogleCalendarAccessState(");
-  const accessible = source.indexOf(
-    'if (accessState.status === "accessible")',
-  );
-  const failClosed = source.indexOf(
-    'if (accessState.status !== "missing")',
-  );
+  const accessible = source.indexOf('if (accessState.status === "accessible")');
+  const failClosed = source.indexOf('if (accessState.status !== "missing")');
   const create = source.indexOf(
     "await fetch(`${GOOGLE_CALENDAR_API}/calendars`",
   );
 
   assert.ok(lookup >= 0, "configured personal calendars must be reconciled");
-  assert.ok(accessible > lookup, "accessible personal calendars must be preserved");
+  assert.ok(
+    accessible > lookup,
+    "accessible personal calendars must be preserved",
+  );
   assert.ok(failClosed > accessible, "ambiguous lookups must stop replacement");
-  assert.ok(create > failClosed, "creation must follow the missing-state guard");
+  assert.ok(
+    create > failClosed,
+    "creation must follow the missing-state guard",
+  );
   assert.ok(source.slice(failClosed, create).includes("return null"));
 });

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { mapWithConcurrency, readPositiveInteger } from "./map-with-concurrency";
+import {
+  mapWithConcurrency,
+  readPositiveInteger,
+} from "./map-with-concurrency";
 
 test("mapWithConcurrency caps active work and preserves result order", async () => {
   let active = 0;

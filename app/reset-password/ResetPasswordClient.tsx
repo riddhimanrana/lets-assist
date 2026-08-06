@@ -36,7 +36,9 @@ interface ResetPasswordClientProps {
   error?: string;
 }
 
-export default function ResetPasswordClient({ error }: ResetPasswordClientProps) {
+export default function ResetPasswordClient({
+  error,
+}: ResetPasswordClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const verification = useBotVerification({
@@ -91,12 +93,14 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl">Check your email</CardTitle>
             <CardDescription>
-              If an account exists with that email address, we&apos;ve sent password reset instructions.
+              If an account exists with that email address, we&apos;ve sent
+              password reset instructions.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              The email should arrive within a few minutes. Please check your spam folder if you don&apos;t see it.
+              The email should arrive within a few minutes. Please check your
+              spam folder if you don&apos;t see it.
             </p>
             <div className="space-y-2">
               <Button
@@ -124,7 +128,8 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl">Reset password</CardTitle>
           <CardDescription>
-            Enter your email address and we&apos;ll send you a link to reset your password.
+            Enter your email address and we&apos;ll send you a link to reset
+            your password.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -147,7 +152,9 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
                     {...field}
                     aria-invalid={fieldState.invalid}
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -156,7 +163,9 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
                 {!verification.isReady && (
                   <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
                     <Shield className="h-4 w-4 text-muted-foreground/80" />
-                    <span className="text-[0.7rem] font-semibold normal-case">Bot verification loading…</span>
+                    <span className="text-[0.7rem] font-semibold normal-case">
+                      Bot verification loading…
+                    </span>
                   </div>
                 )}
                 <TurnstileComponent

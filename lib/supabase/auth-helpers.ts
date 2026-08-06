@@ -8,14 +8,12 @@
  * @see https://github.com/supabase/supabase/issues/40985
  */
 
-import { createClient } from './server';
-import type { AuthUser } from './types';
-import type { AuthError } from '@supabase/supabase-js';
-import {
-  type MfaListFactorsLike,
-} from '@/lib/auth/mfa';
-import { resolveMfaSessionState } from '@/lib/auth/mfa-session-state';
-import { isStaleSupabaseAuthUserError } from '@/lib/supabase/auth-errors';
+import { createClient } from "./server";
+import type { AuthUser } from "./types";
+import type { AuthError } from "@supabase/supabase-js";
+import { type MfaListFactorsLike } from "@/lib/auth/mfa";
+import { resolveMfaSessionState } from "@/lib/auth/mfa-session-state";
+import { isStaleSupabaseAuthUserError } from "@/lib/supabase/auth-errors";
 
 export type AuthResult = {
   user: AuthUser | null;
@@ -46,9 +44,9 @@ async function sessionRequiresMfa(
     factorsError,
   });
 
-  if (mfaState.lookupError && process.env.NODE_ENV === 'development') {
+  if (mfaState.lookupError && process.env.NODE_ENV === "development") {
     console.warn(
-      '[AuthHelpers] MFA assurance lookup failed:',
+      "[AuthHelpers] MFA assurance lookup failed:",
       mfaState.lookupError.message,
     );
   }
@@ -91,13 +89,12 @@ async function sessionRequiresMfa(
  * }
  * // Proceed with password change, email change, or account deletion
  */
-export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthResult> {
+export async function getAuthUser(
+  options?: GetAuthUserOptions,
+): Promise<AuthResult> {
   const supabase = await createClient();
 
-  const returnUser = (
-    user: AuthUser,
-    requiresMfa = false,
-  ): AuthResult => ({
+  const returnUser = (user: AuthUser, requiresMfa = false): AuthResult => ({
     user,
     error: null,
     ...(requiresMfa ? { requiresMfa: true } : {}),
@@ -105,7 +102,10 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
 
   if (options?.sensitive) {
     // Use getUser() for sensitive operations - makes API call for fresh data
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
     if (error) {
       if (isStaleSupabaseAuthUserError(error)) {
@@ -264,7 +264,9 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
  *   return { success: !error };
  * }
  */
-export async function requireAuth(options?: { sensitive?: boolean }): Promise<AuthUser> {
+export async function requireAuth(options?: {
+  sensitive?: boolean;
+}): Promise<AuthUser> {
   const { user, error } = await getAuthUser(options);
 
   if (error) {
@@ -272,7 +274,7 @@ export async function requireAuth(options?: { sensitive?: boolean }): Promise<Au
   }
 
   if (!user) {
-    throw new Error('Unauthorized: No active session');
+    throw new Error("Unauthorized: No active session");
   }
 
   return user;

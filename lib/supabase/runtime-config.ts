@@ -35,7 +35,10 @@ export function getBrowserSupabaseRuntimeConfig(): SupabaseRuntimeConfig {
     return fallback;
   }
 
-  if (process.env.NODE_ENV !== "development" || !isLocalDevHost(window.location.hostname)) {
+  if (
+    process.env.NODE_ENV !== "development" ||
+    !isLocalDevHost(window.location.hostname)
+  ) {
     return fallback;
   }
 
@@ -58,7 +61,9 @@ export function getBrowserSupabaseRuntimeConfig(): SupabaseRuntimeConfig {
   return fallback;
 }
 
-export function getServerSupabaseRuntimeConfig(sourceFromCookie?: string): SupabaseRuntimeConfig {
+export function getServerSupabaseRuntimeConfig(
+  sourceFromCookie?: string,
+): SupabaseRuntimeConfig {
   const fallback = getDefaultConfig();
 
   if (process.env.NODE_ENV !== "development") {

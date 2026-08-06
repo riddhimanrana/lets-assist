@@ -43,11 +43,11 @@ export function ReportLayoutCustomizer({
   onReset,
 }: ReportLayoutCustomizerProps) {
   const [layout, setLayout] = React.useState<ReportLayoutConfig>(
-    currentLayout || getDefaultLayout(reportType)
+    currentLayout || getDefaultLayout(reportType),
   );
   const availableColumns = React.useMemo(
     () => DEFAULT_COLUMNS[reportType],
-    [reportType]
+    [reportType],
   );
   const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
   const [showResetDialog, setShowResetDialog] = React.useState(false);
@@ -65,13 +65,12 @@ export function ReportLayoutCustomizer({
   const handleToggleColumn = (columnKey: string) => {
     const updated = {
       ...layout,
-      columns:
-        layout.columns.some((c) => c.key === columnKey)
-          ? layout.columns.filter((c) => c.key !== columnKey)
-          : [
-              ...layout.columns,
-              availableColumns.find((c) => c.key === columnKey)!,
-            ],
+      columns: layout.columns.some((c) => c.key === columnKey)
+        ? layout.columns.filter((c) => c.key !== columnKey)
+        : [
+            ...layout.columns,
+            availableColumns.find((c) => c.key === columnKey)!,
+          ],
     };
     setLayout(updated);
     onLayoutChange(updated);
@@ -119,7 +118,9 @@ export function ReportLayoutCustomizer({
           <Label className="text-base font-semibold">Layout Orientation</Label>
           <div className="flex gap-2">
             <Button
-              variant={layout.orientation === "horizontal" ? "default" : "outline"}
+              variant={
+                layout.orientation === "horizontal" ? "default" : "outline"
+              }
               size="sm"
               onClick={() => handleOrientationChange("horizontal")}
               disabled={isLoading}
@@ -128,7 +129,9 @@ export function ReportLayoutCustomizer({
               Horizontal (Traditional)
             </Button>
             <Button
-              variant={layout.orientation === "vertical" ? "default" : "outline"}
+              variant={
+                layout.orientation === "vertical" ? "default" : "outline"
+              }
               size="sm"
               onClick={() => handleOrientationChange("vertical")}
               disabled={isLoading}
@@ -194,7 +197,9 @@ export function ReportLayoutCustomizer({
                       <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab active:cursor-grabbing" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{column.label}</p>
-                        <p className="text-xs text-muted-foreground">{column.key}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {column.key}
+                        </p>
                       </div>
                       <Button
                         variant="ghost"
@@ -229,9 +234,15 @@ export function ReportLayoutCustomizer({
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{column.label}</p>
-                        <p className="text-xs text-muted-foreground">{column.key}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {column.key}
+                        </p>
                       </div>
-                      {isSelected && <span className="text-xs font-medium text-primary">Added</span>}
+                      {isSelected && (
+                        <span className="text-xs font-medium text-primary">
+                          Added
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -247,12 +258,15 @@ export function ReportLayoutCustomizer({
           <AlertDialogHeader>
             <AlertDialogTitle>Reset Layout?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will restore the default layout with all original columns in their default order.
+              This will restore the default layout with all original columns in
+              their default order.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleReset}>Reset Layout</AlertDialogAction>
+            <AlertDialogAction onClick={handleReset}>
+              Reset Layout
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

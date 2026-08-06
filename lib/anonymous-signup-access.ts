@@ -17,7 +17,9 @@ export function normalizeAnonymousSignupToken(token?: string | null) {
   return normalized && normalized.length > 0 ? normalized : null;
 }
 
-export async function getAnonymousSignupAccessRecord<T extends object = AnonymousSignupAccessRecord>(params: {
+export async function getAnonymousSignupAccessRecord<
+  T extends object = AnonymousSignupAccessRecord,
+>(params: {
   anonymousSignupId: string;
   token?: string | null;
   columns?: string;
@@ -44,7 +46,10 @@ export async function getAnonymousSignupAccessRecord<T extends object = Anonymou
 
   if (error) {
     console.error("Error validating anonymous signup token access:", error);
-    return { data: null as T | null, error: "Failed to validate anonymous access" };
+    return {
+      data: null as T | null,
+      error: "Failed to validate anonymous access",
+    };
   }
 
   if (!data) {

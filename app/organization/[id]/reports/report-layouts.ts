@@ -120,13 +120,16 @@ export function getDefaultLayout(reportType: ReportType): ReportLayoutConfig {
 // Extract data value from volunteer/project/month based on column key
 export function extractColumnValue(
   item: VolunteerItem | ProjectItem | MonthlyItem,
-  columnKey: ColumnKey
+  columnKey: ColumnKey,
 ): string {
   // Type guards for stricter typing
   const isVolunteer = (i: unknown): i is VolunteerItem =>
     typeof i === "object" && i !== null && "name" in i && "email" in i;
   const isProject = (i: unknown): i is ProjectItem =>
-    typeof i === "object" && i !== null && "title" in i && "volunteerCount" in i;
+    typeof i === "object" &&
+    i !== null &&
+    "title" in i &&
+    "volunteerCount" in i;
   const isMonthly = (i: unknown): i is MonthlyItem =>
     typeof i === "object" && i !== null && "month" in i && "verified" in i;
 
@@ -208,7 +211,7 @@ export function buildRowsWithLayout(
     projects?: ProjectItem[];
     monthlyHours?: MonthlyItem[];
   },
-  layout: ReportLayoutConfig
+  layout: ReportLayoutConfig,
 ): string[][] {
   if (layout.orientation === "horizontal") {
     return buildHorizontalLayout(reportData, layout);
@@ -223,7 +226,7 @@ function buildHorizontalLayout(
     projects?: ProjectItem[];
     monthlyHours?: MonthlyItem[];
   },
-  layout: ReportLayoutConfig
+  layout: ReportLayoutConfig,
 ): string[][] {
   const rows: string[][] = [];
 
@@ -234,20 +237,23 @@ function buildHorizontalLayout(
   if (layout.reportType === "member-hours" && reportData.volunteers) {
     rows.push(
       ...reportData.volunteers.map((volunteer) =>
-        layout.columns.map((col) => extractColumnValue(volunteer, col.key))
-      )
+        layout.columns.map((col) => extractColumnValue(volunteer, col.key)),
+      ),
     );
   } else if (layout.reportType === "project-summary" && reportData.projects) {
     rows.push(
       ...reportData.projects.map((project) =>
-        layout.columns.map((col) => extractColumnValue(project, col.key))
-      )
+        layout.columns.map((col) => extractColumnValue(project, col.key)),
+      ),
     );
-  } else if (layout.reportType === "monthly-summary" && reportData.monthlyHours) {
+  } else if (
+    layout.reportType === "monthly-summary" &&
+    reportData.monthlyHours
+  ) {
     rows.push(
       ...reportData.monthlyHours.map((month) =>
-        layout.columns.map((col) => extractColumnValue(month, col.key))
-      )
+        layout.columns.map((col) => extractColumnValue(month, col.key)),
+      ),
     );
   }
 
@@ -260,7 +266,7 @@ function buildVerticalLayout(
     projects?: ProjectItem[];
     monthlyHours?: MonthlyItem[];
   },
-  layout: ReportLayoutConfig
+  layout: ReportLayoutConfig,
 ): string[][] {
   const rows: string[][] = [];
   const dataItems =
@@ -299,11 +305,11 @@ export function validateLayout(layout: ReportLayoutConfig): {
 
   const validKeys = DEFAULT_COLUMNS[layout.reportType].map((col) => col.key);
   const invalidColumns = layout.columns.filter(
-    (col) => !validKeys.includes(col.key)
+    (col) => !validKeys.includes(col.key),
   );
   if (invalidColumns.length > 0) {
     errors.push(
-      `Invalid columns for ${layout.reportType}: ${invalidColumns.map((c) => c.key).join(", ")}`
+      `Invalid columns for ${layout.reportType}: ${invalidColumns.map((c) => c.key).join(", ")}`,
     );
   }
 

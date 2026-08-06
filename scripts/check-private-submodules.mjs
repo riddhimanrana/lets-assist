@@ -4,8 +4,9 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const repoRoot = process.cwd();
-const strict = process.argv.includes("--strict") || process.env.PRIVATE_SUBMODULE_STRICT === "1";
-const allowDetachedGitlink = process.env.PRIVATE_SUBMODULE_ALLOW_DETACHED_GITLINK === "1";
+const strict =
+  process.argv.includes("--strict") ||
+  process.env.PRIVATE_SUBMODULE_STRICT === "1";
 const expectedPath = "lib/plugins/private";
 const expectedBranch = process.env.PRIVATE_PLUGINS_BRANCH ?? "development";
 const expectedUrl = "https://github.com/riddhimanrana/lets-assist-plugins.git";
@@ -52,22 +53,43 @@ function requireGit(args, options = {}) {
 if (!existsSync(join(repoRoot, ".gitmodules"))) {
   fail("Missing .gitmodules. Private plugin submodule metadata is required.");
 } else {
-  const pathResult = requireGit(["config", "--file", ".gitmodules", "--get", "submodule.lib/plugins/private.path"]);
-  const urlResult = requireGit(["config", "--file", ".gitmodules", "--get", "submodule.lib/plugins/private.url"]);
+  const pathResult = requireGit([
+    "config",
+    "--file",
+    ".gitmodules",
+    "--get",
+    "submodule.lib/plugins/private.path",
+  ]);
+  const urlResult = requireGit([
+    "config",
+    "--file",
+    ".gitmodules",
+    "--get",
+    "submodule.lib/plugins/private.url",
+  ]);
 
   if (pathResult.stdout !== expectedPath) {
-    fail(`Expected submodule path ${expectedPath}, found ${pathResult.stdout || "<empty>"}.`);
+    fail(
+      `Expected submodule path ${expectedPath}, found ${pathResult.stdout || "<empty>"}.`,
+    );
   }
 
   if (urlResult.stdout !== expectedUrl) {
-    fail(`Expected private plugin remote ${expectedUrl}, found ${urlResult.stdout || "<empty>"}.`);
+    fail(
+      `Expected private plugin remote ${expectedUrl}, found ${urlResult.stdout || "<empty>"}.`,
+    );
   }
 }
 
 if (!existsSync(submodulePath)) {
   fail(`Missing private plugin submodule directory: ${expectedPath}`);
-} else if (!existsSync(join(submodulePath, ".git")) && !existsSync(join(submodulePath, ".git", "HEAD"))) {
-  fail(`Private plugin submodule is not initialized at ${expectedPath}. Run git submodule update --init --recursive.`);
+} else if (
+  !existsSync(join(submodulePath, ".git")) &&
+  !existsSync(join(submodulePath, ".git", "HEAD"))
+) {
+  fail(
+    `Private plugin submodule is not initialized at ${expectedPath}. Run git submodule update --init --recursive.`,
+  );
 }
 
 if (!existsSync(registryPath)) {
@@ -77,7 +99,10 @@ if (!existsSync(registryPath)) {
 const status = requireGit(["submodule", "status", "--recursive"]);
 const privateStatusLine = status.stdout
   .split("\n")
-  .find((line) => line.includes(` ${expectedPath} `) || line.endsWith(` ${expectedPath}`));
+  .find(
+    (line) =>
+      line.includes(` ${expectedPath} `) || line.endsWith(` ${expectedPath}`),
+  );
 
 if (!privateStatusLine) {
   fail(`git submodule status did not include ${expectedPath}.`);
@@ -97,38 +122,63 @@ if (existsSync(submodulePath)) {
   const indexResult = requireGit(["ls-files", "-s", expectedPath]);
   const indexCommit = indexResult.stdout.split(/\s+/)[1] ?? "";
 
-  if (strict && headResult.stdout && indexCommit && indexCommit !== headResult.stdout) {
+  if (
+    strict &&
+    headResult.stdout &&
+    indexCommit &&
+    indexCommit !== headResult.stdout
+  ) {
     fail(
       `${expectedPath} index gitlink ${indexCommit} does not match checked-out submodule HEAD ${headResult.stdout}. Stage the submodule gitlink with \`git add ${expectedPath}\` before publishing.`,
     );
   }
 
-  const remoteResult = requireGit(["remote", "get-url", "origin"], { cwd: submodulePath });
+  const remoteResult = requireGit(["remote", "get-url", "origin"], {
+    cwd: submodulePath,
+  });
   if (remoteResult.stdout !== expectedUrl) {
-    fail(`Expected ${expectedPath} origin ${expectedUrl}, found ${remoteResult.stdout || "<empty>"}.`);
+    fail(
+      `Expected ${expectedPath} origin ${expectedUrl}, found ${remoteResult.stdout || "<empty>"}.`,
+    );
   }
 
-  const branchResult = requireGit(["branch", "--show-current"], { cwd: submodulePath });
+  const branchResult = requireGit(["branch", "--show-current"], {
+    cwd: submodulePath,
+  });
   const isDetached = branchResult.ok && !branchResult.stdout;
-  if (branchResult.stdout !== expectedBranch && !(allowDetachedGitlink && isDetached)) {
+  const isExactDetachedGitlink =
+    isDetached && indexCommit === headResult.stdout;
+  if (branchResult.stdout !== expectedBranch && !isExactDetachedGitlink) {
     const message = `Expected ${expectedPath} branch ${expectedBranch}, found ${branchResult.stdout || "detached HEAD"}.`;
     if (strict) fail(message);
     else warn(message);
-  } else if (allowDetachedGitlink && isDetached) {
-    log(`${expectedPath} is detached at the exact committed gitlink, as expected in CI.`);
+  } else if (isExactDetachedGitlink) {
+    log(
+      `${expectedPath} is detached at the exact committed gitlink, as expected in CI.`,
+    );
   }
 
-  const porcelain = requireGit(["status", "--porcelain"], { cwd: submodulePath });
+  const porcelain = requireGit(["status", "--porcelain"], {
+    cwd: submodulePath,
+  });
   if (porcelain.stdout) {
     const message = `${expectedPath} has uncommitted changes:\n${porcelain.stdout}`;
     if (strict) fail(message);
     else warn(message);
   }
 
-  if (!(allowDetachedGitlink && isDetached)) {
-    const aheadBehind = git(["rev-list", "--left-right", "--count", `origin/${expectedBranch}...HEAD`], {
-      cwd: submodulePath,
-    });
+  if (!isExactDetachedGitlink) {
+    const aheadBehind = git(
+      [
+        "rev-list",
+        "--left-right",
+        "--count",
+        `origin/${expectedBranch}...HEAD`,
+      ],
+      {
+        cwd: submodulePath,
+      },
+    );
     if (aheadBehind.ok) {
       const [behind = "0", ahead = "0"] = aheadBehind.stdout.split(/\s+/);
       if (ahead !== "0" || behind !== "0") {
@@ -137,7 +187,9 @@ if (existsSync(submodulePath)) {
         else warn(message);
       }
     } else {
-      warn(`Could not compare ${expectedPath} against origin/${expectedBranch}: ${aheadBehind.stderr || aheadBehind.status}`);
+      warn(
+        `Could not compare ${expectedPath} against origin/${expectedBranch}: ${aheadBehind.stderr || aheadBehind.status}`,
+      );
     }
   }
 }

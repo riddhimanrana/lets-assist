@@ -41,8 +41,14 @@ import {
  */
 
 const repositoryRoot = process.cwd();
-const harnessPath = join(repositoryRoot, "scripts/local-dev/test-cron-endpoints.ts");
-const guardPath = join(repositoryRoot, "scripts/local-dev/cron-egress-guard.cjs");
+const harnessPath = join(
+  repositoryRoot,
+  "scripts/local-dev/test-cron-endpoints.ts",
+);
+const guardPath = join(
+  repositoryRoot,
+  "scripts/local-dev/cron-egress-guard.cjs",
+);
 const harnessSource = readFileSync(harnessPath, "utf8");
 
 const temporaryDirectories: string[] = [];
@@ -61,7 +67,8 @@ afterAll(() => {
 
 function resolveNodeExecutable() {
   const resolved = Bun.which("node");
-  if (!resolved) throw new Error("a real node executable is required for these tests");
+  if (!resolved)
+    throw new Error("a real node executable is required for these tests");
   return resolved;
 }
 
@@ -78,8 +85,17 @@ function createValidatedStack() {
   chmodSync(directory, 0o700);
   mkdirSync(join(directory, "supabase"), { mode: 0o700 });
   const projectId = "lets-assist-csf-browser-cron-test";
-  const [shadow, api, database, studio, inbucket, smtp, inspector, analytics, pooler] =
-    PORT_OFFSETS.map((offset) => BASE_PORT + offset);
+  const [
+    shadow,
+    api,
+    database,
+    studio,
+    inbucket,
+    smtp,
+    inspector,
+    analytics,
+    pooler,
+  ] = PORT_OFFSETS.map((offset) => BASE_PORT + offset);
 
   const config = [
     `project_id = "${projectId}"`,
@@ -111,7 +127,9 @@ function createValidatedStack() {
     "enabled = false",
     "",
   ].join("\n");
-  writeFileSync(join(directory, "supabase", "config.toml"), config, { mode: 0o600 });
+  writeFileSync(join(directory, "supabase", "config.toml"), config, {
+    mode: 0o600,
+  });
 
   const marker = [
     "state=ready",
@@ -122,7 +140,9 @@ function createValidatedStack() {
     `db_volume_project_label=${projectId}`,
     "",
   ].join("\n");
-  writeFileSync(join(directory, ".lets-assist-csf-isolated-stack"), marker, { mode: 0o600 });
+  writeFileSync(join(directory, ".lets-assist-csf-isolated-stack"), marker, {
+    mode: 0o600,
+  });
 
   const appEnv: Record<string, string> = {
     API_URL: `http://127.0.0.1:${api}`,
@@ -217,7 +237,9 @@ describe("the harness owns its server and refuses an occupied port", () => {
     // log is what makes "never spawns a server" a checked fact.
     writeFileSync(
       join(fakeBin, "bun"),
-      ["#!/bin/sh", `printf "%s\\n" "$*" >> "${spawnLog}"`, "exit 0", ""].join("\n"),
+      ["#!/bin/sh", `printf "%s\\n" "$*" >> "${spawnLog}"`, "exit 0", ""].join(
+        "\n",
+      ),
       { mode: 0o700 },
     );
 
@@ -235,7 +257,9 @@ describe("the harness owns its server and refuses an occupied port", () => {
 
     const output = `${result.stdout.toString()}\n${result.stderr.toString()}`;
     expect(result.exitCode).not.toBe(0);
-    expect(output).toContain("Refusing to adopt a server already listening on 127.0.0.1:");
+    expect(output).toContain(
+      "Refusing to adopt a server already listening on 127.0.0.1:",
+    );
     expect(existsSync(spawnLog)).toBe(false);
   }, 60_000);
 
@@ -280,9 +304,16 @@ describe("owned servers are terminated as a whole process group", () => {
       { mode: 0o700 },
     );
 
-    const child = spawn("/bin/sh", [script], { detached: true, stdio: "ignore" });
+    const child = spawn("/bin/sh", [script], {
+      detached: true,
+      stdio: "ignore",
+    });
     const pid = child.pid!;
-    for (let attempt = 0; attempt < 100 && !existsSync(grandchildMarker); attempt += 1) {
+    for (
+      let attempt = 0;
+      attempt < 100 && !existsSync(grandchildMarker);
+      attempt += 1
+    ) {
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     const grandchildPid = Number(readFileSync(grandchildMarker, "utf8").trim());
@@ -304,10 +335,14 @@ describe("owned servers are terminated as a whole process group", () => {
   }, 60_000);
 
   test("teardown is idempotent and does not throw once the group is gone", async () => {
-    const child = spawn("/bin/sh", ["-c", "exit 0"], { detached: true, stdio: "ignore" });
+    const child = spawn("/bin/sh", ["-c", "exit 0"], {
+      detached: true,
+      stdio: "ignore",
+    });
     await new Promise((resolve) => child.once("exit", resolve));
-    await expect(terminateOwnedServer("already gone", { child, baseUrl: "" })).resolves
-      .toBeUndefined();
+    await expect(
+      terminateOwnedServer("already gone", { child, baseUrl: "" }),
+    ).resolves.toBeUndefined();
   }, 30_000);
 });
 
@@ -318,7 +353,9 @@ describe("owned servers are terminated as a whole process group", () => {
 describe("the child environment is a positive allowlist", () => {
   const stack = createValidatedStack();
 
-  function build(overrides: Parameters<typeof buildChildEnvironment>[0] | null = null) {
+  function build(
+    overrides: Parameters<typeof buildChildEnvironment>[0] | null = null,
+  ) {
     return buildChildEnvironment(
       overrides ?? {
         appEnv: stack.appEnv,
@@ -335,8 +372,19 @@ describe("the child environment is a positive allowlist", () => {
     const childEnv = build();
     const expected = new Set([
       // OS/runtime, only those actually present in this process
-      ...["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "USER", "SHELL", "TERM"].filter(
-        (key) => typeof process.env[key] === "string" && process.env[key] !== "",
+      ...[
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "LANG",
+        "LC_ALL",
+        "TZ",
+        "USER",
+        "SHELL",
+        "TERM",
+      ].filter(
+        (key) =>
+          typeof process.env[key] === "string" && process.env[key] !== "",
       ),
       // validated isolated app environment
       ...Object.keys(stack.appEnv),
@@ -380,9 +428,15 @@ describe("the child environment is a positive allowlist", () => {
     const cronChild = build();
     // Declared as SMTP, never allowed: "the mail went to Mailpit" must not be
     // able to stand in for "no provider was contacted".
-    expect(cronChild.CRON_EGRESS_SMTP_PORTS).toBe(String(stack.isolated.smtpPort));
-    expect(Object.hasOwn(cronChild, "CRON_EGRESS_ALLOWED_SMTP_PORTS")).toBe(false);
-    expect(Object.hasOwn(cronChild, "CRON_EGRESS_ALLOWED_LOOPBACK_PORTS")).toBe(false);
+    expect(cronChild.CRON_EGRESS_SMTP_PORTS).toBe(
+      String(stack.isolated.smtpPort),
+    );
+    expect(Object.hasOwn(cronChild, "CRON_EGRESS_ALLOWED_SMTP_PORTS")).toBe(
+      false,
+    );
+    expect(Object.hasOwn(cronChild, "CRON_EGRESS_ALLOWED_LOOPBACK_PORTS")).toBe(
+      false,
+    );
 
     const { childEnv: appChild } = buildIsolatedChildEnvironment({
       mode: "isolated-app",
@@ -425,7 +479,9 @@ describe("the child environment is a positive allowlist", () => {
 
     expect(childEnv.RESEND_API_KEY).toBe("");
     expect(childEnv.SOME_UNKNOWN_LOCAL_KEY).toBe("");
-    expect(childEnv.NEXT_PUBLIC_SUPABASE_URL).toBe(stack.appEnv.NEXT_PUBLIC_SUPABASE_URL);
+    expect(childEnv.NEXT_PUBLIC_SUPABASE_URL).toBe(
+      stack.appEnv.NEXT_PUBLIC_SUPABASE_URL,
+    );
   });
 
   test("a provider secret exported in this process is never copied into the child", () => {
@@ -435,7 +491,8 @@ describe("the child environment is a positive allowlist", () => {
       SUPABASE_ACCESS_TOKEN: "planted-supabase-access-token",
       AWS_SECRET_ACCESS_KEY: "planted-aws-secret",
     };
-    for (const [key, value] of Object.entries(planted)) process.env[key] = value;
+    for (const [key, value] of Object.entries(planted))
+      process.env[key] = value;
     try {
       const childEnv = build();
       const serialized = JSON.stringify(childEnv);
@@ -503,7 +560,9 @@ describe("the child environment is a positive allowlist", () => {
 
     expect(discovered.size).toBeGreaterThan(0);
     for (const key of discovered) {
-      expect(DISABLED_WORKER_ENV_KEYS, `${key} is not forced false`).toContain(key);
+      expect(DISABLED_WORKER_ENV_KEYS, `${key} is not forced false`).toContain(
+        key,
+      );
     }
   });
 
@@ -550,8 +609,12 @@ describe("the child environment is a positive allowlist", () => {
       workDirOverride: decoy,
     });
     expect(childEnv.CSF_ISOLATED_WORK_DIR).toBe(decoy);
-    expect(childEnv.NEXT_PUBLIC_SUPABASE_URL).toBe(stack.appEnv.NEXT_PUBLIC_SUPABASE_URL);
-    expect(childEnv.SUPABASE_SERVICE_ROLE_KEY).toBe(stack.appEnv.SUPABASE_SERVICE_ROLE_KEY);
+    expect(childEnv.NEXT_PUBLIC_SUPABASE_URL).toBe(
+      stack.appEnv.NEXT_PUBLIC_SUPABASE_URL,
+    );
+    expect(childEnv.SUPABASE_SERVICE_ROLE_KEY).toBe(
+      stack.appEnv.SUPABASE_SERVICE_ROLE_KEY,
+    );
   });
 
   test("an incomplete validated environment is refused rather than partially copied", () => {
@@ -592,7 +655,10 @@ describe("the run-scoped egress guard rejects and records", () => {
       },
     );
     const entries = existsSync(ledger)
-      ? readFileSync(ledger, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line))
+      ? readFileSync(ledger, "utf8")
+          .split("\n")
+          .filter(Boolean)
+          .map((line) => JSON.parse(line))
       : [];
     return {
       exitCode: result.exitCode,
@@ -602,11 +668,17 @@ describe("the run-scoped egress guard rejects and records", () => {
   }
 
   test("refuses to load at all without a run-scoped ledger", () => {
-    const result = Bun.spawnSync([resolveNodeExecutable(), "--require", guardPath, "-e", ""], {
-      env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: process.env.HOME ?? tmpdir() },
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const result = Bun.spawnSync(
+      [resolveNodeExecutable(), "--require", guardPath, "-e", ""],
+      {
+        env: {
+          PATH: process.env.PATH ?? "/usr/bin:/bin",
+          HOME: process.env.HOME ?? tmpdir(),
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr.toString()).toContain("refusing to run unguarded");
   });
@@ -620,7 +692,10 @@ describe("the run-scoped egress guard rejects and records", () => {
     expect(result.output).toContain("BLOCKED:");
     expect(result.output).not.toContain("NOT_BLOCKED");
     expect(result.entries.length).toBe(1);
-    expect(result.entries[0]).toMatchObject({ kind: "https", target: "https://api.resend.com" });
+    expect(result.entries[0]).toMatchObject({
+      kind: "https",
+      target: "https://api.resend.com",
+    });
   });
 
   test("a non-loopback fetch rejects and is recorded", () => {
@@ -658,7 +733,10 @@ describe("the run-scoped egress guard rejects and records", () => {
     expect(result.output).toContain("BLOCKED:");
     expect(result.output).not.toContain("NOT_BLOCKED");
     expect(result.entries.length).toBe(1);
-    expect(result.entries[0]).toMatchObject({ kind: "smtp", target: "127.0.0.1:55325" });
+    expect(result.entries[0]).toMatchObject({
+      kind: "smtp",
+      target: "127.0.0.1:55325",
+    });
   });
 
   test("ordinary loopback traffic is allowed and records nothing", () => {
@@ -842,7 +920,9 @@ describe("harness source contracts", () => {
     ]) {
       expect(harnessSource).toContain(`id: "${id}"`);
     }
-    expect(harnessSource).toContain('const METHODS = ["GET", "POST"] as const;');
+    expect(harnessSource).toContain(
+      'const METHODS = ["GET", "POST"] as const;',
+    );
   });
 
   test("asserts every status in the contract, including the exact bodies", () => {
@@ -855,12 +935,18 @@ describe("harness source contracts", () => {
   });
 
   test("asserts an empty ledger after startup and around every request", () => {
-    expect(harnessSource).toContain("Server startup must produce zero refused egress attempts.");
+    expect(harnessSource).toContain(
+      "Server startup must produce zero refused egress attempts.",
+    );
     expect(harnessSource).toContain(
       'assertNoNewEgress(\n        ledgerPath,\n        0,\n        "Server startup must produce zero refused egress attempts.",',
     );
-    expect(harnessSource).toContain("assertNoNewEgress(ledgerPath, before, label)");
-    expect(harnessSource).toContain("The whole run must produce zero refused egress attempts.");
+    expect(harnessSource).toContain(
+      "assertNoNewEgress(ledgerPath, before, label)",
+    );
+    expect(harnessSource).toContain(
+      "The whole run must produce zero refused egress attempts.",
+    );
   });
 
   test("spawns detached and terminates the whole group", () => {

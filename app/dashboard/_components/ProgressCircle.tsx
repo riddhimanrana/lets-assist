@@ -25,7 +25,8 @@ export const ProgressCircle: React.FC<ProgressCircleProps> = ({
   // Calculate circle parameters
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const strokeDashoffset = circumference - (normalizedValue / 100) * circumference;
+  const strokeDashoffset =
+    circumference - (normalizedValue / 100) * circumference;
 
   // Center position
   const center = size / 2;
@@ -50,7 +51,7 @@ export const ProgressCircle: React.FC<ProgressCircleProps> = ({
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        style={{ transform: 'rotate(-90deg)' }}
+        style={{ transform: "rotate(-90deg)" }}
       >
         {/* Background track circle */}
         <circle

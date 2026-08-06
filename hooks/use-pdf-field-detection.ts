@@ -1,12 +1,17 @@
-import { useState } from 'react';
-import { detectPdfWidgets, type PdfFieldDetectionResult } from '@/lib/waiver/pdf-field-detect';
+import { useState } from "react";
+import {
+  detectPdfWidgets,
+  type PdfFieldDetectionResult,
+} from "@/lib/waiver/pdf-field-detect";
 
 export function usePdfFieldDetection() {
   const [isDetecting, setIsDetecting] = useState(false);
   const [result, setResult] = useState<PdfFieldDetectionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const detectFields = async (file: File): Promise<PdfFieldDetectionResult | null> => {
+  const detectFields = async (
+    file: File,
+  ): Promise<PdfFieldDetectionResult | null> => {
     setIsDetecting(true);
     setError(null);
 
@@ -15,9 +20,10 @@ export function usePdfFieldDetection() {
       setResult(detectionResult);
       return detectionResult;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to detect PDF fields';
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to detect PDF fields";
       setError(errorMessage);
-      console.error('PDF field detection error:', err);
+      console.error("PDF field detection error:", err);
       return null;
     } finally {
       setIsDetecting(false);

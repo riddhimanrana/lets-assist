@@ -169,7 +169,10 @@ function AuthenticationContent() {
       }
 
       if (claimsError) {
-        console.error("Failed to load auth claims for MFA settings:", claimsError);
+        console.error(
+          "Failed to load auth claims for MFA settings:",
+          claimsError,
+        );
       }
 
       const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
@@ -190,13 +193,13 @@ function AuthenticationContent() {
       }
 
       const assuranceData = deriveAuthenticatorAssurance(
-        typeof claimsData?.claims?.aal === "string" ? claimsData.claims.aal : null,
+        typeof claimsData?.claims?.aal === "string"
+          ? claimsData.claims.aal
+          : null,
         factorData,
       );
 
-      setMfaFactors(
-        getVerifiedTotpFactors(factorData),
-      );
+      setMfaFactors(getVerifiedTotpFactors(factorData));
       setAalState({
         currentLevel: assuranceData?.currentLevel ?? null,
         nextLevel: assuranceData?.nextLevel ?? null,
@@ -330,9 +333,8 @@ function AuthenticationContent() {
         return;
       }
 
-      const { error: unlinkError } = await supabase.auth.unlinkIdentity(
-        googleIdentity,
-      );
+      const { error: unlinkError } =
+        await supabase.auth.unlinkIdentity(googleIdentity);
 
       if (unlinkError) {
         throw unlinkError;
@@ -364,7 +366,9 @@ function AuthenticationContent() {
 
   const handleStartEnrollment = async () => {
     if (!user) {
-      toast.error("You need to be signed in to configure an authenticator app.");
+      toast.error(
+        "You need to be signed in to configure an authenticator app.",
+      );
       return;
     }
 
@@ -378,7 +382,9 @@ function AuthenticationContent() {
       });
 
       if (error || !data) {
-        throw error ?? new Error("Supabase did not return an authenticator factor.");
+        throw (
+          error ?? new Error("Supabase did not return an authenticator factor.")
+        );
       }
 
       setPendingEnrollment({
@@ -414,7 +420,9 @@ function AuthenticationContent() {
       await navigator.clipboard.writeText(pendingEnrollment.secret);
       toast.success("Setup key copied to your clipboard.");
     } catch {
-      toast.error("Couldn't copy the setup key. You can still copy it manually.");
+      toast.error(
+        "Couldn't copy the setup key. You can still copy it manually.",
+      );
     }
   };
 
@@ -500,7 +508,9 @@ function AuthenticationContent() {
     }
 
     if (aalState?.currentLevel !== "aal2") {
-      toast.info("Please verify your identity before removing an authenticator.");
+      toast.info(
+        "Please verify your identity before removing an authenticator.",
+      );
       router.push(buildMfaRedirectPath("/account/authentication"));
       setFactorToDisable(null);
       return;
@@ -554,7 +564,8 @@ function AuthenticationContent() {
             Authentication
           </h1>
           <p className="mt-1 text-muted-foreground">
-            Manage your connected accounts, sign-in methods, and authenticator app.
+            Manage your connected accounts, sign-in methods, and authenticator
+            app.
           </p>
         </div>
 
@@ -613,7 +624,8 @@ function AuthenticationContent() {
           <CardHeader>
             <CardTitle className="text-xl">Two-Factor Authentication</CardTitle>
             <CardDescription>
-              Use an authenticator app for a second sign-in step on your account.
+              Use an authenticator app for a second sign-in step on your
+              account.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -673,15 +685,21 @@ function AuthenticationContent() {
                 {requiresStepUpVerification && mfaEnabled && (
                   <Alert>
                     <ShieldAlert className="h-4 w-4" />
-                    <AlertTitle>Verify this session before changing MFA</AlertTitle>
+                    <AlertTitle>
+                      Verify this session before changing MFA
+                    </AlertTitle>
                     <AlertDescription>
-                      This session still needs a recent two-factor check before you can remove an authenticator. Use the button below to confirm your code and come right back here.
+                      This session still needs a recent two-factor check before
+                      you can remove an authenticator. Use the button below to
+                      confirm your code and come right back here.
                     </AlertDescription>
                     <div className="pt-3">
                       <Button
                         variant="outline"
                         onClick={() =>
-                          router.push(buildMfaRedirectPath("/account/authentication"))
+                          router.push(
+                            buildMfaRedirectPath("/account/authentication"),
+                          )
                         }
                       >
                         Verify now
@@ -689,7 +707,6 @@ function AuthenticationContent() {
                     </div>
                   </Alert>
                 )}
-
 
                 {pendingEnrollment && (
                   <div className="grid gap-4 rounded-xl border p-4 lg:grid-cols-[220px_1fr]">
@@ -718,16 +735,22 @@ function AuthenticationContent() {
                     <div className="space-y-4">
                       <Alert>
                         <ShieldCheck className="h-4 w-4" />
-                        <AlertTitle>Finish setup with one verification code</AlertTitle>
+                        <AlertTitle>
+                          Finish setup with one verification code
+                        </AlertTitle>
                         <AlertDescription>
-                          After you confirm the code, this factor becomes active immediately and your other sessions may be signed out for safety.
+                          After you confirm the code, this factor becomes active
+                          immediately and your other sessions may be signed out
+                          for safety.
                         </AlertDescription>
                       </Alert>
 
                       <div className="rounded-lg border bg-muted/30 p-3">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <p className="text-sm font-medium">Manual setup key</p>
+                            <p className="text-sm font-medium">
+                              Manual setup key
+                            </p>
                             <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
                               {pendingEnrollment.secret}
                             </p>
@@ -788,7 +811,9 @@ function AuthenticationContent() {
                           type="button"
                           variant="ghost"
                           onClick={handleCancelEnrollment}
-                          disabled={isVerifyingEnrollment || isCancellingEnrollment}
+                          disabled={
+                            isVerifyingEnrollment || isCancellingEnrollment
+                          }
                           className="sm:w-auto"
                         >
                           {isCancellingEnrollment

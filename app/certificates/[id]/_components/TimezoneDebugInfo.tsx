@@ -10,7 +10,10 @@ interface TimezoneDebugInfoProps {
   className?: string;
 }
 
-export function TimezoneDebugInfo({ show = false, className = "" }: TimezoneDebugInfoProps) {
+export function TimezoneDebugInfo({
+  show = false,
+  className = "",
+}: TimezoneDebugInfoProps) {
   const [timezoneInfo, setTimezoneInfo] = useState<{
     timezone: string;
     offset: string;
@@ -26,12 +29,12 @@ export function TimezoneDebugInfo({ show = false, className = "" }: TimezoneDebu
       const offset = now.getTimezoneOffset();
       const offsetHours = Math.abs(offset / 60);
       const offsetMins = Math.abs(offset % 60);
-      const offsetSign = offset <= 0 ? '+' : '-';
+      const offsetSign = offset <= 0 ? "+" : "-";
       const locale = Intl.DateTimeFormat().resolvedOptions().locale;
 
       setTimezoneInfo({
         timezone,
-        offset: `UTC${offsetSign}${offsetHours.toString().padStart(2, '0')}:${offsetMins.toString().padStart(2, '0')}`,
+        offset: `UTC${offsetSign}${offsetHours.toString().padStart(2, "0")}:${offsetMins.toString().padStart(2, "0")}`,
         locale,
         currentTime: now.toLocaleString(),
         isClient: true,
@@ -51,7 +54,9 @@ export function TimezoneDebugInfo({ show = false, className = "" }: TimezoneDebu
   if (!show || !timezoneInfo) return null;
 
   return (
-    <Card className={`${className} border-dashed border-amber-200 bg-amber-50/50 dark:bg-amber-950/20`}>
+    <Card
+      className={`${className} border-dashed border-amber-200 bg-amber-50/50 dark:bg-amber-950/20`}
+    >
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium text-amber-800 dark:text-amber-200 flex items-center gap-2">
           <Info className="h-4 w-4" />
@@ -91,7 +96,10 @@ export function TimezoneDebugInfo({ show = false, className = "" }: TimezoneDebu
 
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">Client-side:</span>
-          <Badge variant={timezoneInfo.isClient ? "default" : "destructive"} className="text-xs">
+          <Badge
+            variant={timezoneInfo.isClient ? "default" : "destructive"}
+            className="text-xs"
+          >
             {timezoneInfo.isClient ? "Yes" : "No"}
           </Badge>
         </div>

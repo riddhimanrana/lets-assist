@@ -60,30 +60,34 @@ export default function BayAreaExamples() {
               {cloudItems.map((partner, index) => (
                 <Tooltip key={`${partner.name}-${index}`}>
                   <TooltipTrigger>
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.4 }}
-                    transition={{ duration: 0.35 }}
-                    className="group relative flex h-16 w-44 shrink-0 items-center justify-center rounded-2xl border bg-background/75 px-5 shadow-xs backdrop-blur transition-colors hover:border-primary/30"
-                  >
-                    {partner.logo ? (
-                      <Image
-                        src={partner.logo}
-                        alt={`${partner.name} logo`}
-                        fill
-                        sizes="128px"
-                        className="object-contain p-3 opacity-65 grayscale transition duration-200 group-hover:opacity-100 group-hover:grayscale-0"
-                      />
-                    ) : (
-                      <span className="text-[0.65rem] font-semibold text-muted-foreground">
-                        {partner.name}
-                      </span>
-                    )}
-                    <span className="sr-only">{partner.name}</span>
-                  </motion.div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, amount: 0.4 }}
+                      transition={{ duration: 0.35 }}
+                      className="group relative flex h-16 w-44 shrink-0 items-center justify-center rounded-2xl border bg-background/75 px-5 shadow-xs backdrop-blur transition-colors hover:border-primary/30"
+                    >
+                      {partner.logo ? (
+                        <Image
+                          src={partner.logo}
+                          alt={`${partner.name} logo`}
+                          fill
+                          sizes="128px"
+                          className="object-contain p-3 opacity-65 grayscale transition duration-200 group-hover:opacity-100 group-hover:grayscale-0"
+                        />
+                      ) : (
+                        <span className="text-[0.65rem] font-semibold text-muted-foreground">
+                          {partner.name}
+                        </span>
+                      )}
+                      <span className="sr-only">{partner.name}</span>
+                    </motion.div>
                   </TooltipTrigger>
-                  <TooltipContent className="max-w-72 text-xs" side="top" align="center">
+                  <TooltipContent
+                    className="max-w-72 text-xs"
+                    side="top"
+                    align="center"
+                  >
                     <p className="font-semibold">{partner.name}</p>
                     <p className="opacity-80">{partner.note}</p>
                   </TooltipContent>

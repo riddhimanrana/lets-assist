@@ -25,7 +25,11 @@ export function validateOrganizationAutojoinDomain(
 ): OrganizationDomainPolicyResult {
   const domain = input.trim().toLowerCase();
 
-  if (domain.length === 0 || domain.length > 253 || !DOMAIN_PATTERN.test(domain)) {
+  if (
+    domain.length === 0 ||
+    domain.length > 253 ||
+    !DOMAIN_PATTERN.test(domain)
+  ) {
     return { ok: false, reason: "invalid" };
   }
 

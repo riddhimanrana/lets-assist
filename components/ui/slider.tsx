@@ -4,7 +4,10 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-type SliderProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "onChange"> & {
+type SliderProps = Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "value" | "defaultValue" | "onChange"
+> & {
   value?: number[];
   defaultValue?: number[];
   onValueChange?: (value: number[]) => void;
@@ -15,7 +18,16 @@ function clamp(value: number, min: number, max: number) {
 }
 
 const Slider = React.forwardRef<HTMLInputElement, SliderProps>(function Slider(
-  { className, min = 0, max = 100, step = 1, value, defaultValue, onValueChange, ...props },
+  {
+    className,
+    min = 0,
+    max = 100,
+    step = 1,
+    value,
+    defaultValue,
+    onValueChange,
+    ...props
+  },
   ref,
 ) {
   const currentValue = value?.[0] ?? defaultValue?.[0] ?? Number(min);

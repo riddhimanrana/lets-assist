@@ -15,7 +15,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 export default function ErrorClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [hashErrorDescription, setHashErrorDescription] = useState<string | null>(null);
+  const [hashErrorDescription, setHashErrorDescription] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     if (!window.location.hash) {
@@ -28,7 +30,9 @@ export default function ErrorClient() {
   }, []);
 
   const message =
-    searchParams.get("message") || hashErrorDescription || "There was a problem with the link.";
+    searchParams.get("message") ||
+    hashErrorDescription ||
+    "There was a problem with the link.";
 
   return (
     <div className="min-h-screen flex items-center justify-center">

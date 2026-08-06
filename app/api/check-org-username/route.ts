@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   if (!username) {
     return NextResponse.json(
       { error: "Username parameter is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       console.error("Error checking organization username:", error);
       return NextResponse.json(
         { error: "Error checking username" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     console.error("Unexpected error checking organization username:", error);
     return NextResponse.json(
       { error: "Unexpected error checking username" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

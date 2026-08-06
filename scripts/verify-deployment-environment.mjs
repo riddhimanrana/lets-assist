@@ -16,9 +16,8 @@ function parseExpectedNonProductionHost(env, vercelEnvironment) {
   const expectedHost = expectedHostValue
     ? normalizeHostname(expectedHostValue)
     : undefined;
-  const expectedProjectRef = env.EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF
-    ?.trim()
-    .toLowerCase();
+  const expectedProjectRef =
+    env.EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF?.trim().toLowerCase();
   const hostFromRef = expectedProjectRef
     ? `${expectedProjectRef}.supabase.co`
     : undefined;
@@ -29,10 +28,7 @@ function parseExpectedNonProductionHost(env, vercelEnvironment) {
     );
   }
 
-  if (
-    expectedProjectRef &&
-    !/^[a-z0-9]{20}$/u.test(expectedProjectRef)
-  ) {
+  if (expectedProjectRef && !/^[a-z0-9]{20}$/u.test(expectedProjectRef)) {
     throw new Error(
       `Refusing ${vercelEnvironment} deployment with an invalid expected Supabase project ref.`,
     );

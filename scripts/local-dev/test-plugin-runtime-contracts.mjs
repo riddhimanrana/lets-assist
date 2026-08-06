@@ -15,10 +15,10 @@ process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = anonKey;
 process.env.SUPABASE_SECRET_KEY = serviceRoleKey;
 process.env.SUPABASE_DB_URL = dbUrl;
 
-const { privatePlugins } = await import("../../lib/plugins/private/registry.ts");
-const { syncRegisteredPluginRuntimeContracts } = await import(
-  "../../lib/plugins/runtime-contracts.ts"
-);
+const { privatePlugins } =
+  await import("../../lib/plugins/private/registry.ts");
+const { syncRegisteredPluginRuntimeContracts } =
+  await import("../../lib/plugins/runtime-contracts.ts");
 
 const admin = createClient(url, serviceRoleKey, {
   auth: {
@@ -33,7 +33,9 @@ const registeredPluginKeys = privatePlugins
   .sort();
 
 if (registeredPluginKeys.length === 0) {
-  throw new Error("No private plugins are registered; contract audit cannot prove plugin boundaries.");
+  throw new Error(
+    "No private plugins are registered; contract audit cannot prove plugin boundaries.",
+  );
 }
 
 const catalogRows = privatePlugins.map((definition) => {
@@ -62,26 +64,36 @@ const { error: catalogUpsertError } = await admin
   .upsert(catalogRows, { onConflict: "key" });
 
 if (catalogUpsertError) {
-  throw new Error(`Failed to sync registered plugin catalog rows: ${catalogUpsertError.message}`);
+  throw new Error(
+    `Failed to sync registered plugin catalog rows: ${catalogUpsertError.message}`,
+  );
 }
 
 const syncResult = await syncRegisteredPluginRuntimeContracts();
 
 const { data: contractRows, error: contractError } = await admin
   .from("plugin_runtime_contracts")
-  .select("plugin_key, data_access, storage_access, backend_capabilities, routes")
+  .select(
+    "plugin_key, data_access, storage_access, backend_capabilities, routes",
+  )
   .in("plugin_key", registeredPluginKeys)
   .order("plugin_key");
 
 if (contractError) {
-  throw new Error(`Failed to read plugin runtime contracts: ${contractError.message}`);
+  throw new Error(
+    `Failed to read plugin runtime contracts: ${contractError.message}`,
+  );
 }
 
 const contractKeys = new Set((contractRows ?? []).map((row) => row.plugin_key));
-const missingContracts = registeredPluginKeys.filter((key) => !contractKeys.has(key));
+const missingContracts = registeredPluginKeys.filter(
+  (key) => !contractKeys.has(key),
+);
 
 if (missingContracts.length > 0) {
-  throw new Error(`Missing runtime contracts for registered plugins: ${missingContracts.join(", ")}`);
+  throw new Error(
+    `Missing runtime contracts for registered plugins: ${missingContracts.join(", ")}`,
+  );
 }
 
 const contractFailures = [];
@@ -94,19 +106,41 @@ for (const row of contractRows ?? []) {
   }
 
   for (const [index, declaration] of dataAccess.entries()) {
-    if (!declaration || typeof declaration !== "object" || Array.isArray(declaration)) {
-      contractFailures.push(`${row.plugin_key}: data_access[${index}] is not an object`);
+    if (
+      !declaration ||
+      typeof declaration !== "object" ||
+      Array.isArray(declaration)
+    ) {
+      contractFailures.push(
+        `${row.plugin_key}: data_access[${index}] is not an object`,
+      );
       continue;
     }
 
-    const { schema, relation, access, purpose, tenantColumn, containsPersonalData, containsSensitiveData } =
-      declaration;
-    if (typeof schema !== "string" || typeof relation !== "string" || typeof access !== "string" || typeof purpose !== "string") {
-      contractFailures.push(`${row.plugin_key}: data_access[${index}] is missing schema/relation/access/purpose`);
+    const {
+      schema,
+      relation,
+      access,
+      purpose,
+      tenantColumn,
+      containsPersonalData,
+      containsSensitiveData,
+    } = declaration;
+    if (
+      typeof schema !== "string" ||
+      typeof relation !== "string" ||
+      typeof access !== "string" ||
+      typeof purpose !== "string"
+    ) {
+      contractFailures.push(
+        `${row.plugin_key}: data_access[${index}] is missing schema/relation/access/purpose`,
+      );
     }
 
     if (schema === "plugin_data" && access === "rls-client") {
-      contractFailures.push(`${row.plugin_key}: ${schema}.${relation} still declares raw rls-client access`);
+      contractFailures.push(
+        `${row.plugin_key}: ${schema}.${relation} still declares raw rls-client access`,
+      );
     }
 
     if (
@@ -114,7 +148,9 @@ for (const row of contractRows ?? []) {
       (containsPersonalData === true || containsSensitiveData === true) &&
       typeof tenantColumn !== "string"
     ) {
-      contractFailures.push(`${row.plugin_key}: ${schema}.${relation} handles personal/sensitive data without tenantColumn`);
+      contractFailures.push(
+        `${row.plugin_key}: ${schema}.${relation} handles personal/sensitive data without tenantColumn`,
+      );
     }
   }
 }
@@ -183,7 +219,9 @@ const { data: unsafeBoundaries, error: unsafeBoundaryError } = await admin
   .limit(20);
 
 if (unsafeBoundaryError) {
-  throw new Error(`Failed to read plugin data boundaries: ${unsafeBoundaryError.message}`);
+  throw new Error(
+    `Failed to read plugin data boundaries: ${unsafeBoundaryError.message}`,
+  );
 }
 
 if ((unsafeBoundaries ?? []).length > 0) {
@@ -205,10 +243,14 @@ const { data: isolationProfiles, error: profileError } = await admin
   .select("organization_id");
 
 if (profileError) {
-  throw new Error(`Failed to read organization isolation profiles: ${profileError.message}`);
+  throw new Error(
+    `Failed to read organization isolation profiles: ${profileError.message}`,
+  );
 }
 
-const profileOrgIds = new Set((isolationProfiles ?? []).map((row) => row.organization_id));
+const profileOrgIds = new Set(
+  (isolationProfiles ?? []).map((row) => row.organization_id),
+);
 const orgsWithoutProfiles = (organizations ?? [])
   .map((row) => row.id)
   .filter((id) => !profileOrgIds.has(id));
@@ -220,7 +262,9 @@ if (orgsWithoutProfiles.length > 0) {
 }
 
 if (contractFailures.length > 0) {
-  throw new Error(`Plugin runtime contract audit failed:\n- ${contractFailures.join("\n- ")}`);
+  throw new Error(
+    `Plugin runtime contract audit failed:\n- ${contractFailures.join("\n- ")}`,
+  );
 }
 
 console.log(

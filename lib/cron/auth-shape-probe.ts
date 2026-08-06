@@ -65,7 +65,9 @@ function loadIsolatedWorkDirInspector(): IsolatedWorkDirInspector {
     "dv-local-env.mjs",
   );
   const localRequire = createRequire(import.meta.url);
-  const validatorModule = Reflect.apply(localRequire, undefined, [modulePath]) as {
+  const validatorModule = Reflect.apply(localRequire, undefined, [
+    modulePath,
+  ]) as {
     inspectCsfIsolatedWorkDir?: IsolatedWorkDirInspector;
   };
   if (typeof validatorModule.inspectCsfIsolatedWorkDir !== "function") {
@@ -89,8 +91,10 @@ function isLoopbackUrl(value: string | undefined): boolean {
  * into reading an attacker-supplied path off disk.
  */
 function isHostedRuntime(env: NodeJS.ProcessEnv): boolean {
-  return Boolean(env.VERCEL || env.VERCEL_ENV || env.VERCEL_URL) ||
-    env.NODE_ENV === "production";
+  return (
+    Boolean(env.VERCEL || env.VERCEL_ENV || env.VERCEL_URL) ||
+    env.NODE_ENV === "production"
+  );
 }
 
 /**
@@ -196,7 +200,10 @@ export function cronAuthShapeProbe(
     return isolationInvalidResponse(route);
   }
 
-  if (request.headers.get(CRON_AUTH_SHAPE_PROBE_HEADER) !== CRON_AUTH_SHAPE_PROBE_MODE) {
+  if (
+    request.headers.get(CRON_AUTH_SHAPE_PROBE_HEADER) !==
+    CRON_AUTH_SHAPE_PROBE_MODE
+  ) {
     return probeRequiredResponse(route);
   }
 

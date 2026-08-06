@@ -67,16 +67,18 @@ function formatHours(hours: number): string {
 
 export async function getMemberVolunteerHours(
   organizationId: string,
-  dateRange?: { from: Date; to: Date }
-): Promise<{ 
-  memberHours: Record<string, MemberHours>; 
-  error?: string 
+  dateRange?: { from: Date; to: Date },
+): Promise<{
+  memberHours: Record<string, MemberHours>;
+  error?: string;
 }> {
   const supabase = await createClient();
-  
+
   try {
     // Verify user permissions
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { memberHours: {}, error: "Authentication required" };
     }
@@ -90,9 +92,12 @@ export async function getMemberVolunteerHours(
       .single();
 
     if (!userMembership) {
-      return { memberHours: {}, error: "Only organization members can view hours" };
+      return {
+        memberHours: {},
+        error: "Only organization members can view hours",
+      };
     }
-    
+
     // Get all organization projects to filter certificates
     const { data: orgProjects } = await supabase
       .from("projects")
@@ -103,14 +108,15 @@ export async function getMemberVolunteerHours(
       return { memberHours: {} };
     }
 
-    const projectTitles = orgProjects.map(p => p.title);
+    const projectTitles = orgProjects.map((p) => p.title);
 
     // Get certificates for projects from this organization
     // Instead of filtering by organization_name (which stores org name, not ID),
     // filter by project_title since we already have the project titles from this org
     let query = supabase
       .from("certificates")
-      .select(`
+      .select(
+        `
         user_id,
         project_title,
         event_start,
@@ -118,7 +124,8 @@ export async function getMemberVolunteerHours(
         issued_at,
         is_certified,
         organization_name
-      `)
+      `,
+      )
       .in("project_title", projectTitles);
 
     // Add date range filtering if provided
@@ -140,15 +147,15 @@ export async function getMemberVolunteerHours(
 
     // Calculate hours per member
     const memberHours: Record<string, MemberHours> = {};
-    
+
     if (certificates) {
-      certificates.forEach(cert => {
+      certificates.forEach((cert) => {
         if (!memberHours[cert.user_id]) {
           memberHours[cert.user_id] = {
             userId: cert.user_id,
             totalHours: 0,
             eventCount: 0,
-            lastEventDate: undefined
+            lastEventDate: undefined,
           };
         }
 
@@ -158,7 +165,10 @@ export async function getMemberVolunteerHours(
 
         // Update last event date
         const eventDate = cert.issued_at;
-        if (!memberHours[cert.user_id].lastEventDate || eventDate > memberHours[cert.user_id].lastEventDate!) {
+        if (
+          !memberHours[cert.user_id].lastEventDate ||
+          eventDate > memberHours[cert.user_id].lastEventDate!
+        ) {
           memberHours[cert.user_id].lastEventDate = eventDate;
         }
       });
@@ -172,19 +182,21 @@ export async function getMemberVolunteerHours(
 }
 
 export async function getMemberEventDetails(
-  organizationId: string, 
+  organizationId: string,
   memberId: string,
-  dateRange?: { from: Date; to: Date }
-): Promise<{ 
-  events: MemberEventDetail[]; 
-  totalHours: number; 
-  error?: string 
+  dateRange?: { from: Date; to: Date },
+): Promise<{
+  events: MemberEventDetail[];
+  totalHours: number;
+  error?: string;
 }> {
   const supabase = await createClient();
-  
+
   try {
     // Verify user permissions
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { events: [], totalHours: 0, error: "Authentication required" };
     }
@@ -197,7 +209,8 @@ export async function getMemberEventDetails(
       .eq("user_id", user.id)
       .single();
 
-    const isAdminOrStaff = userMembership?.role === "admin" || userMembership?.role === "staff";
+    const isAdminOrStaff =
+      userMembership?.role === "admin" || userMembership?.role === "staff";
     const isViewingSelf = user.id === memberId;
 
     if (!isAdminOrStaff && !isViewingSelf) {
@@ -214,12 +227,13 @@ export async function getMemberEventDetails(
       return { events: [], totalHours: 0 };
     }
 
-    const projectTitles = orgProjects.map(p => p.title);
+    const projectTitles = orgProjects.map((p) => p.title);
 
     // Get member's certificates for organization projects
     let query = supabase
       .from("certificates")
-      .select(`
+      .select(
+        `
         id,
         project_title,
         event_start,
@@ -227,7 +241,8 @@ export async function getMemberEventDetails(
         issued_at,
         is_certified,
         organization_name
-      `)
+      `,
+      )
       .eq("user_id", memberId)
       .in("project_title", projectTitles)
       .order("issued_at", { ascending: false });
@@ -246,14 +261,18 @@ export async function getMemberEventDetails(
 
     if (certsError) {
       console.error("Error fetching member certificates:", certsError);
-      return { events: [], totalHours: 0, error: "Failed to fetch event details" };
+      return {
+        events: [],
+        totalHours: 0,
+        error: "Failed to fetch event details",
+      };
     }
 
     let totalHours = 0;
     const events: MemberEventDetail[] = [];
 
     if (certificates) {
-      certificates.forEach(cert => {
+      certificates.forEach((cert) => {
         const hours = calculateHours(cert.event_start, cert.event_end);
         totalHours += hours;
 
@@ -263,7 +282,7 @@ export async function getMemberEventDetails(
           eventDate: cert.issued_at,
           hours: hours,
           isCertified: cert.is_certified,
-          organizationName: cert.organization_name || ""
+          organizationName: cert.organization_name || "",
         });
       });
     }
@@ -271,22 +290,28 @@ export async function getMemberEventDetails(
     return { events, totalHours };
   } catch (error) {
     console.error("Error in getMemberEventDetails:", error);
-    return { events: [], totalHours: 0, error: "Failed to fetch event details" };
+    return {
+      events: [],
+      totalHours: 0,
+      error: "Failed to fetch event details",
+    };
   }
 }
 
 export async function exportMemberHours(
   organizationId: string,
-  dateRange?: { from: Date; to: Date }
+  dateRange?: { from: Date; to: Date },
 ): Promise<{
   csvData?: string;
   error?: string;
 }> {
   const supabase = await createClient();
-  
+
   try {
     // Verify user is admin
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { error: "Authentication required" };
     }
@@ -305,7 +330,8 @@ export async function exportMemberHours(
     // Get all organization members with profiles
     const { data: members, error: membersError } = await supabase
       .from("organization_members")
-      .select(`
+      .select(
+        `
         id,
         role,
         joined_at,
@@ -315,7 +341,8 @@ export async function exportMemberHours(
           username,
           full_name
         )
-      `)
+      `,
+      )
       .eq("organization_id", organizationId)
       .order("role", { ascending: false });
 
@@ -324,15 +351,21 @@ export async function exportMemberHours(
     }
 
     // Get member hours
-    const { memberHours } = await getMemberVolunteerHours(organizationId, dateRange);
+    const { memberHours } = await getMemberVolunteerHours(
+      organizationId,
+      dateRange,
+    );
 
     // Format export data
-    const exportData: MemberHoursExport[] = (members || []).map(member => {
-      const hours = memberHours[member.user_id] || { totalHours: 0, eventCount: 0 };
+    const exportData: MemberHoursExport[] = (members || []).map((member) => {
+      const hours = memberHours[member.user_id] || {
+        totalHours: 0,
+        eventCount: 0,
+      };
       const profile = Array.isArray(member.profiles)
         ? member.profiles[0]
         : member.profiles;
-      
+
       return {
         memberName: profile?.full_name || "Unknown",
         username: profile?.username || "",
@@ -342,15 +375,23 @@ export async function exportMemberHours(
         lastActivity: hours.lastEventDate
           ? new Date(hours.lastEventDate).toLocaleDateString()
           : "None",
-        joinedDate: new Date(member.joined_at).toLocaleDateString()
+        joinedDate: new Date(member.joined_at).toLocaleDateString(),
       };
     });
 
     // Generate CSV
-    const headers = ["Member Name", "Username", "Role", "Total Hours", "Events", "Last Activity", "Joined Date"];
+    const headers = [
+      "Member Name",
+      "Username",
+      "Role",
+      "Total Hours",
+      "Events",
+      "Last Activity",
+      "Joined Date",
+    ];
     const csvRows = [headers.join(",")];
-    
-    exportData.forEach(row => {
+
+    exportData.forEach((row) => {
       const csvRow = [
         `"${row.memberName}"`,
         row.username,
@@ -358,14 +399,13 @@ export async function exportMemberHours(
         row.totalHours,
         row.eventCount.toString(),
         row.lastActivity,
-        row.joinedDate
+        row.joinedDate,
       ].join(",");
       csvRows.push(csvRow);
     });
 
     const csvData = csvRows.join("\n");
     return { csvData };
-
   } catch (error) {
     console.error("Error in exportMemberHours:", error);
     return { error: "Failed to export member hours" };

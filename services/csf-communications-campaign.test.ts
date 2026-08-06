@@ -59,7 +59,11 @@ describe("creating a campaign draft", () => {
   test("the sender identity is not a parameter the caller can reach", async () => {
     const { calls, plugin } = harness({
       csf_create_communication_campaign_draft: () => ({
-        data: { campaignId: CAMPAIGN, status: "draft", campaignKind: "broadcast" },
+        data: {
+          campaignId: CAMPAIGN,
+          status: "draft",
+          campaignKind: "broadcast",
+        },
         error: null,
       }),
     });
@@ -126,7 +130,7 @@ describe("creating a campaign draft", () => {
         data: null,
         error: {
           message:
-            'permission denied for account csf-officer@local.test on organization row',
+            "permission denied for account csf-officer@local.test on organization row",
           code: "42501",
         },
       }),
@@ -149,10 +153,12 @@ describe("creating a campaign draft", () => {
     expect(thrown).toBeInstanceOf(Error);
     // The database names accounts and rows for an operator reading the log. None
     // of that may reach a caller -- not in the message, and not in the code.
-    expect(JSON.stringify({
-      message: String(thrown),
-      code: (thrown as { code?: string }).code,
-    })).not.toContain("csf-officer@local.test");
+    expect(
+      JSON.stringify({
+        message: String(thrown),
+        code: (thrown as { code?: string }).code,
+      }),
+    ).not.toContain("csf-officer@local.test");
     // The SQLSTATE still travels, because a caller needs to tell "you may not do
     // this" apart from "the database was unreachable".
     expect((thrown as { code?: string }).code).toBe("42501");

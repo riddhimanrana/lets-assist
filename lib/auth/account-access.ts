@@ -56,7 +56,9 @@ function parseStatus(value: unknown): AccountAccessStatus | null {
  * - legacy booleans: is_banned / is_restricted
  * - legacy status string: account_status
  */
-export function readAccountAccessFromMetadata(metadata: unknown): AccountAccessState {
+export function readAccountAccessFromMetadata(
+  metadata: unknown,
+): AccountAccessState {
   const metadataObject = asObject(metadata);
   if (!metadataObject) {
     return DEFAULT_ACCESS_STATE;
@@ -110,7 +112,9 @@ export function isAccountBlockedStatus(status: AccountAccessStatus): boolean {
   return status === "restricted" || status === "banned";
 }
 
-export function getAccountAccessErrorCode(status: AccountAccessStatus): AccountAccessErrorCode | null {
+export function getAccountAccessErrorCode(
+  status: AccountAccessStatus,
+): AccountAccessErrorCode | null {
   if (status === "restricted") return "account-restricted";
   if (status === "banned") return "account-banned";
   return null;

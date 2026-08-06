@@ -1,6 +1,6 @@
 // Calendar integration types
 
-export type CalendarProvider = 'google'; // Can extend to 'outlook', 'apple' in future
+export type CalendarProvider = "google"; // Can extend to 'outlook', 'apple' in future
 
 export interface CalendarConnection {
   id: string;
@@ -34,7 +34,7 @@ export interface CalendarEvent {
   project_id: string;
   signup_id?: string;
   schedule_id: string;
-  event_type: 'creator' | 'volunteer';
+  event_type: "creator" | "volunteer";
   synced_at: string;
   last_updated: string;
 }
@@ -44,7 +44,7 @@ export interface SyncedEvent {
   project_id: string;
   project_title: string;
   schedule_id: string;
-  event_type: 'creator' | 'volunteer';
+  event_type: "creator" | "volunteer";
   start_time: string;
   end_time: string;
   synced_at: string;

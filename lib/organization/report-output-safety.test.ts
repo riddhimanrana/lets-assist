@@ -1,16 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { escapeCsvCell, neutralizeSpreadsheetFormula } from "./report-output-safety";
+import {
+  escapeCsvCell,
+  neutralizeSpreadsheetFormula,
+} from "./report-output-safety";
 
 test("neutralizes every spreadsheet formula-leading prefix", () => {
   for (const malicious of [
-    "=HYPERLINK(\"https://example.test\")",
+    '=HYPERLINK("https://example.test")',
     "+cmd|' /C calc'!A0",
     "-2+3",
     "@SUM(1,1)",
     "  =1+1",
-    "\t@IMPORTXML(\"https://example.test\")",
+    '\t@IMPORTXML("https://example.test")',
   ]) {
     assert.equal(neutralizeSpreadsheetFormula(malicious), `'${malicious}`);
   }

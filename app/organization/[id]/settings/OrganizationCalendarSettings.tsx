@@ -4,12 +4,25 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { AlertTriangle, Calendar, ExternalLink, RefreshCw, Unlink, UserCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  Calendar,
+  ExternalLink,
+  RefreshCw,
+  Unlink,
+  UserCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
@@ -42,22 +55,25 @@ export default function OrganizationCalendarSettings({
 }: OrganizationCalendarSettingsProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [status, setStatus] = useState<Awaited<ReturnType<typeof getOrganizationCalendarStatus>> | null>(null);
+  const [status, setStatus] = useState<Awaited<
+    ReturnType<typeof getOrganizationCalendarStatus>
+  > | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncingNow, setSyncingNow] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [disconnectingAccount, setDisconnectingAccount] = useState(false);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
-  const [showAccountDisconnectDialog, setShowAccountDisconnectDialog] = useState(false);
+  const [showAccountDisconnectDialog, setShowAccountDisconnectDialog] =
+    useState(false);
   const [updatingAutoSync, setUpdatingAutoSync] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const connectUrl = useMemo(
     () =>
       `/api/calendar/google/connect?purpose=organization_calendar&calendar_sync=1&org_id=${organizationId}&return_to=${encodeURIComponent(
-        `/organization/${organizationSlug}/settings?section=calendar`
+        `/organization/${organizationSlug}/settings?section=calendar`,
       )}`,
-    [organizationId, organizationSlug]
+    [organizationId, organizationSlug],
   );
 
   const loadStatus = async () => {
@@ -105,7 +121,9 @@ export default function OrganizationCalendarSettings({
 
   const handleToggleAutoSync = async (enabled: boolean) => {
     setUpdatingAutoSync(true);
-    const result = await updateOrganizationCalendarSettings(organizationId, { autoSync: enabled });
+    const result = await updateOrganizationCalendarSettings(organizationId, {
+      autoSync: enabled,
+    });
     if (!result.success) {
       toast.error(result.error || "Failed to update auto-sync");
     } else {
@@ -142,7 +160,8 @@ export default function OrganizationCalendarSettings({
 
   const handleDisconnectAccount = async () => {
     setDisconnectingAccount(true);
-    const result = await disconnectOrganizationCalendarConnection(organizationId);
+    const result =
+      await disconnectOrganizationCalendarConnection(organizationId);
     if (!result.success) {
       toast.error(result.error || "Failed to remove Google account");
     } else {
@@ -153,7 +172,8 @@ export default function OrganizationCalendarSettings({
     setShowAccountDisconnectDialog(false);
   };
 
-  const connectedByLabel = status?.connectedBy?.name || status?.connectedBy?.email || null;
+  const connectedByLabel =
+    status?.connectedBy?.name || status?.connectedBy?.email || null;
   const lastSynced = status?.lastSyncedAt
     ? format(new Date(status.lastSyncedAt), "MMM d, yyyy h:mm a")
     : null;
@@ -174,7 +194,9 @@ export default function OrganizationCalendarSettings({
       </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading calendar status...</p>
+          <p className="text-sm text-muted-foreground">
+            Loading calendar status...
+          </p>
         ) : status?.connected ? (
           <div className="space-y-6">
             <div className="space-y-4 rounded-2xl border border-border/60 bg-linear-to-br from-muted/50 via-card to-muted/20 p-4 shadow-sm">
@@ -193,20 +215,28 @@ export default function OrganizationCalendarSettings({
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-medium">
-                          {status.autoSync ? "Calendar connected and syncing" : "Calendar connected"}
+                          {status.autoSync
+                            ? "Calendar connected and syncing"
+                            : "Calendar connected"}
                         </p>
-                        <Badge variant={status.autoSync ? "secondary" : "outline"}>
+                        <Badge
+                          variant={status.autoSync ? "secondary" : "outline"}
+                        >
                           {status.autoSync ? "Auto-sync on" : "Auto-sync off"}
                         </Badge>
                         {status.needsReconnect && (
-                          <Badge variant="destructive">Reconnect required</Badge>
+                          <Badge variant="destructive">
+                            Reconnect required
+                          </Badge>
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {status.connectedEmail || "Google account"}
                       </p>
                       {connectedByLabel && (
-                        <p className="text-xs text-muted-foreground">Connected by {connectedByLabel}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Connected by {connectedByLabel}
+                        </p>
                       )}
                       <p className="text-[10px] text-muted-foreground opacity-70">
                         Calendar ID: {status.calendarId || "Unknown"}
@@ -236,7 +266,9 @@ export default function OrganizationCalendarSettings({
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Last sync
                       </p>
-                      <p className="mt-1 text-sm font-medium">{lastSynced || "Never"}</p>
+                      <p className="mt-1 text-sm font-medium">
+                        {lastSynced || "Never"}
+                      </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {status.autoSync
                           ? "Updates run automatically in the background"
@@ -264,9 +296,13 @@ export default function OrganizationCalendarSettings({
                     variant="outline"
                     size="sm"
                     onClick={handleSyncNow}
-                    disabled={syncingNow || status.needsReconnect || !status.canManage}
+                    disabled={
+                      syncingNow || status.needsReconnect || !status.canManage
+                    }
                   >
-                    <RefreshCw className={`h-3.5 w-3.5 ${syncingNow ? "animate-spin" : ""}`} />
+                    <RefreshCw
+                      className={`h-3.5 w-3.5 ${syncingNow ? "animate-spin" : ""}`}
+                    />
                     Sync Now
                   </Button>
                   {status.viewerIsOwner && (
@@ -287,7 +323,10 @@ export default function OrganizationCalendarSettings({
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   <div>
                     <p className="font-semibold">Reconnect required</p>
-                    <p>The owner account ({status.connectedEmail}) needs to reconnect with Calendar permissions.</p>
+                    <p>
+                      The owner account ({status.connectedEmail}) needs to
+                      reconnect with Calendar permissions.
+                    </p>
                   </div>
                 </div>
               )}
@@ -298,7 +337,9 @@ export default function OrganizationCalendarSettings({
                     Sync cadence
                   </span>
                   <span className="text-sm font-medium">
-                    {status.autoSync ? "Automatic hourly sync" : "Manual sync only"}
+                    {status.autoSync
+                      ? "Automatic hourly sync"
+                      : "Manual sync only"}
                   </span>
                   <span className="text-[10px] text-muted-foreground">
                     {status.autoSync
@@ -311,9 +352,13 @@ export default function OrganizationCalendarSettings({
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Connection owner
                   </span>
-                  <span className="text-sm font-medium">{connectedByLabel || status.connectedEmail || "Unknown"}</span>
+                  <span className="text-sm font-medium">
+                    {connectedByLabel || status.connectedEmail || "Unknown"}
+                  </span>
                   <span className="text-[10px] text-muted-foreground">
-                    {status.viewerIsOwner ? "You own this Google connection" : "Managed by another organization admin"}
+                    {status.viewerIsOwner
+                      ? "You own this Google connection"
+                      : "Managed by another organization admin"}
                   </span>
                 </div>
               </div>
@@ -331,7 +376,11 @@ export default function OrganizationCalendarSettings({
                   <Switch
                     checked={status.autoSync ?? false}
                     onCheckedChange={handleToggleAutoSync}
-                    disabled={updatingAutoSync || status.needsReconnect || !status.canManage}
+                    disabled={
+                      updatingAutoSync ||
+                      status.needsReconnect ||
+                      !status.canManage
+                    }
                   />
                 </div>
               </div>
@@ -364,7 +413,8 @@ export default function OrganizationCalendarSettings({
             <div>
               <p className="text-sm font-medium">No Google Account Connected</p>
               <p className="mt-1 text-xs text-muted-foreground max-w-70 mx-auto">
-                Connect a Google account to sync your organization projects to Google Calendar automatically.
+                Connect a Google account to sync your organization projects to
+                Google Calendar automatically.
               </p>
             </div>
 
@@ -374,7 +424,8 @@ export default function OrganizationCalendarSettings({
                 <div>
                   <p className="font-medium">Reconnect required</p>
                   <p>
-                    The previous Google connection expired. Reconnect the organization calendar to keep syncs running.
+                    The previous Google connection expired. Reconnect the
+                    organization calendar to keep syncs running.
                   </p>
                 </div>
               </div>
@@ -405,15 +456,22 @@ export default function OrganizationCalendarSettings({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Disconnect organization calendar?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Disconnect organization calendar?
+            </AlertDialogTitle>
             <AlertDialogDescription>
               This will stop syncing projects to the Google Calendar. Existing
               events will remain in Google Calendar until you delete them.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={disconnecting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDisconnect} disabled={disconnecting}>
+            <AlertDialogCancel disabled={disconnecting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+            >
               {disconnecting ? "Disconnecting..." : "Disconnect"}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -426,15 +484,24 @@ export default function OrganizationCalendarSettings({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove the connected Google account?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Remove the connected Google account?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will disconnect the Google account from this organization, stop calendar syncs,
-              and remove the organization&apos;s Google Calendar connection. You can reconnect later with a different account.
+              This will disconnect the Google account from this organization,
+              stop calendar syncs, and remove the organization&apos;s Google
+              Calendar connection. You can reconnect later with a different
+              account.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={disconnectingAccount}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDisconnectAccount} disabled={disconnectingAccount}>
+            <AlertDialogCancel disabled={disconnectingAccount}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDisconnectAccount}
+              disabled={disconnectingAccount}
+            >
               {disconnectingAccount ? "Removing..." : "Remove account"}
             </AlertDialogAction>
           </AlertDialogFooter>

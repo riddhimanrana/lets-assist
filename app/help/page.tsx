@@ -6,9 +6,25 @@ import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import { Search, X, HelpCircle, Rocket, Layout, Users, GraduationCap, Award, Download } from "lucide-react";
+import {
+  Search,
+  X,
+  HelpCircle,
+  Rocket,
+  Layout,
+  Users,
+  GraduationCap,
+  Award,
+  Download,
+} from "lucide-react";
 import Link from "next/link";
 
 // Import section components
@@ -26,29 +42,33 @@ const searchIndex = [
     id: "getting-started-welcome",
     title: "Welcome to Let's Assist",
     category: "getting-started",
-    content: "welcome lets assist complete guide tracking volunteer hours managing projects quick start create account profile browse create project track volunteer hours dashboard certificates organizations",
-    section: "Welcome"
+    content:
+      "welcome lets assist complete guide tracking volunteer hours managing projects quick start create account profile browse create project track volunteer hours dashboard certificates organizations",
+    section: "Welcome",
   },
   {
     id: "getting-started-account",
     title: "Setting Up Your Account",
     category: "getting-started",
-    content: "account setup profile full name contact information upload picture avatar time zone notification preferences connect organizations settings dashboard",
-    section: "Account Setup"
+    content:
+      "account setup profile full name contact information upload picture avatar time zone notification preferences connect organizations settings dashboard",
+    section: "Account Setup",
   },
   {
     id: "getting-started-navigation",
     title: "Navigating the Platform",
     category: "getting-started",
-    content: "navigation platform home dashboard projects organizations certificates quick actions create new projects settings profile menu export data main sections",
-    section: "Navigation"
+    content:
+      "navigation platform home dashboard projects organizations certificates quick actions create new projects settings profile menu export data main sections",
+    section: "Navigation",
   },
   {
     id: "getting-started-first-steps",
     title: "Your First Volunteer Project",
     category: "getting-started",
-    content: "first volunteer project join organization create individual project import existing hours csv upload manual tracking",
-    section: "First Steps"
+    content:
+      "first volunteer project join organization create individual project import existing hours csv upload manual tracking",
+    section: "First Steps",
   },
 
   // Projects
@@ -56,36 +76,41 @@ const searchIndex = [
     id: "projects-creating",
     title: "Creating Projects",
     category: "projects",
-    content: "create new project project name description start end dates category team members hour tracking preferences individual team organization event ongoing location invite",
-    section: "Project Creation"
+    content:
+      "create new project project name description start end dates category team members hour tracking preferences individual team organization event ongoing location invite",
+    section: "Project Creation",
   },
   {
     id: "projects-tracking",
     title: "Hour Tracking Methods",
     category: "projects",
-    content: "tracking hours live timer start stop manual entry bulk import upload spreadsheet verification project supervisors organization coordinators automatic verification",
-    section: "Hour Tracking"
+    content:
+      "tracking hours live timer start stop manual entry bulk import upload spreadsheet verification project supervisors organization coordinators automatic verification",
+    section: "Hour Tracking",
   },
   {
     id: "projects-certificates",
     title: "Earning Certificates",
     category: "projects",
-    content: "earning certificates digital certificate project details hour totals verification status downloadable pdf shareable links verification automatic generation",
-    section: "Certificates"
+    content:
+      "earning certificates digital certificate project details hour totals verification status downloadable pdf shareable links verification automatic generation",
+    section: "Certificates",
   },
   {
     id: "projects-csv",
     title: "CSV Export & Import",
     category: "projects",
-    content: "csv export import data reports school requirements dashboard export data date range format pdf download existing records upload map columns spreadsheet",
-    section: "Data Management"
+    content:
+      "csv export import data reports school requirements dashboard export data date range format pdf download existing records upload map columns spreadsheet",
+    section: "Data Management",
   },
   {
     id: "projects-management",
     title: "Managing Projects",
     category: "projects",
-    content: "managing projects project status planning active completed cancelled edit details add remove team members update status participant statistics export project data",
-    section: "Project Management"
+    content:
+      "managing projects project status planning active completed cancelled edit details add remove team members update status participant statistics export project data",
+    section: "Project Management",
   },
 
   // Organizations
@@ -93,43 +118,49 @@ const searchIndex = [
     id: "organizations-volunteers",
     title: "Joining Organizations",
     category: "organizations",
-    content: "joining organizations browse available request join invitation code approval organization admin participating organization projects browse organizations page",
-    section: "For Volunteers"
+    content:
+      "joining organizations browse available request join invitation code approval organization admin participating organization projects browse organizations page",
+    section: "For Volunteers",
   },
   {
     id: "organizations-benefits",
     title: "Organization Project Benefits",
     category: "organizations",
-    content: "organization projects volunteer opportunities team projects automatic hour verification organization admins resources guidelines higher credibility networking verified organizations",
-    section: "Organization Features"
+    content:
+      "organization projects volunteer opportunities team projects automatic hour verification organization admins resources guidelines higher credibility networking verified organizations",
+    section: "Organization Features",
   },
   {
     id: "organizations-roles",
     title: "Organization Roles",
     category: "organizations",
-    content: "organization roles member staff admin permissions participate projects create projects verify hours full organization management member oversight",
-    section: "Roles & Permissions"
+    content:
+      "organization roles member staff admin permissions participate projects create projects verify hours full organization management member oversight",
+    section: "Roles & Permissions",
   },
   {
     id: "organizations-admins",
     title: "Creating & Managing Organizations",
     category: "organizations",
-    content: "creating organizations apply organization account details verification projects volunteer opportunities invite volunteers manage volunteers review approve applications verify hours admin tools",
-    section: "For Admins"
+    content:
+      "creating organizations apply organization account details verification projects volunteer opportunities invite volunteers manage volunteers review approve applications verify hours admin tools",
+    section: "For Admins",
   },
   {
     id: "organization-data-management",
     title: "Organization Data Export",
     category: "organizations",
-    content: "export member data organization admin staff member hours participation csv download member details individual reports member management analytics",
-    section: "Data Management"
+    content:
+      "export member data organization admin staff member hours participation csv download member details individual reports member management analytics",
+    section: "Data Management",
   },
   {
     id: "organization-verification",
     title: "Organization Verification & Badges",
     category: "organizations",
-    content: "organization verification trust badges verified organization benefits higher trust enhanced visibility official verification badge blue check badge priority search results apply verification credibility certificates academic requirements project listings",
-    section: "Verification"
+    content:
+      "organization verification trust badges verified organization benefits higher trust enhanced visibility official verification badge blue check badge priority search results apply verification credibility certificates academic requirements project listings",
+    section: "Verification",
   },
 
   // Schools & CSF
@@ -137,29 +168,33 @@ const searchIndex = [
     id: "schools-csf",
     title: "CSF Programs",
     category: "schools",
-    content: "california scholarship federation csf volunteer hours school programs csf requirements membership verification reporting students track hours csf compliant documentation supervisor verification export reports",
-    section: "CSF & Schools"
+    content:
+      "california scholarship federation csf volunteer hours school programs csf requirements membership verification reporting students track hours csf compliant documentation supervisor verification export reports",
+    section: "CSF & Schools",
   },
   {
     id: "schools-students",
     title: "CSF Hour Tracking",
     category: "schools",
-    content: "csf hour tracking school approved projects csf eligible volunteer work tutoring students school events community clean up library nonprofit senior center activities csf documentation",
-    section: "Student Guide"
+    content:
+      "csf hour tracking school approved projects csf eligible volunteer work tutoring students school events community clean up library nonprofit senior center activities csf documentation",
+    section: "Student Guide",
   },
   {
     id: "schools-projects",
     title: "School-Approved Projects",
     category: "schools",
-    content: "school approved projects csf eligible tutoring school events community cleanup library help senior center food banks animal shelters hospital volunteer",
-    section: "Approved Activities"
+    content:
+      "school approved projects csf eligible tutoring school events community cleanup library help senior center food banks animal shelters hospital volunteer",
+    section: "Approved Activities",
   },
   {
     id: "schools-setup",
     title: "School Program Setup",
     category: "schools",
-    content: "school program setup school organization account csf volunteer program requirements invite students monitor progress verify hours dashboard student progress automated alerts bulk export school records",
-    section: "School Administration"
+    content:
+      "school program setup school organization account csf volunteer program requirements invite students monitor progress verify hours dashboard student progress automated alerts bulk export school records",
+    section: "School Administration",
   },
 
   // Certificates
@@ -167,29 +202,33 @@ const searchIndex = [
     id: "certificates-understanding",
     title: "Understanding Certificates",
     category: "certificates",
-    content: "understanding certificates digital proof volunteer work automatically generated completing projects shareable links downloadable verification",
-    section: "Certificate Basics"
+    content:
+      "understanding certificates digital proof volunteer work automatically generated completing projects shareable links downloadable verification",
+    section: "Certificate Basics",
   },
   {
     id: "certificates-viewing",
     title: "Viewing Your Certificates",
     category: "certificates",
-    content: "viewing certificates certificates page dashboard access browse grid view filter date organization project sort newest oldest hours",
-    section: "Viewing Certificates"
+    content:
+      "viewing certificates certificates page dashboard access browse grid view filter date organization project sort newest oldest hours",
+    section: "Viewing Certificates",
   },
   {
     id: "certificates-sharing",
     title: "Sharing & Verification",
     category: "certificates",
-    content: "sharing verification direct links pdf downloads print options unique url schools employers scholarship committees verification qr codes",
-    section: "Sharing Certificates"
+    content:
+      "sharing verification direct links pdf downloads print options unique url schools employers scholarship committees verification qr codes",
+    section: "Sharing Certificates",
   },
   {
     id: "certificates-export",
     title: "Exporting Certificate Data",
     category: "certificates",
-    content: "exporting certificate data dashboard certificates page csv export date range filter print bulk print summary data reporting",
-    section: "Data Export"
+    content:
+      "exporting certificate data dashboard certificates page csv export date range filter print bulk print summary data reporting",
+    section: "Data Export",
   },
 
   // Data Export
@@ -197,23 +236,26 @@ const searchIndex = [
     id: "data-export-personal",
     title: "Personal Data Exports",
     category: "data-export",
-    content: "personal data exports certificate export dashboard date range filtering csv download comprehensive data volunteer certificates hour tracking project participation",
-    section: "Personal Exports"
+    content:
+      "personal data exports certificate export dashboard date range filtering csv download comprehensive data volunteer certificates hour tracking project participation",
+    section: "Personal Exports",
   },
   {
     id: "data-export-organization",
     title: "Organization Data Exports",
     category: "data-export",
-    content: "organization data exports member hours export admin staff permissions member details individual reports organization page members tab csv download",
-    section: "Organization Exports"
+    content:
+      "organization data exports member hours export admin staff permissions member details individual reports organization page members tab csv download",
+    section: "Organization Exports",
   },
   {
     id: "data-export-analytics",
     title: "Analytics & Insights",
     category: "data-export",
-    content: "analytics insights personal dashboard analytics organization analytics member engagement statistics project participation rates total organizational impact trends",
-    section: "Analytics"
-  }
+    content:
+      "analytics insights personal dashboard analytics organization analytics member engagement statistics project participation rates total organizational impact trends",
+    section: "Analytics",
+  },
 ];
 
 export default function HelpPage() {
@@ -227,15 +269,16 @@ export default function HelpPage() {
 
     const query = searchQuery.toLowerCase();
     return searchIndex
-      .filter(item =>
-        item.title.toLowerCase().includes(query) ||
-        item.content.toLowerCase().includes(query) ||
-        item.section.toLowerCase().includes(query)
+      .filter(
+        (item) =>
+          item.title.toLowerCase().includes(query) ||
+          item.content.toLowerCase().includes(query) ||
+          item.section.toLowerCase().includes(query),
       )
       .slice(0, 8); // Limit to 8 results
   }, [searchQuery]);
 
-  const handleSearchSelect = (item: typeof searchIndex[0]) => {
+  const handleSearchSelect = (item: (typeof searchIndex)[0]) => {
     setSelectedTab(item.category);
     setSearchQuery("");
     setShowSearchResults(false);
@@ -259,7 +302,9 @@ export default function HelpPage() {
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold mb-4">Help Center</h1>
         <p className="text-base sm:text-xl text-muted-foreground max-w-2xl mx-auto">
-          Everything you need to know about using Let&apos;s Assist for volunteer hour tracking, project management, and certificate generation.
+          Everything you need to know about using Let&apos;s Assist for
+          volunteer hour tracking, project management, and certificate
+          generation.
         </p>
       </div>
 
@@ -305,7 +350,9 @@ export default function HelpPage() {
                         <div className="flex items-center justify-between w-full">
                           <div>
                             <div className="font-medium">{item.title}</div>
-                            <div className="text-sm text-muted-foreground">{item.section}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {item.section}
+                            </div>
                           </div>
                           <Badge variant="outline" className="text-xs">
                             {item.category.replace("-", " ")}
@@ -324,37 +371,65 @@ export default function HelpPage() {
         {showSearchResults && searchQuery && searchResults.length === 0 && (
           <Card className="absolute top-full mt-2 w-full max-w-2xl mx-auto left-1/2 transform -translate-x-1/2 z-50">
             <CardContent className="p-4 text-center">
-              <p className="text-muted-foreground">No results found for &quot;{searchQuery}&quot;</p>
-              <p className="text-sm text-muted-foreground mt-1">Try searching for terms like &quot;export&quot;, &quot;CSF&quot;, &quot;certificates&quot;, or &quot;organizations&quot;</p>
+              <p className="text-muted-foreground">
+                No results found for &quot;{searchQuery}&quot;
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Try searching for terms like &quot;export&quot;,
+                &quot;CSF&quot;, &quot;certificates&quot;, or
+                &quot;organizations&quot;
+              </p>
             </CardContent>
           </Card>
         )}
       </div>
 
-      <Tabs value={selectedTab} onValueChange={(val) => val && setSelectedTab(val)} className="w-full">
+      <Tabs
+        value={selectedTab}
+        onValueChange={(val) => val && setSelectedTab(val)}
+        className="w-full"
+      >
         <div className="flex justify-center mb-8 overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <TabsList className="inline-flex gap-0 bg-muted/50 p-1 h-auto">
-            <TabsTrigger value="getting-started" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+            <TabsTrigger
+              value="getting-started"
+              className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap"
+            >
               <Rocket className="h-4 w-4" />
               <span>Getting Started</span>
             </TabsTrigger>
-            <TabsTrigger value="projects" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+            <TabsTrigger
+              value="projects"
+              className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap"
+            >
               <Layout className="h-4 w-4" />
               <span>Projects</span>
             </TabsTrigger>
-            <TabsTrigger value="organizations" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+            <TabsTrigger
+              value="organizations"
+              className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap"
+            >
               <Users className="h-4 w-4" />
               <span>Organizations</span>
             </TabsTrigger>
-            <TabsTrigger value="schools" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+            <TabsTrigger
+              value="schools"
+              className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap"
+            >
               <GraduationCap className="h-4 w-4" />
               <span>Schools & CSF</span>
             </TabsTrigger>
-            <TabsTrigger value="certificates" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+            <TabsTrigger
+              value="certificates"
+              className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap"
+            >
               <Award className="h-4 w-4" />
               <span>Certificates</span>
             </TabsTrigger>
-            <TabsTrigger value="data-export" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+            <TabsTrigger
+              value="data-export"
+              className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap"
+            >
               <Download className="h-4 w-4" />
               <span>Data Export</span>
             </TabsTrigger>
@@ -396,10 +471,16 @@ export default function HelpPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-muted-foreground">
-              Can&apos;t find what you&apos;re looking for? We&apos;re here to help!
+              Can&apos;t find what you&apos;re looking for? We&apos;re here to
+              help!
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link href="/contact" className={cn(buttonVariants({ variant: "outline" }))}>Contact Support</Link>
+              <Link
+                href="/contact"
+                className={cn(buttonVariants({ variant: "outline" }))}
+              >
+                Contact Support
+              </Link>
               {/* <Button variant="outline" asChild>
                 <Link href="/">Send Feedback</Link>
               </Button> */}

@@ -4,7 +4,10 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "crypto";
-import { buildAuthConfirmRedirectUrl, normalizeRedirectPath } from "./redirect-utils";
+import {
+  buildAuthConfirmRedirectUrl,
+  normalizeRedirectPath,
+} from "./redirect-utils";
 import { passwordSchema } from "@/lib/auth/password-policy";
 
 const signupSchema = z.object({
@@ -23,7 +26,11 @@ const getSiteUrl = () => {
     ? `https://${process.env.VERCEL_URL}`
     : undefined;
 
-  return (configuredSiteUrl || vercelSiteUrl || "http://localhost:3000").replace(/\/+$/u, "");
+  return (
+    configuredSiteUrl ||
+    vercelSiteUrl ||
+    "http://localhost:3000"
+  ).replace(/\/+$/u, "");
 };
 
 function getResendErrorCode(message: string, status?: number) {
@@ -38,7 +45,11 @@ function getResendErrorCode(message: string, status?: number) {
     return "captcha_required";
   }
 
-  if (lowered.includes("expired") || lowered.includes("otp") || lowered.includes("token")) {
+  if (
+    lowered.includes("expired") ||
+    lowered.includes("otp") ||
+    lowered.includes("token")
+  ) {
     return "link_expired";
   }
 
@@ -49,7 +60,9 @@ export async function signup(formData: FormData) {
   const turnstileToken = formData.get("turnstileToken") as string;
   const staffToken = formData.get("staffToken") as string | undefined;
   const orgUsername = formData.get("orgUsername") as string | undefined;
-  const redirectUrl = normalizeRedirectPath(formData.get("redirectUrl")?.toString() ?? null);
+  const redirectUrl = normalizeRedirectPath(
+    formData.get("redirectUrl")?.toString() ?? null,
+  );
 
   const validatedFields = signupSchema.safeParse({
     fullName: formData.get("fullName"),
@@ -77,10 +90,12 @@ export async function signup(formData: FormData) {
 
   try {
     const origin = getSiteUrl();
-    
+
     // Check if this email is blacklisted
     const adminClient = getAdminClient();
-    const normalizedSignupEmail = validatedFields.data.email.trim().toLowerCase();
+    const normalizedSignupEmail = validatedFields.data.email
+      .trim()
+      .toLowerCase();
     const { data: blacklisted } = await adminClient
       .from("banned_emails")
       .select("email")
@@ -89,7 +104,9 @@ export async function signup(formData: FormData) {
 
     if (blacklisted) {
       return {
-        error: { server: ["This email address is not eligible for registration."] },
+        error: {
+          server: ["This email address is not eligible for registration."],
+        },
       };
     }
 
@@ -119,7 +136,8 @@ export async function signup(formData: FormData) {
           phone: validatedFields.data.phone,
           username: `user_${randomUUID().slice(0, 8)}`,
           created_at: new Date().toISOString(),
-          ...(validatedFields.data.staffToken && validatedFields.data.orgUsername
+          ...(validatedFields.data.staffToken &&
+          validatedFields.data.orgUsername
             ? {
                 pending_staff_token: validatedFields.data.staffToken,
                 pending_staff_org_username: validatedFields.data.orgUsername,
@@ -145,7 +163,8 @@ export async function signup(formData: FormData) {
         return {
           success: true,
           email: validatedFields.data.email,
-          message: "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
+          message:
+            "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
         };
       }
       throw authError;
@@ -163,7 +182,8 @@ export async function signup(formData: FormData) {
       return {
         success: true,
         email: validatedFields.data.email,
-        message: "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
+        message:
+          "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
       };
     }
 
@@ -171,10 +191,11 @@ export async function signup(formData: FormData) {
     // metadata supplied to auth.signUp. Keep profile creation inside that auth
     // transaction instead of issuing a second service-role write here.
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       email: validatedFields.data.email,
-      message: "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
+      message:
+        "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
     };
   } catch (error) {
     return { error: { server: [(error as Error).message] } };
@@ -189,7 +210,7 @@ export async function resendVerificationEmail(
   try {
     const supabase = await createClient();
     const origin = getSiteUrl();
-    
+
     const options: Record<string, string> = {
       emailRedirectTo: buildAuthConfirmRedirectUrl(origin, redirectAfterAuth),
     };
@@ -199,30 +220,31 @@ export async function resendVerificationEmail(
     }
 
     const { error } = await supabase.auth.resend({
-      type: 'signup',
+      type: "signup",
       email: email,
       options,
     });
-    
+
     if (error) {
       console.error("Error resending verification email:", error);
       const message = error.message || "Failed to resend verification email";
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: message,
         code: getResendErrorCode(message, error.status),
       };
     }
-    
-    return { 
-      success: true, 
-      message: "Verification email has been resent. Please check your inbox." 
+
+    return {
+      success: true,
+      message: "Verification email has been resent. Please check your inbox.",
     };
   } catch (error) {
     console.error("Exception in resendVerificationEmail:", error);
-    const message = (error as Error).message || "An error occurred while resending the email";
-    return { 
-      success: false, 
+    const message =
+      (error as Error).message || "An error occurred while resending the email";
+    return {
+      success: false,
       error: message,
       code: getResendErrorCode(message),
     };
@@ -231,28 +253,28 @@ export async function resendVerificationEmail(
 
 export async function signInWithGoogle(
   redirectAfterAuth?: string | null,
-  inviteContext?: { staffToken?: string; orgUsername?: string } | null
+  inviteContext?: { staffToken?: string; orgUsername?: string } | null,
 ) {
   const origin = getSiteUrl();
 
   const supabase = await createClient();
-  
+
   // Build callback URL with query params for redirect and staff invite context
   let redirectTo = `${origin}/auth/callback`;
   const params = new URLSearchParams();
-  
+
   if (redirectAfterAuth) {
-    params.set('redirectAfterAuth', redirectAfterAuth);
+    params.set("redirectAfterAuth", redirectAfterAuth);
   }
-  
+
   if (inviteContext?.staffToken) {
-    params.set('staffToken', inviteContext.staffToken);
+    params.set("staffToken", inviteContext.staffToken);
   }
-  
+
   if (inviteContext?.orgUsername) {
-    params.set('orgUsername', inviteContext.orgUsername);
+    params.set("orgUsername", inviteContext.orgUsername);
   }
-  
+
   const queryString = params.toString();
   if (queryString) {
     redirectTo += `?${queryString}`;
@@ -271,11 +293,11 @@ export async function signInWithGoogle(
       redirectTo,
     },
   });
-  
+
   if (error) {
     console.error("Google OAuth error:", error);
     return { error: { server: [error.message] } };
   }
-  
+
   return { url };
 }

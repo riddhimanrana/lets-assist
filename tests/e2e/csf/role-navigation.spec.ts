@@ -302,7 +302,9 @@ test.describe("DVHS CSF role-aware navigation", () => {
     });
 
     await expect(page).toHaveURL(`${CSF_ORGANIZATION_PATH}?tab=csf-overview`);
-    await expect(page.getByRole("tab", { name: "Home", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("tab", { name: "Home", exact: true }),
+    ).toBeVisible();
     // The canonical tab owns the CSF chrome; the plugin must not nest a second
     // workspace shell inside it.
     await expect(
@@ -342,11 +344,17 @@ test.describe("DVHS CSF role-aware navigation", () => {
     await loginAs(page, "applicant");
 
     for (const tab of ["My CSF", "Activities", "Point submissions"]) {
-      await expect(page.getByRole("tab", { name: tab, exact: true })).toBeVisible();
+      await expect(
+        page.getByRole("tab", { name: tab, exact: true }),
+      ).toBeVisible();
     }
-    await expect(page.getByText("Under review", { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByText("Under review", { exact: true }).first(),
+    ).toBeVisible();
     for (const tab of ["Applications", "Members", "Service", "Semester"]) {
-      await expect(page.getByRole("tab", { name: tab, exact: true })).toHaveCount(0);
+      await expect(
+        page.getByRole("tab", { name: tab, exact: true }),
+      ).toHaveCount(0);
     }
 
     const response = await page.goto(

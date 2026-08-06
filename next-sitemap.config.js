@@ -16,8 +16,8 @@ module.exports = {
     "/admin/*",
     "/account/*",
     "/dashboard",
-    "/(landing)",         // Hidden group folder
-    "*/[id]*",            // Exclude dynamic patterns
+    "/(landing)", // Hidden group folder
+    "*/[id]*", // Exclude dynamic patterns
     "*/[projectId]*",
     "*/[username]*",
     "*/[token]*",

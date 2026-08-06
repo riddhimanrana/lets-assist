@@ -1,7 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +22,7 @@ import {
   CircleCheck,
   UserCheck,
   Trash2,
-  Loader2
+  Loader2,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import Link from "next/link";
@@ -59,7 +65,10 @@ interface AllHoursSectionProps {
 }
 
 // Client-side utility functions
-function calculateDecimalHours(startTimeISO: string, endTimeISO: string): number {
+function calculateDecimalHours(
+  startTimeISO: string,
+  endTimeISO: string,
+): number {
   const start = new Date(startTimeISO);
   const end = new Date(endTimeISO);
   const diffMs = end.getTime() - start.getTime();
@@ -82,9 +91,11 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
   const [deletingTitle, setDeletingTitle] = useState<string | null>(null);
 
   // Separate platform and self-reported certificates (default to platform for backward compatibility)
-  const verifiedCertificates = certificates.filter(cert => (cert.type || "platform") === "platform");
+  const verifiedCertificates = certificates.filter(
+    (cert) => (cert.type || "platform") === "platform",
+  );
   const [selfReportedCertificates, setSelfReportedCertificates] = useState(
-    certificates.filter(cert => cert.type === "self-reported")
+    certificates.filter((cert) => cert.type === "self-reported"),
   );
 
   const totalVerified = verifiedCertificates.length;
@@ -103,13 +114,16 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
       }
 
       // Remove from local state
-      setSelfReportedCertificates(prev => prev.filter(cert => cert.id !== id));
-      
+      setSelfReportedCertificates((prev) =>
+        prev.filter((cert) => cert.id !== id),
+      );
+
       toast.success("Self-reported hours deleted", {
         description: `${deletingTitle} has been removed.`,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Please try again";
+      const message =
+        error instanceof Error ? error.message : "Please try again";
       toast.error("Failed to delete hours", {
         description: message,
       });
@@ -120,8 +134,17 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
     }
   };
 
-  const CertificateItem = ({ cert, isSelfReported = false }: { cert: Certificate; isSelfReported?: boolean }) => {
-    const durationHours = calculateDecimalHours(cert.event_start, cert.event_end);
+  const CertificateItem = ({
+    cert,
+    isSelfReported = false,
+  }: {
+    cert: Certificate;
+    isSelfReported?: boolean;
+  }) => {
+    const durationHours = calculateDecimalHours(
+      cert.event_start,
+      cert.event_end,
+    );
     const formattedDuration = formatTotalDuration(durationHours);
 
     return (
@@ -130,11 +153,16 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
           <div className="flex-1 space-y-1 min-w-0">
             <div className="flex items-center gap-2">
               {isSelfReported ? (
-                <Badge variant="secondary" className="text-xs bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning">
+                <Badge
+                  variant="secondary"
+                  className="text-xs bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning"
+                >
                   Self-Reported
                 </Badge>
               ) : (
-                <Badge variant="default" className="text-xs">Platform</Badge>
+                <Badge variant="default" className="text-xs">
+                  Platform
+                </Badge>
               )}
               {!isSelfReported && cert.is_certified && (
                 <Badge variant="default" className="text-xs bg-chart-2">
@@ -142,9 +170,13 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
                 </Badge>
               )}
             </div>
-            <div className="font-medium text-sm sm:text-base">{cert.project_title}</div>
+            <div className="font-medium text-sm sm:text-base">
+              {cert.project_title}
+            </div>
             <p className="text-xs sm:text-sm text-muted-foreground truncate">
-              {cert.organization_name || cert.creator_name || "Unknown Organizer"}
+              {cert.organization_name ||
+                cert.creator_name ||
+                "Unknown Organizer"}
             </p>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
               <div className="flex items-center gap-1.5">
@@ -152,15 +184,29 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
                   <Calendar className="h-3 w-3" />
                   {format(parseISO(cert.event_start), "MMM d, yyyy")}
                 </span>
-                <TimezoneBadge timezone={cert.projects?.project_timezone || 'America/Los_Angeles'} />
+                <TimezoneBadge
+                  timezone={
+                    cert.projects?.project_timezone || "America/Los_Angeles"
+                  }
+                />
               </div>
               {formattedDuration !== "0m" && (
-                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {formattedDuration}</span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> {formattedDuration}
+                </span>
               )}
             </div>
           </div>
           <div className="shrink-0 w-full sm:w-auto flex gap-2">
-            <Link href={`/certificates/${cert.id}`} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex-1 sm:flex-initial")}>
+            <Link
+              href={`/certificates/${cert.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "flex-1 sm:flex-initial",
+              )}
+            >
               <TicketCheck className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">View</span>
               <span className="sm:hidden">Certificate</span>
@@ -188,12 +234,16 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
 
         {/* Delete Confirmation Dialog */}
         {confirmDeleteId === cert.id && isSelfReported && (
-          <AlertDialog open={confirmDeleteId === cert.id} onOpenChange={(open) => !open && setConfirmDeleteId(null)}>
+          <AlertDialog
+            open={confirmDeleteId === cert.id}
+            onOpenChange={(open) => !open && setConfirmDeleteId(null)}
+          >
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete Self-Reported Hours?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently delete &quot;{cert.project_title}&quot; and its associated certificate. This action cannot be undone.
+                  This will permanently delete &quot;{cert.project_title}&quot;
+                  and its associated certificate. This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -230,7 +280,9 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
             <CardTitle>Let&apos;s Assist Platform Hours</CardTitle>
             <Badge variant="secondary">{totalVerified}</Badge>
           </div>
-          <CardDescription>Hours from Let&apos;s Assist platform projects and organizations</CardDescription>
+          <CardDescription>
+            Hours from Let&apos;s Assist platform projects and organizations
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {verifiedCertificates.length > 0 ? (
@@ -252,9 +304,12 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
           ) : (
             <div className="flex flex-col items-center justify-center py-8 sm:py-10 text-center">
               <FileCheck className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/30 mb-3" />
-              <h3 className="font-medium text-sm sm:text-base">No Verified Hours Yet</h3>
+              <h3 className="font-medium text-sm sm:text-base">
+                No Verified Hours Yet
+              </h3>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xs">
-                Complete Let&apos;s Assist volunteer opportunities to earn verified certificates.
+                Complete Let&apos;s Assist volunteer opportunities to earn
+                verified certificates.
               </p>
             </div>
           )}
@@ -269,7 +324,10 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
             <CardTitle>Self-Reported Hours</CardTitle>
             <Badge variant="secondary">{totalSelfReported}</Badge>
           </div>
-          <CardDescription>Volunteer hours you&apos;ve added from activities outside Let&apos;s Assist</CardDescription>
+          <CardDescription>
+            Volunteer hours you&apos;ve added from activities outside Let&apos;s
+            Assist
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {selfReportedCertificates.length > 0 ? (
@@ -291,7 +349,9 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
           ) : (
             <div className="flex flex-col items-center justify-center py-8 sm:py-10 text-center">
               <AlertTriangle className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/30 mb-3" />
-              <h3 className="font-medium text-sm sm:text-base">No Self-Reported Hours Yet</h3>
+              <h3 className="font-medium text-sm sm:text-base">
+                No Self-Reported Hours Yet
+              </h3>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xs">
                 Add volunteer hours from activities outside Let&apos;s Assist.
               </p>

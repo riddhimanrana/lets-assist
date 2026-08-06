@@ -30,11 +30,25 @@ test("uses the latest slot across a multi-day schedule", () => {
       multiDay: [
         {
           date: "2026-07-10",
-          slots: [{ name: "Early", startTime: "09:00", endTime: "10:00", volunteers: 2 }],
+          slots: [
+            {
+              name: "Early",
+              startTime: "09:00",
+              endTime: "10:00",
+              volunteers: 2,
+            },
+          ],
         },
         {
           date: "2026-07-12",
-          slots: [{ name: "Late", startTime: "20:00", endTime: "22:30", volunteers: 2 }],
+          slots: [
+            {
+              name: "Late",
+              startTime: "20:00",
+              endTime: "22:30",
+              volunteers: 2,
+            },
+          ],
         },
       ],
     },

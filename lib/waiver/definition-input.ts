@@ -34,7 +34,10 @@ const rectSchema = z
   })
   .strict();
 
-const metaSchema = z.record(z.string().max(128), z.unknown()).nullable().optional();
+const metaSchema = z
+  .record(z.string().max(128), z.unknown())
+  .nullable()
+  .optional();
 
 const detectedFieldTypeSchema = z.enum([
   "signature",
@@ -71,7 +74,11 @@ const signerSchema = z
     roleKey: roleKeySchema,
     label: z.string().trim().min(1).max(120),
     required: z.boolean(),
-    orderIndex: z.number().int().min(0).max(MAX_WAIVER_DEFINITION_SIGNERS - 1),
+    orderIndex: z
+      .number()
+      .int()
+      .min(0)
+      .max(MAX_WAIVER_DEFINITION_SIGNERS - 1),
     rules: z.record(z.string().max(128), z.unknown()).nullable().optional(),
   })
   .strict();
@@ -127,7 +134,10 @@ export const waiverDefinitionInputSchema = z
     }
 
     const detectedFields = Object.values(definition.fields.detected);
-    if (detectedFields.length + definition.fields.custom.length > MAX_WAIVER_DEFINITION_FIELDS) {
+    if (
+      detectedFields.length + definition.fields.custom.length >
+      MAX_WAIVER_DEFINITION_FIELDS
+    ) {
       context.addIssue({
         code: "custom",
         path: ["fields"],
@@ -172,7 +182,10 @@ export const waiverDefinitionInputSchema = z
       return;
     }
 
-    if (new TextEncoder().encode(serializedDefinition).byteLength > MAX_WAIVER_DEFINITION_JSON_BYTES) {
+    if (
+      new TextEncoder().encode(serializedDefinition).byteLength >
+      MAX_WAIVER_DEFINITION_JSON_BYTES
+    ) {
       context.addIssue({
         code: "custom",
         message: "Waiver definition payload is too large",
@@ -180,4 +193,6 @@ export const waiverDefinitionInputSchema = z
     }
   });
 
-export type ValidatedWaiverDefinitionInput = z.infer<typeof waiverDefinitionInputSchema>;
+export type ValidatedWaiverDefinitionInput = z.infer<
+  typeof waiverDefinitionInputSchema
+>;

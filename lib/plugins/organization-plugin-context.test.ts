@@ -17,26 +17,23 @@ describe("organization plugin routing context", () => {
 
   test("retries transient result errors before returning the row", async () => {
     let attempts = 0;
-    const result = await readOrganizationPluginContext(
-      "organization",
-      () => {
-        attempts += 1;
-        return Promise.resolve(
-          attempts === 1
-            ? {
-                data: null,
-                error: {
-                  message:
-                    "An invalid response was received from the upstream server",
-                },
-              }
-            : {
-                data: { id: "fictional-organization" },
-                error: null,
+    const result = await readOrganizationPluginContext("organization", () => {
+      attempts += 1;
+      return Promise.resolve(
+        attempts === 1
+          ? {
+              data: null,
+              error: {
+                message:
+                  "An invalid response was received from the upstream server",
               },
-        );
-      },
-    );
+            }
+          : {
+              data: { id: "fictional-organization" },
+              error: null,
+            },
+      );
+    });
 
     expect(attempts).toBe(2);
     expect(result).toEqual({ id: "fictional-organization" });

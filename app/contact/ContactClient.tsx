@@ -60,12 +60,7 @@ type ContactActionCard = {
   iconClassName: string;
   hoverClassName: string;
   buttonVariant?:
-    | "default"
-    | "destructive"
-    | "outline"
-    | "secondary"
-    | "ghost"
-    | "link";
+    "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   buttonClassName?: string;
   href?: string;
   onClick?: () => void;
@@ -253,7 +248,9 @@ export default function ContactClient() {
                   }
                 />
                 <Button asChild variant="outline" className="rounded-full">
-                  <Link href="/organization/create">Create an organization</Link>
+                  <Link href="/organization/create">
+                    Create an organization
+                  </Link>
                 </Button>
               </div>
             </div>

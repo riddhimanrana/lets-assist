@@ -12,14 +12,15 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle
+  CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { AlertCircle, CloudUpload, FileText, Loader2 } from "lucide-react";
 import { FormSchema, FormFieldDefinition } from "@/lib/forms/engine";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-type FormResponseValue = string | number | boolean | string[] | File | null | undefined;
+type FormResponseValue =
+  string | number | boolean | string[] | File | null | undefined;
 type FormResponseData = Record<string, FormResponseValue>;
 
 interface ModernFormRendererProps {
@@ -37,14 +38,14 @@ export function ModernFormRenderer({
   description,
   onSubmit,
   isSubmitting = false,
-  userEmail
+  userEmail,
 }: ModernFormRendererProps) {
   const [formData, setFormData] = useState<FormResponseData>({});
   const [activeSection, setActiveSection] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleFieldChange = (key: string, value: FormResponseValue) => {
-    setFormData(prev => ({ ...prev, [key]: value }));
+    setFormData((prev) => ({ ...prev, [key]: value }));
     if (errors[key]) {
       const newErrors = { ...errors };
       delete newErrors[key];
@@ -57,8 +58,11 @@ export function ModernFormRenderer({
     const newErrors: Record<string, string> = {};
     let isValid = true;
 
-    section.fields.forEach(field => {
-      if (field.required && (formData[field.key] === undefined || formData[field.key] === "")) {
+    section.fields.forEach((field) => {
+      if (
+        field.required &&
+        (formData[field.key] === undefined || formData[field.key] === "")
+      ) {
         newErrors[field.key] = "This is a required question";
         isValid = false;
       }
@@ -70,14 +74,16 @@ export function ModernFormRenderer({
 
   const handleNext = () => {
     if (validateCurrentSection()) {
-      setActiveSection(prev => Math.min(prev + 1, schema.sections.length - 1));
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setActiveSection((prev) =>
+        Math.min(prev + 1, schema.sections.length - 1),
+      );
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
   const handleBack = () => {
-    setActiveSection(prev => Math.max(prev - 1, 0));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setActiveSection((prev) => Math.max(prev - 1, 0));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -88,7 +94,10 @@ export function ModernFormRenderer({
   };
 
   const currentSection = schema?.sections?.[activeSection] || { fields: [] };
-  const progress = schema?.sections?.length > 0 ? ((activeSection + 1) / schema.sections.length) * 100 : 0;
+  const progress =
+    schema?.sections?.length > 0
+      ? ((activeSection + 1) / schema.sections.length) * 100
+      : 0;
 
   return (
     <div className="max-w-[770px] mx-auto space-y-3">
@@ -96,7 +105,9 @@ export function ModernFormRenderer({
       <Card className="border-none shadow-sm overflow-hidden rounded-lg">
         <div className="h-2.5 bg-primary w-full" />
         <CardHeader className="pt-6 pb-4">
-          <CardTitle className="text-[32px] font-normal leading-tight">{title}</CardTitle>
+          <CardTitle className="text-[32px] font-normal leading-tight">
+            {title}
+          </CardTitle>
           {description && (
             <div className="mt-4 text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground">
               {description}
@@ -108,7 +119,9 @@ export function ModernFormRenderer({
                 <span>{userEmail}</span>
               </div>
             )}
-            <div className="text-[14px] text-destructive mt-2">* Indicates required question</div>
+            <div className="text-[14px] text-destructive mt-2">
+              * Indicates required question
+            </div>
           </div>
         </CardHeader>
       </Card>
@@ -152,7 +165,9 @@ export function ModernFormRenderer({
                 disabled={isSubmitting}
                 className="px-8 font-medium"
               >
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {isSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
                 Submit
               </Button>
             )}
@@ -160,9 +175,14 @@ export function ModernFormRenderer({
 
           <div className="flex flex-col items-end gap-2">
             <div className="w-48">
-              <Progress value={progress} className="h-2 bg-muted [&>div]:bg-primary" />
+              <Progress
+                value={progress}
+                className="h-2 bg-muted [&>div]:bg-primary"
+              />
             </div>
-            <span className="text-xs text-muted-foreground">Page {activeSection + 1} of {schema.sections?.length || 1}</span>
+            <span className="text-xs text-muted-foreground">
+              Page {activeSection + 1} of {schema.sections?.length || 1}
+            </span>
           </div>
         </div>
       </form>
@@ -174,7 +194,7 @@ function FormQuestionCard({
   field,
   value,
   onChange,
-  error
+  error,
 }: {
   field: FormFieldDefinition;
   value: FormResponseValue;
@@ -190,7 +210,7 @@ function FormQuestionCard({
       className={cn(
         "border-none shadow-sm transition-shadow duration-200 rounded-lg",
         isFocused && "shadow-md",
-        error && "border-l-4 border-l-destructive"
+        error && "border-l-4 border-l-destructive",
       )}
       onFocus={() => setIsFocused(true)}
       onBlur={() => setIsFocused(false)}
@@ -248,29 +268,33 @@ function FormQuestionCard({
             />
           )}
 
-          {(field.type === "select" || field.type === "radio") && field.options && (
-            <div className="space-y-3">
-              <RadioGroup
-                value={typeof value === "string" ? value : undefined}
-                onValueChange={onChange}
-              >
-                {field.options.map((option) => (
-                  <div key={option.value} className="flex items-center space-x-3 space-y-0">
-                    <RadioGroupItem
-                      value={option.value}
-                      id={`${field.key}-${option.value}`}
-                    />
-                    <Label
-                      htmlFor={`${field.key}-${option.value}`}
-                      className="text-[14px] font-normal cursor-pointer leading-none"
+          {(field.type === "select" || field.type === "radio") &&
+            field.options && (
+              <div className="space-y-3">
+                <RadioGroup
+                  value={typeof value === "string" ? value : undefined}
+                  onValueChange={onChange}
+                >
+                  {field.options.map((option) => (
+                    <div
+                      key={option.value}
+                      className="flex items-center space-x-3 space-y-0"
                     >
-                      {option.label}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-          )}
+                      <RadioGroupItem
+                        value={option.value}
+                        id={`${field.key}-${option.value}`}
+                      />
+                      <Label
+                        htmlFor={`${field.key}-${option.value}`}
+                        className="text-[14px] font-normal cursor-pointer leading-none"
+                      >
+                        {option.label}
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+            )}
 
           {field.type === "checkbox" && (
             <div className="flex items-start space-x-3">
@@ -302,11 +326,15 @@ function FormQuestionCard({
                 />
                 <div className="flex flex-col items-center gap-2">
                   <CloudUpload className="h-8 w-8 text-muted-foreground" />
-                  <div className="text-sm font-medium text-primary">Add file</div>
+                  <div className="text-sm font-medium text-primary">
+                    Add file
+                  </div>
                   {value instanceof File && (
                     <div className="mt-2 flex items-center gap-2 bg-background px-3 py-1 rounded border shadow-sm">
                       <FileText className="h-4 w-4 text-primary" />
-                      <span className="text-xs truncate max-w-[200px]">{value.name}</span>
+                      <span className="text-xs truncate max-w-[200px]">
+                        {value.name}
+                      </span>
                     </div>
                   )}
                 </div>

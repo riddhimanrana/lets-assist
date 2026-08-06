@@ -87,7 +87,9 @@ export function BotVerificationDialog({
         </div>
 
         {verification.error && (
-          <p className="text-sm text-destructive text-center">{verification.error}</p>
+          <p className="text-sm text-destructive text-center">
+            {verification.error}
+          </p>
         )}
 
         <DialogFooter>

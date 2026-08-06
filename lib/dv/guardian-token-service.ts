@@ -85,7 +85,8 @@ export const GuardianTokenService = {
     }
 
     const inspected = await this.inspect(input.token);
-    if (!inspected.valid) throw new Error(`Guardian link is ${inspected.reason}.`);
+    if (!inspected.valid)
+      throw new Error(`Guardian link is ${inspected.reason}.`);
     if (inspected.action.purpose !== "confirm_availability") {
       throw new Error("Guardian link has the wrong purpose.");
     }

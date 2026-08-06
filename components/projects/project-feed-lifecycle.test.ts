@@ -97,7 +97,9 @@ function createFeedProbe() {
 
         logged.push(fetchError);
         renderedError =
-          fetchError instanceof Error ? fetchError.message : "Failed to load projects";
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Failed to load projects";
       } finally {
         if (activeRequest === controller) {
           activeRequest = null;

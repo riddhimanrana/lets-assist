@@ -139,14 +139,18 @@ export async function GET(request: Request) {
     );
     const existingTypeMatches = existingConnection
       ? wantsSheetsScopes
-        ? ["sheets", "both"].includes(existingConnection.connection_type ?? "") &&
-          hasGoogleDriveFileScope(existingConnection.granted_scopes)
-        : ["calendar", "both"].includes(existingConnection.connection_type ?? "") &&
-          hasGoogleCalendarWriteScope(existingConnection.granted_scopes)
+        ? ["sheets", "both"].includes(
+            existingConnection.connection_type ?? "",
+          ) && hasGoogleDriveFileScope(existingConnection.granted_scopes)
+        : ["calendar", "both"].includes(
+            existingConnection.connection_type ?? "",
+          ) && hasGoogleCalendarWriteScope(existingConnection.granted_scopes)
       : false;
 
     const shouldPromptConsent =
-      forceConsent || !existingTypeMatches || !existingConnection?.refresh_token;
+      forceConsent ||
+      !existingTypeMatches ||
+      !existingConnection?.refresh_token;
 
     const sheetsScopes = [GOOGLE_DRIVE_FILE_SCOPE];
 

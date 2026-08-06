@@ -83,13 +83,13 @@ All five follow the `getAuthorizedStaffContext -> zod -> createPluginAdminClient
 revalidatePath` shape used by `reviewCsfPointSubmissionAction` at `actions.ts:3600`, and
 return `CsfActionResult`.
 
-| Action | RPC | Permission |
-| --- | --- | --- |
-| `setCsfReviewPeriodAction` | `csf_set_review_period` | `manage_review_periods` |
-| `assignCsfReviewRangesAction` | `csf_assign_review_ranges` | `manage_review_periods` |
-| `recordCsfReviewDecisionAction` | `csf_record_review_decision` | `verify_submissions` |
-| `setCsfReviewSubmissionOverrideAction` | `csf_set_review_submission_override` | `verify_submissions` |
-| `addCsfReviewNoteAction` | `csf_add_review_note` | `verify_submissions` |
+| Action                                 | RPC                                  | Permission              |
+| -------------------------------------- | ------------------------------------ | ----------------------- |
+| `setCsfReviewPeriodAction`             | `csf_set_review_period`              | `manage_review_periods` |
+| `assignCsfReviewRangesAction`          | `csf_assign_review_ranges`           | `manage_review_periods` |
+| `recordCsfReviewDecisionAction`        | `csf_record_review_decision`         | `verify_submissions`    |
+| `setCsfReviewSubmissionOverrideAction` | `csf_set_review_submission_override` | `verify_submissions`    |
+| `addCsfReviewNoteAction`               | `csf_add_review_note`                | `verify_submissions`    |
 
 The permission split is already encoded in `navigation.ts:20`: reviewing officers enter with
 `verify_submissions`; only `manage_review_periods` opens or closes a campaign. Inline
@@ -119,7 +119,7 @@ Roster view: cohort selector; search by name; a filter for subjects still pendin
 assignment bands showing each officer's contiguous range; roster table ordered alphabetically
 by last name with a 1-based index; per-row entry into review.
 
-Search and filter narrow the *roster view* only. They must not narrow the queue snapshot —
+Search and filter narrow the _roster view_ only. They must not narrow the queue snapshot —
 an officer who filters to pending, then enters review from a row, still walks the full scope
 described above. Otherwise the range an officer is accountable for would silently change
 based on a filter they left set.
@@ -165,7 +165,7 @@ the constraint violation rather than letting it surface as an opaque error.
 submission, and dues status from `csf_term_applications`; then `csf_application_checks` and
 `csf_application_course_entries` with the existing `updateCsfApplicationCheckAction`; then the
 same verdict footer. `decideCsfApplicationAction` remains the authority on application
-*status* — the review decision is a separate campaign-level verdict, not a replacement.
+_status_ — the review decision is a separate campaign-level verdict, not a replacement.
 
 `ReviewNotesThread.tsx` is shared verbatim. It takes `subject_kind` and `subject_id` only,
 and its redaction contract already mirrors `csf_application_private_notes`.

@@ -8,7 +8,12 @@ import {
 function validDefinition() {
   return {
     signers: [
-      { roleKey: "participant", label: "Participant", required: true, orderIndex: 0 },
+      {
+        roleKey: "participant",
+        label: "Participant",
+        required: true,
+        orderIndex: 0,
+      },
     ],
     fields: {
       detected: {
@@ -28,7 +33,9 @@ function validDefinition() {
 
 describe("waiverDefinitionInputSchema", () => {
   test("accepts a bounded definition", () => {
-    expect(waiverDefinitionInputSchema.safeParse(validDefinition()).success).toBe(true);
+    expect(
+      waiverDefinitionInputSchema.safeParse(validDefinition()).success,
+    ).toBe(true);
   });
 
   test("accepts printable PDF field names with spaces", () => {
@@ -45,7 +52,9 @@ describe("waiverDefinitionInputSchema", () => {
         },
       },
     };
-    expect(waiverDefinitionInputSchema.safeParse(definitionWithSpaces).success).toBe(true);
+    expect(
+      waiverDefinitionInputSchema.safeParse(definitionWithSpaces).success,
+    ).toBe(true);
   });
 
   test("rejects duplicate signer roles", () => {
@@ -56,7 +65,9 @@ describe("waiverDefinitionInputSchema", () => {
       required: true,
       orderIndex: 1,
     });
-    expect(waiverDefinitionInputSchema.safeParse(definition).success).toBe(false);
+    expect(waiverDefinitionInputSchema.safeParse(definition).success).toBe(
+      false,
+    );
   });
 
   test("rejects excessive signer counts", () => {
@@ -70,7 +81,9 @@ describe("waiverDefinitionInputSchema", () => {
         orderIndex: index,
       }),
     );
-    expect(waiverDefinitionInputSchema.safeParse(definition).success).toBe(false);
+    expect(waiverDefinitionInputSchema.safeParse(definition).success).toBe(
+      false,
+    );
   });
 
   test("rejects negative or non-finite field geometry", () => {
@@ -80,18 +93,26 @@ describe("waiverDefinitionInputSchema", () => {
 
     const nonFinite = validDefinition();
     nonFinite.fields.detected.signature.rect.width = Number.POSITIVE_INFINITY;
-    expect(waiverDefinitionInputSchema.safeParse(nonFinite).success).toBe(false);
+    expect(waiverDefinitionInputSchema.safeParse(nonFinite).success).toBe(
+      false,
+    );
   });
 
   test("rejects unknown field enums and signer references", () => {
-    const unknownType = validDefinition() as ReturnType<typeof validDefinition> & {
+    const unknownType = validDefinition() as ReturnType<
+      typeof validDefinition
+    > & {
       fields: { detected: { signature: { fieldType: string } } };
     };
     unknownType.fields.detected.signature.fieldType = "script";
-    expect(waiverDefinitionInputSchema.safeParse(unknownType).success).toBe(false);
+    expect(waiverDefinitionInputSchema.safeParse(unknownType).success).toBe(
+      false,
+    );
 
     const unknownSigner = validDefinition();
     unknownSigner.fields.detected.signature.signerRoleKey = "missing";
-    expect(waiverDefinitionInputSchema.safeParse(unknownSigner).success).toBe(false);
+    expect(waiverDefinitionInputSchema.safeParse(unknownSigner).success).toBe(
+      false,
+    );
   });
 });

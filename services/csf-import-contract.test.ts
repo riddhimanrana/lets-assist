@@ -18,7 +18,9 @@ const SYNTHETIC_SOURCE_CONTENT = [
   "response_email,preferred_contact_email,course,grade",
   "avery.member@example.test,avery.family@example.test,Honors English,A",
 ].join("\n");
-const SYNTHETIC_PASSWORD = ["Synthetic", "Secret", "Do", "Not", "Retain"].join("-");
+const SYNTHETIC_PASSWORD = ["Synthetic", "Secret", "Do", "Not", "Retain"].join(
+  "-",
+);
 const NESTED_SYNTHETIC_PASSWORD = ["Nested", "Synthetic", "Secret"].join("-");
 const FORMULA_SYNTHETIC_PASSWORD = ["Synthetic", "Formula", "Secret"].join("-");
 
@@ -89,15 +91,13 @@ function buildSnapshot(input?: {
       "courses[].name",
       "courses[].grade",
     ],
-    rows:
-      input?.rows ??
-      [
-        visibleRow(2, {
-          responseEmail: "avery.member@example.test",
-          preferredContactEmail: "avery.family@example.test",
-          courses: [{ name: "Honors English", grade: "A" }],
-        }),
-      ],
+    rows: input?.rows ?? [
+      visibleRow(2, {
+        responseEmail: "avery.member@example.test",
+        preferredContactEmail: "avery.family@example.test",
+        courses: [{ name: "Honors English", grade: "A" }],
+      }),
+    ],
   });
 }
 
@@ -262,14 +262,15 @@ describe("CSF normalized import contract", () => {
               irrelevantResponse: "Nested qualitative response",
             },
             {
-              name: "=WEBSERVICE(\"https://outside.example.test\")",
+              name: '=WEBSERVICE("https://outside.example.test")',
               grade: "B",
             },
           ],
           proofFileId: "https://outside.example.test/proof",
-          clubAlias: "=IMPORTXML(\"https://outside.example.test\")",
+          clubAlias: '=IMPORTXML("https://outside.example.test")',
           publicDescription: "<script>syntheticRawHtml()</script>",
-          officerComment: "Review the file at https://outside.example.test/embedded",
+          officerComment:
+            "Review the file at https://outside.example.test/embedded",
           observedAt: new Date("2026-07-29T00:00:00.000Z"),
         }),
       ],
@@ -287,7 +288,9 @@ describe("CSF normalized import contract", () => {
       ],
       responseEmail: "avery.member@example.test",
     });
-    expect(new Set(snapshot.rejectedFields.map((field) => field.reason))).toEqual(
+    expect(
+      new Set(snapshot.rejectedFields.map((field) => field.reason)),
+    ).toEqual(
       new Set([
         "secret",
         "raw_content",
@@ -299,7 +302,9 @@ describe("CSF normalized import contract", () => {
     );
     expect(
       snapshot.rejectedFields.some(
-        (field) => field.fieldPath === "courses[0].password" && field.reason === "secret",
+        (field) =>
+          field.fieldPath === "courses[0].password" &&
+          field.reason === "secret",
       ),
     ).toBe(true);
     expect(
@@ -312,8 +317,7 @@ describe("CSF normalized import contract", () => {
     expect(
       snapshot.rejectedFields.every(
         (field) =>
-          !("value" in field) &&
-          /^[a-f0-9]{64}$/u.test(field.fieldKeyHash),
+          !("value" in field) && /^[a-f0-9]{64}$/u.test(field.fieldKeyHash),
       ),
     ).toBe(true);
     expect(snapshot.warnings).toContainEqual({
@@ -561,7 +565,9 @@ describe("CSF import contract validation", () => {
     "refuses a Google modified time with %s",
     (_label, modifiedAt) => {
       expect(() =>
-        buildSnapshot({ source: sourceInput({ modifiedAt: modifiedAt as never }) }),
+        buildSnapshot({
+          source: sourceInput({ modifiedAt: modifiedAt as never }),
+        }),
       ).toThrow();
     },
   );
@@ -572,11 +578,14 @@ describe("CSF import contract validation", () => {
     // every later comparison would have to truncate -- manufacturing agreement
     // rather than proving it. Only the final three digits separate the two.
     expect(() =>
-      buildSnapshot({ source: sourceInput({ modifiedAt: "2026-07-15T12:00:00.123456789Z" }) }),
+      buildSnapshot({
+        source: sourceInput({ modifiedAt: "2026-07-15T12:00:00.123456789Z" }),
+      }),
     ).toThrow("provider's own UTC modified-time spelling");
     expect(
-      buildSnapshot({ source: sourceInput({ modifiedAt: "2026-07-15T12:00:00.123456000Z" }) })
-        .source.modifiedAt,
+      buildSnapshot({
+        source: sourceInput({ modifiedAt: "2026-07-15T12:00:00.123456000Z" }),
+      }).source.modifiedAt,
     ).toBe("2026-07-15T12:00:00.123456000Z");
   });
 
@@ -612,7 +621,8 @@ describe("CSF import contract validation", () => {
       "0001-01-01T00:00:00+00:00",
     ]) {
       expect(
-        buildSnapshot({ source: uploadedSourceInput({ modifiedAt }) }).source.modifiedAt,
+        buildSnapshot({ source: uploadedSourceInput({ modifiedAt }) }).source
+          .modifiedAt,
         `${modifiedAt} was refused`,
       ).toBe(modifiedAt);
     }
@@ -631,18 +641,27 @@ describe("CSF import contract validation", () => {
     ["the offset-unknown spelling", "2026-07-15T12:00:00-00:00"],
     ["no zone at all", "2026-07-15T12:00:00"],
     ["prose", "not a timestamp"],
-  ] as const)("refuses an uploaded stored ready time with %s", (_label, modifiedAt) => {
-    expect(() =>
-      buildSnapshot({ source: uploadedSourceInput({ modifiedAt: modifiedAt as never }) }),
-    ).toThrow("claimed staging object's ready timestamp");
-  });
+  ] as const)(
+    "refuses an uploaded stored ready time with %s",
+    (_label, modifiedAt) => {
+      expect(() =>
+        buildSnapshot({
+          source: uploadedSourceInput({ modifiedAt: modifiedAt as never }),
+        }),
+      ).toThrow("claimed staging object's ready timestamp");
+    },
+  );
 
   test("an uploaded stored ready time is refused when padded, before the grammar runs", () => {
     // Refused by the exact-coordinate rule rather than the civil-time one, so it
     // carries its own distinct message. Stated separately so the corpus above
     // keeps asserting the grammar it is about.
     expect(() =>
-      buildSnapshot({ source: uploadedSourceInput({ modifiedAt: " 2026-07-15T12:00:00+00:00" }) }),
+      buildSnapshot({
+        source: uploadedSourceInput({
+          modifiedAt: " 2026-07-15T12:00:00+00:00",
+        }),
+      }),
     ).toThrow("must not be padded");
   });
 
@@ -699,9 +718,16 @@ describe("CSF import contract validation", () => {
     // The three enumerated-but-unadapted families fail closed for the same
     // reason: no adapter defines what their file identity, revision and time
     // mean, so a snapshot recording one could never be verified.
-    for (const provider of ["google_drive", "gmail_attachment", "legacy_export"] as const) {
+    for (const provider of [
+      "google_drive",
+      "gmail_attachment",
+      "legacy_export",
+    ] as const) {
       expect(
-        () => buildSnapshot({ source: sourceInput({ provider: provider as never }) }),
+        () =>
+          buildSnapshot({
+            source: sourceInput({ provider: provider as never }),
+          }),
         `${provider} was accepted`,
       ).toThrow("not an implemented CSF import provider");
     }

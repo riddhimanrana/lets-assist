@@ -50,9 +50,9 @@ describe("Supabase seed safety guard", () => {
     // do not mistake these deliberately fake negative fixtures for credentials.
     const googleAccessToken = ["ya29", "ABCDEFGHIJKLMNOP"].join(".");
     const googleRefreshToken = ["1", "//", "ABCDEFGHIJKLMNOP"].join("");
-    const bearerValue = ["Bear", "er", "abcdefghijklmnopqrstuvwxyz"].join(
-      " ",
-    ).replace("Bear er", "Bearer");
+    const bearerValue = ["Bear", "er", "abcdefghijklmnopqrstuvwxyz"]
+      .join(" ")
+      .replace("Bear er", "Bearer");
     const source = `
       access_token = '${googleAccessToken}';
       refresh_token = '${googleRefreshToken}';
@@ -99,17 +99,14 @@ describe("Supabase seed safety guard", () => {
         ('fixture-one', 'opaque-access-secret', 'AUTUMN26'),
         ('fixture-two', 'second-access-secret', 'SPRING27');
     `;
-    const rules = scanSeedSql(
-      "supabase/seeds/local-only.sql",
-      source,
-    ).map((finding: { rule: string }) => finding.rule);
+    const rules = scanSeedSql("supabase/seeds/local-only.sql", source).map(
+      (finding: { rule: string }) => finding.rule,
+    );
     expect(
       rules.filter((rule: string) => rule === RULES.OAUTH_TOKEN),
     ).toHaveLength(2);
     expect(
-      rules.filter(
-        (rule: string) => rule === RULES.REUSABLE_INVITATION,
-      ),
+      rules.filter((rule: string) => rule === RULES.REUSABLE_INVITATION),
     ).toHaveLength(2);
   });
 
@@ -125,9 +122,9 @@ describe("Supabase seed safety guard", () => {
   test("discovers seed SQL deterministically without scanning unrelated migrations", () => {
     expect(isTrackedSeedSql("supabase/seed.sql")).toBe(true);
     expect(isTrackedSeedSql("supabase/seeds/local-only.sql")).toBe(true);
-    expect(
-      isTrackedSeedSql("supabase/snippets/seed_dummy_orgs.sql"),
-    ).toBe(true);
+    expect(isTrackedSeedSql("supabase/snippets/seed_dummy_orgs.sql")).toBe(
+      true,
+    );
     expect(
       isTrackedSeedSql("supabase/migrations/20260101000000_profiles.sql"),
     ).toBe(false);
@@ -144,14 +141,12 @@ describe("Supabase seed safety guard", () => {
       files: Object.keys(sources).reverse(),
       readFile: (file) => sources[file],
     });
-    expect(
-      findings.map((finding: { rule: string }) => finding.rule),
-    ).toEqual([
+    expect(findings.map((finding: { rule: string }) => finding.rule)).toEqual([
       RULES.EMAIL,
       RULES.PHONE,
     ]);
-    expect(
-      findings.map((finding: { line: number }) => finding.line),
-    ).toEqual([1, 2]);
+    expect(findings.map((finding: { line: number }) => finding.line)).toEqual([
+      1, 2,
+    ]);
   });
 });

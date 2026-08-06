@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 
 import { getAdminClient } from "@/lib/supabase/admin";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
-import type { ActiveSystemBannersResponse, SystemBanner } from "@/types/system-banner";
+import type {
+  ActiveSystemBannersResponse,
+  SystemBanner,
+} from "@/types/system-banner";
 
 const SELECT_COLUMNS =
   "id, title, message, banner_type, target_scope, is_active, starts_at, ends_at, cta_label, cta_url, dismissible, show_icon, text_align, created_at, updated_at";
@@ -15,7 +18,8 @@ const EMPTY_RESPONSE: ActiveSystemBannersResponse = {
 const isBannerLive = (banner: Pick<SystemBanner, "starts_at" | "ends_at">) => {
   const now = Date.now();
 
-  const startsAtOk = !banner.starts_at || new Date(banner.starts_at).getTime() <= now;
+  const startsAtOk =
+    !banner.starts_at || new Date(banner.starts_at).getTime() <= now;
   const endsAtOk = !banner.ends_at || new Date(banner.ends_at).getTime() >= now;
 
   return startsAtOk && endsAtOk;
@@ -38,11 +42,13 @@ const pickLatestByScope = (
 export async function GET() {
   try {
     const supabase = getAdminClient();
-    const bannerResult = await withRetryableSupabaseQuery(() => supabase
-      .from("system_banners")
-      .select(SELECT_COLUMNS)
-      .eq("is_active", true)
-      .in("target_scope", ["sitewide", "landing"]));
+    const bannerResult = await withRetryableSupabaseQuery(() =>
+      supabase
+        .from("system_banners")
+        .select(SELECT_COLUMNS)
+        .eq("is_active", true)
+        .in("target_scope", ["sitewide", "landing"]),
+    );
 
     const { data, error } = bannerResult as {
       data: SystemBanner[] | null;

@@ -21,8 +21,7 @@ interface ProjectCancellationProps {
 export default function ProjectCancellation({
   volunteerName = "John Doe",
   projectName = "Beach Cleanup Drive",
-  cancellationReason =
-    "Due to unforeseen weather conditions, we need to cancel this event for the safety of all volunteers.",
+  cancellationReason = "Due to unforeseen weather conditions, we need to cancel this event for the safety of all volunteers.",
 }: ProjectCancellationProps) {
   return (
     <Html lang="en">
@@ -64,8 +63,8 @@ export default function ProjectCancellation({
                 <Section style={subtleBox}>
                   <Text style={label}>Update</Text>
                   <Text style={smallText}>
-                    The organizers have cancelled this project. We’ll share
-                    more details if they become available.
+                    The organizers have cancelled this project. We’ll share more
+                    details if they become available.
                   </Text>
                 </Section>
               )}

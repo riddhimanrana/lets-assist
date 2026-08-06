@@ -6,10 +6,10 @@ import { deleteGoogleCalendarEvent } from "@/services/calendar";
 /**
  * Updates a calendar event when a project is edited.
  * Call this after successfully updating a project in the database.
- * 
+ *
  * @param projectId - The ID of the project that was updated
  * @returns Success or error message
- * 
+ *
  * @example
  * // After updating a project:
  * const updateResult = await updateProject(projectId, updatedData);
@@ -42,7 +42,7 @@ export async function updateCalendarEventForProject(projectId: string) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ projectId }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -73,10 +73,10 @@ export async function updateCalendarEventForProject(projectId: string) {
 /**
  * Removes calendar event when a project is cancelled.
  * Call this after successfully cancelling a project.
- * 
+ *
  * @param projectId - The ID of the project that was cancelled
  * @returns Success or error message
- * 
+ *
  * @example
  * // After cancelling a project:
  * const cancelResult = await updateProjectStatus(projectId, "cancelled", reason);
@@ -114,7 +114,7 @@ export async function removeCalendarEventForProject(projectId: string) {
     // Delete from Google Calendar directly
     const deleted = await deleteGoogleCalendarEvent(
       user.id,
-      project.creator_calendar_event_id
+      project.creator_calendar_event_id,
     );
 
     if (!deleted) {
@@ -153,10 +153,10 @@ export async function removeCalendarEventForProject(projectId: string) {
 /**
  * Removes calendar event for a signup when it's cancelled.
  * Call this after successfully cancelling a signup.
- * 
+ *
  * @param signupId - The ID of the signup that was cancelled
  * @returns Success or error message
- * 
+ *
  * @example
  * // After cancelling a signup:
  * const cancelResult = await cancelSignup(signupId);
@@ -194,7 +194,7 @@ export async function removeCalendarEventForSignup(signupId: string) {
     // Delete from Google Calendar directly
     const deleted = await deleteGoogleCalendarEvent(
       user.id,
-      signup.volunteer_calendar_event_id
+      signup.volunteer_calendar_event_id,
     );
 
     if (!deleted) {
@@ -233,7 +233,7 @@ export async function removeCalendarEventForSignup(signupId: string) {
 /**
  * Removes all volunteer calendar events when a project is cancelled.
  * This removes calendar events for all volunteers who signed up.
- * 
+ *
  * @param projectId - The ID of the project that was cancelled
  * @returns Success or error message with count of removed events
  */

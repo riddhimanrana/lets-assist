@@ -38,7 +38,10 @@ test("generates six-digit cryptographic codes and stores only a keyed hash", () 
 });
 
 test("normalizes aliases and enforces resend cooldown", () => {
-  assert.equal(normalizeEmailAlias(" Person@Example.COM "), "person@example.com");
+  assert.equal(
+    normalizeEmailAlias(" Person@Example.COM "),
+    "person@example.com",
+  );
 
   const now = Date.UTC(2026, 6, 11, 12, 0, 0);
   assert.equal(
@@ -75,13 +78,19 @@ test("alias writes are server-only and verification is bounded in SQL", () => {
     "utf8",
   );
 
-  assert.match(actions, /getAuthUser\(\{ sensitive: true, checkMfa: true \}\)/u);
+  assert.match(
+    actions,
+    /getAuthUser\(\{ sensitive: true, checkMfa: true \}\)/u,
+  );
   assert.match(actions, /verify_user_email_alias/u);
   assert.match(actions, /issue_user_email_alias_verification/u);
   assert.match(actions, /discard_user_email_alias_verification/u);
   assert.match(actions, /syncPrimaryUserEmail/u);
   assert.doesNotMatch(actions, /\.from\("profiles"\)[\s\S]*existingProfile/u);
-  assert.doesNotMatch(actions, /\.from\("user_emails"\)[\s\S]*verification_token_hash/u);
+  assert.doesNotMatch(
+    actions,
+    /\.from\("user_emails"\)[\s\S]*verification_token_hash/u,
+  );
   assert.doesNotMatch(actions, /verification_token:\s*token[,\s]/u);
   assert.doesNotMatch(actions, /primary_email:/u);
   assert.match(
@@ -89,7 +98,10 @@ test("alias writes are server-only and verification is bounded in SQL", () => {
     /CREATE TABLE public\.email_alias_verification_challenges/u,
   );
   assert.match(migration, /UNIQUE \(user_id, email\)/u);
-  assert.match(migration, /DELETE FROM public\.user_emails\s+WHERE verified_at IS NULL/u);
+  assert.match(
+    migration,
+    /DELETE FROM public\.user_emails\s+WHERE verified_at IS NULL/u,
+  );
   assert.match(migration, /ALTER COLUMN verified_at SET NOT NULL/u);
   assert.match(migration, /DROP COLUMN verification_token/u);
   assert.match(migration, /FROM auth\.users AS users/u);
@@ -98,7 +110,10 @@ test("alias writes are server-only and verification is bounded in SQL", () => {
   assert.match(migration, /user_emails_one_primary_per_user_idx/u);
   assert.match(migration, /v_attempts >= 5/u);
   assert.match(migration, /interval '15 minutes'/u);
-  assert.match(migration, /aliases\.verification_expires_at > clock_timestamp\(\)/u);
+  assert.match(
+    migration,
+    /aliases\.verification_expires_at > clock_timestamp\(\)/u,
+  );
   assert.match(attendanceActions, /\.not\("verified_at", "is", null\)/u);
   assert.match(confirmRoute, /syncPrimaryUserEmail/u);
 });

@@ -10,7 +10,7 @@ export const metadata = {
 
 export default async function TrustedMembersPage() {
   const { isAdmin } = await checkSuperAdmin();
-  
+
   if (!isAdmin) {
     redirect("/not-found");
   }
@@ -35,7 +35,7 @@ export default async function TrustedMembersPage() {
           Review applications and manage trusted member status for users.
         </p>
       </div>
-      
+
       <Card className="border-border bg-card text-card-foreground shadow-xs">
         <CardContent>
           <TrustedMembersTab trustedMembers={applications || []} />

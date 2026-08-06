@@ -30,9 +30,9 @@ export function canReuseExistingGoogleRefreshToken(
 ): boolean {
   if (!connection?.refresh_token) return false;
 
-  const existingEmail = normalizeGoogleIdentityEmail(
-    connection.calendar_email,
-  );
+  const existingEmail = normalizeGoogleIdentityEmail(connection.calendar_email);
   const currentEmail = normalizeGoogleIdentityEmail(authorizedEmail);
-  return Boolean(existingEmail && currentEmail && existingEmail === currentEmail);
+  return Boolean(
+    existingEmail && currentEmail && existingEmail === currentEmail,
+  );
 }

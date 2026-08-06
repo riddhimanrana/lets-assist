@@ -72,10 +72,12 @@ async function getCalendarData(userId: string) {
       creator_calendar_event_id,
       creator_synced_at,
       schedule_type
-    `
+    `,
     )
     .eq("creator_id", userId)
-    .not("creator_calendar_event_id", "is", null)) as { data: CreatorProjectRow[] | null };
+    .not("creator_calendar_event_id", "is", null)) as {
+    data: CreatorProjectRow[] | null;
+  };
 
   // Get synced events (signups by user)
   const { data: volunteerSignups } = (await supabase
@@ -94,67 +96,70 @@ async function getCalendarData(userId: string) {
         location,
         schedule_type
       )
-    `
+    `,
     )
     .eq("user_id", userId)
-    .not("volunteer_calendar_event_id", "is", null)) as { data: VolunteerSignupRow[] | null };
+    .not("volunteer_calendar_event_id", "is", null)) as {
+    data: VolunteerSignupRow[] | null;
+  };
 
-    const normalizedCreatorProjects = (creatorProjects || [])
-      .filter(
-        (project) =>
-          project.creator_calendar_event_id &&
-          project.start_date &&
-          project.schedule_type,
-      )
-      .map((project) => ({
-        id: project.id,
-        title: project.title,
-        description: project.description ?? null,
-        start_date: project.start_date as string,
-        end_date: project.end_date ?? null,
-        location: project.location ?? null,
-        creator_calendar_event_id: project.creator_calendar_event_id as string,
-        creator_synced_at: project.creator_synced_at ?? project.start_date ?? "",
-        schedule_type: project.schedule_type as string,
-      }));
+  const normalizedCreatorProjects = (creatorProjects || [])
+    .filter(
+      (project) =>
+        project.creator_calendar_event_id &&
+        project.start_date &&
+        project.schedule_type,
+    )
+    .map((project) => ({
+      id: project.id,
+      title: project.title,
+      description: project.description ?? null,
+      start_date: project.start_date as string,
+      end_date: project.end_date ?? null,
+      location: project.location ?? null,
+      creator_calendar_event_id: project.creator_calendar_event_id as string,
+      creator_synced_at: project.creator_synced_at ?? project.start_date ?? "",
+      schedule_type: project.schedule_type as string,
+    }));
 
-    const normalizedVolunteerSignups = (volunteerSignups || [])
-      .map((signup) => {
-        const project = Array.isArray(signup.project)
-          ? signup.project[0]
-          : signup.project;
-        if (
-          !project ||
-          !signup.volunteer_calendar_event_id ||
-          !signup.scheduled_start ||
-          !signup.scheduled_end ||
-          !project.schedule_type
-        ) {
-          return null;
-        }
-        return {
-          id: signup.id,
-          volunteer_calendar_event_id: signup.volunteer_calendar_event_id,
-          volunteer_synced_at: signup.volunteer_synced_at ?? signup.scheduled_start,
-          scheduled_start: signup.scheduled_start,
-          scheduled_end: signup.scheduled_end,
-          projects: {
-            id: project.id,
-            title: project.title,
-            description: project.description ?? null,
-            location: project.location ?? null,
-            schedule_type: project.schedule_type,
-          },
-        };
-      })
-      .filter((signup): signup is NonNullable<typeof signup> => signup !== null);
+  const normalizedVolunteerSignups = (volunteerSignups || [])
+    .map((signup) => {
+      const project = Array.isArray(signup.project)
+        ? signup.project[0]
+        : signup.project;
+      if (
+        !project ||
+        !signup.volunteer_calendar_event_id ||
+        !signup.scheduled_start ||
+        !signup.scheduled_end ||
+        !project.schedule_type
+      ) {
+        return null;
+      }
+      return {
+        id: signup.id,
+        volunteer_calendar_event_id: signup.volunteer_calendar_event_id,
+        volunteer_synced_at:
+          signup.volunteer_synced_at ?? signup.scheduled_start,
+        scheduled_start: signup.scheduled_start,
+        scheduled_end: signup.scheduled_end,
+        projects: {
+          id: project.id,
+          title: project.title,
+          description: project.description ?? null,
+          location: project.location ?? null,
+          schedule_type: project.schedule_type,
+        },
+      };
+    })
+    .filter((signup): signup is NonNullable<typeof signup> => signup !== null);
 
-    return {
-      connection,
-      legacyReconnectRequired,
-      creatorProjects: normalizedCreatorProjects,
-      volunteerSignups: normalizedVolunteerSignups,
-    };
+  return {
+    connection,
+    legacyReconnectRequired,
+    creatorProjects: normalizedCreatorProjects,
+    volunteerSignups: normalizedVolunteerSignups,
+  };
 }
 
 export default async function CalendarPage() {

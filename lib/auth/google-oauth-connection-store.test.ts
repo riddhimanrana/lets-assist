@@ -3,8 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
-const readSource = (path: string) =>
-  readFileSync(join(root, path), "utf8");
+const readSource = (path: string) => readFileSync(join(root, path), "utf8");
 
 describe("Google OAuth credential purpose boundaries", () => {
   test("the callback resolves and saves only the signed binding", () => {
@@ -46,7 +45,9 @@ describe("Google OAuth credential purpose boundaries", () => {
     );
 
     expect(service).not.toContain("matchesGoogleOAuthConnectionBinding");
-    expect(service).toContain("expectedBinding: GoogleOAuthConnectionBindingExpectation");
+    expect(service).toContain(
+      "expectedBinding: GoogleOAuthConnectionBindingExpectation",
+    );
     expect(orgCalendar).toContain(
       "expectedBinding: organizationCalendarGoogleBinding(organizationId)",
     );
@@ -63,9 +64,7 @@ describe("Google OAuth credential purpose boundaries", () => {
     const personalDisconnect = readSource(
       "app/api/calendar/google/disconnect/route.ts",
     );
-    const orgCalendar = readSource(
-      "app/organization/[id]/calendar/actions.ts",
-    );
+    const orgCalendar = readSource("app/organization/[id]/calendar/actions.ts");
     const orgSheets = readSource(
       "app/organization/[id]/reports/sheets-actions.ts",
     );
@@ -123,7 +122,7 @@ describe("Google OAuth credential purpose boundaries", () => {
       "refreshAccessToken(decryptedRefreshToken)",
     );
     const reauthorization = functionSource.indexOf(
-      "const refreshedAuthorization = await authorizeGoogleOAuthOrganizationRequest({",
+      "const refreshedAuthorization =",
     );
     const connectionRecheck = functionSource.indexOf(
       "const currentConnection = await getGoogleOAuthConnectionForBinding(",
@@ -133,7 +132,9 @@ describe("Google OAuth credential purpose boundaries", () => {
     );
     const tokenReturn = functionSource.indexOf("return refreshed.accessToken;");
     const authorizationCalls = [
-      ...functionSource.matchAll(/authorizeGoogleOAuthOrganizationRequest\(\{/gu),
+      ...functionSource.matchAll(
+        /authorizeGoogleOAuthOrganizationRequest\(\{/gu,
+      ),
     ];
 
     expect(functionStart).toBeGreaterThan(-1);

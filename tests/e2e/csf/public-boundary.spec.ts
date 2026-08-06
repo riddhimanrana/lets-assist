@@ -38,17 +38,33 @@ test.describe("DVHS CSF public privacy boundary", () => {
     expectNoPrivateBoundaryMarkers(await responseText(documentResponse));
     expectNoPrivateBoundaryMarkers(await page.locator("body").innerText());
 
-    await expect(page.getByRole("heading", { name: /DVHS CSF|Dougherty Valley High School CSF/ })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /Upcoming activities/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Sign in to My CSF/ })).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: /DVHS CSF|Dougherty Valley High School CSF/,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /Upcoming activities/ }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Sign in to My CSF/ }),
+    ).toBeVisible();
     await expect(page.getByText("Student records stay private")).toHaveCount(0);
     await expect(page.getByText("Privacy by design")).toHaveCount(0);
 
-    const publicHrefs = await page.locator("main a").evaluateAll((links) =>
-      links.map((link) => (link as HTMLAnchorElement).getAttribute("href") ?? ""),
+    const publicHrefs = await page
+      .locator("main a")
+      .evaluateAll((links) =>
+        links.map(
+          (link) => (link as HTMLAnchorElement).getAttribute("href") ?? "",
+        ),
+      );
+    expect(publicHrefs.some((href) => href.includes("csf_application"))).toBe(
+      false,
     );
-    expect(publicHrefs.some((href) => href.includes("csf_application"))).toBe(false);
-    expect(publicHrefs.some((href) => href.includes("csf_profile"))).toBe(false);
+    expect(publicHrefs.some((href) => href.includes("csf_profile"))).toBe(
+      false,
+    );
     expect(publicHrefs.some((href) => href.includes("S26-2028"))).toBe(false);
   });
 
@@ -57,14 +73,20 @@ test.describe("DVHS CSF public privacy boundary", () => {
   }) => {
     const externalFormRequests: string[] = [];
     page.on("request", (pageRequest) => {
-      if (pageRequest.url().includes("docs.google.com") || pageRequest.url().includes("forms.gle")) {
+      if (
+        pageRequest.url().includes("docs.google.com") ||
+        pageRequest.url().includes("forms.gle")
+      ) {
         externalFormRequests.push(pageRequest.url());
       }
     });
 
     await page.goto(CSF_PUBLIC_PATH);
 
-    const applyCta = await soleAccessibleAction(page, "Apply with Google Forms");
+    const applyCta = await soleAccessibleAction(
+      page,
+      "Apply with Google Forms",
+    );
     await expect(applyCta).toHaveAttribute("href", FIXTURE_APPLICATION_URL);
     await expect(applyCta).toHaveAttribute("target", "_blank");
     expect(await applyCta.getAttribute("rel")).toContain("noreferrer");

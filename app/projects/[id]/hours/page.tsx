@@ -3,11 +3,21 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { notFound, redirect } from "next/navigation";
 import { Metadata } from "next";
 import { differenceInHours, isAfter, format, parseISO } from "date-fns";
-import { getMultiDaySlotDisplayName, getProjectEndDateTime } from "@/utils/project";
+import {
+  getMultiDaySlotDisplayName,
+  getProjectEndDateTime,
+} from "@/utils/project";
 import { Project, ProjectSignup } from "@/types";
 import { HoursClient } from "./HoursClient";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -25,11 +35,17 @@ type ProjectSession = {
 
 type SignupRow = Omit<ProjectSignup, "profile" | "anonymous_signup"> & {
   profile?: ProjectSignup["profile"] | ProjectSignup["profile"][] | null;
-  anonymous_signup?: ProjectSignup["anonymous_signup"] | ProjectSignup["anonymous_signup"][] | null;
+  anonymous_signup?:
+    | ProjectSignup["anonymous_signup"]
+    | ProjectSignup["anonymous_signup"][]
+    | null;
 };
 
 // Helper function to check if user has permission (Creator or Org Admin/Staff)
-async function checkPermissions(projectId: string, userId: string): Promise<boolean> {
+async function checkPermissions(
+  projectId: string,
+  userId: string,
+): Promise<boolean> {
   const supabase = await createClient();
   const { data: project } = await supabase
     .from("projects")
@@ -65,25 +81,31 @@ function getSessionsInEditingWindow(project: Project): ProjectSession[] {
 
   // Helper function to format time to 12-hour format
   const formatTime12h = (timeStr: string) => {
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    const period = hours >= 12 ? "PM" : "AM";
     const hour12 = hours % 12 || 12; // Convert 0 to 12 for 12 AM
-    return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
+    return `${hour12}:${minutes.toString().padStart(2, "0")} ${period}`;
   };
 
   // Check one-time events
   if (project.event_type === "oneTime" && project.schedule.oneTime) {
     const date = parseISO(project.schedule.oneTime.date);
-    const [hours, minutes] = project.schedule.oneTime.endTime.split(':').map(Number);
+    const [hours, minutes] = project.schedule.oneTime.endTime
+      .split(":")
+      .map(Number);
     const sessionEndTime = new Date(date.setHours(hours, minutes));
     const hoursSinceEnd = differenceInHours(now, sessionEndTime);
 
-    if (isAfter(now, sessionEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48) {
+    if (
+      isAfter(now, sessionEndTime) &&
+      hoursSinceEnd >= 0 &&
+      hoursSinceEnd < 48
+    ) {
       result.push({
         id: "oneTime",
         name: `${format(date, "MMMM d")} (${formatTime12h(project.schedule.oneTime.startTime)} - ${formatTime12h(project.schedule.oneTime.endTime)})`,
         endDateTime: sessionEndTime,
-        hoursRemaining: 48 - hoursSinceEnd
+        hoursRemaining: 48 - hoursSinceEnd,
       });
     }
   }
@@ -94,17 +116,23 @@ function getSessionsInEditingWindow(project: Project): ProjectSession[] {
       const dayDate = parseISO(day.date);
 
       day.slots.forEach((slot, slotIndex) => {
-        const [hours, minutes] = slot.endTime.split(':').map(Number);
-        const slotEndTime = new Date(new Date(dayDate).setHours(hours, minutes));
+        const [hours, minutes] = slot.endTime.split(":").map(Number);
+        const slotEndTime = new Date(
+          new Date(dayDate).setHours(hours, minutes),
+        );
         const hoursSinceEnd = differenceInHours(now, slotEndTime);
 
-        if (isAfter(now, slotEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48) {
+        if (
+          isAfter(now, slotEndTime) &&
+          hoursSinceEnd >= 0 &&
+          hoursSinceEnd < 48
+        ) {
           const sessionId = `day-${dayIndex}-slot-${slotIndex}`;
           result.push({
             id: sessionId,
             name: `${format(dayDate, "MMMM d")} - ${getMultiDaySlotDisplayName(slot, slotIndex)} (${formatTime12h(slot.startTime)} - ${formatTime12h(slot.endTime)})`,
             endDateTime: slotEndTime,
-            hoursRemaining: 48 - hoursSinceEnd
+            hoursRemaining: 48 - hoursSinceEnd,
           });
         }
       });
@@ -112,21 +140,28 @@ function getSessionsInEditingWindow(project: Project): ProjectSession[] {
   }
 
   // Check same-day multi-area events
-  else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+  else if (
+    project.event_type === "sameDayMultiArea" &&
+    project.schedule.sameDayMultiArea
+  ) {
     const date = parseISO(project.schedule.sameDayMultiArea.date);
 
     project.schedule.sameDayMultiArea.roles.forEach((role, roleIndex) => {
-      const [hours, minutes] = role.endTime.split(':').map(Number);
+      const [hours, minutes] = role.endTime.split(":").map(Number);
       const roleEndTime = new Date(new Date(date).setHours(hours, minutes));
       const hoursSinceEnd = differenceInHours(now, roleEndTime);
 
-      if (isAfter(now, roleEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48) {
+      if (
+        isAfter(now, roleEndTime) &&
+        hoursSinceEnd >= 0 &&
+        hoursSinceEnd < 48
+      ) {
         const sessionId = `role-${roleIndex}`;
         result.push({
           id: sessionId,
           name: `${role.name} (${formatTime12h(role.startTime)} - ${formatTime12h(role.endTime)})`,
           endDateTime: roleEndTime,
-          hoursRemaining: 48 - hoursSinceEnd
+          hoursRemaining: 48 - hoursSinceEnd,
         });
       }
     });
@@ -142,7 +177,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const { project } = await getProject(id);
-  const title = project ? `Volunteer Hours — ${project.title}` : "Volunteer Hours";
+  const title = project
+    ? `Volunteer Hours — ${project.title}`
+    : "Volunteer Hours";
 
   return {
     title,
@@ -152,7 +189,11 @@ export async function generateMetadata({
   };
 }
 
-export default async function HoursPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function HoursPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const supabase = await createClient();
   const { id: projectId } = await params;
 
@@ -181,11 +222,14 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   }
 
   // 4. Check if Project Type is Eligible (Exclude 'auto')
-  if (project.verification_method === 'auto') {
+  if (project.verification_method === "auto") {
     return (
       <div className="container mx-auto px-4 py-6 max-w-5xl">
         <div className="mb-6">
-          <Link href={`/projects/${projectId}`} className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}>
+          <Link
+            href={`/projects/${projectId}`}
+            className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}
+          >
             <ArrowLeft className="h-4 w-4" />
             Back to Project
           </Link>
@@ -196,16 +240,24 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
             <CardDescription>Review volunteer participation.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Alert variant="default" className="border-secondary/50 bg-secondary/10">
+            <Alert
+              variant="default"
+              className="border-secondary/50 bg-secondary/10"
+            >
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Automatic Check-in</AlertTitle>
               <AlertDescription>
-                This project uses automatic check-in. Volunteer hours are recorded based on the schedule and cannot be manually edited here. View attendance records for details.
+                This project uses automatic check-in. Volunteer hours are
+                recorded based on the schedule and cannot be manually edited
+                here. View attendance records for details.
               </AlertDescription>
             </Alert>
           </CardContent>
           <CardFooter className="justify-center border-t p-4">
-            <Link href={`/projects/${projectId}/attendance`} className={cn(buttonVariants({ variant: "outline" }))}>
+            <Link
+              href={`/projects/${projectId}/attendance`}
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
               View Attendance Records
             </Link>
           </CardFooter>
@@ -223,7 +275,8 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   // 6. Fetch Attendance Data (Signups)
   const { data: signupsData, error: signupsError } = (await supabase
     .from("project_signups")
-    .select(`
+    .select(
+      `
       id,
       project_id,
       created_at,
@@ -246,12 +299,13 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
         email,
         phone_number
       )
-    `)
+    `,
+    )
     .eq("project_id", projectId)
     .in("status", ["attended", "approved"])) as {
-      data: SignupRow[] | null;
-      error: { message: string } | null;
-    }; // Fetch both attended and approved
+    data: SignupRow[] | null;
+    error: { message: string } | null;
+  }; // Fetch both attended and approved
 
   if (signupsError) {
     console.error("Error fetching signups:", signupsError);
@@ -274,13 +328,19 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
 
   // 7. Render Client Component or "Not Yet Available" Message
   if (!hasActiveSessions) {
-    const eventHasEnded = projectEndDateTime && isAfter(now, projectEndDateTime);
-    const hoursUntilWindowOpens = projectEndDateTime ? differenceInHours(projectEndDateTime, now) : null;
+    const eventHasEnded =
+      projectEndDateTime && isAfter(now, projectEndDateTime);
+    const hoursUntilWindowOpens = projectEndDateTime
+      ? differenceInHours(projectEndDateTime, now)
+      : null;
 
     return (
       <div className="container mx-auto px-4 py-6 max-w-5xl">
         <div className="mb-6">
-          <Link href={`/projects/${projectId}`} className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}>
+          <Link
+            href={`/projects/${projectId}`}
+            className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}
+          >
             <ArrowLeft className="h-4 w-4" />
             Back to Project
           </Link>
@@ -299,26 +359,35 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
               <CalendarClock className="h-10 w-10 text-muted-foreground" />
             </div>
             <h3 className="text-xl font-semibold mt-6">
-              {eventHasEnded ? "Editing Window Closed" : "Editing Not Yet Available"}
+              {eventHasEnded
+                ? "Editing Window Closed"
+                : "Editing Not Yet Available"}
             </h3>
             <p className="text-muted-foreground max-w-md">
               {eventHasEnded
                 ? "The 48-hour window to edit volunteer hours after the event has ended."
                 : `You can manage volunteer hours here for 48 hours after the event ends.`}
-              {!eventHasEnded && hoursUntilWindowOpens !== null && hoursUntilWindowOpens > 0 && (
-                <span className="block mt-2 text-sm">
-                  (Window opens in approximately {hoursUntilWindowOpens} hour{hoursUntilWindowOpens !== 1 ? 's' : ''})
-                </span>
-              )}
+              {!eventHasEnded &&
+                hoursUntilWindowOpens !== null &&
+                hoursUntilWindowOpens > 0 && (
+                  <span className="block mt-2 text-sm">
+                    (Window opens in approximately {hoursUntilWindowOpens} hour
+                    {hoursUntilWindowOpens !== 1 ? "s" : ""})
+                  </span>
+                )}
               {!eventHasEnded && projectEndDateTime && (
                 <span className="block mt-2 text-sm">
-                  Event ends: {format(projectEndDateTime, "MMMM d, yyyy 'at' h:mm a")}
+                  Event ends:{" "}
+                  {format(projectEndDateTime, "MMMM d, yyyy 'at' h:mm a")}
                 </span>
               )}
             </p>
           </CardContent>
           <CardFooter className="justify-center border-t p-4">
-            <Link href={`/projects/${projectId}`} className={cn(buttonVariants({ variant: "outline" }))}>
+            <Link
+              href={`/projects/${projectId}`}
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
               Return to Project
             </Link>
           </CardFooter>
@@ -328,10 +397,5 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   }
 
   // Pass data to the client component
-  return (
-    <HoursClient
-      project={project as Project}
-      initialSignups={signups}
-    />
-  );
+  return <HoursClient project={project as Project} initialSignups={signups} />;
 }

@@ -72,7 +72,9 @@ export type PluginControlPlaneTransitionResult = {
 };
 
 export class PluginControlPlaneConcurrencyError extends Error {
-  constructor(message = "Plugin install state changed concurrently; retry the operation.") {
+  constructor(
+    message = "Plugin install state changed concurrently; retry the operation.",
+  ) {
     super(message);
     this.name = "PluginControlPlaneConcurrencyError";
   }
@@ -120,7 +122,9 @@ async function compensateLifecycle(
     try {
       const result = await callbacks.runLifecycle(inverse);
       if (!result.success) {
-        errors.push(`${inverse.hook}: ${result.error ?? "unknown lifecycle error"}`);
+        errors.push(
+          `${inverse.hook}: ${result.error ?? "unknown lifecycle error"}`,
+        );
       }
     } catch (error) {
       errors.push(`${inverse.hook}: ${errorMessage(error)}`);
@@ -146,7 +150,10 @@ async function runLifecycleSequence(
     }
 
     if (!result.success) {
-      const compensationErrors = await compensateLifecycle(completed, callbacks);
+      const compensationErrors = await compensateLifecycle(
+        completed,
+        callbacks,
+      );
       const compensationSuffix = compensationErrors.length
         ? ` Compensation also failed: ${compensationErrors.join("; ")}`
         : "";
@@ -197,16 +204,21 @@ export async function applyPluginControlPlaneTransition(input: {
         [{ hook: "install", config: configuration }],
         callbacks,
       );
-      if (!lifecycle.success) return { ...lifecycle, changed: false, actions: [] };
+      if (!lifecycle.success)
+        return { ...lifecycle, changed: false, actions: [] };
 
-      const persisted = await persistAfterLifecycle(lifecycle.completed, callbacks, () =>
-        callbacks.createInstall({
-          enabled: true,
-          installedVersion: transition.targetVersion,
-          configuration,
-        }),
+      const persisted = await persistAfterLifecycle(
+        lifecycle.completed,
+        callbacks,
+        () =>
+          callbacks.createInstall({
+            enabled: true,
+            installedVersion: transition.targetVersion,
+            configuration,
+          }),
       );
-      if (!persisted.success) return { ...persisted, changed: false, actions: [] };
+      if (!persisted.success)
+        return { ...persisted, changed: false, actions: [] };
       return { success: true, changed: true, actions: ["install.created"] };
     }
 
@@ -236,15 +248,20 @@ export async function applyPluginControlPlaneTransition(input: {
     }
 
     const lifecycle = await runLifecycleSequence(invocations, callbacks);
-    if (!lifecycle.success) return { ...lifecycle, changed: false, actions: [] };
-    const persisted = await persistAfterLifecycle(lifecycle.completed, callbacks, () =>
-      callbacks.updateInstall({
-        enabled: true,
-        installedVersion: transition.targetVersion,
-        versionUpdated: current.installedVersion !== transition.targetVersion,
-      }),
+    if (!lifecycle.success)
+      return { ...lifecycle, changed: false, actions: [] };
+    const persisted = await persistAfterLifecycle(
+      lifecycle.completed,
+      callbacks,
+      () =>
+        callbacks.updateInstall({
+          enabled: true,
+          installedVersion: transition.targetVersion,
+          versionUpdated: current.installedVersion !== transition.targetVersion,
+        }),
     );
-    if (!persisted.success) return { ...persisted, changed: false, actions: [] };
+    if (!persisted.success)
+      return { ...persisted, changed: false, actions: [] };
     return { success: true, changed: true, actions };
   }
 
@@ -263,11 +280,15 @@ export async function applyPluginControlPlaneTransition(input: {
       [{ hook: "disable", config: current.configuration }],
       callbacks,
     );
-    if (!lifecycle.success) return { ...lifecycle, changed: false, actions: [] };
-    const persisted = await persistAfterLifecycle(lifecycle.completed, callbacks, () =>
-      callbacks.updateInstall({ enabled: false }),
+    if (!lifecycle.success)
+      return { ...lifecycle, changed: false, actions: [] };
+    const persisted = await persistAfterLifecycle(
+      lifecycle.completed,
+      callbacks,
+      () => callbacks.updateInstall({ enabled: false }),
     );
-    if (!persisted.success) return { ...persisted, changed: false, actions: [] };
+    if (!persisted.success)
+      return { ...persisted, changed: false, actions: [] };
     return { success: true, changed: true, actions: ["install.disabled"] };
   }
 
@@ -276,31 +297,44 @@ export async function applyPluginControlPlaneTransition(input: {
       [{ hook: "uninstall", config: current.configuration }],
       callbacks,
     );
-    if (!lifecycle.success) return { ...lifecycle, changed: false, actions: [] };
+    if (!lifecycle.success)
+      return { ...lifecycle, changed: false, actions: [] };
     const persisted = await persistAfterLifecycle(
       lifecycle.completed,
       callbacks,
       callbacks.removeInstall,
     );
-    if (!persisted.success) return { ...persisted, changed: false, actions: [] };
+    if (!persisted.success)
+      return { ...persisted, changed: false, actions: [] };
     return { success: true, changed: true, actions: ["install.removed"] };
   }
 
   if (transition.kind === "config_update") {
     const lifecycle = await runLifecycleSequence(
-      [{
-        hook: "config_update",
-        config: transition.configuration,
-        previousConfig: current.configuration,
-      }],
+      [
+        {
+          hook: "config_update",
+          config: transition.configuration,
+          previousConfig: current.configuration,
+        },
+      ],
       callbacks,
     );
-    if (!lifecycle.success) return { ...lifecycle, changed: false, actions: [] };
-    const persisted = await persistAfterLifecycle(lifecycle.completed, callbacks, () =>
-      callbacks.updateInstall({ configuration: transition.configuration }),
+    if (!lifecycle.success)
+      return { ...lifecycle, changed: false, actions: [] };
+    const persisted = await persistAfterLifecycle(
+      lifecycle.completed,
+      callbacks,
+      () =>
+        callbacks.updateInstall({ configuration: transition.configuration }),
     );
-    if (!persisted.success) return { ...persisted, changed: false, actions: [] };
-    return { success: true, changed: true, actions: ["install.config_changed"] };
+    if (!persisted.success)
+      return { ...persisted, changed: false, actions: [] };
+    return {
+      success: true,
+      changed: true,
+      actions: ["install.config_changed"],
+    };
   }
 
   const invocations: PluginLifecycleInvocation[] = [];
@@ -330,12 +364,15 @@ export async function applyPluginControlPlaneTransition(input: {
 
   const lifecycle = await runLifecycleSequence(invocations, callbacks);
   if (!lifecycle.success) return { ...lifecycle, changed: false, actions: [] };
-  const persisted = await persistAfterLifecycle(lifecycle.completed, callbacks, () =>
-    callbacks.updateInstall({
-      enabled: true,
-      installedVersion: transition.targetVersion,
-      versionUpdated: current.installedVersion !== transition.targetVersion,
-    }),
+  const persisted = await persistAfterLifecycle(
+    lifecycle.completed,
+    callbacks,
+    () =>
+      callbacks.updateInstall({
+        enabled: true,
+        installedVersion: transition.targetVersion,
+        versionUpdated: current.installedVersion !== transition.targetVersion,
+      }),
   );
   if (!persisted.success) return { ...persisted, changed: false, actions: [] };
   return { success: true, changed: true, actions };

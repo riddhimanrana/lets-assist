@@ -77,47 +77,56 @@ export default function PendingInvitations({
   organizationId,
   refreshKey = 0,
 }: PendingInvitationsProps) {
-  const [invitations, setInvitations] = useState<OrganizationInvitationWithDetails[]>([]);
+  const [invitations, setInvitations] = useState<
+    OrganizationInvitationWithDetails[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalInvitations, setTotalInvitations] = useState(0);
-  const [selectedInvitationIds, setSelectedInvitationIds] = useState<string[]>([]);
+  const [selectedInvitationIds, setSelectedInvitationIds] = useState<string[]>(
+    [],
+  );
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const loadInvitations = useCallback(async (targetPage: number) => {
-    setIsLoading(true);
-    setError(null);
+  const loadInvitations = useCallback(
+    async (targetPage: number) => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const result = await getOrganizationInvitations(
-        organizationId,
-        statusFilter,
-        targetPage,
-        PAGE_SIZE,
-      );
+      try {
+        const result = await getOrganizationInvitations(
+          organizationId,
+          statusFilter,
+          targetPage,
+          PAGE_SIZE,
+        );
 
-      setInvitations(result.invitations);
-      setPage(result.page);
-      setTotalPages(result.totalPages);
-      setTotalInvitations(result.total);
-      setSelectedInvitationIds([]);
-    } catch {
-      setError("Failed to load invitations");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [organizationId, statusFilter]);
+        setInvitations(result.invitations);
+        setPage(result.page);
+        setTotalPages(result.totalPages);
+        setTotalInvitations(result.total);
+        setSelectedInvitationIds([]);
+      } catch {
+        setError("Failed to load invitations");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [organizationId, statusFilter],
+  );
 
   useEffect(() => {
     void loadInvitations(page);
   }, [loadInvitations, page, refreshKey]);
 
-  const getEffectiveStatus = (invitation: OrganizationInvitationWithDetails) => {
+  const getEffectiveStatus = (
+    invitation: OrganizationInvitationWithDetails,
+  ) => {
     const expired = new Date(invitation.expires_at) < new Date();
 
     if (invitation.status === "pending" && expired) {
@@ -169,7 +178,10 @@ export default function PendingInvitations({
     setActionPending(null);
   };
 
-  const handleDeleteInvitations = async (invitationIds: string[], isBulk = false) => {
+  const handleDeleteInvitations = async (
+    invitationIds: string[],
+    isBulk = false,
+  ) => {
     if (invitationIds.length === 0) {
       return;
     }
@@ -281,7 +293,10 @@ export default function PendingInvitations({
 
   const getRoleBadge = (role: string) => {
     return (
-      <Badge variant={role === "staff" ? "default" : "outline"} className="capitalize">
+      <Badge
+        variant={role === "staff" ? "default" : "outline"}
+        className="capitalize"
+      >
         {role}
       </Badge>
     );
@@ -301,7 +316,9 @@ export default function PendingInvitations({
   const selectedCount = selectedInvitationIds.length;
   const allCurrentPageSelected =
     invitations.length > 0 &&
-    invitations.every((invitation) => selectedInvitationIds.includes(invitation.id));
+    invitations.every((invitation) =>
+      selectedInvitationIds.includes(invitation.id),
+    );
 
   const pagedSummary = useMemo(() => {
     if (totalInvitations === 0) {
@@ -342,7 +359,9 @@ export default function PendingInvitations({
           onClick={() => void loadInvitations(page)}
           disabled={isLoading}
         >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+          />
           Refresh
         </Button>
       </div>
@@ -355,7 +374,9 @@ export default function PendingInvitations({
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => void handleDeleteInvitations(selectedInvitationIds, true)}
+            onClick={() =>
+              void handleDeleteInvitations(selectedInvitationIds, true)
+            }
             disabled={isBulkDeleting}
           >
             {isBulkDeleting ? (
@@ -393,7 +414,9 @@ export default function PendingInvitations({
       ) : invitations.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>No {statusFilter !== "all" ? statusFilter : ""} invitations found.</p>
+          <p>
+            No {statusFilter !== "all" ? statusFilter : ""} invitations found.
+          </p>
         </div>
       ) : (
         <div className="rounded-md border">
@@ -405,7 +428,9 @@ export default function PendingInvitations({
                     checked={allCurrentPageSelected}
                     onCheckedChange={(checked) => {
                       if (checked === true) {
-                        setSelectedInvitationIds(invitations.map((invitation) => invitation.id));
+                        setSelectedInvitationIds(
+                          invitations.map((invitation) => invitation.id),
+                        );
                         return;
                       }
 
@@ -427,7 +452,9 @@ export default function PendingInvitations({
               {invitations.map((invitation) => {
                 const effectiveStatus = getEffectiveStatus(invitation);
                 const canCancel = effectiveStatus === "pending";
-                const canResend = effectiveStatus === "pending" || effectiveStatus === "expired";
+                const canResend =
+                  effectiveStatus === "pending" ||
+                  effectiveStatus === "expired";
                 const isRowBusy = actionPending === invitation.id;
 
                 return (
@@ -443,7 +470,9 @@ export default function PendingInvitations({
                                 : [...previous, invitation.id];
                             }
 
-                            return previous.filter((id) => id !== invitation.id);
+                            return previous.filter(
+                              (id) => id !== invitation.id,
+                            );
                           });
                         }}
                         aria-label={`Select ${invitation.email}`}
@@ -501,11 +530,19 @@ export default function PendingInvitations({
                         <DropdownMenuContent align="end">
                           {canResend ? (
                             <>
-                              <DropdownMenuItem onClick={() => void handleResend(invitation.id, "1_week")}>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  void handleResend(invitation.id, "1_week")
+                                }
+                              >
                                 <Send className="h-4 w-4 mr-2" />
                                 Resend (1 week)
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => void handleResend(invitation.id, "1_month")}>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  void handleResend(invitation.id, "1_month")
+                                }
+                              >
                                 <Send className="h-4 w-4 mr-2" />
                                 Resend (1 month)
                               </DropdownMenuItem>
@@ -523,7 +560,9 @@ export default function PendingInvitations({
 
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
-                            onClick={() => void handleDeleteInvitations([invitation.id])}
+                            onClick={() =>
+                              void handleDeleteInvitations([invitation.id])
+                            }
                             className="text-destructive"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
@@ -554,7 +593,9 @@ export default function PendingInvitations({
                   }
                 }}
                 aria-disabled={page <= 1 || isLoading}
-                className={page <= 1 || isLoading ? "pointer-events-none opacity-50" : ""}
+                className={
+                  page <= 1 || isLoading ? "pointer-events-none opacity-50" : ""
+                }
               />
             </PaginationItem>
             <PaginationItem>
@@ -572,7 +613,11 @@ export default function PendingInvitations({
                   }
                 }}
                 aria-disabled={page >= totalPages || isLoading}
-                className={page >= totalPages || isLoading ? "pointer-events-none opacity-50" : ""}
+                className={
+                  page >= totalPages || isLoading
+                    ? "pointer-events-none opacity-50"
+                    : ""
+                }
               />
             </PaginationItem>
           </PaginationContent>

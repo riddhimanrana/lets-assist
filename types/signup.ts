@@ -1,6 +1,6 @@
 // Signup-related types
-import type { SignupStatus } from './common';
-import type { WaiverSignature } from './waiver';
+import type { SignupStatus } from "./common";
+import type { WaiverSignature } from "./waiver";
 
 export interface AnonymousSignupData {
   name: string;
@@ -62,7 +62,7 @@ export interface Signup {
   project_id: string;
   user_id: string | null;
   schedule_id: string;
-  status: 'pending' | 'approved' | 'rejected' | 'attended' | 'cancelled';
+  status: "pending" | "approved" | "rejected" | "attended" | "cancelled";
   created_at: string;
   updated_at: string;
   check_in_time: string | null;

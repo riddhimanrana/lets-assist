@@ -2,27 +2,29 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { customAlphabet } from 'nanoid';
+import { customAlphabet } from "nanoid";
 import { hasSuperAdminMetadata } from "@/lib/auth/super-admin";
 import { getAdminClient } from "@/lib/supabase/admin";
 
 // Generate a random 6-digit code
-const generateJoinCode = customAlphabet('0123456789', 6);
+const generateJoinCode = customAlphabet("0123456789", 6);
 const MAX_JOIN_CODE_ATTEMPTS = 5;
 
-function isJoinCodeCollision(error: { code?: string; message?: string } | null): boolean {
+function isJoinCodeCollision(
+  error: { code?: string; message?: string } | null,
+): boolean {
   return Boolean(
     error?.code === "23505" &&
-      error.message?.includes("organizations_join_code_unique_idx"),
+    error.message?.includes("organizations_join_code_unique_idx"),
   );
 }
 
 // Allowed image MIME types
 const ALLOWED_FILE_TYPES = [
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
 ];
 
 // Max file size (5MB)
@@ -33,7 +35,7 @@ type OrganizationCreationData = {
   username: string;
   description: string;
   website: string;
-  type: 'nonprofit' | 'school' | 'company' | 'government' | 'other';
+  type: "nonprofit" | "school" | "company" | "government" | "other";
   logoUrl: string | null;
   createdBy: string;
   autoJoinDomain?: string;
@@ -73,7 +75,9 @@ export async function createOrganization(data: OrganizationCreationData) {
   const supabase = await createClient();
 
   // Verify that user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     return { error: "You must be logged in to create an organization" };
   }
@@ -103,7 +107,9 @@ export async function createOrganization(data: OrganizationCreationData) {
   const organizationLimit = isSuperAdmin ? 2 : 1;
 
   // Rate limiting: Check organizations created in the last 14 days
-  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+  const fourteenDaysAgo = new Date(
+    Date.now() - 14 * 24 * 60 * 60 * 1000,
+  ).toISOString();
   const admin = getAdminClient();
   const { count: orgsCount, error: countError } = await admin
     .from("organizations")
@@ -134,7 +140,8 @@ export async function createOrganization(data: OrganizationCreationData) {
   // organization can claim a domain that grants membership automatically.
   if (data.autoJoinDomain) {
     return {
-      error: "Create the organization first, then complete Let's Assist verification before enabling automatic domain membership",
+      error:
+        "Create the organization first, then complete Let's Assist verification before enabling automatic domain membership",
     };
   }
 
@@ -160,7 +167,8 @@ export async function createOrganization(data: OrganizationCreationData) {
     let createResult = await insertOrganization();
     for (
       let attempt = 1;
-      attempt < MAX_JOIN_CODE_ATTEMPTS && isJoinCodeCollision(createResult.error);
+      attempt < MAX_JOIN_CODE_ATTEMPTS &&
+      isJoinCodeCollision(createResult.error);
       attempt += 1
     ) {
       createResult = await insertOrganization();
@@ -178,7 +186,7 @@ export async function createOrganization(data: OrganizationCreationData) {
       .insert({
         organization_id: organization.id,
         user_id: user.id,
-        role: "admin"
+        role: "admin",
       });
 
     if (memberError) {
@@ -198,10 +206,10 @@ export async function createOrganization(data: OrganizationCreationData) {
     let logoUrl = null;
 
     // 3. Process the logo upload AFTER the organization admin is added
-    if (data.logoUrl && data.logoUrl.startsWith('data:')) {
+    if (data.logoUrl && data.logoUrl.startsWith("data:")) {
       try {
         // Extract the MIME type and verify it's allowed
-        const mimeType = data.logoUrl.split(';')[0].split(':')[1];
+        const mimeType = data.logoUrl.split(";")[0].split(":")[1];
 
         if (!ALLOWED_FILE_TYPES.includes(mimeType)) {
           console.warn(`Invalid file type: ${mimeType}. Skipping logo upload.`);
@@ -209,7 +217,7 @@ export async function createOrganization(data: OrganizationCreationData) {
         }
 
         // Extract the base64 content and determine file extension
-        const base64Data = data.logoUrl.split(',')[1];
+        const base64Data = data.logoUrl.split(",")[1];
 
         // Size check (approximate check for base64)
         const approxFileSize = base64Data.length * 0.75;
@@ -218,14 +226,14 @@ export async function createOrganization(data: OrganizationCreationData) {
         }
 
         let fileExt;
-        if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
-          fileExt = 'jpg';
-        } else if (mimeType === 'image/png') {
-          fileExt = 'png';
-        } else if (mimeType === 'image/webp') {
-          fileExt = 'webp';
+        if (mimeType === "image/jpeg" || mimeType === "image/jpg") {
+          fileExt = "jpg";
+        } else if (mimeType === "image/png") {
+          fileExt = "png";
+        } else if (mimeType === "image/webp") {
+          fileExt = "webp";
         } else {
-          fileExt = 'jpg';
+          fileExt = "jpg";
         }
 
         // Create a clean filename using organization id and extension
@@ -233,18 +241,17 @@ export async function createOrganization(data: OrganizationCreationData) {
 
         // Upload to Supabase storage (ensure the 'organization-logos' bucket exists)
         const { error: uploadError } = await supabase.storage
-          .from('organization-logos')
-          .upload(
-            fileName,
-            Buffer.from(base64Data, 'base64'),
-            { contentType: mimeType, upsert: false }
-          );
+          .from("organization-logos")
+          .upload(fileName, Buffer.from(base64Data, "base64"), {
+            contentType: mimeType,
+            upsert: false,
+          });
 
         if (uploadError) throw uploadError;
 
         // Get the public URL for the uploaded image
         const { data: publicUrlData } = supabase.storage
-          .from('organization-logos')
+          .from("organization-logos")
           .getPublicUrl(fileName);
 
         logoUrl = publicUrlData.publicUrl;
@@ -260,8 +267,6 @@ export async function createOrganization(data: OrganizationCreationData) {
           .eq("id", organization.id)
           .select("logo_url")
           .single();
-
-
       } catch (error) {
         console.error("Error updating organization logo:", error);
         // Continue without interrupting organization creation if logo upload fails.
@@ -270,16 +275,21 @@ export async function createOrganization(data: OrganizationCreationData) {
 
     // Revalidate the organization pages
     revalidatePath(`/organization/${data.username}`);
-    revalidatePath('/organization');
+    revalidatePath("/organization");
 
     return {
       success: true,
       organizationId: organization.id,
-      logoUrl
+      logoUrl,
     };
   } catch (error) {
     console.error("Error creating organization:", error);
-    return { error: error instanceof Error ? error.message : "Failed to create organization" };
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to create organization",
+    };
   }
 }
 
@@ -287,7 +297,9 @@ export async function regenerateJoinCode(organizationId: string) {
   const supabase = await createClient();
 
   // Verify the user is authenticated and is an admin
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     return { error: "You must be logged in" };
   }
@@ -337,7 +349,9 @@ export async function regenerateJoinCode(organizationId: string) {
 
 export async function getOrganizationJoinCode(organizationId: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return { error: "You must be logged in" };
 
   const { data: membership } = await supabase

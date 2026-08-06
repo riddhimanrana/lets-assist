@@ -1,5 +1,5 @@
 // Profile-related types
-import type { ProfileVisibility } from './common';
+import type { ProfileVisibility } from "./common";
 
 export interface VolunteerGoalsData {
   hours_goal: number;

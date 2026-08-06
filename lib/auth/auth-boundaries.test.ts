@@ -40,15 +40,14 @@ test("confirmation never reports success without a verification credential", () 
 
 test("the shared super-admin guard uses fresh auth and MFA assurance", () => {
   const source = read("app/admin/actions.ts");
-  assert.match(
-    source,
-    /getAuthUser\(\{ sensitive: true, checkMfa: true \}\)/u,
-  );
+  assert.match(source, /getAuthUser\(\{ sensitive: true, checkMfa: true \}\)/u);
 });
 
 test("signup defers organization membership until verified login", () => {
   const signupSource = read("app/signup/actions.ts");
-  const affiliationSource = read("lib/organization/verified-domain-affiliation.ts");
+  const affiliationSource = read(
+    "lib/organization/verified-domain-affiliation.ts",
+  );
   const loginSource = read("app/login/actions.ts");
 
   assert.doesNotMatch(signupSource, /applyStaffInviteForUser/u);
@@ -57,7 +56,10 @@ test("signup defers organization membership until verified login", () => {
   assert.match(affiliationSource, /user\.email_confirmed_at/u);
   assert.match(affiliationSource, /apply_verified_domain_affiliation/u);
   assert.match(affiliationSource, /status: "suppressed"/u);
-  assert.doesNotMatch(affiliationSource, /\.from\("organization_members"\)\s*\n\s*\.insert/u);
+  assert.doesNotMatch(
+    affiliationSource,
+    /\.from\("organization_members"\)\s*\n\s*\.insert/u,
+  );
   assert.match(loginSource, /applyVerifiedDomainAffiliation/u);
 });
 
@@ -67,10 +69,22 @@ test("explicit organization removal records an auto-join suppression atomically"
   const removeStart = source.indexOf("export async function removeMember");
   const removeFlow = source.slice(removeStart);
 
-  assert.match(removeFlow, /remove_organization_member_with_autojoin_suppression/u);
-  assert.doesNotMatch(removeFlow, /from\("organization_members"\)\s*\n\s*\.delete\(\)/u);
-  assert.match(selfLeaveSource, /remove_organization_member_with_autojoin_suppression/u);
-  assert.doesNotMatch(selfLeaveSource, /from\("organization_members"\)\s*\n\s*\.delete\(\)/u);
+  assert.match(
+    removeFlow,
+    /remove_organization_member_with_autojoin_suppression/u,
+  );
+  assert.doesNotMatch(
+    removeFlow,
+    /from\("organization_members"\)\s*\n\s*\.delete\(\)/u,
+  );
+  assert.match(
+    selfLeaveSource,
+    /remove_organization_member_with_autojoin_suppression/u,
+  );
+  assert.doesNotMatch(
+    selfLeaveSource,
+    /from\("organization_members"\)\s*\n\s*\.delete\(\)/u,
+  );
 });
 
 test("account-security mutations require fresh auth and completed MFA", () => {
@@ -84,14 +98,24 @@ test("account-security mutations require fresh auth and completed MFA", () => {
     "updateEmailAction",
     "deleteAccount",
   ]) {
-    const start = securityActions.indexOf(`export async function ${functionName}`);
+    const start = securityActions.indexOf(
+      `export async function ${functionName}`,
+    );
     const end = securityActions.indexOf("export async function", start + 30);
     const action = securityActions.slice(start, end === -1 ? undefined : end);
-    assert.match(action, /getAuthUser\(\{ sensitive: true, checkMfa: true \}\)/u);
+    assert.match(
+      action,
+      /getAuthUser\(\{ sensitive: true, checkMfa: true \}\)/u,
+    );
   }
 
-  const primaryStart = emailActions.indexOf("export async function setPrimaryEmailAction");
-  const primaryEnd = emailActions.indexOf("export async function", primaryStart + 30);
+  const primaryStart = emailActions.indexOf(
+    "export async function setPrimaryEmailAction",
+  );
+  const primaryEnd = emailActions.indexOf(
+    "export async function",
+    primaryStart + 30,
+  );
   assert.match(
     emailActions.slice(primaryStart, primaryEnd),
     /getAuthUser\(\{ sensitive: true, checkMfa: true \}\)/u,

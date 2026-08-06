@@ -1,6 +1,15 @@
 "use client";
 
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface LeaveEventConfirmationDialogProps {
   open: boolean;
@@ -21,7 +30,9 @@ export function LeaveEventConfirmationDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Leave Event?</AlertDialogTitle>
           <AlertDialogDescription className="pt-2">
-            Are you sure you want to leave this event? Your current attendance will be recorded. You can rejoin by scanning the QR code again if needed.
+            Are you sure you want to leave this event? Your current attendance
+            will be recorded. You can rejoin by scanning the QR code again if
+            needed.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

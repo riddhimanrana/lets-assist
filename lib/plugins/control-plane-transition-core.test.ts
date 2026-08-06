@@ -42,15 +42,18 @@ function callbacks(options?: {
     },
     createInstall: async () => {
       events.push("persist:create");
-      if (options?.failPersistence === "create") throw new Error("create failed");
+      if (options?.failPersistence === "create")
+        throw new Error("create failed");
     },
     updateInstall: async () => {
       events.push("persist:update");
-      if (options?.failPersistence === "update") throw new Error("update failed");
+      if (options?.failPersistence === "update")
+        throw new Error("update failed");
     },
     removeInstall: async () => {
       events.push("persist:remove");
-      if (options?.failPersistence === "remove") throw new Error("remove failed");
+      if (options?.failPersistence === "remove")
+        throw new Error("remove failed");
     },
   };
   return { events, implementation };
@@ -140,7 +143,10 @@ describe("plugin control-plane lifecycle ordering", () => {
   });
 
   test("disable and uninstall hooks veto state changes", async () => {
-    for (const transition of [{ kind: "disable" }, { kind: "uninstall" }] as const) {
+    for (const transition of [
+      { kind: "disable" },
+      { kind: "uninstall" },
+    ] as const) {
       const harness = callbacks({
         failLifecycle: (invocation) => invocation.hook === transition.kind,
       });
@@ -163,7 +169,10 @@ describe("plugin control-plane lifecycle ordering", () => {
       callbacks: disableHarness.implementation,
     });
     expect(disabled.success).toBe(true);
-    expect(disableHarness.events).toEqual(["lifecycle:disable", "persist:update"]);
+    expect(disableHarness.events).toEqual([
+      "lifecycle:disable",
+      "persist:update",
+    ]);
 
     const uninstallHarness = callbacks();
     const uninstalled = await applyPluginControlPlaneTransition({
@@ -172,7 +181,10 @@ describe("plugin control-plane lifecycle ordering", () => {
       callbacks: uninstallHarness.implementation,
     });
     expect(uninstalled.success).toBe(true);
-    expect(uninstallHarness.events).toEqual(["lifecycle:uninstall", "persist:remove"]);
+    expect(uninstallHarness.events).toEqual([
+      "lifecycle:uninstall",
+      "persist:remove",
+    ]);
   });
 
   test("config persistence failure invokes the inverse config hook", async () => {

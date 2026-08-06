@@ -38,7 +38,9 @@ function readBannedUntil(user: unknown): string | null {
   return typeof user.banned_until === "string" ? user.banned_until : null;
 }
 
-function extractMetadataModeration(metadata: unknown): FeedbackModerationSnapshot | null {
+function extractMetadataModeration(
+  metadata: unknown,
+): FeedbackModerationSnapshot | null {
   if (!isObjectRecord(metadata)) {
     return null;
   }
@@ -48,26 +50,34 @@ function extractMetadataModeration(metadata: unknown): FeedbackModerationSnapsho
     return null;
   }
 
-  const statusRaw = typeof candidate.status === "string" ? candidate.status : "pending";
+  const statusRaw =
+    typeof candidate.status === "string" ? candidate.status : "pending";
   const normalizedStatus: FeedbackModerationStatus =
-    statusRaw === "approved" || statusRaw === "flagged" || statusRaw === "archived"
+    statusRaw === "approved" ||
+    statusRaw === "flagged" ||
+    statusRaw === "archived"
       ? statusRaw
       : "pending";
 
   return {
     status: normalizedStatus,
-    reviewed_by: typeof candidate.reviewedBy === "string" ? candidate.reviewedBy : null,
-    reviewed_at: typeof candidate.reviewedAt === "string" ? candidate.reviewedAt : null,
+    reviewed_by:
+      typeof candidate.reviewedBy === "string" ? candidate.reviewedBy : null,
+    reviewed_at:
+      typeof candidate.reviewedAt === "string" ? candidate.reviewedAt : null,
     notes: typeof candidate.notes === "string" ? candidate.notes : null,
   };
 }
 
-function isMissingFeedbackModerationTableError(error: { code?: string; message?: string; hint?: string } | null) {
+function isMissingFeedbackModerationTableError(
+  error: { code?: string; message?: string; hint?: string } | null,
+) {
   if (!error) {
     return false;
   }
 
-  const searchableText = `${error.message || ""} ${error.hint || ""}`.toLowerCase();
+  const searchableText =
+    `${error.message || ""} ${error.hint || ""}`.toLowerCase();
 
   return (
     error.code === "42P01" ||
@@ -90,8 +100,6 @@ type UserAccessControlResult = {
   };
 };
 
-
-
 async function createServerNotification(
   userId: string,
   title: string,
@@ -102,18 +110,16 @@ async function createServerNotification(
   const supabase = getAdminClient();
 
   try {
-    const { error } = await supabase
-      .from("notifications")
-      .insert({
-        user_id: userId,
-        title,
-        body,
-        type: "general",
-        severity,
-        action_url: actionUrl,
-        displayed: false,
-        read: false,
-      });
+    const { error } = await supabase.from("notifications").insert({
+      user_id: userId,
+      title,
+      body,
+      type: "general",
+      severity,
+      action_url: actionUrl,
+      displayed: false,
+      read: false,
+    });
 
     if (error) {
       console.error("Error creating notification:", error);
@@ -123,7 +129,10 @@ async function createServerNotification(
   }
 }
 
-export async function sendSystemNotification(prevState: { error?: string; success?: boolean; message?: string } | null, formData: FormData) {
+export async function sendSystemNotification(
+  prevState: { error?: string; success?: boolean; message?: string } | null,
+  formData: FormData,
+) {
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized" };
@@ -144,11 +153,14 @@ export async function sendSystemNotification(prevState: { error?: string; succes
       // Bulk insert for all users - this might be heavy, consider batching or background job for real prod
       // For now fetching top 1000 users or similar
       const supabase = getAdminClient();
-      const { data: users, error } = await supabase.from('profiles').select('id');
+      const { data: users, error } = await supabase
+        .from("profiles")
+        .select("id");
 
-      if (error || !users) return { error: "Failed to fetch users for broadcast." };
+      if (error || !users)
+        return { error: "Failed to fetch users for broadcast." };
 
-      const notifications = users.map(u => ({
+      const notifications = users.map((u) => ({
         user_id: u.id,
         title,
         body,
@@ -159,19 +171,25 @@ export async function sendSystemNotification(prevState: { error?: string; succes
         read: false,
       }));
 
-      const { error: insertError } = await supabase.from('notifications').insert(notifications);
+      const { error: insertError } = await supabase
+        .from("notifications")
+        .insert(notifications);
       if (insertError) {
-        console.error('Broadcast error:', insertError);
+        console.error("Broadcast error:", insertError);
         return { error: "Failed to send broadcast." };
       }
-
     } else {
       // Single user
-      await createServerNotification(targetUserId, title, body, severity, actionUrl || undefined);
+      await createServerNotification(
+        targetUserId,
+        title,
+        body,
+        severity,
+        actionUrl || undefined,
+      );
     }
 
     return { success: true, message: "Notification sent successfully." };
-
   } catch (err) {
     console.error("Error sending notification:", err);
     return { error: "Internal Server Error" };
@@ -206,7 +224,8 @@ export async function getAllFeedback() {
 
   const { data, error } = await supabase
     .from("feedback")
-    .select(`
+    .select(
+      `
       id,
       user_id,
       section,
@@ -216,7 +235,8 @@ export async function getAllFeedback() {
       page_path,
       metadata,
       created_at
-    `)
+    `,
+    )
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -231,14 +251,19 @@ export async function getAllFeedback() {
   const userIds = [...new Set(data.map((item) => item.user_id))];
   const feedbackIds = data.map((item) => item.id);
 
-  const [{ data: profiles, error: profileError }, { data: moderationRows, error: moderationError }] = await Promise.all([
+  const [
+    { data: profiles, error: profileError },
+    { data: moderationRows, error: moderationError },
+  ] = await Promise.all([
     supabase
       .from("profiles")
       .select("id, full_name, username, avatar_url")
       .in("id", userIds),
     supabase
       .from("feedback_moderation")
-      .select("feedback_id, status, reviewed_by, reviewed_at, notes, updated_at")
+      .select(
+        "feedback_id, status, reviewed_by, reviewed_at, notes, updated_at",
+      )
       .in("feedback_id", feedbackIds),
   ]);
 
@@ -246,13 +271,22 @@ export async function getAllFeedback() {
     console.error("Error fetching feedback profiles:", profileError);
   }
 
-  if (moderationError && !isMissingFeedbackModerationTableError(moderationError)) {
-    console.error("Error fetching feedback moderation states:", moderationError);
+  if (
+    moderationError &&
+    !isMissingFeedbackModerationTableError(moderationError)
+  ) {
+    console.error(
+      "Error fetching feedback moderation states:",
+      moderationError,
+    );
   }
 
   const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
   const moderationMap = new Map<string, FeedbackModerationRow>(
-    ((moderationRows as FeedbackModerationRow[] | null) || []).map((row) => [row.feedback_id, row]),
+    ((moderationRows as FeedbackModerationRow[] | null) || []).map((row) => [
+      row.feedback_id,
+      row,
+    ]),
   );
 
   const enrichedFeedback = data.map((item) => {
@@ -262,10 +296,14 @@ export async function getAllFeedback() {
     return {
       ...item,
       profiles: profileMap.get(item.user_id) || null,
-      moderation_status: (moderation?.status || metadataModeration?.status || "pending") as FeedbackModerationStatus,
+      moderation_status: (moderation?.status ||
+        metadataModeration?.status ||
+        "pending") as FeedbackModerationStatus,
       moderation_notes: moderation?.notes ?? metadataModeration?.notes ?? null,
-      moderation_reviewed_at: moderation?.reviewed_at ?? metadataModeration?.reviewed_at ?? null,
-      moderation_reviewed_by: moderation?.reviewed_by ?? metadataModeration?.reviewed_by ?? null,
+      moderation_reviewed_at:
+        moderation?.reviewed_at ?? metadataModeration?.reviewed_at ?? null,
+      moderation_reviewed_by:
+        moderation?.reviewed_by ?? metadataModeration?.reviewed_by ?? null,
     };
   });
 
@@ -282,7 +320,8 @@ export async function getTrustedMemberApplications() {
 
   const { data, error } = await supabase
     .from("trusted_member")
-    .select(`
+    .select(
+      `
       id,
       user_id,
       name,
@@ -290,7 +329,8 @@ export async function getTrustedMemberApplications() {
       reason,
       status,
       created_at
-    `)
+    `,
+    )
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -325,10 +365,15 @@ export async function getTrustedMemberApplications() {
   return { data: applicationsWithNullProfiles };
 }
 
-export async function updateTrustedMemberStatus(userId: string, status: boolean) {
+export async function updateTrustedMemberStatus(
+  userId: string,
+  status: boolean,
+) {
   // Require user and admin as you already do
   const supabaseUser = await createClient();
-  const { data: { user } } = await supabaseUser.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseUser.auth.getUser();
   if (!user) return { error: "Unauthorized" };
 
   const { isAdmin } = await checkSuperAdmin();
@@ -368,7 +413,7 @@ export async function updateTrustedMemberStatus(userId: string, status: boolean)
       "Trusted Member Application Approved!",
       "Congratulations! Your trusted member application has been approved. You can now create projects and organizations.",
       "success",
-      "/trusted-member"
+      "/trusted-member",
     );
   } else {
     await createServerNotification(
@@ -376,7 +421,7 @@ export async function updateTrustedMemberStatus(userId: string, status: boolean)
       "Trusted Member Application Update",
       "Thank you for your interest in becoming a trusted member. Unfortunately, your application was not approved at this time. Please contact support for more information.",
       "warning",
-      "/trusted-member"
+      "/trusted-member",
     );
   }
 
@@ -444,7 +489,10 @@ export async function updateFeedbackModerationStatus(input: {
           .maybeSingle();
 
         if (feedbackReadError) {
-          console.error("Error loading feedback metadata fallback:", feedbackReadError);
+          console.error(
+            "Error loading feedback metadata fallback:",
+            feedbackReadError,
+          );
           return { error: "Failed to reset moderation status" };
         }
 
@@ -460,7 +508,10 @@ export async function updateFeedbackModerationStatus(input: {
           .eq("id", input.feedbackId);
 
         if (feedbackUpdateError) {
-          console.error("Error resetting metadata moderation fallback:", feedbackUpdateError);
+          console.error(
+            "Error resetting metadata moderation fallback:",
+            feedbackUpdateError,
+          );
           return { error: "Failed to reset moderation status" };
         }
 
@@ -477,19 +528,17 @@ export async function updateFeedbackModerationStatus(input: {
   const normalizedNotes = input.notes?.trim() || null;
   const now = new Date().toISOString();
 
-  const { error } = await supabase
-    .from("feedback_moderation")
-    .upsert(
-      {
-        feedback_id: input.feedbackId,
-        status: input.status,
-        notes: normalizedNotes,
-        reviewed_by: user?.id || null,
-        reviewed_at: now,
-        updated_at: now,
-      },
-      { onConflict: "feedback_id" },
-    );
+  const { error } = await supabase.from("feedback_moderation").upsert(
+    {
+      feedback_id: input.feedbackId,
+      status: input.status,
+      notes: normalizedNotes,
+      reviewed_by: user?.id || null,
+      reviewed_at: now,
+      updated_at: now,
+    },
+    { onConflict: "feedback_id" },
+  );
 
   if (error) {
     if (isMissingFeedbackModerationTableError(error)) {
@@ -500,7 +549,10 @@ export async function updateFeedbackModerationStatus(input: {
         .maybeSingle();
 
       if (feedbackReadError) {
-        console.error("Error loading feedback metadata fallback:", feedbackReadError);
+        console.error(
+          "Error loading feedback metadata fallback:",
+          feedbackReadError,
+        );
         return { error: "Failed to update moderation status" };
       }
 
@@ -521,7 +573,10 @@ export async function updateFeedbackModerationStatus(input: {
         .eq("id", input.feedbackId);
 
       if (feedbackUpdateError) {
-        console.error("Error updating metadata moderation fallback:", feedbackUpdateError);
+        console.error(
+          "Error updating metadata moderation fallback:",
+          feedbackUpdateError,
+        );
         return { error: "Failed to update moderation status" };
       }
 
@@ -543,9 +598,11 @@ export async function searchUsers(query: string) {
   // Search in profiles table directly which is much more efficient than listUsers
   // and allows searching by name
   const { data: profiles, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, username, email, avatar_url')
-    .or(`full_name.ilike.%${query}%,email.ilike.%${query}%,username.ilike.%${query}%`)
+    .from("profiles")
+    .select("id, full_name, username, email, avatar_url")
+    .or(
+      `full_name.ilike.%${query}%,email.ilike.%${query}%,username.ilike.%${query}%`,
+    )
     .limit(5);
 
   if (error) {
@@ -555,27 +612,31 @@ export async function searchUsers(query: string) {
 
   if (!profiles || profiles.length === 0) return { data: [] };
 
-  const results = profiles.map(p => ({
+  const results = profiles.map((p) => ({
     id: p.id,
     email: p.email || "", // profiles should have email, fallback to empty if null
     full_name: p.full_name,
     avatar_url: p.avatar_url,
-    username: p.username
+    username: p.username,
   }));
 
   return { data: results };
 }
 
-export async function addTrustedMember(userId: string, email: string, name: string) {
+export async function addTrustedMember(
+  userId: string,
+  email: string,
+  name: string,
+) {
   const supabase = getAdminClient();
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) return { error: "Unauthorized" };
 
   // Check if already exists
   const { data: existing } = await supabase
-    .from('trusted_member')
-    .select('id')
-    .eq('user_id', userId)
+    .from("trusted_member")
+    .select("id")
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (existing) {
@@ -584,19 +645,20 @@ export async function addTrustedMember(userId: string, email: string, name: stri
 
   const now = new Date().toISOString();
   // removed updated_at as it doesn't exist in the table
-  const { error } = await supabase
-    .from('trusted_member')
-    .upsert({
+  const { error } = await supabase.from("trusted_member").upsert(
+    {
       id: userId,
       user_id: userId,
       email,
       name,
-      reason: 'Added manually by Admin',
+      reason: "Added manually by Admin",
       status: true,
       created_at: now,
-    }, {
-      onConflict: 'user_id'
-    });
+    },
+    {
+      onConflict: "user_id",
+    },
+  );
 
   if (error) {
     console.error("Error adding trusted member:", error);
@@ -604,22 +666,24 @@ export async function addTrustedMember(userId: string, email: string, name: stri
   }
 
   await supabase
-    .from('profiles')
+    .from("profiles")
     .update({ trusted_member: true })
-    .eq('id', userId);
+    .eq("id", userId);
 
   await createServerNotification(
     userId,
     "You are now a Trusted Member! 🎉",
     "An admin has granted you trusted member status. You can now create projects and organizations.",
     "success",
-    "/trusted-member"
+    "/trusted-member",
   );
 
   return { success: true };
 }
 
-export async function getUserAccessControl(userId: string): Promise<{ data?: UserAccessControlResult; error?: string }> {
+export async function getUserAccessControl(
+  userId: string,
+): Promise<{ data?: UserAccessControlResult; error?: string }> {
   const supabase = getAdminClient();
   const { isAdmin } = await checkSuperAdmin();
 
@@ -726,7 +790,8 @@ export async function updateUserAccessControl(input: {
   }
 
   const currentAppMetadata =
-    targetAuthUser.app_metadata && typeof targetAuthUser.app_metadata === "object"
+    targetAuthUser.app_metadata &&
+    typeof targetAuthUser.app_metadata === "object"
       ? ({ ...targetAuthUser.app_metadata } as Record<string, unknown>)
       : {};
 
@@ -752,10 +817,11 @@ export async function updateUserAccessControl(input: {
       },
     };
 
-    const { data: banResult, error: banError } = await service.auth.admin.updateUserById(input.userId, {
-      ban_duration: duration,
-      app_metadata: banMeta,
-    });
+    const { data: banResult, error: banError } =
+      await service.auth.admin.updateUserById(input.userId, {
+        ban_duration: duration,
+        app_metadata: banMeta,
+      });
     if (banError) {
       console.error("Error applying ban:", banError);
       return { error: "Failed to apply ban" };
@@ -801,10 +867,11 @@ export async function updateUserAccessControl(input: {
   // --- ACTIVE (unban) --------------------------------------------------------
   // Supabase merges app_metadata rather than replacing it, so we must
   // explicitly set account_access to null to clear the old banned status.
-  const { data: activeResult, error: activeError } = await service.auth.admin.updateUserById(input.userId, {
-    ban_duration: "none",
-    app_metadata: { ...currentAppMetadata, account_access: null },
-  });
+  const { data: activeResult, error: activeError } =
+    await service.auth.admin.updateUserById(input.userId, {
+      ban_duration: "none",
+      app_metadata: { ...currentAppMetadata, account_access: null },
+    });
   if (activeError) {
     console.error("Error restoring access:", activeError);
     return { error: "Failed to restore user access" };
@@ -823,7 +890,12 @@ export async function updateUserAccessControl(input: {
     await sendEmail({
       to: userEmail,
       subject: "Your Let's Assist account access has been restored",
-      react: AccountAccessUpdateEmail({ userName, status: "active", reason: null, supportUrl }),
+      react: AccountAccessUpdateEmail({
+        userName,
+        status: "active",
+        reason: null,
+        supportUrl,
+      }),
       userId: input.userId,
       type: "transactional",
     });
@@ -909,7 +981,11 @@ export async function deleteAndBlacklistUser(input: {
     const { error: blacklistError } = await service
       .from("banned_emails")
       .upsert(
-        { email: normalizedEmail, reason: normalizedReason, banned_by: adminUserId },
+        {
+          email: normalizedEmail,
+          reason: normalizedReason,
+          banned_by: adminUserId,
+        },
         { onConflict: "email" },
       );
     if (blacklistError) {
@@ -930,26 +1006,35 @@ export async function deleteAndBlacklistUser(input: {
     { table: "project_signups", field: "user_id" },
   ];
   for (const { table, field } of tables) {
-    const { error } = await service.from(table).delete().eq(field, input.userId);
+    const { error } = await service
+      .from(table)
+      .delete()
+      .eq(field, input.userId);
     if (error) console.error(`Delete cleanup: ${table}:`, error);
   }
-  await service.from("organization_members").delete().eq("user_id", input.userId);
+  await service
+    .from("organization_members")
+    .delete()
+    .eq("user_id", input.userId);
   await service.from("projects").delete().eq("creator_id", input.userId);
   await service.from("profiles").delete().eq("id", input.userId);
 
   // Ban auth row so active sessions are immediately invalidated
   const updatedAt = new Date().toISOString();
-  const { error: banError } = await service.auth.admin.updateUserById(input.userId, {
-    ban_duration: "876000h",
-    app_metadata: {
-      account_access: {
-        status: "banned",
-        reason: normalizedReason,
-        updated_at: updatedAt,
-        updated_by: adminUserId,
+  const { error: banError } = await service.auth.admin.updateUserById(
+    input.userId,
+    {
+      ban_duration: "876000h",
+      app_metadata: {
+        account_access: {
+          status: "banned",
+          reason: normalizedReason,
+          updated_at: updatedAt,
+          updated_by: adminUserId,
+        },
       },
     },
-  });
+  );
   if (banError) {
     console.error("Error banning auth row after data deletion:", banError);
   }
@@ -967,7 +1052,9 @@ export async function getOrganizationsForAdmin() {
 
   const { data, error } = await supabase
     .from("organizations")
-    .select("id, name, username, type, verified, created_at, logo_url, created_by")
+    .select(
+      "id, name, username, type, verified, created_at, logo_url, created_by",
+    )
     .order("verified", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -1006,7 +1093,10 @@ export async function updateOrganizationVerifiedStatus(
     .maybeSingle();
 
   if (fetchError) {
-    console.error("Error fetching organization before verification update:", fetchError);
+    console.error(
+      "Error fetching organization before verification update:",
+      fetchError,
+    );
     return { error: "Failed to load organization" };
   }
 

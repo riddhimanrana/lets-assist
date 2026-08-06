@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Users, Loader2 } from "lucide-react";
@@ -60,12 +66,14 @@ export function JoinOrganizationDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger render={
-        <Button variant="outline">
-          <Users className="w-4 h-4" />
-          Join Organization
-        </Button>
-      } />
+      <DialogTrigger
+        render={
+          <Button variant="outline">
+            <Users className="w-4 h-4" />
+            Join Organization
+          </Button>
+        }
+      />
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-xl">Join an Organization</DialogTitle>
@@ -98,10 +106,17 @@ export function JoinOrganizationDialog() {
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={handleClose} disabled={isLoading}>
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              disabled={isLoading}
+            >
               Cancel
             </Button>
-            <Button onClick={handleJoinSubmit} disabled={isLoading || joinCode.length !== 6}>
+            <Button
+              onClick={handleJoinSubmit}
+              disabled={isLoading || joinCode.length !== 6}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />

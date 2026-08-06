@@ -1,20 +1,20 @@
 // Project-related types
-import type { 
-  EventType, 
-  VerificationMethod, 
-  ProjectStatus, 
+import type {
+  EventType,
+  VerificationMethod,
+  ProjectStatus,
   ProjectVisibility,
   OrganizationRole,
   LocationData,
   ProjectWorkflowStatus,
   RecurrenceFrequency,
   RecurrenceEndType,
-  RecurrenceWeekday
-} from './common';
-import type { ProjectSchedule } from './schedule';
-import type { Profile } from './profile';
-import type { Organization } from './organization';
-import type { FormSchema } from '@/lib/forms/engine';
+  RecurrenceWeekday,
+} from "./common";
+import type { ProjectSchedule } from "./schedule";
+import type { Profile } from "./profile";
+import type { Organization } from "./organization";
+import type { FormSchema } from "@/lib/forms/engine";
 
 // Project document attachment
 export interface ProjectDocument {

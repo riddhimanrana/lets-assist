@@ -1,6 +1,9 @@
 import { describe, expect, mock, test } from "bun:test";
 
-import { collectWaiverStoragePaths, removeWaiverStorageObjects } from "./cleanup-storage";
+import {
+  collectWaiverStoragePaths,
+  removeWaiverStorageObjects,
+} from "./cleanup-storage";
 
 describe("collectWaiverStoragePaths", () => {
   test("includes legacy, uploaded-document, and multi-signer object paths once", () => {
@@ -42,13 +45,20 @@ describe("removeWaiverStorageObjects", () => {
     });
 
     expect(result).toEqual({});
-    expect(remove).toHaveBeenNthCalledWith(1, "waiver-signatures", ["signature.png"]);
-    expect(remove).toHaveBeenNthCalledWith(2, "waiver-signatures", ["signed-waiver.pdf"]);
+    expect(remove).toHaveBeenNthCalledWith(1, "waiver-signatures", [
+      "signature.png",
+    ]);
+    expect(remove).toHaveBeenNthCalledWith(2, "waiver-signatures", [
+      "signed-waiver.pdf",
+    ]);
   });
 
   test("fails closed and does not continue after a storage deletion error", async () => {
     const remove = mock(async (bucket: string) => ({
-      error: bucket === "waiver-signatures" ? { message: "storage unavailable" } : null,
+      error:
+        bucket === "waiver-signatures"
+          ? { message: "storage unavailable" }
+          : null,
     }));
 
     const result = await removeWaiverStorageObjects(remove, {
@@ -56,7 +66,9 @@ describe("removeWaiverStorageObjects", () => {
       uploadPaths: ["signed-waiver.pdf"],
     });
 
-    expect(result).toEqual({ error: "Failed to delete waiver signature assets" });
+    expect(result).toEqual({
+      error: "Failed to delete waiver signature assets",
+    });
     expect(remove).toHaveBeenCalledTimes(1);
   });
 });

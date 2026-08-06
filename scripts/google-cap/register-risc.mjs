@@ -60,7 +60,11 @@ async function makeServiceAccountAccessToken(serviceAccount) {
   ].join(" ");
 
   const assertion = await new SignJWT({ scope })
-    .setProtectedHeader({ alg: "RS256", kid: serviceAccount.private_key_id, typ: "JWT" })
+    .setProtectedHeader({
+      alg: "RS256",
+      kid: serviceAccount.private_key_id,
+      typ: "JWT",
+    })
     .setIssuer(serviceAccount.client_email)
     .setSubject(serviceAccount.client_email)
     .setAudience(serviceAccount.token_uri)
@@ -81,7 +85,9 @@ async function makeServiceAccountAccessToken(serviceAccount) {
 
   const text = await response.text();
   if (!response.ok) {
-    throw new Error(`Failed to exchange service account assertion for access token: ${response.status} ${text}`);
+    throw new Error(
+      `Failed to exchange service account assertion for access token: ${response.status} ${text}`,
+    );
   }
 
   const tokenResponse = JSON.parse(text);
@@ -119,29 +125,42 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
 
   if (!args.serviceAccount) {
-    console.error("Usage: bun node scripts/google-cap/register-risc.mjs --service-account <path> [--endpoint <url>] [--verify-state <text>] [--events <comma-separated-events>]");
+    console.error(
+      "Usage: bun node scripts/google-cap/register-risc.mjs --service-account <path> [--endpoint <url>] [--verify-state <text>] [--events <comma-separated-events>]",
+    );
     process.exit(1);
   }
 
   const raw = await readFile(args.serviceAccount, "utf8");
   const serviceAccount = JSON.parse(raw);
 
-  if (!serviceAccount.client_email || !serviceAccount.private_key || !serviceAccount.private_key_id) {
-    throw new Error("Service account JSON is missing client_email, private_key, or private_key_id");
+  if (
+    !serviceAccount.client_email ||
+    !serviceAccount.private_key ||
+    !serviceAccount.private_key_id
+  ) {
+    throw new Error(
+      "Service account JSON is missing client_email, private_key, or private_key_id",
+    );
   }
 
   const authToken = await makeServiceAccountAccessToken(serviceAccount);
 
   const streamConfig = {
     delivery: {
-      delivery_method: "https://schemas.openid.net/secevent/risc/delivery-method/push",
+      delivery_method:
+        "https://schemas.openid.net/secevent/risc/delivery-method/push",
       url: args.endpoint,
     },
     events_requested: args.events,
   };
 
   console.log(`Registering RISC stream for ${args.endpoint}`);
-  const updateResult = await postJson("https://risc.googleapis.com/v1beta/stream:update", streamConfig, authToken);
+  const updateResult = await postJson(
+    "https://risc.googleapis.com/v1beta/stream:update",
+    streamConfig,
+    authToken,
+  );
   console.log("stream:update status:", updateResult.status);
   console.log(JSON.stringify(updateResult.body, null, 2));
 
@@ -150,7 +169,9 @@ async function main() {
     return;
   }
 
-  console.log(`\nRequesting verification token with state: ${args.verifyState}`);
+  console.log(
+    `\nRequesting verification token with state: ${args.verifyState}`,
+  );
   const verifyResult = await postJson(
     "https://risc.googleapis.com/v1beta/stream:verify",
     { state: args.verifyState },
@@ -164,10 +185,14 @@ async function main() {
     return;
   }
 
-  console.log("\nDone. Check the receiver logs for the verification event and the Google console for the registered stream.");
+  console.log(
+    "\nDone. Check the receiver logs for the verification event and the Google console for the registered stream.",
+  );
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.stack || error.message : String(error));
+  console.error(
+    error instanceof Error ? error.stack || error.message : String(error),
+  );
   process.exit(1);
 });

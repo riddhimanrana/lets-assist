@@ -19,10 +19,7 @@ export async function DELETE(request: Request) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Validate request body
@@ -32,7 +29,7 @@ export async function DELETE(request: Request) {
     if (!validation.success) {
       return NextResponse.json(
         { error: "Invalid request data", details: validation.error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -44,7 +41,7 @@ export async function DELETE(request: Request) {
     if (!deleted) {
       return NextResponse.json(
         { error: "Failed to delete calendar event" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -80,14 +77,14 @@ export async function DELETE(request: Request) {
       if (error.message.includes("No valid calendar connection")) {
         return NextResponse.json(
           { error: "No active calendar connection found" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
 
     return NextResponse.json(
       { error: "Failed to remove event from calendar" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

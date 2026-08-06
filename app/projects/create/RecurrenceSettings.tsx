@@ -18,13 +18,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Calendar as CalendarIcon, Repeat, Info, AlertCircle, Sparkles } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  Repeat,
+  Info,
+  AlertCircle,
+  Sparkles,
+} from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
   RecurrenceFrequency,
   RecurrenceEndType,
-  RecurrenceWeekday
+  RecurrenceWeekday,
 } from "@/types";
 import {
   Tooltip,
@@ -45,7 +51,7 @@ interface RecurrenceSettingsProps {
   };
   updateRecurrence: (
     field: keyof RecurrenceSettingsProps["recurrence"],
-    value: RecurrenceSettingsProps["recurrence"][keyof RecurrenceSettingsProps["recurrence"]]
+    value: RecurrenceSettingsProps["recurrence"][keyof RecurrenceSettingsProps["recurrence"]],
   ) => void;
   eventType: string;
 }
@@ -68,20 +74,26 @@ export default function RecurrenceSettings({
   // Helper to parse date string to Date object without timezone shifting
   const parseStringToDate = (dateString: string): Date | undefined => {
     if (!dateString) return undefined;
-    const [year, month, day] = dateString.split('-').map(Number);
+    const [year, month, day] = dateString.split("-").map(Number);
     return new Date(year, month - 1, day);
   };
 
   // Helper to format Date to string
   const formatDateToString = (date: Date | undefined): string => {
     if (!date) return "";
-    return format(new Date(date.getFullYear(), date.getMonth(), date.getDate()), "yyyy-MM-dd");
+    return format(
+      new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+      "yyyy-MM-dd",
+    );
   };
 
   const toggleWeekday = (day: RecurrenceWeekday) => {
     const currentWeekdays = recurrence.weekdays || [];
     if (currentWeekdays.includes(day)) {
-      updateRecurrence("weekdays", currentWeekdays.filter((d) => d !== day));
+      updateRecurrence(
+        "weekdays",
+        currentWeekdays.filter((d) => d !== day),
+      );
     } else {
       updateRecurrence("weekdays", [...currentWeekdays, day]);
     }
@@ -118,7 +130,10 @@ export default function RecurrenceSettings({
 
     if (recurrence.endType === "on_date" && recurrence.endDate) {
       summary += ` until ${format(parseStringToDate(recurrence.endDate)!, "MMM d, yyyy")}`;
-    } else if (recurrence.endType === "after_occurrences" && recurrence.endOccurrences) {
+    } else if (
+      recurrence.endType === "after_occurrences" &&
+      recurrence.endOccurrences
+    ) {
       summary += `, ${recurrence.endOccurrences} times`;
     }
 
@@ -131,38 +146,53 @@ export default function RecurrenceSettings({
   }
 
   const frequencyOptions: Record<string, string> = {
-    "daily": "Day(s)",
-    "weekly": "Week(s)",
-    "monthly": "Month(s)",
-    "yearly": "Year(s)"
+    daily: "Day(s)",
+    weekly: "Week(s)",
+    monthly: "Month(s)",
+    yearly: "Year(s)",
   };
 
   const endTypeOptions: Record<string, string> = {
-    "never": "Never (ongoing)",
-    "on_date": "On a specific date",
-    "after_occurrences": "After # occurrences"
+    never: "Never (ongoing)",
+    on_date: "On a specific date",
+    after_occurrences: "After # occurrences",
   };
 
   return (
     <Card className="mt-6 border-muted bg-muted/5 shadow-sm">
-      <CardHeader className="cursor-pointer" onClick={() => updateRecurrence("enabled", !recurrence.enabled)}>
+      <CardHeader
+        className="cursor-pointer"
+        onClick={() => updateRecurrence("enabled", !recurrence.enabled)}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Repeat className={cn("h-5 w-5", recurrence.enabled ? "text-primary" : "text-muted-foreground")} />
+            <Repeat
+              className={cn(
+                "h-5 w-5",
+                recurrence.enabled ? "text-primary" : "text-muted-foreground",
+              )}
+            />
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <CardTitle className="text-base font-medium">Recurring Event</CardTitle>
+                <CardTitle className="text-base font-medium">
+                  Recurring Event
+                </CardTitle>
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger render={
-                      <button type="button" onClick={(e) => e.stopPropagation()}>
-                        <Info className="h-4 w-4 text-muted-foreground/70 hover:text-muted-foreground transition-colors" />
-                      </button>
-                    } />
+                    <TooltipTrigger
+                      render={
+                        <button
+                          type="button"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Info className="h-4 w-4 text-muted-foreground/70 hover:text-muted-foreground transition-colors" />
+                        </button>
+                      }
+                    />
                     <TooltipContent className="max-w-xs">
                       <p>
-                        Set up this event to repeat automatically. New events will be
-                        created based on your schedule.
+                        Set up this event to repeat automatically. New events
+                        will be created based on your schedule.
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -208,7 +238,8 @@ export default function RecurrenceSettings({
                 >
                   <SelectTrigger className="flex-1 bg-background">
                     <SelectValue>
-                      {frequencyOptions[recurrence.frequency] || recurrence.frequency}
+                      {frequencyOptions[recurrence.frequency] ||
+                        recurrence.frequency}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -255,14 +286,18 @@ export default function RecurrenceSettings({
                   <Button
                     key={day.value}
                     type="button"
-                    variant={recurrence.weekdays.includes(day.value) ? "default" : "outline"}
+                    variant={
+                      recurrence.weekdays.includes(day.value)
+                        ? "default"
+                        : "outline"
+                    }
                     size="sm"
                     onClick={() => toggleWeekday(day.value)}
                     className={cn(
                       "flex-1 min-w-[3rem] h-9 transition-all text-xs sm:text-sm",
                       recurrence.weekdays.includes(day.value)
                         ? "shadow-md hover:opacity-90"
-                        : "hover:bg-accent hover:text-accent-foreground bg-background text-muted-foreground"
+                        : "hover:bg-accent hover:text-accent-foreground bg-background text-muted-foreground",
                     )}
                   >
                     {day.short}
@@ -283,20 +318,22 @@ export default function RecurrenceSettings({
             <div className="space-y-2 animate-in fade-in zoom-in-95 duration-200">
               <Label className="text-sm font-medium">End date</Label>
               <Popover>
-                <PopoverTrigger render={
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal bg-background",
-                      !recurrence.endDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {recurrence.endDate
-                      ? format(parseStringToDate(recurrence.endDate)!, "PPP")
-                      : "Pick an end date"}
-                  </Button>
-                } />
+                <PopoverTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal bg-background",
+                        !recurrence.endDate && "text-muted-foreground",
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {recurrence.endDate
+                        ? format(parseStringToDate(recurrence.endDate)!, "PPP")
+                        : "Pick an end date"}
+                    </Button>
+                  }
+                />
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
@@ -326,7 +363,7 @@ export default function RecurrenceSettings({
                   onChange={(e) =>
                     updateRecurrence(
                       "endOccurrences",
-                      parseInt(e.target.value) || undefined
+                      parseInt(e.target.value) || undefined,
                     )
                   }
                   className="w-24 bg-background"
@@ -345,7 +382,9 @@ export default function RecurrenceSettings({
               How resizing works
             </p>
             <ul className="list-disc list-inside space-y-1 opacity-90">
-              <li>Future events are automatically created based on your schedule</li>
+              <li>
+                Future events are automatically created based on your schedule
+              </li>
               <li>Each occurrence can be edited individually</li>
               <li>Events are generated up to 4 weeks in advance</li>
             </ul>

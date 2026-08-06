@@ -110,7 +110,10 @@ function sqlLiterals(sql: string): string[] {
   return out;
 }
 
-const proseCorpus = [...commentBlocks(migrationSql), ...sqlLiterals(migrationSql)];
+const proseCorpus = [
+  ...commentBlocks(migrationSql),
+  ...sqlLiterals(migrationSql),
+];
 const proseText = proseCorpus.join("\n");
 
 // ---------------------------------------------------------------------------
@@ -223,7 +226,8 @@ const FORBIDDEN_CLAIMS: ForbiddenClaim[] = [
   },
   {
     id: "server-role-write-in-the-terminalization-comment",
-    pattern: /\bfor\s+direct\s+service[_ -]role\s+(?:INSERT|UPDATE|DELETE)s?\b/i,
+    pattern:
+      /\bfor\s+direct\s+service[_ -]role\s+(?:INSERT|UPDATE|DELETE)s?\b/i,
     why: "the COMMENT ON FUNCTION said the guard runs for direct service_role UPDATEs too",
     retired:
       "Runs for direct service_role UPDATEs too, so the rule cannot be sidestepped.",
@@ -277,9 +281,10 @@ describe("the migration's privilege prose matches its final least-privilege cont
       const caught = FORBIDDEN_CLAIMS.some(
         (candidate) => hitsIn(claim.retired, candidate).length > 0,
       );
-      expect(caught, `no detector catches the retired sentence for ${claim.id}`).toBe(
-        true,
-      );
+      expect(
+        caught,
+        `no detector catches the retired sentence for ${claim.id}`,
+      ).toBe(true);
     }
   });
 
@@ -301,7 +306,9 @@ describe("the migration's privilege prose matches its final least-privilege cont
     // extraction breaks and every scan below runs against an empty string.
     expect(proseCorpus.length).toBeGreaterThan(500);
     expect(proseText).toContain("SERVER-ONLY BOUNDARY");
-    expect(proseText).toContain("ALL TEN LEDGERS ARE READ-ONLY TO service_role");
+    expect(proseText).toContain(
+      "ALL TEN LEDGERS ARE READ-ONLY TO service_role",
+    );
     // The COMMENT ON FUNCTION bodies are literals, not `--` lines. If only line
     // comments were captured, this anchor would be absent and the terminalization
     // regression would be invisible.
@@ -319,9 +326,10 @@ describe("the migration's privilege prose matches its final least-privilege cont
         }
       }
     }
-    expect(found, `stale direct-table-write prose returned:\n${found.join("\n")}`).toEqual(
-      [],
-    );
+    expect(
+      found,
+      `stale direct-table-write prose returned:\n${found.join("\n")}`,
+    ).toEqual([]);
   });
 
   test("the prose states the least-privilege contract outright", () => {
@@ -392,7 +400,8 @@ describe("the executable grant block leaves every communications ledger read-onl
   test("no statement grants a write privilege on a table to anybody", () => {
     // TRUNCATE bypasses every immutability trigger in one statement, and
     // REFERENCES/TRIGGER let a holder attach new structure to audited history.
-    const forbidden = /GRANT\s+[^;]*\b(INSERT|UPDATE|DELETE|TRUNCATE|REFERENCES|TRIGGER|ALL)\b[^;]*\bON\s+TABLE\b/gi;
+    const forbidden =
+      /GRANT\s+[^;]*\b(INSERT|UPDATE|DELETE|TRUNCATE|REFERENCES|TRIGGER|ALL)\b[^;]*\bON\s+TABLE\b/gi;
     expect([...executableSql.matchAll(forbidden)].map((m) => m[0])).toEqual([]);
   });
 
@@ -543,10 +552,15 @@ function returnedKeys(name: string): string[] {
       }
     }
   }
-  expect(end, `unbalanced jsonb_build_object in ${name}`).toBeGreaterThan(start);
+  expect(end, `unbalanced jsonb_build_object in ${name}`).toBeGreaterThan(
+    start,
+  );
 
   const args = splitArguments(body.slice(start + anchor.length, end));
-  expect(args.length % 2, `${name} builds an odd number of jsonb arguments`).toBe(0);
+  expect(
+    args.length % 2,
+    `${name} builds an odd number of jsonb arguments`,
+  ).toBe(0);
 
   return args
     .filter((_, index) => index % 2 === 0)
@@ -554,7 +568,10 @@ function returnedKeys(name: string): string[] {
       // A key must be a bare literal. A computed key would make the result
       // contract unreadable from the source, which is the whole point here.
       const literal = key.match(/^'([A-Za-z]+)'$/);
-      expect(literal, `${name} builds a non-literal result key: ${key}`).not.toBeNull();
+      expect(
+        literal,
+        `${name} builds a non-literal result key: ${key}`,
+      ).not.toBeNull();
       return literal![1];
     });
 }
@@ -586,7 +603,9 @@ describe("both purge functions return exactly the documented key set", () => {
         entryBody,
         `the entry point never reads the helper's ${key}`,
       ).toContain(`v_durable->>'${key}'`);
-      expect(helperBody, `the helper never reports ${key}`).toContain(`'${key}'`);
+      expect(helperBody, `the helper never reports ${key}`).toContain(
+        `'${key}'`,
+      );
     }
   });
 
@@ -611,7 +630,9 @@ describe("both purge functions return exactly the documented key set", () => {
     for (const [name, keys] of expected) {
       const comment = comments.get(name)!;
       for (const key of keys) {
-        expect(comment, `${name}'s COMMENT omits the key ${key}`).toContain(key);
+        expect(comment, `${name}'s COMMENT omits the key ${key}`).toContain(
+          key,
+        );
       }
       // A count is not a contract. "two additional keys" was the documentation
       // this replaced, and it was satisfied by any two names at all.
@@ -643,9 +664,10 @@ describe("both purge functions return exactly the documented key set", () => {
       ),
     );
     for (const name of named) {
-      expect(defined.has(name), `prose names an undefined purge function: ${name}`).toBe(
-        true,
-      );
+      expect(
+        defined.has(name),
+        `prose names an undefined purge function: ${name}`,
+      ).toBe(true);
     }
   });
 });
@@ -681,7 +703,9 @@ describe("the purge documentation enumerates the whole durable footprint", () =>
       expect(header, `the purge header omits ${target}`).toContain(target);
     }
     for (const kind of CSF_CALENDAR_SOURCE_KINDS) {
-      expect(header, `the purge header omits source_kind ${kind}`).toContain(kind);
+      expect(header, `the purge header omits source_kind ${kind}`).toContain(
+        kind,
+      );
     }
   });
 
@@ -709,7 +733,9 @@ describe("the purge documentation enumerates the whole durable footprint", () =>
     );
     const clause = sweep.slice(0, sweep.indexOf(";"));
 
-    expect(clause).toContain("calendar_event.organization_id = p_organization_id");
+    expect(clause).toContain(
+      "calendar_event.organization_id = p_organization_id",
+    );
     expect(clause).toContain("calendar_event.source_kind IN (");
     expect(sqlLiterals(clause).sort()).toEqual(
       [...CSF_CALENDAR_SOURCE_KINDS].sort(),

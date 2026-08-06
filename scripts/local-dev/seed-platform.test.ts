@@ -17,7 +17,7 @@ const seedSource = readFileSync(
   "utf8",
 );
 const actorHelperSource = readFileSync(
-  new URL("../../tests/csf/helpers.ts", import.meta.url),
+  new URL("../../tests/e2e/csf/helpers.ts", import.meta.url),
   "utf8",
 );
 
@@ -180,7 +180,10 @@ describe("local platform seed authorization", () => {
     }
 
     const treasurerStart = rolesSource.indexOf('key: "treasurer"');
-    const treasurerEnd = rolesSource.indexOf("\n    {", treasurerStart);
+    const treasurerEnd = rolesSource.indexOf(
+      'key: "financial-secretary"',
+      treasurerStart,
+    );
     const treasurerSource = rolesSource.slice(treasurerStart, treasurerEnd);
     expect(treasurerSource).toContain('"view_applications"');
     expect(treasurerSource).toContain('"manage_payment_review"');
@@ -188,7 +191,10 @@ describe("local platform seed authorization", () => {
     expect(treasurerSource).not.toContain('"decide_applications"');
 
     const coordinatorStart = rolesSource.indexOf('key: "activity-coordinator"');
-    const coordinatorEnd = rolesSource.indexOf("\n    {", coordinatorStart);
+    const coordinatorEnd = rolesSource.indexOf(
+      'key: "data-management"',
+      coordinatorStart,
+    );
     const coordinatorSource = rolesSource.slice(
       coordinatorStart,
       coordinatorEnd,
@@ -287,8 +293,17 @@ function createIsolatedWorkDir(
   mkdirSync(directory, { mode: 0o700 });
   mkdirSync(join(directory, "supabase"), { mode: 0o700 });
   const projectId = options.projectId ?? "lets-assist-csf-browser-seedtest";
-  const [shadow, api, database, studio, inbucket, smtp, inspector, analytics, pooler] =
-    PORT_OFFSETS.map((offset) => BASE_PORT + offset);
+  const [
+    shadow,
+    api,
+    database,
+    studio,
+    inbucket,
+    smtp,
+    inspector,
+    analytics,
+    pooler,
+  ] = PORT_OFFSETS.map((offset) => BASE_PORT + offset);
 
   writeFileSync(
     join(directory, "supabase", "config.toml"),
@@ -348,17 +363,20 @@ function runSeed(
   env: Record<string, string>,
   args: string[] = ["--print-resolved-target"],
 ) {
-  const result = Bun.spawnSync([Bun.which("node") ?? "node", seedScript, ...args], {
-    cwd: process.cwd(),
-    env: {
-      PATH: `${sandbox.fakeBin}:${process.env.PATH ?? "/usr/bin:/bin"}`,
-      HOME: process.env.HOME ?? sandbox.directory,
-      FAKE_SUPABASE_CALLS: sandbox.calls,
-      ...env,
+  const result = Bun.spawnSync(
+    [Bun.which("node") ?? "node", seedScript, ...args],
+    {
+      cwd: process.cwd(),
+      env: {
+        PATH: `${sandbox.fakeBin}:${process.env.PATH ?? "/usr/bin:/bin"}`,
+        HOME: process.env.HOME ?? sandbox.directory,
+        FAKE_SUPABASE_CALLS: sandbox.calls,
+        ...env,
+      },
+      stdout: "pipe",
+      stderr: "pipe",
     },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+  );
   return {
     exitCode: result.exitCode,
     stdout: result.stdout.toString(),
@@ -375,7 +393,9 @@ describe("platform seed requires an explicit, typo-safe mode", () => {
     const result = runSeed(sandbox, {});
 
     expect(result.exitCode).not.toBe(0);
-    expect(result.stderr).toContain("PLATFORM_SEED_MODE is required and has no default");
+    expect(result.stderr).toContain(
+      "PLATFORM_SEED_MODE is required and has no default",
+    );
     // No CLI call at all: no status, no credentials, no client, no database.
     expect(result.calls).toEqual([]);
     expect(result.stdout).toBe("");
@@ -430,7 +450,9 @@ describe("platform seed requires an explicit, typo-safe mode", () => {
     expect(result.stderr).toContain(
       "PLATFORM_SEED_MODE=csf-isolated-v1 requires CSF_ISOLATED_WORK_DIR",
     );
-    expect(result.stderr).toContain("never falls back to the shared local stack");
+    expect(result.stderr).toContain(
+      "never falls back to the shared local stack",
+    );
     expect(result.calls).toEqual([]);
     expect(result.stdout).toBe("");
   });
@@ -444,7 +466,9 @@ describe("platform seed requires an explicit, typo-safe mode", () => {
       SUPABASE_SECRET_KEY: "synthetic-test-only-key",
     });
     expect(production.exitCode).not.toBe(0);
-    expect(production.stderr).toContain("refuses the Production Supabase project ref");
+    expect(production.stderr).toContain(
+      "refuses the Production Supabase project ref",
+    );
 
     const mismatch = runSeed(sandbox, {
       PLATFORM_SEED_MODE: "hosted-development-v1",
@@ -453,7 +477,9 @@ describe("platform seed requires an explicit, typo-safe mode", () => {
       SUPABASE_SECRET_KEY: "synthetic-test-only-key",
     });
     expect(mismatch.exitCode).not.toBe(0);
-    expect(mismatch.stderr).toContain("requires NEXT_PUBLIC_SUPABASE_URL to equal");
+    expect(mismatch.stderr).toContain(
+      "requires NEXT_PUBLIC_SUPABASE_URL to equal",
+    );
 
     const crossover = runSeed(sandbox, {
       PLATFORM_SEED_MODE: "hosted-development-v1",
@@ -554,7 +580,9 @@ describe("platform seed requires an explicit, typo-safe mode", () => {
     });
 
     expect(result.exitCode).toBe(0);
-    const statusCalls = result.calls.filter((call) => call.startsWith("status"));
+    const statusCalls = result.calls.filter((call) =>
+      call.startsWith("status"),
+    );
     expect(statusCalls.length).toBeGreaterThan(0);
     // The scoped directory is the *resolved* one: the validator realpaths the
     // work directory before it trusts it, which on macOS turns /var into
@@ -714,7 +742,9 @@ describe("seed modes have the footprint they claim", () => {
     expect(rpcs).toContain("csf_seed_reset_synthetic_import");
     expect(rpcs).toContain("csf_seed_synthetic_import_fixture");
 
-    const deleted = csf.filter((entry) => entry.op === "delete").map((entry) => entry.table);
+    const deleted = csf
+      .filter((entry) => entry.op === "delete")
+      .map((entry) => entry.table);
     for (const table of [
       "csf_storage_deletion_queue",
       "csf_term_memberships",
@@ -724,7 +754,9 @@ describe("seed modes have the footprint they claim", () => {
       expect(deleted, table).toContain(table);
     }
 
-    const upserted = csf.filter((entry) => entry.op === "upsert").map((entry) => entry.table);
+    const upserted = csf
+      .filter((entry) => entry.op === "upsert")
+      .map((entry) => entry.table);
     for (const table of [
       "csf_roles",
       "csf_role_permissions",
@@ -786,7 +818,13 @@ describe("seed modes have the footprint they claim", () => {
   test("the plan seam is unreachable without its exact opt-in value", () => {
     const sandbox = createSandbox();
     const ledgerPath = join(sandbox.directory, "plan-ledger.jsonl");
-    for (const value of [undefined, "", "hermetic-plan", "HERMETIC-PLAN-V1", "1"]) {
+    for (const value of [
+      undefined,
+      "",
+      "hermetic-plan",
+      "HERMETIC-PLAN-V1",
+      "1",
+    ]) {
       const result = runSeed(
         sandbox,
         {
@@ -798,7 +836,9 @@ describe("seed modes have the footprint they claim", () => {
         [],
       );
       expect(result.exitCode, `PLATFORM_SEED_PLAN_ONLY=${value}`).not.toBe(0);
-      expect(result.stderr).toContain("PLATFORM_SEED_PLAN_LEDGER is a test-only seam");
+      expect(result.stderr).toContain(
+        "PLATFORM_SEED_PLAN_LEDGER is a test-only seam",
+      );
       // Refused before the environment helper, so no CLI call and no client.
       expect(result.calls).toEqual([]);
     }
@@ -824,7 +864,11 @@ describe("package scripts carry the exact seed modes", () => {
   });
 
   test("the legitimate non-CSF shared bootstrap still uses the shared-local script", () => {
-    expect(packageJson.scripts.supabase).toContain("bun run supabase:seed:local-dev");
-    expect(packageJson.scripts.supabase).not.toContain("csf:seed:platform:isolated");
+    expect(packageJson.scripts.supabase).toContain(
+      "bun run supabase:seed:local-dev",
+    );
+    expect(packageJson.scripts.supabase).not.toContain(
+      "csf:seed:platform:isolated",
+    );
   });
 });

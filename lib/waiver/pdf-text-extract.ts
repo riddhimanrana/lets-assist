@@ -1,7 +1,7 @@
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 // Configure PDF.js worker (same pattern as pdf-field-detect.ts)
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/legacy/build/pdf.worker.min.mjs`;
 }
 
@@ -12,7 +12,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 async function ensurePdfJsWorkerReady() {
-  if (typeof window !== 'undefined') return;
+  if (typeof window !== "undefined") return;
 
   const globalWithWorker = globalThis as typeof globalThis & {
     pdfjsWorker?: { WorkerMessageHandler?: unknown };
@@ -23,15 +23,18 @@ async function ensurePdfJsWorkerReady() {
   }
 
   if (!serverWorkerReadyPromise) {
-    const workerModulePath = 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+    const workerModulePath = "pdfjs-dist/legacy/build/pdf.worker.mjs";
     serverWorkerReadyPromise = import(workerModulePath)
       .then((workerModule) => {
-        const workerExport = (workerModule as { default?: unknown }).default ?? workerModule;
-        globalWithWorker.pdfjsWorker = workerExport as { WorkerMessageHandler?: unknown };
+        const workerExport =
+          (workerModule as { default?: unknown }).default ?? workerModule;
+        globalWithWorker.pdfjsWorker = workerExport as {
+          WorkerMessageHandler?: unknown;
+        };
       })
       .catch((error) => {
-        if (process.env.NODE_ENV !== 'test') {
-          console.warn('Failed to preload pdf.js worker module:', error);
+        if (process.env.NODE_ENV !== "test") {
+          console.warn("Failed to preload pdf.js worker module:", error);
         }
       });
   }
@@ -63,22 +66,22 @@ export interface PdfTextExtractionResult {
 
 /**
  * Extract text content with precise bounding boxes from a PDF.
- * 
+ *
  * Uses PDF.js to extract text items with their coordinates in PDF coordinate space:
  * - Origin: bottom-left corner
  * - Y-axis: increases upward
  * - Units: points (1/72 inch)
- * 
+ *
  * Bounding boxes are computed using the full transform matrix to handle rotated/skewed text.
- * 
+ *
  * @param pdfData - PDF file data as Uint8Array
  * @returns Text extraction result with coordinates
  */
 export async function extractPdfTextWithPositions(
-  pdfData: Uint8Array
+  pdfData: Uint8Array,
 ): Promise<PdfTextExtractionResult> {
   let pdfDocument: pdfjsLib.PDFDocumentProxy | null = null;
-  
+
   try {
     // Validate input
     if (!pdfData || pdfData.length === 0) {
@@ -86,7 +89,7 @@ export async function extractPdfTextWithPositions(
         success: false,
         textItems: [],
         pageCount: 0,
-        error: 'Empty or invalid PDF data',
+        error: "Empty or invalid PDF data",
       };
     }
 
@@ -97,7 +100,9 @@ export async function extractPdfTextWithPositions(
     // - useSystemFonts/disableFontFace: reduces standard-font warnings for text extraction flows
     const documentParams: Record<string, unknown> = {
       data: pdfData,
-      verbosity: (pdfjsLib as unknown as { VerbosityLevel?: { ERRORS?: number } }).VerbosityLevel?.ERRORS ?? 0,
+      verbosity:
+        (pdfjsLib as unknown as { VerbosityLevel?: { ERRORS?: number } })
+          .VerbosityLevel?.ERRORS ?? 0,
       useSystemFonts: true,
       disableFontFace: true,
     };
@@ -118,7 +123,12 @@ export async function extractPdfTextWithPositions(
       // Extract text items with positions
       for (const item of textContent.items) {
         // Type guard: ensure item has required properties
-        if (!('str' in item) || !('transform' in item) || !('width' in item) || !('height' in item)) {
+        if (
+          !("str" in item) ||
+          !("transform" in item) ||
+          !("width" in item) ||
+          !("height" in item)
+        ) {
           continue;
         }
 
@@ -150,38 +160,40 @@ export async function extractPdfTextWithPositions(
         const nc = c / scaleY;
         const nd = d / scaleY;
 
-        const rawWidth = Number.isFinite(textItem.width) && textItem.width > 0
-          ? textItem.width
-          : scaleX;
-        const rawHeight = Number.isFinite(textItem.height) && textItem.height > 0
-          ? textItem.height
-          : scaleY;
-        
+        const rawWidth =
+          Number.isFinite(textItem.width) && textItem.width > 0
+            ? textItem.width
+            : scaleX;
+        const rawHeight =
+          Number.isFinite(textItem.height) && textItem.height > 0
+            ? textItem.height
+            : scaleY;
+
         // Compute bounding box using full transform matrix
         // Text rectangle in local space: (0, 0) to (width, height)
         // Transform the four corners to get the bounding box in PDF space
         const corners = [
-          { x: 0, y: 0 },                          // bottom-left
-          { x: rawWidth, y: 0 },             // bottom-right
-          { x: 0, y: rawHeight },            // top-left
+          { x: 0, y: 0 }, // bottom-left
+          { x: rawWidth, y: 0 }, // bottom-right
+          { x: 0, y: rawHeight }, // top-left
           { x: rawWidth, y: rawHeight }, // top-right
         ];
-        
+
         // Apply transform matrix to each corner
-        const transformedCorners = corners.map(corner => ({
+        const transformedCorners = corners.map((corner) => ({
           x: na * corner.x + nc * corner.y + e,
           y: nb * corner.x + nd * corner.y + f,
         }));
-        
+
         // Find bounding box (min/max of transformed corners)
-        const xs = transformedCorners.map(p => p.x);
-        const ys = transformedCorners.map(p => p.y);
-        
+        const xs = transformedCorners.map((p) => p.x);
+        const ys = transformedCorners.map((p) => p.y);
+
         const minX = Math.min(...xs);
         const minY = Math.min(...ys);
         const maxX = Math.max(...xs);
         const maxY = Math.max(...ys);
-        
+
         // Clamp bbox to page bounds. If clamp collapses the box, fall back to
         // a conservative axis-aligned box from origin and page-space sizes.
         const clampedMinX = clamp(minX, 0, pageWidth);
@@ -207,7 +219,7 @@ export async function extractPdfTextWithPositions(
         allTextItems.push({
           text: textItem.str,
           x: finalX,
-          y: finalY,  // bottom of bbox (bottom-left origin)
+          y: finalY, // bottom of bbox (bottom-left origin)
           width: finalWidth,
           height: finalHeight,
           pageIndex: pageNum - 1, // Convert to 0-based
@@ -221,15 +233,18 @@ export async function extractPdfTextWithPositions(
       pageCount,
     };
   } catch (error) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.error('PDF text extraction error:', error);
+    if (process.env.NODE_ENV !== "test") {
+      console.error("PDF text extraction error:", error);
     }
-    
+
     return {
       success: false,
       textItems: [],
       pageCount: 0,
-      error: error instanceof Error ? error.message : 'Unknown error during PDF text extraction',
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unknown error during PDF text extraction",
     };
   } finally {
     // Clean up PDF document to prevent memory leaks

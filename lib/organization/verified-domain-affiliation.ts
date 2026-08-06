@@ -4,7 +4,8 @@ import { getAdminClient } from "@/lib/supabase/admin";
 
 export async function applyVerifiedDomainAffiliation(userId: string) {
   const admin = getAdminClient();
-  const { data: userResult, error: userError } = await admin.auth.admin.getUserById(userId);
+  const { data: userResult, error: userError } =
+    await admin.auth.admin.getUserById(userId);
   const user = userResult?.user;
 
   if (userError || !user?.email || !user.email_confirmed_at) {
@@ -23,7 +24,10 @@ export async function applyVerifiedDomainAffiliation(userId: string) {
     : affiliationRows;
 
   if (affiliationError || !affiliation) {
-    console.error("Failed to resolve verified domain affiliation:", affiliationError);
+    console.error(
+      "Failed to resolve verified domain affiliation:",
+      affiliationError,
+    );
     return { status: "error" as const };
   }
 
@@ -34,7 +38,10 @@ export async function applyVerifiedDomainAffiliation(userId: string) {
       organizationId: affiliation.organization_id,
     };
   }
-  if (affiliation.status !== "joined" && affiliation.status !== "already_member") {
+  if (
+    affiliation.status !== "joined" &&
+    affiliation.status !== "already_member"
+  ) {
     return { status: "error" as const };
   }
 

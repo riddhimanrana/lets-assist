@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
-import { getLocalSupabaseEnv } from "../../scripts/local-dev/dv-local-env.mjs";
+import { getLocalSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
 
 const ORGANIZATION_ID = "d0000000-0000-4000-8000-000000000001";
 const ORGANIZATION_SLUG = "dv-speech-debate";
@@ -20,7 +20,9 @@ test("approved student can open the current seasonal membership workspace", asyn
 }) => {
   const password = process.env.DV_LOCAL_TEST_PASSWORD;
   if (!password) {
-    throw new Error("Set DV_LOCAL_TEST_PASSWORD before running DV Playwright tests.");
+    throw new Error(
+      "Set DV_LOCAL_TEST_PASSWORD before running DV Playwright tests.",
+    );
   }
 
   await page.goto(
@@ -33,7 +35,9 @@ test("approved student can open the current seasonal membership workspace", asyn
   // Filling controlled fields before these markers are present can lose the
   // values or submit without the client auth handler on a slower CI compiler.
   await expect(main.locator('form[data-hydrated="true"]')).toBeVisible();
-  await expect(main.getByText("Secure check ready", { exact: true })).toBeVisible();
+  await expect(
+    main.getByText("Secure check ready", { exact: true }),
+  ).toBeVisible();
   const email = main.getByRole("textbox", { name: "Email" });
   await email.fill(STUDENT_EMAIL);
   await main.getByLabel("Password").fill(password);
@@ -98,14 +102,18 @@ test("guardian availability link is single-use and updates judge availability", 
     .locator('[data-slot="card"]')
     .filter({ hasText: "Confirm judging availability" })
     .first();
-  await expect(actionCard.getByText("Confirm judging availability")).toBeVisible();
+  await expect(
+    actionCard.getByText("Confirm judging availability"),
+  ).toBeVisible();
   const limitedAvailability = actionCard.getByRole("radio", {
     name: "Available for some rounds",
   });
   await limitedAvailability.click();
   await expect(limitedAvailability).toBeChecked();
   await actionCard.getByLabel("Notes").fill("Available after the first round.");
-  await actionCard.getByRole("button", { name: "Confirm availability" }).click();
+  await actionCard
+    .getByRole("button", { name: "Confirm availability" })
+    .click();
   await expect(
     page.getByRole("alert").getByText("Availability recorded").first(),
   ).toBeVisible();
@@ -127,5 +135,7 @@ test("guardian availability link is single-use and updates judge availability", 
 
 test("expired guardian links fail closed", async ({ page }) => {
   await page.goto(`/guardian-action/${randomBytes(32).toString("base64url")}`);
-  await expect(page.getByText("Link unavailable", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText("Link unavailable", { exact: true }).first(),
+  ).toBeVisible();
 });

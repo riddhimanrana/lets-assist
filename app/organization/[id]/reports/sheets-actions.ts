@@ -99,13 +99,13 @@ function hasConfiguredSheetDestination(
         report_type?: string | null;
       }
     | null
-    | undefined
+    | undefined,
 ) {
   return Boolean(
     syncConfig?.sheet_id?.trim() &&
-      syncConfig?.sheet_url?.trim() &&
-      syncConfig?.tab_name?.trim() &&
-      syncConfig?.report_type?.trim()
+    syncConfig?.sheet_url?.trim() &&
+    syncConfig?.tab_name?.trim() &&
+    syncConfig?.report_type?.trim(),
   );
 }
 
@@ -133,7 +133,7 @@ async function assertOrgAccess(organizationId: string) {
 }
 
 export async function getSheetSyncStatus(
-  organizationId: string
+  organizationId: string,
 ): Promise<SheetSyncStatus> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
@@ -149,18 +149,22 @@ export async function getSheetSyncStatus(
   const { data: syncConfig, error: syncError } = await serviceSupabase
     .from("organization_sheet_syncs")
     .select(
-      "sheet_id, sheet_url, sheet_title, tab_name, range_a1, report_type, layout_config, auto_sync, sync_interval_minutes, last_synced_at, created_by"
+      "sheet_id, sheet_url, sheet_title, tab_name, range_a1, report_type, layout_config, auto_sync, sync_interval_minutes, last_synced_at, created_by",
     )
     .eq("organization_id", organizationId)
     .maybeSingle();
 
   const viewerConnected = !!connection;
-  const viewerScopesOk = connection ? hasGoogleSheetsScopes(connection.granted_scopes) : false;
-  
+  const viewerScopesOk = connection
+    ? hasGoogleSheetsScopes(connection.granted_scopes)
+    : false;
+
   let connectedBy: SheetSyncStatus["connectedBy"] = null;
   let connected = !!connection;
   let connectedEmail = connection?.calendar_email || null;
-  let scopesOk = connection ? hasGoogleSheetsScopes(connection.granted_scopes) : false;
+  let scopesOk = connection
+    ? hasGoogleSheetsScopes(connection.granted_scopes)
+    : false;
   const viewerIsOwner = syncConfig?.created_by
     ? syncConfig.created_by === access.userId
     : false;
@@ -214,19 +218,19 @@ export async function getSheetSyncStatus(
     viewerIsOwner,
     syncConfig: syncConfig
       ? destinationConfigured
-      ? {
-          sheetId: syncConfig.sheet_id,
-          sheetUrl: syncConfig.sheet_url,
-          sheetTitle: syncConfig.sheet_title,
-          tabName: syncConfig.tab_name,
-          rangeA1: syncConfig.range_a1,
-          reportType: syncConfig.report_type as ReportType,
-          layoutConfig: syncConfig.layout_config ?? null,
-          autoSync: syncConfig.auto_sync,
-          syncIntervalMinutes: syncConfig.sync_interval_minutes,
-          lastSyncedAt: syncConfig.last_synced_at,
-        }
-      : null
+        ? {
+            sheetId: syncConfig.sheet_id,
+            sheetUrl: syncConfig.sheet_url,
+            sheetTitle: syncConfig.sheet_title,
+            tabName: syncConfig.tab_name,
+            rangeA1: syncConfig.range_a1,
+            reportType: syncConfig.report_type as ReportType,
+            layoutConfig: syncConfig.layout_config ?? null,
+            autoSync: syncConfig.auto_sync,
+            syncIntervalMinutes: syncConfig.sync_interval_minutes,
+            lastSyncedAt: syncConfig.last_synced_at,
+          }
+        : null
       : null,
   };
 }
@@ -236,7 +240,7 @@ export async function createSheetSync(
   reportType: ReportType = "member-hours",
   tabName: string = DEFAULT_TAB_NAME,
   rangeA1: string = DEFAULT_RANGE_A1,
-  layoutConfig?: ReportLayoutConfig | null
+  layoutConfig?: ReportLayoutConfig | null,
 ): Promise<{ success: boolean; error?: string; sheetUrl?: string }> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
@@ -258,17 +262,24 @@ export async function createSheetSync(
   if (!hasGoogleSheetsScopes(connection.granted_scopes)) {
     return {
       success: false,
-      error: "Google connection needs Sheets access. Reconnect with Sheets permissions.",
+      error:
+        "Google connection needs Sheets access. Reconnect with Sheets permissions.",
     };
   }
 
   if (layoutConfig) {
     if (layoutConfig.reportType !== reportType) {
-      return { success: false, error: "Layout report type does not match selection." };
+      return {
+        success: false,
+        error: "Layout report type does not match selection.",
+      };
     }
     const validation = validateLayout(layoutConfig);
     if (!validation.valid) {
-      return { success: false, error: `Invalid layout: ${validation.errors.join("; ")}` };
+      return {
+        success: false,
+        error: `Invalid layout: ${validation.errors.join("; ")}`,
+      };
     }
   }
 
@@ -279,7 +290,8 @@ export async function createSheetSync(
   if (!accessToken) {
     return {
       success: false,
-      error: "Google connection needs Sheets access. Reconnect with Sheets permissions.",
+      error:
+        "Google connection needs Sheets access. Reconnect with Sheets permissions.",
     };
   }
 
@@ -316,7 +328,7 @@ export async function createSheetSync(
         sync_interval_minutes: DEFAULT_SYNC_INTERVAL_MINUTES,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "organization_id" }
+      { onConflict: "organization_id" },
     );
 
   if (upsertError) {
@@ -328,7 +340,9 @@ export async function createSheetSync(
   if (!syncResult.success) {
     return {
       success: false,
-      error: syncResult.error || "Sheet created, but initial sync failed. Please reconnect and try syncing again.",
+      error:
+        syncResult.error ||
+        "Sheet created, but initial sync failed. Please reconnect and try syncing again.",
       sheetUrl: sheet.sheetUrl,
     };
   }
@@ -337,7 +351,7 @@ export async function createSheetSync(
 }
 
 export async function syncSheetNow(
-  organizationId: string
+  organizationId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
@@ -348,7 +362,7 @@ export async function syncSheetNow(
   const { data: syncConfig, error: syncError } = await serviceSupabase
     .from("organization_sheet_syncs")
     .select(
-      "sheet_id, tab_name, range_a1, report_type, layout_config, sheet_url, sync_interval_minutes, created_by"
+      "sheet_id, tab_name, range_a1, report_type, layout_config, sheet_url, sync_interval_minutes, created_by",
     )
     .eq("organization_id", organizationId)
     .maybeSingle();
@@ -394,23 +408,28 @@ export async function syncSheetNow(
   if (!accessToken) {
     return {
       success: false,
-      error: "Sheets access missing. Ask an admin to reconnect with Sheets permissions.",
+      error:
+        "Sheets access missing. Ask an admin to reconnect with Sheets permissions.",
     };
   }
 
   const ensured = await ensureSpreadsheetTab(
     accessToken,
     syncConfig.sheet_id,
-    syncConfig.tab_name || DEFAULT_TAB_NAME
+    syncConfig.tab_name || DEFAULT_TAB_NAME,
   );
   if (!ensured) {
-    return { success: false, error: "Unable to access the selected sheet tab." };
+    return {
+      success: false,
+      error: "Unable to access the selected sheet tab.",
+    };
   }
 
-  const { rows: defaultRows, error: rowsError } = await buildOrganizationReportRows(
-    organizationId,
-    syncConfig.report_type as ReportType
-  );
+  const { rows: defaultRows, error: rowsError } =
+    await buildOrganizationReportRows(
+      organizationId,
+      syncConfig.report_type as ReportType,
+    );
 
   if (rowsError || !defaultRows) {
     return { success: false, error: rowsError || "Failed to build report" };
@@ -424,14 +443,16 @@ export async function syncSheetNow(
       if (typeof syncConfig.layout_config === "string") {
         layoutConfig = JSON.parse(syncConfig.layout_config);
       } else {
-        layoutConfig = syncConfig.layout_config as unknown as ReportLayoutConfig;
+        layoutConfig =
+          syncConfig.layout_config as unknown as ReportLayoutConfig;
       }
 
       if (layoutConfig.reportType !== (syncConfig.report_type as ReportType)) {
         throw new Error("Layout report type mismatch");
       }
 
-      const { data: reportData } = await getOrganizationReportData(organizationId);
+      const { data: reportData } =
+        await getOrganizationReportData(organizationId);
       if (reportData) {
         rows = buildRowsWithLayout(reportData, layoutConfig);
       }
@@ -470,7 +491,7 @@ export async function syncSheetNow(
 
 export async function updateSheetSyncSettings(
   organizationId: string,
-  updates: { autoSync?: boolean; syncIntervalMinutes?: number }
+  updates: { autoSync?: boolean; syncIntervalMinutes?: number },
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
@@ -483,7 +504,10 @@ export async function updateSheetSyncSettings(
 
   if (updates.syncIntervalMinutes !== undefined) {
     if (!Number.isInteger(updates.syncIntervalMinutes)) {
-      return { success: false, error: "Sync interval must be a whole number of minutes" };
+      return {
+        success: false,
+        error: "Sync interval must be a whole number of minutes",
+      };
     }
 
     if (updates.syncIntervalMinutes < MIN_SYNC_INTERVAL_MINUTES) {
@@ -542,7 +566,7 @@ export async function updateSheetSyncConfig(
     tabName?: string;
     rangeA1?: string;
     layoutConfig?: ReportLayoutConfig | null;
-  }
+  },
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
@@ -566,7 +590,10 @@ export async function updateSheetSyncConfig(
 
   // Validate layout if provided
   if (updates.layoutConfig) {
-    if (updates.reportType && updates.layoutConfig.reportType !== updates.reportType) {
+    if (
+      updates.reportType &&
+      updates.layoutConfig.reportType !== updates.reportType
+    ) {
       return {
         success: false,
         error: "Layout report type does not match selection.",
@@ -601,7 +628,7 @@ export async function updateSheetSyncConfig(
 }
 
 export async function getSheetsAccessTokenForPicker(
-  organizationId: string
+  organizationId: string,
 ): Promise<{ success: boolean; accessToken?: string; error?: string }> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
@@ -623,7 +650,8 @@ export async function getSheetsAccessTokenForPicker(
   if (!hasGoogleSheetsScopes(connection.granted_scopes)) {
     return {
       success: false,
-      error: "Sheets permissions are missing. Reconnect with Sheets access to continue.",
+      error:
+        "Sheets permissions are missing. Reconnect with Sheets access to continue.",
     };
   }
 
@@ -634,7 +662,8 @@ export async function getSheetsAccessTokenForPicker(
   if (!accessToken) {
     return {
       success: false,
-      error: "Sheets permissions are missing. Reconnect with Sheets access to continue.",
+      error:
+        "Sheets permissions are missing. Reconnect with Sheets access to continue.",
     };
   }
 
@@ -643,10 +672,15 @@ export async function getSheetsAccessTokenForPicker(
 
 export async function getSpreadsheetSetupMetadata(
   organizationId: string,
-  sheetInput: string
+  sheetInput: string,
 ): Promise<{
   success: boolean;
-  metadata?: { sheetId: string; sheetTitle: string; tabs: string[]; sheetUrl: string };
+  metadata?: {
+    sheetId: string;
+    sheetTitle: string;
+    tabs: string[];
+    sheetUrl: string;
+  };
   error?: string;
 }> {
   const access = await assertOrgAccess(organizationId);
@@ -693,7 +727,7 @@ export async function connectExistingSheet(
     tabName: string;
     rangeA1?: string;
     layoutConfig?: ReportLayoutConfig | null;
-  }
+  },
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
@@ -714,11 +748,17 @@ export async function connectExistingSheet(
 
   if (params.layoutConfig) {
     if (params.layoutConfig.reportType !== params.reportType) {
-      return { success: false, error: "Layout report type does not match selection." };
+      return {
+        success: false,
+        error: "Layout report type does not match selection.",
+      };
     }
     const validation = validateLayout(params.layoutConfig);
     if (!validation.valid) {
-      return { success: false, error: `Invalid layout: ${validation.errors.join("; ")}` };
+      return {
+        success: false,
+        error: `Invalid layout: ${validation.errors.join("; ")}`,
+      };
     }
   }
 
@@ -730,7 +770,7 @@ export async function connectExistingSheet(
   const ensured = await ensureSpreadsheetTab(
     accessToken,
     params.sheetId,
-    params.tabName || DEFAULT_TAB_NAME
+    params.tabName || DEFAULT_TAB_NAME,
   );
   if (!ensured) {
     return { success: false, error: "Unable to create or access the tab" };
@@ -754,7 +794,7 @@ export async function connectExistingSheet(
         sync_interval_minutes: DEFAULT_SYNC_INTERVAL_MINUTES,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "organization_id" }
+      { onConflict: "organization_id" },
     );
 
   if (upsertError) {
@@ -766,7 +806,9 @@ export async function connectExistingSheet(
   if (!syncResult.success) {
     return {
       success: false,
-      error: syncResult.error || "Sheet connected, but initial sync failed. Please reconnect and try syncing again.",
+      error:
+        syncResult.error ||
+        "Sheet connected, but initial sync failed. Please reconnect and try syncing again.",
     };
   }
 
@@ -777,7 +819,7 @@ export async function getSheetReportPreview(
   organizationId: string,
   reportType: ReportType,
   limit = 12,
-  layoutConfig?: ReportLayoutConfig | null
+  layoutConfig?: ReportLayoutConfig | null,
 ): Promise<{ success: boolean; rows?: string[][]; error?: string }> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
@@ -787,7 +829,10 @@ export async function getSheetReportPreview(
   if (layoutConfig && layoutConfig.reportType === reportType) {
     const validation = validateLayout(layoutConfig);
     if (!validation.valid) {
-      return { success: false, error: `Invalid layout: ${validation.errors.join("; ")}` };
+      return {
+        success: false,
+        error: `Invalid layout: ${validation.errors.join("; ")}`,
+      };
     }
 
     const report = await getOrganizationReportData(organizationId);
@@ -802,7 +847,10 @@ export async function getSheetReportPreview(
     };
   }
 
-  const { rows, error } = await buildOrganizationReportRows(organizationId, reportType);
+  const { rows, error } = await buildOrganizationReportRows(
+    organizationId,
+    reportType,
+  );
 
   if (error || !rows) {
     return { success: false, error: error || "Failed to build preview" };
@@ -815,7 +863,7 @@ export async function getSheetReportPreview(
 }
 
 export async function unlinkSheetSync(
-  organizationId: string
+  organizationId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
@@ -834,7 +882,10 @@ export async function unlinkSheetSync(
     .maybeSingle();
 
   if (existingSyncError) {
-    console.error("Failed to load sheet sync before unlink:", existingSyncError);
+    console.error(
+      "Failed to load sheet sync before unlink:",
+      existingSyncError,
+    );
     return { success: false, error: "Failed to verify sheet owner" };
   }
 
@@ -875,7 +926,7 @@ export async function unlinkSheetSync(
 }
 
 export async function disconnectOrganizationSheetConnection(
-  organizationId: string
+  organizationId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
@@ -894,7 +945,10 @@ export async function disconnectOrganizationSheetConnection(
     .maybeSingle();
 
   if (existingSyncError) {
-    console.error("Failed to load sheet sync before disconnect:", existingSyncError);
+    console.error(
+      "Failed to load sheet sync before disconnect:",
+      existingSyncError,
+    );
     return { success: false, error: "Failed to verify sheet owner" };
   }
 
@@ -922,7 +976,10 @@ export async function disconnectOrganizationSheetConnection(
     useServiceRole: true,
     revokeAccess: false,
   });
-  if (!deactivateResult.success && deactivateResult.error !== "No active Google connection found") {
+  if (
+    !deactivateResult.success &&
+    deactivateResult.error !== "No active Google connection found"
+  ) {
     return {
       success: false,
       error: deactivateResult.error || "Failed to disconnect Google account",
@@ -945,9 +1002,7 @@ export async function disconnectOrganizationSheetConnection(
   return { success: true };
 }
 
-export async function getAvailableSheetOwners(
-  organizationId: string
-): Promise<
+export async function getAvailableSheetOwners(organizationId: string): Promise<
   | { success: false; error: string }
   | {
       success: true;
@@ -982,26 +1037,34 @@ export async function getAvailableSheetOwners(
     return { success: false, error: "Failed to load organization members" };
   }
 
-  const eligibleMembers = (members.filter(
-    (member) => member.role === "admin" || member.role === "staff"
-  ) as unknown) as Array<{
+  const eligibleMembers = members.filter(
+    (member) => member.role === "admin" || member.role === "staff",
+  ) as unknown as Array<{
     user_id: string;
     role: string;
-    profiles: { id: string; full_name: string | null; username: string | null; email: string | null } | null;
+    profiles: {
+      id: string;
+      full_name: string | null;
+      username: string | null;
+      email: string | null;
+    } | null;
   }>;
   if (eligibleMembers.length === 0) {
     return { success: true, owners: [] };
   }
 
   const connectionEntries = await Promise.all(
-    eligibleMembers.map(async (member) => [
-      member.user_id,
-      await getOrganizationSheetsConnection(
-        member.user_id,
-        organizationId,
-        true,
-      ),
-    ] as const),
+    eligibleMembers.map(
+      async (member) =>
+        [
+          member.user_id,
+          await getOrganizationSheetsConnection(
+            member.user_id,
+            organizationId,
+            true,
+          ),
+        ] as const,
+    ),
   );
   const connectionMap = new Map(connectionEntries);
 
@@ -1009,7 +1072,9 @@ export async function getAvailableSheetOwners(
     .map((member) => {
       const profile = member.profiles;
       const connection = connectionMap.get(member.user_id);
-      const hasSheetsAccess = hasGoogleSheetsScopes(connection?.granted_scopes || null);
+      const hasSheetsAccess = hasGoogleSheetsScopes(
+        connection?.granted_scopes || null,
+      );
       return {
         id: member.user_id,
         name: profile?.full_name || profile?.username || null,
@@ -1026,7 +1091,7 @@ export async function getAvailableSheetOwners(
 
 export async function updateSheetOwner(
   organizationId: string,
-  ownerId: string
+  ownerId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {

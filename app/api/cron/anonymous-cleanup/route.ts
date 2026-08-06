@@ -21,12 +21,18 @@ function authorizeCronRequest(request: NextRequest) {
   if (!cronSecret) {
     return {
       ok: false,
-      response: NextResponse.json({ error: "Cron secret not configured" }, { status: 500 }),
+      response: NextResponse.json(
+        { error: "Cron secret not configured" },
+        { status: 500 },
+      ),
     };
   }
 
   if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
-    return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
   }
 
   return { ok: true } as const;
@@ -39,7 +45,10 @@ async function cleanupAnonymousProfiles() {
 
   const initialDrain = await drainWaiverStorageDeletionQueue(supabase);
   if (initialDrain.error) {
-    console.error("Error draining waiver Storage deletion queue:", initialDrain.error);
+    console.error(
+      "Error draining waiver Storage deletion queue:",
+      initialDrain.error,
+    );
     return { error: initialDrain.error };
   }
 
@@ -49,7 +58,8 @@ async function cleanupAnonymousProfiles() {
   while (idsToDelete.length < BATCH_SIZE) {
     const { data: candidates, error: candidatesError } = await supabase
       .from("anonymous_signups")
-      .select(`
+      .select(
+        `
         id,
         created_at,
         projects!inner (
@@ -59,14 +69,20 @@ async function cleanupAnonymousProfiles() {
           schedule,
           project_timezone
         )
-      `)
-      .or("status.eq.completed,status.eq.cancelled", { foreignTable: "projects" })
+      `,
+      )
+      .or("status.eq.completed,status.eq.cancelled", {
+        foreignTable: "projects",
+      })
       .order("created_at", { ascending: true })
       .order("id", { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1);
 
     if (candidatesError) {
-      console.error("Error fetching candidates for anonymous cleanup:", candidatesError);
+      console.error(
+        "Error fetching candidates for anonymous cleanup:",
+        candidatesError,
+      );
       return { error: "Failed to fetch candidates" };
     }
 
@@ -74,7 +90,9 @@ async function cleanupAnonymousProfiles() {
       const project = Array.isArray(candidate.projects)
         ? candidate.projects[0]
         : candidate.projects;
-      const finishedAt = getProjectRetentionFinishedAt(project as RetentionProject);
+      const finishedAt = getProjectRetentionFinishedAt(
+        project as RetentionProject,
+      );
       if (finishedAt && finishedAt.getTime() <= cutoffDate.getTime()) {
         idsToDelete.push(candidate.id);
         if (idsToDelete.length >= BATCH_SIZE) break;
@@ -95,13 +113,19 @@ async function cleanupAnonymousProfiles() {
   );
 
   if (archiveError) {
-    console.error("Error atomically archiving anonymous profiles:", archiveError);
+    console.error(
+      "Error atomically archiving anonymous profiles:",
+      archiveError,
+    );
     return { error: "Failed to archive anonymous profiles for cleanup" };
   }
 
   const finalDrain = await drainWaiverStorageDeletionQueue(supabase);
   if (finalDrain.error) {
-    console.error("Error deleting archived anonymous waiver assets:", finalDrain.error);
+    console.error(
+      "Error deleting archived anonymous waiver assets:",
+      finalDrain.error,
+    );
     return { error: finalDrain.error };
   }
 
@@ -123,6 +147,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("Anonymous cleanup cron failed:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

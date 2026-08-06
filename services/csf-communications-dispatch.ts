@@ -216,7 +216,12 @@ export type CsfDispatchDependencies = {
 };
 
 export type CsfDispatchReport =
-  | { dispatched: false; reason: "refused"; blockedBy: string; attemptState: string }
+  | {
+      dispatched: false;
+      reason: "refused";
+      blockedBy: string;
+      attemptState: string;
+    }
   | {
       dispatched: true;
       transportOutcome: SendEmailResult["outcome"];

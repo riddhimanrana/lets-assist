@@ -18,18 +18,35 @@ type ExportIssue = {
 const EXPORT_SPECS: ExportSpec[] = [
   { key: "profile", table: "profiles", column: "id", single: true },
   { key: "userEmails", table: "user_emails", column: "user_id" },
-  { key: "notificationSettings", table: "notification_settings", column: "user_id", single: true },
+  {
+    key: "notificationSettings",
+    table: "notification_settings",
+    column: "user_id",
+    single: true,
+  },
   { key: "notifications", table: "notifications", column: "user_id" },
   { key: "feedback", table: "feedback", column: "user_id" },
   { key: "trustedMember", table: "trusted_member", column: "user_id" },
   { key: "projectSignups", table: "project_signups", column: "user_id" },
   { key: "certificates", table: "certificates", column: "user_id" },
   { key: "contentReports", table: "content_reports", column: "reporter_id" },
-  { key: "calendarConnections", table: "user_calendar_connections", column: "user_id" },
-  { key: "organizationMemberships", table: "organization_members", column: "user_id" },
+  {
+    key: "calendarConnections",
+    table: "user_calendar_connections",
+    column: "user_id",
+  },
+  {
+    key: "organizationMemberships",
+    table: "organization_members",
+    column: "user_id",
+  },
   { key: "organizationsCreated", table: "organizations", column: "created_by" },
   { key: "projectsCreated", table: "projects", column: "creator_id" },
-  { key: "anonymousSignupsLinked", table: "anonymous_signups", column: "linked_user_id" },
+  {
+    key: "anonymousSignupsLinked",
+    table: "anonymous_signups",
+    column: "linked_user_id",
+  },
   { key: "waiverSignatures", table: "waiver_signatures", column: "user_id" },
 ];
 
@@ -59,9 +76,7 @@ function redactSensitiveValues<T>(value: T): T {
   return value;
 }
 
-async function queryUserScopedData(
-  userId: string,
-): Promise<{
+async function queryUserScopedData(userId: string): Promise<{
   data: Record<string, unknown>;
   issues: ExportIssue[];
 }> {
@@ -79,7 +94,11 @@ async function queryUserScopedData(
           .maybeSingle();
 
         if (error) {
-          issues.push({ key: spec.key, table: spec.table, message: error.message });
+          issues.push({
+            key: spec.key,
+            table: spec.table,
+            message: error.message,
+          });
           data[spec.key] = null;
           continue;
         }
@@ -92,7 +111,11 @@ async function queryUserScopedData(
           .eq(spec.column, userId);
 
         if (error) {
-          issues.push({ key: spec.key, table: spec.table, message: error.message });
+          issues.push({
+            key: spec.key,
+            table: spec.table,
+            message: error.message,
+          });
           data[spec.key] = [];
           continue;
         }
@@ -103,7 +126,8 @@ async function queryUserScopedData(
       issues.push({
         key: spec.key,
         table: spec.table,
-        message: error instanceof Error ? error.message : "Unknown export error",
+        message:
+          error instanceof Error ? error.message : "Unknown export error",
       });
       data[spec.key] = spec.single ? null : [];
     }
@@ -165,7 +189,12 @@ const EXPORT_CATEGORY_DEFINITIONS: ExportCategoryDefinition[] = [
   },
   {
     folder: "certificates-and-hours",
-    datasets: ["certificates", "projectSignups", "waiverSignatures", "anonymousSignupsLinked"],
+    datasets: [
+      "certificates",
+      "projectSignups",
+      "waiverSignatures",
+      "anonymousSignupsLinked",
+    ],
   },
   {
     folder: "notifications",
@@ -198,13 +227,16 @@ export async function createUserDataExport(
   const sanitizeSensitive = options?.sanitizeSensitive ?? true;
   const supabaseAdmin = getAdminClient();
 
-  const [{ data: authResult, error: authError }, { data: datasets, issues }] = await Promise.all([
-    supabaseAdmin.auth.admin.getUserById(userId),
-    queryUserScopedData(userId),
-  ]);
+  const [{ data: authResult, error: authError }, { data: datasets, issues }] =
+    await Promise.all([
+      supabaseAdmin.auth.admin.getUserById(userId),
+      queryUserScopedData(userId),
+    ]);
 
   if (authError) {
-    logError("Failed to fetch auth user during data export", authError, { user_id: userId });
+    logError("Failed to fetch auth user during data export", authError, {
+      user_id: userId,
+    });
   }
 
   const authUser = authResult?.user
@@ -216,9 +248,11 @@ export async function createUserDataExport(
         createdAt: authResult.user.created_at ?? null,
         lastSignInAt: authResult.user.last_sign_in_at ?? null,
         userMetadata:
-          (authResult.user.user_metadata as Record<string, unknown> | null | undefined) ?? null,
+          (authResult.user.user_metadata as
+            Record<string, unknown> | null | undefined) ?? null,
         appMetadata:
-          (authResult.user.app_metadata as Record<string, unknown> | null | undefined) ?? null,
+          (authResult.user.app_metadata as
+            Record<string, unknown> | null | undefined) ?? null,
         identities: (authResult.user.identities ?? []).map((identity) => ({
           ...(identity as unknown as Record<string, unknown>),
         })),
@@ -229,7 +263,10 @@ export async function createUserDataExport(
     Object.entries(datasets).map(([key, value]) => [key, countRecords(value)]),
   );
 
-  const totalRecords = Object.values(counts).reduce((sum, value) => sum + value, 0);
+  const totalRecords = Object.values(counts).reduce(
+    (sum, value) => sum + value,
+    0,
+  );
 
   const rawPayload: UserDataExportPayload = {
     metadata: {
@@ -342,12 +379,18 @@ export async function createUserDataExportArchive(
     if (category.folder === "internal-logs") {
       zip.file(`${category.folder}/counts.json`, toJson(payload.counts));
       zip.file(`${category.folder}/issues.json`, toJson(payload.issues));
-      zip.file(`${category.folder}/export-metadata.json`, toJson(payload.metadata));
+      zip.file(
+        `${category.folder}/export-metadata.json`,
+        toJson(payload.metadata),
+      );
       continue;
     }
 
     for (const dataset of category.datasets) {
-      zip.file(`${category.folder}/${dataset}.json`, toJson(payload.datasets[dataset] ?? null));
+      zip.file(
+        `${category.folder}/${dataset}.json`,
+        toJson(payload.datasets[dataset] ?? null),
+      );
     }
   }
 

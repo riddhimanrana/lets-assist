@@ -11,7 +11,8 @@ import { Shield, ShieldCheck, XCircle, Clock } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Trusted Member",
-  description: "Apply to become a Trusted Member to create projects and organizations.",
+  description:
+    "Apply to become a Trusted Member to create projects and organizations.",
 };
 
 export default async function TrustedMemberPage() {
@@ -55,7 +56,8 @@ export default async function TrustedMemberPage() {
           <h1 className="text-3xl font-bold tracking-tight">Trusted Member</h1>
         </div>
         <p className="text-muted-foreground mt-1">
-          Trusted Members can create projects and organizations on Let&apos;s Assist.
+          Trusted Members can create projects and organizations on Let&apos;s
+          Assist.
         </p>
       </div>
 
@@ -67,7 +69,9 @@ export default async function TrustedMemberPage() {
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-success" />
               <Badge variant="default">All set</Badge>
-              <span className="font-semibold">You&apos;re a Trusted Member</span>
+              <span className="font-semibold">
+                You&apos;re a Trusted Member
+              </span>
             </div>
           </CardHeader>
           <CardContent>
@@ -87,7 +91,9 @@ export default async function TrustedMemberPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-3">
-              It looks like your Trusted Member application was not approved. If you have questions or need help, please email support@lets-assist.com.
+              It looks like your Trusted Member application was not approved. If
+              you have questions or need help, please email
+              support@lets-assist.com.
             </p>
           </CardContent>
         </Card>
@@ -103,15 +109,21 @@ export default async function TrustedMemberPage() {
           <CardContent>
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                Your application is currently pending. We will contact you at your email with further details once it is reviewed.
+                Your application is currently pending. We will contact you at
+                your email with further details once it is reviewed.
               </p>
               {appRow?.created_at ? (
                 <p className="text-xs text-muted-foreground">
-                  Submitted on {new Date(appRow.created_at as string).toLocaleDateString()}
+                  Submitted on{" "}
+                  {new Date(appRow.created_at as string).toLocaleDateString()}
                 </p>
               ) : null}
               <p className="text-sm text-muted-foreground">
-                If you need any help, reach out to <a className="underline" href="mailto:support@lets-assist.com">support@lets-assist.com</a>.
+                If you need any help, reach out to{" "}
+                <a className="underline" href="mailto:support@lets-assist.com">
+                  support@lets-assist.com
+                </a>
+                .
               </p>
             </div>
           </CardContent>

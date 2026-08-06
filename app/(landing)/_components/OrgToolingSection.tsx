@@ -4,10 +4,24 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import type { MouseEvent } from "react";
 import { useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { toast } from "sonner";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -74,7 +88,10 @@ const orgFeatures = [
     desc: "Keep member hours, project summaries, volunteer slots, and shared calendar reminders connected to the tools your team already uses.",
     logos: [
       { src: "/resources/google-sheets-logo-2026.png", alt: "Google Sheets" },
-      { src: "/resources/google-calendar-logo-2026.png", alt: "Google Calendar" },
+      {
+        src: "/resources/google-calendar-logo-2026.png",
+        alt: "Google Calendar",
+      },
     ],
   },
   {
@@ -150,9 +167,27 @@ const engagementChartConfig = {
 } satisfies ChartConfig;
 
 const reportMetricCards = [
-  { label: "Event views", value: "3.4k", helper: "+22% this month", icon: Globe, color: "text-primary" },
-  { label: "Engagement", value: "63%", helper: "Views to signup conversion", icon: TrendingUp, color: "text-info" },
-  { label: "Certificates", value: "387", helper: "Issued this season", icon: FileSpreadsheet, color: "text-success" },
+  {
+    label: "Event views",
+    value: "3.4k",
+    helper: "+22% this month",
+    icon: Globe,
+    color: "text-primary",
+  },
+  {
+    label: "Engagement",
+    value: "63%",
+    helper: "Views to signup conversion",
+    icon: TrendingUp,
+    color: "text-info",
+  },
+  {
+    label: "Certificates",
+    value: "387",
+    helper: "Issued this season",
+    icon: FileSpreadsheet,
+    color: "text-success",
+  },
 ];
 
 const topVolunteersThisMonth = [
@@ -179,22 +214,46 @@ type DemoMemberEvent = {
 function OrganizationAnalyticsDemo() {
   const summary = demoReportSummary;
   const summaryCards = [
-    { label: "Verified hours", value: summary.totalHours.toFixed(1), change: "+18% vs last month", icon: Clock },
-    { label: "Active volunteers", value: mockMembers.length.toLocaleString(), change: "+14% MoM", icon: Users },
-    { label: "Projects in last 6 months", value: summary.totalProjects.toLocaleString(), change: "+11 this quarter", icon: FileSpreadsheet },
+    {
+      label: "Verified hours",
+      value: summary.totalHours.toFixed(1),
+      change: "+18% vs last month",
+      icon: Clock,
+    },
+    {
+      label: "Active volunteers",
+      value: mockMembers.length.toLocaleString(),
+      change: "+14% MoM",
+      icon: Users,
+    },
+    {
+      label: "Projects in last 6 months",
+      value: summary.totalProjects.toLocaleString(),
+      change: "+11 this quarter",
+      icon: FileSpreadsheet,
+    },
   ];
 
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 md:grid-cols-3">
         {summaryCards.map((metric) => (
-          <Card key={metric.label} className="border-border/60 bg-background/95 shadow-sm">
+          <Card
+            key={metric.label}
+            className="border-border/60 bg-background/95 shadow-sm"
+          >
             <CardContent className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-muted-foreground">{metric.label}</p>
-                  <p className="mt-1 text-2xl font-semibold tracking-tight">{metric.value}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{metric.change}</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {metric.label}
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold tracking-tight">
+                    {metric.value}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {metric.change}
+                  </p>
                 </div>
                 <div className="rounded-md bg-muted p-2">
                   <metric.icon className="h-4 w-4 text-muted-foreground" />
@@ -213,12 +272,20 @@ function OrganizationAnalyticsDemo() {
               Reports overview
             </CardTitle>
             <CardDescription>
-              Verified hours, open reviews, and export activity rendered with the app reporting palette.
+              Verified hours, open reviews, and export activity rendered with
+              the app reporting palette.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={organizationChartConfig} className="h-64 w-full">
-              <BarChart accessibilityLayer data={analyticsBars} margin={{ left: 0, right: 12, top: 10, bottom: 0 }}>
+            <ChartContainer
+              config={organizationChartConfig}
+              className="h-64 w-full"
+            >
+              <BarChart
+                accessibilityLayer
+                data={analyticsBars}
+                margin={{ left: 0, right: 12, top: 10, bottom: 0 }}
+              >
                 <CartesianGrid vertical={false} />
                 <XAxis
                   dataKey="month"
@@ -229,8 +296,16 @@ function OrganizationAnalyticsDemo() {
                 />
                 <YAxis hide />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="verified" fill="var(--color-verified)" radius={[5, 5, 0, 0]} />
-                <Bar dataKey="pending" fill="var(--color-pending)" radius={[5, 5, 0, 0]} />
+                <Bar
+                  dataKey="verified"
+                  fill="var(--color-verified)"
+                  radius={[5, 5, 0, 0]}
+                />
+                <Bar
+                  dataKey="pending"
+                  fill="var(--color-pending)"
+                  radius={[5, 5, 0, 0]}
+                />
               </BarChart>
             </ChartContainer>
           </CardContent>
@@ -249,8 +324,12 @@ function OrganizationAnalyticsDemo() {
           <CardContent className="space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-3xl font-semibold tracking-tight">{summaryCards[1].value}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{summaryCards[1].change}</p>
+                <p className="text-3xl font-semibold tracking-tight">
+                  {summaryCards[1].value}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {summaryCards[1].change}
+                </p>
               </div>
               <div className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                 <Activity className="mr-1 inline-block h-3.5 w-3.5" />
@@ -258,24 +337,40 @@ function OrganizationAnalyticsDemo() {
               </div>
             </div>
             <div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3">
-              <p className="text-xs font-medium text-muted-foreground">Top 3 volunteers this month</p>
+              <p className="text-xs font-medium text-muted-foreground">
+                Top 3 volunteers this month
+              </p>
               {topVolunteersThisMonth.map((volunteer, index) => (
-                <div key={volunteer.name} className="flex items-center justify-between gap-3 text-sm">
+                <div
+                  key={volunteer.name}
+                  className="flex items-center justify-between gap-3 text-sm"
+                >
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                       {index + 1}
                     </span>
-                    <span className="truncate font-medium">{volunteer.name}</span>
+                    <span className="truncate font-medium">
+                      {volunteer.name}
+                    </span>
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="font-semibold">{volunteer.hours}</p>
-                    <p className="text-xs text-muted-foreground">{volunteer.projects}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {volunteer.projects}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
-            <ChartContainer config={activeVolunteerChartConfig} className="h-16 w-full aspect-auto">
-              <LineChart accessibilityLayer data={activeVolunteerTrend} margin={{ left: 0, right: 0, top: 5, bottom: 0 }}>
+            <ChartContainer
+              config={activeVolunteerChartConfig}
+              className="h-16 w-full aspect-auto"
+            >
+              <LineChart
+                accessibilityLayer
+                data={activeVolunteerTrend}
+                margin={{ left: 0, right: 0, top: 5, bottom: 0 }}
+              >
                 <XAxis dataKey="month" hide />
                 <YAxis hide />
                 <Line
@@ -293,13 +388,22 @@ function OrganizationAnalyticsDemo() {
 
       <div className="grid gap-3 md:grid-cols-3">
         {reportMetricCards.map((metric) => (
-          <Card key={metric.label} className="border-border/60 bg-background/95 shadow-sm">
+          <Card
+            key={metric.label}
+            className="border-border/60 bg-background/95 shadow-sm"
+          >
             <CardContent className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">{metric.label}</p>
-                  <p className="mt-1 text-2xl font-semibold tracking-tight">{metric.value}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{metric.helper}</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {metric.label}
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold tracking-tight">
+                    {metric.value}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {metric.helper}
+                  </p>
                 </div>
                 <metric.icon className={`h-4 w-4 ${metric.color}`} />
               </div>
@@ -333,7 +437,9 @@ function OrganizationAnalyticsDemo() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold">Google Sheets</p>
-                  <p className="text-xs text-muted-foreground">Member hours + project exports</p>
+                  <p className="text-xs text-muted-foreground">
+                    Member hours + project exports
+                  </p>
                 </div>
               </div>
               <Badge variant="secondary" className="bg-success/10 text-success">
@@ -366,7 +472,9 @@ function OrganizationAnalyticsDemo() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold">Google Calendar</p>
-                  <p className="text-xs text-muted-foreground">Volunteer shifts + reminders</p>
+                  <p className="text-xs text-muted-foreground">
+                    Volunteer shifts + reminders
+                  </p>
                 </div>
               </div>
               <Badge variant="secondary" className="bg-info/10 text-info">
@@ -398,8 +506,15 @@ function OrganizationAnalyticsDemo() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={engagementChartConfig} className="h-64 w-full">
-            <LineChart accessibilityLayer data={engagementTrend} margin={{ left: 0, right: 12, top: 10, bottom: 0 }}>
+          <ChartContainer
+            config={engagementChartConfig}
+            className="h-64 w-full"
+          >
+            <LineChart
+              accessibilityLayer
+              data={engagementTrend}
+              margin={{ left: 0, right: 12, top: 10, bottom: 0 }}
+            >
               <CartesianGrid vertical={false} />
               <XAxis
                 dataKey="month"
@@ -410,9 +525,27 @@ function OrganizationAnalyticsDemo() {
               />
               <YAxis hide />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Line type="monotone" dataKey="views" stroke="var(--color-views)" strokeWidth={2.5} dot={false} />
-              <Line type="monotone" dataKey="signups" stroke="var(--color-signups)" strokeWidth={2.5} dot={false} />
-              <Line type="monotone" dataKey="checkIns" stroke="var(--color-checkIns)" strokeWidth={2.5} dot={false} />
+              <Line
+                type="monotone"
+                dataKey="views"
+                stroke="var(--color-views)"
+                strokeWidth={2.5}
+                dot={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="signups"
+                stroke="var(--color-signups)"
+                strokeWidth={2.5}
+                dot={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="checkIns"
+                stroke="var(--color-checkIns)"
+                strokeWidth={2.5}
+                dot={false}
+              />
             </LineChart>
           </ChartContainer>
         </CardContent>
@@ -475,28 +608,38 @@ const memberSeeds = [
   ["Miles", "Foster"],
 ] as const;
 
-const mockMembers: OrganizationMember[] = Array.from({ length: 147 }, (_, index) => {
-  const [firstName, lastName] = memberSeeds[index % memberSeeds.length];
-  const sequence = Math.floor(index / memberSeeds.length) + 1;
-  const name = sequence === 1 ? `${firstName} ${lastName}` : `${firstName} ${lastName} ${sequence}`;
-  const role: OrganizationMember["role"] = index === 0 ? "admin" : index < 8 ? "staff" : "member";
-  const month = String((index % 12) + 1).padStart(2, "0");
-  const day = String(((index * 3) % 27) + 1).padStart(2, "0");
+const mockMembers: OrganizationMember[] = Array.from(
+  { length: 147 },
+  (_, index) => {
+    const [firstName, lastName] = memberSeeds[index % memberSeeds.length];
+    const sequence = Math.floor(index / memberSeeds.length) + 1;
+    const name =
+      sequence === 1
+        ? `${firstName} ${lastName}`
+        : `${firstName} ${lastName} ${sequence}`;
+    const role: OrganizationMember["role"] =
+      index === 0 ? "admin" : index < 8 ? "staff" : "member";
+    const month = String((index % 12) + 1).padStart(2, "0");
+    const day = String(((index * 3) % 27) + 1).padStart(2, "0");
 
-  return {
-    id: `m-${index + 1}`,
-    role,
-    joined_at: `2025-${month}-${day}T00:00:00.000Z`,
-    user_id: `u-${index + 1}`,
-    organization_id: "org_sanramon_1",
-    profiles: {
-      id: `u-${index + 1}`,
-      username: name.toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.+|\.+$/g, ""),
-      full_name: name,
-      avatar_url: null,
-    },
-  };
-});
+    return {
+      id: `m-${index + 1}`,
+      role,
+      joined_at: `2025-${month}-${day}T00:00:00.000Z`,
+      user_id: `u-${index + 1}`,
+      organization_id: "org_sanramon_1",
+      profiles: {
+        id: `u-${index + 1}`,
+        username: name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, ".")
+          .replace(/^\.+|\.+$/g, ""),
+        full_name: name,
+        avatar_url: null,
+      },
+    };
+  },
+);
 
 function oneTime(dateISO: string, start: string, end: string) {
   const date = dateISO.slice(0, 10);
@@ -515,7 +658,8 @@ const projectSeeds = [
   {
     id: "#p1",
     title: "Downtown Summer Market Support",
-    description: "Volunteer greeters, wayfinding, and vendor support for the city market.",
+    description:
+      "Volunteer greeters, wayfinding, and vendor support for the city market.",
     location: "San Ramon City Center",
     dateISO: "2026-07-19T00:00:00.000Z",
     status: "upcoming" as const,
@@ -526,7 +670,8 @@ const projectSeeds = [
   {
     id: "#p2",
     title: "Community Data Cleanup",
-    description: "A city records cleanup and intake shift that was paused before launch.",
+    description:
+      "A city records cleanup and intake shift that was paused before launch.",
     location: "City Hall Annex",
     dateISO: "2026-07-11T00:00:00.000Z",
     status: "cancelled" as const,
@@ -559,7 +704,8 @@ const projectSeeds = [
   {
     id: "#p5",
     title: "Bollinger Canyon Creek Cleanup",
-    description: "A community creek cleanup to protect local trails and wildlife.",
+    description:
+      "A community creek cleanup to protect local trails and wildlife.",
     location: "Bollinger Canyon Trailhead",
     dateISO: "2026-05-30T00:00:00.000Z",
     status: "completed" as const,
@@ -665,26 +811,35 @@ const mockProjects: Project[] = projectSeeds.map((project, index) => ({
   created_by_role: index < 2 ? "admin" : "staff",
 }));
 
-const nonCancelledProjects = mockProjects.filter((project) => getProjectStatus(project) !== "cancelled");
+const nonCancelledProjects = mockProjects.filter(
+  (project) => getProjectStatus(project) !== "cancelled",
+);
 const projectDates = nonCancelledProjects.map((project) => project.created_at);
 
 const demoMemberHourEntries = mockMembers.map((member, index) => {
   const projectOffset = index % nonCancelledProjects.length;
   const eventCount = 2 + (index % 4);
-  const events: DemoMemberEvent[] = Array.from({ length: eventCount }, (_, eventIndex) => {
-    const project = nonCancelledProjects[(projectOffset + eventIndex) % nonCancelledProjects.length];
-    const projectDate = projectDates[(projectOffset + eventIndex) % projectDates.length];
-    const hours = 1 + ((index + eventIndex) % 4) * 0.5;
+  const events: DemoMemberEvent[] = Array.from(
+    { length: eventCount },
+    (_, eventIndex) => {
+      const project =
+        nonCancelledProjects[
+          (projectOffset + eventIndex) % nonCancelledProjects.length
+        ];
+      const projectDate =
+        projectDates[(projectOffset + eventIndex) % projectDates.length];
+      const hours = 1 + ((index + eventIndex) % 4) * 0.5;
 
-    return {
-      id: `cert-${member.user_id}-${eventIndex + 1}`,
-      projectTitle: project.title,
-      eventDate: projectDate,
-      hours,
-      isCertified: eventIndex % 3 !== 0 || project.status === "completed",
-      organizationName: "San Ramon City Alliance",
-    };
-  });
+      return {
+        id: `cert-${member.user_id}-${eventIndex + 1}`,
+        projectTitle: project.title,
+        eventDate: projectDate,
+        hours,
+        isCertified: eventIndex % 3 !== 0 || project.status === "completed",
+        organizationName: "San Ramon City Alliance",
+      };
+    },
+  );
 
   const totalHours = events.reduce((sum, event) => sum + event.hours, 0);
   const lastEventDate = events[0]?.eventDate ?? "2026-01-01T00:00:00.000Z";
@@ -699,26 +854,36 @@ const demoMemberHourEntries = mockMembers.map((member, index) => {
   ] as const;
 });
 
-const demoMemberHours = Object.fromEntries(demoMemberHourEntries) as Record<string, DemoMemberHours>;
+const demoMemberHours = Object.fromEntries(demoMemberHourEntries) as Record<
+  string,
+  DemoMemberHours
+>;
 
 const demoMemberDetails = Object.fromEntries(
   demoMemberHourEntries.map(([userId, summary], index) => {
     const projectOffset = index % nonCancelledProjects.length;
     const eventCount = summary.eventCount;
-    const events: DemoMemberEvent[] = Array.from({ length: eventCount }, (_, eventIndex) => {
-      const project = nonCancelledProjects[(projectOffset + eventIndex) % nonCancelledProjects.length];
-      const projectDate = projectDates[(projectOffset + eventIndex) % projectDates.length];
-      const hours = 1 + ((index + eventIndex) % 4) * 0.5;
+    const events: DemoMemberEvent[] = Array.from(
+      { length: eventCount },
+      (_, eventIndex) => {
+        const project =
+          nonCancelledProjects[
+            (projectOffset + eventIndex) % nonCancelledProjects.length
+          ];
+        const projectDate =
+          projectDates[(projectOffset + eventIndex) % projectDates.length];
+        const hours = 1 + ((index + eventIndex) % 4) * 0.5;
 
-      return {
-        id: `cert-${userId}-${eventIndex + 1}`,
-        projectTitle: project.title,
-        eventDate: projectDate,
-        hours,
-        isCertified: eventIndex % 3 !== 0 || project.status === "completed",
-        organizationName: "San Ramon City Alliance",
-      };
-    });
+        return {
+          id: `cert-${userId}-${eventIndex + 1}`,
+          projectTitle: project.title,
+          eventDate: projectDate,
+          hours,
+          isCertified: eventIndex % 3 !== 0 || project.status === "completed",
+          organizationName: "San Ramon City Alliance",
+        };
+      },
+    );
 
     return [
       userId,
@@ -731,16 +896,28 @@ const demoMemberDetails = Object.fromEntries(
 ) as Record<string, { events: DemoMemberEvent[]; totalHours: number }>;
 
 const demoReportSummary = {
-  totalHours: Object.values(demoMemberHours).reduce((sum, entry) => sum + entry.totalHours, 0),
+  totalHours: Object.values(demoMemberHours).reduce(
+    (sum, entry) => sum + entry.totalHours,
+    0,
+  ),
   totalProjects: mockProjects.length,
-  upcomingProjects: mockProjects.filter((project) => getProjectStatus(project) === "upcoming").length,
-  completedProjects: mockProjects.filter((project) => getProjectStatus(project) === "completed").length,
-  cancelledProjects: mockProjects.filter((project) => getProjectStatus(project) === "cancelled").length,
-  activeProjects: mockProjects.filter((project) => getProjectStatus(project) === "in-progress").length,
+  upcomingProjects: mockProjects.filter(
+    (project) => getProjectStatus(project) === "upcoming",
+  ).length,
+  completedProjects: mockProjects.filter(
+    (project) => getProjectStatus(project) === "completed",
+  ).length,
+  cancelledProjects: mockProjects.filter(
+    (project) => getProjectStatus(project) === "cancelled",
+  ).length,
+  activeProjects: mockProjects.filter(
+    (project) => getProjectStatus(project) === "in-progress",
+  ).length,
   eventViews: 1842,
   engagementRate: 63,
   certificatesIssued: Object.values(demoMemberDetails).reduce(
-    (sum, entry) => sum + entry.events.filter((event) => event.isCertified).length,
+    (sum, entry) =>
+      sum + entry.events.filter((event) => event.isCertified).length,
     0,
   ),
 };
@@ -805,10 +982,34 @@ const citySyncSources: CitySyncSource[] = [
 ];
 
 const citySyncRuns = [
-  { id: "run_8f41", source: "Google Drive evidence", result: "23 files indexed", duration: "12.4s", status: "Success" },
-  { id: "run_8f40", source: "Volunteer roster sheet", result: "91 volunteers reconciled", duration: "7.8s", status: "Success" },
-  { id: "run_8f39", source: "Parks permits API", result: "Retry scheduled after 429", duration: "2.1s", status: "Warning" },
-  { id: "run_8f38", source: "AI intake classifier", result: "14 draft shifts created", duration: "31.6s", status: "Review" },
+  {
+    id: "run_8f41",
+    source: "Google Drive evidence",
+    result: "23 files indexed",
+    duration: "12.4s",
+    status: "Success",
+  },
+  {
+    id: "run_8f40",
+    source: "Volunteer roster sheet",
+    result: "91 volunteers reconciled",
+    duration: "7.8s",
+    status: "Success",
+  },
+  {
+    id: "run_8f39",
+    source: "Parks permits API",
+    result: "Retry scheduled after 429",
+    duration: "2.1s",
+    status: "Warning",
+  },
+  {
+    id: "run_8f38",
+    source: "AI intake classifier",
+    result: "14 draft shifts created",
+    duration: "31.6s",
+    status: "Review",
+  },
 ];
 
 function CityApiSyncPluginTab() {
@@ -821,13 +1022,17 @@ function CityApiSyncPluginTab() {
               <Badge variant="default">Enabled</Badge>
               <Badge variant="outline">city-api-sync</Badge>
               <Badge variant="secondary">v1.8.2</Badge>
-              <Badge variant="secondary" className="bg-success/10 text-success">Tenant isolated</Badge>
+              <Badge variant="secondary" className="bg-success/10 text-success">
+                Tenant isolated
+              </Badge>
             </div>
             <CardTitle className="text-2xl tracking-tight">
               City API Sync
             </CardTitle>
             <CardDescription>
-              Installed private plugin syncing San Ramon city permits, Drive evidence folders, Sheets rosters, Calendar operations, and AI-normalized intake records into this organization.
+              Installed private plugin syncing San Ramon city permits, Drive
+              evidence folders, Sheets rosters, Calendar operations, and
+              AI-normalized intake records into this organization.
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -851,9 +1056,14 @@ function CityApiSyncPluginTab() {
             ["Duplicates merged", "412", "last 30 days"],
             ["Approval SLA", "11 min", "median"],
           ].map(([label, value, helper]) => (
-            <div key={label} className="rounded-xl border border-border/70 bg-muted/20 p-4">
+            <div
+              key={label}
+              className="rounded-xl border border-border/70 bg-muted/20 p-4"
+            >
               <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
+              <p className="mt-1 text-2xl font-semibold tracking-tight">
+                {value}
+              </p>
               <p className="mt-1 text-xs text-muted-foreground">{helper}</p>
             </div>
           ))}
@@ -863,7 +1073,9 @@ function CityApiSyncPluginTab() {
           <div className="rounded-2xl border border-border/70 bg-muted/15">
             <div className="border-b border-border/70 p-4">
               <p className="text-sm font-semibold">Connected sources</p>
-              <p className="text-xs text-muted-foreground">Data sources owned by this organization only.</p>
+              <p className="text-xs text-muted-foreground">
+                Data sources owned by this organization only.
+              </p>
             </div>
             <div className="divide-y divide-border/70">
               {citySyncSources.map((source) => (
@@ -882,16 +1094,26 @@ function CityApiSyncPluginTab() {
                     )}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{source.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{source.key}</p>
+                    <p className="truncate text-sm font-medium">
+                      {source.name}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {source.key}
+                    </p>
                   </div>
                   <div className="hidden text-right text-xs text-muted-foreground sm:block">
                     <p>{source.rows}</p>
                     <p>{source.lastRun}</p>
                   </div>
                   <Badge
-                    variant={source.status === "Connected" ? "secondary" : "outline"}
-                    className={source.status === "Connected" ? "bg-success/10 text-success" : "text-info"}
+                    variant={
+                      source.status === "Connected" ? "secondary" : "outline"
+                    }
+                    className={
+                      source.status === "Connected"
+                        ? "bg-success/10 text-success"
+                        : "text-info"
+                    }
                   >
                     {source.status}
                   </Badge>
@@ -905,7 +1127,9 @@ function CityApiSyncPluginTab() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold">Plugin workflow</p>
-                  <p className="text-xs text-muted-foreground">Private queue, AI review, and scoped writes.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Private queue, AI review, and scoped writes.
+                  </p>
                 </div>
                 <Workflow className="h-5 w-5 text-primary" />
               </div>
@@ -916,7 +1140,10 @@ function CityApiSyncPluginTab() {
                   ["AI review", "draft shifts, classify waivers, flag risk"],
                   ["Publish", "organization-scoped projects and reports"],
                 ].map(([label, body]) => (
-                  <div key={label} className="flex items-center gap-3 rounded-lg border bg-background/70 p-3">
+                  <div
+                    key={label}
+                    className="flex items-center gap-3 rounded-lg border bg-background/70 p-3"
+                  >
                     <Check className="h-4 w-4 text-success" />
                     <div>
                       <p className="text-sm font-medium">{label}</p>
@@ -933,7 +1160,9 @@ function CityApiSyncPluginTab() {
                 Runtime boundary
               </div>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Reads and writes use organization-scoped plugin tables, explicit service routes, and audit logs. No other organization can query this plugin dataset.
+                Reads and writes use organization-scoped plugin tables, explicit
+                service routes, and audit logs. No other organization can query
+                this plugin dataset.
               </p>
             </div>
           </div>
@@ -959,12 +1188,22 @@ function CityApiSyncPluginTab() {
                   <tr key={run.id}>
                     <td className="px-4 py-3 font-mono text-xs">{run.id}</td>
                     <td className="px-4 py-3">{run.source}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{run.result}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{run.duration}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {run.result}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {run.duration}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge
-                        variant={run.status === "Success" ? "secondary" : "outline"}
-                        className={run.status === "Success" ? "bg-success/10 text-success" : "text-info"}
+                        variant={
+                          run.status === "Success" ? "secondary" : "outline"
+                        }
+                        className={
+                          run.status === "Success"
+                            ? "bg-success/10 text-success"
+                            : "text-info"
+                        }
                       >
                         {run.status}
                       </Badge>
@@ -998,7 +1237,8 @@ const demoMarketplacePlugins = [
     navLabel: "City API Sync",
     ownerName: "Lets Assist",
     ownerType: "Platform official",
-    description: "Sync city permit APIs, Drive folders, Sheets rosters, Calendar events, and AI intake review queues.",
+    description:
+      "Sync city permit APIs, Drive folders, Sheets rosters, Calendar events, and AI intake review queues.",
     installed: true,
     enabled: true,
     latestVersion: "1.8.2",
@@ -1015,7 +1255,8 @@ const demoMarketplacePlugins = [
     navLabel: "Integrations",
     ownerName: "Lets Assist",
     ownerType: "Platform official",
-    description: "Push approved projects, volunteer slots, attendance ledgers, and certificates to Google Sheets, Calendar, and Drive.",
+    description:
+      "Push approved projects, volunteer slots, attendance ledgers, and certificates to Google Sheets, Calendar, and Drive.",
     installed: true,
     enabled: true,
     latestVersion: "2.4.0",
@@ -1032,7 +1273,8 @@ const demoMarketplacePlugins = [
     navLabel: "Review",
     ownerName: "Lets Assist Labs",
     ownerType: "Platform official",
-    description: "Classifies imported forms, detects duplicate service requests, and drafts volunteer shifts for admin approval.",
+    description:
+      "Classifies imported forms, detects duplicate service requests, and drafts volunteer shifts for admin approval.",
     installed: false,
     enabled: false,
     latestVersion: "0.9.4",
@@ -1049,7 +1291,8 @@ const demoMarketplacePlugins = [
     navLabel: "Certificates",
     ownerName: "Lets Assist",
     ownerType: "Platform official",
-    description: "Batch-generate verified service certificates and export signed PDFs for district or nonprofit records.",
+    description:
+      "Batch-generate verified service certificates and export signed PDFs for district or nonprofit records.",
     installed: false,
     enabled: false,
     latestVersion: "1.2.6",
@@ -1087,11 +1330,20 @@ function DemoPluginCard({
             )}
             {isPrivate ? <Badge variant="destructive">Private</Badge> : null}
             {plugin.isForced ? (
-              <Badge variant="default" className="bg-amber-600 hover:bg-amber-600">Forced</Badge>
+              <Badge
+                variant="default"
+                className="bg-amber-600 hover:bg-amber-600"
+              >
+                Forced
+              </Badge>
             ) : null}
-            {plugin.updateAvailable ? <Badge variant="outline">Update</Badge> : null}
+            {plugin.updateAvailable ? (
+              <Badge variant="outline">Update</Badge>
+            ) : null}
           </div>
-          <p className="line-clamp-2 text-xs text-muted-foreground">{plugin.description}</p>
+          <p className="line-clamp-2 text-xs text-muted-foreground">
+            {plugin.description}
+          </p>
           <p className="text-xs text-muted-foreground">
             {plugin.ownerName} · {plugin.ownerType} ·{" "}
             {mode === "installed"
@@ -1131,7 +1383,8 @@ function DemoPluginCard({
 
 function DemoPluginMarketplace() {
   const [marketplaceSearch, setMarketplaceSearch] = useState("");
-  const [marketplaceFilter, setMarketplaceFilter] = useState<DemoMarketplaceFilter>("all");
+  const [marketplaceFilter, setMarketplaceFilter] =
+    useState<DemoMarketplaceFilter>("all");
 
   const filteredPlugins = useMemo(() => {
     const term = marketplaceSearch.trim().toLowerCase();
@@ -1151,24 +1404,37 @@ function DemoPluginMarketplace() {
         plugin.navLabel,
         plugin.ownerName,
         plugin.description,
-      ].join(" ").toLowerCase().includes(term);
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(term);
     });
   }, [marketplaceFilter, marketplaceSearch]);
 
-  const availablePlugins = filteredPlugins.filter((plugin) => !plugin.installed);
+  const availablePlugins = filteredPlugins.filter(
+    (plugin) => !plugin.installed,
+  );
   const installedPlugins = filteredPlugins.filter((plugin) => plugin.installed);
-  const installedCount = demoMarketplacePlugins.filter((plugin) => plugin.installed).length;
-  const enabledCount = demoMarketplacePlugins.filter((plugin) => plugin.enabled).length;
-  const updateCount = demoMarketplacePlugins.filter((plugin) => plugin.updateAvailable).length;
+  const installedCount = demoMarketplacePlugins.filter(
+    (plugin) => plugin.installed,
+  ).length;
+  const enabledCount = demoMarketplacePlugins.filter(
+    (plugin) => plugin.enabled,
+  ).length;
+  const updateCount = demoMarketplacePlugins.filter(
+    (plugin) => plugin.updateAvailable,
+  ).length;
 
   const marketplaceSections = (
     <>
-      {(marketplaceFilter === "all" || marketplaceFilter === "available") ? (
+      {marketplaceFilter === "all" || marketplaceFilter === "available" ? (
         <section className="flex flex-col gap-3 pt-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-sm font-semibold">Available to install</p>
-              <p className="text-xs text-muted-foreground">New plugins your organization can activate.</p>
+              <p className="text-xs text-muted-foreground">
+                New plugins your organization can activate.
+              </p>
             </div>
             <Badge variant="secondary">{availablePlugins.length}</Badge>
           </div>
@@ -1179,25 +1445,35 @@ function DemoPluginMarketplace() {
                   <Store />
                 </EmptyMedia>
                 <EmptyTitle>No available plugins in this view</EmptyTitle>
-                <EmptyDescription>Try switching filters or clearing the search query.</EmptyDescription>
+                <EmptyDescription>
+                  Try switching filters or clearing the search query.
+                </EmptyDescription>
               </EmptyHeader>
             </Empty>
           ) : (
             <div className="grid gap-3">
               {availablePlugins.map((plugin) => (
-                <DemoPluginCard key={plugin.key} plugin={plugin} mode="available" />
+                <DemoPluginCard
+                  key={plugin.key}
+                  plugin={plugin}
+                  mode="available"
+                />
               ))}
             </div>
           )}
         </section>
       ) : null}
 
-      {(marketplaceFilter === "all" || marketplaceFilter === "installed" || marketplaceFilter === "updates") ? (
+      {marketplaceFilter === "all" ||
+      marketplaceFilter === "installed" ||
+      marketplaceFilter === "updates" ? (
         <section className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-sm font-semibold">Installed plugins</p>
-              <p className="text-xs text-muted-foreground">Manage active plugins and update settings.</p>
+              <p className="text-xs text-muted-foreground">
+                Manage active plugins and update settings.
+              </p>
             </div>
             <Badge variant="secondary">{installedPlugins.length}</Badge>
           </div>
@@ -1208,13 +1484,19 @@ function DemoPluginMarketplace() {
                   <Puzzle />
                 </EmptyMedia>
                 <EmptyTitle>No installed plugins in this view</EmptyTitle>
-                <EmptyDescription>Install a plugin to configure and manage it here.</EmptyDescription>
+                <EmptyDescription>
+                  Install a plugin to configure and manage it here.
+                </EmptyDescription>
               </EmptyHeader>
             </Empty>
           ) : (
             <div className="grid gap-3">
               {installedPlugins.map((plugin) => (
-                <DemoPluginCard key={plugin.key} plugin={plugin} mode="installed" />
+                <DemoPluginCard
+                  key={plugin.key}
+                  plugin={plugin}
+                  mode="installed"
+                />
               ))}
             </div>
           )}
@@ -1228,7 +1510,9 @@ function DemoPluginMarketplace() {
               <Search />
             </EmptyMedia>
             <EmptyTitle>No matching plugins</EmptyTitle>
-            <EmptyDescription>Try a different search term or filter.</EmptyDescription>
+            <EmptyDescription>
+              Try a different search term or filter.
+            </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : null}
@@ -1239,7 +1523,10 @@ function DemoPluginMarketplace() {
     <Dialog>
       <DialogTrigger
         render={
-          <Button variant="outline" className="w-full sm:w-auto cursor-pointer hover:bg-muted">
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto cursor-pointer hover:bg-muted"
+          >
             <Store data-icon="inline-start" />
             Open plugin marketplace
           </Button>
@@ -1261,10 +1548,13 @@ function DemoPluginMarketplace() {
             <div className="flex flex-col gap-2">
               <p className="text-sm font-medium">Organization plugins</p>
               <p className="text-sm text-muted-foreground">
-                Install, update, and configure plugins scoped to this organization.
+                Install, update, and configure plugins scoped to this
+                organization.
               </p>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary">{demoMarketplacePlugins.length} available</Badge>
+                <Badge variant="secondary">
+                  {demoMarketplacePlugins.length} available
+                </Badge>
                 <Badge variant="secondary">{installedCount} installed</Badge>
                 <Badge variant="secondary">{enabledCount} enabled</Badge>
                 <Badge variant="secondary">{updateCount} update pending</Badge>
@@ -1277,7 +1567,9 @@ function DemoPluginMarketplace() {
 
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
             <div className="w-full lg:flex-1">
-              <FieldLabel htmlFor="demo-organization-plugin-search">Search plugins</FieldLabel>
+              <FieldLabel htmlFor="demo-organization-plugin-search">
+                Search plugins
+              </FieldLabel>
               <InputGroup className="mt-2">
                 <InputGroupAddon>
                   <Search />
@@ -1326,9 +1618,13 @@ function DemoPluginMarketplace() {
                 <AlertTriangle className="size-4 text-muted-foreground" />
               </span>
               <div className="flex flex-col gap-1">
-                <p className="text-sm font-semibold">Private plugin installs are scoped</p>
+                <p className="text-sm font-semibold">
+                  Private plugin installs are scoped
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  Plugin settings, data tables, AI usage, and sync jobs stay attached to this organization and its installed plugin version.
+                  Plugin settings, data tables, AI usage, and sync jobs stay
+                  attached to this organization and its installed plugin
+                  version.
                 </p>
               </div>
             </div>
@@ -1364,14 +1660,24 @@ export default function OrgToolingSection() {
           transition={{ duration: 0.5 }}
           className="text-center mx-auto max-w-3xl"
         >
-          <Badge variant="outline" className="mb-3 border-primary/40 bg-primary/10 text-primary">
+          <Badge
+            variant="outline"
+            className="mb-3 border-primary/40 bg-primary/10 text-primary"
+          >
             For organizations
           </Badge>
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            <AnimatedText text="The workspace SignUpGenius never built" mode="words" />
+            <AnimatedText
+              text="The workspace SignUpGenius never built"
+              mode="words"
+            />
           </h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
-            Run your volunteer program from one simple dashboard - no spreadsheets, no guesswork. Manage members and roles, verify hours with QR check-ins, auto-issue certificates, and export compliance-ready reports in seconds. Built for schools and nonprofits that need reliable, auditable volunteer records.
+            Run your volunteer program from one simple dashboard - no
+            spreadsheets, no guesswork. Manage members and roles, verify hours
+            with QR check-ins, auto-issue certificates, and export
+            compliance-ready reports in seconds. Built for schools and
+            nonprofits that need reliable, auditable volunteer records.
           </p>
         </motion.div>
 
@@ -1384,7 +1690,10 @@ export default function OrgToolingSection() {
         >
           <div className="pointer-events-none absolute -inset-x-8 -inset-y-6 rounded-3xl bg-[radial-gradient(40%_30%_at_30%_20%,--theme(--color-emerald-400/18%),transparent_70%),radial-gradient(30%_25%_at_70%_10%,--theme(--color-primary/16%),transparent_70%)] blur-2xl" />
           <div className="relative rounded-2xl border border-primary/20 bg-card/90 shadow-2xl backdrop-blur-xs">
-            <div className="p-4 sm:p-6" onClickCapture={handleMockOrganizationClick}>
+            <div
+              className="p-4 sm:p-6"
+              onClickCapture={handleMockOrganizationClick}
+            >
               <OrganizationHeader
                 organization={mockOrganization}
                 userRole="admin"
@@ -1402,9 +1711,9 @@ export default function OrgToolingSection() {
                   demoReportsContent={<OrganizationAnalyticsDemo />}
                   demoAdminToolsContent={<DemoPluginMarketplace />}
                   pluginTabs={demoPluginTabs}
-                demoMemberHours={demoMemberHours}
-                demoMemberDetails={demoMemberDetails}
-              />
+                  demoMemberHours={demoMemberHours}
+                  demoMemberDetails={demoMemberDetails}
+                />
               </div>
             </div>
           </div>
@@ -1413,12 +1722,18 @@ export default function OrgToolingSection() {
         <div className="mt-12 space-y-10">
           <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
             {orgFeatures.map((feat) => (
-                <Card key={feat.title} className="h-full border-border/60 bg-background/90 shadow-xs">
-                  <CardContent className="p-4">
+              <Card
+                key={feat.title}
+                className="h-full border-border/60 bg-background/90 shadow-xs"
+              >
+                <CardContent className="p-4">
                   {feat.logos ? (
                     <div className="mb-2 flex items-center gap-2">
                       {feat.logos.map((logo) => (
-                        <span key={logo.src} className="flex size-9 items-center justify-center rounded-lg border bg-background shadow-xs">
+                        <span
+                          key={logo.src}
+                          className="flex size-9 items-center justify-center rounded-lg border bg-background shadow-xs"
+                        >
                           <Image
                             src={logo.src}
                             alt={logo.alt}
@@ -1434,8 +1749,12 @@ export default function OrgToolingSection() {
                       <feat.icon className="h-4 w-4" />
                     </div>
                   )}
-                  <p className="text-sm font-semibold text-foreground">{feat.title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{feat.desc}</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {feat.title}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                    {feat.desc}
+                  </p>
                 </CardContent>
               </Card>
             ))}
@@ -1451,7 +1770,13 @@ export default function OrgToolingSection() {
             </Link>
             <Link
               href="/organization"
-              className={cn(buttonVariants({ size: "lg", variant: "outline", className: "gap-2" }))}
+              className={cn(
+                buttonVariants({
+                  size: "lg",
+                  variant: "outline",
+                  className: "gap-2",
+                }),
+              )}
             >
               Explore connected organizations
               <ArrowRight className="h-4 w-4" />

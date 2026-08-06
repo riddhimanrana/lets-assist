@@ -59,7 +59,8 @@ function portSet(value) {
 // Well-known SMTP submission ports plus whatever the isolated stack allocated
 // for Mailpit, supplied by the caller from the validated marker.
 const SMTP_PORTS = new Set([25, 465, 587, 2525]);
-for (const port of portSet(process.env.CRON_EGRESS_SMTP_PORTS)) SMTP_PORTS.add(port);
+for (const port of portSet(process.env.CRON_EGRESS_SMTP_PORTS))
+  SMTP_PORTS.add(port);
 
 // Loopback SMTP the caller has explicitly permitted. The app runner names its
 // own validated Mailpit port here; the cron harness names none.
@@ -69,7 +70,9 @@ const ALLOWED_SMTP_PORTS = portSet(process.env.CRON_EGRESS_ALLOWED_SMTP_PORTS);
 // arbitrary loopback service is refused rather than reached. When empty, every
 // loopback port stays reachable — the cron harness relies on that, because the
 // isolated Supabase API and database live on loopback too.
-const ALLOWED_LOOPBACK_PORTS = portSet(process.env.CRON_EGRESS_ALLOWED_LOOPBACK_PORTS);
+const ALLOWED_LOOPBACK_PORTS = portSet(
+  process.env.CRON_EGRESS_ALLOWED_LOOPBACK_PORTS,
+);
 
 function isRefusedSmtpPort(port) {
   return SMTP_PORTS.has(port) && !ALLOWED_SMTP_PORTS.has(port);
@@ -139,7 +142,9 @@ if (typeof realFetch === "function") {
         return Promise.reject(refuse("smtp-fetch", url.origin, url.pathname));
       }
       if (isRefusedLoopbackPort(port)) {
-        return Promise.reject(refuse("loopback-fetch", url.origin, url.pathname));
+        return Promise.reject(
+          refuse("loopback-fetch", url.origin, url.pathname),
+        );
       }
     } catch {
       // A target we cannot parse is a target we cannot prove is loopback.
@@ -175,7 +180,11 @@ function guardRequest(module, name, scheme) {
       throw refuse(scheme, "<unparseable>", name);
     }
     if (!isLoopbackHost(host)) {
-      throw refuse(scheme, `${scheme}://${host}${port ? `:${port}` : ""}`, name);
+      throw refuse(
+        scheme,
+        `${scheme}://${host}${port ? `:${port}` : ""}`,
+        name,
+      );
     }
     if (!port) port = defaultPortFor(`${scheme}:`);
     if (isRefusedSmtpPort(port)) {
@@ -226,7 +235,11 @@ net.Socket.prototype.connect = function guardedConnect(...args) {
     throw refuse("socket", `${host}:${port}`, "socket.connect");
   }
   if (isLoopbackHost(host) && isRefusedLoopbackPort(port)) {
-    throw refuse("loopback-socket", `${host || "127.0.0.1"}:${port}`, "socket.connect");
+    throw refuse(
+      "loopback-socket",
+      `${host || "127.0.0.1"}:${port}`,
+      "socket.connect",
+    );
   }
   return realSocketConnect.apply(this, args);
 };

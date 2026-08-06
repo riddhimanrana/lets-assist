@@ -2,7 +2,7 @@ name: Anonymous Profile Cleanup
 
 on:
   schedule:
-    - cron: '45 2 * * *' # Every day at 02:45 UTC
+    - cron: "45 2 * * *" # Every day at 02:45 UTC
   workflow_dispatch:
 
 permissions:

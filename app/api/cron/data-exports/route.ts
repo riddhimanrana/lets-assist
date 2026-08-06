@@ -10,12 +10,18 @@ function authorizeCronRequest(request: NextRequest) {
   if (!cronSecret) {
     return {
       ok: false,
-      response: NextResponse.json({ error: "Cron secret not configured" }, { status: 500 }),
+      response: NextResponse.json(
+        { error: "Cron secret not configured" },
+        { status: 500 },
+      ),
     };
   }
 
   if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
-    return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
   }
 
   return { ok: true } as const;
@@ -32,7 +38,10 @@ async function runProcessor(request: NextRequest) {
   if (probe) return probe;
 
   const limitParam = Number(request.nextUrl.searchParams.get("limit") || "5");
-  const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 25) : 5;
+  const limit =
+    Number.isFinite(limitParam) && limitParam > 0
+      ? Math.min(limitParam, 25)
+      : 5;
 
   try {
     const result = await processPendingDataExportJobs(limit);
@@ -40,7 +49,10 @@ async function runProcessor(request: NextRequest) {
   } catch (error) {
     console.error("Data export cron failed:", error);
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Internal server error" },
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : "Internal server error",
+      },
       { status: 500 },
     );
   }

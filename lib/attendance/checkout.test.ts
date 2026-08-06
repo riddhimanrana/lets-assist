@@ -8,10 +8,10 @@ import { resolveServerCheckoutTime } from "./checkout";
 const NOW = new Date("2026-07-11T20:00:00.000Z");
 
 test("participant checkout uses the supplied server clock", () => {
-  assert.deepEqual(
-    resolveServerCheckoutTime("2026-07-11T18:00:00.000Z", NOW),
-    { ok: true, checkOutTime: NOW.toISOString() },
-  );
+  assert.deepEqual(resolveServerCheckoutTime("2026-07-11T18:00:00.000Z", NOW), {
+    ok: true,
+    checkOutTime: NOW.toISOString(),
+  });
 });
 
 test("participant checkout rejects missing, malformed, and future check-ins", () => {
@@ -23,10 +23,10 @@ test("participant checkout rejects missing, malformed, and future check-ins", ()
     ok: false,
     reason: "invalid_check_in",
   });
-  assert.deepEqual(
-    resolveServerCheckoutTime("2026-07-11T21:00:00.000Z", NOW),
-    { ok: false, reason: "check_in_in_future" },
-  );
+  assert.deepEqual(resolveServerCheckoutTime("2026-07-11T21:00:00.000Z", NOW), {
+    ok: false,
+    reason: "check_in_in_future",
+  });
 });
 
 test("participant and organizer checkout paths enforce separate ownership boundaries", () => {
@@ -39,24 +39,15 @@ test("participant and organizer checkout paths enforce separate ownership bounda
     "utf8",
   );
   const organizerClient = readFileSync(
-    join(
-      process.cwd(),
-      "app/projects/[id]/attendance/AttendanceClient.tsx",
-    ),
+    join(process.cwd(), "app/projects/[id]/attendance/AttendanceClient.tsx"),
     "utf8",
   );
 
   assert.doesNotMatch(participantActions, /overrideTime/u);
-  assert.match(
-    participantActions,
-    /\.eq\("user_id", authenticatedUserId\)/u,
-  );
+  assert.match(participantActions, /\.eq\("user_id", authenticatedUserId\)/u);
   assert.match(participantActions, /verifyAttendanceCheckoutCapability/u);
   assert.match(participantActions, /complete_participant_checkout/u);
-  assert.doesNotMatch(
-    participantActions,
-    /\.update\(\{\s*check_out_time:/u,
-  );
+  assert.doesNotMatch(participantActions, /\.update\(\{\s*check_out_time:/u);
   assert.match(organizerActions, /export async function checkOutParticipant/u);
   assert.match(
     organizerActions,
@@ -90,10 +81,7 @@ test("database checkout is row-locked, one-shot, and bounded by the event window
     migration,
     /NEW\.project_id IS DISTINCT FROM OLD\.project_id[\s\S]*NEW\.anonymous_id IS DISTINCT FROM OLD\.anonymous_id/u,
   );
-  assert.match(
-    migration,
-    /participants may only cancel their own signup/u,
-  );
+  assert.match(migration, /participants may only cancel their own signup/u);
   assert.match(migration, /OLD\.status IN \('pending', 'approved'\)/u);
   assert.match(
     migration,

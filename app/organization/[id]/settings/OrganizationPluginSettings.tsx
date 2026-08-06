@@ -65,12 +65,18 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import type { OrganizationPluginAdminSetting, OrganizationPluginScope } from "@/types";
+import type {
+  OrganizationPluginAdminSetting,
+  OrganizationPluginScope,
+} from "@/types";
 import {
   getOrganizationPluginSettings,
   setOrganizationPluginInstallState,
@@ -98,12 +104,7 @@ type ConfigSchemaProperty = NonNullable<
 >["properties"][string];
 
 type ConfigFieldKind =
-  | "text"
-  | "textarea"
-  | "number"
-  | "boolean"
-  | "enum"
-  | "unsupported";
+  "text" | "textarea" | "number" | "boolean" | "enum" | "unsupported";
 
 type ConfigFieldDescriptor = {
   key: string;
@@ -141,7 +142,9 @@ function decodeEnumValue(value: string): unknown {
   }
 }
 
-function resolveConfigFieldKind(property: ConfigSchemaProperty): ConfigFieldKind {
+function resolveConfigFieldKind(
+  property: ConfigSchemaProperty,
+): ConfigFieldKind {
   if (Array.isArray(property.enum) && property.enum.length > 0) {
     return "enum";
   }
@@ -226,7 +229,9 @@ function formatLastUpdated(lastUpdatedAt: string | null | undefined): string {
 export default function OrganizationPluginSettings({
   organizationId,
 }: OrganizationPluginSettingsProps) {
-  const [result, setResult] = useState<OrganizationPluginSettingsResult | null>(null);
+  const [result, setResult] = useState<OrganizationPluginSettingsResult | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [updatingActionId, setUpdatingActionId] = useState<string | null>(null);
   const [marketplaceOpen, setMarketplaceOpen] = useState(false);
@@ -236,17 +241,22 @@ export default function OrganizationPluginSettings({
   const [pluginActionConfirmation, setPluginActionConfirmation] =
     useState<PluginActionConfirmation>(null);
   const [installConsentChecked, setInstallConsentChecked] = useState(false);
-  const [settingsPluginKey, setSettingsPluginKey] = useState<string | null>(null);
+  const [settingsPluginKey, setSettingsPluginKey] = useState<string | null>(
+    null,
+  );
   const [settingsEditorMode, setSettingsEditorMode] =
     useState<SettingsEditorMode>("json");
-  const [settingsValues, setSettingsValues] = useState<Record<string, unknown>>({});
+  const [settingsValues, setSettingsValues] = useState<Record<string, unknown>>(
+    {},
+  );
   const [settingsJson, setSettingsJson] = useState("{}");
   const [settingsSaving, setSettingsSaving] = useState(false);
 
   const loadSettings = useCallback(async () => {
     try {
       setLoading(true);
-      const settingsResult = await getOrganizationPluginSettings(organizationId);
+      const settingsResult =
+        await getOrganizationPluginSettings(organizationId);
       setResult(settingsResult);
     } catch {
       setResult({
@@ -274,7 +284,9 @@ export default function OrganizationPluginSettings({
   const updateCount = useMemo(
     () =>
       plugins.filter(
-        (plugin) => plugin.installed && (plugin.updateAvailable || plugin.forceUpdateRequired),
+        (plugin) =>
+          plugin.installed &&
+          (plugin.updateAvailable || plugin.forceUpdateRequired),
       ).length,
     [plugins],
   );
@@ -419,7 +431,10 @@ export default function OrganizationPluginSettings({
       return;
     }
 
-    if (pluginActionConfirmation.intent === "install" && !installConsentChecked) {
+    if (
+      pluginActionConfirmation.intent === "install" &&
+      !installConsentChecked
+    ) {
       toast.error("Please confirm plugin data access before installing.");
       return;
     }
@@ -568,35 +583,45 @@ export default function OrganizationPluginSettings({
     await loadSettings();
   };
 
-  const renderAvailablePluginCard = (plugin: OrganizationPluginAdminSetting) => {
+  const renderAvailablePluginCard = (
+    plugin: OrganizationPluginAdminSetting,
+  ) => {
     const isInstallUpdating = updatingActionId === `${plugin.key}:install`;
-    const isPrivatePlugin = plugin.visibility === "private" || plugin.privateCodebase;
+    const isPrivatePlugin =
+      plugin.visibility === "private" || plugin.privateCodebase;
     const canInstall = plugin.entitled && plugin.availableInRuntime;
 
     return (
-      <div key={plugin.key} className="rounded-lg border border-border/70 bg-background px-3 py-3">
+      <div
+        key={plugin.key}
+        className="rounded-lg border border-border/70 bg-background px-3 py-3"
+      >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex flex-1 flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-sm font-semibold">{plugin.name}</p>
               <Badge variant="outline">{plugin.navLabel}</Badge>
-              {isPrivatePlugin && (
-                <Badge variant="destructive">Private</Badge>
-              )}
+              {isPrivatePlugin && <Badge variant="destructive">Private</Badge>}
               {plugin.isForced && (
-                <Badge variant="default" className="bg-amber-600 hover:bg-amber-600">Forced</Badge>
+                <Badge
+                  variant="default"
+                  className="bg-amber-600 hover:bg-amber-600"
+                >
+                  Forced
+                </Badge>
               )}
-              {!isPrivatePlugin && (
-                <Badge variant="secondary">Available</Badge>
-              )}
+              {!isPrivatePlugin && <Badge variant="secondary">Available</Badge>}
             </div>
 
             <p className="line-clamp-2 text-xs text-muted-foreground">
-              {plugin.detailedDescription || plugin.description || "No description available."}
+              {plugin.detailedDescription ||
+                plugin.description ||
+                "No description available."}
             </p>
 
             <p className="text-xs text-muted-foreground">
-              {plugin.ownerName} · {formatOwnerTypeLabel(plugin.ownerType)} · v{plugin.latestVersion}
+              {plugin.ownerName} · {formatOwnerTypeLabel(plugin.ownerType)} · v
+              {plugin.latestVersion}
               {plugin.requiredScopes.length > 0
                 ? ` · ${plugin.requiredScopes.length} permission${plugin.requiredScopes.length === 1 ? "" : "s"}`
                 : ""}
@@ -636,12 +661,16 @@ export default function OrganizationPluginSettings({
     );
   };
 
-  const renderInstalledPluginCard = (plugin: OrganizationPluginAdminSetting) => {
+  const renderInstalledPluginCard = (
+    plugin: OrganizationPluginAdminSetting,
+  ) => {
     const isToggleUpdating = updatingActionId === `${plugin.key}:toggle`;
     const isVersionUpdating = updatingActionId === `${plugin.key}:update`;
     const isUninstalling = updatingActionId === `${plugin.key}:uninstall`;
-    const isPrivatePlugin = plugin.visibility === "private" || plugin.privateCodebase;
-    const canToggle = plugin.entitled && plugin.availableInRuntime && !plugin.isForced;
+    const isPrivatePlugin =
+      plugin.visibility === "private" || plugin.privateCodebase;
+    const canToggle =
+      plugin.entitled && plugin.availableInRuntime && !plugin.isForced;
     const canUninstall = plugin.installed && !plugin.isForced;
     const canUpdate =
       plugin.availableInRuntime &&
@@ -649,7 +678,10 @@ export default function OrganizationPluginSettings({
       (plugin.updateAvailable || plugin.forceUpdateRequired);
 
     return (
-      <div key={plugin.key} className="rounded-lg border border-border/70 bg-background px-3 py-3">
+      <div
+        key={plugin.key}
+        className="rounded-lg border border-border/70 bg-background px-3 py-3"
+      >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex flex-1 flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-2">
@@ -658,19 +690,31 @@ export default function OrganizationPluginSettings({
                 {plugin.enabled ? "Enabled" : "Disabled"}
               </Badge>
               {plugin.isForced && (
-                <Badge variant="default" className="bg-amber-600 hover:bg-amber-600">Forced</Badge>
+                <Badge
+                  variant="default"
+                  className="bg-amber-600 hover:bg-amber-600"
+                >
+                  Forced
+                </Badge>
               )}
-              {plugin.updateAvailable ? <Badge variant="outline">Update</Badge> : null}
-              {plugin.forceUpdateRequired ? <Badge variant="destructive">Required</Badge> : null}
+              {plugin.updateAvailable ? (
+                <Badge variant="outline">Update</Badge>
+              ) : null}
+              {plugin.forceUpdateRequired ? (
+                <Badge variant="destructive">Required</Badge>
+              ) : null}
             </div>
 
             <p className="line-clamp-2 text-xs text-muted-foreground">
-              {plugin.detailedDescription || plugin.description || "No description available."}
+              {plugin.detailedDescription ||
+                plugin.description ||
+                "No description available."}
             </p>
 
             <p className="text-xs text-muted-foreground">
-              {plugin.ownerName} · {formatOwnerTypeLabel(plugin.ownerType)} · Installed{" "}
-              {plugin.installedVersion || plugin.latestVersion} · Updated {formatLastUpdated(plugin.lastUpdatedAt)}
+              {plugin.ownerName} · {formatOwnerTypeLabel(plugin.ownerType)} ·
+              Installed {plugin.installedVersion || plugin.latestVersion} ·
+              Updated {formatLastUpdated(plugin.lastUpdatedAt)}
             </p>
 
             {!plugin.availableInRuntime ? (
@@ -679,7 +723,8 @@ export default function OrganizationPluginSettings({
               </p>
             ) : null}
 
-            {plugin.blockedReason && !plugin.availableInRuntime ? null : plugin.blockedReason ? (
+            {plugin.blockedReason &&
+            !plugin.availableInRuntime ? null : plugin.blockedReason ? (
               <p className="text-xs text-destructive">{plugin.blockedReason}</p>
             ) : null}
           </div>
@@ -708,7 +753,10 @@ export default function OrganizationPluginSettings({
               >
                 {isVersionUpdating ? (
                   <>
-                    <Loader2 data-icon="inline-start" className="animate-spin" />
+                    <Loader2
+                      data-icon="inline-start"
+                      className="animate-spin"
+                    />
                     Updating…
                   </>
                 ) : (
@@ -793,7 +841,9 @@ export default function OrganizationPluginSettings({
               </EmptyHeader>
             </Empty>
           ) : (
-            <div className="grid gap-3">{availablePlugins.map(renderAvailablePluginCard)}</div>
+            <div className="grid gap-3">
+              {availablePlugins.map(renderAvailablePluginCard)}
+            </div>
           )}
         </section>
       ) : null}
@@ -823,7 +873,9 @@ export default function OrganizationPluginSettings({
               </EmptyHeader>
             </Empty>
           ) : (
-            <div className="grid gap-3">{installedPlugins.map(renderInstalledPluginCard)}</div>
+            <div className="grid gap-3">
+              {installedPlugins.map(renderInstalledPluginCard)}
+            </div>
           )}
         </section>
       ) : null}
@@ -835,7 +887,9 @@ export default function OrganizationPluginSettings({
               <Search />
             </EmptyMedia>
             <EmptyTitle>No matching plugins</EmptyTitle>
-            <EmptyDescription>Try a different search term or filter.</EmptyDescription>
+            <EmptyDescription>
+              Try a different search term or filter.
+            </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : null}
@@ -851,7 +905,8 @@ export default function OrganizationPluginSettings({
             Organization Plugins
           </CardTitle>
           <CardDescription>
-            Browse available plugins, install what you need, and manage per-plugin settings.
+            Browse available plugins, install what you need, and manage
+            per-plugin settings.
           </CardDescription>
         </CardHeader>
 
@@ -883,13 +938,20 @@ export default function OrganizationPluginSettings({
                 <div className="flex flex-col gap-2">
                   <p className="text-sm font-medium">Plugin marketplace</p>
                   <p className="text-sm text-muted-foreground">
-                    Discover public plugins and configure each one for your organization.
+                    Discover public plugins and configure each one for your
+                    organization.
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">{plugins.length} available</Badge>
-                    <Badge variant="secondary">{installedCount} installed</Badge>
+                    <Badge variant="secondary">
+                      {plugins.length} available
+                    </Badge>
+                    <Badge variant="secondary">
+                      {installedCount} installed
+                    </Badge>
                     <Badge variant="secondary">{enabledCount} enabled</Badge>
-                    <Badge variant="secondary">{updateCount} updates pending</Badge>
+                    <Badge variant="secondary">
+                      {updateCount} updates pending
+                    </Badge>
                   </div>
                 </div>
 
@@ -911,7 +973,8 @@ export default function OrganizationPluginSettings({
                     </EmptyMedia>
                     <EmptyTitle>No plugins yet</EmptyTitle>
                     <EmptyDescription>
-                      As new plugins are released, they&apos;ll appear here automatically.
+                      As new plugins are released, they&apos;ll appear here
+                      automatically.
                     </EmptyDescription>
                   </EmptyHeader>
                 </Empty>
@@ -923,15 +986,22 @@ export default function OrganizationPluginSettings({
                     <Columns3Cog className="size-4 text-muted-foreground" />
                   </span>
                   <div className="flex flex-col gap-2">
-                    <p className="text-sm font-semibold">Want something custom?</p>
+                    <p className="text-sm font-semibold">
+                      Want something custom?
+                    </p>
                     <p className="text-sm text-muted-foreground">
-                      Email <a href="mailto:contact@lets-assist.com">contact@lets-assist.com</a> and
-                      we can build a custom plugin for your organization.
+                      Email{" "}
+                      <a href="mailto:contact@lets-assist.com">
+                        contact@lets-assist.com
+                      </a>{" "}
+                      and we can build a custom plugin for your organization.
                     </p>
                     <div className="ml-5 flex list-disc flex-col gap-1 text-sm text-muted-foreground">
                       <li>Describe the workflow you want to automate.</li>
                       <li>Share required integrations and data sources.</li>
-                      <li>Include your timeline, team size, and desired outcomes.</li>
+                      <li>
+                        Include your timeline, team size, and desired outcomes.
+                      </li>
                     </div>
                   </div>
                 </div>
@@ -956,7 +1026,9 @@ export default function OrganizationPluginSettings({
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
               <Field className="w-full lg:flex-1">
-                <FieldLabel htmlFor="organization-plugin-search">Search plugins</FieldLabel>
+                <FieldLabel htmlFor="organization-plugin-search">
+                  Search plugins
+                </FieldLabel>
                 <FieldContent>
                   <InputGroup>
                     <InputGroupAddon>
@@ -966,7 +1038,9 @@ export default function OrganizationPluginSettings({
                       id="organization-plugin-search"
                       placeholder="Search by name, key, owner, or description"
                       value={marketplaceSearch}
-                      onChange={(event) => setMarketplaceSearch(event.target.value)}
+                      onChange={(event) =>
+                        setMarketplaceSearch(event.target.value)
+                      }
                     />
                   </InputGroup>
                 </FieldContent>
@@ -992,14 +1066,18 @@ export default function OrganizationPluginSettings({
                   <ToggleGroupItem value="all">All</ToggleGroupItem>
                   <ToggleGroupItem value="installed">Installed</ToggleGroupItem>
                   <ToggleGroupItem value="available">Available</ToggleGroupItem>
-                  <ToggleGroupItem value="updates">Needs update</ToggleGroupItem>
+                  <ToggleGroupItem value="updates">
+                    Needs update
+                  </ToggleGroupItem>
                 </ToggleGroup>
               </div>
             </div>
 
             {useMarketplaceScroll ? (
               <ScrollArea className="max-h-120 rounded-2xl border">
-                <div className="flex flex-col gap-6 p-4">{marketplaceSections}</div>
+                <div className="flex flex-col gap-6 p-4">
+                  {marketplaceSections}
+                </div>
               </ScrollArea>
             ) : (
               <div className="rounded-2xl border p-4">
@@ -1057,12 +1135,16 @@ export default function OrganizationPluginSettings({
                         <span className="text-sm font-medium text-foreground">
                           {activePluginAction.name}
                         </span>
-                        <Badge variant="secondary" className="px-1.5 py-0 text-[10px] uppercase tracking-wide">
+                        <Badge
+                          variant="secondary"
+                          className="px-1.5 py-0 text-[10px] uppercase tracking-wide"
+                        >
                           {formatOwnerTypeLabel(activePluginAction.ownerType)}
                         </Badge>
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        by {activePluginAction.ownerName} &middot; v{activePluginAction.version}
+                        by {activePluginAction.ownerName} &middot; v
+                        {activePluginAction.version}
                       </span>
                       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                         {activePluginAction.detailedDescription}
@@ -1109,7 +1191,8 @@ export default function OrganizationPluginSettings({
                   <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 flex items-start gap-3">
                     <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
                     <p className="text-sm text-destructive font-medium leading-relaxed">
-                      All plugin workflows will stop, and your settings will be permanently lost. This cannot be undone.
+                      All plugin workflows will stop, and your settings will be
+                      permanently lost. This cannot be undone.
                     </p>
                   </div>
                 )}
@@ -1120,10 +1203,13 @@ export default function OrganizationPluginSettings({
                   <label className="flex cursor-pointer items-center gap-3 rounded-md px-1 py-1 hover:bg-muted/50 group transition-colors">
                     <Checkbox
                       checked={installConsentChecked}
-                      onCheckedChange={(checked) => setInstallConsentChecked(checked === true)}
+                      onCheckedChange={(checked) =>
+                        setInstallConsentChecked(checked === true)
+                      }
                     />
                     <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
-                      I approve installing this plugin and grant the requested access.
+                      I approve installing this plugin and grant the requested
+                      access.
                     </span>
                   </label>
                 )}
@@ -1135,18 +1221,25 @@ export default function OrganizationPluginSettings({
                   >
                     Cancel
                   </AlertDialogCancel>
-                    <AlertDialogAction
+                  <AlertDialogAction
                     variant={isInstallAction ? "default" : "destructive"}
                     onClick={(e) => {
                       e.preventDefault();
                       void handleConfirmPluginAction();
                     }}
-                    disabled={isPluginActionSubmitting || (isInstallAction && !installConsentChecked) || (!isInstallAction && activePluginAction?.isForced)}
+                    disabled={
+                      isPluginActionSubmitting ||
+                      (isInstallAction && !installConsentChecked) ||
+                      (!isInstallAction && activePluginAction?.isForced)
+                    }
                     className="w-full sm:w-auto sm:flex-1 mt-2 sm:mt-0 sm:ml-2"
                   >
                     {isPluginActionSubmitting ? (
                       <>
-                        <Loader2 data-icon="inline-start" className="animate-spin" />
+                        <Loader2
+                          data-icon="inline-start"
+                          className="animate-spin"
+                        />
                         {isInstallAction ? "Installing…" : "Removing…"}
                       </>
                     ) : isInstallAction ? (
@@ -1175,10 +1268,13 @@ export default function OrganizationPluginSettings({
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {activeSettingsPlugin ? `${activeSettingsPlugin.name} settings` : "Plugin settings"}
+              {activeSettingsPlugin
+                ? `${activeSettingsPlugin.name} settings`
+                : "Plugin settings"}
             </DialogTitle>
             <DialogDescription>
-              Configure this plugin for your organization. Changes apply only to your organization.
+              Configure this plugin for your organization. Changes apply only to
+              your organization.
             </DialogDescription>
           </DialogHeader>
 
@@ -1186,14 +1282,16 @@ export default function OrganizationPluginSettings({
             <div className="flex flex-col gap-4">
               <div className="rounded-lg border bg-muted/25 p-3 text-xs text-muted-foreground">
                 <p>
-                  Plugin key <span className="font-mono">{activeSettingsPlugin.key}</span>
+                  Plugin key{" "}
+                  <span className="font-mono">{activeSettingsPlugin.key}</span>
                 </p>
                 <p className="mt-1">
                   Owner: {activeSettingsPlugin.ownerName} ·{" "}
                   {formatOwnerTypeLabel(activeSettingsPlugin.ownerType)}
                 </p>
                 <p className="mt-1">
-                  Last updated {formatLastUpdated(activeSettingsPlugin.lastUpdatedAt)}
+                  Last updated{" "}
+                  {formatLastUpdated(activeSettingsPlugin.lastUpdatedAt)}
                 </p>
               </div>
 
@@ -1220,7 +1318,8 @@ export default function OrganizationPluginSettings({
                     <>
                       <FieldGroup>
                         {guidedFields.map((field) => {
-                          const rawValue = settingsValues[field.key] ?? field.property.default;
+                          const rawValue =
+                            settingsValues[field.key] ?? field.property.default;
 
                           if (field.kind === "boolean") {
                             return (
@@ -1229,15 +1328,22 @@ export default function OrganizationPluginSettings({
                                   id={`plugin-setting-${field.key}`}
                                   checked={Boolean(rawValue)}
                                   onCheckedChange={(checked) =>
-                                    handleSettingsValueChange(field.key, checked)
+                                    handleSettingsValueChange(
+                                      field.key,
+                                      checked,
+                                    )
                                   }
                                 />
                                 <FieldContent>
-                                  <FieldLabel htmlFor={`plugin-setting-${field.key}`}>
+                                  <FieldLabel
+                                    htmlFor={`plugin-setting-${field.key}`}
+                                  >
                                     {field.label}
                                   </FieldLabel>
                                   {field.property.description ? (
-                                    <FieldDescription>{field.property.description}</FieldDescription>
+                                    <FieldDescription>
+                                      {field.property.description}
+                                    </FieldDescription>
                                   ) : null}
                                 </FieldContent>
                               </Field>
@@ -1253,13 +1359,17 @@ export default function OrganizationPluginSettings({
                               rawValue === undefined
                                 ? "__default__"
                                 : encodeEnumValue(rawValue);
-                            const selectedValue = encodedValues.includes(encodedCurrent)
+                            const selectedValue = encodedValues.includes(
+                              encodedCurrent,
+                            )
                               ? encodedCurrent
                               : "__default__";
 
                             return (
                               <Field key={field.key}>
-                                <FieldLabel htmlFor={`plugin-setting-${field.key}`}>
+                                <FieldLabel
+                                  htmlFor={`plugin-setting-${field.key}`}
+                                >
                                   {field.label}
                                   {field.required ? " *" : ""}
                                 </FieldLabel>
@@ -1270,7 +1380,10 @@ export default function OrganizationPluginSettings({
                                     onChange={(event) => {
                                       const selected = event.target.value;
                                       if (selected === "__default__") {
-                                        handleSettingsValueChange(field.key, undefined);
+                                        handleSettingsValueChange(
+                                          field.key,
+                                          undefined,
+                                        );
                                         return;
                                       }
 
@@ -1296,7 +1409,9 @@ export default function OrganizationPluginSettings({
                                     })}
                                   </NativeSelect>
                                   {field.property.description ? (
-                                    <FieldDescription>{field.property.description}</FieldDescription>
+                                    <FieldDescription>
+                                      {field.property.description}
+                                    </FieldDescription>
                                   ) : null}
                                 </FieldContent>
                               </Field>
@@ -1306,7 +1421,9 @@ export default function OrganizationPluginSettings({
                           if (field.kind === "number") {
                             return (
                               <Field key={field.key}>
-                                <FieldLabel htmlFor={`plugin-setting-${field.key}`}>
+                                <FieldLabel
+                                  htmlFor={`plugin-setting-${field.key}`}
+                                >
                                   {field.label}
                                   {field.required ? " *" : ""}
                                 </FieldLabel>
@@ -1315,14 +1432,19 @@ export default function OrganizationPluginSettings({
                                     id={`plugin-setting-${field.key}`}
                                     type="number"
                                     value={
-                                      rawValue === undefined || rawValue === null
+                                      rawValue === undefined ||
+                                      rawValue === null
                                         ? ""
                                         : String(rawValue)
                                     }
                                     onChange={(event) => {
-                                      const nextValue = event.target.value.trim();
+                                      const nextValue =
+                                        event.target.value.trim();
                                       if (!nextValue) {
-                                        handleSettingsValueChange(field.key, undefined);
+                                        handleSettingsValueChange(
+                                          field.key,
+                                          undefined,
+                                        );
                                         return;
                                       }
 
@@ -1332,12 +1454,17 @@ export default function OrganizationPluginSettings({
                                           : Number.parseFloat(nextValue);
 
                                       if (!Number.isNaN(parsedNumber)) {
-                                        handleSettingsValueChange(field.key, parsedNumber);
+                                        handleSettingsValueChange(
+                                          field.key,
+                                          parsedNumber,
+                                        );
                                       }
                                     }}
                                   />
                                   {field.property.description ? (
-                                    <FieldDescription>{field.property.description}</FieldDescription>
+                                    <FieldDescription>
+                                      {field.property.description}
+                                    </FieldDescription>
                                   ) : null}
                                 </FieldContent>
                               </Field>
@@ -1347,21 +1474,32 @@ export default function OrganizationPluginSettings({
                           if (field.kind === "textarea") {
                             return (
                               <Field key={field.key}>
-                                <FieldLabel htmlFor={`plugin-setting-${field.key}`}>
+                                <FieldLabel
+                                  htmlFor={`plugin-setting-${field.key}`}
+                                >
                                   {field.label}
                                   {field.required ? " *" : ""}
                                 </FieldLabel>
                                 <FieldContent>
                                   <Textarea
                                     id={`plugin-setting-${field.key}`}
-                                    value={typeof rawValue === "string" ? rawValue : ""}
+                                    value={
+                                      typeof rawValue === "string"
+                                        ? rawValue
+                                        : ""
+                                    }
                                     onChange={(event) =>
-                                      handleSettingsValueChange(field.key, event.target.value)
+                                      handleSettingsValueChange(
+                                        field.key,
+                                        event.target.value,
+                                      )
                                     }
                                     className="min-h-28"
                                   />
                                   {field.property.description ? (
-                                    <FieldDescription>{field.property.description}</FieldDescription>
+                                    <FieldDescription>
+                                      {field.property.description}
+                                    </FieldDescription>
                                   ) : null}
                                 </FieldContent>
                               </Field>
@@ -1370,20 +1508,29 @@ export default function OrganizationPluginSettings({
 
                           return (
                             <Field key={field.key}>
-                              <FieldLabel htmlFor={`plugin-setting-${field.key}`}>
+                              <FieldLabel
+                                htmlFor={`plugin-setting-${field.key}`}
+                              >
                                 {field.label}
                                 {field.required ? " *" : ""}
                               </FieldLabel>
                               <FieldContent>
                                 <Input
                                   id={`plugin-setting-${field.key}`}
-                                  value={typeof rawValue === "string" ? rawValue : ""}
+                                  value={
+                                    typeof rawValue === "string" ? rawValue : ""
+                                  }
                                   onChange={(event) =>
-                                    handleSettingsValueChange(field.key, event.target.value)
+                                    handleSettingsValueChange(
+                                      field.key,
+                                      event.target.value,
+                                    )
                                   }
                                 />
                                 {field.property.description ? (
-                                  <FieldDescription>{field.property.description}</FieldDescription>
+                                  <FieldDescription>
+                                    {field.property.description}
+                                  </FieldDescription>
                                 ) : null}
                               </FieldContent>
                             </Field>
@@ -1395,7 +1542,8 @@ export default function OrganizationPluginSettings({
                         <Alert>
                           <AlertTitle>No guided fields detected</AlertTitle>
                           <AlertDescription>
-                            This plugin currently needs JSON mode for configuration.
+                            This plugin currently needs JSON mode for
+                            configuration.
                           </AlertDescription>
                         </Alert>
                       ) : null}
@@ -1405,7 +1553,8 @@ export default function OrganizationPluginSettings({
                           <AlertTitle>Some fields require JSON mode</AlertTitle>
                           <AlertDescription>
                             {unsupportedFieldCount} advanced field
-                            {unsupportedFieldCount === 1 ? "" : "s"} can only be edited in JSON mode.
+                            {unsupportedFieldCount === 1 ? "" : "s"} can only be
+                            edited in JSON mode.
                           </AlertDescription>
                         </Alert>
                       ) : null}
@@ -1413,16 +1562,21 @@ export default function OrganizationPluginSettings({
                   ) : (
                     <FieldGroup>
                       <Field>
-                        <FieldLabel htmlFor="plugin-settings-json">Settings JSON</FieldLabel>
+                        <FieldLabel htmlFor="plugin-settings-json">
+                          Settings JSON
+                        </FieldLabel>
                         <FieldContent>
                           <Textarea
                             id="plugin-settings-json"
                             className="min-h-56 font-mono text-xs"
                             value={settingsJson}
-                            onChange={(event) => setSettingsJson(event.target.value)}
+                            onChange={(event) =>
+                              setSettingsJson(event.target.value)
+                            }
                           />
                           <FieldDescription>
-                            Use JSON mode for advanced fields and nested objects.
+                            Use JSON mode for advanced fields and nested
+                            objects.
                           </FieldDescription>
                         </FieldContent>
                       </Field>
@@ -1432,16 +1586,21 @@ export default function OrganizationPluginSettings({
               ) : (
                 <FieldGroup>
                   <Field>
-                    <FieldLabel htmlFor="plugin-settings-json">Settings JSON</FieldLabel>
+                    <FieldLabel htmlFor="plugin-settings-json">
+                      Settings JSON
+                    </FieldLabel>
                     <FieldContent>
                       <Textarea
                         id="plugin-settings-json"
                         className="min-h-56 font-mono text-xs"
                         value={settingsJson}
-                        onChange={(event) => setSettingsJson(event.target.value)}
+                        onChange={(event) =>
+                          setSettingsJson(event.target.value)
+                        }
                       />
                       <FieldDescription>
-                        This plugin does not expose a guided schema yet, so JSON mode is used.
+                        This plugin does not expose a guided schema yet, so JSON
+                        mode is used.
                       </FieldDescription>
                     </FieldContent>
                   </Field>
@@ -1457,10 +1616,17 @@ export default function OrganizationPluginSettings({
                 >
                   Cancel
                 </Button>
-                <Button type="button" onClick={handleSaveSettings} disabled={settingsSaving}>
+                <Button
+                  type="button"
+                  onClick={handleSaveSettings}
+                  disabled={settingsSaving}
+                >
                   {settingsSaving ? (
                     <>
-                      <Loader2 data-icon="inline-start" className="animate-spin" />
+                      <Loader2
+                        data-icon="inline-start"
+                        className="animate-spin"
+                      />
                       Saving…
                     </>
                   ) : (

@@ -23,17 +23,12 @@ test("calendar cron sync is internal and the Server Action always authorizes", (
     actions,
     /export async function syncOrganizationCalendarNow\([\s\S]*?assertOrgAccess\(organizationId, true\)/u,
   );
-  assert.match(
-    cronRoute,
-    /from "@\/lib\/organization\/calendar-sync"/u,
-  );
+  assert.match(cronRoute, /from "@\/lib\/organization\/calendar-sync"/u);
   assert.doesNotMatch(cronRoute, /calendar\/actions/u);
 });
 
 test("service-role report sync is not exported from a Server Action module", () => {
-  const actions = readWorkspaceFile(
-    "app/organization/[id]/reports/actions.ts",
-  );
+  const actions = readWorkspaceFile("app/organization/[id]/reports/actions.ts");
   const cronRoute = readWorkspaceFile(
     "app/api/cron/organization-sheet-sync/route.ts",
   );
@@ -43,10 +38,7 @@ test("service-role report sync is not exported from a Server Action module", () 
 
   assert.match(internalService, /^import "server-only";/u);
   assert.doesNotMatch(actions, /getAdminClient|ForSync/u);
-  assert.match(
-    cronRoute,
-    /from "@\/lib\/organization\/report-service"/u,
-  );
+  assert.match(cronRoute, /from "@\/lib\/organization\/report-service"/u);
   assert.doesNotMatch(cronRoute, /reports\/actions/u);
 });
 

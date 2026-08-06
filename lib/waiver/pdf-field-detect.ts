@@ -1,7 +1,7 @@
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 // Configure PDF.js worker
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   // Use unpkg CDN with HTTPS for reliable worker loading
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/legacy/build/pdf.worker.min.mjs`;
 }
@@ -9,7 +9,7 @@ if (typeof window !== 'undefined') {
 let serverWorkerReadyPromise: Promise<void> | null = null;
 
 async function ensurePdfJsWorkerReady() {
-  if (typeof window !== 'undefined') return;
+  if (typeof window !== "undefined") return;
 
   const globalWithWorker = globalThis as typeof globalThis & {
     pdfjsWorker?: { WorkerMessageHandler?: unknown };
@@ -20,15 +20,18 @@ async function ensurePdfJsWorkerReady() {
   }
 
   if (!serverWorkerReadyPromise) {
-    const workerModulePath = 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+    const workerModulePath = "pdfjs-dist/legacy/build/pdf.worker.mjs";
     serverWorkerReadyPromise = import(workerModulePath)
       .then((workerModule) => {
-        const workerExport = (workerModule as { default?: unknown }).default ?? workerModule;
-        globalWithWorker.pdfjsWorker = workerExport as { WorkerMessageHandler?: unknown };
+        const workerExport =
+          (workerModule as { default?: unknown }).default ?? workerModule;
+        globalWithWorker.pdfjsWorker = workerExport as {
+          WorkerMessageHandler?: unknown;
+        };
       })
       .catch((error) => {
-        if (process.env.NODE_ENV !== 'test') {
-          console.warn('Failed to preload pdf.js worker module:', error);
+        if (process.env.NODE_ENV !== "test") {
+          console.warn("Failed to preload pdf.js worker module:", error);
         }
       });
   }
@@ -58,7 +61,14 @@ export interface PdfFieldDetectionResult {
 
 export interface DetectedPdfField {
   fieldName: string;
-  fieldType: 'signature' | 'text' | 'checkbox' | 'radio' | 'dropdown' | 'button' | 'unknown';
+  fieldType:
+    | "signature"
+    | "text"
+    | "checkbox"
+    | "radio"
+    | "dropdown"
+    | "button"
+    | "unknown";
   pageIndex: number; // 0-based
   rect: PdfRect; // PDF coordinates (points)
   required?: boolean;
@@ -77,7 +87,7 @@ export interface PdfRect {
  * Supports both File objects (browser) and URLs (server).
  */
 export async function detectPdfWidgets(
-  source: File | string
+  source: File | string,
 ): Promise<PdfFieldDetectionResult> {
   const errors: string[] = [];
 
@@ -114,7 +124,9 @@ export async function detectPdfWidgets(
       const annotations = await page.getAnnotations();
 
       // Filter for widget annotations (form fields)
-      const widgets = (annotations as PdfJsAnnotation[]).filter((ann) => ann.subtype === 'Widget');
+      const widgets = (annotations as PdfJsAnnotation[]).filter(
+        (ann) => ann.subtype === "Widget",
+      );
 
       for (const annotation of widgets) {
         const field = normalizeAnnotation(annotation, pageNum - 1);
@@ -124,7 +136,9 @@ export async function detectPdfWidgets(
       }
     }
 
-    const hasSignatureFields = allFields.some(f => f.fieldType === 'signature');
+    const hasSignatureFields = allFields.some(
+      (f) => f.fieldType === "signature",
+    );
 
     return {
       success: true,
@@ -134,28 +148,28 @@ export async function detectPdfWidgets(
       errors: errors.length > 0 ? errors : undefined,
     };
   } catch (error) {
-    console.error('PDF.js detection error:', error);
-    
+    console.error("PDF.js detection error:", error);
+
     // Fallback to naive detection
     try {
       let arrayBuffer: ArrayBuffer;
-      
+
       if (source instanceof File) {
         arrayBuffer = await source.arrayBuffer();
       } else {
         const response = await fetch(source);
         arrayBuffer = await response.arrayBuffer();
       }
-      
+
       const fallbackResult = detectPdfSignaturesNaive(arrayBuffer);
-      
+
       return {
         success: false,
         fields: [],
         pageCount: 0,
         hasSignatureFields: fallbackResult.hasSignatureFields,
         errors: [
-          `PDF.js detection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          `PDF.js detection failed: ${error instanceof Error ? error.message : "Unknown error"}`,
           `Fallback detection confidence: ${fallbackResult.confidence}`,
         ],
       };
@@ -166,8 +180,8 @@ export async function detectPdfWidgets(
         pageCount: 0,
         hasSignatureFields: false,
         errors: [
-          `PDF.js detection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          `Fallback detection also failed: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`,
+          `PDF.js detection failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+          `Fallback detection also failed: ${fallbackError instanceof Error ? fallbackError.message : "Unknown error"}`,
         ],
       };
     }
@@ -178,45 +192,50 @@ export async function detectPdfWidgets(
  * Fallback: naive byte-string detection for when PDF.js fails.
  * Returns basic info without coordinates.
  */
-export function detectPdfSignaturesNaive(
-  pdfBytes: ArrayBuffer
-): { hasSignatureFields: boolean; confidence: 'low' | 'medium' } {
+export function detectPdfSignaturesNaive(pdfBytes: ArrayBuffer): {
+  hasSignatureFields: boolean;
+  confidence: "low" | "medium";
+} {
   try {
     const bytes = new Uint8Array(pdfBytes);
-    const pdfText = new TextDecoder('latin1').decode(bytes);
+    const pdfText = new TextDecoder("latin1").decode(bytes);
 
     // Check for signature-related PDF structures
-    const hasAcroForm = pdfText.includes('/AcroForm');
-    const hasSigField = pdfText.includes('/Sig');
-    const hasSigFlags = pdfText.includes('/SigFlags');
-    const hasSignatureKeyword = pdfText.includes('signature') || pdfText.includes('Signature');
-    const hasWidget = pdfText.includes('/Widget');
+    const hasAcroForm = pdfText.includes("/AcroForm");
+    const hasSigField = pdfText.includes("/Sig");
+    const hasSigFlags = pdfText.includes("/SigFlags");
+    const hasSignatureKeyword =
+      pdfText.includes("signature") || pdfText.includes("Signature");
+    const hasWidget = pdfText.includes("/Widget");
 
     // Higher confidence if multiple indicators present
     if (hasAcroForm && (hasSigField || hasSigFlags)) {
-      return { hasSignatureFields: true, confidence: 'medium' };
+      return { hasSignatureFields: true, confidence: "medium" };
     }
 
     // Lower confidence based on keyword presence
     if (hasWidget && hasSignatureKeyword) {
-      return { hasSignatureFields: true, confidence: 'low' };
+      return { hasSignatureFields: true, confidence: "low" };
     }
 
     if (hasSigField || hasSigFlags) {
-      return { hasSignatureFields: true, confidence: 'low' };
+      return { hasSignatureFields: true, confidence: "low" };
     }
 
-    return { hasSignatureFields: false, confidence: 'low' };
+    return { hasSignatureFields: false, confidence: "low" };
   } catch (error) {
-    console.error('Naive detection error:', error);
-    return { hasSignatureFields: false, confidence: 'low' };
+    console.error("Naive detection error:", error);
+    return { hasSignatureFields: false, confidence: "low" };
   }
 }
 
 /**
  * Helper: Convert PDF.js annotation to normalized field.
  */
-function normalizeAnnotation(annotation: PdfJsAnnotation, pageIndex: number): DetectedPdfField | null {
+function normalizeAnnotation(
+  annotation: PdfJsAnnotation,
+  pageIndex: number,
+): DetectedPdfField | null {
   try {
     const fieldType = mapFieldType(annotation.fieldType);
 
@@ -242,10 +261,13 @@ function normalizeAnnotation(annotation: PdfJsAnnotation, pageIndex: number): De
 
     // Check if field is required
     // fieldFlags bit 2 indicates required field
-    const required = annotation.fieldFlags ? (annotation.fieldFlags & 2) !== 0 : false;
+    const required = annotation.fieldFlags
+      ? (annotation.fieldFlags & 2) !== 0
+      : false;
 
     // Extract default value if present
-    const defaultValue = annotation.fieldValue || annotation.defaultValue || undefined;
+    const defaultValue =
+      annotation.fieldValue || annotation.defaultValue || undefined;
 
     return {
       fieldName,
@@ -256,15 +278,15 @@ function normalizeAnnotation(annotation: PdfJsAnnotation, pageIndex: number): De
       defaultValue: defaultValue ? String(defaultValue) : undefined,
     };
   } catch (error) {
-    console.error('Error normalizing annotation:', error);
+    console.error("Error normalizing annotation:", error);
     return null;
   }
 }
 
 function buildDeterministicFieldName(
   pageIndex: number,
-  fieldType: DetectedPdfField['fieldType'],
-  rect: PdfRect
+  fieldType: DetectedPdfField["fieldType"],
+  rect: PdfRect,
 ): string {
   // Some PDFs do not expose a stable field name. Use a deterministic fallback
   // based on page + normalized geometry so mappings survive draft restore + re-upload.
@@ -278,25 +300,27 @@ function buildDeterministicFieldName(
 /**
  * Helper: Map PDF.js field types to our simplified types.
  */
-function mapFieldType(fieldType: string | undefined): DetectedPdfField['fieldType'] {
-  if (!fieldType) return 'unknown';
+function mapFieldType(
+  fieldType: string | undefined,
+): DetectedPdfField["fieldType"] {
+  if (!fieldType) return "unknown";
 
   const type = fieldType.toLowerCase();
 
   // PDF field type mapping
   // Reference: PDF Reference 1.7, Section 8.6.3
-  if (type.includes('sig')) return 'signature';
-  if (type.includes('tx') || type.includes('text')) return 'text';
-  if (type.includes('btn')) {
+  if (type.includes("sig")) return "signature";
+  if (type.includes("tx") || type.includes("text")) return "text";
+  if (type.includes("btn")) {
     // Button can be checkbox, radio, or push button
     // We'd need to check buttonFlags for more precision
     // For now, default to checkbox
-    return 'checkbox';
+    return "checkbox";
   }
-  if (type.includes('ch')) {
+  if (type.includes("ch")) {
     // Choice field can be dropdown or listbox
-    return 'dropdown';
+    return "dropdown";
   }
 
-  return 'unknown';
+  return "unknown";
 }

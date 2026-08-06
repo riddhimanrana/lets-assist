@@ -27,8 +27,16 @@ interface LoginPageProps {
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { redirect: redirectPath, staff_token, org, email, invite_token, member_token, token } = await searchParams;
-  
+  const {
+    redirect: redirectPath,
+    staff_token,
+    org,
+    email,
+    invite_token,
+    member_token,
+    token,
+  } = await searchParams;
+
   // Resolve invite token: prefer invite_token, fallback to member_token, then token
   const inviteToken = invite_token || member_token || token;
 

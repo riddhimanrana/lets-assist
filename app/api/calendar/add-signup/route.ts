@@ -23,10 +23,7 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Validate request body
@@ -36,7 +33,7 @@ export async function POST(request: Request) {
     if (!validation.success) {
       return NextResponse.json(
         { error: "Invalid request data", details: validation.error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -51,17 +48,14 @@ export async function POST(request: Request) {
       .single();
 
     if (signupError || !signup) {
-      return NextResponse.json(
-        { error: "Signup not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Signup not found" }, { status: 404 });
     }
 
     // Check if already synced
     if (signup.volunteer_calendar_event_id) {
       return NextResponse.json(
         { error: "Signup is already synced to calendar" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -70,26 +64,26 @@ export async function POST(request: Request) {
       .from("projects")
       .select("*")
       .eq("id", project_id)
-      .single()) as { data: Project | null; error: { message?: string } | null };
+      .single()) as {
+      data: Project | null;
+      error: { message?: string } | null;
+    };
 
     if (projectError || !project) {
-      return NextResponse.json(
-        { error: "Project not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
     // Create calendar event
     const eventId = await createGoogleCalendarEvent(
       user.id,
       project,
-      schedule_id
+      schedule_id,
     );
 
     if (!eventId) {
       return NextResponse.json(
         { error: "Failed to create calendar event" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -106,7 +100,7 @@ export async function POST(request: Request) {
       console.error("Failed to update signup:", updateError);
       return NextResponse.json(
         { error: "Failed to save sync status" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -125,14 +119,14 @@ export async function POST(request: Request) {
       if (error.message.includes("No valid calendar connection")) {
         return NextResponse.json(
           { error: "Please connect your Google Calendar first" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
 
     return NextResponse.json(
       { error: "Failed to add signup to calendar" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

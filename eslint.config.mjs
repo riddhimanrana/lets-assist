@@ -1,27 +1,27 @@
-import js from '@eslint/js';
-import tseslint from 'typescript-eslint';
-import nextPlugin from '@next/eslint-plugin-next';
-import eslintConfigPrettier from 'eslint-config-prettier';
-import globals from 'globals';
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
+import nextPlugin from "@next/eslint-plugin-next";
+import eslintConfigPrettier from "eslint-config-prettier";
+import globals from "globals";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const nextCoreWebVitals = nextPlugin.configs['core-web-vitals'] ?? {};
+const nextCoreWebVitals = nextPlugin.configs["core-web-vitals"] ?? {};
 const nextSettings = nextCoreWebVitals.settings;
 
 export default tseslint.config(
   {
     ignores: [
-      'node_modules',
-      '.next',
-      '.next-csf-isolated',
-      'dist',
-      'coverage',
-      '.artifacts/**',
-      '*.config.mjs',
-      'tmp-component-usage.json',
-      '**/*.backup.tsx',
+      "node_modules",
+      ".next",
+      ".next-csf-isolated",
+      "dist",
+      "coverage",
+      ".artifacts/**",
+      "*.config.mjs",
+      "tmp-component-usage.json",
+      "**/*.backup.tsx",
     ],
   },
   js.configs.recommended,
@@ -33,37 +33,37 @@ export default tseslint.config(
         ...globals.node,
       },
       parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-        extraFileExtensions: ['.mjs'],
+        ecmaVersion: "latest",
+        sourceType: "module",
+        extraFileExtensions: [".mjs"],
       },
     },
     plugins: {
-      '@next/next': nextPlugin,
+      "@next/next": nextPlugin,
     },
     rules: {
       ...(nextCoreWebVitals.rules ?? {}),
-      'react-hooks/exhaustive-deps': 'off',
-      '@next/next/no-duplicate-head': 'off',
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': [
-        'warn',
+      "react-hooks/exhaustive-deps": "off",
+      "@next/next/no-duplicate-head": "off",
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
         {
-          argsIgnorePattern: '^_',
-          caughtErrorsIgnorePattern: '^_',
-          varsIgnorePattern: '^_',
+          argsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
         },
       ],
-      'no-empty': 'warn',
-      'no-constant-binary-expression': 'off',
-      'no-case-declarations': 'off',
-      'prefer-const': 'warn',
-      'no-useless-escape': 'warn',
-      '@typescript-eslint/no-empty-interface': 'off',
-      '@typescript-eslint/no-empty-object-type': 'off',
-      '@typescript-eslint/no-require-imports': 'off',
-      '@typescript-eslint/ban-ts-comment': 'off',
-      'no-dupe-else-if': 'off',
+      "no-empty": "warn",
+      "no-constant-binary-expression": "off",
+      "no-case-declarations": "off",
+      "prefer-const": "warn",
+      "no-useless-escape": "warn",
+      "@typescript-eslint/no-empty-interface": "off",
+      "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/ban-ts-comment": "off",
+      "no-dupe-else-if": "off",
     },
     ...(nextSettings ? { settings: nextSettings } : {}),
   },

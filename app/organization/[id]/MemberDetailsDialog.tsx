@@ -6,7 +6,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -20,7 +20,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
-import { Clock, Award, Calendar, BadgeCheck, ExternalLink, Download, FileText, CheckCheck } from "lucide-react";
+import {
+  Clock,
+  Award,
+  Calendar,
+  BadgeCheck,
+  ExternalLink,
+  Download,
+  FileText,
+  CheckCheck,
+} from "lucide-react";
 import { getMemberEventDetails } from "./member-hours-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -112,16 +121,23 @@ export default function MemberDetailsDialog({
           : demoDetails.events;
 
       setEvents(filteredEvents);
-      setTotalHours(filteredEvents.reduce((sum, event) => sum + event.hours, 0));
+      setTotalHours(
+        filteredEvents.reduce((sum, event) => sum + event.hours, 0),
+      );
       setLoading(false);
       return;
     }
 
     try {
-      const dateRangeParam = dateRange?.from && dateRange?.to
-        ? { from: dateRange.from, to: dateRange.to }
-        : undefined;
-      const result = await getMemberEventDetails(organizationId, member.user_id, dateRangeParam);
+      const dateRangeParam =
+        dateRange?.from && dateRange?.to
+          ? { from: dateRange.from, to: dateRange.to }
+          : undefined;
+      const result = await getMemberEventDetails(
+        organizationId,
+        member.user_id,
+        dateRangeParam,
+      );
 
       if (result.error) {
         setError(result.error);
@@ -146,19 +162,28 @@ export default function MemberDetailsDialog({
     setIsExporting(true);
 
     try {
-      const profile = Array.isArray(member?.profiles) ? member.profiles[0] : member?.profiles;
+      const profile = Array.isArray(member?.profiles)
+        ? member.profiles[0]
+        : member?.profiles;
       const memberName = profile?.full_name || "Unknown User";
       const username = profile?.username || "";
 
       // Prepare comprehensive CSV data
       const headers = [
-        "Member Name", "Username", "Role", "Joined Date",
-        "Event Title", "Event Date", "Hours", "Status",
-        "Certificate ID", "Certificate Link"
+        "Member Name",
+        "Username",
+        "Role",
+        "Joined Date",
+        "Event Title",
+        "Event Date",
+        "Hours",
+        "Status",
+        "Certificate ID",
+        "Certificate Link",
       ];
       const csvRows = [headers.join(",")];
 
-      events.forEach(event => {
+      events.forEach((event) => {
         const row = [
           `"${memberName}"`,
           username,
@@ -169,7 +194,9 @@ export default function MemberDetailsDialog({
           formatHours(event.hours),
           event.isCertified ? "Certified" : "Completed",
           event.id,
-          event.isCertified ? `${window.location.origin}/certificates/${event.id}` : "N/A"
+          event.isCertified
+            ? `${window.location.origin}/certificates/${event.id}`
+            : "N/A",
         ].join(",");
         csvRows.push(row);
       });
@@ -179,22 +206,29 @@ export default function MemberDetailsDialog({
       //   csvRows.push("=== SUMMARY ===");
       csvRows.push(`"Total Hours","${formatHours(totalHours)}"`);
       csvRows.push(`"Total Events","${events.length}"`);
-      csvRows.push(`"Certified Events","${events.filter(e => e.isCertified).length}"`);
-      csvRows.push(`"Member Since","${format(new Date(member.joined_at), "MMM d, yyyy")}"`);
+      csvRows.push(
+        `"Certified Events","${events.filter((e) => e.isCertified).length}"`,
+      );
+      csvRows.push(
+        `"Member Since","${format(new Date(member.joined_at), "MMM d, yyyy")}"`,
+      );
 
       const csvData = csvRows.join("\n");
-      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
 
       // Create filename with date range if applicable
-      const today = new Date().toISOString().split('T')[0];
-      const cleanName = memberName.replace(/\s+/g, '-').toLowerCase();
+      const today = new Date().toISOString().split("T")[0];
+      const cleanName = memberName.replace(/\s+/g, "-").toLowerCase();
       let filename = `${cleanName}-volunteer-data-${today}`;
       if (dateRange?.from && dateRange?.to) {
         const fromDate = format(dateRange.from, "yyyy-MM-dd");
-        const toDate = format(new Date(dateRange.to.getTime() - 24 * 60 * 60 * 1000), "yyyy-MM-dd");
+        const toDate = format(
+          new Date(dateRange.to.getTime() - 24 * 60 * 60 * 1000),
+          "yyyy-MM-dd",
+        );
         filename = `${cleanName}-volunteer-data-${fromDate}-to-${toDate}`;
       } else {
         filename = `${cleanName}-volunteer-data-lifetime-${today}`;
@@ -217,7 +251,9 @@ export default function MemberDetailsDialog({
 
   if (!member) return null;
 
-  const profile = Array.isArray(member.profiles) ? member.profiles[0] : member.profiles;
+  const profile = Array.isArray(member.profiles)
+    ? member.profiles[0]
+    : member.profiles;
 
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
@@ -297,7 +333,11 @@ export default function MemberDetailsDialog({
               </CardHeader>
               <CardContent className="px-2 sm:px-4 pb-2 sm:pb-4">
                 <div className="text-base sm:text-2xl font-bold text-primary truncate">
-                  {loading ? <Skeleton className="h-4 sm:h-8 w-8 sm:w-16" /> : formatHours(totalHours)}
+                  {loading ? (
+                    <Skeleton className="h-4 sm:h-8 w-8 sm:w-16" />
+                  ) : (
+                    formatHours(totalHours)
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -311,7 +351,11 @@ export default function MemberDetailsDialog({
               </CardHeader>
               <CardContent className="px-2 sm:px-4 pb-2 sm:pb-4">
                 <div className="text-base sm:text-2xl font-bold truncate">
-                  {loading ? <Skeleton className="h-4 sm:h-8 w-6 sm:w-16" /> : events.length}
+                  {loading ? (
+                    <Skeleton className="h-4 sm:h-8 w-6 sm:w-16" />
+                  ) : (
+                    events.length
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -333,7 +377,9 @@ export default function MemberDetailsDialog({
 
           {/* Events Table */}
           <div className="space-y-2 sm:space-y-3">
-            <h3 className="text-xs sm:text-lg font-semibold">Event Participation</h3>
+            <h3 className="text-xs sm:text-lg font-semibold">
+              Event Participation
+            </h3>
 
             {error && (
               <div className="text-center p-2.5 sm:p-4 text-red-500 bg-red-50 rounded-lg text-xs sm:text-sm">
@@ -358,14 +404,18 @@ export default function MemberDetailsDialog({
                         <TableHead className="font-semibold">Date</TableHead>
                         <TableHead className="font-semibold">Hours</TableHead>
                         <TableHead className="font-semibold">Status</TableHead>
-                        <TableHead className="font-semibold">Certificate</TableHead>
+                        <TableHead className="font-semibold">
+                          Certificate
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {events.map((event) => (
                         <TableRow key={event.id}>
                           <TableCell>
-                            <div className="font-medium">{event.projectTitle}</div>
+                            <div className="font-medium">
+                              {event.projectTitle}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="text-sm text-muted-foreground">
@@ -413,7 +463,9 @@ export default function MemberDetailsDialog({
                                   </a>
                                 </Button>
                               ) : (
-                                <span className="text-xs text-muted-foreground">No certificate</span>
+                                <span className="text-xs text-muted-foreground">
+                                  No certificate
+                                </span>
                               )}
                             </div>
                           </TableCell>
@@ -433,14 +485,24 @@ export default function MemberDetailsDialog({
                             {event.projectTitle}
                           </h4>
                           {event.isCertified ? (
-                            <Badge variant="default" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs shrink-0 px-1.5 sm:px-2">
+                            <Badge
+                              variant="default"
+                              className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs shrink-0 px-1.5 sm:px-2"
+                            >
                               <BadgeCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                              <span className="hidden sm:inline">Certified</span>
+                              <span className="hidden sm:inline">
+                                Certified
+                              </span>
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs shrink-0 px-1.5 sm:px-2">
+                            <Badge
+                              variant="outline"
+                              className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs shrink-0 px-1.5 sm:px-2"
+                            >
                               <CheckCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                              <span className="hidden sm:inline">Completed</span>
+                              <span className="hidden sm:inline">
+                                Completed
+                              </span>
                             </Badge>
                           )}
                         </div>
@@ -469,7 +531,9 @@ export default function MemberDetailsDialog({
                                 className="flex items-center gap-1"
                               >
                                 <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                <span className="hidden sm:inline">Certificate</span>
+                                <span className="hidden sm:inline">
+                                  Certificate
+                                </span>
                                 <span className="sm:hidden">Cert</span>
                                 <ExternalLink className="h-2 w-2" />
                               </a>
@@ -481,14 +545,19 @@ export default function MemberDetailsDialog({
                   ))}
                 </div>
               </>
-            ) : !loading && (
-              <div className="text-center p-4 sm:p-8 bg-muted/20 rounded-lg">
-                <Award className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground" />
-                <h4 className="text-sm sm:text-lg font-medium mb-1">No Events Yet</h4>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  This member hasn&apos;t participated in any organization events.
-                </p>
-              </div>
+            ) : (
+              !loading && (
+                <div className="text-center p-4 sm:p-8 bg-muted/20 rounded-lg">
+                  <Award className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground" />
+                  <h4 className="text-sm sm:text-lg font-medium mb-1">
+                    No Events Yet
+                  </h4>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    This member hasn&apos;t participated in any organization
+                    events.
+                  </p>
+                </div>
+              )
             )}
           </div>
         </div>

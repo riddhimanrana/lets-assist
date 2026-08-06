@@ -27,7 +27,10 @@ export const CSF_IMPORT_PROVIDERS = [
  * exact-coordinate contract exists to close. They fail closed until their
  * adapters define those semantics.
  */
-export const CSF_IMPORT_IMPLEMENTED_PROVIDERS = ["google_sheets", "uploaded_file"] as const;
+export const CSF_IMPORT_IMPLEMENTED_PROVIDERS = [
+  "google_sheets",
+  "uploaded_file",
+] as const;
 
 export const CSF_IMPORT_SENSITIVITIES = [
   "public",
@@ -37,7 +40,8 @@ export const CSF_IMPORT_SENSITIVITIES = [
 ] as const;
 
 export type CsfImportProvider = (typeof CSF_IMPORT_PROVIDERS)[number];
-export type CsfImportImplementedProvider = (typeof CSF_IMPORT_IMPLEMENTED_PROVIDERS)[number];
+export type CsfImportImplementedProvider =
+  (typeof CSF_IMPORT_IMPLEMENTED_PROVIDERS)[number];
 export type CsfImportSensitivity = (typeof CSF_IMPORT_SENSITIVITIES)[number];
 export type CsfImportTermSelection = "officer_selected" | "published_policy";
 export type CsfImportTabVisibility = "visible" | "hidden" | "very_hidden";
@@ -49,7 +53,9 @@ export type CsfImportJsonValue =
   | CsfImportJsonPrimitive
   | ReadonlyArray<CsfImportJsonValue>
   | { readonly [key: string]: CsfImportJsonValue };
-export type CsfImportJsonObject = { readonly [key: string]: CsfImportJsonValue };
+export type CsfImportJsonObject = {
+  readonly [key: string]: CsfImportJsonValue;
+};
 
 export type CsfImportSourceInput = {
   /**
@@ -264,7 +270,8 @@ const SHA256_HEX = /^[a-f0-9]{64}$/u;
  * claimed, never the source row's mutable `uploaded_file_path`. Anything that
  * is not this shape is not an identity the commit boundary can bind.
  */
-const STAGING_OBJECT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const STAGING_OBJECT_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 /**
  * Edge padding DETECTION for an exact coordinate. Never repair.
  *
@@ -274,7 +281,8 @@ const STAGING_OBJECT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0
  * identifier stays opaque, so an ordinary internal character is not this
  * boundary's business.
  */
-const EDGE_PADDING = /^[\p{White_Space}\p{Cc}\p{Cf}]|[\p{White_Space}\p{Cc}\p{Cf}]$/u;
+const EDGE_PADDING =
+  /^[\p{White_Space}\p{Cc}\p{Cf}]|[\p{White_Space}\p{Cc}\p{Cf}]$/u;
 /** A positive decimal integer with no sign, no leading zero, no separators. */
 const PROVIDER_VERSION_SHAPE = /^[1-9][0-9]*$/u;
 /** Drive documents `version` as an int64. This is its exact ceiling as text. */
@@ -300,8 +308,10 @@ const STORED_INSTANT =
 const MONTH_LENGTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const URL_VALUE = /(?:https?|ftp):\/\/|mailto:|(?:^|\s)www\./iu;
 const FORMULA_VALUE = /^(?:=|\+|@)|^-\s*[A-Za-z(@=+]/u;
-const RAW_MARKUP_VALUE = /^\s*(?:<!doctype\s+html|<html\b|<script\b|<iframe\b)/iu;
-const VBA_VALUE = /^\s*(?:attribute\s+vb_|(?:private\s+|public\s+)?(?:sub|function)\s+\w+)/iu;
+const RAW_MARKUP_VALUE =
+  /^\s*(?:<!doctype\s+html|<html\b|<script\b|<iframe\b)/iu;
+const VBA_VALUE =
+  /^\s*(?:attribute\s+vb_|(?:private\s+|public\s+)?(?:sub|function)\s+\w+)/iu;
 
 const FORBIDDEN_SINGLE_TOKENS = new Map<
   string,
@@ -414,9 +424,14 @@ const BIG_ZERO = BigInt(0);
 const BIG_TEN = BigInt(10);
 
 /** Strip trailing decimal zeros so two spellings of one exact value compare equal. */
-function normalizeExactDecimal(input: { negative: boolean; digits: bigint; exponent: number }) {
+function normalizeExactDecimal(input: {
+  negative: boolean;
+  digits: bigint;
+  exponent: number;
+}) {
   let { digits, exponent } = input;
-  if (digits === BIG_ZERO) return { negative: false, digits: BIG_ZERO, exponent: 0 };
+  if (digits === BIG_ZERO)
+    return { negative: false, digits: BIG_ZERO, exponent: 0 };
   while (digits % BIG_TEN === BIG_ZERO) {
     digits /= BIG_TEN;
     exponent += 1;
@@ -424,12 +439,15 @@ function normalizeExactDecimal(input: { negative: boolean; digits: bigint; expon
   return { negative: input.negative, digits, exponent };
 }
 
-const JSON_NUMBER_LITERAL = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/u;
+const JSON_NUMBER_LITERAL =
+  /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/u;
 
 /** The exact decimal value a JSON number *literal* denotes, before any rounding. */
 function exactDecimalOfLiteral(literal: string) {
   if (!JSON_NUMBER_LITERAL.test(literal)) {
-    throw new CsfCanonicalFormError(`"${literal}" is not a JSON number literal.`);
+    throw new CsfCanonicalFormError(
+      `"${literal}" is not a JSON number literal.`,
+    );
   }
   const negative = literal.startsWith("-");
   const unsigned = negative ? literal.slice(1) : literal;
@@ -467,7 +485,8 @@ export function isCsfCanonicalNumberLiteral(literal: string): boolean {
     fromLiteral.digits === fromCanonical.digits &&
     fromLiteral.exponent === fromCanonical.exponent &&
     // -0 and 0 denote one number, so their signs are allowed to differ.
-    (fromLiteral.digits === BIG_ZERO || fromLiteral.negative === fromCanonical.negative)
+    (fromLiteral.digits === BIG_ZERO ||
+      fromLiteral.negative === fromCanonical.negative)
   );
 }
 
@@ -514,8 +533,14 @@ function canonicalJson(value: CsfImportJsonValue): string {
     return csfCanonicalNumber(value);
   }
   if (value === null || typeof value !== "object") {
-    if (value !== null && typeof value !== "string" && typeof value !== "boolean") {
-      throw new CsfCanonicalFormError(`A canonical value may not be ${typeof value}.`);
+    if (
+      value !== null &&
+      typeof value !== "string" &&
+      typeof value !== "boolean"
+    ) {
+      throw new CsfCanonicalFormError(
+        `A canonical value may not be ${typeof value}.`,
+      );
     }
     return JSON.stringify(value);
   }
@@ -567,7 +592,11 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-function requiredBoundedString(value: unknown, label: string, maxLength: number) {
+function requiredBoundedString(
+  value: unknown,
+  label: string,
+  maxLength: number,
+) {
   if (typeof value !== "string") {
     throw new TypeError(`${label} must be a string.`);
   }
@@ -608,7 +637,9 @@ function exactCoordinate(value: unknown, label: string, maxLength: number) {
     throw new TypeError(`${label} must be at most ${maxLength} characters.`);
   }
   if (EDGE_PADDING.test(value)) {
-    throw new TypeError(`${label} must not be padded; an exact coordinate is taken as written.`);
+    throw new TypeError(
+      `${label} must not be padded; an exact coordinate is taken as written.`,
+    );
   }
   return value;
 }
@@ -626,7 +657,9 @@ function exactCoordinate(value: unknown, label: string, maxLength: number) {
 function isCanonicalProviderVersionText(value: string) {
   if (!PROVIDER_VERSION_SHAPE.test(value)) return false;
   if (value.length > PROVIDER_VERSION_MAX.length) return false;
-  return !(value.length === PROVIDER_VERSION_MAX.length && value > PROVIDER_VERSION_MAX);
+  return !(
+    value.length === PROVIDER_VERSION_MAX.length && value > PROVIDER_VERSION_MAX
+  );
 }
 
 /**
@@ -648,8 +681,10 @@ function isRealCivilDateTime(fields: RegExpExecArray) {
   // zero, so a round trip returns 1 BC. A coordinate that cannot survive the
   // column it will be compared against is not evidence, in either grammar.
   if (yearNumber < 1) return false;
-  const leap = (yearNumber % 4 === 0 && yearNumber % 100 !== 0) || yearNumber % 400 === 0;
-  const dayCount = monthNumber === 2 ? (leap ? 29 : 28) : MONTH_LENGTHS[monthNumber - 1];
+  const leap =
+    (yearNumber % 4 === 0 && yearNumber % 100 !== 0) || yearNumber % 400 === 0;
+  const dayCount =
+    monthNumber === 2 ? (leap ? 29 : 28) : MONTH_LENGTHS[monthNumber - 1];
   const dayNumber = Number(day);
   if (dayNumber < 1 || dayNumber > dayCount) return false;
   return Number(hour) <= 23 && Number(minute) <= 59 && Number(second) <= 59;
@@ -687,7 +722,11 @@ function isProviderInstantText(value: string) {
 /** A stored `timestamptz` rendering with an explicit real zone. */
 function isStoredInstantText(value: string) {
   const fields = STORED_INSTANT.exec(value);
-  return fields !== null && isRealCivilDateTime(fields) && hasRealUtcOffset(fields[8]);
+  return (
+    fields !== null &&
+    isRealCivilDateTime(fields) &&
+    hasRealUtcOffset(fields[8])
+  );
 }
 
 /**
@@ -705,7 +744,9 @@ function validateSourceEvidence(input: CsfImportSourceInput) {
     case "google_sheets": {
       const fileId = exactCoordinate(input.fileId, "source.fileId", 512);
       if (/^[a-z][a-z0-9+.-]*:\/\//iu.test(fileId)) {
-        throw new TypeError("source.fileId must be a provider identifier, not a public URL.");
+        throw new TypeError(
+          "source.fileId must be a provider identifier, not a public URL.",
+        );
       }
       const revision = exactCoordinate(input.revision, "source.revision", 256);
       if (!isCanonicalProviderVersionText(revision)) {
@@ -713,13 +754,22 @@ function validateSourceEvidence(input: CsfImportSourceInput) {
           "source.revision must be the provider's canonical positive int64 version text for a Google Sheets source.",
         );
       }
-      const modifiedAt = exactCoordinate(input.modifiedAt, "source.modifiedAt", 64);
+      const modifiedAt = exactCoordinate(
+        input.modifiedAt,
+        "source.modifiedAt",
+        64,
+      );
       if (!isProviderInstantText(modifiedAt)) {
         throw new TypeError(
           "source.modifiedAt must be the provider's own UTC modified-time spelling for a Google Sheets source.",
         );
       }
-      return { provider: "google_sheets" as const, fileId, revision, modifiedAt };
+      return {
+        provider: "google_sheets" as const,
+        fileId,
+        revision,
+        modifiedAt,
+      };
     }
     case "uploaded_file": {
       const fileId = exactCoordinate(input.fileId, "source.fileId", 512);
@@ -736,13 +786,22 @@ function validateSourceEvidence(input: CsfImportSourceInput) {
           "source.revision must be the canonical lowercase sha256 of the claimed bytes for an uploaded source.",
         );
       }
-      const modifiedAt = exactCoordinate(input.modifiedAt, "source.modifiedAt", 64);
+      const modifiedAt = exactCoordinate(
+        input.modifiedAt,
+        "source.modifiedAt",
+        64,
+      );
       if (!isStoredInstantText(modifiedAt)) {
         throw new TypeError(
           "source.modifiedAt must be the claimed staging object's ready timestamp for an uploaded source.",
         );
       }
-      return { provider: "uploaded_file" as const, fileId, revision, modifiedAt };
+      return {
+        provider: "uploaded_file" as const,
+        fileId,
+        revision,
+        modifiedAt,
+      };
     }
     default:
       throw new TypeError(
@@ -759,13 +818,20 @@ function normalizedKeyTokens(key: string) {
     .filter(Boolean);
 }
 
-function hasTokenPair(tokens: readonly string[], first: string, second: string) {
+function hasTokenPair(
+  tokens: readonly string[],
+  first: string,
+  second: string,
+) {
   return tokens.includes(first) && tokens.includes(second);
 }
 
 function forbiddenKeyReason(
   key: string,
-): Exclude<CsfImportRejectedFieldReason, "not_allowlisted" | "unsupported_value"> | null {
+): Exclude<
+  CsfImportRejectedFieldReason,
+  "not_allowlisted" | "unsupported_value"
+> | null {
   const tokens = normalizedKeyTokens(key);
   for (const token of tokens) {
     const directReason = FORBIDDEN_SINGLE_TOKENS.get(token);
@@ -805,7 +871,9 @@ function forbiddenKeyReason(
 
   if (
     tokens.includes("external") &&
-    ["href", "link", "links", "url", "urls"].some((token) => tokens.includes(token))
+    ["href", "link", "links", "url", "urls"].some((token) =>
+      tokens.includes(token),
+    )
   ) {
     return "external_link";
   }
@@ -813,7 +881,9 @@ function forbiddenKeyReason(
   return null;
 }
 
-function forbiddenValueReason(value: string): CsfImportRejectedFieldReason | null {
+function forbiddenValueReason(
+  value: string,
+): CsfImportRejectedFieldReason | null {
   if (FORMULA_VALUE.test(value.trim()) || VBA_VALUE.test(value)) {
     return "macro_or_formula";
   }
@@ -876,7 +946,11 @@ function buildAllowlist(paths: readonly string[]) {
     throw new TypeError("At most 256 allowlisted paths are supported.");
   }
 
-  const normalizedPaths = [...new Set(paths.map((path) => requiredBoundedString(path, "allowlisted path", 256)))].sort();
+  const normalizedPaths = [
+    ...new Set(
+      paths.map((path) => requiredBoundedString(path, "allowlisted path", 256)),
+    ),
+  ].sort();
   if (normalizedPaths.length !== paths.length) {
     throw new TypeError("Allowlisted paths must be unique.");
   }
@@ -896,24 +970,28 @@ function buildAllowlist(paths: readonly string[]) {
 
       const existing = level.get(segment.key);
       if (existing && existing.array !== segment.array) {
-        throw new TypeError(`Allowlisted path "${path}" conflicts on array shape.`);
+        throw new TypeError(
+          `Allowlisted path "${path}" conflicts on array shape.`,
+        );
       }
-      const node =
-        existing ??
-        {
-          key: segment.key,
-          array: segment.array,
-          terminal: false,
-          children: new Map<string, AllowlistNode>(),
-        };
+      const node = existing ?? {
+        key: segment.key,
+        array: segment.array,
+        terminal: false,
+        children: new Map<string, AllowlistNode>(),
+      };
       level.set(segment.key, node);
 
       if (node.terminal && index < segments.length - 1) {
-        throw new TypeError(`Allowlisted path "${path}" extends a scalar field.`);
+        throw new TypeError(
+          `Allowlisted path "${path}" extends a scalar field.`,
+        );
       }
       if (index === segments.length - 1) {
         if (node.children.size > 0) {
-          throw new TypeError(`Allowlisted path "${path}" replaces an object field.`);
+          throw new TypeError(
+            `Allowlisted path "${path}" replaces an object field.`,
+          );
         }
         node.terminal = true;
       } else {
@@ -939,7 +1017,11 @@ function sanitizeScalar(
   path: readonly PathSegment[],
   rejectedFields: MutableRejectedField[],
 ): CsfImportJsonPrimitive | undefined {
-  if (value === null || typeof value === "boolean" || typeof value === "string") {
+  if (
+    value === null ||
+    typeof value === "boolean" ||
+    typeof value === "string"
+  ) {
     if (typeof value === "string") {
       const reason = forbiddenValueReason(value);
       if (reason) {
@@ -976,7 +1058,12 @@ function sanitizeNode(
       const itemPath = [...path, index];
       if (node.children.size > 0) {
         if (!isPlainObject(item)) {
-          rejectField(rejectedFields, sourceRowNumber, itemPath, "unsupported_value");
+          rejectField(
+            rejectedFields,
+            sourceRowNumber,
+            itemPath,
+            "unsupported_value",
+          );
           return;
         }
         const sanitized = sanitizeObject(
@@ -992,7 +1079,12 @@ function sanitizeNode(
         return;
       }
 
-      const sanitized = sanitizeScalar(item, sourceRowNumber, itemPath, rejectedFields);
+      const sanitized = sanitizeScalar(
+        item,
+        sourceRowNumber,
+        itemPath,
+        rejectedFields,
+      );
       if (sanitized !== undefined) {
         items.push(sanitized);
       }
@@ -1037,7 +1129,12 @@ function sanitizeObject(
 
     const node = allowlist.get(key);
     if (!node) {
-      rejectField(rejectedFields, sourceRowNumber, fieldPath, "not_allowlisted");
+      rejectField(
+        rejectedFields,
+        sourceRowNumber,
+        fieldPath,
+        "not_allowlisted",
+      );
       continue;
     }
 
@@ -1088,7 +1185,9 @@ function validateSource(input: CsfImportSourceInput) {
     input.contentHash.algorithm !== "sha256" ||
     !SHA256_HEX.test(input.contentHash.value)
   ) {
-    throw new TypeError("source.contentHash must be a canonical lowercase SHA-256 hex digest.");
+    throw new TypeError(
+      "source.contentHash must be a canonical lowercase SHA-256 hex digest.",
+    );
   }
   if (!["file", "selected_range"].includes(input.contentHash.scope)) {
     throw new TypeError("source.contentHash.scope is not supported.");
@@ -1102,8 +1201,14 @@ function validateSource(input: CsfImportSourceInput) {
     "source.populatedRange.tabName",
     128,
   );
-  const startRow = positiveInteger(input.populatedRange.startRow, "source.populatedRange.startRow");
-  const endRow = positiveInteger(input.populatedRange.endRow, "source.populatedRange.endRow");
+  const startRow = positiveInteger(
+    input.populatedRange.startRow,
+    "source.populatedRange.startRow",
+  );
+  const endRow = positiveInteger(
+    input.populatedRange.endRow,
+    "source.populatedRange.endRow",
+  );
   const startColumn = positiveInteger(
     input.populatedRange.startColumn,
     "source.populatedRange.startColumn",
@@ -1121,23 +1226,37 @@ function validateSource(input: CsfImportSourceInput) {
   }
   const seenTabs = new Set<string>();
   const workbookTabs = input.workbookTabs.map((tab) => {
-    const normalizedTabName = requiredBoundedString(tab.tabName, "workbook tab name", 128);
+    const normalizedTabName = requiredBoundedString(
+      tab.tabName,
+      "workbook tab name",
+      128,
+    );
     if (seenTabs.has(normalizedTabName)) {
       throw new TypeError(`Duplicate workbook tab "${normalizedTabName}".`);
     }
     seenTabs.add(normalizedTabName);
     if (!["visible", "hidden", "very_hidden"].includes(tab.visibility)) {
-      throw new TypeError(`Workbook tab "${normalizedTabName}" has invalid visibility.`);
+      throw new TypeError(
+        `Workbook tab "${normalizedTabName}" has invalid visibility.`,
+      );
     }
     return { tabName: normalizedTabName, visibility: tab.visibility };
   });
   if (!seenTabs.has(tabName)) {
-    throw new TypeError("source.workbookTabs does not contain the selected tab.");
+    throw new TypeError(
+      "source.workbookTabs does not contain the selected tab.",
+    );
   }
 
   const termId = requiredBoundedString(input.term.id, "source.term.id", 128);
-  const termCode = requiredBoundedString(input.term.code, "source.term.code", 64);
-  if (!["officer_selected", "published_policy"].includes(input.term.selection)) {
+  const termCode = requiredBoundedString(
+    input.term.code,
+    "source.term.code",
+    64,
+  );
+  if (
+    !["officer_selected", "published_policy"].includes(input.term.selection)
+  ) {
     throw new TypeError(
       "source.term.selection must be officer_selected or published_policy; filenames are not authority.",
     );
@@ -1167,8 +1286,16 @@ function validateSource(input: CsfImportSourceInput) {
       code: termCode,
       selection: input.term.selection,
     },
-    schemaVersion: requiredBoundedString(input.schemaVersion, "source.schemaVersion", 64),
-    importerVersion: requiredBoundedString(input.importerVersion, "source.importerVersion", 64),
+    schemaVersion: requiredBoundedString(
+      input.schemaVersion,
+      "source.schemaVersion",
+      64,
+    ),
+    importerVersion: requiredBoundedString(
+      input.importerVersion,
+      "source.importerVersion",
+      64,
+    ),
     sensitivity: input.sensitivity,
   };
 }
@@ -1179,13 +1306,17 @@ export function buildCsfNormalizedImportSnapshot(input: {
   rows: readonly CsfImportCandidateRow[];
 }): CsfNormalizedImportSnapshot {
   const source = validateSource(input.source);
-  const { root: allowlist, normalizedPaths } = buildAllowlist(input.allowlistedPaths);
+  const { root: allowlist, normalizedPaths } = buildAllowlist(
+    input.allowlistedPaths,
+  );
 
   if (!Array.isArray(input.rows)) {
     throw new TypeError("rows must be an array.");
   }
   if (input.rows.length > CSF_IMPORT_MAX_ROWS) {
-    throw new TypeError(`At most ${CSF_IMPORT_MAX_ROWS} candidate rows are supported.`);
+    throw new TypeError(
+      `At most ${CSF_IMPORT_MAX_ROWS} candidate rows are supported.`,
+    );
   }
 
   const seenRowNumbers = new Set<number>();
@@ -1201,8 +1332,13 @@ export function buildCsfNormalizedImportSnapshot(input: {
     rowHash: string;
   }> = [];
 
-  for (const row of [...input.rows].sort((left, right) => left.sourceRowNumber - right.sourceRowNumber)) {
-    const sourceRowNumber = positiveInteger(row.sourceRowNumber, "row.sourceRowNumber");
+  for (const row of [...input.rows].sort(
+    (left, right) => left.sourceRowNumber - right.sourceRowNumber,
+  )) {
+    const sourceRowNumber = positiveInteger(
+      row.sourceRowNumber,
+      "row.sourceRowNumber",
+    );
     if (
       sourceRowNumber < source.populatedRange.startRow ||
       sourceRowNumber > source.populatedRange.endRow
@@ -1244,7 +1380,9 @@ export function buildCsfNormalizedImportSnapshot(input: {
       continue;
     }
     if (!isPlainObject(row.candidateData)) {
-      throw new TypeError(`Row ${sourceRowNumber} candidateData must be a plain object.`);
+      throw new TypeError(
+        `Row ${sourceRowNumber} candidateData must be a plain object.`,
+      );
     }
 
     const normalizedData = sanitizeObject(
@@ -1278,7 +1416,9 @@ export function buildCsfNormalizedImportSnapshot(input: {
       rowHash,
       sourceRowNumbers: matchingRows.map((row) => row.sourceRowNumber),
     }))
-    .sort((left, right) => left.sourceRowNumbers[0] - right.sourceRowNumbers[0]);
+    .sort(
+      (left, right) => left.sourceRowNumbers[0] - right.sourceRowNumbers[0],
+    );
 
   rejectedFields.sort(
     (left, right) =>
@@ -1339,7 +1479,8 @@ export function buildCsfNormalizedImportSnapshot(input: {
       duplicateRows,
     },
     warnings,
-    preflightStatus: warnings.length === 0 ? ("clear" as const) : ("review_required" as const),
+    preflightStatus:
+      warnings.length === 0 ? ("clear" as const) : ("review_required" as const),
   };
   const snapshotHash = sha256(
     canonicalJson(snapshotBody as unknown as CsfImportJsonValue),

@@ -45,10 +45,7 @@ export async function readOrganizationPluginContext<T>(
   }
 
   if (result.error) {
-    throw new OrganizationPluginContextUnavailableError(
-      readName,
-      result.error,
-    );
+    throw new OrganizationPluginContextUnavailableError(readName, result.error);
   }
 
   return result.data;

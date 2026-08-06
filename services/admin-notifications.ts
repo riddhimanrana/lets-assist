@@ -1,5 +1,5 @@
 import { getAdminClient } from "@/lib/supabase/admin";
-import { logError, logWarn } from '@/lib/logger';
+import { logError, logWarn } from "@/lib/logger";
 import { isSuperAdminUser } from "@/lib/auth/super-admin";
 
 type NotificationSeverity = "info" | "warning" | "success";
@@ -71,7 +71,7 @@ async function getAdminUserIds() {
   });
 
   if (error) {
-    logError('Failed to fetch admin users', error);
+    logError("Failed to fetch admin users", error);
     return [];
   }
 
@@ -92,7 +92,11 @@ function formatBatchTitle(baseTitle: string, count: number) {
   return count > 1 ? `${baseTitle} (${count})` : baseTitle;
 }
 
-function buildTrustedMemberCopy(count: number, latestLabel: string, windowMinutes: number) {
+function buildTrustedMemberCopy(
+  count: number,
+  latestLabel: string,
+  windowMinutes: number,
+) {
   const title = formatBatchTitle("New trusted member applications", count);
   const body =
     count > 1
@@ -111,10 +115,12 @@ function buildReportCopy(
   count: number,
   latestLabel: string,
   windowMinutes: number,
-  priority: string
+  priority: string,
 ) {
   const isHighPriority = priority === "high" || priority === "critical";
-  const baseTitle = isHighPriority ? "High-priority user reports" : "New user reports";
+  const baseTitle = isHighPriority
+    ? "High-priority user reports"
+    : "New user reports";
   const body =
     count > 1
       ? `${count} ${isHighPriority ? "high-priority " : ""}reports in the last ${windowMinutes} minutes. Latest: ${latestLabel}.`
@@ -124,7 +130,9 @@ function buildReportCopy(
     title: formatBatchTitle(baseTitle, count),
     body,
     actionUrl: "/admin?tab=reports",
-    severity: isHighPriority ? ("warning" as NotificationSeverity) : ("info" as NotificationSeverity),
+    severity: isHighPriority
+      ? ("warning" as NotificationSeverity)
+      : ("info" as NotificationSeverity),
   };
 }
 
@@ -132,10 +140,13 @@ function buildFlaggedContentCopy(
   count: number,
   latestLabel: string,
   windowMinutes: number,
-  confidenceScore?: number
+  confidenceScore?: number,
 ) {
-  const highConfidence = typeof confidenceScore === "number" && confidenceScore >= 0.8;
-  const baseTitle = highConfidence ? "High-confidence content flags" : "New content flags";
+  const highConfidence =
+    typeof confidenceScore === "number" && confidenceScore >= 0.8;
+  const baseTitle = highConfidence
+    ? "High-confidence content flags"
+    : "New content flags";
   const body =
     count > 1
       ? `${count} content flags in the last ${windowMinutes} minutes. Latest: ${latestLabel}.`
@@ -145,11 +156,17 @@ function buildFlaggedContentCopy(
     title: formatBatchTitle(baseTitle, count),
     body,
     actionUrl: "/admin?tab=flagged",
-    severity: highConfidence ? ("warning" as NotificationSeverity) : ("info" as NotificationSeverity),
+    severity: highConfidence
+      ? ("warning" as NotificationSeverity)
+      : ("info" as NotificationSeverity),
   };
 }
 
-function buildBatchDetails(event: AdminBatchEvent, count: number, latestLabel: string) {
+function buildBatchDetails(
+  event: AdminBatchEvent,
+  count: number,
+  latestLabel: string,
+) {
   const windowMinutes = BATCH_WINDOWS_MINUTES[event.type];
 
   switch (event.type) {
@@ -163,13 +180,23 @@ function buildBatchDetails(event: AdminBatchEvent, count: number, latestLabel: s
       return {
         batchKey: `content_report:${event.priority || "normal"}`,
         windowMinutes,
-        ...buildReportCopy(count, latestLabel, windowMinutes, event.priority || "normal"),
+        ...buildReportCopy(
+          count,
+          latestLabel,
+          windowMinutes,
+          event.priority || "normal",
+        ),
       };
     case "flagged_content":
       return {
         batchKey: `flagged_content:${event.flagType || "general"}`,
         windowMinutes,
-        ...buildFlaggedContentCopy(count, latestLabel, windowMinutes, event.confidenceScore),
+        ...buildFlaggedContentCopy(
+          count,
+          latestLabel,
+          windowMinutes,
+          event.confidenceScore,
+        ),
       };
   }
 }
@@ -185,16 +212,18 @@ function getEventLabel(event: AdminBatchEvent) {
   }
 }
 
-async function createOrUpdateBatchNotification(adminUserId: string, event: AdminBatchEvent) {
+async function createOrUpdateBatchNotification(
+  adminUserId: string,
+  event: AdminBatchEvent,
+) {
   const supabase = getAdminClient();
   const latestLabel = getEventLabel(event);
-  const { batchKey, windowMinutes, title, body, actionUrl, severity } = buildBatchDetails(
-    event,
-    1,
-    latestLabel
-  );
+  const { batchKey, windowMinutes, title, body, actionUrl, severity } =
+    buildBatchDetails(event, 1, latestLabel);
 
-  const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
+  const windowStart = new Date(
+    Date.now() - windowMinutes * 60 * 1000,
+  ).toISOString();
 
   const { data: existing, error: existingError } = await supabase
     .from("notifications")
@@ -209,7 +238,7 @@ async function createOrUpdateBatchNotification(adminUserId: string, event: Admin
     .maybeSingle();
 
   if (existingError) {
-    logError('Failed to check existing admin notifications', existingError, {
+    logError("Failed to check existing admin notifications", existingError, {
       admin_user_id: adminUserId,
       batch_key: batchKey,
     });
@@ -219,9 +248,13 @@ async function createOrUpdateBatchNotification(adminUserId: string, event: Admin
   const existingData = (existing?.data ?? {}) as AdminNotificationData;
   const currentCount = Number(existingData.count ?? (existing ? 1 : 0));
   const nextCount = currentCount + 1;
-  const existingItems = Array.isArray(existingData.items) ? existingData.items : [];
+  const existingItems = Array.isArray(existingData.items)
+    ? existingData.items
+    : [];
   const nextItems =
-    existingItems.length < MAX_SAMPLE_ITEMS ? [...existingItems, latestLabel] : existingItems;
+    existingItems.length < MAX_SAMPLE_ITEMS
+      ? [...existingItems, latestLabel]
+      : existingItems;
 
   const copy = buildBatchDetails(event, nextCount, latestLabel);
   const nextSeverity = existing?.severity
@@ -255,7 +288,7 @@ async function createOrUpdateBatchNotification(adminUserId: string, event: Admin
       .eq("id", existing.id);
 
     if (updateError) {
-      logError('Failed to update batched admin notification', updateError, {
+      logError("Failed to update batched admin notification", updateError, {
         notification_id: existing.id,
         admin_user_id: adminUserId,
         batch_key: batchKey,
@@ -281,7 +314,7 @@ async function createOrUpdateBatchNotification(adminUserId: string, event: Admin
   });
 
   if (insertError) {
-    logError('Failed to insert batched admin notification', insertError, {
+    logError("Failed to insert batched admin notification", insertError, {
       admin_user_id: adminUserId,
       batch_key: batchKey,
     });
@@ -291,17 +324,20 @@ async function createOrUpdateBatchNotification(adminUserId: string, event: Admin
 export async function notifyAdminsBatched(event: AdminBatchEvent) {
   const adminIds = await getAdminUserIds();
   if (!adminIds.length) {
-    logWarn('No admin users found to notify', {
+    logWarn("No admin users found to notify", {
       event_type: event.type,
     });
     return;
   }
 
   await Promise.all(
-    adminIds.map((adminId) => createOrUpdateBatchNotification(adminId, event))
+    adminIds.map((adminId) => createOrUpdateBatchNotification(adminId, event)),
   );
 }
 
-export async function notifyAdminUserBatched(adminUserId: string, event: AdminBatchEvent) {
+export async function notifyAdminUserBatched(
+  adminUserId: string,
+  event: AdminBatchEvent,
+) {
   await createOrUpdateBatchNotification(adminUserId, event);
 }

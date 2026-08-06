@@ -74,16 +74,22 @@ function positiveRuntimeEnvironment(hostEnv = process.env) {
 function assertOwnerOnlyRegularFile(target) {
   const stats = lstatSync(target);
   if (stats.isSymbolicLink() || !stats.isFile()) {
-    throw new Error(`Refusing a non-regular local CSF bootstrap file: ${target}`);
+    throw new Error(
+      `Refusing a non-regular local CSF bootstrap file: ${target}`,
+    );
   }
   if ((stats.mode & 0o777) !== 0o600) {
     throw new Error(`Local CSF bootstrap file must be mode 600: ${target}`);
   }
   if (stats.nlink !== 1) {
-    throw new Error(`Local CSF bootstrap file must have exactly one hard link: ${target}`);
+    throw new Error(
+      `Local CSF bootstrap file must have exactly one hard link: ${target}`,
+    );
   }
   if (typeof process.getuid === "function" && stats.uid !== process.getuid()) {
-    throw new Error(`Refusing a local CSF bootstrap file owned by another user: ${target}`);
+    throw new Error(
+      `Refusing a local CSF bootstrap file owned by another user: ${target}`,
+    );
   }
 }
 
@@ -95,7 +101,9 @@ function assertOwnerOnlyRegularFile(target) {
 export function candidateWorkDirectories(tempRoot = tmpdir()) {
   if (!existsSync(tempRoot)) return [];
   return readdirSync(tempRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name.startsWith(STACK_PREFIX))
+    .filter(
+      (entry) => entry.isDirectory() && entry.name.startsWith(STACK_PREFIX),
+    )
     .map((entry) => path.join(tempRoot, entry.name))
     .sort();
 }
@@ -157,7 +165,9 @@ function assertCurrentRepositoryMigrations(workDir) {
   } catch {
     throw new Error("The isolated stack migration history was not valid JSON.");
   }
-  const migrations = Array.isArray(payload?.migrations) ? payload.migrations : [];
+  const migrations = Array.isArray(payload?.migrations)
+    ? payload.migrations
+    : [];
   const appliedVersions = migrations
     .map((migration) => migration?.remote)
     .filter((version) => typeof version === "string" && version.length > 0);
@@ -175,16 +185,23 @@ export function findReusableWorkDirectories(
     // A retained marker from a previously stopped stack is normal. Check the
     // exact recorded database container quietly before asking the CLI for its
     // status, avoiding scary "No such container" output during discovery.
-    const container = spawnSync("docker", ["inspect", `supabase_db_${isolated.projectId}`], {
-      stdio: "ignore",
-    });
-    if (container.status !== 0) throw new Error("isolated database container is stopped");
+    const container = spawnSync(
+      "docker",
+      ["inspect", `supabase_db_${isolated.projectId}`],
+      {
+        stdio: "ignore",
+      },
+    );
+    if (container.status !== 0)
+      throw new Error("isolated database container is stopped");
     getCsfIsolatedSupabaseEnv({ CSF_ISOLATED_WORK_DIR: isolated.workDir });
     loadCsfIsolatedAppEnvironment(isolated.workDir);
     assertCurrentRepositoryMigrations(isolated.workDir);
     return isolated.workDir;
   },
-  onRejected = /** @type {(candidate: string, error: unknown) => void} */ (() => {}),
+  onRejected = /** @type {(candidate: string, error: unknown) => void} */ (
+    () => {}
+  ),
 ) {
   const reusable = [];
   for (const candidate of candidates) {
@@ -244,7 +261,9 @@ function createFreshStack() {
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    throw new Error(`The isolated Supabase launcher exited with code ${result.status}.`);
+    throw new Error(
+      `The isolated Supabase launcher exited with code ${result.status}.`,
+    );
   }
   return inspectCsfIsolatedWorkDir(workDir).workDir;
 }
@@ -263,7 +282,8 @@ function resolveWorkDirectory() {
     candidateWorkDirectories(),
     undefined,
     (candidate, error) => {
-      if (error instanceof StaleMigrationStackError) staleMigrationStacks.push(candidate);
+      if (error instanceof StaleMigrationStackError)
+        staleMigrationStacks.push(candidate);
     },
   );
   if (staleMigrationStacks.length > 0) {
@@ -282,7 +302,9 @@ function seedFixturesOnce(workDir, password) {
   const markerExists = existsSync(marker);
   if (markerExists) assertOwnerOnlyRegularFile(marker);
   if (markerExists && !forceReseed) {
-    console.log("Synthetic CSF fixtures are already present; preserving your local edits.");
+    console.log(
+      "Synthetic CSF fixtures are already present; preserving your local edits.",
+    );
     return;
   }
 
@@ -292,7 +314,11 @@ function seedFixturesOnce(workDir, password) {
   seedEnv.PLATFORM_SEED_MODE = "csf-isolated-v1";
   seedEnv.CSF_LOCAL_TEST_PASSWORD = password;
 
-  console.log(forceReseed ? "Re-seeding synthetic CSF fixtures..." : "Seeding synthetic CSF fixtures...");
+  console.log(
+    forceReseed
+      ? "Re-seeding synthetic CSF fixtures..."
+      : "Seeding synthetic CSF fixtures...",
+  );
   const result = spawnSync(process.execPath, [SEED_SCRIPT], {
     cwd: REPO_ROOT,
     env: seedEnv,
@@ -300,7 +326,9 @@ function seedFixturesOnce(workDir, password) {
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    throw new Error(`The synthetic CSF fixture seed exited with code ${result.status}.`);
+    throw new Error(
+      `The synthetic CSF fixture seed exited with code ${result.status}.`,
+    );
   }
 
   if (!markerExists) {
@@ -322,7 +350,9 @@ function printHandoff(workDir, password) {
   console.log("  member   : student.2028@local.test (Aarav Mehta)");
   console.log("  applicant: csf.applicant@local.test (Evan Chen)");
   console.log("  admin    : csf.admin@local.test (CSF Admin)");
-  console.log("  dataset  : Maya Patel, Priya Shah, Sofia, three classes, two terms, meetings, activities, points, applications, clubs, and imports");
+  console.log(
+    "  dataset  : Maya Patel, Priya Shah, Sofia, three classes, two terms, meetings, activities, points, applications, clubs, and imports",
+  );
   console.log("  reseed   : CSF_LOCAL_RESEED=1 bun run dev\n");
 }
 
@@ -367,9 +397,15 @@ async function main() {
 function isEntrypoint() {
   if (!process.argv[1]) return false;
   try {
-    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+    return (
+      realpathSync(process.argv[1]) ===
+      realpathSync(fileURLToPath(import.meta.url))
+    );
   } catch {
-    return path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+    return (
+      path.resolve(process.argv[1]) ===
+      path.resolve(fileURLToPath(import.meta.url))
+    );
   }
 }
 

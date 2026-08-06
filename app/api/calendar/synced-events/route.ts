@@ -9,8 +9,6 @@ import { SyncedEvent } from "@/types";
 import type { Project } from "@/types";
 import { parseMultiDayScheduleId } from "@/utils/project";
 
-
-
 export async function GET(_request: Request) {
   try {
     const supabase = await createClient();
@@ -22,28 +20,30 @@ export async function GET(_request: Request) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const syncedEvents: SyncedEvent[] = [];
 
     // Get synced projects (where user is creator)
-    type SyncedProjectRow = Pick<Project, "id" | "title" | "schedule" | "event_type"> & {
+    type SyncedProjectRow = Pick<
+      Project,
+      "id" | "title" | "schedule" | "event_type"
+    > & {
       creator_calendar_event_id: string | null;
       creator_synced_at: string | null;
     };
 
     const { data: projects, error: projectsError } = (await supabase
       .from("projects")
-      .select("id, title, schedule, event_type, creator_calendar_event_id, creator_synced_at")
+      .select(
+        "id, title, schedule, event_type, creator_calendar_event_id, creator_synced_at",
+      )
       .eq("creator_id", user.id)
       .not("creator_calendar_event_id", "is", null)) as {
-        data: SyncedProjectRow[] | null;
-        error: { message?: string } | null;
-      };
+      data: SyncedProjectRow[] | null;
+      error: { message?: string } | null;
+    };
 
     if (!projectsError && projects) {
       for (const project of projects) {
@@ -57,13 +57,19 @@ export async function GET(_request: Request) {
           startTime = `${s.date}T${s.startTime}`;
           endTime = `${s.date}T${s.endTime}`;
           scheduleId = "oneTime";
-        } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+        } else if (
+          project.event_type === "multiDay" &&
+          project.schedule.multiDay
+        ) {
           const firstDay = project.schedule.multiDay[0];
           const firstSlot = firstDay.slots[0];
           startTime = `${firstDay.date}T${firstSlot.startTime}`;
           endTime = `${firstDay.date}T${firstSlot.endTime}`;
           scheduleId = `${firstDay.date}-0`;
-        } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+        } else if (
+          project.event_type === "sameDayMultiArea" &&
+          project.schedule.sameDayMultiArea
+        ) {
           const s = project.schedule.sameDayMultiArea;
           const firstRole = s.roles[0];
           startTime = `${s.date}T${firstRole.startTime}`;
@@ -92,14 +98,15 @@ export async function GET(_request: Request) {
       volunteer_calendar_event_id: string | null;
       volunteer_synced_at: string | null;
       projects:
-      | Pick<Project, "id" | "title" | "schedule" | "event_type">
-      | Pick<Project, "id" | "title" | "schedule" | "event_type">[]
-      | null;
+        | Pick<Project, "id" | "title" | "schedule" | "event_type">
+        | Pick<Project, "id" | "title" | "schedule" | "event_type">[]
+        | null;
     };
 
     const { data: signups, error: signupsError } = (await supabase
       .from("project_signups")
-      .select(`
+      .select(
+        `
         id,
         schedule_id,
         volunteer_calendar_event_id,
@@ -110,12 +117,13 @@ export async function GET(_request: Request) {
           schedule,
           event_type
         )
-      `)
+      `,
+      )
       .eq("user_id", user.id)
       .not("volunteer_calendar_event_id", "is", null)) as {
-        data: SyncedSignupRow[] | null;
-        error: { message?: string } | null;
-      };
+      data: SyncedSignupRow[] | null;
+      error: { message?: string } | null;
+    };
 
     if (!signupsError && signups) {
       for (const signup of signups) {
@@ -133,17 +141,25 @@ export async function GET(_request: Request) {
           const s = project.schedule.oneTime;
           startTime = `${s.date}T${s.startTime}`;
           endTime = `${s.date}T${s.endTime}`;
-        } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+        } else if (
+          project.event_type === "multiDay" &&
+          project.schedule.multiDay
+        ) {
           const parsedScheduleId = parseMultiDayScheduleId(signup.schedule_id);
           if (parsedScheduleId) {
-            const day = project.schedule.multiDay.find((d) => d.date === parsedScheduleId.date);
+            const day = project.schedule.multiDay.find(
+              (d) => d.date === parsedScheduleId.date,
+            );
             const slot = day?.slots[parsedScheduleId.slotIndex];
             if (day && slot) {
               startTime = `${parsedScheduleId.date}T${slot.startTime}`;
               endTime = `${parsedScheduleId.date}T${slot.endTime}`;
             }
           }
-        } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+        } else if (
+          project.event_type === "sameDayMultiArea" &&
+          project.schedule.sameDayMultiArea
+        ) {
           const s = project.schedule.sameDayMultiArea;
           const role = s.roles.find((r) => r.name === signup.schedule_id);
           if (role) {
@@ -167,8 +183,9 @@ export async function GET(_request: Request) {
     }
 
     // Sort by synced_at descending
-    syncedEvents.sort((a, b) =>
-      new Date(b.synced_at).getTime() - new Date(a.synced_at).getTime()
+    syncedEvents.sort(
+      (a, b) =>
+        new Date(b.synced_at).getTime() - new Date(a.synced_at).getTime(),
     );
 
     return NextResponse.json({
@@ -179,7 +196,7 @@ export async function GET(_request: Request) {
     console.error("Error getting synced events:", error);
     return NextResponse.json(
       { error: "Failed to get synced events" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

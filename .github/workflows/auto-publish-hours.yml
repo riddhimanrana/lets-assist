@@ -2,8 +2,8 @@ name: Auto-Publish Hours
 
 on:
   schedule:
-    - cron: '10 3 * * *'   # Auto-publish: 03:10 UTC (primary)
-    - cron: '10 15 * * *'  # Auto-publish: 15:10 UTC (second pass)
+    - cron: "10 3 * * *" # Auto-publish: 03:10 UTC (primary)
+    - cron: "10 15 * * *" # Auto-publish: 15:10 UTC (second pass)
   workflow_dispatch:
 
 permissions:

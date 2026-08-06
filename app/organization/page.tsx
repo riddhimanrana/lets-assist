@@ -43,8 +43,11 @@ export default async function OrganizationsPage() {
     previewSource === "remote" ? createRemoteReadonlyClient() : null;
   const wantsRemotePreview = previewSource === "remote";
   const usingRemotePreview = wantsRemotePreview && Boolean(remoteReadonly);
-   const readClient = usingRemotePreview && remoteReadonly ? remoteReadonly : supabase;
-  const { data: { user } } = await supabase.auth.getUser();
+  const readClient =
+    usingRemotePreview && remoteReadonly ? remoteReadonly : supabase;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const previewWarning =
     wantsRemotePreview && !usingRemotePreview
       ? "Remote preview requested, but remote Supabase keys are missing or invalid. Falling back to local data."
@@ -76,12 +79,13 @@ export default async function OrganizationsPage() {
       isTrusted = true;
     }
   }
-  
+
   // Fetch all organizations through the public-safe read model. The base
   // organizations table contains join codes, staff tokens, and domain settings.
   const { data: organizations } = (await readClient
     .from("organization_public_read_model")
-    .select(`
+    .select(
+      `
       id,
       name,
       username,
@@ -92,50 +96,57 @@ export default async function OrganizationsPage() {
       verified,
       created_at,
       public_member_count
-    `)
-    .order('verified', { ascending: false })
-    .order('created_at', { ascending: false })) as {
+    `,
+    )
+    .order("verified", { ascending: false })
+    .order("created_at", { ascending: false })) as {
     data: OrganizationRow[] | null;
     error: { message: string } | null;
   };
 
-  const visibleOrganizations =
-    isCsfFixturePresentation
-      ? (organizations || []).filter(
-          (organization) => organization.username === "dvhs-csf",
-        )
-      : organizations || [];
+  const visibleOrganizations = isCsfFixturePresentation
+    ? (organizations || []).filter(
+        (organization) => organization.username === "dvhs-csf",
+      )
+    : organizations || [];
 
-  const orgMemberCounts = visibleOrganizations.reduce((acc, organization) => {
-    acc[organization.id] = organization.public_member_count ?? 0;
-    return acc;
-  }, {} as Record<string, number>);
+  const orgMemberCounts = visibleOrganizations.reduce(
+    (acc, organization) => {
+      acc[organization.id] = organization.public_member_count ?? 0;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   // If user is logged in, fetch their organization memberships
   let userMemberships: UserMembership[] = [];
   if (isLoggedIn && user) {
-    const effectiveUserId =
-      usingRemotePreview
-        ? getRemoteUserIdForLocalUser(user.email) || user.id
-        : user.id;
+    const effectiveUserId = usingRemotePreview
+      ? getRemoteUserIdForLocalUser(user.email) || user.id
+      : user.id;
     const { data: memberships } = (await readClient
-      .from('organization_members')
-      .select(`
+      .from("organization_members")
+      .select(
+        `
         role,
         organization_id
-      `)
-      .eq('user_id', effectiveUserId)
-      .order('role', { ascending: false })) as {
+      `,
+      )
+      .eq("user_id", effectiveUserId)
+      .order("role", { ascending: false })) as {
       data: Array<Omit<UserMembership, "organizations">> | null;
       error: { message: string } | null;
     }; // Admin first, then staff, then member
 
-    const organizationIds = (memberships || []).map((membership) => membership.organization_id);
+    const organizationIds = (memberships || []).map(
+      (membership) => membership.organization_id,
+    );
     let membershipOrganizations: OrganizationRow[] = [];
     if (organizationIds.length > 0) {
       const { data } = (await readClient
         .from("organization_public_read_model")
-        .select(`
+        .select(
+          `
           id,
           name,
           username,
@@ -146,7 +157,8 @@ export default async function OrganizationsPage() {
           verified,
           created_at,
           public_member_count
-        `)
+        `,
+        )
         .in("id", organizationIds)) as {
         data: OrganizationRow[] | null;
         error: { message: string } | null;
@@ -155,7 +167,10 @@ export default async function OrganizationsPage() {
     }
 
     const organizationById = new Map(
-      membershipOrganizations.map((organization) => [organization.id, organization]),
+      membershipOrganizations.map((organization) => [
+        organization.id,
+        organization,
+      ]),
     );
 
     userMemberships = (memberships || [])

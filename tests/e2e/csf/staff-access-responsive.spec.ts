@@ -90,7 +90,10 @@ test.describe("DVHS CSF staff access presentation", () => {
       "Access status",
     ]) {
       await expect(
-        roster.getByText(concept, { exact: true }).filter({ visible: true }).first(),
+        roster
+          .getByText(concept, { exact: true })
+          .filter({ visible: true })
+          .first(),
         `${concept} should be labelled on the phone card`,
       ).toBeVisible();
     }
@@ -106,7 +109,9 @@ test.describe("DVHS CSF staff access presentation", () => {
     await loginAs(page, "admin", STAFF_TAB_URL);
     await openStaffAccess(page);
 
-    const revoke = page.getByRole("button", { name: "Revoke", exact: true }).first();
+    const revoke = page
+      .getByRole("button", { name: "Revoke", exact: true })
+      .first();
     await revoke.click();
     const dialog = page.getByRole("dialog");
     await expect(
@@ -152,9 +157,15 @@ test.describe("DVHS CSF proof submission", () => {
   }) => {
     const failures = watchBrowserFailures(page);
     await page.setViewportSize({ width: 390, height: 844 });
-    await loginAs(page, "member", `${CSF_ORGANIZATION_PATH}?tab=csf-submissions`);
+    await loginAs(
+      page,
+      "member",
+      `${CSF_ORGANIZATION_PATH}?tab=csf-submissions`,
+    );
 
-    await page.getByRole("button", { name: "Submit points", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Submit points", exact: true })
+      .click();
     const dialog = page.getByRole("dialog");
     const proof = dialog.getByLabel("One proof file");
     await expect(proof).toBeVisible();
@@ -195,7 +206,10 @@ test.describe("DVHS CSF proof submission", () => {
     await expect(rejection).toContainText("10 MB or less");
     await expect(proof).toHaveAttribute("aria-invalid", "true");
     await expect(
-      rejection.getByRole("button", { name: "Choose a different file", exact: true }),
+      rejection.getByRole("button", {
+        name: "Choose a different file",
+        exact: true,
+      }),
     ).toBeVisible();
     await expect(selection).toBeEmpty();
 
@@ -212,23 +226,29 @@ test.describe("DVHS CSF proof submission", () => {
   }) => {
     const failures = watchBrowserFailures(page);
     await page.setViewportSize({ width: 390, height: 844 });
-    await loginAs(page, "member", `${CSF_ORGANIZATION_PATH}?tab=csf-submissions`);
+    await loginAs(
+      page,
+      "member",
+      `${CSF_ORGANIZATION_PATH}?tab=csf-submissions`,
+    );
 
-    await page.getByRole("button", { name: "Submit points", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Submit points", exact: true })
+      .click();
     const dialog = page.getByRole("dialog");
     const form = dialog.locator("form");
     await expect(form).not.toHaveAttribute("aria-busy", "true");
 
-    await dialog
-      .getByLabel("One proof file")
-      .setInputFiles({
-        name: "service-proof.png",
-        mimeType: "image/png",
-        buffer: Buffer.alloc(1024, 5),
-      });
+    await dialog.getByLabel("One proof file").setInputFiles({
+      name: "service-proof.png",
+      mimeType: "image/png",
+      buffer: Buffer.alloc(1024, 5),
+    });
     // Exact, so "Point type" and "Point source" cannot also match.
     await dialog.getByLabel("Points", { exact: true }).fill("1");
-    await dialog.getByRole("button", { name: "Submit for review", exact: true }).click();
+    await dialog
+      .getByRole("button", { name: "Submit for review", exact: true })
+      .click();
 
     // The phase is indeterminate: a named progressbar with no value, plus an
     // announced status. It may resolve quickly, so accept either state.

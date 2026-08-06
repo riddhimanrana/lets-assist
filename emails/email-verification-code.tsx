@@ -35,29 +35,40 @@ export default function EmailVerificationCode({
               <Heading style={heading1}>Verify your email address</Heading>
 
               <Text style={paragraph}>
-                Enter this code in Let&apos;s Assist to verify your email address:
+                Enter this code in Let&apos;s Assist to verify your email
+                address:
               </Text>
 
               <Section style={codeBox}>
                 <Text style={codeLabel}>Verification code</Text>
                 <Text style={codeValue}>{code}</Text>
-                <Text style={codeHelp}>This code expires in {expiresInHours} hours.</Text>
+                <Text style={codeHelp}>
+                  This code expires in {expiresInHours} hours.
+                </Text>
               </Section>
 
               <Heading style={heading2}>How to use it</Heading>
               <Text style={paragraph}>
-                Copy the code above and paste it into the verification field in your account settings to complete the process.
+                Copy the code above and paste it into the verification field in
+                your account settings to complete the process.
               </Text>
 
               <Section style={securityBox}>
                 <Text style={securityTitle}>Security &amp; privacy</Text>
-                <Text style={securityItem}>• Never share this code with anyone</Text>
-                <Text style={securityItem}>• Let&apos;s Assist support will never ask for your code</Text>
-                <Text style={securityItem}>• Delete this email after verifying for extra safety</Text>
+                <Text style={securityItem}>
+                  • Never share this code with anyone
+                </Text>
+                <Text style={securityItem}>
+                  • Let&apos;s Assist support will never ask for your code
+                </Text>
+                <Text style={securityItem}>
+                  • Delete this email after verifying for extra safety
+                </Text>
               </Section>
 
               <Text style={smallText}>
-                Didn&apos;t request this? You can safely ignore this email. If you&apos;re concerned, contact{" "}
+                Didn&apos;t request this? You can safely ignore this email. If
+                you&apos;re concerned, contact{" "}
                 <Link href="mailto:support@lets-assist.com" style={link}>
                   support@lets-assist.com
                 </Link>
@@ -66,7 +77,9 @@ export default function EmailVerificationCode({
             </Section>
 
             <Section style={footerBox}>
-              <Text style={footerText}>© {currentYear} Tulip Coaching LLC. All rights reserved.</Text>
+              <Text style={footerText}>
+                © {currentYear} Tulip Coaching LLC. All rights reserved.
+              </Text>
             </Section>
           </Section>
         </Container>

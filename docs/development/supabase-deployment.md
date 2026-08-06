@@ -64,6 +64,7 @@ supabase db pull -d <migration_name>
 ```
 
 Migration files go in `supabase/migrations/` with format:
+
 ```
 YYYYMMDDHHMMSS_migration_name.sql
 ```
@@ -139,15 +140,15 @@ supabase db push --linked --yes
 
 ### Validation Checks
 
-| Check | Local Validate | CI/CD | Purpose |
-|-------|-----------------|-------|---------|
-| File format check | ✓ | ✓ | Catch naming errors early |
-| Duplicate timestamps | ✓ | ✓ | Prevent migration conflicts |
-| Migration replay test | ✓ | ✓ | Ensure migrations work from scratch |
-| SQL syntax | ✗ | ✓ | Catch SQL errors before prod |
-| Security advisors | ✓ | ✓ | Find RLS/exposure issues |
-| Performance advisors | ✓ | ✓ | Identify missing indexes |
-| Dry-run check | ✓ | ✓ | Preview prod changes safely |
+| Check                 | Local Validate | CI/CD | Purpose                             |
+| --------------------- | -------------- | ----- | ----------------------------------- |
+| File format check     | ✓              | ✓     | Catch naming errors early           |
+| Duplicate timestamps  | ✓              | ✓     | Prevent migration conflicts         |
+| Migration replay test | ✓              | ✓     | Ensure migrations work from scratch |
+| SQL syntax            | ✗              | ✓     | Catch SQL errors before prod        |
+| Security advisors     | ✓              | ✓     | Find RLS/exposure issues            |
+| Performance advisors  | ✓              | ✓     | Identify missing indexes            |
+| Dry-run check         | ✓              | ✓     | Preview prod changes safely         |
 
 ### Blocking Conditions
 
@@ -188,6 +189,7 @@ SUPABASE_ACCESS_TOKEN      # Personal access token from Supabase
 ```
 
 Get the access token:
+
 1. Go to https://app.supabase.com/account/tokens
 2. Click "Create new token"
 3. Copy the token
@@ -261,6 +263,7 @@ ALTER TABLE public.users DROP COLUMN bad_column;
 **Problem:** Local migration replay failed
 
 **Solution:**
+
 ```bash
 # Reset and try again
 bun run supabase:stop
@@ -276,6 +279,7 @@ bun run db:validate
 **Problem:** SUPABASE_ACCESS_TOKEN not set
 
 **Solution:**
+
 ```bash
 # Set temporarily
 export SUPABASE_ACCESS_TOKEN="sbp_xxxxxxxxxxxxx"
@@ -288,6 +292,7 @@ echo 'export SUPABASE_ACCESS_TOKEN="..."' >> ~/.bashrc
 ### GitHub Actions deployment fails
 
 **Check:**
+
 1. View Actions logs in GitHub UI
 2. Identify the stage that failed (validate, test, deploy)
 3. Read the error message
@@ -334,6 +339,7 @@ bun run db:dry-run
 ## Best Practices
 
 ✅ **DO:**
+
 - Run `db:validate` before every commit
 - Keep migrations small and focused
 - Write descriptive migration names: `YYYYMMDDHHMMSS_add_users_rls_policy.sql`
@@ -342,6 +348,7 @@ bun run db:dry-run
 - Review migration files before committing
 
 ❌ **DON'T:**
+
 - Edit migration files after creation (create new ones instead)
 - Use `SELECT *` in migrations (list columns explicitly)
 - Forget to add RLS policies to public tables

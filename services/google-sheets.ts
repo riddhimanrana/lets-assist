@@ -12,11 +12,7 @@ const GOOGLE_DRIVE_FILES_API = "https://www.googleapis.com/drive/v3/files";
 type SpreadsheetValueInputOption = "RAW" | "USER_ENTERED";
 
 export type CsfDriveFileAccessState =
-  | "accessible"
-  | "reconnect_required"
-  | "not_found"
-  | "trashed"
-  | "unknown";
+  "accessible" | "reconnect_required" | "not_found" | "trashed" | "unknown";
 
 export type CsfDriveFileMetadata = {
   /**
@@ -83,7 +79,8 @@ export type CsfDriveFileMetadata = {
 };
 
 /** Google's editor-native spreadsheet MIME. Anything else is not a Sheet. */
-export const GOOGLE_SHEETS_MIME_TYPE = "application/vnd.google-apps.spreadsheet";
+export const GOOGLE_SHEETS_MIME_TYPE =
+  "application/vnd.google-apps.spreadsheet";
 
 /**
  * Drive's OWN output spelling for `modifiedTime`: UTC `Z`, with a fractional
@@ -109,7 +106,8 @@ const MONTH_LENGTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
  * identifier stays opaque, so an ordinary internal character is not this
  * boundary's business.
  */
-const EDGE_PADDING = /^[\p{White_Space}\p{Cc}\p{Cf}]|[\p{White_Space}\p{Cc}\p{Cf}]$/u;
+const EDGE_PADDING =
+  /^[\p{White_Space}\p{Cc}\p{Cf}]|[\p{White_Space}\p{Cc}\p{Cf}]$/u;
 /** The opaque provider identifier bound, matching the normalized contract. */
 const MAX_PROVIDER_FILE_ID = 512;
 /** The MIME bound. A media type this long is not one the provider emits. */
@@ -138,8 +136,10 @@ function isRealCivilDateTime(fields: RegExpExecArray) {
   // era it stores, so a round trip comes back as 1 BC. A coordinate that cannot
   // survive the column it will be compared against is not evidence.
   if (yearNumber < 1) return false;
-  const leap = (yearNumber % 4 === 0 && yearNumber % 100 !== 0) || yearNumber % 400 === 0;
-  const dayCount = monthNumber === 2 ? (leap ? 29 : 28) : MONTH_LENGTHS[monthNumber - 1];
+  const leap =
+    (yearNumber % 4 === 0 && yearNumber % 100 !== 0) || yearNumber % 400 === 0;
+  const dayCount =
+    monthNumber === 2 ? (leap ? 29 : 28) : MONTH_LENGTHS[monthNumber - 1];
   const dayNumber = Number(day);
   if (dayNumber < 1 || dayNumber > dayCount) return false;
   return Number(hour) <= 23 && Number(minute) <= 59 && Number(second) <= 59;
@@ -159,7 +159,11 @@ function isRealCivilDateTime(fields: RegExpExecArray) {
  * exactly what Drive can emit, or it is not evidence.
  */
 function exactProviderTimestamp(value: unknown): string | null {
-  if (typeof value !== "string" || value.length === 0 || value.length > MAX_PROVIDER_INSTANT) {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > MAX_PROVIDER_INSTANT
+  ) {
     return null;
   }
   const fields = DRIVE_INSTANT.exec(value);
@@ -186,7 +190,12 @@ function exactProviderTimestamp(value: unknown): string | null {
  * to pass the one check whose entire subject is exactness.
  */
 function exactProviderText(value: unknown, maxLength: number): string | null {
-  if (typeof value !== "string" || value.length === 0 || value.length > maxLength) return null;
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > maxLength
+  )
+    return null;
   return EDGE_PADDING.test(value) ? null : value;
 }
 
@@ -202,7 +211,9 @@ function exactProviderText(value: unknown, maxLength: number): string | null {
 function boundedDisplayText(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const collapsed = value.trim();
-  return collapsed.length > 0 && collapsed.length <= MAX_PROVIDER_DISPLAY ? collapsed : null;
+  return collapsed.length > 0 && collapsed.length <= MAX_PROVIDER_DISPLAY
+    ? collapsed
+    : null;
 }
 
 /** A positive decimal integer with no leading zero, so equality is canonical. */
@@ -235,7 +246,11 @@ function boundedProviderVersion(value: unknown): string | null {
   // Textual int64 bound. With no leading zeros, a shorter string is the smaller
   // integer and equal lengths compare lexicographically in numeric order.
   if (value.length > PROVIDER_VERSION_MAX.length) return null;
-  if (value.length === PROVIDER_VERSION_MAX.length && value > PROVIDER_VERSION_MAX) return null;
+  if (
+    value.length === PROVIDER_VERSION_MAX.length &&
+    value > PROVIDER_VERSION_MAX
+  )
+    return null;
   return value;
 }
 
@@ -243,7 +258,9 @@ export async function getGoogleDriveFileMetadata(
   accessToken: string,
   fileId: string,
 ): Promise<CsfDriveFileMetadata> {
-  const unavailable = (accessState: CsfDriveFileAccessState): CsfDriveFileMetadata => ({
+  const unavailable = (
+    accessState: CsfDriveFileAccessState,
+  ): CsfDriveFileMetadata => ({
     requestedFileId: fileId,
     id: null,
     name: null,
@@ -265,7 +282,8 @@ export async function getGoogleDriveFileMetadata(
       return unavailable("unknown");
     }
     const params = new URLSearchParams({
-      fields: "id,name,mimeType,modifiedTime,version,headRevisionId,webViewLink,trashed",
+      fields:
+        "id,name,mimeType,modifiedTime,version,headRevisionId,webViewLink,trashed",
       supportsAllDrives: "true",
     });
     const response = await fetch(
@@ -274,17 +292,22 @@ export async function getGoogleDriveFileMetadata(
     );
 
     if (!response.ok) {
-      const accessState: CsfDriveFileAccessState = response.status === 401 || response.status === 403
-        ? "reconnect_required"
-        : response.status === 404
-          ? "not_found"
-          : "unknown";
+      const accessState: CsfDriveFileAccessState =
+        response.status === 401 || response.status === 403
+          ? "reconnect_required"
+          : response.status === 404
+            ? "not_found"
+            : "unknown";
       // The requested id is deliberately absent. A log context is the one place
       // an opaque provider coordinate leaves this process without a consumer
       // that needs it, and the status is the entire diagnostic.
-      logError("Failed to fetch Google Drive file metadata", new Error(`Drive returned ${response.status}`), {
-        status: response.status,
-      });
+      logError(
+        "Failed to fetch Google Drive file metadata",
+        new Error(`Drive returned ${response.status}`),
+        {
+          status: response.status,
+        },
+      );
       return unavailable(accessState);
     }
 
@@ -336,11 +359,11 @@ export async function getGoogleDriveFileMetadata(
       // of them there is nothing to verify against, so this fails closed rather
       // than reporting success and letting a null slip into frozen provenance.
       accessState:
-        !identityProven
-          || !isNativeSheet
-          || trashed === null
-          || modifiedTime === null
-          || version === null
+        !identityProven ||
+        !isNativeSheet ||
+        trashed === null ||
+        modifiedTime === null ||
+        version === null
           ? "unknown"
           : trashed
             ? "trashed"
@@ -372,7 +395,9 @@ export async function getGoogleDriveFileMetadata(
     // diagnostic this reader is allowed to publish.
     logError(
       "Exception while fetching Google Drive file metadata",
-      new Error("Drive file metadata request failed before a response was read"),
+      new Error(
+        "Drive file metadata request failed before a response was read",
+      ),
     );
     return unavailable("unknown");
   }
@@ -412,7 +437,11 @@ export type CsfSourceLiveEvidence = {
 
 export type CsfSourceLiveEvidenceResult =
   | CsfSourceLiveEvidence
-  | { status: "refused"; reason: CsfSourceEvidenceRefusal; metadata: CsfDriveFileMetadata };
+  | {
+      status: "refused";
+      reason: CsfSourceEvidenceRefusal;
+      metadata: CsfDriveFileMetadata;
+    };
 
 /**
  * The metadata-only commit-time freshness read.
@@ -483,11 +512,13 @@ const columnToIndex = (column: string) => {
 
 const indexToColumn = (index: number) => {
   if (
-    !Number.isSafeInteger(index)
-    || index < 1
-    || index > GOOGLE_SHEETS_MAX_COLUMN_INDEX
+    !Number.isSafeInteger(index) ||
+    index < 1 ||
+    index > GOOGLE_SHEETS_MAX_COLUMN_INDEX
   ) {
-    throw new RangeError("Google Sheets column index is outside the supported A1 range.");
+    throw new RangeError(
+      "Google Sheets column index is outside the supported A1 range.",
+    );
   }
 
   let value = index;
@@ -506,9 +537,9 @@ const parseA1Cell = (cell: string) => {
   const columnIndex = columnToIndex(match[1]);
   const row = Number.parseInt(match[2], 10);
   if (
-    !Number.isSafeInteger(columnIndex)
-    || !Number.isSafeInteger(row)
-    || row < 1
+    !Number.isSafeInteger(columnIndex) ||
+    !Number.isSafeInteger(row) ||
+    row < 1
   ) {
     return null;
   }
@@ -524,9 +555,10 @@ const parseA1Range = (range: string) => {
   // Numbered groups rather than named ones: this project's TypeScript target
   // predates ES2018, so a named capture group is a compile error here.
   // Group 1 is the optional tab, 2 the start cell, 3 the optional end cell.
-  const match = /^(?:('(?:[^']|'')*'|[^'!]+)!)?([A-Za-z]+\d+)(?::([A-Za-z]+\d+))?$/u.exec(
-    trimmed,
-  );
+  const match =
+    /^(?:('(?:[^']|'')*'|[^'!]+)!)?([A-Za-z]+\d+)(?::([A-Za-z]+\d+))?$/u.exec(
+      trimmed,
+    );
   if (!match) return null;
   const start = parseA1Cell(match[2]);
   const end = match[3] ? parseA1Cell(match[3]) : null;
@@ -550,12 +582,12 @@ const formatSheetNameForA1 = (tabName: string) => {
 export function buildWriteRange(
   tabName: string,
   rangeA1: string | null | undefined,
-  rows: string[][]
+  rows: string[][],
 ) {
   const totalRows = Math.max(rows.length, 1);
   const totalColumns = Math.max(
     rows.reduce((max, row) => Math.max(max, row.length), 0),
-    1
+    1,
   );
   const parsed = rangeA1 ? parseA1Range(rangeA1) : null;
   const startColumn = parsed?.start.column ?? "A";
@@ -571,7 +603,7 @@ export function buildWriteRange(
 export function buildClearRange(
   tabName: string,
   rangeA1: string | null | undefined,
-  rows: string[][]
+  rows: string[][],
 ) {
   const parsed = rangeA1 ? parseA1Range(rangeA1) : null;
   const startColumn = parsed?.start.column ?? "A";
@@ -579,7 +611,7 @@ export function buildClearRange(
   const startIndex = columnToIndex(startColumn);
   const totalColumns = Math.max(
     rows.reduce((max, row) => Math.max(max, row.length), 0),
-    1
+    1,
   );
   const resolvedTab = parsed?.tabName || tabName;
 
@@ -642,12 +674,12 @@ export function buildStaleClearRanges(
 export async function clearSpreadsheetValues(
   accessToken: string,
   sheetId: string,
-  range: string
+  range: string,
 ): Promise<boolean> {
   try {
     const response = await fetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(
-        sheetId
+        sheetId,
       )}/values/${encodeURIComponent(range)}:clear`,
       {
         method: "POST",
@@ -656,12 +688,12 @@ export async function clearSpreadsheetValues(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({}),
-      }
+      },
     );
 
     if (!response.ok) {
       const error = await response.text();
-      logError('Failed to clear Google spreadsheet values', new Error(error), {
+      logError("Failed to clear Google spreadsheet values", new Error(error), {
         sheet_id: sheetId,
         range,
       });
@@ -670,7 +702,7 @@ export async function clearSpreadsheetValues(
 
     return true;
   } catch (error) {
-    logError('Exception while clearing Google spreadsheet values', error, {
+    logError("Exception while clearing Google spreadsheet values", error, {
       sheet_id: sheetId,
       range,
     });
@@ -681,8 +713,13 @@ export async function clearSpreadsheetValues(
 export async function createSpreadsheet(
   accessToken: string,
   title: string,
-  tabName: string
-): Promise<{ sheetId: string; sheetUrl: string; tabName: string; sheetTitle: string } | null> {
+  tabName: string,
+): Promise<{
+  sheetId: string;
+  sheetUrl: string;
+  tabName: string;
+  sheetTitle: string;
+} | null> {
   try {
     const response = await fetch(GOOGLE_SHEETS_API, {
       method: "POST",
@@ -704,7 +741,7 @@ export async function createSpreadsheet(
 
     if (!response.ok) {
       const error = await response.text();
-      logError('Failed to create Google spreadsheet', new Error(error), {
+      logError("Failed to create Google spreadsheet", new Error(error), {
         title,
         tab_name: tabName,
       });
@@ -719,7 +756,7 @@ export async function createSpreadsheet(
       sheetTitle: data.properties?.title || title,
     };
   } catch (error) {
-    logError('Exception while creating Google spreadsheet', error, {
+    logError("Exception while creating Google spreadsheet", error, {
       title,
       tab_name: tabName,
     });
@@ -742,31 +779,37 @@ export function buildSpreadsheetUrl(sheetId: string) {
 
 export async function getSpreadsheetMetadata(
   accessToken: string,
-  sheetId: string
+  sheetId: string,
 ): Promise<{ sheetId: string; sheetTitle: string; tabs: string[] } | null> {
   try {
     const response = await fetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(
-        sheetId
+        sheetId,
       )}?fields=spreadsheetId,properties.title,sheets.properties.title`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
       const error = await response.text();
-      logError('Failed to fetch Google spreadsheet metadata', new Error(error), {
-        sheet_id: sheetId,
-      });
+      logError(
+        "Failed to fetch Google spreadsheet metadata",
+        new Error(error),
+        {
+          sheet_id: sheetId,
+        },
+      );
       return null;
     }
 
     const data = await response.json();
     const tabs = (data.sheets || [])
-      .map((sheet: { properties?: { title?: string } }) => sheet.properties?.title)
+      .map(
+        (sheet: { properties?: { title?: string } }) => sheet.properties?.title,
+      )
       .filter((title: string | undefined): title is string => Boolean(title));
 
     return {
@@ -775,7 +818,7 @@ export async function getSpreadsheetMetadata(
       tabs,
     };
   } catch (error) {
-    logError('Exception while fetching Google spreadsheet metadata', error, {
+    logError("Exception while fetching Google spreadsheet metadata", error, {
       sheet_id: sheetId,
     });
     return null;
@@ -785,7 +828,7 @@ export async function getSpreadsheetMetadata(
 export async function ensureSpreadsheetTab(
   accessToken: string,
   sheetId: string,
-  tabName: string
+  tabName: string,
 ): Promise<boolean> {
   try {
     const metadata = await getSpreadsheetMetadata(accessToken, sheetId);
@@ -811,12 +854,12 @@ export async function ensureSpreadsheetTab(
             },
           ],
         }),
-      }
+      },
     );
 
     if (!response.ok) {
       const error = await response.text();
-      logError('Failed to create Google sheet tab', new Error(error), {
+      logError("Failed to create Google sheet tab", new Error(error), {
         sheet_id: sheetId,
         tab_name: tabName,
       });
@@ -825,7 +868,7 @@ export async function ensureSpreadsheetTab(
 
     return true;
   } catch (error) {
-    logError('Exception while ensuring Google sheet tab', error, {
+    logError("Exception while ensuring Google sheet tab", error, {
       sheet_id: sheetId,
       tab_name: tabName,
     });
@@ -844,7 +887,7 @@ export async function updateSpreadsheetValues(
   try {
     const response = await fetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(
-        sheetId
+        sheetId,
       )}/values/${encodeURIComponent(resolvedRange)}?valueInputOption=${valueInputOption}`,
       {
         method: "PUT",
@@ -857,12 +900,12 @@ export async function updateSpreadsheetValues(
           majorDimension: "ROWS",
           values: rows,
         }),
-      }
+      },
     );
 
     if (!response.ok) {
       const error = await response.text();
-      logError('Failed to update Google spreadsheet values', new Error(error), {
+      logError("Failed to update Google spreadsheet values", new Error(error), {
         sheet_id: sheetId,
         range: resolvedRange,
         rows_count: rows.length,
@@ -872,7 +915,7 @@ export async function updateSpreadsheetValues(
 
     return true;
   } catch (error) {
-    logError('Exception while updating Google spreadsheet values', error, {
+    logError("Exception while updating Google spreadsheet values", error, {
       sheet_id: sheetId,
       range: resolvedRange,
       rows_count: rows.length,
@@ -895,13 +938,7 @@ export async function replaceSpreadsheetReportValues(
     // Report cells are untrusted data, never formulas. RAW prevents names,
     // emails, project titles, or custom labels from being evaluated by Sheets.
     write: () =>
-      updateSpreadsheetValues(
-        accessToken,
-        sheetId,
-        writeRange,
-        rows,
-        "RAW",
-      ),
+      updateSpreadsheetValues(accessToken, sheetId, writeRange, rows, "RAW"),
     clear: (range) => clearSpreadsheetValues(accessToken, sheetId, range),
   });
 }
@@ -909,7 +946,7 @@ export async function replaceSpreadsheetReportValues(
 export async function batchGetSpreadsheetValues(
   accessToken: string,
   sheetId: string,
-  ranges: string[]
+  ranges: string[],
 ): Promise<Array<{ range: string; values: string[][] }> | null> {
   if (ranges.length === 0) return [];
 
@@ -927,23 +964,29 @@ export async function batchGetSpreadsheetValues(
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
       const error = await response.text();
-      logError("Failed to batch read Google spreadsheet values", new Error(error), {
-        sheet_id: sheetId,
-        ranges: ranges.join(", "),
-      });
+      logError(
+        "Failed to batch read Google spreadsheet values",
+        new Error(error),
+        {
+          sheet_id: sheetId,
+          ranges: ranges.join(", "),
+        },
+      );
       return null;
     }
 
     const data = await response.json();
-    return (data.valueRanges || []).map((valueRange: { range?: string; values?: string[][] }) => ({
-      range: valueRange.range || "",
-      values: valueRange.values || [],
-    }));
+    return (data.valueRanges || []).map(
+      (valueRange: { range?: string; values?: string[][] }) => ({
+        range: valueRange.range || "",
+        values: valueRange.values || [],
+      }),
+    );
   } catch (error) {
     logError("Exception while batch reading Google spreadsheet values", error, {
       sheet_id: sheetId,
@@ -1031,7 +1074,9 @@ export type CsfSheetSourceSnapshotResult =
       message: string;
     };
 
-function unavailableReasonForStatus(status: number): CsfSheetSourceUnavailableReason {
+function unavailableReasonForStatus(
+  status: number,
+): CsfSheetSourceUnavailableReason {
   if (status === 401 || status === 403) return "reconnect_required";
   if (status === 404) return "not_found";
   if (status === 429) return "rate_limited";
@@ -1055,18 +1100,18 @@ export function parseCsfSheetBoundedRange(
   const width = endColumn - startColumn + 1;
   const cellCount = height * width;
   if (
-    !Number.isSafeInteger(startRow)
-    || !Number.isSafeInteger(endRow)
-    || !Number.isSafeInteger(startColumn)
-    || !Number.isSafeInteger(endColumn)
-    || startRow < 1
-    || endRow < startRow
-    || startColumn < 1
-    || endColumn < startColumn
-    || !Number.isSafeInteger(height)
-    || !Number.isSafeInteger(width)
-    || !Number.isSafeInteger(cellCount)
-    || cellCount > CSF_SHEET_MAX_BOUNDED_CELLS
+    !Number.isSafeInteger(startRow) ||
+    !Number.isSafeInteger(endRow) ||
+    !Number.isSafeInteger(startColumn) ||
+    !Number.isSafeInteger(endColumn) ||
+    startRow < 1 ||
+    endRow < startRow ||
+    startColumn < 1 ||
+    endColumn < startColumn ||
+    !Number.isSafeInteger(height) ||
+    !Number.isSafeInteger(width) ||
+    !Number.isSafeInteger(cellCount) ||
+    cellCount > CSF_SHEET_MAX_BOUNDED_CELLS
   ) {
     return null;
   }
@@ -1079,22 +1124,24 @@ export function formatCsfSheetBounds(bounds: CsfSheetBounds) {
   const width = bounds.endColumn - bounds.startColumn + 1;
   const cellCount = height * width;
   if (
-    !bounds.tabName.trim()
-    || !Number.isSafeInteger(bounds.startRow)
-    || !Number.isSafeInteger(bounds.endRow)
-    || !Number.isSafeInteger(bounds.startColumn)
-    || !Number.isSafeInteger(bounds.endColumn)
-    || bounds.startRow < 1
-    || bounds.endRow < bounds.startRow
-    || bounds.startColumn < 1
-    || bounds.endColumn < bounds.startColumn
-    || bounds.endColumn > GOOGLE_SHEETS_MAX_COLUMN_INDEX
-    || !Number.isSafeInteger(height)
-    || !Number.isSafeInteger(width)
-    || !Number.isSafeInteger(cellCount)
-    || cellCount > CSF_SHEET_MAX_BOUNDED_CELLS
+    !bounds.tabName.trim() ||
+    !Number.isSafeInteger(bounds.startRow) ||
+    !Number.isSafeInteger(bounds.endRow) ||
+    !Number.isSafeInteger(bounds.startColumn) ||
+    !Number.isSafeInteger(bounds.endColumn) ||
+    bounds.startRow < 1 ||
+    bounds.endRow < bounds.startRow ||
+    bounds.startColumn < 1 ||
+    bounds.endColumn < bounds.startColumn ||
+    bounds.endColumn > GOOGLE_SHEETS_MAX_COLUMN_INDEX ||
+    !Number.isSafeInteger(height) ||
+    !Number.isSafeInteger(width) ||
+    !Number.isSafeInteger(cellCount) ||
+    cellCount > CSF_SHEET_MAX_BOUNDED_CELLS
   ) {
-    throw new RangeError("CSF Google Sheets bounds must describe one safe bounded rectangle.");
+    throw new RangeError(
+      "CSF Google Sheets bounds must describe one safe bounded rectangle.",
+    );
   }
 
   const startColumn = indexToColumn(bounds.startColumn);
@@ -1135,11 +1182,17 @@ export function narrowCsfSheetBoundsToPopulated(
     startRow: requested.startRow + firstRowOffset,
     endRow: Math.min(requested.endRow, requested.startRow + lastRowOffset),
     startColumn: requested.startColumn + firstColumnOffset,
-    endColumn: Math.min(requested.endColumn, requested.startColumn + lastColumnOffset),
+    endColumn: Math.min(
+      requested.endColumn,
+      requested.startColumn + lastColumnOffset,
+    ),
   };
 }
 
-export function hashCsfSheetSelection(bounds: CsfSheetBounds, values: string[][]) {
+export function hashCsfSheetSelection(
+  bounds: CsfSheetBounds,
+  values: string[][],
+) {
   return createHash("sha256")
     .update(
       JSON.stringify({
@@ -1181,22 +1234,29 @@ type SheetsGridResponse = {
   }>;
 };
 
-function tabEvidenceFrom(sheet: NonNullable<SheetsGridResponse["sheets"]>[number]): CsfSheetTabEvidence | null {
+function tabEvidenceFrom(
+  sheet: NonNullable<SheetsGridResponse["sheets"]>[number],
+): CsfSheetTabEvidence | null {
   const tabName = sheet.properties?.title;
   if (!tabName) return null;
   return {
     tabName,
-    sheetId: typeof sheet.properties?.sheetId === "number" ? sheet.properties.sheetId : null,
+    sheetId:
+      typeof sheet.properties?.sheetId === "number"
+        ? sheet.properties.sheetId
+        : null,
     // The Sheets API models visibility as a single `hidden` flag. "Very hidden"
     // is an Excel-package concept surfaced by the uploaded-workbook path, so it
     // is representable here but never invented for a live spreadsheet.
     visibility: sheet.properties?.hidden === true ? "hidden" : "visible",
-    gridRowCount: typeof sheet.properties?.gridProperties?.rowCount === "number"
-      ? sheet.properties.gridProperties.rowCount
-      : null,
-    gridColumnCount: typeof sheet.properties?.gridProperties?.columnCount === "number"
-      ? sheet.properties.gridProperties.columnCount
-      : null,
+    gridRowCount:
+      typeof sheet.properties?.gridProperties?.rowCount === "number"
+        ? sheet.properties.gridProperties.rowCount
+        : null,
+    gridColumnCount:
+      typeof sheet.properties?.gridProperties?.columnCount === "number"
+        ? sheet.properties.gridProperties.columnCount
+        : null,
   };
 }
 
@@ -1211,12 +1271,16 @@ export async function getCsfSheetSourceSnapshot(
   requestedRangeA1: string,
   fallbackTabName: string,
 ): Promise<CsfSheetSourceSnapshotResult> {
-  const requestedRange = parseCsfSheetBoundedRange(requestedRangeA1, fallbackTabName);
+  const requestedRange = parseCsfSheetBoundedRange(
+    requestedRangeA1,
+    fallbackTabName,
+  );
   if (!requestedRange) {
     return {
       status: "unavailable",
       reason: "invalid_range",
-      message: "Select a bounded A1 range such as A1:Z1000 on the exact Sheet tab.",
+      message:
+        "Select a bounded A1 range such as A1:Z1000 on the exact Sheet tab.",
     };
   }
 
@@ -1245,31 +1309,40 @@ export async function getCsfSheetSourceSnapshot(
       return {
         status: "unavailable",
         reason: unavailableReasonForStatus(response.status),
-        message: "The selected Sheet range could not be read; no rows were treated as empty.",
+        message:
+          "The selected Sheet range could not be read; no rows were treated as empty.",
       };
     }
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       valueRanges?: Array<{ values?: string[][] }>;
     };
     requestedValues = (data.valueRanges?.[0]?.values ?? []).map((row) =>
       // Preserve exact formatted values for the source digest. The importer
       // normalizes fields later, but whitespace-only source drift must still
       // produce a different acquisition snapshot.
-      (row ?? []).map((cell) => String(cell ?? ""))
+      (row ?? []).map((cell) => String(cell ?? "")),
     );
   } catch (error) {
-    logError("Exception while reading Google spreadsheet source values", error, {
-      sheet_id: spreadsheetId,
-      range: formattedRequestedRange,
-    });
+    logError(
+      "Exception while reading Google spreadsheet source values",
+      error,
+      {
+        sheet_id: spreadsheetId,
+        range: formattedRequestedRange,
+      },
+    );
     return {
       status: "unavailable",
       reason: "unavailable",
-      message: "The selected Sheet range could not be read; no rows were treated as empty.",
+      message:
+        "The selected Sheet range could not be read; no rows were treated as empty.",
     };
   }
 
-  const narrowed = narrowCsfSheetBoundsToPopulated(requestedRange, requestedValues);
+  const narrowed = narrowCsfSheetBoundsToPopulated(
+    requestedRange,
+    requestedValues,
+  );
   // Rows are narrowed to the populated block; the leading column is deliberately
   // left anchored to the officer's range. Saved column mappings are one-based
   // offsets into that range, so trimming leading empty columns here would
@@ -1305,25 +1378,32 @@ export async function getCsfSheetSourceSnapshot(
       return {
         status: "unavailable",
         reason: unavailableReasonForStatus(response.status),
-        message: "The selected Sheet could not be inspected; no rows were treated as empty.",
+        message:
+          "The selected Sheet could not be inspected; no rows were treated as empty.",
       };
     }
-    metadata = await response.json() as SheetsGridResponse;
+    metadata = (await response.json()) as SheetsGridResponse;
   } catch (error) {
-    logError("Exception while reading Google spreadsheet tab inventory", error, {
-      sheet_id: spreadsheetId,
-    });
+    logError(
+      "Exception while reading Google spreadsheet tab inventory",
+      error,
+      {
+        sheet_id: spreadsheetId,
+      },
+    );
     return {
       status: "unavailable",
       reason: "unavailable",
-      message: "The selected Sheet could not be inspected; no rows were treated as empty.",
+      message:
+        "The selected Sheet could not be inspected; no rows were treated as empty.",
     };
   }
 
   const tabs = (metadata.sheets ?? [])
     .map(tabEvidenceFrom)
     .filter((tab): tab is CsfSheetTabEvidence => tab !== null);
-  const selectedTab = tabs.find((tab) => tab.tabName === requestedRange.tabName) ?? null;
+  const selectedTab =
+    tabs.find((tab) => tab.tabName === requestedRange.tabName) ?? null;
   if (!selectedTab) {
     return {
       status: "unavailable",
@@ -1355,27 +1435,37 @@ export async function getCsfSheetSourceSnapshot(
     );
     if (!response.ok) {
       const error = await response.text();
-      logError("Failed to read Google spreadsheet acquisition evidence", new Error(error), {
-        sheet_id: spreadsheetId,
-        range: formattedRequestedRange,
-        status: response.status,
-      });
+      logError(
+        "Failed to read Google spreadsheet acquisition evidence",
+        new Error(error),
+        {
+          sheet_id: spreadsheetId,
+          range: formattedRequestedRange,
+          status: response.status,
+        },
+      );
       return {
         status: "unavailable",
         reason: unavailableReasonForStatus(response.status),
-        message: "The selected Sheet could not be inspected; no rows were treated as empty.",
+        message:
+          "The selected Sheet could not be inspected; no rows were treated as empty.",
       };
     }
-    grid = await response.json() as SheetsGridResponse;
+    grid = (await response.json()) as SheetsGridResponse;
   } catch (error) {
-    logError("Exception while reading Google spreadsheet acquisition evidence", error, {
-      sheet_id: spreadsheetId,
-      range: formattedRequestedRange,
-    });
+    logError(
+      "Exception while reading Google spreadsheet acquisition evidence",
+      error,
+      {
+        sheet_id: spreadsheetId,
+        range: formattedRequestedRange,
+      },
+    );
     return {
       status: "unavailable",
       reason: "unavailable",
-      message: "The selected Sheet could not be inspected; no rows were treated as empty.",
+      message:
+        "The selected Sheet could not be inspected; no rows were treated as empty.",
     };
   }
 
@@ -1391,7 +1481,8 @@ export async function getCsfSheetSourceSnapshot(
   }
   const block = selectedSheet.data?.[0];
   const blockStartRow = (block?.startRow ?? requestedRange.startRow - 1) + 1;
-  const blockStartColumn = (block?.startColumn ?? requestedRange.startColumn - 1) + 1;
+  const blockStartColumn =
+    (block?.startColumn ?? requestedRange.startColumn - 1) + 1;
   const rowMetadata = block?.rowMetadata ?? [];
   const rowData = block?.rowData ?? [];
 
@@ -1423,16 +1514,18 @@ export async function getCsfSheetSourceSnapshot(
         formulaColumns,
         formulaDigests,
         hasEffectiveValue: cells.some(
-          (cell) => cell?.effectiveValue !== undefined
-            && String(cell.formattedValue ?? "").trim() !== "",
+          (cell) =>
+            cell?.effectiveValue !== undefined &&
+            String(cell.formattedValue ?? "").trim() !== "",
         ),
       };
     },
-  ).filter((row) =>
-    row.hiddenByUser
-    || row.hiddenByFilter
-    || row.formulaColumns.length > 0
-    || row.hasEffectiveValue
+  ).filter(
+    (row) =>
+      row.hiddenByUser ||
+      row.hiddenByFilter ||
+      row.formulaColumns.length > 0 ||
+      row.hasEffectiveValue,
   );
   const structuralByRow = new Map(
     structuralRows.map((row) => [row.sourceRowNumber, row]),
@@ -1455,32 +1548,40 @@ export async function getCsfSheetSourceSnapshot(
         hiddenByFilter: structural?.hiddenByFilter === true,
         formulaColumns: structural?.formulaColumns ?? [],
         hasEffectiveValue: structural?.hasEffectiveValue === true,
-        values: requestedValues[sourceRowNumber - requestedRange.startRow]?.slice(
-          0,
-          (populatedRange?.endColumn ?? requestedRange.startColumn)
-            - requestedRange.startColumn
-            + 1,
-        ) ?? [],
+        values:
+          requestedValues[sourceRowNumber - requestedRange.startRow]?.slice(
+            0,
+            (populatedRange?.endColumn ?? requestedRange.startColumn) -
+              requestedRange.startColumn +
+              1,
+          ) ?? [],
       };
     });
 
   const contentHash = createHash("sha256")
-    .update(JSON.stringify({
-      requestedRange,
-      populatedRange,
-      tabs: tabs.map((tab) => ({
-        tabName: tab.tabName,
-        sheetId: tab.sheetId,
-        visibility: tab.visibility,
-      })),
-      hasBasicFilter: Boolean(selectedSheet.basicFilter),
-      rows,
-      formulas: structuralRows.flatMap((row) =>
-        row.formulaDigests.length > 0
-          ? [{ sourceRowNumber: row.sourceRowNumber, digests: row.formulaDigests }]
-          : []
-      ),
-    }))
+    .update(
+      JSON.stringify({
+        requestedRange,
+        populatedRange,
+        tabs: tabs.map((tab) => ({
+          tabName: tab.tabName,
+          sheetId: tab.sheetId,
+          visibility: tab.visibility,
+        })),
+        hasBasicFilter: Boolean(selectedSheet.basicFilter),
+        rows,
+        formulas: structuralRows.flatMap((row) =>
+          row.formulaDigests.length > 0
+            ? [
+                {
+                  sourceRowNumber: row.sourceRowNumber,
+                  digests: row.formulaDigests,
+                },
+              ]
+            : [],
+        ),
+      }),
+    )
     .digest("hex");
 
   return {
@@ -1573,7 +1674,9 @@ function fenceIsUsable(fence: CsfSheetSourceFence) {
  * read, and only the version says so.
  */
 function fencesAgree(before: CsfSheetSourceFence, after: CsfSheetSourceFence) {
-  return before.version === after.version && before.modifiedAt === after.modifiedAt;
+  return (
+    before.version === after.version && before.modifiedAt === after.modifiedAt
+  );
 }
 
 const UNUSABLE_FENCE_MESSAGE =
@@ -1594,12 +1697,15 @@ export async function acquireFencedCsfSheetSnapshots(
     if (before.accessState !== "accessible") {
       return {
         status: "unavailable",
-        reason: before.accessState === "reconnect_required"
-          ? "reconnect_required"
-          : before.accessState === "not_found" || before.accessState === "trashed"
-            ? "not_found"
-            : "unavailable",
-        message: "The source file could not be read before importing; no rows were treated as empty.",
+        reason:
+          before.accessState === "reconnect_required"
+            ? "reconnect_required"
+            : before.accessState === "not_found" ||
+                before.accessState === "trashed"
+              ? "not_found"
+              : "unavailable",
+        message:
+          "The source file could not be read before importing; no rows were treated as empty.",
       };
     }
     const beforeFence = fenceOf(before);
@@ -1615,7 +1721,10 @@ export async function acquireFencedCsfSheetSnapshots(
     }
 
     const snapshots: CsfSheetSourceSnapshot[] = [];
-    let failed: { reason: CsfSheetSourceUnavailableReason; message: string } | null = null;
+    let failed: {
+      reason: CsfSheetSourceUnavailableReason;
+      message: string;
+    } | null = null;
     for (const request of requests) {
       const snapshot = await getCsfSheetSourceSnapshot(
         accessToken,
@@ -1630,19 +1739,26 @@ export async function acquireFencedCsfSheetSnapshots(
       snapshots.push(snapshot);
     }
     if (failed) {
-      return { status: "unavailable", reason: failed.reason, message: failed.message };
+      return {
+        status: "unavailable",
+        reason: failed.reason,
+        message: failed.message,
+      };
     }
 
     const after = await getGoogleDriveFileMetadata(accessToken, spreadsheetId);
     if (after.accessState !== "accessible") {
       return {
         status: "unavailable",
-        reason: after.accessState === "reconnect_required"
-          ? "reconnect_required"
-          : after.accessState === "not_found" || after.accessState === "trashed"
-            ? "not_found"
-            : "unavailable",
-        message: "The source file could not be re-checked after reading; no rows were treated as empty.",
+        reason:
+          after.accessState === "reconnect_required"
+            ? "reconnect_required"
+            : after.accessState === "not_found" ||
+                after.accessState === "trashed"
+              ? "not_found"
+              : "unavailable",
+        message:
+          "The source file could not be re-checked after reading; no rows were treated as empty.",
       };
     }
     const afterFence = fenceOf(after);
@@ -1677,7 +1793,8 @@ export async function acquireFencedCsfSheetSnapshots(
 
   return {
     status: "drift",
-    message: "The source file changed while it was being read. Nothing was imported; preview it again.",
+    message:
+      "The source file changed while it was being read. Nothing was imported; preview it again.",
     before: lastBefore,
     after: lastAfter,
     attempts: maxAttempts,
@@ -1696,7 +1813,7 @@ export async function appendSpreadsheetValues(
   try {
     const response = await fetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(
-        range
+        range,
       )}:append?valueInputOption=${valueInputOption}&insertDataOption=INSERT_ROWS`,
       {
         method: "POST",
@@ -1709,7 +1826,7 @@ export async function appendSpreadsheetValues(
           majorDimension: "ROWS",
           values: rows,
         }),
-      }
+      },
     );
 
     if (!response.ok) {

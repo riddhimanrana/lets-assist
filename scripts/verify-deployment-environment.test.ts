@@ -18,8 +18,7 @@ describe("deployment environment isolation", () => {
     expect(() =>
       assertDeploymentEnvironmentIsolation({
         VERCEL_ENV: "preview",
-        NEXT_PUBLIC_SUPABASE_URL:
-          "https://fotdmeakexgrkronxlof.supabase.co.",
+        NEXT_PUBLIC_SUPABASE_URL: "https://fotdmeakexgrkronxlof.supabase.co.",
         EXPECTED_NON_PRODUCTION_SUPABASE_HOST:
           "fotdmeakexgrkronxlof.supabase.co.",
       }),
@@ -40,10 +39,8 @@ describe("deployment environment isolation", () => {
     expect(() =>
       assertDeploymentEnvironmentIsolation({
         VERCEL_ENV: "preview",
-        NEXT_PUBLIC_SUPABASE_URL:
-          "https://abcdefghijklmnopqrst.supabase.co",
-        EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF:
-          "abcdefghijklmnopqrst",
+        NEXT_PUBLIC_SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
+        EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: "abcdefghijklmnopqrst",
       }),
     ).not.toThrow();
   });
@@ -94,10 +91,8 @@ describe("deployment environment isolation", () => {
     expect(() =>
       assertDeploymentEnvironmentIsolation({
         VERCEL_ENV: "preview",
-        NEXT_PUBLIC_SUPABASE_URL:
-          "https://abcdefghijklmnopqrst.supabase.co",
-        EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF:
-          "zyxwvutsrqponmlkjihg",
+        NEXT_PUBLIC_SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
+        EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: "zyxwvutsrqponmlkjihg",
       }),
     ).toThrow("unexpected Supabase host");
   });
@@ -106,12 +101,10 @@ describe("deployment environment isolation", () => {
     expect(() =>
       assertDeploymentEnvironmentIsolation({
         VERCEL_ENV: "preview",
-        NEXT_PUBLIC_SUPABASE_URL:
-          "https://abcdefghijklmnopqrst.supabase.co",
+        NEXT_PUBLIC_SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
         EXPECTED_NON_PRODUCTION_SUPABASE_HOST:
           "abcdefghijklmnopqrst.supabase.co",
-        EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF:
-          "zyxwvutsrqponmlkjihg",
+        EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: "zyxwvutsrqponmlkjihg",
       }),
     ).toThrow("expected Supabase host and project ref disagree");
   });

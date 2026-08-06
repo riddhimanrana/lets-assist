@@ -12,8 +12,7 @@ const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 const GOOGLE_CALENDAR_TIMEOUT_MS = 10_000;
 
 type GoogleCalendarEventDateTime =
-  | { dateTime: string; timeZone: string }
-  | { date: string };
+  { dateTime: string; timeZone: string } | { date: string };
 
 export type GoogleCalendarOwnedEvent = {
   summary: string;
@@ -35,7 +34,15 @@ export type GoogleCalendarMutationResult =
   | { status: "connection_required"; httpStatus: 401 | 403 }
   | {
       status: "unknown_outcome";
-      reason: "rate_limited" | "server_error" | "timeout" | "network_error" | "unknown_error" | "malformed_response" | "unexpected_status" | "conflict_unresolved";
+      reason:
+        | "rate_limited"
+        | "server_error"
+        | "timeout"
+        | "network_error"
+        | "unknown_error"
+        | "malformed_response"
+        | "unexpected_status"
+        | "conflict_unresolved";
       httpStatus?: number;
     }
   | { status: "rejected"; httpStatus: number };
@@ -56,7 +63,12 @@ function requestHeaders(accessToken: string, includeJson = false) {
 
 function mutationFailure(
   response: Pick<Response, "status">,
-): Exclude<GoogleCalendarMutationResult, { status: "confirmed" } | { status: "confirmed_deleted" } | { status: "confirmed_missing" }> {
+): Exclude<
+  GoogleCalendarMutationResult,
+  | { status: "confirmed" }
+  | { status: "confirmed_deleted" }
+  | { status: "confirmed_missing" }
+> {
   if (response.status === 401 || response.status === 403) {
     return { status: "connection_required", httpStatus: response.status };
   }
@@ -77,13 +89,16 @@ function mutationFailure(
   return { status: "rejected", httpStatus: response.status };
 }
 
-function mutationError(error: unknown): Extract<GoogleCalendarMutationResult, { status: "unknown_outcome" }> {
+function mutationError(
+  error: unknown,
+): Extract<GoogleCalendarMutationResult, { status: "unknown_outcome" }> {
   const classified = classifyGoogleCalendarLookupError(error);
   return {
     status: "unknown_outcome",
-    reason: classified.status === "retryable_error" && classified.reason === "timeout"
-      ? "timeout"
-      : "network_error",
+    reason:
+      classified.status === "retryable_error" && classified.reason === "timeout"
+        ? "timeout"
+        : "network_error",
   };
 }
 
@@ -96,14 +111,16 @@ export function deterministicCsfGoogleEventId(input: {
   occurrenceKey: string;
 }) {
   const digest = createHash("sha256")
-    .update([
-      "lets-assist-csf-personal-calendar-v1",
-      input.userId,
-      input.organizationId,
-      input.sourceKind,
-      input.sourceId,
-      input.occurrenceKey,
-    ].join("\u0000"))
+    .update(
+      [
+        "lets-assist-csf-personal-calendar-v1",
+        input.userId,
+        input.organizationId,
+        input.sourceKind,
+        input.sourceId,
+        input.occurrenceKey,
+      ].join("\u0000"),
+    )
     .digest("hex");
   return `csf${digest.slice(0, 48)}`;
 }

@@ -82,7 +82,8 @@ export function deriveAuthenticatorAssurance(
   currentLevel: AuthenticatorAssuranceLevel;
   nextLevel: AuthenticatorAssuranceLevel;
 } {
-  const normalizedCurrentLevel = normalizeAuthenticatorAssuranceLevel(currentLevel);
+  const normalizedCurrentLevel =
+    normalizeAuthenticatorAssuranceLevel(currentLevel);
   const hasVerifiedTotpFactor = getVerifiedTotpFactors(factors).length > 0;
 
   return {

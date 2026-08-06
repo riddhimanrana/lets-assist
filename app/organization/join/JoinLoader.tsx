@@ -19,7 +19,7 @@ export default function JoinLoader({ code }: JoinLoaderProps) {
     const autoJoin = async () => {
       try {
         const result = await joinOrganization(code);
-        
+
         if (result.error) {
           toast.error(result.error);
           router.push("/organization");
@@ -42,7 +42,9 @@ export default function JoinLoader({ code }: JoinLoaderProps) {
     <div className="text-center space-y-4">
       <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
       <p className="text-lg font-medium">Joining organization...</p>
-      <p className="text-sm text-muted-foreground">Please wait while we process your request</p>
+      <p className="text-sm text-muted-foreground">
+        Please wait while we process your request
+      </p>
     </div>
   );
 }

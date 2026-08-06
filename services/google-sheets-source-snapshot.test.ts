@@ -23,7 +23,8 @@ const {
   parseCsfSheetBoundedRange,
 } = await import("./google-sheets");
 
-const { buildCsfNormalizedImportSnapshot } = await import("./csf-import-contract");
+const { buildCsfNormalizedImportSnapshot } =
+  await import("./csf-import-contract");
 type CsfImportSourceInput = Parameters<
   typeof buildCsfNormalizedImportSnapshot
 >[0]["source"];
@@ -63,10 +64,34 @@ function gridResponse(overrides: Record<string, unknown> = {}) {
               {},
             ],
             rowData: [
-              { values: [{ formattedValue: "First Name" }, { formattedValue: "Last Name" }, { formattedValue: "School Email" }] },
-              { values: [{ formattedValue: "Avery", effectiveValue: { stringValue: "Avery" } }] },
-              { values: [{ formattedValue: "Rowan", effectiveValue: { stringValue: "Rowan" } }] },
-              { values: [{ userEnteredValue: { formulaValue: '=IF(A5="","",A5)' } }] },
+              {
+                values: [
+                  { formattedValue: "First Name" },
+                  { formattedValue: "Last Name" },
+                  { formattedValue: "School Email" },
+                ],
+              },
+              {
+                values: [
+                  {
+                    formattedValue: "Avery",
+                    effectiveValue: { stringValue: "Avery" },
+                  },
+                ],
+              },
+              {
+                values: [
+                  {
+                    formattedValue: "Rowan",
+                    effectiveValue: { stringValue: "Rowan" },
+                  },
+                ],
+              },
+              {
+                values: [
+                  { userEnteredValue: { formulaValue: '=IF(A5="","",A5)' } },
+                ],
+              },
             ],
           },
         ],
@@ -104,10 +129,15 @@ function jsonResponse(body: unknown) {
   });
 }
 
-function okHandler(values: string[][] = SELECTED_VALUES, grid = gridResponse()) {
+function okHandler(
+  values: string[][] = SELECTED_VALUES,
+  grid = gridResponse(),
+) {
   return (url: string) => {
     if (url.includes("values:batchGet")) {
-      return jsonResponse({ valueRanges: [{ range: REQUESTED_RANGE, values }] });
+      return jsonResponse({
+        valueRanges: [{ range: REQUESTED_RANGE, values }],
+      });
     }
     return jsonResponse(grid);
   };
@@ -115,7 +145,9 @@ function okHandler(values: string[][] = SELECTED_VALUES, grid = gridResponse()) 
 
 describe("CSF Google Sheets bounded range parsing", () => {
   test("requires a bounded range and preserves the officer's tab", () => {
-    expect(parseCsfSheetBoundedRange("'Synthetic tab'!A1:C40", "Fallback")).toEqual({
+    expect(
+      parseCsfSheetBoundedRange("'Synthetic tab'!A1:C40", "Fallback"),
+    ).toEqual({
       tabName: "Synthetic tab",
       startRow: 1,
       endRow: 40,
@@ -125,42 +157,66 @@ describe("CSF Google Sheets bounded range parsing", () => {
     expect(parseCsfSheetBoundedRange("A1", "Fallback")).toBeNull();
     expect(parseCsfSheetBoundedRange("'Tab'!C5:A1", "Fallback")).toBeNull();
     expect(parseCsfSheetBoundedRange("Tab!A1:B2:C3", "Fallback")).toBeNull();
-    expect(parseCsfSheetBoundedRange(`${"A".repeat(300)}1:${"A".repeat(300)}2`, "Fallback")).toBeNull();
-    expect(parseCsfSheetBoundedRange("A9007199254740992:B9007199254740993", "Fallback")).toBeNull();
-    expect(parseCsfSheetBoundedRange("'CSF! Archive'!A1:C5", "Fallback")).toEqual({
+    expect(
+      parseCsfSheetBoundedRange(
+        `${"A".repeat(300)}1:${"A".repeat(300)}2`,
+        "Fallback",
+      ),
+    ).toBeNull();
+    expect(
+      parseCsfSheetBoundedRange(
+        "A9007199254740992:B9007199254740993",
+        "Fallback",
+      ),
+    ).toBeNull();
+    expect(
+      parseCsfSheetBoundedRange("'CSF! Archive'!A1:C5", "Fallback"),
+    ).toEqual({
       tabName: "CSF! Archive",
       startRow: 1,
       endRow: 5,
       startColumn: 1,
       endColumn: 3,
     });
-    expect(formatCsfSheetBounds({
-      tabName: "Synthetic tab",
-      startRow: 2,
-      endRow: 9,
-      startColumn: 1,
-      endColumn: 4,
-    })).toBe("'Synthetic tab'!A2:D9");
-    expect(() => formatCsfSheetBounds({
-      tabName: "Synthetic tab",
-      startRow: 1,
-      endRow: Number.POSITIVE_INFINITY,
-      startColumn: 1,
-      endColumn: 2,
-    })).toThrow(RangeError);
-    expect(() => formatCsfSheetBounds({
-      tabName: "Synthetic tab",
-      startRow: 1,
-      endRow: 1,
-      startColumn: 1,
-      endColumn: Number.POSITIVE_INFINITY,
-    })).toThrow(RangeError);
+    expect(
+      formatCsfSheetBounds({
+        tabName: "Synthetic tab",
+        startRow: 2,
+        endRow: 9,
+        startColumn: 1,
+        endColumn: 4,
+      }),
+    ).toBe("'Synthetic tab'!A2:D9");
+    expect(() =>
+      formatCsfSheetBounds({
+        tabName: "Synthetic tab",
+        startRow: 1,
+        endRow: Number.POSITIVE_INFINITY,
+        startColumn: 1,
+        endColumn: 2,
+      }),
+    ).toThrow(RangeError);
+    expect(() =>
+      formatCsfSheetBounds({
+        tabName: "Synthetic tab",
+        startRow: 1,
+        endRow: 1,
+        startColumn: 1,
+        endColumn: Number.POSITIVE_INFINITY,
+      }),
+    ).toThrow(RangeError);
   });
 
   test("narrows a default range to the rows that hold data", () => {
     expect(
       narrowCsfSheetBoundsToPopulated(
-        { tabName: "Synthetic tab", startRow: 1, endRow: 1000, startColumn: 1, endColumn: 26 },
+        {
+          tabName: "Synthetic tab",
+          startRow: 1,
+          endRow: 1000,
+          startColumn: 1,
+          endColumn: 26,
+        },
         SELECTED_VALUES,
       ),
     ).toEqual({
@@ -172,7 +228,13 @@ describe("CSF Google Sheets bounded range parsing", () => {
     });
     expect(
       narrowCsfSheetBoundsToPopulated(
-        { tabName: "Synthetic tab", startRow: 1, endRow: 1000, startColumn: 1, endColumn: 26 },
+        {
+          tabName: "Synthetic tab",
+          startRow: 1,
+          endRow: 1000,
+          startColumn: 1,
+          endColumn: 26,
+        },
         [["", ""], [""]],
       ),
     ).toBeNull();
@@ -192,18 +254,22 @@ describe("CSF Google Sheets acquisition snapshot", () => {
     expect(snapshot.status).toBe("ok");
     if (snapshot.status !== "ok") return;
 
-    const metadataCall = calls.find((call) => call.url.includes("includeGridData=false"));
+    const metadataCall = calls.find((call) =>
+      call.url.includes("includeGridData=false"),
+    );
     expect(metadataCall).toBeDefined();
     expect(metadataCall?.url).not.toContain("ranges=");
 
     // The structural request inspects the complete officer-bounded range so it
     // can see hidden and formula-only rows. The importer still treats only the
     // returned populated/structural evidence as records, never grid capacity.
-    const gridCall = calls.find((call) => call.url.includes("includeGridData=true"));
-    expect(gridCall).toBeDefined();
-    expect(decodeURIComponent(gridCall?.url ?? "").replaceAll("+", " ")).toContain(
-      "'Synthetic tab'!A1:Z1000",
+    const gridCall = calls.find((call) =>
+      call.url.includes("includeGridData=true"),
     );
+    expect(gridCall).toBeDefined();
+    expect(
+      decodeURIComponent(gridCall?.url ?? "").replaceAll("+", " "),
+    ).toContain("'Synthetic tab'!A1:Z1000");
 
     expect(snapshot.populatedRange).toEqual({
       tabName: "Synthetic tab",
@@ -214,24 +280,41 @@ describe("CSF Google Sheets acquisition snapshot", () => {
     });
     expect(snapshot.requestedRange.endRow).toBe(1000);
     expect(snapshot.spreadsheetTitle).toBe("Synthetic CSF workbook");
-    expect(snapshot.selectedTab).toMatchObject({ tabName: "Synthetic tab", visibility: "visible" });
+    expect(snapshot.selectedTab).toMatchObject({
+      tabName: "Synthetic tab",
+      visibility: "visible",
+    });
     expect(snapshot.tabs.map((tab) => [tab.tabName, tab.visibility])).toEqual([
       ["Synthetic tab", "visible"],
       ["Archive", "hidden"],
     ]);
     expect(snapshot.hasBasicFilter).toBe(true);
-    expect(snapshot.rows.map((row) => row.sourceRowNumber)).toEqual([1, 2, 3, 4]);
-    expect(snapshot.rows[1]).toMatchObject({ hiddenByUser: true, hiddenByFilter: false });
-    expect(snapshot.rows[2]).toMatchObject({ hiddenByUser: false, hiddenByFilter: true });
-    expect(snapshot.rows[0].values).toEqual(["First Name", "Last Name", "School Email"]);
+    expect(snapshot.rows.map((row) => row.sourceRowNumber)).toEqual([
+      1, 2, 3, 4,
+    ]);
+    expect(snapshot.rows[1]).toMatchObject({
+      hiddenByUser: true,
+      hiddenByFilter: false,
+    });
+    expect(snapshot.rows[2]).toMatchObject({
+      hiddenByUser: false,
+      hiddenByFilter: true,
+    });
+    expect(snapshot.rows[0].values).toEqual([
+      "First Name",
+      "Last Name",
+      "School Email",
+    ]);
     expect(snapshot.contentHash).toMatch(/^[a-f0-9]{64}$/);
   });
 
   test("keeps the leading column anchored so saved column mappings stay valid", async () => {
-    installFetch(okHandler([
-      ["", "First Name", "Last Name"],
-      ["", "Avery", "Sample"],
-    ]));
+    installFetch(
+      okHandler([
+        ["", "First Name", "Last Name"],
+        ["", "Avery", "Sample"],
+      ]),
+    );
     const snapshot = await getCsfSheetSourceSnapshot(
       "synthetic-token",
       SPREADSHEET_ID,
@@ -246,10 +329,12 @@ describe("CSF Google Sheets acquisition snapshot", () => {
   });
 
   test("surfaces formula-capacity rows as formula evidence rather than data", async () => {
-    installFetch(okHandler([
-      ["First Name", "Last Name"],
-      ["Avery", "Sample"],
-    ]));
+    installFetch(
+      okHandler([
+        ["First Name", "Last Name"],
+        ["Avery", "Sample"],
+      ]),
+    );
     const snapshot = await getCsfSheetSourceSnapshot(
       "synthetic-token",
       SPREADSHEET_ID,
@@ -284,13 +369,31 @@ describe("CSF Google Sheets acquisition snapshot", () => {
               startRow: 0,
               startColumn: 0,
               rowMetadata: [{}],
-              rowData: [{ values: [{ formattedValue: "Header", effectiveValue: { stringValue: "Header" } }] }],
+              rowData: [
+                {
+                  values: [
+                    {
+                      formattedValue: "Header",
+                      effectiveValue: { stringValue: "Header" },
+                    },
+                  ],
+                },
+              ],
             },
             {
               startRow: 999,
               startColumn: 0,
               rowMetadata: [{}],
-              rowData: [{ values: [{ formattedValue: "Tail evidence", effectiveValue: { stringValue: "Tail evidence" } }] }],
+              rowData: [
+                {
+                  values: [
+                    {
+                      formattedValue: "Tail evidence",
+                      effectiveValue: { stringValue: "Tail evidence" },
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -308,7 +411,10 @@ describe("CSF Google Sheets acquisition snapshot", () => {
     expect(snapshot.status).toBe("ok");
     if (snapshot.status !== "ok") return;
     expect(snapshot.rows.map((row) => row.sourceRowNumber)).toEqual([1, 1000]);
-    expect(snapshot.rows.map((row) => row.values[0])).toEqual(["Header", "Tail evidence"]);
+    expect(snapshot.rows.map((row) => row.values[0])).toEqual([
+      "Header",
+      "Tail evidence",
+    ]);
   });
 
   test("never reports an unreadable source as an empty source", async () => {
@@ -325,7 +431,10 @@ describe("CSF Google Sheets acquisition snapshot", () => {
       REQUESTED_RANGE,
       "Synthetic tab",
     );
-    expect(failed).toMatchObject({ status: "unavailable", reason: "reconnect_required" });
+    expect(failed).toMatchObject({
+      status: "unavailable",
+      reason: "reconnect_required",
+    });
     expect(failed).not.toHaveProperty("rows");
     if (failed.status === "unavailable") {
       expect(failed.message).toContain("no rows were treated as empty");
@@ -333,7 +442,9 @@ describe("CSF Google Sheets acquisition snapshot", () => {
 
     installFetch((url) => {
       if (url.includes("values:batchGet")) {
-        return jsonResponse({ valueRanges: [{ range: REQUESTED_RANGE, values: SELECTED_VALUES }] });
+        return jsonResponse({
+          valueRanges: [{ range: REQUESTED_RANGE, values: SELECTED_VALUES }],
+        });
       }
       return new Response("token expired", { status: 401 });
     });
@@ -343,22 +454,37 @@ describe("CSF Google Sheets acquisition snapshot", () => {
       REQUESTED_RANGE,
       "Synthetic tab",
     );
-    expect(gridFailure).toMatchObject({ status: "unavailable", reason: "reconnect_required" });
+    expect(gridFailure).toMatchObject({
+      status: "unavailable",
+      reason: "reconnect_required",
+    });
   });
 
   test("refuses an unbounded range and a tab the spreadsheet no longer has", async () => {
     installFetch(okHandler());
     expect(
-      await getCsfSheetSourceSnapshot("synthetic-token", SPREADSHEET_ID, "'Synthetic tab'!A1", "Synthetic tab"),
+      await getCsfSheetSourceSnapshot(
+        "synthetic-token",
+        SPREADSHEET_ID,
+        "'Synthetic tab'!A1",
+        "Synthetic tab",
+      ),
     ).toMatchObject({ status: "unavailable", reason: "invalid_range" });
 
     installFetch(okHandler());
     expect(
-      await getCsfSheetSourceSnapshot("synthetic-token", SPREADSHEET_ID, "'Renamed tab'!A1:C9", "Renamed tab"),
+      await getCsfSheetSourceSnapshot(
+        "synthetic-token",
+        SPREADSHEET_ID,
+        "'Renamed tab'!A1:C9",
+        "Renamed tab",
+      ),
     ).toMatchObject({ status: "unavailable", reason: "not_found" });
 
     const calls = installFetch(() => {
-      throw new Error("An oversized range must be rejected before a provider call.");
+      throw new Error(
+        "An oversized range must be rejected before a provider call.",
+      );
     });
     expect(
       await getCsfSheetSourceSnapshot(
@@ -386,21 +512,25 @@ describe("CSF Google Sheets acquisition snapshot", () => {
       REQUESTED_RANGE,
       "Synthetic tab",
     );
-    installFetch(okHandler([
-      ["First Name", "Last Name", "School Email"],
-      ["Avery", "Sample", "avery.changed@school.test"],
-    ]));
+    installFetch(
+      okHandler([
+        ["First Name", "Last Name", "School Email"],
+        ["Avery", "Sample", "avery.changed@school.test"],
+      ]),
+    );
     const changed = await getCsfSheetSourceSnapshot(
       "synthetic-token",
       SPREADSHEET_ID,
       REQUESTED_RANGE,
       "Synthetic tab",
     );
-    installFetch(okHandler([
-      ["First Name", "Last Name", "School Email"],
-      ["Avery ", "Sample", "avery.sample@school.test"],
-      ["Rowan", "Sample", "rowan.sample@school.test"],
-    ]));
+    installFetch(
+      okHandler([
+        ["First Name", "Last Name", "School Email"],
+        ["Avery ", "Sample", "avery.sample@school.test"],
+        ["Rowan", "Sample", "rowan.sample@school.test"],
+      ]),
+    );
     const whitespaceChanged = await getCsfSheetSourceSnapshot(
       "synthetic-token",
       SPREADSHEET_ID,
@@ -422,7 +552,11 @@ describe("CSF Google Sheets acquisition snapshot", () => {
     const formulaChangedGrid = gridResponse();
     const formulaCell =
       formulaChangedGrid.sheets[0]?.data?.[0]?.rowData?.[3]?.values?.[0];
-    if (formulaCell && "userEnteredValue" in formulaCell && formulaCell.userEnteredValue) {
+    if (
+      formulaCell &&
+      "userEnteredValue" in formulaCell &&
+      formulaCell.userEnteredValue
+    ) {
       formulaCell.userEnteredValue.formulaValue = '=IF(B5="","",B5)';
     }
     installFetch(okHandler(SELECTED_VALUES, formulaChangedGrid));
@@ -451,14 +585,15 @@ describe("CSF Google Sheets acquisition snapshot", () => {
     expect(formulaChanged.status).toBe("ok");
     expect(capacityChanged.status).toBe("ok");
     if (
-      first.status !== "ok"
-      || repeat.status !== "ok"
-      || changed.status !== "ok"
-      || whitespaceChanged.status !== "ok"
-      || structurallyChanged.status !== "ok"
-      || formulaChanged.status !== "ok"
-      || capacityChanged.status !== "ok"
-    ) return;
+      first.status !== "ok" ||
+      repeat.status !== "ok" ||
+      changed.status !== "ok" ||
+      whitespaceChanged.status !== "ok" ||
+      structurallyChanged.status !== "ok" ||
+      formulaChanged.status !== "ok" ||
+      capacityChanged.status !== "ok"
+    )
+      return;
     expect(repeat.contentHash).toBe(first.contentHash);
     expect(changed.contentHash).not.toBe(first.contentHash);
     expect(whitespaceChanged.contentHash).not.toBe(first.contentHash);
@@ -494,15 +629,22 @@ describe("CSF Google Sheets fenced acquisition", () => {
     });
   }
 
-  const REQUESTS = [{ rangeA1: REQUESTED_RANGE, fallbackTabName: "Synthetic tab" }];
+  const REQUESTS = [
+    { rangeA1: REQUESTED_RANGE, fallbackTabName: "Synthetic tab" },
+  ];
 
   test("returns one stable source state when nothing moved during the read", async () => {
     const calls = installFetch((url) => {
-      if (url.includes(DRIVE_METADATA)) return driveResponse("2026-07-29T18:00:00.000Z");
+      if (url.includes(DRIVE_METADATA))
+        return driveResponse("2026-07-29T18:00:00.000Z");
       return okHandler()(url);
     });
 
-    const result = await acquireFencedCsfSheetSnapshots("token", SPREADSHEET_ID, REQUESTS);
+    const result = await acquireFencedCsfSheetSnapshots(
+      "token",
+      SPREADSHEET_ID,
+      REQUESTS,
+    );
 
     expect(result.status).toBe("ok");
     if (result.status !== "ok") return;
@@ -510,11 +652,19 @@ describe("CSF Google Sheets fenced acquisition", () => {
     expect(result.fence.modifiedAt).toBe("2026-07-29T18:00:00.000Z");
     expect(result.attempts).toBe(1);
     // Fenced before the first read and after the last.
-    const driveCalls = calls.filter((call) => call.url.includes(DRIVE_METADATA));
+    const driveCalls = calls.filter((call) =>
+      call.url.includes(DRIVE_METADATA),
+    );
     expect(driveCalls).toHaveLength(2);
-    const firstDrive = calls.findIndex((call) => call.url.includes(DRIVE_METADATA));
-    const lastDrive = calls.map((call) => call.url).lastIndexOf(driveCalls[1].url);
-    const valuesRead = calls.findIndex((call) => call.url.includes("values:batchGet"));
+    const firstDrive = calls.findIndex((call) =>
+      call.url.includes(DRIVE_METADATA),
+    );
+    const lastDrive = calls
+      .map((call) => call.url)
+      .lastIndexOf(driveCalls[1].url);
+    const valuesRead = calls.findIndex((call) =>
+      call.url.includes("values:batchGet"),
+    );
     expect(valuesRead).toBeGreaterThan(firstDrive);
     expect(lastDrive).toBeGreaterThan(valuesRead);
   });
@@ -527,15 +677,22 @@ describe("CSF Google Sheets fenced acquisition", () => {
         // Every closing fence disagrees with its opening fence: somebody is
         // editing the workbook while it is being read.
         return driveResponse(
-          driveReads % 2 === 1 ? "2026-07-29T18:00:00.000Z" : "2026-07-29T18:00:05.000Z",
+          driveReads % 2 === 1
+            ? "2026-07-29T18:00:00.000Z"
+            : "2026-07-29T18:00:05.000Z",
         );
       }
       return okHandler()(url);
     });
 
-    const result = await acquireFencedCsfSheetSnapshots("token", SPREADSHEET_ID, REQUESTS, {
-      maxAttempts: 2,
-    });
+    const result = await acquireFencedCsfSheetSnapshots(
+      "token",
+      SPREADSHEET_ID,
+      REQUESTS,
+      {
+        maxAttempts: 2,
+      },
+    );
 
     expect(result.status).toBe("drift");
     if (result.status !== "drift") return;
@@ -557,14 +714,21 @@ describe("CSF Google Sheets fenced acquisition", () => {
           "2026-07-29T18:00:05.000Z",
           "2026-07-29T18:00:05.000Z",
         ];
-        return driveResponse(times[driveReads - 1] ?? "2026-07-29T18:00:05.000Z");
+        return driveResponse(
+          times[driveReads - 1] ?? "2026-07-29T18:00:05.000Z",
+        );
       }
       return okHandler()(url);
     });
 
-    const result = await acquireFencedCsfSheetSnapshots("token", SPREADSHEET_ID, REQUESTS, {
-      maxAttempts: 2,
-    });
+    const result = await acquireFencedCsfSheetSnapshots(
+      "token",
+      SPREADSHEET_ID,
+      REQUESTS,
+      {
+        maxAttempts: 2,
+      },
+    );
 
     expect(result.status).toBe("ok");
     if (result.status !== "ok") return;
@@ -574,14 +738,19 @@ describe("CSF Google Sheets fenced acquisition", () => {
 
   test("fences every selected tab, not only the first", async () => {
     installFetch((url) => {
-      if (url.includes(DRIVE_METADATA)) return driveResponse("2026-07-29T18:00:00.000Z");
+      if (url.includes(DRIVE_METADATA))
+        return driveResponse("2026-07-29T18:00:00.000Z");
       return okHandler()(url);
     });
 
-    const result = await acquireFencedCsfSheetSnapshots("token", SPREADSHEET_ID, [
-      { rangeA1: REQUESTED_RANGE, fallbackTabName: "Synthetic tab" },
-      { rangeA1: REQUESTED_RANGE, fallbackTabName: "Synthetic tab" },
-    ]);
+    const result = await acquireFencedCsfSheetSnapshots(
+      "token",
+      SPREADSHEET_ID,
+      [
+        { rangeA1: REQUESTED_RANGE, fallbackTabName: "Synthetic tab" },
+        { rangeA1: REQUESTED_RANGE, fallbackTabName: "Synthetic tab" },
+      ],
+    );
 
     expect(result.status).toBe("ok");
     if (result.status !== "ok") return;
@@ -612,14 +781,25 @@ describe("CSF Google Sheets fenced acquisition", () => {
       return okHandler()(url);
     });
 
-    const result = await acquireFencedCsfSheetSnapshots("token", SPREADSHEET_ID, REQUESTS, {
-      maxAttempts: 1,
-    });
+    const result = await acquireFencedCsfSheetSnapshots(
+      "token",
+      SPREADSHEET_ID,
+      REQUESTS,
+      {
+        maxAttempts: 1,
+      },
+    );
 
     expect(result.status).toBe("drift");
     if (result.status !== "drift") return;
-    expect(result.before).toEqual({ version: "58", modifiedAt: "2026-07-29T18:00:00.000Z" });
-    expect(result.after).toEqual({ version: "59", modifiedAt: "2026-07-29T18:00:00.000Z" });
+    expect(result.before).toEqual({
+      version: "58",
+      modifiedAt: "2026-07-29T18:00:00.000Z",
+    });
+    expect(result.after).toEqual({
+      version: "59",
+      modifiedAt: "2026-07-29T18:00:00.000Z",
+    });
   });
 
   test("a source that reports no version cannot be fenced", async () => {
@@ -636,7 +816,11 @@ describe("CSF Google Sheets fenced acquisition", () => {
       return okHandler()(url);
     });
 
-    const result = await acquireFencedCsfSheetSnapshots("token", SPREADSHEET_ID, REQUESTS);
+    const result = await acquireFencedCsfSheetSnapshots(
+      "token",
+      SPREADSHEET_ID,
+      REQUESTS,
+    );
 
     // A missing version is incomplete provider evidence, so the read is refused
     // as inaccessible before the fence is computed. Reporting a stable read
@@ -649,11 +833,16 @@ describe("CSF Google Sheets fenced acquisition", () => {
 
   test("a malformed version cannot be fenced either", async () => {
     installFetch((url) => {
-      if (url.includes(DRIVE_METADATA)) return driveResponse("2026-07-29T18:00:00.000Z", "v58");
+      if (url.includes(DRIVE_METADATA))
+        return driveResponse("2026-07-29T18:00:00.000Z", "v58");
       return okHandler()(url);
     });
 
-    const result = await acquireFencedCsfSheetSnapshots("token", SPREADSHEET_ID, REQUESTS);
+    const result = await acquireFencedCsfSheetSnapshots(
+      "token",
+      SPREADSHEET_ID,
+      REQUESTS,
+    );
 
     expect(result.status).toBe("unavailable");
     if (result.status !== "unavailable") return;
@@ -690,9 +879,14 @@ describe("CSF Google Sheets fenced acquisition", () => {
       return okHandler()(url);
     });
 
-    const result = await acquireFencedCsfSheetSnapshots("token", SPREADSHEET_ID, REQUESTS, {
-      maxAttempts: 1,
-    });
+    const result = await acquireFencedCsfSheetSnapshots(
+      "token",
+      SPREADSHEET_ID,
+      REQUESTS,
+      {
+        maxAttempts: 1,
+      },
+    );
 
     expect(result.status).toBe("unavailable");
     if (result.status !== "unavailable") return;
@@ -702,12 +896,18 @@ describe("CSF Google Sheets fenced acquisition", () => {
 
   test("an unreadable range is a failure, never an empty acquisition", async () => {
     installFetch((url) => {
-      if (url.includes(DRIVE_METADATA)) return driveResponse("2026-07-29T18:00:00.000Z");
-      if (url.includes("values:batchGet")) return new Response("nope", { status: 403 });
+      if (url.includes(DRIVE_METADATA))
+        return driveResponse("2026-07-29T18:00:00.000Z");
+      if (url.includes("values:batchGet"))
+        return new Response("nope", { status: 403 });
       return jsonResponse(gridResponse());
     });
 
-    const result = await acquireFencedCsfSheetSnapshots("token", SPREADSHEET_ID, REQUESTS);
+    const result = await acquireFencedCsfSheetSnapshots(
+      "token",
+      SPREADSHEET_ID,
+      REQUESTS,
+    );
 
     expect(result.status).toBe("unavailable");
     if (result.status !== "unavailable") return;
@@ -718,12 +918,20 @@ describe("CSF Google Sheets fenced acquisition", () => {
   test("a source that reports no revision and no modified time cannot be fenced", async () => {
     installFetch((url) => {
       if (url.includes(DRIVE_METADATA)) {
-        return jsonResponse({ id: SPREADSHEET_ID, name: "Synthetic", trashed: false });
+        return jsonResponse({
+          id: SPREADSHEET_ID,
+          name: "Synthetic",
+          trashed: false,
+        });
       }
       return okHandler()(url);
     });
 
-    const result = await acquireFencedCsfSheetSnapshots("token", SPREADSHEET_ID, REQUESTS);
+    const result = await acquireFencedCsfSheetSnapshots(
+      "token",
+      SPREADSHEET_ID,
+      REQUESTS,
+    );
 
     // A 200 with no modification time is incomplete provider evidence, so it is
     // refused as inaccessible before the fence is even computed. The invariant
@@ -750,21 +958,33 @@ describe("CSF Google Sheets fenced acquisition", () => {
       return okHandler()(url);
     });
 
-    const result = await acquireFencedCsfSheetSnapshots("token", SPREADSHEET_ID, REQUESTS);
+    const result = await acquireFencedCsfSheetSnapshots(
+      "token",
+      SPREADSHEET_ID,
+      REQUESTS,
+    );
 
     expect(result.status).toBe("ok");
     if (result.status !== "ok") return;
-    expect(result.fence).toEqual({ version: "58", modifiedAt: "2026-07-29T18:00:00.000Z" });
+    expect(result.fence).toEqual({
+      version: "58",
+      modifiedAt: "2026-07-29T18:00:00.000Z",
+    });
     expect(result.driveFile.headRevisionId).toBeNull();
   });
 
   test("a source that became inaccessible before the read is refused", async () => {
     installFetch((url) => {
-      if (url.includes(DRIVE_METADATA)) return new Response("nope", { status: 401 });
+      if (url.includes(DRIVE_METADATA))
+        return new Response("nope", { status: 401 });
       return okHandler()(url);
     });
 
-    const result = await acquireFencedCsfSheetSnapshots("token", SPREADSHEET_ID, REQUESTS);
+    const result = await acquireFencedCsfSheetSnapshots(
+      "token",
+      SPREADSHEET_ID,
+      REQUESTS,
+    );
 
     expect(result.status).toBe("unavailable");
     if (result.status !== "unavailable") return;
@@ -803,7 +1023,11 @@ describe("CSF normalized import source revision, by provider family", () => {
       fileId: "synthetic-csf-sheet",
       revision: VERSION_BELOW,
       modifiedAt: "2026-07-29T18:00:00.000Z",
-      contentHash: { algorithm: "sha256", value: RANGE_DIGEST, scope: "selected_range" },
+      contentHash: {
+        algorithm: "sha256",
+        value: RANGE_DIGEST,
+        scope: "selected_range",
+      },
       populatedRange: {
         kind: "populated",
         tabName: "Synthetic tab",
@@ -813,7 +1037,11 @@ describe("CSF normalized import source revision, by provider family", () => {
         endColumn: 3,
       },
       workbookTabs: [{ tabName: "Synthetic tab", visibility: "visible" }],
-      term: { id: "synthetic-term", code: "2026S1", selection: "officer_selected" },
+      term: {
+        id: "synthetic-term",
+        code: "2026S1",
+        selection: "officer_selected",
+      },
       schemaVersion: "student_roster@1",
       importerVersion: "dvhs-csf-import@csf-normalized-import/v1",
       sensitivity: "restricted_student",
@@ -871,13 +1099,23 @@ describe("CSF normalized import source revision, by provider family", () => {
     // required, so the erasure is refused at construction rather than recorded
     // and discovered later.
     expect(() =>
-      snapshotOf(sourceInput({ revision: null as never, modifiedAt: "2026-07-29T18:00:00.000Z" })),
+      snapshotOf(
+        sourceInput({
+          revision: null as never,
+          modifiedAt: "2026-07-29T18:00:00.000Z",
+        }),
+      ),
     ).toThrow("source.revision must be a string");
     // A timestamp alone is not evidence either, even a valid one.
-    expect(() => snapshotOf(sourceInput({ revision: "" as never }))).toThrow("source.revision");
+    expect(() => snapshotOf(sourceInput({ revision: "" as never }))).toThrow(
+      "source.revision",
+    );
     // And the version-bearing forms of two reads inside one granule do differ.
-    expect(snapshotOf(sourceInput({ revision: VERSION_BELOW })).snapshotHash)
-      .not.toBe(snapshotOf(sourceInput({ revision: VERSION_ABOVE })).snapshotHash);
+    expect(
+      snapshotOf(sourceInput({ revision: VERSION_BELOW })).snapshotHash,
+    ).not.toBe(
+      snapshotOf(sourceInput({ revision: VERSION_ABOVE })).snapshotHash,
+    );
   });
 
   test("an uploaded workbook keeps its sha256 content digest as its revision", () => {
@@ -914,9 +1152,11 @@ describe("CSF normalized import source revision, by provider family", () => {
       return okHandler()(url);
     });
 
-    const result = await acquireFencedCsfSheetSnapshots("token", SPREADSHEET_ID, [
-      { rangeA1: REQUESTED_RANGE, fallbackTabName: "Synthetic tab" },
-    ]);
+    const result = await acquireFencedCsfSheetSnapshots(
+      "token",
+      SPREADSHEET_ID,
+      [{ rangeA1: REQUESTED_RANGE, fallbackTabName: "Synthetic tab" }],
+    );
 
     expect(result.status).toBe("ok");
     if (result.status !== "ok") return;
@@ -929,10 +1169,13 @@ describe("CSF normalized import source revision, by provider family", () => {
     // required string without weakening what the reader may return.
     const version = result.driveFile.version;
     if (version === null) {
-      throw new Error("Synthetic fixture error: the Drive version must be present here.");
+      throw new Error(
+        "Synthetic fixture error: the Drive version must be present here.",
+      );
     }
     // And the coordinate survives the whole read as exact text.
-    expect(snapshotOf(sourceInput({ revision: version })).source.revision)
-      .toBe(VERSION_ABOVE);
+    expect(snapshotOf(sourceInput({ revision: version })).source.revision).toBe(
+      VERSION_ABOVE,
+    );
   });
 });

@@ -16,73 +16,91 @@ import {
 import {
   matchesReportStatusFilter,
   normalizeReportStatus,
-} from './report-status';
+} from "./report-status";
 
 /**
  * Get all flagged content for admin review
  */
-export async function getFlaggedContent(status?: 'pending' | 'blocked' | 'confirmed' | 'dismissed') {
+export async function getFlaggedContent(
+  status?: "pending" | "blocked" | "confirmed" | "dismissed",
+) {
   const supabase = getAdminClient();
-  
+
   // Check if user is super admin
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
-  
+
   let query = supabase
-    .from('content_flags')
-    .select('*')
-    .order('created_at', { ascending: false });
-  
+    .from("content_flags")
+    .select("*")
+    .order("created_at", { ascending: false });
+
   if (status) {
-    query = query.eq('status', status);
+    query = query.eq("status", status);
   }
-  
+
   const { data, error } = await query;
-  
+
   if (error) {
-    console.error('Error fetching flagged content:', error);
+    console.error("Error fetching flagged content:", error);
     return { error: error.message };
   }
 
   const flags = data ?? [];
 
   const projectIds = flags
-    .filter((flag) => flag.content_type === 'project')
+    .filter((flag) => flag.content_type === "project")
     .map((flag) => flag.content_id);
   const profileIds = flags
-    .filter((flag) => flag.content_type === 'profile')
+    .filter((flag) => flag.content_type === "profile")
     .map((flag) => flag.content_id);
   const organizationIds = flags
-    .filter((flag) => flag.content_type === 'organization')
+    .filter((flag) => flag.content_type === "organization")
     .map((flag) => flag.content_id);
 
-  let projects: Array<{ id: string; title: string | null; creator_id: string | null; organization_id: string | null }> = [];
-  let profiles: Array<{ id: string; full_name: string | null; username: string | null; avatar_url: string | null; email?: string | null }> = [];
-  let organizations: Array<{ id: string; name: string | null; username: string | null; created_by: string | null }> = [];
+  let projects: Array<{
+    id: string;
+    title: string | null;
+    creator_id: string | null;
+    organization_id: string | null;
+  }> = [];
+  let profiles: Array<{
+    id: string;
+    full_name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+    email?: string | null;
+  }> = [];
+  let organizations: Array<{
+    id: string;
+    name: string | null;
+    username: string | null;
+    created_by: string | null;
+  }> = [];
 
   if (projectIds.length > 0) {
     const { data: projectData } = await supabase
-      .from('projects')
-      .select('id, title, creator_id, organization_id')
-      .in('id', projectIds);
+      .from("projects")
+      .select("id, title, creator_id, organization_id")
+      .in("id", projectIds);
     projects = projectData || [];
   }
 
   if (profileIds.length > 0) {
     const { data: profileData } = await supabase
-      .from('profiles')
-      .select('id, full_name, username, avatar_url, email')
-      .in('id', profileIds);
+      .from("profiles")
+      .select("id, full_name, username, avatar_url, email")
+      .in("id", profileIds);
     profiles = profileData || [];
   }
 
   if (organizationIds.length > 0) {
     const { data: orgData } = await supabase
-      .from('organizations')
-      .select('id, name, username, created_by')
-      .in('id', organizationIds);
+      .from("organizations")
+      .select("id, name, username, created_by")
+      .in("id", organizationIds);
     organizations = orgData || [];
   }
 
@@ -100,12 +118,14 @@ export async function getFlaggedContent(status?: 'pending' | 'blocked' | 'confir
 
   const creatorProfiles = creatorIds.size
     ? await supabase
-        .from('profiles')
-        .select('id, full_name, username, avatar_url, email')
-        .in('id', Array.from(creatorIds))
+        .from("profiles")
+        .select("id, full_name, username, avatar_url, email")
+        .in("id", Array.from(creatorIds))
     : { data: [] };
 
-  const creatorMap = new Map((creatorProfiles.data || []).map((profile) => [profile.id, profile]));
+  const creatorMap = new Map(
+    (creatorProfiles.data || []).map((profile) => [profile.id, profile]),
+  );
   const projectMap = new Map(projects.map((project) => [project.id, project]));
   const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
   const orgMap = new Map(organizations.map((org) => [org.id, org]));
@@ -115,7 +135,7 @@ export async function getFlaggedContent(status?: 'pending' | 'blocked' | 'confir
     let contentDetails: Record<string, unknown> | null = null;
     let creatorDetails: Record<string, unknown> | null = null;
 
-    if (flag.content_type === 'project') {
+    if (flag.content_type === "project") {
       const project = projectMap.get(flag.content_id);
       if (project) {
         contentDetails = project;
@@ -123,13 +143,13 @@ export async function getFlaggedContent(status?: 'pending' | 'blocked' | 'confir
           creatorDetails = creatorMap.get(project.creator_id) || null;
         }
       }
-    } else if (flag.content_type === 'profile') {
+    } else if (flag.content_type === "profile") {
       const profile = profileMap.get(flag.content_id);
       if (profile) {
         contentDetails = profile;
         creatorDetails = profile;
       }
-    } else if (flag.content_type === 'organization') {
+    } else if (flag.content_type === "organization") {
       const org = orgMap.get(flag.content_id);
       if (org) {
         contentDetails = org;
@@ -147,7 +167,7 @@ export async function getFlaggedContent(status?: 'pending' | 'blocked' | 'confir
         details.verdict ||
         details.reasoning ||
         flag.flag_type ||
-        'Flagged content',
+        "Flagged content",
       categories: flag.flagged_categories || null,
       content_details: contentDetails,
       creator_details: creatorDetails,
@@ -171,79 +191,90 @@ export async function getUserModerationLogs(_userId: string) {
  */
 export async function updateFlaggedContentStatus(
   id: string,
-  status: 'pending' | 'blocked' | 'confirmed' | 'dismissed',
-  reviewNotes?: string
+  status: "pending" | "blocked" | "confirmed" | "dismissed",
+  reviewNotes?: string,
 ) {
   const viewerSupabase = await createClient();
   const supabase = getAdminClient();
-  
+
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
-  
-  const { data: { user } } = await viewerSupabase.auth.getUser();
+
+  const {
+    data: { user },
+  } = await viewerSupabase.auth.getUser();
 
   const { data: existingFlags, error: checkError } = await supabase
-    .from('content_flags')
-    .select('id')
-    .eq('id', id);
+    .from("content_flags")
+    .select("id")
+    .eq("id", id);
 
   if (checkError) {
-    console.error('Error checking flagged content:', id, checkError);
+    console.error("Error checking flagged content:", id, checkError);
     return { error: `Failed to check flagged content: ${checkError.message}` };
   }
 
   if (!existingFlags || existingFlags.length === 0) {
-    console.error('Flagged content not found:', id);
+    console.error("Flagged content not found:", id);
     return { error: "Flagged content not found" };
   }
 
   const { data, error } = await supabase
-    .from('content_flags')
-    .update({ 
+    .from("content_flags")
+    .update({
       status,
       reviewed_by: user?.id,
       reviewed_at: new Date().toISOString(),
       review_notes: reviewNotes,
     })
-    .eq('id', id)
+    .eq("id", id)
     .select();
-  
+
   if (error) {
-    console.error('Error updating flagged content:', error);
+    console.error("Error updating flagged content:", error);
     return { error: error.message };
   }
 
   if (!data || data.length === 0) {
-    console.error('No data returned after update for flagged content:', id);
+    console.error("No data returned after update for flagged content:", id);
     return { error: "Failed to update flagged content" };
   }
 
   const updatedFlag = data[0];
 
-  if (status === 'blocked' && updatedFlag?.content_id && updatedFlag?.content_type) {
+  if (
+    status === "blocked" &&
+    updatedFlag?.content_id &&
+    updatedFlag?.content_type
+  ) {
     await softRemoveContent(
       supabase,
       updatedFlag.content_type,
       updatedFlag.content_id,
-      'block_content',
-      user?.id || 'system',
-      reviewNotes || `Flagged for ${updatedFlag.flag_type || 'policy violation'}`
+      "block_content",
+      user?.id || "system",
+      reviewNotes ||
+        `Flagged for ${updatedFlag.flag_type || "policy violation"}`,
     );
 
     await notifyContentOwnerOfModeration({
       supabase,
       contentType: updatedFlag.content_type,
       contentId: updatedFlag.content_id,
-      action: 'block_content',
-      reason: reviewNotes || updatedFlag.flag_type || 'Policy violation',
+      action: "block_content",
+      reason: reviewNotes || updatedFlag.flag_type || "Policy violation",
     });
   }
 
-  if (updatedFlag?.content_id && updatedFlag?.content_type && updatedFlag?.flag_type) {
+  if (
+    updatedFlag?.content_id &&
+    updatedFlag?.content_type &&
+    updatedFlag?.flag_type
+  ) {
     await notifyAdminsBatched({
-      type: 'flagged_content',
+      type: "flagged_content",
       contentId: updatedFlag.content_id,
       contentType: updatedFlag.content_type,
       flagType: updatedFlag.flag_type,
@@ -259,7 +290,7 @@ export async function updateFlaggedContentStatus(
  */
 export async function getModerationStats() {
   const supabase = getAdminClient();
-  
+
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
@@ -271,17 +302,18 @@ export async function getModerationStats() {
   const oneDayAgo = new Date(now);
   oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
-  const { data: moderationEvents, error: moderationEventsError } = await supabase
-    .from('content_moderation_events')
-    .select(
-      'source, status, priority, created_at, updated_at, resolution_notes, flag_source, confidence_score, ai_metadata',
-    );
+  const { data: moderationEvents, error: moderationEventsError } =
+    await supabase
+      .from("content_moderation_events")
+      .select(
+        "source, status, priority, created_at, updated_at, resolution_notes, flag_source, confidence_score, ai_metadata",
+      );
 
   const missingViewError =
-    moderationEventsError?.code === '42P01' ||
-    moderationEventsError?.code === '42703' ||
-    (typeof moderationEventsError?.message === 'string' &&
-      moderationEventsError.message.includes('does not exist'));
+    moderationEventsError?.code === "42P01" ||
+    moderationEventsError?.code === "42703" ||
+    (typeof moderationEventsError?.message === "string" &&
+      moderationEventsError.message.includes("does not exist"));
 
   if (!moderationEventsError && moderationEvents) {
     const isRecentWeek = (value: string | null | undefined) => {
@@ -297,84 +329,87 @@ export async function getModerationStats() {
     };
 
     const pendingFlags = moderationEvents.filter(
-      (event) => event.source === 'flag' && (event.status || 'pending') === 'pending',
+      (event) =>
+        event.source === "flag" && (event.status || "pending") === "pending",
     ).length;
 
     const pendingReports = moderationEvents.filter(
       (event) =>
-        event.source === 'report' &&
-        matchesReportStatusFilter(event.status, 'pending'),
+        event.source === "report" &&
+        matchesReportStatusFilter(event.status, "pending"),
     ).length;
 
     const resolvedFlags = moderationEvents.filter(
       (event) =>
-        event.source === 'flag' &&
-        ['blocked', 'confirmed', 'dismissed'].includes(event.status || ''),
+        event.source === "flag" &&
+        ["blocked", "confirmed", "dismissed"].includes(event.status || ""),
     ).length;
 
     const resolvedReports = moderationEvents.filter(
       (event) =>
-        event.source === 'report' &&
-        (matchesReportStatusFilter(event.status, 'resolved') ||
-          matchesReportStatusFilter(event.status, 'dismissed')),
+        event.source === "report" &&
+        (matchesReportStatusFilter(event.status, "resolved") ||
+          matchesReportStatusFilter(event.status, "dismissed")),
     ).length;
 
     const blockedFlags = moderationEvents.filter(
-      (event) => event.source === 'flag' && event.status === 'blocked',
+      (event) => event.source === "flag" && event.status === "blocked",
     ).length;
 
     const criticalFlags = moderationEvents.filter(
       (event) =>
-        event.source === 'flag' &&
-        typeof event.confidence_score === 'number' &&
+        event.source === "flag" &&
+        typeof event.confidence_score === "number" &&
         event.confidence_score >= 0.8,
     ).length;
 
     const criticalReports = moderationEvents.filter(
       (event) =>
-        event.source === 'report' &&
-        ['high', 'critical'].includes((event.priority || '').toLowerCase()),
+        event.source === "report" &&
+        ["high", "critical"].includes((event.priority || "").toLowerCase()),
     ).length;
 
     const recentFlags = moderationEvents.filter(
-      (event) => event.source === 'flag' && isRecentWeek(event.created_at),
+      (event) => event.source === "flag" && isRecentWeek(event.created_at),
     ).length;
 
     const recentReports = moderationEvents.filter(
-      (event) => event.source === 'report' && isRecentWeek(event.created_at),
+      (event) => event.source === "report" && isRecentWeek(event.created_at),
     ).length;
 
     const aiApprovedReports = moderationEvents.filter(
       (event) =>
-        event.source === 'report' &&
-        typeof event.resolution_notes === 'string' &&
-        event.resolution_notes.toLowerCase().includes('approved ai recommendation'),
+        event.source === "report" &&
+        typeof event.resolution_notes === "string" &&
+        event.resolution_notes
+          .toLowerCase()
+          .includes("approved ai recommendation"),
     ).length;
 
     const aiFlagsTotal = moderationEvents.filter(
-      (event) => event.source === 'flag' && event.flag_source === 'ai',
+      (event) => event.source === "flag" && event.flag_source === "ai",
     ).length;
 
     const aiReportsTotal = moderationEvents.filter(
-      (event) => event.source === 'report' && event.ai_metadata !== null,
+      (event) => event.source === "report" && event.ai_metadata !== null,
     ).length;
 
     const aiFlagsLast24h = moderationEvents.filter(
       (event) =>
-        event.source === 'flag' &&
-        event.flag_source === 'ai' &&
+        event.source === "flag" &&
+        event.flag_source === "ai" &&
         isRecentDay(event.created_at),
     ).length;
 
     const aiReportsLast24h = moderationEvents.filter(
       (event) =>
-        event.source === 'report' &&
+        event.source === "report" &&
         event.ai_metadata !== null &&
         isRecentDay(event.updated_at),
     ).length;
 
     const latestAiFlag = moderationEvents
-      .filter((event) => event.source === 'flag' && event.flag_source === 'ai')
+      .filter((event) => event.source === "flag" && event.flag_source === "ai")
       .map((event) => event.created_at)
       .filter((value): value is string => Boolean(value))
       .map((value) => new Date(value))
@@ -382,7 +417,9 @@ export async function getModerationStats() {
       .sort((a, b) => b.getTime() - a.getTime())[0];
 
     const latestAiReport = moderationEvents
-      .filter((event) => event.source === 'report' && event.ai_metadata !== null)
+      .filter(
+        (event) => event.source === "report" && event.ai_metadata !== null,
+      )
       .map((event) => event.updated_at)
       .filter((value): value is string => Boolean(value))
       .map((value) => new Date(value))
@@ -394,7 +431,9 @@ export async function getModerationStats() {
     );
 
     const lastAutomationAt = latestCandidates.length
-      ? latestCandidates.sort((a, b) => b.getTime() - a.getTime())[0].toISOString()
+      ? latestCandidates
+          .sort((a, b) => b.getTime() - a.getTime())[0]
+          .toISOString()
       : null;
 
     return {
@@ -418,11 +457,11 @@ export async function getModerationStats() {
 
   if (moderationEventsError && !missingViewError) {
     console.warn(
-      'Falling back to legacy moderation stats queries due to view error:',
+      "Falling back to legacy moderation stats queries due to view error:",
       moderationEventsError,
     );
   }
-  
+
   const [
     { count: totalFlagged },
     { count: totalReportsCount },
@@ -440,47 +479,61 @@ export async function getModerationStats() {
     { data: latestAiFlagRows },
     { data: latestAiReportRows },
   ] = await Promise.all([
-    supabase.from('content_flags').select('*', { count: 'exact', head: true }),
-    supabase.from('content_reports').select('*', { count: 'exact', head: true }),
-    supabase.from('content_flags').select('status'),
-    supabase.from('content_reports').select('status'),
-    supabase.from('content_flags').select('*', { count: 'exact', head: true }).gte('confidence_score', 0.8),
-    supabase.from('content_reports').select('*', { count: 'exact', head: true }).in('priority', ['high', 'critical']),
-    supabase.from('content_flags').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo.toISOString()),
-    supabase.from('content_reports').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo.toISOString()),
+    supabase.from("content_flags").select("*", { count: "exact", head: true }),
     supabase
-      .from('content_reports')
-      .select('*', { count: 'exact', head: true })
-      .ilike('resolution_notes', '%Approved AI recommendation%'),
+      .from("content_reports")
+      .select("*", { count: "exact", head: true }),
+    supabase.from("content_flags").select("status"),
+    supabase.from("content_reports").select("status"),
     supabase
-      .from('content_flags')
-      .select('*', { count: 'exact', head: true })
-      .eq('flag_source', 'ai')
-      .gte('created_at', oneDayAgo.toISOString()),
+      .from("content_flags")
+      .select("*", { count: "exact", head: true })
+      .gte("confidence_score", 0.8),
     supabase
-      .from('content_reports')
-      .select('*', { count: 'exact', head: true })
-      .not('ai_metadata', 'is', null)
-      .gte('updated_at', oneDayAgo.toISOString()),
+      .from("content_reports")
+      .select("*", { count: "exact", head: true })
+      .in("priority", ["high", "critical"]),
     supabase
-      .from('content_flags')
-      .select('*', { count: 'exact', head: true })
-      .eq('flag_source', 'ai'),
+      .from("content_flags")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", sevenDaysAgo.toISOString()),
     supabase
-      .from('content_reports')
-      .select('*', { count: 'exact', head: true })
-      .not('ai_metadata', 'is', null),
+      .from("content_reports")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", sevenDaysAgo.toISOString()),
     supabase
-      .from('content_flags')
-      .select('created_at')
-      .eq('flag_source', 'ai')
-      .order('created_at', { ascending: false })
+      .from("content_reports")
+      .select("*", { count: "exact", head: true })
+      .ilike("resolution_notes", "%Approved AI recommendation%"),
+    supabase
+      .from("content_flags")
+      .select("*", { count: "exact", head: true })
+      .eq("flag_source", "ai")
+      .gte("created_at", oneDayAgo.toISOString()),
+    supabase
+      .from("content_reports")
+      .select("*", { count: "exact", head: true })
+      .not("ai_metadata", "is", null)
+      .gte("updated_at", oneDayAgo.toISOString()),
+    supabase
+      .from("content_flags")
+      .select("*", { count: "exact", head: true })
+      .eq("flag_source", "ai"),
+    supabase
+      .from("content_reports")
+      .select("*", { count: "exact", head: true })
+      .not("ai_metadata", "is", null),
+    supabase
+      .from("content_flags")
+      .select("created_at")
+      .eq("flag_source", "ai")
+      .order("created_at", { ascending: false })
       .limit(1),
     supabase
-      .from('content_reports')
-      .select('updated_at')
-      .not('ai_metadata', 'is', null)
-      .order('updated_at', { ascending: false })
+      .from("content_reports")
+      .select("updated_at")
+      .not("ai_metadata", "is", null)
+      .order("updated_at", { ascending: false })
       .limit(1),
   ]);
 
@@ -492,19 +545,20 @@ export async function getModerationStats() {
   };
 
   for (const flag of flagStatuses || []) {
-    const key = (flag.status || 'pending') as keyof typeof flagStatusCounts;
+    const key = (flag.status || "pending") as keyof typeof flagStatusCounts;
     if (key in flagStatusCounts) {
       flagStatusCounts[key] += 1;
     }
   }
 
   const pendingReportsCount = (reportStatuses || []).filter((report) =>
-    matchesReportStatusFilter(report.status, 'pending'),
+    matchesReportStatusFilter(report.status, "pending"),
   ).length;
 
-  const resolvedReportsCount = (reportStatuses || []).filter((report) =>
-    matchesReportStatusFilter(report.status, 'resolved') ||
-    matchesReportStatusFilter(report.status, 'dismissed'),
+  const resolvedReportsCount = (reportStatuses || []).filter(
+    (report) =>
+      matchesReportStatusFilter(report.status, "resolved") ||
+      matchesReportStatusFilter(report.status, "dismissed"),
   ).length;
 
   const resolvedFlagsCount =
@@ -521,7 +575,9 @@ export async function getModerationStats() {
     .filter((value) => !Number.isNaN(value.getTime()));
 
   const lastAutomationAt = latestCandidates.length
-    ? latestCandidates.sort((a, b) => b.getTime() - a.getTime())[0].toISOString()
+    ? latestCandidates
+        .sort((a, b) => b.getTime() - a.getTime())[0]
+        .toISOString()
     : null;
 
   // Combine stats from both tables
@@ -529,9 +585,10 @@ export async function getModerationStats() {
   const totalCritical = (criticalFlagsCount || 0) + (criticalReportsCount || 0);
   const totalRecent = (recentFlagsCount || 0) + (recentReportsCount || 0);
   const totalResolved = resolvedFlagsCount + resolvedReportsCount;
-  const automationLast24h = (aiFlagsLast24hCount || 0) + (aiReportsLast24hCount || 0);
+  const automationLast24h =
+    (aiFlagsLast24hCount || 0) + (aiReportsLast24hCount || 0);
   const automationTotal = (aiFlagsTotalCount || 0) + (aiReportsTotalCount || 0);
-  
+
   return {
     data: {
       total: (totalFlagged || 0) + (totalReportsCount || 0),
@@ -547,7 +604,7 @@ export async function getModerationStats() {
       critical: totalCritical,
       recentWeek: totalRecent,
       monthlyActivity: 0,
-    }
+    },
   };
 }
 
@@ -559,7 +616,7 @@ export async function getRepeatOffenders() {
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
-  
+
   // content_flags doesn't have user_id, so this function is not applicable yet
   return { data: [] };
 }
@@ -581,23 +638,25 @@ type ProfileSummary = {
 /**
  * Get all content reports for admin review
  */
-export async function getContentReports(status?: 'pending' | 'under_review' | 'resolved' | 'dismissed' | 'escalated') {
+export async function getContentReports(
+  status?: "pending" | "under_review" | "resolved" | "dismissed" | "escalated",
+) {
   const supabase = getAdminClient();
-  
+
   // Check if user is super admin
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
-  
+
   const { data: rawReports, error } = await supabase
-    .from('content_reports')
-    .select('*')
-    .order('priority', { ascending: false })
-    .order('created_at', { ascending: false });
-  
+    .from("content_reports")
+    .select("*")
+    .order("priority", { ascending: false })
+    .order("created_at", { ascending: false });
+
   if (error) {
-    console.error('Error fetching content reports:', error);
+    console.error("Error fetching content reports:", error);
     return { error: error.message };
   }
 
@@ -613,92 +672,104 @@ export async function getContentReports(status?: 'pending' | 'under_review' | 'r
   if (reports.length === 0) {
     return { data: [] };
   }
-  
+
   // Manually fetch reporter and reviewer profiles
   if (reports) {
     const reporterIds = reports
-      .map(r => r.reporter_id)
+      .map((r) => r.reporter_id)
       .filter((id): id is string => id !== null);
-    
+
     const reviewerIds = reports
-      .map(r => r.reviewed_by)
+      .map((r) => r.reviewed_by)
       .filter((id): id is string => id !== null);
-    
+
     const allUserIds = [...new Set([...reporterIds, ...reviewerIds])];
-    
+
     if (allUserIds.length > 0) {
       const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, username')
-        .in('id', allUserIds);
-      
-      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-      
+        .from("profiles")
+        .select("id, full_name, email, username")
+        .in("id", allUserIds);
+
+      const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+
       // Fetch content details based on type
-      const projectIds = reports.filter(r => r.content_type === 'project').map(r => r.content_id);
-      const profileIds = reports.filter(r => r.content_type === 'profile').map(r => r.content_id);
-      
+      const projectIds = reports
+        .filter((r) => r.content_type === "project")
+        .map((r) => r.content_id);
+      const profileIds = reports
+        .filter((r) => r.content_type === "profile")
+        .map((r) => r.content_id);
+
       let projects: ProjectSummary[] = [];
       if (projectIds.length > 0) {
         const { data: p } = await supabase
-          .from('projects')
-          .select('id, title, creator_id')
-          .in('id', projectIds);
+          .from("projects")
+          .select("id, title, creator_id")
+          .in("id", projectIds);
         projects = p || [];
       }
 
       let profilesContent: ProfileSummary[] = [];
       if (profileIds.length > 0) {
         const { data: p } = await supabase
-          .from('profiles')
-          .select('id, full_name, username, avatar_url')
-          .in('id', profileIds);
+          .from("profiles")
+          .select("id, full_name, username, avatar_url")
+          .in("id", profileIds);
         profilesContent = p || [];
       }
 
       // Fetch creators for projects
-      const projectCreatorIds = projects.map(p => p.creator_id).filter(Boolean);
+      const projectCreatorIds = projects
+        .map((p) => p.creator_id)
+        .filter(Boolean);
       let projectCreators: ProfileSummary[] = [];
       if (projectCreatorIds.length > 0) {
         const { data: pc } = await supabase
-          .from('profiles')
-          .select('id, full_name, username, avatar_url')
-          .in('id', projectCreatorIds);
+          .from("profiles")
+          .select("id, full_name, username, avatar_url")
+          .in("id", projectCreatorIds);
         projectCreators = pc || [];
       }
 
-      const projectCreatorMap = new Map(projectCreators.map(p => [p.id, p]));
+      const projectCreatorMap = new Map(projectCreators.map((p) => [p.id, p]));
 
       // Enhance data with profile info and content details
-      const enhancedData = reports.map(report => {
+      const enhancedData = reports.map((report) => {
         let contentDetails = null;
         let creatorDetails = null;
 
-        if (report.content_type === 'project') {
-          const project = projects.find(p => p.id === report.content_id);
+        if (report.content_type === "project") {
+          const project = projects.find((p) => p.id === report.content_id);
           contentDetails = project;
           if (project && project.creator_id) {
             creatorDetails = projectCreatorMap.get(project.creator_id);
           }
-        } else if (report.content_type === 'profile') {
-          const profile = profilesContent.find(p => p.id === report.content_id);
+        } else if (report.content_type === "profile") {
+          const profile = profilesContent.find(
+            (p) => p.id === report.content_id,
+          );
           contentDetails = profile;
           creatorDetails = profile;
         }
 
         return {
           ...report,
-          reporter: report.reporter_id ? profileMap.get(report.reporter_id) : null,
-          reviewer: report.reviewed_by ? profileMap.get(report.reviewed_by) : null,
+          reporter: report.reporter_id
+            ? profileMap.get(report.reporter_id)
+            : null,
+          reviewer: report.reviewed_by
+            ? profileMap.get(report.reviewed_by)
+            : null,
           content_details: contentDetails,
           creator_details: creatorDetails,
         };
       });
-      
+
       return { data: enhancedData };
     }
   }
-  
+
   return { data: reports };
 }
 
@@ -707,60 +778,68 @@ export async function getContentReports(status?: 'pending' | 'under_review' | 'r
  */
 export async function updateContentReportStatus(
   id: string,
-  status: 'pending' | 'under_review' | 'resolved' | 'dismissed',
-  resolutionNotes?: string
+  status: "pending" | "under_review" | "resolved" | "dismissed",
+  resolutionNotes?: string,
 ) {
   const viewerSupabase = await createClient();
   const supabase = getAdminClient(); // Use service role to bypass RLS
-  
+
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
-  
-  const { data: { user } } = await viewerSupabase.auth.getUser();
-  
+
+  const {
+    data: { user },
+  } = await viewerSupabase.auth.getUser();
+
   // First check if the report exists (using service role)
   const { data: existingReports, error: checkError } = await supabase
-    .from('content_reports')
-    .select('id, reporter_id, reason, content_type, content_id')
-    .eq('id', id);
-  
+    .from("content_reports")
+    .select("id, reporter_id, reason, content_type, content_id")
+    .eq("id", id);
+
   if (checkError) {
-    console.error('Error checking report:', id, checkError);
+    console.error("Error checking report:", id, checkError);
     return { error: `Failed to check report: ${checkError.message}` };
   }
 
   if (!existingReports || existingReports.length === 0) {
-    console.error('Report not found:', id);
+    console.error("Report not found:", id);
     return { error: "Report not found" };
   }
-  
+
   const { data, error } = await supabase
-    .from('content_reports')
-    .update({ 
+    .from("content_reports")
+    .update({
       status,
       reviewed_by: user?.id,
-      reviewed_at: status === 'resolved' || status === 'dismissed' ? new Date().toISOString() : null,
+      reviewed_at:
+        status === "resolved" || status === "dismissed"
+          ? new Date().toISOString()
+          : null,
       resolution_notes: resolutionNotes,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', id)
+    .eq("id", id)
     .select();
-  
+
   if (error) {
-    console.error('Error updating content report:', error);
+    console.error("Error updating content report:", error);
     return { error: error.message };
   }
-  
+
   if (!data || data.length === 0) {
-    console.error('No data returned after update for report:', id);
+    console.error("No data returned after update for report:", id);
     return { error: "Failed to update report" };
   }
-  
+
   const updatedReport = data[0];
 
-  if ((status === 'resolved' || status === 'dismissed') && updatedReport?.reporter_id) {
+  if (
+    (status === "resolved" || status === "dismissed") &&
+    updatedReport?.reporter_id
+  ) {
     await notifyReporterOfReportUpdate({
       supabase,
       report: updatedReport,
@@ -772,11 +851,11 @@ export async function updateContentReportStatus(
   return {
     data: updatedReport,
     message:
-      status === 'resolved'
-        ? 'Case resolved. Reporter was notified.'
-        : status === 'dismissed'
-          ? 'Case dismissed. Reporter was notified.'
-          : 'Report updated',
+      status === "resolved"
+        ? "Case resolved. Reporter was notified."
+        : status === "dismissed"
+          ? "Case dismissed. Reporter was notified."
+          : "Report updated",
   };
 }
 
@@ -792,12 +871,12 @@ export async function sendReportFeedback(
   reportId: string,
   userId: string | null | undefined,
   message: string,
-  status: 'resolved' | 'investigating' | 'dismissed',
-  reportSummary?: ReportSummary
+  status: "resolved" | "investigating" | "dismissed",
+  reportSummary?: ReportSummary,
 ) {
   const viewerSupabase = await createClient();
   const supabase = getAdminClient();
-  
+
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
@@ -808,10 +887,10 @@ export async function sendReportFeedback(
   } = await viewerSupabase.auth.getUser();
 
   const resolvedAt = new Date().toISOString();
-  const normalizedStatus = status === 'investigating' ? 'under_review' : status;
+  const normalizedStatus = status === "investigating" ? "under_review" : status;
 
   const { data: updateData, error: updateError } = await supabase
-    .from('content_reports')
+    .from("content_reports")
     .update({
       status: normalizedStatus,
       resolution_notes: message,
@@ -819,13 +898,13 @@ export async function sendReportFeedback(
       reviewed_at: resolvedAt,
       updated_at: resolvedAt,
     })
-    .eq('id', reportId)
-    .select('id');
+    .eq("id", reportId)
+    .select("id");
 
   if (updateError) {
     return { error: updateError.message };
   }
-  
+
   if (!updateData || updateData.length === 0) {
     return { error: "Report not found" };
   }
@@ -847,7 +926,7 @@ export async function sendReportFeedback(
           reportReason: reportSummary?.reason,
         },
       },
-      userId
+      userId,
     );
   }
 
@@ -859,43 +938,43 @@ export async function sendReportFeedback(
  */
 export async function getContentReportsStats() {
   const supabase = getAdminClient();
-  
+
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
-  
+
   // Get total counts
   const { count: totalReports } = await supabase
-    .from('content_reports')
-    .select('*', { count: 'exact', head: true });
+    .from("content_reports")
+    .select("*", { count: "exact", head: true });
 
   const { data: reportStatuses } = await supabase
-    .from('content_reports')
-    .select('status');
-  
+    .from("content_reports")
+    .select("status");
+
   const pendingCount = (reportStatuses || []).filter((report) =>
-    matchesReportStatusFilter(report.status, 'pending'),
+    matchesReportStatusFilter(report.status, "pending"),
   ).length;
 
   const resolvedCount = (reportStatuses || []).filter((report) =>
-    matchesReportStatusFilter(report.status, 'resolved'),
+    matchesReportStatusFilter(report.status, "resolved"),
   ).length;
-  
+
   const { count: highPriorityCount } = await supabase
-    .from('content_reports')
-    .select('*', { count: 'exact', head: true })
-    .in('priority', ['high', 'critical']);
-  
+    .from("content_reports")
+    .select("*", { count: "exact", head: true })
+    .in("priority", ["high", "critical"]);
+
   // Get recent reports (last 7 days)
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  
+
   const { count: recentCount } = await supabase
-    .from('content_reports')
-    .select('*', { count: 'exact', head: true })
-    .gte('created_at', sevenDaysAgo.toISOString());
-  
+    .from("content_reports")
+    .select("*", { count: "exact", head: true })
+    .gte("created_at", sevenDaysAgo.toISOString());
+
   return {
     data: {
       total: totalReports || 0,
@@ -903,7 +982,7 @@ export async function getContentReportsStats() {
       resolved: resolvedCount || 0,
       highPriority: highPriorityCount || 0,
       recentWeek: recentCount || 0,
-    }
+    },
   };
 }
 
@@ -919,53 +998,55 @@ export async function runAiReviewForReport(reportId: string) {
     return { error: "Unauthorized - Admin access required" };
   }
 
-  const { data: { user } } = await viewerSupabase.auth.getUser();
+  const {
+    data: { user },
+  } = await viewerSupabase.auth.getUser();
   if (!user) {
     return { error: "Unauthorized" };
   }
 
   const { data: report, error: reportError } = await supabase
-    .from('content_reports')
-    .select('*')
-    .eq('id', reportId)
+    .from("content_reports")
+    .select("*")
+    .eq("id", reportId)
     .maybeSingle();
 
   if (reportError) {
-    console.error('Error fetching report for AI review:', reportError);
+    console.error("Error fetching report for AI review:", reportError);
     return { error: reportError.message };
   }
 
   if (!report) {
-    return { error: 'Report not found' };
+    return { error: "Report not found" };
   }
 
-  let contentDetails = '';
-  if (report.content_type === 'project') {
+  let contentDetails = "";
+  if (report.content_type === "project") {
     const { data: project } = await supabase
-      .from('projects')
-      .select('title, description')
-      .eq('id', report.content_id)
+      .from("projects")
+      .select("title, description")
+      .eq("id", report.content_id)
       .maybeSingle();
     if (project) {
-      contentDetails = `Project Title: ${project.title}\nProject Description: ${project.description || 'N/A'}`;
+      contentDetails = `Project Title: ${project.title}\nProject Description: ${project.description || "N/A"}`;
     }
-  } else if (report.content_type === 'organization') {
+  } else if (report.content_type === "organization") {
     const { data: org } = await supabase
-      .from('organizations')
-      .select('name, description')
-      .eq('id', report.content_id)
+      .from("organizations")
+      .select("name, description")
+      .eq("id", report.content_id)
       .maybeSingle();
     if (org) {
-      contentDetails = `Organization Name: ${org.name}\nOrganization Description: ${org.description || 'N/A'}`;
+      contentDetails = `Organization Name: ${org.name}\nOrganization Description: ${org.description || "N/A"}`;
     }
-  } else if (report.content_type === 'profile') {
+  } else if (report.content_type === "profile") {
     const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name, username')
-      .eq('id', report.content_id)
+      .from("profiles")
+      .select("full_name, username")
+      .eq("id", report.content_id)
       .maybeSingle();
     if (profile) {
-      contentDetails = `Profile: ${profile.full_name || profile.username || 'Unknown user'}`;
+      contentDetails = `Profile: ${profile.full_name || profile.username || "Unknown user"}`;
     }
   }
 
@@ -977,21 +1058,21 @@ export async function runAiReviewForReport(reportId: string) {
       content_type: report.content_type,
       content_id: report.content_id,
     },
-    contentDetails
+    contentDetails,
   );
 
   const { error: updateError } = await supabase
-    .from('content_reports')
+    .from("content_reports")
     .update({
       priority: metadata.priority,
       status: clampedStatus,
       ai_metadata: metadata,
       updated_at: triagedAt,
     })
-    .eq('id', report.id);
+    .eq("id", report.id);
 
   if (updateError) {
-    console.error('Error updating report after AI review:', updateError);
+    console.error("Error updating report after AI review:", updateError);
     return { error: updateError.message };
   }
 
@@ -1010,24 +1091,26 @@ export async function runAiReviewForProject(projectId: string) {
     return { error: "Unauthorized - Admin access required" };
   }
 
-  const { data: { user } } = await viewerSupabase.auth.getUser();
+  const {
+    data: { user },
+  } = await viewerSupabase.auth.getUser();
   if (!user) {
     return { error: "Unauthorized" };
   }
 
   const { data: project, error: projectError } = await supabase
-    .from('projects')
-    .select('id, title, description')
-    .eq('id', projectId)
+    .from("projects")
+    .select("id, title, description")
+    .eq("id", projectId)
     .maybeSingle();
 
   if (projectError) {
-    console.error('Error fetching project for AI review:', projectError);
+    console.error("Error fetching project for AI review:", projectError);
     return { error: projectError.message };
   }
 
   if (!project) {
-    return { error: 'Project not found' };
+    return { error: "Project not found" };
   }
 
   const decision = await analyzeProjectWithAi({
@@ -1041,60 +1124,61 @@ export async function runAiReviewForProject(projectId: string) {
   }
 
   const { data: existingFlags, error: existingError } = await supabase
-    .from('content_flags')
-    .select('id, status')
-    .eq('content_type', 'project')
-    .eq('content_id', project.id)
-    .order('created_at', { ascending: false })
+    .from("content_flags")
+    .select("id, status")
+    .eq("content_type", "project")
+    .eq("content_id", project.id)
+    .order("created_at", { ascending: false })
     .limit(1);
 
   if (existingError) {
-    console.error('Error checking existing flags:', existingError);
+    console.error("Error checking existing flags:", existingError);
     return { error: existingError.message };
   }
 
   const flagPayload = {
-    flag_type: decision.flagType ?? 'other',
+    flag_type: decision.flagType ?? "other",
     confidence_score: decision.confidenceScore,
     flag_details: buildProjectFlagDetails(decision),
   };
 
   if (existingFlags && existingFlags.length > 0) {
     const { error: updateError } = await supabase
-      .from('content_flags')
+      .from("content_flags")
       .update({
         ...flagPayload,
       })
-      .eq('id', existingFlags[0].id);
+      .eq("id", existingFlags[0].id);
 
     if (updateError) {
-      console.error('Error updating existing flag after AI review:', updateError);
+      console.error(
+        "Error updating existing flag after AI review:",
+        updateError,
+      );
       return { error: updateError.message };
     }
 
     return { data: { flagged: true, decision } };
   }
 
-  const { error: insertError } = await supabase
-    .from('content_flags')
-    .insert({
-      content_type: 'project',
-      content_id: project.id,
-      flag_source: 'ai',
-      status: 'pending',
-      ...flagPayload,
-    });
+  const { error: insertError } = await supabase.from("content_flags").insert({
+    content_type: "project",
+    content_id: project.id,
+    flag_source: "ai",
+    status: "pending",
+    ...flagPayload,
+  });
 
   if (insertError) {
-    console.error('Error inserting new flag after AI review:', insertError);
+    console.error("Error inserting new flag after AI review:", insertError);
     return { error: insertError.message };
   }
 
   await notifyAdminsBatched({
-    type: 'flagged_content',
+    type: "flagged_content",
     contentId: project.id,
-    contentType: 'project',
-    flagType: decision.flagType ?? 'other',
+    contentType: "project",
+    flagType: decision.flagType ?? "other",
     confidenceScore: decision.confidenceScore,
   });
 
@@ -1112,37 +1196,37 @@ export async function applyAiRecommendationForReport(reportId: string) {
   }
 
   const { data: report, error } = await supabase
-    .from('content_reports')
-    .select('id, reason, ai_metadata')
-    .eq('id', reportId)
+    .from("content_reports")
+    .select("id, reason, ai_metadata")
+    .eq("id", reportId)
     .maybeSingle();
 
   if (error) {
-    console.error('Error fetching report for AI action:', error);
+    console.error("Error fetching report for AI action:", error);
     return { error: error.message };
   }
 
   if (!report) {
-    return { error: 'Report not found' };
+    return { error: "Report not found" };
   }
 
   const recommendedAction = report.ai_metadata?.recommendedAction as
-    | 'none'
-    | 'warn_user'
-    | 'remove_content'
-    | 'block_content'
-    | 'escalate_to_legal'
+    | "none"
+    | "warn_user"
+    | "remove_content"
+    | "block_content"
+    | "escalate_to_legal"
     | undefined;
 
-  if (!recommendedAction || recommendedAction === 'none') {
-    return { error: 'No actionable AI recommendation available' };
+  if (!recommendedAction || recommendedAction === "none") {
+    return { error: "No actionable AI recommendation available" };
   }
 
   const reason =
     report.ai_metadata?.actionJustification ||
     report.ai_metadata?.shortSummary ||
     report.reason ||
-    'Applied AI recommendation';
+    "Applied AI recommendation";
 
   return takeModeratorAction(reportId, recommendedAction, reason);
 }
@@ -1152,8 +1236,8 @@ export async function applyAiRecommendationForReport(reportId: string) {
  */
 export async function takeFlaggedContentAction(
   flagId: string,
-  action: 'warn_user' | 'remove_content' | 'block_content' | 'dismiss',
-  reason?: string
+  action: "warn_user" | "remove_content" | "block_content" | "dismiss",
+  reason?: string,
 ) {
   const viewerSupabase = await createClient();
   const supabase = getAdminClient();
@@ -1163,79 +1247,89 @@ export async function takeFlaggedContentAction(
     return { error: "Unauthorized - Admin access required" };
   }
 
-  const { data: { user } } = await viewerSupabase.auth.getUser();
+  const {
+    data: { user },
+  } = await viewerSupabase.auth.getUser();
   if (!user) {
     return { error: "Unauthorized" };
   }
 
   const { data: flag, error: flagError } = await supabase
-    .from('content_flags')
-    .select('*')
-    .eq('id', flagId)
+    .from("content_flags")
+    .select("*")
+    .eq("id", flagId)
     .maybeSingle();
 
   if (flagError) {
-    console.error('Error fetching flagged content:', flagError);
+    console.error("Error fetching flagged content:", flagError);
     return { error: flagError.message };
   }
 
   if (!flag) {
-    return { error: 'Flagged content not found' };
+    return { error: "Flagged content not found" };
   }
 
-  let newStatus: 'pending' | 'blocked' | 'confirmed' | 'dismissed' = 'pending';
+  let newStatus: "pending" | "blocked" | "confirmed" | "dismissed" = "pending";
   switch (action) {
-    case 'dismiss':
-      newStatus = 'dismissed';
+    case "dismiss":
+      newStatus = "dismissed";
       break;
-    case 'block_content':
-      newStatus = 'blocked';
+    case "block_content":
+      newStatus = "blocked";
       break;
-    case 'remove_content':
-    case 'warn_user':
+    case "remove_content":
+    case "warn_user":
     default:
-      newStatus = 'confirmed';
+      newStatus = "confirmed";
       break;
   }
 
   const { data, error } = await supabase
-    .from('content_flags')
+    .from("content_flags")
     .update({
       status: newStatus,
       reviewed_by: user.id,
       reviewed_at: new Date().toISOString(),
       review_notes: reason || `Action ${action}`,
     })
-    .eq('id', flagId)
+    .eq("id", flagId)
     .select();
 
   if (error) {
-    console.error('Error updating flagged content:', error);
+    console.error("Error updating flagged content:", error);
     return { error: error.message };
   }
 
   if (!data || data.length === 0) {
-    return { error: 'Failed to update flagged content' };
+    return { error: "Failed to update flagged content" };
   }
 
-  if ((action === 'remove_content' || action === 'block_content') && flag.content_id && flag.content_type) {
+  if (
+    (action === "remove_content" || action === "block_content") &&
+    flag.content_id &&
+    flag.content_type
+  ) {
     await softRemoveContent(
       supabase,
       flag.content_type,
       flag.content_id,
       action,
       user.id,
-      reason
+      reason,
     );
   }
 
-  if (action === 'remove_content' || action === 'block_content' || action === 'warn_user') {
+  if (
+    action === "remove_content" ||
+    action === "block_content" ||
+    action === "warn_user"
+  ) {
     await notifyContentOwnerOfModeration({
       supabase,
       contentType: flag.content_type,
       contentId: flag.content_id,
       action,
-      reason: reason || flag.flag_type || 'Policy violation',
+      reason: reason || flag.flag_type || "Policy violation",
     });
   }
 
@@ -1252,20 +1346,25 @@ export async function runAiScan() {
   }
 
   try {
-    const { performAiModerationScan } = await import('./ai-scan-logic');
+    const { performAiModerationScan } = await import("./ai-scan-logic");
     const result = await performAiModerationScan();
-    if (result?.applied?.projectFlags?.length || result?.applied?.reportTriages?.length) {
+    if (
+      result?.applied?.projectFlags?.length ||
+      result?.applied?.reportTriages?.length
+    ) {
       await notifyAdminsBatched({
-        type: 'flagged_content',
-        contentId: 'batch',
-        contentType: 'ai_scan',
-        flagType: 'scan_results',
+        type: "flagged_content",
+        contentId: "batch",
+        contentType: "ai_scan",
+        flagType: "scan_results",
       });
     }
     return { success: true, data: result };
   } catch (e) {
-    console.error('AI scan exception:', e);
-    return { error: `Scan failed: ${e instanceof Error ? e.message : 'Unknown error'}` };
+    console.error("AI scan exception:", e);
+    return {
+      error: `Scan failed: ${e instanceof Error ? e.message : "Unknown error"}`,
+    };
   }
 }
 
@@ -1282,46 +1381,54 @@ export async function getDetailedReportWithContext(reportId: string) {
 
   try {
     console.log(`[getDetailedReportWithContext] Fetching report: ${reportId}`);
-    
+
     // Get the report
     const { data: reportList, error: reportError } = await supabase
-      .from('content_reports')
-      .select('*')
-      .eq('id', reportId);
+      .from("content_reports")
+      .select("*")
+      .eq("id", reportId);
 
-    console.log(`[getDetailedReportWithContext] Query result:`, { 
-      reportList, 
+    console.log(`[getDetailedReportWithContext] Query result:`, {
+      reportList,
       reportError,
-      count: reportList?.length 
+      count: reportList?.length,
     });
 
     if (reportError) {
       console.error(`[getDetailedReportWithContext] Error:`, reportError);
-      return { error: `Failed to fetch report: ${reportError.message}`, data: undefined };
+      return {
+        error: `Failed to fetch report: ${reportError.message}`,
+        data: undefined,
+      };
     }
 
     if (!reportList || reportList.length === 0) {
-      console.error(`[getDetailedReportWithContext] Report not found with ID: ${reportId}`);
+      console.error(
+        `[getDetailedReportWithContext] Report not found with ID: ${reportId}`,
+      );
       return { error: "Report not found", data: undefined };
     }
 
     const report = reportList[0];
-    console.log(`[getDetailedReportWithContext] Found report:`, { id: report.id, status: report.status });
+    console.log(`[getDetailedReportWithContext] Found report:`, {
+      id: report.id,
+      status: report.status,
+    });
 
     // Get reporter profile
     const { data: reporterList } = await supabase
-      .from('profiles')
-      .select('id, full_name, username, avatar_url')
-      .eq('id', report.reporter_id);
+      .from("profiles")
+      .select("id, full_name, username, avatar_url")
+      .eq("id", report.reporter_id);
 
     const reporterProfile = reporterList?.[0] || null;
 
     // Get reviewer profile if reviewed
     const { data: reviewerList } = report.reviewed_by
       ? await supabase
-          .from('profiles')
-          .select('id, full_name, username')
-          .eq('id', report.reviewed_by)
+          .from("profiles")
+          .select("id, full_name, username")
+          .eq("id", report.reviewed_by)
       : { data: null };
 
     const reviewerProfile = reviewerList?.[0] || null;
@@ -1330,45 +1437,48 @@ export async function getDetailedReportWithContext(reportId: string) {
     let contentDetails: unknown = null;
     let creatorProfile = null;
 
-    if (report.content_type === 'project') {
+    if (report.content_type === "project") {
       const { data: projectList } = await supabase
-        .from('projects')
-        .select('id, title, description, creator_id, organization_id, status, created_at')
-        .eq('id', report.content_id);
+        .from("projects")
+        .select(
+          "id, title, description, creator_id, organization_id, status, created_at",
+        )
+        .eq("id", report.content_id);
 
       const project = projectList?.[0];
       if (project) {
         contentDetails = project;
         const { data: creatorList } = await supabase
-          .from('profiles')
-          .select('id, full_name, username, avatar_url')
-          .eq('id', project.creator_id);
+          .from("profiles")
+          .select("id, full_name, username, avatar_url")
+          .eq("id", project.creator_id);
         creatorProfile = creatorList?.[0] || null;
 
         // Get organization if exists
         if (project.organization_id) {
           const { data: orgList } = await supabase
-            .from('organizations')
-            .select('id, name, username, type, verified')
-            .eq('id', project.organization_id);
+            .from("organizations")
+            .select("id, name, username, type, verified")
+            .eq("id", project.organization_id);
           if (orgList?.[0]) {
-            (contentDetails as Record<string, unknown>).organization = orgList[0];
+            (contentDetails as Record<string, unknown>).organization =
+              orgList[0];
           }
         }
       }
-    } else if (report.content_type === 'organization') {
+    } else if (report.content_type === "organization") {
       const { data: orgList } = await supabase
-        .from('organizations')
-        .select('id, name, username, description, type, verified, created_by')
-        .eq('id', report.content_id);
+        .from("organizations")
+        .select("id, name, username, description, type, verified, created_by")
+        .eq("id", report.content_id);
 
       const org = orgList?.[0];
       if (org) {
         contentDetails = org;
         const { data: creatorList } = await supabase
-          .from('profiles')
-          .select('id, full_name, username, avatar_url')
-          .eq('id', org.created_by);
+          .from("profiles")
+          .select("id, full_name, username, avatar_url")
+          .eq("id", org.created_by);
         creatorProfile = creatorList?.[0] || null;
       }
     }
@@ -1384,9 +1494,9 @@ export async function getDetailedReportWithContext(reportId: string) {
       },
     };
   } catch (e) {
-    console.error('Error fetching detailed report:', e);
+    console.error("Error fetching detailed report:", e);
     return {
-      error: `Failed to fetch report: ${e instanceof Error ? e.message : 'Unknown error'}`,
+      error: `Failed to fetch report: ${e instanceof Error ? e.message : "Unknown error"}`,
       data: undefined,
     };
   }
@@ -1397,8 +1507,13 @@ export async function getDetailedReportWithContext(reportId: string) {
  */
 export async function takeModeratorAction(
   reportId: string,
-  action: 'warn_user' | 'remove_content' | 'block_content' | 'dismiss' | 'escalate_to_legal',
-  reason?: string
+  action:
+    | "warn_user"
+    | "remove_content"
+    | "block_content"
+    | "dismiss"
+    | "escalate_to_legal",
+  reason?: string,
 ) {
   const viewerSupabase = await createClient();
   const supabase = getAdminClient(); // Use service role to bypass RLS
@@ -1407,7 +1522,9 @@ export async function takeModeratorAction(
     return { error: "Unauthorized - Admin access required" };
   }
 
-  const { data: { user } } = await viewerSupabase.auth.getUser();
+  const {
+    data: { user },
+  } = await viewerSupabase.auth.getUser();
   if (!user) {
     return { error: "No authenticated user" };
   }
@@ -1415,9 +1532,9 @@ export async function takeModeratorAction(
   try {
     // Get the report
     const { data: report, error: reportError } = await supabase
-      .from('content_reports')
-      .select('*')
-      .eq('id', reportId)
+      .from("content_reports")
+      .select("*")
+      .eq("id", reportId)
       .single();
 
     if (reportError || !report) {
@@ -1426,79 +1543,94 @@ export async function takeModeratorAction(
 
     // Map actions to corresponding status
     let newStatus = report.status;
-    let actionNotes = '';
+    let actionNotes = "";
 
     switch (action) {
-      case 'dismiss':
-        newStatus = 'dismissed';
-        actionNotes = 'Content dismissed by moderator';
+      case "dismiss":
+        newStatus = "dismissed";
+        actionNotes = "Content dismissed by moderator";
         break;
-      case 'remove_content':
-        newStatus = 'resolved';
-        actionNotes = 'Content removed by moderator';
+      case "remove_content":
+        newStatus = "resolved";
+        actionNotes = "Content removed by moderator";
         break;
-      case 'block_content':
-        newStatus = 'resolved';
-        actionNotes = 'Content blocked by moderator';
+      case "block_content":
+        newStatus = "resolved";
+        actionNotes = "Content blocked by moderator";
         break;
-      case 'warn_user':
-        newStatus = 'under_review';
-        actionNotes = 'User warned by moderator - awaiting compliance';
+      case "warn_user":
+        newStatus = "under_review";
+        actionNotes = "User warned by moderator - awaiting compliance";
         break;
-      case 'escalate_to_legal':
-        newStatus = 'under_review';
-        actionNotes = 'Escalated to legal team for review';
+      case "escalate_to_legal":
+        newStatus = "under_review";
+        actionNotes = "Escalated to legal team for review";
         break;
     }
 
     // Update the report with action taken
     const resolutionNotes = [
-      report.resolution_notes || '',
-      `\n[Action taken] ${new Date().toISOString()}: ${actionNotes}${reason ? ` - ${reason}` : ''}`,
-    ].filter(Boolean).join('');
+      report.resolution_notes || "",
+      `\n[Action taken] ${new Date().toISOString()}: ${actionNotes}${reason ? ` - ${reason}` : ""}`,
+    ]
+      .filter(Boolean)
+      .join("");
 
     const { data, error } = await supabase
-      .from('content_reports')
+      .from("content_reports")
       .update({
         status: newStatus,
         resolution_notes: resolutionNotes,
         reviewed_by: user.id,
         reviewed_at: new Date().toISOString(),
       })
-      .eq('id', reportId)
+      .eq("id", reportId)
       .select()
       .single();
 
     if (error) {
-      console.error('Error taking moderator action on report %s:', reportId, error);
+      console.error(
+        "Error taking moderator action on report %s:",
+        reportId,
+        error,
+      );
       return { error: error.message };
     }
 
     // If removing/blocking content, also flag it in content_flags
-    if (action === 'remove_content' || action === 'block_content') {
-      const flagType = action === 'remove_content' ? 'removal' : 'suspension';
-      await supabase
-        .from('content_flags')
-        .insert({
-          content_type: report.content_type,
-          content_id: report.content_id,
-          flag_type: flagType,
-          confidence_score: 1.0,
-          flag_source: 'moderator',
-          status: 'confirmed',
-          flag_details: {
-            action,
-            reason,
-            takenBy: user.id,
-          },
-        });
+    if (action === "remove_content" || action === "block_content") {
+      const flagType = action === "remove_content" ? "removal" : "suspension";
+      await supabase.from("content_flags").insert({
+        content_type: report.content_type,
+        content_id: report.content_id,
+        flag_type: flagType,
+        confidence_score: 1.0,
+        flag_source: "moderator",
+        status: "confirmed",
+        flag_details: {
+          action,
+          reason,
+          takenBy: user.id,
+        },
+      });
     }
 
-    if (action === 'remove_content' || action === 'block_content') {
-      await softRemoveContent(supabase, report.content_type, report.content_id, action, user.id, reason);
+    if (action === "remove_content" || action === "block_content") {
+      await softRemoveContent(
+        supabase,
+        report.content_type,
+        report.content_id,
+        action,
+        user.id,
+        reason,
+      );
     }
 
-    if (action === 'remove_content' || action === 'block_content' || action === 'warn_user') {
+    if (
+      action === "remove_content" ||
+      action === "block_content" ||
+      action === "warn_user"
+    ) {
       await notifyContentOwnerOfModeration({
         supabase,
         contentType: report.content_type,
@@ -1514,8 +1646,10 @@ export async function takeModeratorAction(
       message: `Action '${action}' taken on report ${reportId}`,
     };
   } catch (e) {
-    console.error('Error taking moderator action:', e);
-    return { error: `Failed to take action: ${e instanceof Error ? e.message : 'Unknown error'}` };
+    console.error("Error taking moderator action:", e);
+    return {
+      error: `Failed to take action: ${e instanceof Error ? e.message : "Unknown error"}`,
+    };
   }
 }
 
@@ -1523,56 +1657,61 @@ async function softRemoveContent(
   supabase: ReturnType<typeof getAdminClient>,
   contentType: string,
   contentId: string,
-  action: 'remove_content' | 'block_content',
+  action: "remove_content" | "block_content",
   adminUserId: string,
-  reason?: string
+  reason?: string,
 ) {
   const now = new Date().toISOString();
 
-  if (contentType === 'project') {
+  if (contentType === "project") {
     await supabase
-      .from('projects')
+      .from("projects")
       .update({
-        status: 'cancelled',
+        status: "cancelled",
         cancelled_at: now,
-        cancellation_reason: `Moderation ${action.replace('_', ' ')}${reason ? `: ${reason}` : ''}`,
+        cancellation_reason: `Moderation ${action.replace("_", " ")}${reason ? `: ${reason}` : ""}`,
       })
-      .eq('id', contentId);
+      .eq("id", contentId);
     return;
   }
 
-  if (contentType === 'profile') {
+  if (contentType === "profile") {
     await supabase
-      .from('profiles')
+      .from("profiles")
       .update({
-        profile_visibility: 'private',
+        profile_visibility: "private",
         updated_at: now,
       })
-      .eq('id', contentId);
+      .eq("id", contentId);
     return;
   }
 
-  if (contentType === 'organization') {
+  if (contentType === "organization") {
     await supabase
-      .from('organizations')
+      .from("organizations")
       .update({
         verified: false,
         updated_at: now,
       })
-      .eq('id', contentId);
+      .eq("id", contentId);
     return;
   }
 
   await notifyAdminsBatched({
-    type: 'content_report',
+    type: "content_report",
     reportId: contentId,
     reason: `Unsupported moderation removal for ${contentType}`,
     contentType,
-    priority: 'normal',
+    priority: "normal",
   });
 }
 
-type ModerationAction = 'warn_user' | 'remove_content' | 'block_content' | 'dismiss' | 'escalate_to_legal';
+type ModerationAction =
+  | "warn_user"
+  | "remove_content"
+  | "block_content"
+  | "dismiss"
+  | "escalate_to_legal";
 
 type ContentOwnerInfo = {
   userId: string;
@@ -1584,30 +1723,34 @@ type ContentOwnerInfo = {
 };
 
 function deriveSeverity(confidence: number | string | null | undefined) {
-  const value = typeof confidence === 'string' ? Number(confidence) : confidence ?? 0;
-  if (value >= 0.85) return 'critical';
-  if (value >= 0.7) return 'high';
-  if (value >= 0.4) return 'medium';
-  return 'low';
+  const value =
+    typeof confidence === "string" ? Number(confidence) : (confidence ?? 0);
+  if (value >= 0.85) return "critical";
+  if (value >= 0.7) return "high";
+  if (value >= 0.4) return "medium";
+  return "low";
 }
 
 function formatContentTypeLabel(contentType: string) {
   switch (contentType) {
-    case 'project':
-      return 'project';
-    case 'profile':
-      return 'profile';
-    case 'organization':
-      return 'organization';
+    case "project":
+      return "project";
+    case "profile":
+      return "profile";
+    case "organization":
+      return "organization";
     default:
-      return 'content';
+      return "content";
   }
 }
 
-async function fetchAuthUserEmail(supabase: ReturnType<typeof getAdminClient>, userId: string) {
+async function fetchAuthUserEmail(
+  supabase: ReturnType<typeof getAdminClient>,
+  userId: string,
+) {
   const { data, error } = await supabase.auth.admin.getUserById(userId);
   if (error) {
-    console.error('Error fetching auth user email:', error);
+    console.error("Error fetching auth user email:", error);
     return null;
   }
   return data?.user?.email ?? null;
@@ -1616,85 +1759,89 @@ async function fetchAuthUserEmail(supabase: ReturnType<typeof getAdminClient>, u
 async function resolveContentOwnerInfo(
   supabase: ReturnType<typeof getAdminClient>,
   contentType: string,
-  contentId: string
+  contentId: string,
 ): Promise<ContentOwnerInfo | null> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lets-assist.com';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com";
 
-  if (contentType === 'project') {
+  if (contentType === "project") {
     const { data: project } = await supabase
-      .from('projects')
-      .select('id, title, creator_id')
-      .eq('id', contentId)
+      .from("projects")
+      .select("id, title, creator_id")
+      .eq("id", contentId)
       .maybeSingle();
 
     if (!project?.creator_id) return null;
 
     const { data: creator } = await supabase
-      .from('profiles')
-      .select('id, full_name, username, email')
-      .eq('id', project.creator_id)
+      .from("profiles")
+      .select("id, full_name, username, email")
+      .eq("id", project.creator_id)
       .maybeSingle();
 
-    const userEmail = creator?.email || (await fetchAuthUserEmail(supabase, project.creator_id));
-    const userName = creator?.full_name || creator?.username || 'there';
+    const userEmail =
+      creator?.email ||
+      (await fetchAuthUserEmail(supabase, project.creator_id));
+    const userName = creator?.full_name || creator?.username || "there";
 
     return {
       userId: project.creator_id,
       userName,
       userEmail,
-      contentTitle: project.title || 'Untitled project',
-      contentTypeLabel: 'project',
+      contentTitle: project.title || "Untitled project",
+      contentTypeLabel: "project",
       contentUrl: `${baseUrl}/projects/${contentId}`,
     };
   }
 
-  if (contentType === 'profile') {
+  if (contentType === "profile") {
     const { data: profile } = await supabase
-      .from('profiles')
-      .select('id, full_name, username, email')
-      .eq('id', contentId)
+      .from("profiles")
+      .select("id, full_name, username, email")
+      .eq("id", contentId)
       .maybeSingle();
 
     if (!profile) return null;
-    const userEmail = profile.email || (await fetchAuthUserEmail(supabase, contentId));
-    const userName = profile.full_name || profile.username || 'there';
+    const userEmail =
+      profile.email || (await fetchAuthUserEmail(supabase, contentId));
+    const userName = profile.full_name || profile.username || "there";
     const profileSlug = profile.username || contentId;
 
     return {
       userId: contentId,
       userName,
       userEmail,
-      contentTitle: profile.full_name || profile.username || 'Your profile',
-      contentTypeLabel: 'profile',
+      contentTitle: profile.full_name || profile.username || "Your profile",
+      contentTypeLabel: "profile",
       contentUrl: `${baseUrl}/profile/${profileSlug}`,
     };
   }
 
-  if (contentType === 'organization') {
+  if (contentType === "organization") {
     const { data: org } = await supabase
-      .from('organizations')
-      .select('id, name, username, created_by')
-      .eq('id', contentId)
+      .from("organizations")
+      .select("id, name, username, created_by")
+      .eq("id", contentId)
       .maybeSingle();
 
     if (!org?.created_by) return null;
 
     const { data: creator } = await supabase
-      .from('profiles')
-      .select('id, full_name, username, email')
-      .eq('id', org.created_by)
+      .from("profiles")
+      .select("id, full_name, username, email")
+      .eq("id", org.created_by)
       .maybeSingle();
 
-    const userEmail = creator?.email || (await fetchAuthUserEmail(supabase, org.created_by));
-    const userName = creator?.full_name || creator?.username || 'there';
+    const userEmail =
+      creator?.email || (await fetchAuthUserEmail(supabase, org.created_by));
+    const userName = creator?.full_name || creator?.username || "there";
     const orgSlug = org.username || contentId;
 
     return {
       userId: org.created_by,
       userName,
       userEmail,
-      contentTitle: org.name || 'Organization',
-      contentTypeLabel: 'organization',
+      contentTitle: org.name || "Organization",
+      contentTypeLabel: "organization",
       contentUrl: `${baseUrl}/organization/${orgSlug}`,
     };
   }
@@ -1706,55 +1853,55 @@ function buildModerationCopy(
   action: ModerationAction,
   contentTypeLabel: string,
   contentTitle: string,
-  reason?: string
+  reason?: string,
 ) {
-  const safeReason = reason ? `Reason: ${reason}` : 'Reason: Policy violation.';
+  const safeReason = reason ? `Reason: ${reason}` : "Reason: Policy violation.";
   const baseTitle = `Update on your ${contentTypeLabel}`;
 
   switch (action) {
-    case 'remove_content':
+    case "remove_content":
       return {
         title: baseTitle,
         body: `We removed your ${contentTypeLabel} “${contentTitle}”. ${safeReason}`,
         emailSubject: `Your ${contentTypeLabel} was removed`,
-        actionLabel: 'removed',
+        actionLabel: "removed",
       };
-    case 'block_content':
+    case "block_content":
       return {
         title: baseTitle,
         body: `We blocked your ${contentTypeLabel} “${contentTitle}”. ${safeReason}`,
         emailSubject: `Your ${contentTypeLabel} was blocked`,
-        actionLabel: 'blocked',
+        actionLabel: "blocked",
       };
-    case 'warn_user':
+    case "warn_user":
       return {
         title: baseTitle,
         body: `We issued a warning about your ${contentTypeLabel} “${contentTitle}”. ${safeReason}`,
         emailSubject: `Warning about your ${contentTypeLabel}`,
-        actionLabel: 'issued a warning about',
+        actionLabel: "issued a warning about",
       };
     default:
       return {
         title: baseTitle,
         body: `We reviewed your ${contentTypeLabel} “${contentTitle}”. ${safeReason}`,
         emailSubject: `Update on your ${contentTypeLabel}`,
-        actionLabel: 'updated',
+        actionLabel: "updated",
       };
   }
 }
 
 async function shouldSendGeneralNotification(
   supabase: ReturnType<typeof getAdminClient>,
-  userId: string
+  userId: string,
 ) {
   const { data, error } = await supabase
-    .from('notification_settings')
-    .select('general')
-    .eq('user_id', userId)
+    .from("notification_settings")
+    .select("general")
+    .eq("user_id", userId)
     .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') {
-    console.error('Error checking notification settings:', error);
+  if (error && error.code !== "PGRST116") {
+    console.error("Error checking notification settings:", error);
     return true;
   }
 
@@ -1783,25 +1930,28 @@ async function notifyContentOwnerOfModeration({
     action,
     formatContentTypeLabel(owner.contentTypeLabel),
     owner.contentTitle,
-    reason
+    reason,
   );
 
-  const shouldNotify = await shouldSendGeneralNotification(supabase, owner.userId);
+  const shouldNotify = await shouldSendGeneralNotification(
+    supabase,
+    owner.userId,
+  );
 
   if (shouldNotify) {
     const { error: notificationError } = await supabase
-      .from('notifications')
+      .from("notifications")
       .insert({
         user_id: owner.userId,
         title,
         body,
-        type: 'general',
-        severity: 'warning',
+        type: "general",
+        severity: "warning",
         action_url: owner.contentUrl,
         displayed: false,
         read: false,
         data: {
-          kind: 'moderation_action',
+          kind: "moderation_action",
           action,
           contentType,
           contentId,
@@ -1809,12 +1959,16 @@ async function notifyContentOwnerOfModeration({
       });
 
     if (notificationError) {
-      console.error('Error creating moderation notification:', notificationError);
+      console.error(
+        "Error creating moderation notification:",
+        notificationError,
+      );
     }
   }
 
   if (owner.userEmail) {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lets-assist.com';
+    const baseUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com";
     await sendEmail({
       to: owner.userEmail,
       subject: emailSubject,
@@ -1828,7 +1982,7 @@ async function notifyContentOwnerOfModeration({
         supportUrl: `${baseUrl}/help`,
       }),
       userId: owner.userId,
-      type: 'transactional',
+      type: "transactional",
     });
   }
 }
@@ -1836,58 +1990,58 @@ async function notifyContentOwnerOfModeration({
 async function resolveReportContentSummary(
   supabase: ReturnType<typeof getAdminClient>,
   contentType: string,
-  contentId: string
+  contentId: string,
 ) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lets-assist.com';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com";
 
-  if (contentType === 'project') {
+  if (contentType === "project") {
     const { data: project } = await supabase
-      .from('projects')
-      .select('id, title')
-      .eq('id', contentId)
+      .from("projects")
+      .select("id, title")
+      .eq("id", contentId)
       .maybeSingle();
 
     return {
-      title: project?.title || 'Reported project',
+      title: project?.title || "Reported project",
       url: `${baseUrl}/projects/${contentId}`,
-      contentTypeLabel: 'project',
+      contentTypeLabel: "project",
     };
   }
 
-  if (contentType === 'profile') {
+  if (contentType === "profile") {
     const { data: profile } = await supabase
-      .from('profiles')
-      .select('id, full_name, username')
-      .eq('id', contentId)
+      .from("profiles")
+      .select("id, full_name, username")
+      .eq("id", contentId)
       .maybeSingle();
 
     const profileSlug = profile?.username || contentId;
 
     return {
-      title: profile?.full_name || profile?.username || 'Reported profile',
+      title: profile?.full_name || profile?.username || "Reported profile",
       url: `${baseUrl}/profile/${profileSlug}`,
-      contentTypeLabel: 'profile',
+      contentTypeLabel: "profile",
     };
   }
 
-  if (contentType === 'organization') {
+  if (contentType === "organization") {
     const { data: organization } = await supabase
-      .from('organizations')
-      .select('id, name, username')
-      .eq('id', contentId)
+      .from("organizations")
+      .select("id, name, username")
+      .eq("id", contentId)
       .maybeSingle();
 
     const orgSlug = organization?.username || contentId;
 
     return {
-      title: organization?.name || 'Reported organization',
+      title: organization?.name || "Reported organization",
       url: `${baseUrl}/organization/${orgSlug}`,
-      contentTypeLabel: 'organization',
+      contentTypeLabel: "organization",
     };
   }
 
   return {
-    title: 'Reported content',
+    title: "Reported content",
     url: `${baseUrl}`,
     contentTypeLabel: formatContentTypeLabel(contentType),
   };
@@ -1907,63 +2061,65 @@ async function notifyReporterOfReportUpdate({
     content_type?: string | null;
     content_id?: string | null;
   };
-  status: 'resolved' | 'dismissed';
+  status: "resolved" | "dismissed";
   resolutionNotes?: string;
 }) {
   const reporterId = report.reporter_id;
   if (!reporterId) return;
 
   const { data: reporter } = await supabase
-    .from('profiles')
-    .select('id, full_name, username, email')
-    .eq('id', reporterId)
+    .from("profiles")
+    .select("id, full_name, username, email")
+    .eq("id", reporterId)
     .maybeSingle();
 
-  const reporterName = reporter?.full_name || reporter?.username || 'there';
-  const reporterEmail = reporter?.email || (await fetchAuthUserEmail(supabase, reporterId));
+  const reporterName = reporter?.full_name || reporter?.username || "there";
+  const reporterEmail =
+    reporter?.email || (await fetchAuthUserEmail(supabase, reporterId));
 
-  const resolvedStatusLabel = status === 'resolved' ? 'resolved' : 'dismissed';
+  const resolvedStatusLabel = status === "resolved" ? "resolved" : "dismissed";
   const contentSummary = await resolveReportContentSummary(
     supabase,
-    report.content_type || 'content',
-    report.content_id || ''
+    report.content_type || "content",
+    report.content_id || "",
   );
 
   const notificationBody =
-    status === 'resolved'
+    status === "resolved"
       ? `Your report about ${contentSummary.contentTypeLabel} “${contentSummary.title}” has been resolved.`
       : `Your report about ${contentSummary.contentTypeLabel} “${contentSummary.title}” was dismissed after review.`;
 
   await NotificationService.createNotification(
     {
-      title: 'Update on your report',
+      title: "Update on your report",
       body: notificationBody,
-      type: 'general',
-      severity: 'info',
+      type: "general",
+      severity: "info",
       actionUrl: contentSummary.url,
       data: {
-        kind: 'moderation_report_update',
+        kind: "moderation_report_update",
         reportId: report.id,
         status: resolvedStatusLabel,
         reason: report.reason,
         notes: resolutionNotes,
       },
     },
-    reporterId
+    reporterId,
   );
 
   if (reporterEmail) {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lets-assist.com';
+    const baseUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com";
     await sendEmail({
       to: reporterEmail,
       subject:
-        status === 'resolved'
-          ? 'Your report has been resolved'
-          : 'Update on your submitted report',
+        status === "resolved"
+          ? "Your report has been resolved"
+          : "Update on your submitted report",
       react: ReportStatusUpdateEmail({
         userName: reporterName,
         reportStatus: resolvedStatusLabel,
-        reportReason: report.reason || 'No reason provided',
+        reportReason: report.reason || "No reason provided",
         moderationNotes: resolutionNotes,
         contentTitle: contentSummary.title,
         contentTypeLabel: contentSummary.contentTypeLabel,
@@ -1971,7 +2127,7 @@ async function notifyReporterOfReportUpdate({
         supportUrl: `${baseUrl}/help`,
       }),
       userId: reporterId,
-      type: 'general',
+      type: "general",
     });
   }
 }

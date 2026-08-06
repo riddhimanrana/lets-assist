@@ -12,10 +12,14 @@ import {
   Clock,
   Link as LinkIcon,
   Check,
-  Users
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
-import { generateStaffLink, revokeStaffLink, getStaffLinkDetails } from "./actions";
+import {
+  generateStaffLink,
+  revokeStaffLink,
+  getStaffLinkDetails,
+} from "./actions";
 import { copyToClipboard } from "@/lib/utils";
 import {
   Select,
@@ -50,12 +54,15 @@ const expirationOptions = [
 
 const getExpirationLabel = (value: string | null | undefined) => {
   const normalized = value ?? "";
-  return expirationOptions.find((option) => option.value === normalized)?.label || normalized;
+  return (
+    expirationOptions.find((option) => option.value === normalized)?.label ||
+    normalized
+  );
 };
 
 export default function StaffLinkDisplay({
   organizationId,
-  organizationUsername
+  organizationUsername,
 }: StaffLinkDisplayProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [hasToken, setHasToken] = useState(false);
@@ -68,13 +75,12 @@ export default function StaffLinkDisplay({
   const [isInitializing, setIsInitializing] = useState(true);
 
   // Get base URL for the staff link
-  const baseUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/signup`
-    : '';
+  const baseUrl =
+    typeof window !== "undefined" ? `${window.location.origin}/signup` : "";
 
   const staffLink = token
     ? `${baseUrl}?staff_token=${token}&org=${organizationUsername}`
-    : '';
+    : "";
 
   // Load initial token status
   useEffect(() => {
@@ -95,7 +101,10 @@ export default function StaffLinkDisplay({
   const handleGenerate = async () => {
     setIsLoading(true);
     try {
-      const result = await generateStaffLink(organizationId, parseInt(expirationDays, 10));
+      const result = await generateStaffLink(
+        organizationId,
+        parseInt(expirationDays, 10),
+      );
 
       if (result.error) {
         toast.error(result.error);
@@ -156,12 +165,12 @@ export default function StaffLinkDisplay({
   const formatExpirationDate = (dateString: string | null) => {
     if (!dateString) return "";
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
     });
   };
 
@@ -191,11 +200,7 @@ export default function StaffLinkDisplay({
           </div>
 
           <div className="flex gap-2">
-            <Input
-              value={staffLink}
-              readOnly
-              className="font-mono text-sm"
-            />
+            <Input value={staffLink} readOnly className="font-mono text-sm" />
             <Button
               variant="outline"
               size="icon"
@@ -211,8 +216,9 @@ export default function StaffLinkDisplay({
           </div>
 
           <p className="text-sm text-muted-foreground">
-            Share this link with teachers or staff members. They will be automatically
-            added to your organization with staff-level access when they sign up.
+            Share this link with teachers or staff members. They will be
+            automatically added to your organization with staff-level access
+            when they sign up.
           </p>
 
           <div className="flex gap-2">
@@ -222,7 +228,9 @@ export default function StaffLinkDisplay({
               disabled={isLoading}
               className="gap-2"
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              />
               Regenerate Link
             </Button>
 
@@ -243,9 +251,9 @@ export default function StaffLinkDisplay({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Revoke Staff Link?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will invalidate the current staff invite link. Anyone who
-                    hasn't used it yet won't be able to join as staff. You can
-                    generate a new link afterward.
+                    This will invalidate the current staff invite link. Anyone
+                    who hasn't used it yet won't be able to join as staff. You
+                    can generate a new link afterward.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -293,8 +301,8 @@ export default function StaffLinkDisplay({
           </Button>
 
           <p className="text-sm text-muted-foreground">
-            Generate a special link that allows teachers or staff members to join
-            your organization directly with staff-level access.
+            Generate a special link that allows teachers or staff members to
+            join your organization directly with staff-level access.
           </p>
         </div>
       )}

@@ -6,7 +6,9 @@ import { getLocalSupabaseEnv } from "./dv-local-env.mjs";
 
 const password = process.env.DV_LOCAL_TEST_PASSWORD?.trim();
 if (!password) {
-  throw new Error("Set DV_LOCAL_TEST_PASSWORD to the run-scoped fixture password.");
+  throw new Error(
+    "Set DV_LOCAL_TEST_PASSWORD to the run-scoped fixture password.",
+  );
 }
 
 const { url, anonKey, serviceRoleKey } = getLocalSupabaseEnv();
@@ -46,7 +48,10 @@ for (const [label, client] of [
     .from("dv_sd_seasonal_memberships")
     .select("id")
     .limit(1);
-  assert.ok(result.error, `${label} unexpectedly received direct plugin_data access`);
+  assert.ok(
+    result.error,
+    `${label} unexpectedly received direct plugin_data access`,
+  );
   assert.match(
     result.error.message,
     /permission denied for schema plugin_data|invalid schema/u,
@@ -60,13 +65,21 @@ const maintenance = createClient(url, serviceRoleKey, {
 
 const memberships = await rows(
   "service seasonal memberships",
-  maintenance.from("dv_sd_seasonal_memberships").select("id,status,organization_id"),
+  maintenance
+    .from("dv_sd_seasonal_memberships")
+    .select("id,status,organization_id"),
 );
-assert.equal(memberships.length, 4, "deterministic seasonal memberships are missing");
+assert.equal(
+  memberships.length,
+  4,
+  "deterministic seasonal memberships are missing",
+);
 
 const households = await rows(
   "service households",
-  maintenance.from("dv_sd_households").select("id,display_name,organization_id"),
+  maintenance
+    .from("dv_sd_households")
+    .select("id,display_name,organization_id"),
 );
 assert.equal(households.length, 2, "deterministic households are missing");
 
@@ -86,6 +99,9 @@ const triggerProtectedUpdate = await maintenance
   .from("dv_sd_family_service_ledger")
   .update({ credits: 99 })
   .eq("id", staffLedger[0].id);
-assert.ok(triggerProtectedUpdate.error, "immutable trigger also blocks maintenance updates");
+assert.ok(
+  triggerProtectedUpdate.error,
+  "immutable trigger also blocks maintenance updates",
+);
 
 console.log("DV database fixtures and server-only plugin_data checks passed.");

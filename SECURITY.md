@@ -4,11 +4,11 @@
 
 We actively maintain security fixes for the live application and the current development branch.
 
-| Branch / release | Supported |
-| ---------------- | --------- |
-| `main` (production) | :white_check_mark: |
-| `development` (active development) | :white_check_mark: |
-| Older branches and archived releases | :x: |
+| Branch / release                     | Supported          |
+| ------------------------------------ | ------------------ |
+| `main` (production)                  | :white_check_mark: |
+| `development` (active development)   | :white_check_mark: |
+| Older branches and archived releases | :x:                |
 
 ## Reporting a Vulnerability
 

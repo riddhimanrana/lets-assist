@@ -57,18 +57,17 @@ function createFinding(file, rule, message, source, index = 0) {
 }
 
 function sortFindings(findings) {
-  return findings.sort((left, right) =>
-    left.file.localeCompare(right.file) ||
-    left.line - right.line ||
-    left.rule.localeCompare(right.rule) ||
-    left.message.localeCompare(right.message),
+  return findings.sort(
+    (left, right) =>
+      left.file.localeCompare(right.file) ||
+      left.line - right.line ||
+      left.rule.localeCompare(right.rule) ||
+      left.message.localeCompare(right.message),
   );
 }
 
 export function stripSqlComments(source) {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/--[^\r\n]*/g, "");
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--[^\r\n]*/g, "");
 }
 
 export function isTrackedSeedSql(file) {
@@ -425,16 +424,14 @@ export function validateSeedConfig(source) {
 }
 
 function trackedFiles(cwd) {
-  const result = spawnSync("git", [
-    "ls-files",
-    "-z",
-    "--",
-    "supabase",
-    ...TRACKED_SEED_SCRIPTS,
-  ], {
-    cwd,
-    encoding: "utf8",
-  });
+  const result = spawnSync(
+    "git",
+    ["ls-files", "-z", "--", "supabase", ...TRACKED_SEED_SCRIPTS],
+    {
+      cwd,
+      encoding: "utf8",
+    },
+  );
   if (result.status !== 0) {
     throw new Error(result.stderr.trim() || "git ls-files failed");
   }
@@ -467,7 +464,9 @@ export function checkSupabaseSeedSafety({
   for (const file of files.filter(isTrackedSeedSql)) {
     findings.push(...scanSeedSql(file, readFile(file)));
   }
-  for (const file of files.filter((candidate) => TRACKED_SEED_SCRIPTS.has(candidate))) {
+  for (const file of files.filter((candidate) =>
+    TRACKED_SEED_SCRIPTS.has(candidate),
+  )) {
     findings.push(...scanSeedScript(file, readFile(file)));
   }
 

@@ -14,8 +14,7 @@
  * stalled one.
  */
 
-export const PROJECT_FEED_TEARDOWN_ABORT_REASON =
-  "project-feed:page-teardown";
+export const PROJECT_FEED_TEARDOWN_ABORT_REASON = "project-feed:page-teardown";
 
 export type PageLifecycleTarget = Pick<
   EventTarget,

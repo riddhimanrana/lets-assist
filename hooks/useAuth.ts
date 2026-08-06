@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * useAuth Hook: React hook for accessing auth state.
@@ -9,16 +9,16 @@
  * instead of trusting the event payload.
  */
 
-import { useEffect, useState, useMemo } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import type { User } from '@supabase/supabase-js';
+import { useEffect, useState, useMemo } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 import {
   shouldPromptForMfaChallenge,
   deriveAuthenticatorAssurance,
   type MfaListFactorsLike,
-} from '@/lib/auth/mfa';
+} from "@/lib/auth/mfa";
 
-export type { User } from '@supabase/supabase-js';
+export type { User } from "@supabase/supabase-js";
 
 export interface AuthState {
   user: User | null;
@@ -44,7 +44,7 @@ type ResolvedAuthState = {
 function buildUserFromClaims(claims: AuthClaimsLike): User {
   return {
     id: claims.sub,
-    aud: 'authenticated',
+    aud: "authenticated",
     role: claims.role || undefined,
     email: claims.email || undefined,
     phone: claims.phone || undefined,
@@ -58,7 +58,8 @@ function buildUserFromClaims(claims: AuthClaimsLike): User {
 async function resolveAuthState(
   supabase: ReturnType<typeof createClient>,
 ): Promise<ResolvedAuthState> {
-  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  const { data: claimsData, error: claimsError } =
+    await supabase.auth.getClaims();
 
   if (claimsData?.claims && !claimsError) {
     const claims = claimsData.claims as AuthClaimsLike & { aal?: string };
@@ -74,9 +75,9 @@ async function resolveAuthState(
   } = await supabase.auth.getUser();
 
   if (user) {
-    if (claimsError && process.env.NODE_ENV === 'development') {
+    if (claimsError && process.env.NODE_ENV === "development") {
       console.debug(
-        '[useAuth] Claims unavailable; preserved session through getUser():',
+        "[useAuth] Claims unavailable; preserved session through getUser():",
         claimsError.message,
       );
     }
@@ -94,12 +95,12 @@ async function resolveAuthState(
     };
   }
 
-  if (claimsError && process.env.NODE_ENV === 'development') {
-    console.debug('[useAuth] No active claims:', claimsError.message);
+  if (claimsError && process.env.NODE_ENV === "development") {
+    console.debug("[useAuth] No active claims:", claimsError.message);
   }
 
-  if (userError && process.env.NODE_ENV === 'development') {
-    console.debug('[useAuth] No active user session:', userError.message);
+  if (userError && process.env.NODE_ENV === "development") {
+    console.debug("[useAuth] No active user session:", userError.message);
   }
 
   return { user: null, claims: null };
@@ -138,15 +139,17 @@ export function useAuth(): AuthState {
 
         if (!mounted) return;
 
-        const currentAal = resolvedAuthState.claims?.aal || 'aal1';
+        const currentAal = resolvedAuthState.claims?.aal || "aal1";
 
         // Middleware enforces MFA for protected routes. Client-side factor
         // lookup is only needed on MFA/authentication screens; doing it on
         // every page adds a network call and can create noisy local-dev errors.
         let mfaFactors: MfaListFactorsLike = { totp: [], phone: [] };
-        const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+        const pathname =
+          typeof window !== "undefined" ? window.location.pathname : "";
         const shouldCheckClientMfa =
-          pathname === '/auth/mfa' || pathname.startsWith('/account/authentication');
+          pathname === "/auth/mfa" ||
+          pathname.startsWith("/account/authentication");
 
         if (shouldCheckClientMfa) {
           try {
@@ -155,21 +158,21 @@ export function useAuth(): AuthState {
               mfaFactors = factors as MfaListFactorsLike;
             }
           } catch (mfaError) {
-            console.debug('[useAuth] Could not fetch MFA factors:', mfaError);
+            console.debug("[useAuth] Could not fetch MFA factors:", mfaError);
           }
         }
 
         // Determine if user needs MFA challenge
         const userNeedsMfa = shouldPromptForMfaChallenge(
           deriveAuthenticatorAssurance(currentAal, mfaFactors),
-          mfaFactors
+          mfaFactors,
         );
 
         setNeedsMfa(userNeedsMfa);
 
         setUser(resolvedAuthState.user);
       } catch (error) {
-        console.error('[useAuth] Error during auth initialization:', error);
+        console.error("[useAuth] Error during auth initialization:", error);
         if (mounted) {
           setUser(null);
           setNeedsMfa(false);
@@ -183,29 +186,29 @@ export function useAuth(): AuthState {
 
     // Subscribe to auth state changes for real-time updates
     // This ensures user data stays fresh when login/logout occurs
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event) => {
-        if (!mounted) return;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (!mounted) return;
 
-        if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setNeedsMfa(false);
-          setLoading(false);
-          return;
-        }
-
-        if (event === 'INITIAL_SESSION') {
-          return;
-        }
-
-        setLoading(true);
-        setTimeout(() => {
-          if (mounted) {
-            void syncAuthState();
-          }
-        }, 0);
+      if (event === "SIGNED_OUT") {
+        setUser(null);
+        setNeedsMfa(false);
+        setLoading(false);
+        return;
       }
-    );
+
+      if (event === "INITIAL_SESSION") {
+        return;
+      }
+
+      setLoading(true);
+      setTimeout(() => {
+        if (mounted) {
+          void syncAuthState();
+        }
+      }, 0);
+    });
 
     return () => {
       mounted = false;
@@ -232,9 +235,12 @@ export function useAuthRefresh() {
   const supabase = useMemo(() => createClient(), []);
 
   return async () => {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
     if (error) {
-      console.error('[useAuthRefresh] Error:', error.message);
+      console.error("[useAuthRefresh] Error:", error.message);
       return null;
     }
     return user;

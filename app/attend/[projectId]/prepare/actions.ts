@@ -66,7 +66,10 @@ export async function redeemAttendanceChallenge(
     !typedProject.session_id ||
     typedProject.session_id !== verifiedChallenge.payload.sessionId
   ) {
-    return { success: false, error: "This attendance QR code is no longer valid." };
+    return {
+      success: false,
+      error: "This attendance QR code is no longer valid.",
+    };
   }
 
   const scheduleWindow = getAttendanceScheduleWindow(

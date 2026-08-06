@@ -171,13 +171,15 @@ export default async function VolunteerRecordPage({
           <p className="text-muted-foreground">
             {isSelfReported
               ? "Self-reported volunteer activity record"
-              : "Official record of volunteer activity"
-            }
+              : "Official record of volunteer activity"}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {isSelfReported && (
-            <Badge variant="secondary" className="px-3 py-1 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+            <Badge
+              variant="secondary"
+              className="px-3 py-1 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+            >
               Self-Reported
             </Badge>
           )}
@@ -191,17 +193,21 @@ export default async function VolunteerRecordPage({
       {/* <TimezoneDebugInfo show={true} className="mb-6" /> */}
 
       <CardContainer className="py-8" containerClassName="w-full">
-        <CardBody className={`relative h-auto w-full max-w-3xl rounded-xl border border-border/40 shadow-2xl ${isSelfReported
-          ? "bg-linear-to-br from-gray-50 via-gray-100/50 to-gray-200/30 dark:from-gray-800/20 dark:via-gray-700/10 dark:to-gray-600/20"
-          : "bg-linear-to-br from-background via-background to-muted"
-          }`}>
+        <CardBody
+          className={`relative h-auto w-full max-w-3xl rounded-xl border border-border/40 shadow-2xl ${
+            isSelfReported
+              ? "bg-linear-to-br from-gray-50 via-gray-100/50 to-gray-200/30 dark:from-gray-800/20 dark:via-gray-700/10 dark:to-gray-600/20"
+              : "bg-linear-to-br from-background via-background to-muted"
+          }`}
+        >
           {/* Certificate Header with Glow Effect */}
           <CardItem
             translateZ={20}
-            className={`w-full rounded-t-xl p-6 ${isSelfReported
-              ? "bg-linear-to-r from-gray-200/40 via-gray-100/30 to-gray-50/20 dark:from-gray-700/30 dark:via-gray-600/20 dark:to-gray-500/10"
-              : "bg-linear-to-r from-primary/10 via-primary/5 to-background"
-              }`}
+            className={`w-full rounded-t-xl p-6 ${
+              isSelfReported
+                ? "bg-linear-to-r from-gray-200/40 via-gray-100/30 to-gray-50/20 dark:from-gray-700/30 dark:via-gray-600/20 dark:to-gray-500/10"
+                : "bg-linear-to-r from-primary/10 via-primary/5 to-background"
+            }`}
           >
             <div className="relative z-10">
               <div className="flex justify-between items-start">
@@ -259,16 +265,19 @@ export default async function VolunteerRecordPage({
                   <CardItem translateZ={60} as="div">
                     <TooltipProvider>
                       <Tooltip>
-                        <TooltipTrigger render={
-                          <Badge
-                            variant="secondary"
-                            className="ml-auto backdrop-blur-xs bg-success/10 border border-success/20 text-success"
-                            tabIndex={0}
-                            aria-label="Verified badge"
-                          >
-                            <BadgeCheck className="h-3.5 w-3.5 mr-1" /> Verified
-                          </Badge>
-                        } />
+                        <TooltipTrigger
+                          render={
+                            <Badge
+                              variant="secondary"
+                              className="ml-auto backdrop-blur-xs bg-success/10 border border-success/20 text-success"
+                              tabIndex={0}
+                              aria-label="Verified badge"
+                            >
+                              <BadgeCheck className="h-3.5 w-3.5 mr-1" />{" "}
+                              Verified
+                            </Badge>
+                          }
+                        />
                         <TooltipContent
                           side="left"
                           className="max-w-xs"
@@ -443,9 +452,9 @@ export default async function VolunteerRecordPage({
                             : data.check_in_method.toLowerCase() === "auto"
                               ? "Automatic Check-in"
                               : data.check_in_method.toLowerCase() ===
-                                "signup only" ||
-                                data.check_in_method.toLowerCase() ===
-                                "signup-only"
+                                    "signup only" ||
+                                  data.check_in_method.toLowerCase() ===
+                                    "signup-only"
                                 ? "Signup Only"
                                 : data.check_in_method
                           : "Manual"}
@@ -482,15 +491,17 @@ export default async function VolunteerRecordPage({
         <p className="text-sm text-muted-foreground mb-1">
           {isSelfReported
             ? "This is a self-reported record of volunteer hours logged by the user."
-            : "This is an official record of volunteer hours from Let's Assist."
-          }
+            : "This is an official record of volunteer hours from Let's Assist."}
         </p>
         <p className="text-xs text-muted-foreground">
           {isSelfReported ? "Record" : "Verification"} ID:{" "}
-          <span className={`font-medium transition-colors ${isSelfReported
-            ? "text-muted-foreground/80 hover:text-muted-foreground"
-            : "text-primary/80 hover:text-primary"
-            }`}>
+          <span
+            className={`font-medium transition-colors ${
+              isSelfReported
+                ? "text-muted-foreground/80 hover:text-muted-foreground"
+                : "text-primary/80 hover:text-primary"
+            }`}
+          >
             {data.id}
           </span>
         </p>

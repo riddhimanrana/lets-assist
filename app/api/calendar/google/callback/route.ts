@@ -25,9 +25,7 @@ import {
   getGoogleOAuthConnectionForBinding,
   saveGoogleOAuthConnectionForBinding,
 } from "@/lib/auth/google-oauth-connection-store";
-import {
-  canReuseExistingGoogleRefreshToken,
-} from "./connection-selection";
+import { canReuseExistingGoogleRefreshToken } from "./connection-selection";
 
 function getCallbackBaseUrl(request: NextRequest): string {
   const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;

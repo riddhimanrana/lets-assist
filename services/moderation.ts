@@ -1,9 +1,9 @@
 /**
  * Content Moderation Service
- * 
+ *
  * AI-powered content moderation for CIPA compliance.
  * Uses Vercel AI Gateway with Google Gemini 2.0 Flash Lite
- * 
+ *
  * Features:
  * - Automatic content filtering with AI
  * - Configurable severity thresholds
@@ -13,15 +13,15 @@
  * - Centralized monitoring and analytics
  */
 
-import { streamText } from 'ai';
-import { createClient } from '@/lib/supabase/server';
-import { notifyAdminUserBatched } from '@/services/admin-notifications';
-import { logError } from '@/lib/logger';
-import { gatewayModel } from '@/lib/ai/gateway';
-import { createPostHogTelemetry } from '@/lib/ai/posthog-telemetry';
+import { streamText } from "ai";
+import { createClient } from "@/lib/supabase/server";
+import { notifyAdminUserBatched } from "@/services/admin-notifications";
+import { logError } from "@/lib/logger";
+import { gatewayModel } from "@/lib/ai/gateway";
+import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
 
 // Model configuration for Vercel AI Gateway
-const MODEL = 'google/gemini-2.0-flash-lite';
+const MODEL = "google/gemini-2.0-flash-lite";
 
 export interface ModerationResult {
   safe: boolean;
@@ -30,10 +30,10 @@ export interface ModerationResult {
     sexual?: boolean;
     hate?: boolean;
     harassment?: boolean;
-    'self-harm'?: boolean;
-    'sexual/minors'?: boolean;
-    'hate/threatening'?: boolean;
-    'violence/graphic'?: boolean;
+    "self-harm"?: boolean;
+    "sexual/minors"?: boolean;
+    "hate/threatening"?: boolean;
+    "violence/graphic"?: boolean;
     violence?: boolean;
     inappropriate?: boolean;
   };
@@ -41,31 +41,34 @@ export interface ModerationResult {
     [key: string]: number;
   };
   flagReason?: string;
-  severity?: 'low' | 'medium' | 'high' | 'critical';
-  action: 'allowed' | 'flagged' | 'blocked' | 'review_required';
+  severity?: "low" | "medium" | "high" | "critical";
+  action: "allowed" | "flagged" | "blocked" | "review_required";
 }
 
 /**
  * Moderate image content using Vercel AI Gateway with Gemini Vision
  */
-export async function moderateImage(imageUrl: string, userId?: string): Promise<ModerationResult> {
+export async function moderateImage(
+  imageUrl: string,
+  userId?: string,
+): Promise<ModerationResult> {
   try {
-    let fullText = '';
+    let fullText = "";
     const telemetry = createPostHogTelemetry({
-      functionId: 'moderate-image',
+      functionId: "moderate-image",
       distinctId: userId,
       metadata: {
-        ai_feature: 'content-moderation',
-        content_type: 'image',
+        ai_feature: "content-moderation",
+        content_type: "image",
       },
     });
 
     const result = streamText({
-      model: gatewayModel('moderation', MODEL),
+      model: gatewayModel("moderation", MODEL),
       experimental_telemetry: telemetry,
       messages: [
         {
-          role: 'system',
+          role: "system",
           content: `You are a content moderation system for a volunteer coordination platform used by schools and nonprofits. 
           Analyze images for inappropriate content including: violence, sexual content, hate speech, self-harm, harassment, or anything inappropriate for minors.
           Be strict but reasonable for a school environment. Return ONLY valid JSON with this structure:
@@ -91,21 +94,21 @@ export async function moderateImage(imageUrl: string, userId?: string): Promise<
             },
             "severity": "low" | "medium" | "high" | "critical",
             "reason": "brief explanation"
-          }`
+          }`,
         },
         {
-          role: 'user',
+          role: "user",
           content: [
             {
-              type: 'text',
-              text: 'Analyze this image for inappropriate content. Is it safe for a school/nonprofit volunteer platform?'
+              type: "text",
+              text: "Analyze this image for inappropriate content. Is it safe for a school/nonprofit volunteer platform?",
             },
             {
-              type: 'image',
-              image: imageUrl
-            }
-          ]
-        }
+              type: "image",
+              image: imageUrl,
+            },
+          ],
+        },
       ],
       temperature: 0.2,
     });
@@ -118,13 +121,13 @@ export async function moderateImage(imageUrl: string, userId?: string): Promise<
     const analysis = JSON.parse(fullText);
 
     // Determine action based on severity
-    let action: ModerationResult['action'] = 'allowed';
-    if (analysis.severity === 'critical' || analysis.severity === 'high') {
-      action = 'blocked';
-    } else if (analysis.severity === 'medium') {
-      action = 'review_required';
+    let action: ModerationResult["action"] = "allowed";
+    if (analysis.severity === "critical" || analysis.severity === "high") {
+      action = "blocked";
+    } else if (analysis.severity === "medium") {
+      action = "review_required";
     } else if (!analysis.safe) {
-      action = 'flagged';
+      action = "flagged";
     }
 
     const moderationResult: ModerationResult = {
@@ -141,7 +144,7 @@ export async function moderateImage(imageUrl: string, userId?: string): Promise<
     if (userId) {
       await logModeration({
         userId,
-        contentType: 'image',
+        contentType: "image",
         contentId: imageUrl,
         result: moderationResult,
       });
@@ -149,7 +152,7 @@ export async function moderateImage(imageUrl: string, userId?: string): Promise<
 
     return moderationResult;
   } catch (error) {
-    logError('Image moderation failed', error, {
+    logError("Image moderation failed", error, {
       user_id: userId,
       image_url: imageUrl.substring(0, 100),
     });
@@ -159,9 +162,9 @@ export async function moderateImage(imageUrl: string, userId?: string): Promise<
       flagged: false,
       categories: {},
       category_scores: {},
-      flagReason: 'Moderation service error - requires manual review',
-      severity: 'low',
-      action: 'review_required',
+      flagReason: "Moderation service error - requires manual review",
+      severity: "low",
+      action: "review_required",
     };
   }
 }
@@ -169,24 +172,28 @@ export async function moderateImage(imageUrl: string, userId?: string): Promise<
 /**
  * Moderate text content using Vercel AI Gateway with Gemini
  */
-export async function moderateText(text: string, userId?: string, contentId?: string): Promise<ModerationResult> {
+export async function moderateText(
+  text: string,
+  userId?: string,
+  contentId?: string,
+): Promise<ModerationResult> {
   try {
-    let fullText = '';
+    let fullText = "";
     const telemetry = createPostHogTelemetry({
-      functionId: 'moderate-text',
+      functionId: "moderate-text",
       distinctId: userId,
       metadata: {
-        ai_feature: 'content-moderation',
-        content_type: 'text',
+        ai_feature: "content-moderation",
+        content_type: "text",
       },
     });
 
     const result = streamText({
-      model: gatewayModel('moderation', MODEL),
+      model: gatewayModel("moderation", MODEL),
       experimental_telemetry: telemetry,
       messages: [
         {
-          role: 'system',
+          role: "system",
           content: `You are a content moderation system for a volunteer coordination platform used by schools and nonprofits.
           Analyze text for inappropriate content including: violence, sexual content, hate speech, self-harm, harassment, profanity, or anything inappropriate for minors.
           Be strict but reasonable for a school environment. Return ONLY valid JSON with this structure:
@@ -213,12 +220,12 @@ export async function moderateText(text: string, userId?: string, contentId?: st
             },
             "severity": "low" | "medium" | "high" | "critical",
             "reason": "brief explanation if flagged"
-          }`
+          }`,
         },
         {
-          role: 'user',
-          content: `Analyze this text for inappropriate content:\n\n"${text}"`
-        }
+          role: "user",
+          content: `Analyze this text for inappropriate content:\n\n"${text}"`,
+        },
       ],
       temperature: 0.2,
     });
@@ -231,8 +238,8 @@ export async function moderateText(text: string, userId?: string, contentId?: st
     const moderation = JSON.parse(fullText);
 
     // Determine severity and action
-    let severity: ModerationResult['severity'] = moderation.severity || 'low';
-    let action: ModerationResult['action'] = 'allowed';
+    let severity: ModerationResult["severity"] = moderation.severity || "low";
+    let action: ModerationResult["action"] = "allowed";
     const flaggedCategories: string[] = [];
 
     if (moderation.flagged) {
@@ -240,18 +247,22 @@ export async function moderateText(text: string, userId?: string, contentId?: st
       const scores = moderation.category_scores || {};
 
       // Check for critical violations
-      if (categories['sexual/minors'] || categories['violence/graphic']) {
-        severity = 'critical';
-        action = 'blocked';
-      } else if (categories['hate/threatening'] || scores.violence > 0.8) {
-        severity = 'high';
-        action = 'blocked';
-      } else if (categories.harassment || categories.hate || scores.sexual > 0.7) {
-        severity = 'medium';
-        action = 'review_required';
+      if (categories["sexual/minors"] || categories["violence/graphic"]) {
+        severity = "critical";
+        action = "blocked";
+      } else if (categories["hate/threatening"] || scores.violence > 0.8) {
+        severity = "high";
+        action = "blocked";
+      } else if (
+        categories.harassment ||
+        categories.hate ||
+        scores.sexual > 0.7
+      ) {
+        severity = "medium";
+        action = "review_required";
       } else {
-        severity = 'low';
-        action = 'flagged';
+        severity = "low";
+        action = "flagged";
       }
 
       // Collect flagged categories
@@ -265,7 +276,9 @@ export async function moderateText(text: string, userId?: string, contentId?: st
       flagged: moderation.flagged,
       categories: moderation.categories,
       category_scores: moderation.category_scores || {},
-      flagReason: moderation.flagged ? (moderation.reason || `Flagged for: ${flaggedCategories.join(', ')}`) : undefined,
+      flagReason: moderation.flagged
+        ? moderation.reason || `Flagged for: ${flaggedCategories.join(", ")}`
+        : undefined,
       severity,
       action,
     };
@@ -274,7 +287,7 @@ export async function moderateText(text: string, userId?: string, contentId?: st
     if (userId) {
       await logModeration({
         userId,
-        contentType: 'text',
+        contentType: "text",
         contentId: contentId || text.substring(0, 50),
         result: moderationResult,
       });
@@ -282,7 +295,7 @@ export async function moderateText(text: string, userId?: string, contentId?: st
 
     return moderationResult;
   } catch (error) {
-    logError('Text moderation failed', error, {
+    logError("Text moderation failed", error, {
       user_id: userId,
       content_id: contentId,
       text_length: text.length,
@@ -293,9 +306,9 @@ export async function moderateText(text: string, userId?: string, contentId?: st
       flagged: false,
       categories: {},
       category_scores: {},
-      flagReason: 'Moderation service error - requires manual review',
-      severity: 'low',
-      action: 'review_required',
+      flagReason: "Moderation service error - requires manual review",
+      severity: "low",
+      action: "review_required",
     };
   }
 }
@@ -310,14 +323,14 @@ async function logModeration({
   result,
 }: {
   userId: string;
-  contentType: 'text' | 'image';
+  contentType: "text" | "image";
   contentId: string;
   result: ModerationResult;
 }) {
   try {
     const supabase = await createClient();
-    
-    await supabase.from('moderation_logs').insert({
+
+    await supabase.from("moderation_logs").insert({
       user_id: userId,
       content_type: contentType,
       content_id: contentId,
@@ -330,19 +343,23 @@ async function logModeration({
     });
 
     // If content is flagged or blocked, also add to flagged_content table
-    if (result.action === 'blocked' || result.action === 'flagged' || result.action === 'review_required') {
-      await supabase.from('flagged_content').insert({
+    if (
+      result.action === "blocked" ||
+      result.action === "flagged" ||
+      result.action === "review_required"
+    ) {
+      await supabase.from("flagged_content").insert({
         user_id: userId,
         content_type: contentType,
         content_id: contentId,
         severity: result.severity,
         categories: result.categories,
         reason: result.flagReason,
-        status: result.action === 'blocked' ? 'blocked' : 'pending_review',
+        status: result.action === "blocked" ? "blocked" : "pending_review",
       });
     }
   } catch (error) {
-    logError('Failed to log moderation result to database', error, {
+    logError("Failed to log moderation result to database", error, {
       user_id: userId,
       content_type: contentType,
       content_id: contentId.substring(0, 50),
@@ -359,14 +376,14 @@ export async function getUserViolations(userId: string): Promise<number> {
   try {
     const supabase = await createClient();
     const { count } = await supabase
-      .from('flagged_content')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .in('status', ['blocked', 'confirmed']);
-    
+      .from("flagged_content")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .in("status", ["blocked", "confirmed"]);
+
     return count || 0;
   } catch (error) {
-    logError('Failed to retrieve user violations', error, {
+    logError("Failed to retrieve user violations", error, {
       user_id: userId,
     });
     return 0;
@@ -381,18 +398,18 @@ export async function notifyAdminFlaggedContent(
   contentType: string,
   flagType: string,
   confidenceScore: number,
-  adminUserId: string
+  adminUserId: string,
 ) {
   try {
     await notifyAdminUserBatched(adminUserId, {
-      type: 'flagged_content',
+      type: "flagged_content",
       contentId,
       contentType,
       flagType,
       confidenceScore,
     });
   } catch (error) {
-    logError('Failed to notify admin of flagged content', error, {
+    logError("Failed to notify admin of flagged content", error, {
       content_id: contentId,
       content_type: contentType,
       flag_type: flagType,
@@ -409,18 +426,18 @@ export async function notifyAdminUserReport(
   reason: string,
   contentType: string,
   priority: string,
-  adminUserId: string
+  adminUserId: string,
 ) {
   try {
     await notifyAdminUserBatched(adminUserId, {
-      type: 'content_report',
+      type: "content_report",
       reportId,
       reason,
       contentType,
       priority,
     });
   } catch (error) {
-    logError('Failed to notify admin of user report', error, {
+    logError("Failed to notify admin of user report", error, {
       report_id: reportId,
       content_type: contentType,
       reason,
@@ -437,17 +454,17 @@ export async function notifyAdminTrustedMemberApplication(
   applicationId: string,
   applicantName: string,
   applicantEmail: string,
-  adminUserId: string
+  adminUserId: string,
 ) {
   try {
     await notifyAdminUserBatched(adminUserId, {
-      type: 'trusted_member_application',
+      type: "trusted_member_application",
       applicationId,
       applicantName,
       applicantEmail,
     });
   } catch (error) {
-    logError('Failed to notify admin of trusted member application', error, {
+    logError("Failed to notify admin of trusted member application", error, {
       application_id: applicationId,
       applicant_name: applicantName,
       applicant_email: applicantEmail,

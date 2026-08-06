@@ -57,7 +57,8 @@ interface BulkImportDialogProps {
 }
 
 type ImportMode = "file" | "manual";
-type DialogStep = "input" | "preview" | "manualResult" | "importProcessing" | "importResult";
+type DialogStep =
+  "input" | "preview" | "manualResult" | "importProcessing" | "importResult";
 
 type FailedRowPreview = {
   row_number: number;
@@ -72,7 +73,10 @@ const ROLE_OPTIONS = [
   { label: "Staff", value: "staff" },
 ] as const;
 
-const INVITATION_DURATION_OPTIONS: Array<{ label: string; value: InvitationDuration }> = [
+const INVITATION_DURATION_OPTIONS: Array<{
+  label: string;
+  value: InvitationDuration;
+}> = [
   { label: "1 week", value: "1_week" },
   { label: "1 month", value: "1_month" },
 ];
@@ -115,12 +119,16 @@ export default function BulkImportDialog({
     useState<InvitationDuration>("1_month");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [parseSummary, setParseSummary] = useState<ContactImportParseSummary | null>(null);
+  const [parseSummary, setParseSummary] =
+    useState<ContactImportParseSummary | null>(null);
   const [invalidRowsPreview, setInvalidRowsPreview] = useState<
     ContactImportCreateResponse["invalidRowsPreview"]
   >([]);
-  const [failedRowsPreview, setFailedRowsPreview] = useState<FailedRowPreview[]>([]);
-  const [importJob, setImportJob] = useState<OrganizationContactImportJob | null>(null);
+  const [failedRowsPreview, setFailedRowsPreview] = useState<
+    FailedRowPreview[]
+  >([]);
+  const [importJob, setImportJob] =
+    useState<OrganizationContactImportJob | null>(null);
   const [isProcessingImport, setIsProcessingImport] = useState(false);
 
   const [isPending, startTransition] = useTransition();
@@ -137,7 +145,10 @@ export default function BulkImportDialog({
       return 0;
     }
 
-    return Math.min((importJob.processed_rows / importJob.valid_rows) * 100, 100);
+    return Math.min(
+      (importJob.processed_rows / importJob.valid_rows) * 100,
+      100,
+    );
   }, [importJob]);
 
   useEffect(() => {
@@ -222,7 +233,9 @@ export default function BulkImportDialog({
       const payload = (await response.json()) as ContactImportProcessResponse;
 
       if (!response.ok || !payload.success || !payload.job) {
-        throw new Error(payload.error || "Failed to process contact import batch.");
+        throw new Error(
+          payload.error || "Failed to process contact import batch.",
+        );
       }
 
       latestJob = payload.job;
@@ -230,7 +243,10 @@ export default function BulkImportDialog({
 
       if (payload.failedRowsPreview?.length) {
         setFailedRowsPreview((previous) =>
-          mergeFailedRows(previous, payload.failedRowsPreview as FailedRowPreview[]),
+          mergeFailedRows(
+            previous,
+            payload.failedRowsPreview as FailedRowPreview[],
+          ),
         );
       }
 
@@ -243,7 +259,11 @@ export default function BulkImportDialog({
       }
     }
 
-    if (!processingAbortRef.current && latestJob?.successful_invites && onSuccess) {
+    if (
+      !processingAbortRef.current &&
+      latestJob?.successful_invites &&
+      onSuccess
+    ) {
       onSuccess();
     }
   };
@@ -282,14 +302,12 @@ export default function BulkImportDialog({
       }
 
       if (payload.mode === "direct") {
-        const directResult =
-          payload.directResult ||
-          {
-            total: 0,
-            successful: 0,
-            failed: 0,
-            results: [],
-          };
+        const directResult = payload.directResult || {
+          total: 0,
+          successful: 0,
+          failed: 0,
+          results: [],
+        };
 
         setResult(directResult);
         setParseSummary(payload.parseSummary || null);
@@ -323,7 +341,10 @@ export default function BulkImportDialog({
       await processImportJobUntilDone(payload.job.id);
       setStep("importResult");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unexpected error starting contact import.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unexpected error starting contact import.";
       setUploadError(message);
       setStep("input");
     } finally {
@@ -351,7 +372,8 @@ export default function BulkImportDialog({
             <DialogHeader>
               <DialogTitle>Bulk Import Members</DialogTitle>
               <DialogDescription>
-                Upload CSV/Excel files or paste copied member lists. The parser will infer the email column automatically.
+                Upload CSV/Excel files or paste copied member lists. The parser
+                will infer the email column automatically.
               </DialogDescription>
             </DialogHeader>
 
@@ -401,7 +423,9 @@ export default function BulkImportDialog({
                 <Select
                   items={INVITATION_DURATION_OPTIONS}
                   value={invitationDuration}
-                  onValueChange={(v) => setInvitationDuration(v as InvitationDuration)}
+                  onValueChange={(v) =>
+                    setInvitationDuration(v as InvitationDuration)
+                  }
                 >
                   <SelectTrigger id="invitation-duration">
                     <SelectValue placeholder="Invitation validity" />
@@ -412,14 +436,22 @@ export default function BulkImportDialog({
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  New invitations in this run will expire in {getInvitationDurationLabel(invitationDuration)}.
+                  New invitations in this run will expire in{" "}
+                  {getInvitationDurationLabel(invitationDuration)}.
                 </p>
               </div>
 
-              <Tabs value={mode} onValueChange={(value) => setMode(value as ImportMode)}>
+              <Tabs
+                value={mode}
+                onValueChange={(value) => setMode(value as ImportMode)}
+              >
                 <TabsList className="w-full">
-                  <TabsTrigger value="file" className="w-full">File Upload</TabsTrigger>
-                  <TabsTrigger value="manual" className="w-full">Paste Emails</TabsTrigger>
+                  <TabsTrigger value="file" className="w-full">
+                    File Upload
+                  </TabsTrigger>
+                  <TabsTrigger value="manual" className="w-full">
+                    Paste Emails
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="file" className="space-y-4">
@@ -467,7 +499,8 @@ bob@example.com"
                       className="min-h-40 font-mono text-sm"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Supports copied text, CSV-style rows, and Name &lt;email&gt; format.
+                      Supports copied text, CSV-style rows, and Name
+                      &lt;email&gt; format.
                     </p>
                   </div>
 
@@ -507,7 +540,10 @@ bob@example.com"
                   Preview
                 </Button>
               ) : (
-                <Button onClick={handleStartFileImport} disabled={!selectedFile || isProcessingImport}>
+                <Button
+                  onClick={handleStartFileImport}
+                  disabled={!selectedFile || isProcessingImport}
+                >
                   {isProcessingImport ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -528,7 +564,10 @@ bob@example.com"
               <DialogTitle>Review Invitations</DialogTitle>
               <DialogDescription>
                 {parsedEmails.length} people will be invited as{" "}
-                <Badge variant={role === "staff" ? "default" : "secondary"} className="capitalize">
+                <Badge
+                  variant={role === "staff" ? "default" : "secondary"}
+                  className="capitalize"
+                >
                   {role}
                 </Badge>
                 <span className="ml-2 text-muted-foreground">
@@ -554,7 +593,11 @@ bob@example.com"
             </ScrollArea>
 
             <DialogFooter>
-              <Button variant="outline" onClick={handleBack} disabled={isPending}>
+              <Button
+                variant="outline"
+                onClick={handleBack}
+                disabled={isPending}
+              >
                 Back
               </Button>
               <Button onClick={handleSubmit} disabled={isPending}>
@@ -578,8 +621,8 @@ bob@example.com"
                 {result.successful === result.total
                   ? "All Invitations Sent!"
                   : result.successful > 0
-                  ? "Invitations Partially Sent"
-                  : "Failed to Send Invitations"}
+                    ? "Invitations Partially Sent"
+                    : "Failed to Send Invitations"}
               </DialogTitle>
               <DialogDescription>
                 {result.successful} of {result.total} invitation
@@ -593,7 +636,9 @@ bob@example.com"
                   <div
                     key={index}
                     className={`flex items-center justify-between p-2 rounded-md ${
-                      item.success ? "bg-green-50 dark:bg-green-950/20" : "bg-red-50 dark:bg-red-950/20"
+                      item.success
+                        ? "bg-green-50 dark:bg-green-950/20"
+                        : "bg-red-50 dark:bg-red-950/20"
                     }`}
                   >
                     <div className="flex items-center gap-2">
@@ -626,7 +671,8 @@ bob@example.com"
                 Processing Import Job
               </DialogTitle>
               <DialogDescription>
-                Sending invitations in safe batches. You can keep this open to track progress.
+                Sending invitations in safe batches. You can keep this open to
+                track progress.
               </DialogDescription>
             </DialogHeader>
 
@@ -635,19 +681,27 @@ bob@example.com"
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="rounded-md border p-2">
                     <p className="text-muted-foreground">Valid rows</p>
-                    <p className="text-sm font-semibold">{parseSummary.validRows}</p>
+                    <p className="text-sm font-semibold">
+                      {parseSummary.validRows}
+                    </p>
                   </div>
                   <div className="rounded-md border p-2">
                     <p className="text-muted-foreground">Invalid rows</p>
-                    <p className="text-sm font-semibold">{parseSummary.invalidRows}</p>
+                    <p className="text-sm font-semibold">
+                      {parseSummary.invalidRows}
+                    </p>
                   </div>
                   <div className="rounded-md border p-2">
                     <p className="text-muted-foreground">Duplicate rows</p>
-                    <p className="text-sm font-semibold">{parseSummary.duplicateRows}</p>
+                    <p className="text-sm font-semibold">
+                      {parseSummary.duplicateRows}
+                    </p>
                   </div>
                   <div className="rounded-md border p-2">
                     <p className="text-muted-foreground">Skipped empty rows</p>
-                    <p className="text-sm font-semibold">{parseSummary.skippedEmptyRows}</p>
+                    <p className="text-sm font-semibold">
+                      {parseSummary.skippedEmptyRows}
+                    </p>
                   </div>
                 </div>
               )}
@@ -656,7 +710,8 @@ bob@example.com"
                 <div className="flex w-full items-center">
                   <ProgressLabel>Processed valid contacts</ProgressLabel>
                   <span className="ml-auto text-sm tabular-nums text-muted-foreground">
-                    {importJob.processed_rows}/{Math.max(importJob.valid_rows, 0)}
+                    {importJob.processed_rows}/
+                    {Math.max(importJob.valid_rows, 0)}
                   </span>
                 </div>
               </Progress>
@@ -683,7 +738,8 @@ bob@example.com"
               </DialogTitle>
               <DialogDescription>
                 {importJob.successful_invites} invitation
-                {importJob.successful_invites !== 1 ? "s" : ""} sent out of {importJob.valid_rows} valid contact
+                {importJob.successful_invites !== 1 ? "s" : ""} sent out of{" "}
+                {importJob.valid_rows} valid contact
                 {importJob.valid_rows !== 1 ? "s" : ""}.
               </DialogDescription>
             </DialogHeader>
@@ -704,17 +760,24 @@ bob@example.com"
                 </div>
                 <div className="rounded-md border p-2">
                   <p className="text-muted-foreground">Processed rows</p>
-                  <p className="text-sm font-semibold">{importJob.processed_rows}</p>
+                  <p className="text-sm font-semibold">
+                    {importJob.processed_rows}
+                  </p>
                 </div>
                 <div className="rounded-md border p-2">
                   <p className="text-muted-foreground">Job status</p>
-                  <Badge variant={importJob.status === "completed" ? "default" : "secondary"} className="capitalize">
+                  <Badge
+                    variant={
+                      importJob.status === "completed" ? "default" : "secondary"
+                    }
+                    className="capitalize"
+                  >
                     {importJob.status}
                   </Badge>
                 </div>
               </div>
 
-              {(invalidRowsPreview?.length || failedRowsPreview.length) ? (
+              {invalidRowsPreview?.length || failedRowsPreview.length ? (
                 <ScrollArea className="max-h-64 pr-4 border rounded-md">
                   <div className="space-y-4 p-3">
                     {invalidRowsPreview && invalidRowsPreview.length > 0 && (
@@ -730,10 +793,13 @@ bob@example.com"
                             <div className="flex items-center gap-2">
                               <XCircle className="h-4 w-4 text-red-600" />
                               <span className="text-xs font-mono">
-                                Row {row.rowNumber}: {row.email || "(empty email)"}
+                                Row {row.rowNumber}:{" "}
+                                {row.email || "(empty email)"}
                               </span>
                             </div>
-                            <span className="text-[11px] text-red-700 dark:text-red-400">{row.reason}</span>
+                            <span className="text-[11px] text-red-700 dark:text-red-400">
+                              {row.reason}
+                            </span>
                           </div>
                         ))}
                       </div>

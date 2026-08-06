@@ -15,9 +15,10 @@ export async function syncPrimaryUserEmail(
   const { data, error } = await admin.rpc("sync_primary_user_email", {
     p_user_id: userId,
   });
-  const row = (Array.isArray(data) ? data[0] : data) as
-    | { status?: string; primary_email?: string | null }
-    | null;
+  const row = (Array.isArray(data) ? data[0] : data) as {
+    status?: string;
+    primary_email?: string | null;
+  } | null;
 
   if (error || !row) {
     if (error) console.error("Primary email synchronization failed:", error);

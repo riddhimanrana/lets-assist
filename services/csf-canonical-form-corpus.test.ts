@@ -32,7 +32,9 @@ const {
  */
 
 /** JSON number literals that survive binary64 exactly, and their JCS spelling. */
-const ACCEPTED_NUMBERS: ReadonlyArray<readonly [literal: string, canonical: string]> = [
+const ACCEPTED_NUMBERS: ReadonlyArray<
+  readonly [literal: string, canonical: string]
+> = [
   ["0", "0"],
   ["-0", "0"],
   ["1", "1"],
@@ -110,7 +112,10 @@ const OBJECT_CORPUS: ReadonlyArray<{
         normalizedFirstName: "avery",
         normalizedLastName: "sample",
       },
-      contact: { schoolEmail: "avery.sample@school.test", schoolEmailState: "valid" },
+      contact: {
+        schoolEmail: "avery.sample@school.test",
+        schoolEmailState: "valid",
+      },
       cohort: { gradeLevel: 11 },
     },
     canonical:
@@ -152,21 +157,30 @@ const OBJECT_CORPUS: ReadonlyArray<{
 ];
 
 describe("canonical number serialization (RFC 8785 §3.2.2.3)", () => {
-  test.each(ACCEPTED_NUMBERS)("%s canonicalizes to %s", (literal, canonical) => {
-    expect(isCsfCanonicalNumberLiteral(literal)).toBe(true);
-    expect(csfCanonicalNumber(Number(literal))).toBe(canonical);
-  });
+  test.each(ACCEPTED_NUMBERS)(
+    "%s canonicalizes to %s",
+    (literal, canonical) => {
+      expect(isCsfCanonicalNumberLiteral(literal)).toBe(true);
+      expect(csfCanonicalNumber(Number(literal))).toBe(canonical);
+    },
+  );
 
   test.each(REJECTED_NUMBERS.map((literal) => [literal]))(
     "%s is refused before hashing",
     (literal) => {
       expect(isCsfCanonicalNumberLiteral(literal)).toBe(false);
-      expect(() => parseCsfCanonicalJsonText(`{"points":${literal}}`)).toThrow(CsfCanonicalFormError);
+      expect(() => parseCsfCanonicalJsonText(`{"points":${literal}}`)).toThrow(
+        CsfCanonicalFormError,
+      );
     },
   );
 
   test("non-finite values have no canonical form", () => {
-    for (const value of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+    for (const value of [
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+    ]) {
       expect(() => csfCanonicalNumber(value)).toThrow(CsfCanonicalFormError);
     }
   });
@@ -176,7 +190,9 @@ describe("canonical number serialization (RFC 8785 §3.2.2.3)", () => {
     expect(csfCanonicalNumber(0)).toBe("0");
     expect(csfCanonicalJson({ a: -0 } as never)).toBe('{"a":0}');
     // The two therefore cannot produce different digests for one stored value.
-    expect(csfCanonicalDigest({ a: -0 } as never)).toBe(csfCanonicalDigest({ a: 0 } as never));
+    expect(csfCanonicalDigest({ a: -0 } as never)).toBe(
+      csfCanonicalDigest({ a: 0 } as never),
+    );
   });
 
   test("the exact thresholds where ECMAScript changes spelling", () => {
@@ -194,7 +210,9 @@ describe("canonical number serialization (RFC 8785 §3.2.2.3)", () => {
     // form -- but only the one that IS that double's shortest spelling is
     // accepted as input.
     expect(isCsfCanonicalNumberLiteral("0.1")).toBe(true);
-    expect(isCsfCanonicalNumberLiteral("0.1000000000000000055511151231257827")).toBe(false);
+    expect(
+      isCsfCanonicalNumberLiteral("0.1000000000000000055511151231257827"),
+    ).toBe(false);
     expect(Number("0.1000000000000000055511151231257827")).toBe(0.1);
   });
 });
@@ -232,7 +250,13 @@ describe("canonical object form", () => {
     for (const permutation of [forward, reversed, interleaved]) {
       expect(csfCanonicalJson(permutation as never)).toBe(expected);
     }
-    expect(new Set([forward, reversed, interleaved].map((v) => csfCanonicalDigest(v as never))).size).toBe(1);
+    expect(
+      new Set(
+        [forward, reversed, interleaved].map((v) =>
+          csfCanonicalDigest(v as never),
+        ),
+      ).size,
+    ).toBe(1);
   });
 
   test.each([
@@ -242,8 +266,12 @@ describe("canonical object form", () => {
     ["a changed magnitude", { a: 1e20 }, { a: 1e21 }],
     ["a nested reordering that changes a value", { a: [1, 2] }, { a: [2, 1] }],
   ])("one-fault mutation of %s changes the digest", (_label, left, right) => {
-    expect(csfCanonicalJson(left as never)).not.toBe(csfCanonicalJson(right as never));
-    expect(csfCanonicalDigest(left as never)).not.toBe(csfCanonicalDigest(right as never));
+    expect(csfCanonicalJson(left as never)).not.toBe(
+      csfCanonicalJson(right as never),
+    );
+    expect(csfCanonicalDigest(left as never)).not.toBe(
+      csfCanonicalDigest(right as never),
+    );
   });
 
   test("a non-canonical key is refused rather than silently reordered", () => {
@@ -251,28 +279,41 @@ describe("canonical object form", () => {
     // the key charset is narrowed to the range where "C" byte order and UTF-16
     // order are the same sequence. That narrowing is enforced, not assumed.
     for (const key of ["ünicode", "with space", "0leading", "a-b", ""]) {
-      expect(() => csfCanonicalJson({ [key]: 1 } as never)).toThrow(CsfCanonicalFormError);
+      expect(() => csfCanonicalJson({ [key]: 1 } as never)).toThrow(
+        CsfCanonicalFormError,
+      );
     }
   });
 
   test("undefined and non-JSON values have no canonical form", () => {
-    expect(() => csfCanonicalJson({ a: undefined } as never)).toThrow(CsfCanonicalFormError);
-    expect(() => csfCanonicalJson({ a: BigInt(1) } as never)).toThrow(CsfCanonicalFormError);
+    expect(() => csfCanonicalJson({ a: undefined } as never)).toThrow(
+      CsfCanonicalFormError,
+    );
+    expect(() => csfCanonicalJson({ a: BigInt(1) } as never)).toThrow(
+      CsfCanonicalFormError,
+    );
   });
 });
 
 describe("the SQL mirror is held to the same pinned corpus", () => {
   const migration = readFileSync(
     fileURLToPath(
-      new URL("../supabase/migrations/20260730001004_dvhs_csf_import_commit_recovery.sql", import.meta.url),
+      new URL(
+        "../supabase/migrations/20260730001004_dvhs_csf_import_commit_recovery.sql",
+        import.meta.url,
+      ),
     ),
     "utf8",
   );
 
   test("PostgreSQL implements ECMAScript Number::toString, not float8out", () => {
     const fn = migration.slice(
-      migration.indexOf("CREATE OR REPLACE FUNCTION plugin_data.csf_js_number_text("),
-      migration.indexOf("CREATE OR REPLACE FUNCTION plugin_data.csf_canonical_number_text("),
+      migration.indexOf(
+        "CREATE OR REPLACE FUNCTION plugin_data.csf_js_number_text(",
+      ),
+      migration.indexOf(
+        "CREATE OR REPLACE FUNCTION plugin_data.csf_canonical_number_text(",
+      ),
     );
     expect(fn).toBeTruthy();
     // The four branches of §6.1.6.1.20, in order.
@@ -287,8 +328,12 @@ describe("the SQL mirror is held to the same pinned corpus", () => {
 
   test("a number binary64 cannot hold exactly is refused in SQL too", () => {
     const fn = migration.slice(
-      migration.indexOf("CREATE OR REPLACE FUNCTION plugin_data.csf_canonical_number_text("),
-      migration.indexOf("CREATE OR REPLACE FUNCTION plugin_data.csf_canonical_json("),
+      migration.indexOf(
+        "CREATE OR REPLACE FUNCTION plugin_data.csf_canonical_number_text(",
+      ),
+      migration.indexOf(
+        "CREATE OR REPLACE FUNCTION plugin_data.csf_canonical_json(",
+      ),
     );
     expect(fn).toBeTruthy();
     expect(fn).toContain("v_text::numeric <> p_value");
@@ -298,8 +343,12 @@ describe("the SQL mirror is held to the same pinned corpus", () => {
 
   test("SQL orders object keys the same way and narrows the same charset", () => {
     const fn = migration.slice(
-      migration.indexOf("CREATE OR REPLACE FUNCTION plugin_data.csf_canonical_json("),
-      migration.indexOf("CREATE OR REPLACE FUNCTION plugin_data.csf_canonical_digest("),
+      migration.indexOf(
+        "CREATE OR REPLACE FUNCTION plugin_data.csf_canonical_json(",
+      ),
+      migration.indexOf(
+        "CREATE OR REPLACE FUNCTION plugin_data.csf_canonical_digest(",
+      ),
     );
     expect(fn).toBeTruthy();
     expect(fn).toContain('ORDER BY key COLLATE "C"');
@@ -311,26 +360,40 @@ describe("the SQL mirror is held to the same pinned corpus", () => {
 
   test("the digest is taken over canonical UTF-8 bytes, not over jsonb text", () => {
     const fn = migration.slice(
-      migration.indexOf("CREATE OR REPLACE FUNCTION plugin_data.csf_canonical_digest("),
-      migration.indexOf("CREATE OR REPLACE FUNCTION plugin_data.csf_payload_string("),
+      migration.indexOf(
+        "CREATE OR REPLACE FUNCTION plugin_data.csf_canonical_digest(",
+      ),
+      migration.indexOf(
+        "CREATE OR REPLACE FUNCTION plugin_data.csf_payload_string(",
+      ),
     );
     expect(fn).toContain("plugin_data.csf_canonical_json(p_value)");
     expect(fn).toContain("'UTF8'");
     expect(fn).toContain("sha256");
   });
 
-  const MIGRATION_APPEND = migration.slice(
-    migration.lastIndexOf("CREATE OR REPLACE FUNCTION plugin_data.csf_append_import_preview_rows("),
-  ).slice(0, 20000);
+  const MIGRATION_APPEND = migration
+    .slice(
+      migration.lastIndexOf(
+        "CREATE OR REPLACE FUNCTION plugin_data.csf_append_import_preview_rows(",
+      ),
+    )
+    .slice(0, 20000);
 
   test("the derivation mirrors buildCsfRowCommitPayload rather than trusting a caller", () => {
-    const fn = migration.slice(
-      migration.indexOf("CREATE OR REPLACE FUNCTION plugin_data.csf_derive_row_commit_payload("),
-    ).slice(0, 9000);
+    const fn = migration
+      .slice(
+        migration.indexOf(
+          "CREATE OR REPLACE FUNCTION plugin_data.csf_derive_row_commit_payload(",
+        ),
+      )
+      .slice(0, 9000);
     expect(fn).toContain("'version', 'csf-commit-payload/v1'");
     // An application's canonical pair is unconditionally null, in SQL, regardless
     // of what the record carries.
-    expect(fn).toContain("IF p_source_type = 'application_responses' THEN\n    v_school := NULL;");
+    expect(fn).toContain(
+      "IF p_source_type = 'application_responses' THEN\n    v_school := NULL;",
+    );
     // Claimed totals ride along; the operative totals stay null.
     expect(fn).toContain("'listIPoints', NULL");
     expect(fn).toContain("'claimedTotals', pg_catalog.jsonb_build_object(");
@@ -341,15 +404,23 @@ describe("the SQL mirror is held to the same pinned corpus", () => {
   test("superseded is derived from proven lineage, never selected", () => {
     const fn = MIGRATION_APPEND;
     // Not in the accepted-status list...
-    expect(fn).toContain("'pending', 'ambiguous', 'conflict', 'duplicate', 'error', 'skipped'");
+    expect(fn).toContain(
+      "'pending', 'ambiguous', 'conflict', 'duplicate', 'error', 'skipped'",
+    );
     expect(fn).toContain("`superseded` is NOT in that list");
     // ...held as pending until proved...
     expect(fn).toContain("v_status := 'pending';");
     // ...and promoted only on exact lineage plus identical canonical evidence.
-    expect(fn).toContain("v_parent.import_status = ANY (c_committed_parent_status)");
+    expect(fn).toContain(
+      "v_parent.import_status = ANY (c_committed_parent_status)",
+    );
     expect(fn).toContain("v_parent.row_hash IS NOT DISTINCT FROM v_digest");
-    expect(fn).toContain("v_parent.normalized_data IS NOT DISTINCT FROM v_normalized");
-    expect(fn).toContain("c_committed_parent_status constant text[] := ARRAY['created', 'updated', 'superseded']");
+    expect(fn).toContain(
+      "v_parent.normalized_data IS NOT DISTINCT FROM v_normalized",
+    );
+    expect(fn).toContain(
+      "c_committed_parent_status constant text[] := ARRAY['created', 'updated', 'superseded']",
+    );
     // The parent is cleared per row, so one row's ancestry cannot leak into the next.
     expect(fn).toContain("v_parent := NULL;");
   });
@@ -358,8 +429,12 @@ describe("the SQL mirror is held to the same pinned corpus", () => {
     const fn = MIGRATION_APPEND;
     expect(fn).toContain("IF v_normalized ? 'commitPayload' THEN");
     expect(fn).toContain("may not state its own commit payload");
-    expect(fn).toContain("v_payload := plugin_data.csf_derive_row_commit_payload(");
-    expect(fn).toContain("v_digest := plugin_data.csf_canonical_digest(v_record);");
+    expect(fn).toContain(
+      "v_payload := plugin_data.csf_derive_row_commit_payload(",
+    );
+    expect(fn).toContain(
+      "v_digest := plugin_data.csf_canonical_digest(v_record);",
+    );
     // A caller digest that disagrees with the derived one is refused, not trusted.
     expect(fn).toContain("does not match the record it carries");
     // Absent or unknown contract version fails closed.

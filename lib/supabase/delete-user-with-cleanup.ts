@@ -8,7 +8,10 @@ export type DeleteUserWithCleanupOptions = {
 
 export type DeleteUserCleanupReport = {
   userId: string;
-  blockedBySoleAdminOrgs: Array<{ organization_id: string; organization_name: string | null }>;
+  blockedBySoleAdminOrgs: Array<{
+    organization_id: string;
+    organization_name: string | null;
+  }>;
   deletedCounts: Record<string, number>;
   skipped: string[];
   notes: string[];
@@ -28,7 +31,11 @@ export async function deleteUserWithCleanup(
   userId: string,
   options: DeleteUserWithCleanupOptions = {},
 ): Promise<DeleteUserCleanupReport> {
-  const { deleteProjects = true, deleteOrganizations = false, dryRun = false } = options;
+  const {
+    deleteProjects = true,
+    deleteOrganizations = false,
+    dryRun = false,
+  } = options;
   const deletedCounts: Record<string, number> = {};
   const skipped: string[] = [];
   const notes: string[] = [];
@@ -98,7 +105,9 @@ export async function deleteUserWithCleanup(
       const { error } = await query;
 
       if (error) {
-        throw new Error(`Failed to delete from ${step.table}: ${error.message}`);
+        throw new Error(
+          `Failed to delete from ${step.table}: ${error.message}`,
+        );
       } else {
         deletedCounts[step.table] = 0; // Count not available via this method
       }
@@ -111,7 +120,9 @@ export async function deleteUserWithCleanup(
       .eq("user_id", userId);
 
     if (membershipError) {
-      throw new Error(`Failed to delete organization memberships: ${membershipError.message}`);
+      throw new Error(
+        `Failed to delete organization memberships: ${membershipError.message}`,
+      );
     }
     deletedCounts["organization_members"] = 0; // Count not available via this method
 
@@ -132,11 +143,14 @@ export async function deleteUserWithCleanup(
       throw new Error("Supabase admin client is missing auth.admin.deleteUser");
     }
 
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    const { error: authError } =
+      await supabaseAdmin.auth.admin.deleteUser(userId);
     if (authError) {
       throw new Error(`Failed to delete auth user: ${authError.message}`);
     }
-    notes.push("User deleted from auth system (all sessions and auth data automatically cleaned up)");
+    notes.push(
+      "User deleted from auth system (all sessions and auth data automatically cleaned up)",
+    );
   } else {
     skipped.push("(dry run - no deletions performed)");
   }
@@ -157,7 +171,9 @@ export async function deleteUserWithCleanup(
 export async function findSoleAdminOrgs(
   supabaseAdmin: SupabaseClient,
   userId: string,
-): Promise<Array<{ organization_id: string; organization_name: string | null }>> {
+): Promise<
+  Array<{ organization_id: string; organization_name: string | null }>
+> {
   const { data: memberships, error: membershipError } = await supabaseAdmin
     .from("organization_members")
     .select("organization_id")
@@ -165,7 +181,9 @@ export async function findSoleAdminOrgs(
     .eq("role", "admin");
 
   if (membershipError) {
-    throw new Error(`Failed to fetch organization memberships: ${membershipError.message}`);
+    throw new Error(
+      `Failed to fetch organization memberships: ${membershipError.message}`,
+    );
   }
 
   const orgIds = (memberships ?? [])
@@ -185,7 +203,10 @@ export async function findSoleAdminOrgs(
     throw new Error(`Failed to fetch organizations: ${orgError.message}`);
   }
 
-  const results: Array<{ organization_id: string; organization_name: string | null }> = [];
+  const results: Array<{
+    organization_id: string;
+    organization_name: string | null;
+  }> = [];
 
   for (const org of organizations ?? []) {
     const { count, error: countError } = await supabaseAdmin
@@ -195,11 +216,16 @@ export async function findSoleAdminOrgs(
       .eq("role", "admin");
 
     if (countError) {
-      throw new Error(`Failed to count admins for org ${org.id}: ${countError.message}`);
+      throw new Error(
+        `Failed to count admins for org ${org.id}: ${countError.message}`,
+      );
     }
 
     if ((count ?? 0) <= 1) {
-      results.push({ organization_id: org.id, organization_name: org.name ?? null });
+      results.push({
+        organization_id: org.id,
+        organization_name: org.name ?? null,
+      });
     }
   }
 

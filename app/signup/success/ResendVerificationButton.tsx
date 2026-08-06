@@ -1,18 +1,21 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Loader2, Mail } from 'lucide-react';
-import { resendVerificationEmail } from '../actions';
-import { toast } from 'sonner';
-import { BotVerificationDialog } from '@/components/shared/BotVerificationDialog';
+import { useState, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Mail } from "lucide-react";
+import { resendVerificationEmail } from "../actions";
+import { toast } from "sonner";
+import { BotVerificationDialog } from "@/components/shared/BotVerificationDialog";
 
 interface ResendVerificationButtonProps {
   email: string;
   redirectPath?: string | null;
 }
 
-export function ResendVerificationButton({ email, redirectPath }: ResendVerificationButtonProps) {
+export function ResendVerificationButton({
+  email,
+  redirectPath,
+}: ResendVerificationButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
@@ -36,19 +39,23 @@ export function ResendVerificationButton({ email, redirectPath }: ResendVerifica
     setIsLoading(true);
 
     try {
-      const result = await resendVerificationEmail(email, token, redirectPath ?? null);
+      const result = await resendVerificationEmail(
+        email,
+        token,
+        redirectPath ?? null,
+      );
 
       if (result.success) {
-        toast.success(result.message || 'Verification email sent!');
+        toast.success(result.message || "Verification email sent!");
         setCountdown(60);
         setCanResend(false);
         setIsCaptchaOpen(false);
       } else {
-        toast.error(result.error || 'Failed to resend email');
+        toast.error(result.error || "Failed to resend email");
         hasFiredRef.current = false;
       }
     } catch {
-      toast.error('An error occurred. Please try again.');
+      toast.error("An error occurred. Please try again.");
       hasFiredRef.current = false;
     } finally {
       setIsLoading(false);

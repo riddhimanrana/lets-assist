@@ -25,23 +25,31 @@ describe("compact organization navigation on phones", () => {
     expect(source).toContain(
       "const { workspaceDestinations, utilityDestinations, switcherDestinations } =",
     );
-    expect(source).toContain("{workspaceDestinations.map(renderSectionSwitcherItem)}");
-    expect(source).toContain("{utilityDestinations.map(renderSectionSwitcherItem)}");
+    expect(source).toContain(
+      "{workspaceDestinations.map(renderSectionSwitcherItem)}",
+    );
+    expect(source).toContain(
+      "{utilityDestinations.map(renderSectionSwitcherItem)}",
+    );
   });
 
   test("deduplicates overlapping destinations before rendering switcher keys", () => {
     expect(source).toContain(
       "buildNavigationDestinationGroups(\n      workspaceCandidateDestinations,\n      utilityCandidateDestinations,\n    );",
     );
-    expect(source).toContain(
-      'from "./organization-navigation-destinations"',
-    );
+    expect(source).toContain('from "./organization-navigation-destinations"');
   });
 
   test("labels workspace and administration groups inside the switcher", () => {
-    expect(source).toContain("<DropdownMenuLabel>{sectionGroupLabel}</DropdownMenuLabel>");
-    expect(source).toContain("<DropdownMenuLabel>{utilityGroupLabel}</DropdownMenuLabel>");
-    expect(source).toContain('pluginNavigationOverrides.sectionMenuLabel ?? "Workspace"');
+    expect(source).toContain(
+      "<DropdownMenuLabel>{sectionGroupLabel}</DropdownMenuLabel>",
+    );
+    expect(source).toContain(
+      "<DropdownMenuLabel>{utilityGroupLabel}</DropdownMenuLabel>",
+    );
+    expect(source).toContain(
+      'pluginNavigationOverrides.sectionMenuLabel ?? "Workspace"',
+    );
     expect(source).toContain(
       'pluginNavigationOverrides.utilityMenuGroupLabel ?? "Administration"',
     );
@@ -78,7 +86,9 @@ describe("compact organization navigation on phones", () => {
     expect(source).toContain(
       "const isActive = isNavigationValueActive(\n                    pt.value,\n                    activeTab,\n                    activePluginParentValue,\n                  );",
     );
-    expect(source).toContain("{isActive ? <Check aria-hidden=\"true\" /> : null}");
+    expect(source).toContain(
+      '{isActive ? <Check aria-hidden="true" /> : null}',
+    );
     // The old direct-only comparison must not linger in the utility menu.
     expect(source).not.toContain("{pt.value === activeTab ? <Check");
   });
@@ -95,7 +105,9 @@ describe("compact organization navigation on phones", () => {
 
   test("retires the competing mobile overflow strip", () => {
     expect(source).not.toContain("compactMobileOverflowTabs");
-    expect(source).not.toContain("index >= 2 && pluginNavigationOverrides.compactHeader");
+    expect(source).not.toContain(
+      "index >= 2 && pluginNavigationOverrides.compactHeader",
+    );
   });
 
   test("preserves generic organization navigation at every width", () => {

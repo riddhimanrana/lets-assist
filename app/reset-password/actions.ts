@@ -22,9 +22,10 @@ export async function requestPasswordReset(formData: FormData) {
   });
 
   if (!validatedFields.success) {
-    return { error: validatedFields.error.flatten().fieldErrors as ErrorResponse };
+    return {
+      error: validatedFields.error.flatten().fieldErrors as ErrorResponse,
+    };
   }
-
 
   const supabase = await createClient();
 
@@ -41,7 +42,7 @@ export async function requestPasswordReset(formData: FormData) {
     // Send password reset email
     const { error } = await supabase.auth.resetPasswordForEmail(
       validatedFields.data.email,
-      resetOptions
+      resetOptions,
     );
 
     if (error) {

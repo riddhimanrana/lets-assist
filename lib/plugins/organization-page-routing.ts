@@ -7,7 +7,9 @@ export function shouldRedirectMemberToPluginRoot({
   publicPage: "core" | "plugin" | "private" | null;
   hasEmbeddedOrganizationTabs: boolean;
 }): boolean {
-  return userRole === "member"
-    && publicPage === "plugin"
-    && !hasEmbeddedOrganizationTabs;
+  return (
+    userRole === "member" &&
+    publicPage === "plugin" &&
+    !hasEmbeddedOrganizationTabs
+  );
 }

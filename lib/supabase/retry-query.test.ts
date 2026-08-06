@@ -24,7 +24,8 @@ describe("retryable Supabase reads", () => {
             ? {
                 data: null,
                 error: {
-                  message: "An invalid response was received from the upstream server",
+                  message:
+                    "An invalid response was received from the upstream server",
                 },
               }
             : { data: [{ id: "fictional-profile" }], error: null },
@@ -110,8 +111,14 @@ describe("retryable Supabase reads", () => {
         code: "42501",
         message: "new row violates row-level security policy",
       },
-      { code: "22P02", message: 'invalid input syntax for type uuid: "not-a-uuid"' },
-      { code: "23505", message: "duplicate key value violates unique constraint" },
+      {
+        code: "22P02",
+        message: 'invalid input syntax for type uuid: "not-a-uuid"',
+      },
+      {
+        code: "23505",
+        message: "duplicate key value violates unique constraint",
+      },
       { code: "23503", message: "insert violates foreign key constraint" },
       { code: "PGRST116", message: "The result contains 0 rows" },
       { code: "23514", message: "new row violates check constraint" },

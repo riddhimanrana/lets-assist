@@ -17,7 +17,11 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getMultiDaySlotDisplayName } from "@/utils/project";
 import { ZodIssue } from "zod";
-import { RecurrenceFrequency, RecurrenceEndType, RecurrenceWeekday } from "@/types";
+import {
+  RecurrenceFrequency,
+  RecurrenceEndType,
+  RecurrenceWeekday,
+} from "@/types";
 import RecurrenceSettings from "./RecurrenceSettings";
 // import { VerificationMethod } from "@/types"
 
@@ -33,7 +37,12 @@ interface ScheduleProps {
       };
       multiDay: {
         date: string;
-        slots: { name: string; startTime: string; endTime: string; volunteers: number }[];
+        slots: {
+          name: string;
+          startTime: string;
+          endTime: string;
+          volunteers: number;
+        }[];
       }[];
       sameDayMultiArea: {
         date: string;
@@ -80,7 +89,7 @@ interface ScheduleProps {
   removeRoleAction: (roleIndex: number) => void;
   updateRecurrenceAction?: (
     field: keyof ScheduleProps["state"]["recurrence"],
-    value: ScheduleProps["state"]["recurrence"][keyof ScheduleProps["state"]["recurrence"]]
+    value: ScheduleProps["state"]["recurrence"][keyof ScheduleProps["state"]["recurrence"]],
   ) => void;
   errors?: ZodIssue[];
 }
@@ -97,19 +106,22 @@ export default function Schedule({
   removeSlotAction,
   removeRoleAction,
   updateRecurrenceAction,
-  errors = []
+  errors = [],
 }: ScheduleProps) {
   // Helper function to ensure dates are handled consistently without timezone shifting
   const formatDateToString = (date: Date | undefined): string => {
     if (!date) return "";
     // Create new date with just the year, month, and day components to avoid timezone issues
-    return format(new Date(date.getFullYear(), date.getMonth(), date.getDate()), "yyyy-MM-dd");
+    return format(
+      new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+      "yyyy-MM-dd",
+    );
   };
 
   // Helper function to parse date string to Date object without timezone shifting
   const parseStringToDate = (dateString: string): Date | undefined => {
     if (!dateString) return undefined;
-    const [year, month, day] = dateString.split('-').map(Number);
+    const [year, month, day] = dateString.split("-").map(Number);
     return new Date(year, month - 1, day); // month is 0-indexed in JavaScript Date
   };
 
@@ -132,7 +144,7 @@ export default function Schedule({
   const isTimeInPast = (date: string, time: string) => {
     if (!date || !time) return false;
 
-    const [hours, minutes] = time.split(':').map(Number);
+    const [hours, minutes] = time.split(":").map(Number);
     const selectedDate = parseStringToDate(date);
     if (!selectedDate) return false;
 
@@ -144,16 +156,22 @@ export default function Schedule({
 
   // Get field error from Zod issues
   const getFieldError = (fieldPath: string): string | undefined => {
-    const error = errors.find(issue => {
-      return issue.path.join('.') === fieldPath ||
-        issue.path.join('.').startsWith(fieldPath + '[') ||
-        issue.path.join('.').startsWith(fieldPath + '.');
+    const error = errors.find((issue) => {
+      return (
+        issue.path.join(".") === fieldPath ||
+        issue.path.join(".").startsWith(fieldPath + "[") ||
+        issue.path.join(".").startsWith(fieldPath + ".")
+      );
     });
     return error?.message;
   };
 
   // Get array error from Zod issues for nested structures (slots, roles)
-  const getArrayError = (basePath: string, index: number, field: string): string | undefined => {
+  const getArrayError = (
+    basePath: string,
+    index: number,
+    field: string,
+  ): string | undefined => {
     const path = `${basePath}.${index}.${field}`;
     return getFieldError(path);
   };
@@ -165,10 +183,10 @@ export default function Schedule({
     );
 
     // Get specific errors for oneTime fields
-    const dateError = getFieldError('date');
-    const startTimeError = getFieldError('startTime');
-    const endTimeError = getFieldError('endTime');
-    const volunteersError = getFieldError('volunteers');
+    const dateError = getFieldError("date");
+    const startTimeError = getFieldError("startTime");
+    const endTimeError = getFieldError("endTime");
+    const volunteersError = getFieldError("volunteers");
 
     return (
       <>
@@ -185,25 +203,35 @@ export default function Schedule({
                 <div>
                   <Label>Event Date</Label>
                   <Popover>
-                    <PopoverTrigger render={
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal mt-1.5",
-                          !state.schedule.oneTime.date && "text-muted-foreground",
-                          dateError && "border-destructive",
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {state.schedule.oneTime.date
-                          ? format(parseStringToDate(state.schedule.oneTime.date) as Date, "PPP")
-                          : "Pick a date"}
-                      </Button>
-                    } />
+                    <PopoverTrigger
+                      render={
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal mt-1.5",
+                            !state.schedule.oneTime.date &&
+                              "text-muted-foreground",
+                            dateError && "border-destructive",
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {state.schedule.oneTime.date
+                            ? format(
+                                parseStringToDate(
+                                  state.schedule.oneTime.date,
+                                ) as Date,
+                                "PPP",
+                              )
+                            : "Pick a date"}
+                        </Button>
+                      }
+                    />
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={parseStringToDate(state.schedule.oneTime.date)}
+                        selected={parseStringToDate(
+                          state.schedule.oneTime.date,
+                        )}
                         onSelect={(date) => {
                           const newDate = formatDateToString(date);
                           if (newDate !== state.schedule.oneTime.date) {
@@ -231,15 +259,12 @@ export default function Schedule({
                     placeholder="Enter number of volunteers"
                     className={cn(
                       "mt-1.5",
-                      volunteersError && "border-destructive"
+                      volunteersError && "border-destructive",
                     )}
-                    value={state.schedule.oneTime.volunteers || ''}
+                    value={state.schedule.oneTime.volunteers || ""}
                     onChange={(e) => {
                       const value = parseInt(e.target.value);
-                      updateOneTimeScheduleAction(
-                        "volunteers",
-                        value
-                      );
+                      updateOneTimeScheduleAction("volunteers", value);
                     }}
                   />
                   {volunteersError && (
@@ -257,12 +282,23 @@ export default function Schedule({
                   onChangeAction={(time: string) =>
                     updateOneTimeScheduleAction("startTime", time)
                   }
-                  error={timeRangeInvalid || isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.startTime) || !!startTimeError}
+                  error={
+                    timeRangeInvalid ||
+                    isTimeInPast(
+                      state.schedule.oneTime.date,
+                      state.schedule.oneTime.startTime,
+                    ) ||
+                    !!startTimeError
+                  }
                   errorMessage={
-                    startTimeError ? startTimeError :
-                      timeRangeInvalid
+                    startTimeError
+                      ? startTimeError
+                      : timeRangeInvalid
                         ? "Start time must be before end time"
-                        : isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.startTime)
+                        : isTimeInPast(
+                              state.schedule.oneTime.date,
+                              state.schedule.oneTime.startTime,
+                            )
                           ? "Start time must be in the future"
                           : undefined
                   }
@@ -273,12 +309,23 @@ export default function Schedule({
                   onChangeAction={(time: string) =>
                     updateOneTimeScheduleAction("endTime", time)
                   }
-                  error={timeRangeInvalid || isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.endTime) || !!endTimeError}
+                  error={
+                    timeRangeInvalid ||
+                    isTimeInPast(
+                      state.schedule.oneTime.date,
+                      state.schedule.oneTime.endTime,
+                    ) ||
+                    !!endTimeError
+                  }
                   errorMessage={
-                    endTimeError ? endTimeError :
-                      timeRangeInvalid
+                    endTimeError
+                      ? endTimeError
+                      : timeRangeInvalid
                         ? "End time must be after start time"
-                        : isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.endTime)
+                        : isTimeInPast(
+                              state.schedule.oneTime.date,
+                              state.schedule.oneTime.endTime,
+                            )
                           ? "End time must be in the future"
                           : undefined
                   }
@@ -311,7 +358,6 @@ export default function Schedule({
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-
             {state.schedule.multiDay.map(
               (
                 day: {
@@ -329,10 +375,13 @@ export default function Schedule({
                 const dateError = getFieldError(`${dayIndex}.date`);
 
                 return (
-                  <div key={dayIndex} className={cn(
-                    "p-4 border rounded-lg",
-                    dateError && "border-destructive bg-destructive/5"
-                  )}>
+                  <div
+                    key={dayIndex}
+                    className={cn(
+                      "p-4 border rounded-lg",
+                      dateError && "border-destructive bg-destructive/5",
+                    )}
+                  >
                     <div className="flex items-center justify-between mb-4">
                       <Label className="text-base sm:text-lg font-medium">
                         Day {dayIndex + 1}
@@ -359,21 +408,26 @@ export default function Schedule({
                     <div className="space-y-4">
                       <div>
                         <Popover>
-                          <PopoverTrigger render={
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !day.date && "text-muted-foreground",
-                                dateError && "border-destructive",
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {day.date
-                                ? format(parseStringToDate(day.date) as Date, "PPP")
-                                : "Pick a date"}
-                            </Button>
-                          } />
+                          <PopoverTrigger
+                            render={
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal",
+                                  !day.date && "text-muted-foreground",
+                                  dateError && "border-destructive",
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {day.date
+                                  ? format(
+                                      parseStringToDate(day.date) as Date,
+                                      "PPP",
+                                    )
+                                  : "Pick a date"}
+                              </Button>
+                            }
+                          />
                           <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
                               mode="single"
@@ -381,7 +435,11 @@ export default function Schedule({
                               onSelect={(date) => {
                                 const newDate = formatDateToString(date);
                                 if (newDate !== day.date) {
-                                  updateMultiDayScheduleAction(dayIndex, "date", newDate);
+                                  updateMultiDayScheduleAction(
+                                    dayIndex,
+                                    "date",
+                                    newDate,
+                                  );
                                 }
                               }}
                               disabled={isPastDate}
@@ -408,17 +466,37 @@ export default function Schedule({
                           );
 
                           // Get slot-specific errors
-                          const nameError = getArrayError(`${dayIndex}.slots`, slotIndex, 'name');
-                          const startTimeError = getArrayError(`${dayIndex}.slots`, slotIndex, 'startTime');
-                          const endTimeError = getArrayError(`${dayIndex}.slots`, slotIndex, 'endTime');
-                          const volunteersError = getArrayError(`${dayIndex}.slots`, slotIndex, 'volunteers');
+                          const nameError = getArrayError(
+                            `${dayIndex}.slots`,
+                            slotIndex,
+                            "name",
+                          );
+                          const startTimeError = getArrayError(
+                            `${dayIndex}.slots`,
+                            slotIndex,
+                            "startTime",
+                          );
+                          const endTimeError = getArrayError(
+                            `${dayIndex}.slots`,
+                            slotIndex,
+                            "endTime",
+                          );
+                          const volunteersError = getArrayError(
+                            `${dayIndex}.slots`,
+                            slotIndex,
+                            "volunteers",
+                          );
 
                           return (
                             <div
                               key={slotIndex}
                               className={cn(
                                 "p-4 bg-muted/50 rounded-lg space-y-4",
-                                (nameError || startTimeError || endTimeError || volunteersError) && "border border-destructive bg-destructive/5"
+                                (nameError ||
+                                  startTimeError ||
+                                  endTimeError ||
+                                  volunteersError) &&
+                                  "border border-destructive bg-destructive/5",
                               )}
                             >
                               <div className="flex items-center justify-between">
@@ -441,7 +519,9 @@ export default function Schedule({
                               <div className="space-y-2">
                                 <div className="flex justify-between items-baseline">
                                   <Label>Slot Name</Label>
-                                  <span className="text-xs">{slotName.length}/75</span>
+                                  <span className="text-xs">
+                                    {slotName.length}/75
+                                  </span>
                                 </div>
                                 <Input
                                   placeholder="Optional slot name (e.g., Morning Registration)"
@@ -457,7 +537,9 @@ export default function Schedule({
                                     }
                                   }}
                                   maxLength={75}
-                                  className={nameError ? "border-destructive" : ""}
+                                  className={
+                                    nameError ? "border-destructive" : ""
+                                  }
                                 />
                                 {/* <p className="text-xs text-muted-foreground">
                                   Optional label shown on project, QR, signup, and hours views.
@@ -481,12 +563,20 @@ export default function Schedule({
                                         slotIndex,
                                       )
                                     }
-                                    error={timeRangeInvalid || isTimeInPast(day.date, slot.startTime) || !!startTimeError}
+                                    error={
+                                      timeRangeInvalid ||
+                                      isTimeInPast(day.date, slot.startTime) ||
+                                      !!startTimeError
+                                    }
                                     errorMessage={
-                                      startTimeError ? startTimeError :
-                                        timeRangeInvalid
+                                      startTimeError
+                                        ? startTimeError
+                                        : timeRangeInvalid
                                           ? "Invalid time"
-                                          : isTimeInPast(day.date, slot.startTime)
+                                          : isTimeInPast(
+                                                day.date,
+                                                slot.startTime,
+                                              )
                                             ? "Start time must be in the future"
                                             : undefined
                                     }
@@ -501,10 +591,15 @@ export default function Schedule({
                                         slotIndex,
                                       )
                                     }
-                                    error={timeRangeInvalid || isTimeInPast(day.date, slot.endTime) || !!endTimeError}
+                                    error={
+                                      timeRangeInvalid ||
+                                      isTimeInPast(day.date, slot.endTime) ||
+                                      !!endTimeError
+                                    }
                                     errorMessage={
-                                      endTimeError ? endTimeError :
-                                        timeRangeInvalid
+                                      endTimeError
+                                        ? endTimeError
+                                        : timeRangeInvalid
                                           ? "Invalid time"
                                           : isTimeInPast(day.date, slot.endTime)
                                             ? "End time must be in the future"
@@ -520,7 +615,7 @@ export default function Schedule({
                                       min="1"
                                       max="1000"
                                       placeholder="# volunteers"
-                                      value={slot.volunteers || ''}
+                                      value={slot.volunteers || ""}
                                       onChange={(e) => {
                                         const value = parseInt(e.target.value);
                                         updateMultiDayScheduleAction(
@@ -532,7 +627,7 @@ export default function Schedule({
                                       }}
                                       className={cn(
                                         "h-10",
-                                        volunteersError && "border-destructive"
+                                        volunteersError && "border-destructive",
                                       )}
                                     />
                                     {volunteersError && (
@@ -559,7 +654,7 @@ export default function Schedule({
                     </div>
                   </div>
                 );
-              }
+              },
             )}
             <Button
               variant="outline"
@@ -576,9 +671,9 @@ export default function Schedule({
 
   if (state.eventType === "sameDayMultiArea") {
     // Get errors for sameDayMultiArea fields
-    const dateError = getFieldError('date');
-    const overallStartError = getFieldError('overallStart');
-    const overallEndError = getFieldError('overallEnd');
+    const dateError = getFieldError("date");
+    const overallStartError = getFieldError("overallStart");
+    const overallEndError = getFieldError("overallEnd");
 
     return (
       <>
@@ -595,32 +690,40 @@ export default function Schedule({
                 <div>
                   <Label>Event Date</Label>
                   <Popover>
-                    <PopoverTrigger render={
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal mt-1.5",
-                          !state.schedule.sameDayMultiArea.date &&
-                          "text-muted-foreground",
-                          dateError && "border-destructive"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {state.schedule.sameDayMultiArea.date
-                          ? format(
-                            parseStringToDate(state.schedule.sameDayMultiArea.date) as Date,
-                            "PPP",
-                          )
-                          : "Pick a date"}
-                      </Button>
-                    } />
+                    <PopoverTrigger
+                      render={
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal mt-1.5",
+                            !state.schedule.sameDayMultiArea.date &&
+                              "text-muted-foreground",
+                            dateError && "border-destructive",
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {state.schedule.sameDayMultiArea.date
+                            ? format(
+                                parseStringToDate(
+                                  state.schedule.sameDayMultiArea.date,
+                                ) as Date,
+                                "PPP",
+                              )
+                            : "Pick a date"}
+                        </Button>
+                      }
+                    />
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={parseStringToDate(state.schedule.sameDayMultiArea.date)}
+                        selected={parseStringToDate(
+                          state.schedule.sameDayMultiArea.date,
+                        )}
                         onSelect={(date) => {
                           const newDate = formatDateToString(date);
-                          if (newDate !== state.schedule.sameDayMultiArea.date) {
+                          if (
+                            newDate !== state.schedule.sameDayMultiArea.date
+                          ) {
                             updateMultiRoleScheduleAction("date", newDate);
                           }
                         }}
@@ -680,18 +783,34 @@ export default function Schedule({
                   );
 
                   // Get role-specific errors
-                  const nameError = getArrayError('roles', roleIndex, 'name');
-                  const startTimeError = getArrayError('roles', roleIndex, 'startTime');
-                  const endTimeError = getArrayError('roles', roleIndex, 'endTime');
-                  const volunteersError = getArrayError('roles', roleIndex, 'volunteers');
-                  const hasRoleErrors = nameError || startTimeError || endTimeError || volunteersError;
+                  const nameError = getArrayError("roles", roleIndex, "name");
+                  const startTimeError = getArrayError(
+                    "roles",
+                    roleIndex,
+                    "startTime",
+                  );
+                  const endTimeError = getArrayError(
+                    "roles",
+                    roleIndex,
+                    "endTime",
+                  );
+                  const volunteersError = getArrayError(
+                    "roles",
+                    roleIndex,
+                    "volunteers",
+                  );
+                  const hasRoleErrors =
+                    nameError ||
+                    startTimeError ||
+                    endTimeError ||
+                    volunteersError;
 
                   return (
                     <div
                       key={roleIndex}
                       className={cn(
                         "p-4 border rounded-lg space-y-4",
-                        hasRoleErrors && "border-destructive bg-destructive/5"
+                        hasRoleErrors && "border-destructive bg-destructive/5",
                       )}
                     >
                       <div className="flex items-center justify-between">
@@ -748,12 +867,24 @@ export default function Schedule({
                                     roleIndex,
                                   )
                                 }
-                                error={roleTimeInvalid || isTimeInPast(state.schedule.sameDayMultiArea.date, role.startTime) || !!startTimeError}
+                                error={
+                                  roleTimeInvalid ||
+                                  isTimeInPast(
+                                    state.schedule.sameDayMultiArea.date,
+                                    role.startTime,
+                                  ) ||
+                                  !!startTimeError
+                                }
                                 errorMessage={
-                                  startTimeError ? startTimeError :
-                                    roleTimeInvalid
+                                  startTimeError
+                                    ? startTimeError
+                                    : roleTimeInvalid
                                       ? "Invalid time"
-                                      : isTimeInPast(state.schedule.sameDayMultiArea.date, role.startTime)
+                                      : isTimeInPast(
+                                            state.schedule.sameDayMultiArea
+                                              .date,
+                                            role.startTime,
+                                          )
                                         ? "Start time must be in the future"
                                         : undefined
                                 }
@@ -767,12 +898,24 @@ export default function Schedule({
                                     roleIndex,
                                   )
                                 }
-                                error={roleTimeInvalid || isTimeInPast(state.schedule.sameDayMultiArea.date, role.endTime) || !!endTimeError}
+                                error={
+                                  roleTimeInvalid ||
+                                  isTimeInPast(
+                                    state.schedule.sameDayMultiArea.date,
+                                    role.endTime,
+                                  ) ||
+                                  !!endTimeError
+                                }
                                 errorMessage={
-                                  endTimeError ? endTimeError :
-                                    roleTimeInvalid
+                                  endTimeError
+                                    ? endTimeError
+                                    : roleTimeInvalid
                                       ? "Invalid time"
-                                      : isTimeInPast(state.schedule.sameDayMultiArea.date, role.endTime)
+                                      : isTimeInPast(
+                                            state.schedule.sameDayMultiArea
+                                              .date,
+                                            role.endTime,
+                                          )
                                         ? "End time must be in the future"
                                         : undefined
                                 }
@@ -789,9 +932,9 @@ export default function Schedule({
                                 placeholder="Enter number of volunteers"
                                 className={cn(
                                   "mt-1.5",
-                                  volunteersError && "border-destructive"
+                                  volunteersError && "border-destructive",
                                 )}
-                                value={role.volunteers || ''}
+                                value={role.volunteers || ""}
                                 onChange={(e) => {
                                   const value = parseInt(e.target.value);
                                   updateMultiRoleScheduleAction(

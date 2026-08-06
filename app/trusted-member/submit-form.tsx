@@ -175,13 +175,15 @@ export function SubmitTrustedMemberForm({
       <Card>
         <CardHeader className="space-y-2">
           <div className="flex items-center gap-2">
-            <StatusIcon className={
-              appStatus === "accepted"
-                ? "h-5 w-5 text-success"
-                : appStatus === "rejected"
-                  ? "h-5 w-5 text-destructive"
-                  : "h-5 w-5 text-muted-foreground"
-            } />
+            <StatusIcon
+              className={
+                appStatus === "accepted"
+                  ? "h-5 w-5 text-success"
+                  : appStatus === "rejected"
+                    ? "h-5 w-5 text-destructive"
+                    : "h-5 w-5 text-muted-foreground"
+              }
+            />
             <CardTitle className="text-xl">{title}</CardTitle>
           </div>
           <CardDescription>{description}</CardDescription>
@@ -195,7 +197,9 @@ export function SubmitTrustedMemberForm({
       <CardHeader className="space-y-2">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
-          <CardTitle className="text-xl">Apply to be a Trusted Member</CardTitle>
+          <CardTitle className="text-xl">
+            Apply to be a Trusted Member
+          </CardTitle>
         </div>
         <CardDescription>
           We review applications to keep the platform safe. Please use your real
@@ -227,8 +231,12 @@ export function SubmitTrustedMemberForm({
                   className="w-full"
                   aria-invalid={fieldState.invalid}
                 />
-                <FieldDescription>As it appears on official ID.</FieldDescription>
-                {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                <FieldDescription>
+                  As it appears on official ID.
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FormMessage errors={[fieldState.error]} />
+                )}
               </Field>
             )}
           />
@@ -254,8 +262,12 @@ export function SubmitTrustedMemberForm({
                   className="w-full"
                   aria-invalid={fieldState.invalid}
                 />
-                <FieldDescription>We’ll only use this to contact you about your application.</FieldDescription>
-                {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                <FieldDescription>
+                  We’ll only use this to contact you about your application.
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FormMessage errors={[fieldState.error]} />
+                )}
               </Field>
             )}
           />
@@ -280,8 +292,13 @@ export function SubmitTrustedMemberForm({
                   className="w-full"
                   aria-invalid={fieldState.invalid}
                 />
-                <FieldDescription>Minimum 10 characters. Helpful details: what you’re building, expected usage, timelines.</FieldDescription>
-                {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                <FieldDescription>
+                  Minimum 10 characters. Helpful details: what you’re building,
+                  expected usage, timelines.
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FormMessage errors={[fieldState.error]} />
+                )}
               </Field>
             )}
           />
@@ -294,16 +311,27 @@ export function SubmitTrustedMemberForm({
             </Alert>
           ) : null}
           {success ? (
-            <Alert variant="default" className="border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900/30">
+            <Alert
+              variant="default"
+              className="border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900/30"
+            >
               <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <AlertTitle className="text-green-900 dark:text-green-200">Success</AlertTitle>
-              <AlertDescription className="text-green-800 dark:text-green-300">{success}</AlertDescription>
+              <AlertTitle className="text-green-900 dark:text-green-200">
+                Success
+              </AlertTitle>
+              <AlertDescription className="text-green-800 dark:text-green-300">
+                {success}
+              </AlertDescription>
             </Alert>
           ) : null}
 
           <Separator />
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <Button type="submit" className="w-full sm:w-auto" disabled={pending || !form.formState.isValid}>
+            <Button
+              type="submit"
+              className="w-full sm:w-auto"
+              disabled={pending || !form.formState.isValid}
+            >
               {pending ? "Submitting..." : "Submit Application"}
             </Button>
             {/* {!form.formState.isValid && (

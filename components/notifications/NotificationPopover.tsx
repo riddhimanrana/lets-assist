@@ -1,9 +1,20 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Bell, AlertCircle, AlertTriangle, CircleCheck, Loader2, Settings } from "lucide-react";
+import {
+  Bell,
+  AlertCircle,
+  AlertTriangle,
+  CircleCheck,
+  Loader2,
+  Settings,
+} from "lucide-react";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Drawer,
   DrawerContent,
@@ -27,11 +38,14 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useAuth } from "@/hooks/useAuth";
-import { useInfiniteQuery, type SupabaseQueryHandler } from "@/hooks/use-infinite-query";
+import {
+  useInfiniteQuery,
+  type SupabaseQueryHandler,
+} from "@/hooks/use-infinite-query";
 import { useInView } from "react-intersection-observer";
 import { useNotification } from "@/components/providers/NotificationContext";
 
-type NotificationSeverity = 'info' | 'warning' | 'success';
+type NotificationSeverity = "info" | "warning" | "success";
 
 type Notification = {
   id: string;
@@ -83,16 +97,23 @@ export function resolveNotificationSurface({
   return isMobile ? "drawer" : "popover";
 }
 
-export function isActiveNotificationSurface(surface: NotificationSurface): boolean {
+export function isActiveNotificationSurface(
+  surface: NotificationSurface,
+): boolean {
   return surface === "drawer" || surface === "popover";
 }
 
-export function NotificationPopover({ viewport }: { viewport: NotificationViewport }) {
+export function NotificationPopover({
+  viewport,
+}: {
+  viewport: NotificationViewport;
+}) {
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [activeNotification, setActiveNotification] = useState<Notification | null>(null);
+  const [activeNotification, setActiveNotification] =
+    useState<Notification | null>(null);
 
   const { unreadCount, setUnreadCount, refreshTrigger } = useNotification();
 
@@ -110,13 +131,17 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
   const isActiveSurface = isActiveNotificationSurface(surface);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const notificationsQueryHandler = useCallback<SupabaseQueryHandler<"notifications">>(
+  const notificationsQueryHandler = useCallback<
+    SupabaseQueryHandler<"notifications">
+  >(
     (query) => {
       // Should not happen if enabled={!!user?.id}, but safe guard
       if (!user?.id) return query;
-      return query.eq("user_id", user.id).order("created_at", { ascending: false });
+      return query
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
     },
-    [user?.id]
+    [user?.id],
   );
 
   const {
@@ -126,7 +151,7 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
     hasMore,
     fetchNextPage,
     refresh,
-    error: queryError
+    error: queryError,
   } = useInfiniteQuery<Notification, "notifications">({
     tableName: "notifications",
     columns: "*",
@@ -140,7 +165,10 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
 
   useEffect(() => {
     if (queryError) {
-      console.error("NotificationPopover: Error fetching notifications", queryError);
+      console.error(
+        "NotificationPopover: Error fetching notifications",
+        queryError,
+      );
     }
   }, [queryError]);
 
@@ -189,7 +217,7 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
 
           refresh();
           // Also trigger context to stay in sync if needed, though we just optimistically set it.
-          // contextRefresh(); 
+          // contextRefresh();
         } catch (error) {
           console.error("Error marking all notifications as read:", error);
         }
@@ -203,10 +231,7 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
 
   async function markAsRead(id: string) {
     try {
-      await supabase
-        .from("notifications")
-        .update({ read: true })
-        .eq("id", id);
+      await supabase.from("notifications").update({ read: true }).eq("id", id);
       refresh();
     } catch (error) {
       console.error("Error marking notification as read:", error);
@@ -224,21 +249,21 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
     setOpen(false);
   }
 
-  const getNotificationIcon = (severity: NotificationSeverity = 'info') => {
+  const getNotificationIcon = (severity: NotificationSeverity = "info") => {
     switch (severity) {
-      case 'warning':
+      case "warning":
         return (
           <div className="h-6 w-6 rounded-full bg-warning/10 flex items-center justify-center shrink-0">
             <AlertTriangle className="h-3 w-3 text-warning" />
           </div>
         );
-      case 'success':
+      case "success":
         return (
           <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
             <CircleCheck className="h-3 w-3 text-primary" />
           </div>
         );
-      case 'info':
+      case "info":
       default:
         return (
           <div className="h-6 w-6 rounded-full bg-info/10 flex items-center justify-center shrink-0">
@@ -253,14 +278,14 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
       const date = new Date(dateString);
       const formatted = formatDistanceToNow(date, { addSuffix: true });
       return formatted
-        .replace(/about /g, '')
-        .replace(/less than a minute ago/g, 'just now')
-        .replace(/ minutes? ago/g, 'm ago')
-        .replace(/ hours? ago/g, 'h ago')
-        .replace(/ days? ago/g, 'd ago')
-        .replace(/ weeks? ago/g, 'w ago')
-        .replace(/ months? ago/g, 'mo ago')
-        .replace(/ years? ago/g, 'y ago');
+        .replace(/about /g, "")
+        .replace(/less than a minute ago/g, "just now")
+        .replace(/ minutes? ago/g, "m ago")
+        .replace(/ hours? ago/g, "h ago")
+        .replace(/ days? ago/g, "d ago")
+        .replace(/ weeks? ago/g, "w ago")
+        .replace(/ months? ago/g, "mo ago")
+        .replace(/ years? ago/g, "y ago");
     } catch {
       return "recently";
     }
@@ -271,7 +296,9 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
       <div className="bg-muted/40 p-3 rounded-full mb-3">
         <Bell className="h-6 w-6 text-muted-foreground/40" />
       </div>
-      <p className="text-sm text-muted-foreground font-medium">No notifications yet</p>
+      <p className="text-sm text-muted-foreground font-medium">
+        No notifications yet
+      </p>
     </div>
   );
 
@@ -286,7 +313,7 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
           "flex flex-col p-4 transition-all cursor-pointer relative group border-l-2",
           !notification.read
             ? "bg-primary/[0.03] border-l-primary hover:bg-primary/[0.06]"
-            : "bg-transparent border-l-transparent hover:bg-muted/40"
+            : "bg-transparent border-l-transparent hover:bg-muted/40",
         )}
         onClick={() => handleNotificationClick(notification)}
       >
@@ -294,20 +321,28 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
           {getNotificationIcon(notification.severity)}
           <div className="flex-1 min-w-0">
             <div className="flex justify-between items-start gap-2 mb-1">
-              <h5 className={cn(
-                "text-sm line-clamp-1 leading-none pt-0.5",
-                !notification.read ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'
-              )}>
+              <h5
+                className={cn(
+                  "text-sm line-clamp-1 leading-none pt-0.5",
+                  !notification.read
+                    ? "font-semibold text-foreground"
+                    : "font-medium text-muted-foreground",
+                )}
+              >
                 {notification.title}
               </h5>
               <span className="text-xs text-muted-foreground/70 whitespace-nowrap">
                 {formatTimeAgo(notification.created_at)}
               </span>
             </div>
-            <p className={cn(
-              "text-xs line-clamp-2 leading-relaxed mb-1",
-              !notification.read ? "text-foreground/80" : "text-muted-foreground/80"
-            )}>
+            <p
+              className={cn(
+                "text-xs line-clamp-2 leading-relaxed mb-1",
+                !notification.read
+                  ? "text-foreground/80"
+                  : "text-muted-foreground/80",
+              )}
+            >
               {notification.body}
             </p>
             {showLink && (
@@ -358,7 +393,10 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
         </Button>
       </div>
 
-      <ScrollArea ref={scrollAreaRef} className={cn("h-[420px]", isMobile && "h-[calc(80vh-100px)]")}>
+      <ScrollArea
+        ref={scrollAreaRef}
+        className={cn("h-[420px]", isMobile && "h-[calc(80vh-100px)]")}
+      >
         {initialLoading ? (
           <div className="flex flex-col justify-center items-center py-20">
             <Loader2 className="h-7 w-7 animate-spin text-primary/40" />
@@ -369,7 +407,10 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
 
             {/* Infinite scroll trigger */}
             {hasMore && (
-              <div ref={loadMoreRef} className="py-6 flex justify-center w-full">
+              <div
+                ref={loadMoreRef}
+                className="py-6 flex justify-center w-full"
+              >
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/50" />
               </div>
             )}
@@ -388,20 +429,24 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
         className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors"
       />
       {unreadCount > 0 && (
-        <Badge
-          className="absolute -top-2 -right-2 h-[16px] min-w-[16px] px-1 flex items-center justify-center bg-destructive hover:bg-destructive text-[10px] font-bold border-2rounded-full shadow-sm select-none"
-        >
-          {unreadCount > 9 ? '9+' : unreadCount}
+        <Badge className="absolute -top-2 -right-2 h-[16px] min-w-[16px] px-1 flex items-center justify-center bg-destructive hover:bg-destructive text-[10px] font-bold border-2rounded-full shadow-sm select-none">
+          {unreadCount > 9 ? "9+" : unreadCount}
         </Badge>
       )}
     </div>
   );
 
-  const triggerClasses = "relative rounded-full h-9 w-9 inline-flex items-center justify-center hover:bg-muted/50 transition-all border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+  const triggerClasses =
+    "relative rounded-full h-9 w-9 inline-flex items-center justify-center hover:bg-muted/50 transition-all border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
   const detailMetadata = activeNotification?.data ?? null;
-  const detailStatusLabel = typeof detailMetadata?.status === 'string' ? detailMetadata.status.replace(/_/g, ' ') : null;
-  const detailSubtitle = activeNotification?.created_at ? `Updated ${formatTimeAgo(activeNotification.created_at)}` : 'Notification details';
+  const detailStatusLabel =
+    typeof detailMetadata?.status === "string"
+      ? detailMetadata.status.replace(/_/g, " ")
+      : null;
+  const detailSubtitle = activeNotification?.created_at
+    ? `Updated ${formatTimeAgo(activeNotification.created_at)}`
+    : "Notification details";
 
   const handleDetailDialogChange = (nextOpen: boolean) => {
     setDetailOpen(nextOpen);
@@ -412,12 +457,19 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
     <Dialog open={detailOpen} onOpenChange={handleDetailDialogChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{activeNotification?.title ?? 'Notification'}</DialogTitle>
+          <DialogTitle>
+            {activeNotification?.title ?? "Notification"}
+          </DialogTitle>
           <DialogDescription>{detailSubtitle}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           {detailStatusLabel && (
-            <Badge variant="secondary" className="uppercase tracking-wider font-semibold text-[10px] py-0.5">{detailStatusLabel}</Badge>
+            <Badge
+              variant="secondary"
+              className="uppercase tracking-wider font-semibold text-[10px] py-0.5"
+            >
+              {detailStatusLabel}
+            </Badge>
           )}
           <div className="text-sm text-foreground/90 whitespace-pre-line leading-relaxed bg-muted/30 p-4 rounded-xl border border-border/50">
             {activeNotification?.body}
@@ -428,13 +480,23 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
               Refining it slightly. */}
           {activeNotification?.action_url && (
             <div className="rounded-xl border bg-muted/40 p-3 flex flex-col gap-1.5">
-              <p className="text-xs font-medium text-muted-foreground">Related URL</p>
-              <p className="text-xs text-foreground break-all font-mono opacity-80">{activeNotification.action_url}</p>
+              <p className="text-xs font-medium text-muted-foreground">
+                Related URL
+              </p>
+              <p className="text-xs text-foreground break-all font-mono opacity-80">
+                {activeNotification.action_url}
+              </p>
             </div>
           )}
         </div>
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="ghost" onClick={() => handleDetailDialogChange(false)} className="rounded-full">Close</Button>
+          <Button
+            variant="ghost"
+            onClick={() => handleDetailDialogChange(false)}
+            className="rounded-full"
+          >
+            Close
+          </Button>
           {activeNotification?.action_url && (
             <Button
               className="rounded-full"
@@ -475,7 +537,11 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
   }
 
   const NotificationTrigger = (
-    <Button className={triggerClasses} variant="ghost" aria-label="Notifications">
+    <Button
+      className={triggerClasses}
+      variant="ghost"
+      aria-label="Notifications"
+    >
       {notificationTriggerContent}
     </Button>
   );
@@ -484,9 +550,7 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
     return (
       <>
         <Drawer open={open} onOpenChange={setOpen}>
-          <DrawerTrigger asChild>
-            {NotificationTrigger}
-          </DrawerTrigger>
+          <DrawerTrigger asChild>{NotificationTrigger}</DrawerTrigger>
           <DrawerContent className="max-h-[85vh] p-0">
             <VisuallyHidden.Root>
               <DrawerTitle>Notifications</DrawerTitle>
@@ -503,7 +567,10 @@ export function NotificationPopover({ viewport }: { viewport: NotificationViewpo
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger render={NotificationTrigger} />
-        <PopoverContent align="end" className="w-[380px] p-0 overflow-hidden shadow-2xl border-border/60 rounded-2xl">
+        <PopoverContent
+          align="end"
+          className="w-[380px] p-0 overflow-hidden shadow-2xl border-border/60 rounded-2xl"
+        >
           {renderNotificationsContent()}
         </PopoverContent>
       </Popover>

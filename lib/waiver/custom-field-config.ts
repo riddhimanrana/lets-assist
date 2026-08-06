@@ -1,7 +1,10 @@
 import type { PdfRect } from "@/lib/waiver/pdf-field-detect";
 import type { WaiverFieldType } from "@/types/waiver-definitions";
 
-export type CustomPlacementFieldType = Exclude<WaiverFieldType, "radio" | "dropdown">;
+export type CustomPlacementFieldType = Exclude<
+  WaiverFieldType,
+  "radio" | "dropdown"
+>;
 
 type CustomPlacementFieldTypeOption = {
   value: CustomPlacementFieldType;
@@ -29,7 +32,10 @@ export const CUSTOM_PLACEMENT_FIELD_TYPE_OPTIONS = [
   { value: "checkbox", label: "Checkbox" },
 ] as const satisfies ReadonlyArray<CustomPlacementFieldTypeOption>;
 
-const CUSTOM_PLACEMENT_FIELD_SIZES: Record<CustomPlacementFieldType, CustomPlacementFieldSize> = {
+const CUSTOM_PLACEMENT_FIELD_SIZES: Record<
+  CustomPlacementFieldType,
+  CustomPlacementFieldSize
+> = {
   signature: {
     width: 180,
     height: 50,
@@ -86,18 +92,28 @@ const CUSTOM_PLACEMENT_FIELD_SIZES: Record<CustomPlacementFieldType, CustomPlace
   },
 };
 
-export function isCustomPlacementFieldType(value: string): value is CustomPlacementFieldType {
-  return CUSTOM_PLACEMENT_FIELD_TYPE_OPTIONS.some((option) => option.value === value);
+export function isCustomPlacementFieldType(
+  value: string,
+): value is CustomPlacementFieldType {
+  return CUSTOM_PLACEMENT_FIELD_TYPE_OPTIONS.some(
+    (option) => option.value === value,
+  );
 }
 
-export function normalizeCustomPlacementFieldType(value: string): CustomPlacementFieldType {
-  return isCustomPlacementFieldType(value) ? value : DEFAULT_CUSTOM_PLACEMENT_FIELD_TYPE;
+export function normalizeCustomPlacementFieldType(
+  value: string,
+): CustomPlacementFieldType {
+  return isCustomPlacementFieldType(value)
+    ? value
+    : DEFAULT_CUSTOM_PLACEMENT_FIELD_TYPE;
 }
 
 export function getCustomPlacementFieldSize(
   fieldType: string | WaiverFieldType,
 ): CustomPlacementFieldSize {
-  return CUSTOM_PLACEMENT_FIELD_SIZES[normalizeCustomPlacementFieldType(fieldType)];
+  return CUSTOM_PLACEMENT_FIELD_SIZES[
+    normalizeCustomPlacementFieldType(fieldType)
+  ];
 }
 
 export function createRectFromCenter(

@@ -53,10 +53,14 @@ if (!isAlive(pid)) {
 
 const command = commandFor(pid);
 if (!/next-server|next dev|next\/dist\/bin\/next/.test(command)) {
-  throw new Error(`Refusing to stop PID ${pid}; command does not look like Next dev: ${command}`);
+  throw new Error(
+    `Refusing to stop PID ${pid}; command does not look like Next dev: ${command}`,
+  );
 }
 
-console.log(`[next-dev] stopping existing repo dev server PID ${pid}: ${command}`);
+console.log(
+  `[next-dev] stopping existing repo dev server PID ${pid}: ${command}`,
+);
 process.kill(pid, "SIGTERM");
 
 const deadline = Date.now() + 5_000;

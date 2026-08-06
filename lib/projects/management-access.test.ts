@@ -9,10 +9,7 @@ const common = {
 };
 
 test("project creators and organization admins can manage a project", () => {
-  assert.equal(
-    canManageProjectAccess({ ...common, userId: "creator" }),
-    true,
-  );
+  assert.equal(canManageProjectAccess({ ...common, userId: "creator" }), true);
   assert.equal(
     canManageProjectAccess({ ...common, organizationRole: "admin" }),
     true,

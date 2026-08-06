@@ -48,10 +48,12 @@ export async function checkInUser(signupId: string) {
 
     // 1. Fetch the signup record first
     const { data: signup, error: fetchError } = await supabase
-      .from('project_signups')
-      .select('id, check_in_time, check_out_time, project_id, schedule_id, user_id, anonymous_id, status') // Select fields needed for validation/revalidation
-      .eq('id', signupId)
-      .eq('user_id', user.id)
+      .from("project_signups")
+      .select(
+        "id, check_in_time, check_out_time, project_id, schedule_id, user_id, anonymous_id, status",
+      ) // Select fields needed for validation/revalidation
+      .eq("id", signupId)
+      .eq("user_id", user.id)
       .maybeSingle(); // Use maybeSingle as it might not exist
 
     if (fetchError) {
@@ -84,9 +86,18 @@ export async function checkInUser(signupId: string) {
 
     // 2. Check if already checked in (idempotency)
     if (signup.check_in_time) {
-      console.log("User already checked in for signup:", signupId, "at", signup.check_in_time);
+      console.log(
+        "User already checked in for signup:",
+        signupId,
+        "at",
+        signup.check_in_time,
+      );
       // Return existing check-in time
-      return { success: true, checkInTime: signup.check_in_time, checkOutTime: signup.check_out_time || null };
+      return {
+        success: true,
+        checkInTime: signup.check_in_time,
+        checkOutTime: signup.check_out_time || null,
+      };
     }
 
     const updatePayload: Record<string, string | null> = {
@@ -98,19 +109,22 @@ export async function checkInUser(signupId: string) {
     // the automatic checkout job remains the fallback at the scheduled end.
     const serviceSupabase = getAdminClient();
     const { data: updatedRows, error: updateError } = await serviceSupabase
-      .from('project_signups')
+      .from("project_signups")
       .update(updatePayload)
-      .eq('id', signupId)
-      .eq('project_id', signup.project_id)
-      .eq('schedule_id', signup.schedule_id)
-      .eq('user_id', user.id)
-      .is('check_in_time', null)
-      .in('status', ['approved', 'attended'])
-      .select('id');
+      .eq("id", signupId)
+      .eq("project_id", signup.project_id)
+      .eq("schedule_id", signup.schedule_id)
+      .eq("user_id", user.id)
+      .is("check_in_time", null)
+      .in("status", ["approved", "attended"])
+      .select("id");
 
     if (updateError || !updatedRows || updatedRows.length !== 1) {
       console.error("Error updating check-in time and status:", updateError);
-      return { success: false, error: "Database error during check-in update." };
+      return {
+        success: false,
+        error: "Database error during check-in update.",
+      };
     }
 
     // 4. Revalidate relevant paths
@@ -127,21 +141,35 @@ export async function checkInUser(signupId: string) {
     }
     // Consider revalidating organizer views if applicable
 
-    console.log("Check-in successful for signup:", signupId, "at", now.toISOString());
-    return { success: true, checkInTime: now.toISOString(), checkOutTime: null };
-
+    console.log(
+      "Check-in successful for signup:",
+      signupId,
+      "at",
+      now.toISOString(),
+    );
+    return {
+      success: true,
+      checkInTime: now.toISOString(),
+      checkOutTime: null,
+    };
   } catch (error) {
     console.error("Unexpected error during check-in:", error);
     return { success: false, error: "An unexpected error occurred." };
   }
 }
 
-
 /**
  * Looks up an email for a specific project and schedule to determine signup status.
  */
-export async function lookupEmailStatus(projectId: string, incomingScheduleId: string, email: string) {
-  const presence = await requireAttendancePresence(projectId, incomingScheduleId);
+export async function lookupEmailStatus(
+  projectId: string,
+  incomingScheduleId: string,
+  email: string,
+) {
+  const presence = await requireAttendancePresence(
+    projectId,
+    incomingScheduleId,
+  );
   if (!presence.ok) {
     return {
       success: false,
@@ -163,34 +191,42 @@ export async function lookupEmailStatus(projectId: string, incomingScheduleId: s
       restrict_to_org_domains: boolean | null;
       organization_id: string | null;
       organizations?:
-      | { allowed_email_domains?: string[] | null }
-      | { allowed_email_domains?: string[] | null }[]
-      | null;
+        | { allowed_email_domains?: string[] | null }
+        | { allowed_email_domains?: string[] | null }[]
+        | null;
     };
 
     const { data: projectData, error: projectError } = await supabase
       .from("projects")
-      .select(`
+      .select(
+        `
         restrict_to_org_domains,
         organization_id,
         organizations (
           allowed_email_domains
         )
-      `)
+      `,
+      )
       .eq("id", projectId)
       .single();
 
     let allowedDomains: string[] | null = null;
-    if (!projectError && projectData?.restrict_to_org_domains && projectData.organization_id) {
+    if (
+      !projectError &&
+      projectData?.restrict_to_org_domains &&
+      projectData.organization_id
+    ) {
       const org = (projectData as ProjectDomainRow).organizations;
-      const allowed = Array.isArray(org) ? org[0]?.allowed_email_domains : org?.allowed_email_domains;
+      const allowed = Array.isArray(org)
+        ? org[0]?.allowed_email_domains
+        : org?.allowed_email_domains;
       allowedDomains = allowed ?? null;
     }
 
     // Helper to check domain
     const isDomainAllowed = (emailToCheck: string) => {
       if (!allowedDomains || allowedDomains.length === 0) return true;
-      const domain = emailToCheck.split('@')[1];
+      const domain = emailToCheck.split("@")[1];
       return allowedDomains.includes(domain);
     };
 
@@ -206,19 +242,26 @@ export async function lookupEmailStatus(projectId: string, incomingScheduleId: s
 
     if (profileError) {
       console.error("Error checking profiles:", profileError);
-      return { success: false, found: false, isRegistered: false, message: "Database error during profile lookup.", error: profileError.message };
+      return {
+        success: false,
+        found: false,
+        isRegistered: false,
+        message: "Database error during profile lookup.",
+        error: profileError.message,
+      };
     }
 
     if (profileData) {
       userId = profileData.id;
     } else {
       // Check secondary emails
-      const { data: userEmailData, error: userEmailError } = await serviceSupabase
-        .from("user_emails")
-        .select("user_id")
-        .eq("email", lowerCaseEmail)
-        .not("verified_at", "is", null)
-        .maybeSingle();
+      const { data: userEmailData, error: userEmailError } =
+        await serviceSupabase
+          .from("user_emails")
+          .select("user_id")
+          .eq("email", lowerCaseEmail)
+          .not("verified_at", "is", null)
+          .maybeSingle();
 
       if (userEmailError) {
         console.error("Error checking user_emails:", userEmailError);
@@ -239,7 +282,13 @@ export async function lookupEmailStatus(projectId: string, incomingScheduleId: s
 
       if (regSignupError) {
         console.error("Error checking registered user signup:", regSignupError);
-        return { success: false, found: true, isRegistered: true, message: "Database error checking signup.", error: regSignupError.message };
+        return {
+          success: false,
+          found: true,
+          isRegistered: true,
+          message: "Database error checking signup.",
+          error: regSignupError.message,
+        };
       }
 
       if (signupData) {
@@ -249,7 +298,7 @@ export async function lookupEmailStatus(projectId: string, incomingScheduleId: s
           success: true,
           found: true,
           isRegistered: true,
-          message: `Account found. Signup status for this session: ${signupData.status}. Please log in to check in.`
+          message: `Account found. Signup status for this session: ${signupData.status}. Please log in to check in.`,
         };
       } else {
         // Registered user exists but is NOT signed up for this specific session
@@ -260,7 +309,8 @@ export async function lookupEmailStatus(projectId: string, incomingScheduleId: s
           success: true,
           found: true, // Found the user account
           isRegistered: true,
-          message: "You have an account but are not signed up for this specific session. Please log in and sign up first."
+          message:
+            "You have an account but are not signed up for this specific session. Please log in and sign up first.",
         };
       }
     } else {
@@ -272,7 +322,7 @@ export async function lookupEmailStatus(projectId: string, incomingScheduleId: s
           success: false,
           found: false,
           isRegistered: false,
-          message: `This project is restricted to users with the following email domains: ${allowedDomains?.join(', ')}. Please use a valid organization email.`
+          message: `This project is restricted to users with the following email domains: ${allowedDomains?.join(", ")}. Please use a valid organization email.`,
         };
       }
 
@@ -285,65 +335,103 @@ export async function lookupEmailStatus(projectId: string, incomingScheduleId: s
 
       if (anonError) {
         console.error("Error checking anonymous signups:", anonError);
-        return { success: false, found: false, isRegistered: false, message: "Database error during anonymous lookup.", error: anonError.message };
+        return {
+          success: false,
+          found: false,
+          isRegistered: false,
+          message: "Database error during anonymous lookup.",
+          error: anonError.message,
+        };
       }
 
       if (anonData && anonData.signup_id) {
         // Anonymous record found for this project, check the linked project_signup details
-        const { data: signupData, error: anonSignupError } = await serviceSupabase
-          .from("project_signups")
-          .select("id, status, schedule_id") // Select status and schedule_id
-          .eq("id", anonData.signup_id)
-          .maybeSingle();
+        const { data: signupData, error: anonSignupError } =
+          await serviceSupabase
+            .from("project_signups")
+            .select("id, status, schedule_id") // Select status and schedule_id
+            .eq("id", anonData.signup_id)
+            .maybeSingle();
 
         if (anonSignupError) {
-          console.error("Error fetching linked signup for anonymous user:", anonSignupError);
-          return { success: false, found: true, isRegistered: false, message: "Database error fetching signup details.", error: anonSignupError.message };
+          console.error(
+            "Error fetching linked signup for anonymous user:",
+            anonSignupError,
+          );
+          return {
+            success: false,
+            found: true,
+            isRegistered: false,
+            message: "Database error fetching signup details.",
+            error: anonSignupError.message,
+          };
         }
 
         if (signupData) {
           if (signupData.schedule_id === scheduleId) {
             // Anonymous signup found for this specific session
             console.log("Found anonymous signup for this session:", signupData);
-            const isApproved = signupData.status === 'approved';
+            const isApproved = signupData.status === "approved";
             return {
               success: true,
               found: true,
               isRegistered: false,
               message: isApproved
                 ? "Anonymous signup found and approved. Use your private anonymous profile link to check in."
-                : `Anonymous signup found for this session. Status: ${signupData.status}. Approval may be required.`
+                : `Anonymous signup found for this session. Status: ${signupData.status}. Approval may be required.`,
             };
           } else {
             // Anonymous signup found, but for a different session in this project
-            console.log("Found anonymous signup, but for different schedule:", signupData.schedule_id);
+            console.log(
+              "Found anonymous signup, but for different schedule:",
+              signupData.schedule_id,
+            );
             return {
               success: true,
               found: true, // Found an anonymous signup for the project
               isRegistered: false,
-              message: "You have an anonymous signup for this project, but for a different session/role."
+              message:
+                "You have an anonymous signup for this project, but for a different session/role.",
             };
           }
         } else {
           // Data inconsistency: anonymous_signup exists but linked project_signup doesn't
-          console.error("Data inconsistency: Anonymous signup found, but linked project signup missing. Anon ID:", anonData.id, "Signup ID:", anonData.signup_id);
+          console.error(
+            "Data inconsistency: Anonymous signup found, but linked project signup missing. Anon ID:",
+            anonData.id,
+            "Signup ID:",
+            anonData.signup_id,
+          );
           return {
             success: true, // Technically lookup succeeded but found an issue
             found: false, // Treat as not found for check-in purposes
             isRegistered: false,
-            message: "Signup details could not be fully verified. Please contact the organizer."
+            message:
+              "Signup details could not be fully verified. Please contact the organizer.",
           };
         }
       } else {
         // 3. No registered user and no anonymous signup found for this project/email
         console.log("No matching signup found for email:", email);
-        return { success: true, found: false, isRegistered: false, message: "No signup found for this email and session." };
+        return {
+          success: true,
+          found: false,
+          isRegistered: false,
+          message: "No signup found for this email and session.",
+        };
       }
     }
   } catch (error) {
     console.error("Unexpected error during email lookup:", error);
-    const message = error instanceof Error ? error.message : "An unexpected error occurred.";
-    return { success: false, found: false, isRegistered: false, message: "An unexpected error occurred.", error: message };
+    const message =
+      error instanceof Error ? error.message : "An unexpected error occurred.";
+    return {
+      success: false,
+      found: false,
+      isRegistered: false,
+      message: "An unexpected error occurred.",
+      error: message,
+    };
   }
 }
 
@@ -361,9 +449,15 @@ export async function checkInAnonymous(
     email: string;
   },
 ) {
-  const presence = await requireAttendancePresence(projectId, incomingScheduleId);
+  const presence = await requireAttendancePresence(
+    projectId,
+    incomingScheduleId,
+  );
   if (!presence.ok) {
-    return { success: false, error: "Please scan the attendance QR code again." };
+    return {
+      success: false,
+      error: "Please scan the attendance QR code again.",
+    };
   }
 
   const scheduleId = presence.payload.scheduleId;
@@ -389,7 +483,10 @@ export async function checkInAnonymous(
     !anon.confirmed_at ||
     !anon.signup_id
   ) {
-    return { success: false, error: "Anonymous signup access could not be verified." };
+    return {
+      success: false,
+      error: "Anonymous signup access could not be verified.",
+    };
   }
 
   const supabase = await createClient();
@@ -446,7 +543,10 @@ export async function checkInAnonymous(
       .select("id");
 
     if (updateError || !updatedRows || updatedRows.length !== 1) {
-      return { success: false, error: "Failed to record anonymous attendance." };
+      return {
+        success: false,
+        error: "Failed to record anonymous attendance.",
+      };
     }
 
     checkInTime = nowIso;
@@ -536,7 +636,9 @@ export async function checkOutUser(
       const serviceSupabase = getAdminClient();
       const { data, error: fetchError } = await serviceSupabase
         .from("project_signups")
-        .select("id, project_id, schedule_id, check_in_time, user_id, anonymous_id")
+        .select(
+          "id, project_id, schedule_id, check_in_time, user_id, anonymous_id",
+        )
         .eq("id", signupId)
         .eq("project_id", capability.payload.projectId)
         .eq("schedule_id", capability.payload.scheduleId)
@@ -544,7 +646,10 @@ export async function checkOutUser(
         .maybeSingle();
 
       if (fetchError) {
-        console.error("[checkOutUser] Error fetching anonymous signup:", fetchError);
+        console.error(
+          "[checkOutUser] Error fetching anonymous signup:",
+          fetchError,
+        );
         return { success: false, error: "Database error fetching signup." };
       }
 
@@ -559,13 +664,18 @@ export async function checkOutUser(
       authenticatedUserId = user.id;
       const { data, error: fetchError } = await supabase
         .from("project_signups")
-        .select("id, project_id, schedule_id, check_in_time, user_id, anonymous_id")
+        .select(
+          "id, project_id, schedule_id, check_in_time, user_id, anonymous_id",
+        )
         .eq("id", signupId)
         .eq("user_id", authenticatedUserId)
         .maybeSingle();
 
       if (fetchError) {
-        console.error("[checkOutUser] Error fetching owned signup:", fetchError);
+        console.error(
+          "[checkOutUser] Error fetching owned signup:",
+          fetchError,
+        );
         return { success: false, error: "Database error fetching signup." };
       }
 
@@ -573,7 +683,10 @@ export async function checkOutUser(
     }
 
     if (!signup) {
-      return { success: false, error: "Signup record not found or access denied." };
+      return {
+        success: false,
+        error: "Signup record not found or access denied.",
+      };
     }
 
     type CheckoutRpcRow = {
@@ -581,19 +694,20 @@ export async function checkOutUser(
       outcome: string;
     };
     const serviceSupabase = getAdminClient();
-    const { data: checkoutRows, error: checkoutError } = await serviceSupabase.rpc(
-      "complete_participant_checkout",
-      {
+    const { data: checkoutRows, error: checkoutError } =
+      await serviceSupabase.rpc("complete_participant_checkout", {
         p_signup_id: signup.id,
         p_user_id: anonymousSignupId ? null : authenticatedUserId,
         p_anonymous_id: anonymousSignupId,
-      },
-    );
+      });
     const checkout = (checkoutRows as CheckoutRpcRow[] | null)?.[0] ?? null;
 
     if (checkoutError || !checkout) {
       console.error("[checkOutUser] Atomic checkout failed:", checkoutError);
-      return { success: false, error: "Database error during check-out update." };
+      return {
+        success: false,
+        error: "Database error during check-out update.",
+      };
     }
 
     if (
@@ -603,7 +717,8 @@ export async function checkOutUser(
       const errorByOutcome: Record<string, string> = {
         not_found: "Signup record not found or access denied.",
         not_checked_in: "Cannot check out before check-in.",
-        before_event_window: "Checkout is not available before the event starts.",
+        before_event_window:
+          "Checkout is not available before the event starts.",
         invalid_schedule: "This attendance session has an invalid schedule.",
         invalid_check_in: "The recorded check-in time is invalid.",
       };
@@ -616,19 +731,18 @@ export async function checkOutUser(
     }
 
     if (!checkout.check_out_time) {
-      return { success: false, error: "Database error during check-out update." };
+      return {
+        success: false,
+        error: "Database error during check-out update.",
+      };
     }
 
     if (anonymousSignupId && anonymousProjectId) {
       const cookieStore = await cookies();
-      cookieStore.set(
-        getAttendanceCheckoutCookieName(anonymousProjectId),
-        "",
-        {
-          ...getAttendanceCheckoutCookieOptions(anonymousProjectId),
-          maxAge: 0,
-        },
-      );
+      cookieStore.set(getAttendanceCheckoutCookieName(anonymousProjectId), "", {
+        ...getAttendanceCheckoutCookieOptions(anonymousProjectId),
+        maxAge: 0,
+      });
     }
 
     revalidatePath(`/projects/${signup.project_id}`);
@@ -642,37 +756,46 @@ export async function checkOutUser(
       alreadyCheckedOut: checkout.outcome === "already_checked_out",
     };
   } catch (error) {
-    console.error('[checkOutUser] Unexpected error during check-out:', error);
-    return { success: false, error: 'An unexpected error occurred.' };
+    console.error("[checkOutUser] Unexpected error during check-out:", error);
+    return { success: false, error: "An unexpected error occurred." };
   }
 }
 
-type MinimalProject = Pick<Project, "event_type" | "schedule" | "project_timezone">;
+type MinimalProject = Pick<
+  Project,
+  "event_type" | "schedule" | "project_timezone"
+>;
 
 async function getScheduledCheckoutTime(
   supabase: Awaited<ReturnType<typeof createClient>>,
   projectId: string,
   scheduleId: string,
-  fallbackDate: Date
+  fallbackDate: Date,
 ): Promise<string | null> {
   const { data: project, error } = await supabase
-    .from('projects')
-    .select('event_type, schedule, project_timezone')
-    .eq('id', projectId)
+    .from("projects")
+    .select("event_type, schedule, project_timezone")
+    .eq("id", projectId)
     .single();
 
   if (error) {
-    console.error('[getScheduledCheckoutTime] Error fetching project schedule:', error);
+    console.error(
+      "[getScheduledCheckoutTime] Error fetching project schedule:",
+      error,
+    );
     return null;
   }
 
   if (!project) {
-    console.warn('[getScheduledCheckoutTime] Project not found for id:', projectId);
+    console.warn(
+      "[getScheduledCheckoutTime] Project not found for id:",
+      projectId,
+    );
     return null;
   }
 
   const typedProject = project as MinimalProject;
-  const schedule = typedProject.schedule as Project['schedule'];
+  const schedule = typedProject.schedule as Project["schedule"];
   if (!schedule) {
     return null;
   }
@@ -687,13 +810,13 @@ async function getScheduledCheckoutTime(
       if (timezone) {
         // Parse date and time strings to construct TZDate numbers
         // dateStr is YYYY-MM-DD, timeStr is HH:mm
-        const [year, month, day] = dateStr.split('-').map(Number);
-        const [hours, minutes] = timeStr.split(':').map(Number);
+        const [year, month, day] = dateStr.split("-").map(Number);
+        const [hours, minutes] = timeStr.split(":").map(Number);
         // Note: month is 0-indexed in Date constructors
         return new TZDate(year, month - 1, day, hours, minutes, 0, timezone);
       }
 
-      const [hours, minutes] = timeStr.split(':').map(Number);
+      const [hours, minutes] = timeStr.split(":").map(Number);
       const date = new Date(dateStr);
       if (Number.isNaN(date.getTime())) {
         return null;
@@ -701,24 +824,35 @@ async function getScheduledCheckoutTime(
       date.setHours(hours, minutes, 0, 0);
       return date;
     } catch (err) {
-      console.error('[getScheduledCheckoutTime] Failed to build datetime:', err);
+      console.error(
+        "[getScheduledCheckoutTime] Failed to build datetime:",
+        err,
+      );
       return null;
     }
   };
 
   let endDate: Date | null = null;
 
-  if (typedProject.event_type === 'oneTime' && schedule.oneTime) {
+  if (typedProject.event_type === "oneTime" && schedule.oneTime) {
     endDate = toDateTime(schedule.oneTime.date, schedule.oneTime.endTime);
-  } else if (typedProject.event_type === 'multiDay' && schedule.multiDay) {
+  } else if (typedProject.event_type === "multiDay" && schedule.multiDay) {
     const { getMultiDaySlotByScheduleId } = await import("@/utils/project");
-    const slotData = getMultiDaySlotByScheduleId(typedProject as unknown as Project, scheduleId);
-    
+    const slotData = getMultiDaySlotByScheduleId(
+      typedProject as unknown as Project,
+      scheduleId,
+    );
+
     if (slotData) {
       endDate = toDateTime(slotData.day.date, slotData.slot.endTime);
     }
-  } else if (typedProject.event_type === 'sameDayMultiArea' && schedule.sameDayMultiArea) {
-    const roleByName = schedule.sameDayMultiArea.roles.find(role => role.name === scheduleId);
+  } else if (
+    typedProject.event_type === "sameDayMultiArea" &&
+    schedule.sameDayMultiArea
+  ) {
+    const roleByName = schedule.sameDayMultiArea.roles.find(
+      (role) => role.name === scheduleId,
+    );
     let role = roleByName;
 
     if (!role) {

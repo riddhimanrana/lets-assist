@@ -33,7 +33,9 @@ function isNonEmptyArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.length > 0;
 }
 
-function normalizeOptionalString(value: string | null | undefined): string | null {
+function normalizeOptionalString(
+  value: string | null | undefined,
+): string | null {
   const normalized = value?.trim();
   return normalized && normalized.length > 0 ? normalized : null;
 }
@@ -43,8 +45,10 @@ function normalizeTargeting(
 ): OrganizationPluginTargetingConfig | undefined {
   if (!isRecord(value)) return undefined;
 
-  const modeRaw = typeof value.mode === "string" ? value.mode.toLowerCase() : undefined;
-  const mode = modeRaw === "any" ? "any" : modeRaw === "all" ? "all" : undefined;
+  const modeRaw =
+    typeof value.mode === "string" ? value.mode.toLowerCase() : undefined;
+  const mode =
+    modeRaw === "any" ? "any" : modeRaw === "all" ? "all" : undefined;
 
   const targeting: OrganizationPluginTargetingConfig = {
     ...(mode ? { mode } : {}),
@@ -55,7 +59,9 @@ function normalizeTargeting(
       ? { userProfileIds: value.userProfileIds }
       : {}),
     ...(isNonEmptyArray(value.userIds) ? { userIds: value.userIds } : {}),
-    ...(isNonEmptyArray(value.projectIds) ? { projectIds: value.projectIds } : {}),
+    ...(isNonEmptyArray(value.projectIds)
+      ? { projectIds: value.projectIds }
+      : {}),
     ...(isNonEmptyArray(value.anonymousEmails)
       ? { anonymousEmails: value.anonymousEmails }
       : {}),
@@ -91,12 +97,16 @@ export function matchesPluginTargeting(
 
   if (isNonEmptyArray(targeting.anonymousSignupIds)) {
     const candidate = normalizeOptionalString(context?.anonymousSignupId);
-    checks.push(Boolean(candidate && targeting.anonymousSignupIds.includes(candidate)));
+    checks.push(
+      Boolean(candidate && targeting.anonymousSignupIds.includes(candidate)),
+    );
   }
 
   if (isNonEmptyArray(targeting.userProfileIds)) {
     const candidate = normalizeOptionalString(context?.userProfileId);
-    checks.push(Boolean(candidate && targeting.userProfileIds.includes(candidate)));
+    checks.push(
+      Boolean(candidate && targeting.userProfileIds.includes(candidate)),
+    );
   }
 
   if (isNonEmptyArray(targeting.userIds)) {
@@ -110,11 +120,15 @@ export function matchesPluginTargeting(
   }
 
   if (isNonEmptyArray(targeting.anonymousEmails)) {
-    const candidate = normalizeOptionalString(context?.anonymousEmail)?.toLowerCase();
+    const candidate = normalizeOptionalString(
+      context?.anonymousEmail,
+    )?.toLowerCase();
     checks.push(
       Boolean(
         candidate &&
-          targeting.anonymousEmails.some((email) => email.toLowerCase() === candidate),
+        targeting.anonymousEmails.some(
+          (email) => email.toLowerCase() === candidate,
+        ),
       ),
     );
   }

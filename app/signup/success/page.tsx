@@ -27,12 +27,12 @@ type PageProps = {
   searchParams: Promise<SignupSuccessSearchParams>;
 };
 
-export default async function SignupSuccessPage({
-  searchParams,
-}: PageProps) {
+export default async function SignupSuccessPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const email = resolvedSearchParams.email;
-  const redirectPath = normalizeRedirectPath(resolvedSearchParams.redirect ?? null);
+  const redirectPath = normalizeRedirectPath(
+    resolvedSearchParams.redirect ?? null,
+  );
 
   if (!email) {
     // If no email is provided, redirect to signup
@@ -65,11 +65,15 @@ export default async function SignupSuccessPage({
             </div>
           </div>
           <div>
-            <CardTitle className="text-2xl">Account Created Successfully!</CardTitle>
+            <CardTitle className="text-2xl">
+              Account Created Successfully!
+            </CardTitle>
             <CardDescription className="mt-2">
               We&apos;ve sent a verification email to:
             </CardDescription>
-            <p className="text-sm font-semibold mt-1 text-foreground">{email}</p>
+            <p className="text-sm font-semibold mt-1 text-foreground">
+              {email}
+            </p>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -98,7 +102,11 @@ export default async function SignupSuccessPage({
           <div className="text-xs text-center text-muted-foreground">
             Already verified your email?{" "}
             <Link
-              href={redirectPath ? `/login?redirect=${encodeURIComponent(redirectPath)}` : "/login"}
+              href={
+                redirectPath
+                  ? `/login?redirect=${encodeURIComponent(redirectPath)}`
+                  : "/login"
+              }
               className="text-primary hover:underline font-medium"
             >
               Log in here
