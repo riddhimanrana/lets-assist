@@ -53,18 +53,12 @@ const OVERSIZED_BASELINE = Object.freeze({
   "lets-assist": Object.freeze({
     "app/api/resend/webhook/route.test.ts": 2067,
     "components/projects/ProjectsInfiniteScroll.tsx": 1759,
-    "services/csf-import-contract.ts": 1493,
     "components/organization/OrganizationTabs.tsx": 1340,
     "components/waiver/WaiverSigningDialog.tsx": 1321,
     "scripts/local-dev/dv-local-env.test.ts": 1283,
     "components/waiver/WaiverBuilderDialog.tsx": 1220,
-    "components/waiver/PdfViewerWithOverlay.tsx": 1010,
-    "app/dashboard/page.tsx": 915,
     "components/layout/Navbar.tsx": 880,
-    "components/projects/ProjectViewToggle.tsx": 752,
     "components/ui/sidebar.tsx": 723,
-    "components/projects/ProjectsMapView.tsx": 675,
-    "app/profile/[username]/page.tsx": 663,
   }),
   private: Object.freeze({
     "plugins/dvhs-csf/actions.ts": 11145,

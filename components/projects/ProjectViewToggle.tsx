@@ -19,7 +19,6 @@ import { ProjectsMapView } from "./ProjectsMapView";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { Badge } from "@/components/ui/badge";
-import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,217 +39,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { Project as BaseProject, Organization, Signup } from "@/types";
-import { getProjectRemainingSpots } from "@/lib/projects/availability";
-import { getProjectStatus as getProjectStatusUtil } from "@/utils/project";
-
-type ProjectWithExtras = BaseProject & {
-  organizations?: Organization;
-  total_confirmed?: number;
-  slots_filled?: number;
-  signups?: { status?: string }[] | Signup[];
-};
-
-const STORAGE_KEY = "preferred-project-view";
-const VALID_VIEWS = ["card", "list", "table", "map"] as const;
-
-type ValidView = (typeof VALID_VIEWS)[number];
-
-// Update the type definition to include "map"
-type ProjectViewToggleProps = {
-  projects: ProjectWithExtras[];
-  onVolunteerSortChange?: (sort: "asc" | "desc" | undefined) => void;
-  volunteerSort?: "asc" | "desc" | undefined;
-  view: ValidView;
-  onViewChangeAction: (view: ValidView) => void;
-};
-
-const formatTime = (timeString: string) => {
-  try {
-    const date = parse(timeString, "HH:mm", new Date());
-    return format(date, "h:mm a");
-  } catch {
-    return timeString;
-  }
-};
-
-const formatSpots = (count: number) => {
-  return `${count} ${count === 1 ? "spot" : "spots"} left`;
-};
-
-const formatDateDisplay = (project: ProjectWithExtras) => {
-  if (!project.event_type || !project.schedule) return "";
-
-  switch (project.event_type) {
-    case "oneTime": {
-      const dateStr = project.schedule.oneTime?.date;
-      if (!dateStr) return "";
-      const [year, month, dayNum] = dateStr.split("-").map(Number);
-      const date = new Date(year, month - 1, dayNum);
-      return format(date, "MMM d");
-    }
-    case "multiDay": {
-      if (
-        !project.schedule.multiDay ||
-        project.schedule.multiDay.length === 0
-      ) {
-        return "";
-      }
-      const dates = project.schedule.multiDay
-        .map((day) => {
-          const [year, month, dayNum] = day.date.split("-").map(Number);
-          return new Date(year, month - 1, dayNum);
-        })
-        .sort((a: Date, b: Date) => a.getTime() - b.getTime());
-
-      // If dates are in the same month
-      const allSameMonth = dates.every(
-        (date: Date) => date.getMonth() === dates[0].getMonth(),
-      );
-
-      if (dates.length <= 3) {
-        if (allSameMonth) {
-          // Format as "Mar 7, 9, 10"
-          return `${format(dates[0], "MMM")} ${dates
-            .map((date: Date) => format(date, "d"))
-            .join(", ")}`;
-        } else {
-          // Format as "Mar 7, Apr 9, 10"
-          return dates
-            .map((date: Date, i: number) => {
-              const prevDate = i > 0 ? dates[i - 1] : null;
-              if (!prevDate || prevDate.getMonth() !== date.getMonth()) {
-                return format(date, "MMM d");
-              }
-              return format(date, "d");
-            })
-            .join(", ");
-        }
-      } else {
-        // For more than 3 dates, show range
-        return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d")}`;
-      }
-    }
-    case "sameDayMultiArea": {
-      const dateStr = project.schedule.sameDayMultiArea?.date;
-      if (!dateStr) return "";
-      const [year, month, dayNum] = dateStr.split("-").map(Number);
-      const date = new Date(year, month - 1, dayNum);
-      return format(date, "MMM d");
-    }
-    default:
-      return "";
-  }
-};
-
-// Function to get a summary of event schedule for table view
-const getEventScheduleSummary = (project: ProjectWithExtras) => {
-  if (!project.event_type || !project.schedule) return "Not specified";
-
-  switch (project.event_type) {
-    case "oneTime": {
-      const dateStr = project.schedule.oneTime?.date;
-      if (!dateStr) {
-        return "Not specified";
-      }
-      const [year, month, dayNum] = dateStr.split("-").map(Number);
-      const dateFormat = new Date(year, month - 1, dayNum);
-      const date = format(dateFormat, "MMM d, yyyy");
-      const startTime = project.schedule.oneTime?.startTime;
-      const endTime = project.schedule.oneTime?.endTime;
-      if (startTime && endTime) {
-        return `${date}, ${formatTime(startTime)} - ${formatTime(endTime)}`;
-      }
-      if (startTime) {
-        return `${date}, starts ${formatTime(startTime)}`;
-      }
-      if (endTime) {
-        return `${date}, ends ${formatTime(endTime)}`;
-      }
-      return date;
-    }
-    case "multiDay": {
-      if (
-        !project.schedule.multiDay ||
-        project.schedule.multiDay.length === 0
-      ) {
-        return "Not specified";
-      }
-      const days = project.schedule.multiDay.length;
-      const startDateStr = project.schedule.multiDay[0].date;
-      const endDateStr = project.schedule.multiDay[days - 1].date;
-
-      const [startYear, startMonth, startDayNum] = startDateStr
-        .split("-")
-        .map(Number);
-      const [endYear, endMonth, endDayNum] = endDateStr.split("-").map(Number);
-
-      const startDateFormat = new Date(startYear, startMonth - 1, startDayNum);
-      const endDateFormat = new Date(endYear, endMonth - 1, endDayNum);
-
-      const startDate = format(startDateFormat, "MMM d");
-      const endDate = format(endDateFormat, "MMM d");
-
-      return `${days} days (${startDate} - ${endDate})`;
-    }
-    case "sameDayMultiArea": {
-      if (!project.schedule.sameDayMultiArea?.date) {
-        return "Not specified";
-      }
-      const dateStr = project.schedule.sameDayMultiArea.date;
-      const [year, month, dayNum] = dateStr.split("-").map(Number);
-      const dateFormat = new Date(year, month - 1, dayNum);
-      const date = format(dateFormat, "MMM d, yyyy");
-      const roles = project.schedule.sameDayMultiArea.roles.length;
-      return `${date}, ${roles} roles`;
-    }
-    default:
-      return "Not specified";
-  }
-};
-
-// New function to get remaining spots
-const getRemainingSpots = (project: ProjectWithExtras) => {
-  return getProjectRemainingSpots(project);
-};
-
-// Function to check if project has upcoming status
-// Uses actual event dates to determine if project is truly upcoming/in-progress
-const isUpcomingProject = (project: ProjectWithExtras) => {
-  const actualStatus = getProjectStatusUtil(project);
-  return actualStatus === "upcoming" || actualStatus === "in-progress";
-};
-
-// Function to get project organization or creator name
-const getProjectCreator = (project: ProjectWithExtras) => {
-  if (project.organization) {
-    return project.organization.name || "Organization";
-  } else if (project.organization_id && project.organizations) {
-    // Alternative structure where the organization info is in 'organizations'
-    return project.organizations.name || "Organization";
-  }
-  return project.profiles?.full_name || "Anonymous";
-};
-
-// Function to get project creator's avatar URL
-const getCreatorAvatarUrl = (project: ProjectWithExtras) => {
-  if (project.organization) {
-    return project.organization.logo_url;
-  } else if (project.organization_id && project.organizations) {
-    return project.organizations.logo_url;
-  }
-  return project.profiles?.avatar_url;
-};
-
-// Function to check if the project's organization is verified
-const isOrganizationVerified = (project: ProjectWithExtras) => {
-  if (project.organization) {
-    return project.organization.verified || false;
-  } else if (project.organization_id && project.organizations) {
-    return project.organizations.verified || false;
-  }
-  return false;
-};
+import {
+  formatDateDisplay,
+  formatSpots,
+  getCreatorAvatarUrl,
+  getEventScheduleSummary,
+  getProjectCreator,
+  getRemainingSpots,
+  isOrganizationVerified,
+  isUpcomingProject,
+} from "./project-view/project-display";
+import {
+  PROJECT_VIEW_STORAGE_KEY,
+  VALID_PROJECT_VIEWS,
+  type ProjectViewToggleProps,
+  type ProjectWithExtras,
+  type ValidProjectView,
+} from "./project-view/types";
 
 export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
   projects,
@@ -266,13 +71,16 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
   // Update the effect to properly handle view persistence
   useEffect(() => {
     if (!initialViewLoaded) {
-      const savedView = localStorage.getItem(STORAGE_KEY);
-      if (savedView && VALID_VIEWS.includes(savedView as ValidView)) {
-        onViewChangeAction(savedView as ValidView);
+      const savedView = localStorage.getItem(PROJECT_VIEW_STORAGE_KEY);
+      if (
+        savedView &&
+        VALID_PROJECT_VIEWS.includes(savedView as ValidProjectView)
+      ) {
+        onViewChangeAction(savedView as ValidProjectView);
       }
       setInitialViewLoaded(true);
     } else {
-      localStorage.setItem(STORAGE_KEY, view);
+      localStorage.setItem(PROJECT_VIEW_STORAGE_KEY, view);
     }
   }, [view, onViewChangeAction, initialViewLoaded]);
 
