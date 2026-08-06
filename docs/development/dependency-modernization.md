@@ -58,10 +58,29 @@ Validation completed for this group:
 - pinned Supabase CLI `--help`, version, and existing exact-version contract tests
 - production dependency audit re-run; unrelated findings remain open under `CLEAN-003`
 
+## Playwright and test-tooling group — 2026-08-05
+
+| Package family           | Previous | Selected | Decision                                                                                                                      |
+| ------------------------ | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Playwright               | 1.61.0   | 1.62.1   | Latest stable runner and library, pinned to the same version; Chromium 151 browser binaries installed outside the repository. |
+| Faker                    | 10.4.0   | 10.5.0   | Latest stable patch compatible with the selected Node 22 runtime.                                                             |
+| Baseline browser mapping | 2.10.18  | 2.11.12  | Latest stable browser-support dataset.                                                                                        |
+
+Playwright 1.62 no longer supports Debian 11; CI uses `ubuntu-latest`, so no retained runner depends on the removed platform. The new config loader transformed the imported `.mjs` isolation validator through CommonJS until the repository declared its actual ESM package boundary. `package.json` now sets `type: module`, the sole CommonJS `.js` file (`next-sitemap.config.js`) now uses ESM, and `@next/env` is loaded through its CommonJS-compatible default export. Both browser configs now load the real isolated validator and fail closed at the expected missing-stack check when no generated stack is selected.
+
+Validation completed for this group:
+
+- frozen Bun install and Playwright `1.62.1` CLI version
+- current Chromium and headless-shell installation outside tracked source
+- `bun run quality:static`
+- `bun run test`, including the ESM config-loader regression and 2,426 private-plugin tests
+- both Playwright configs loaded through their real CLI path and reached the intended isolated-stack refusal
+- preview-isolated production build under Node `22.23.2`, including ESM sitemap generation and 80 routes
+- production dependency audit re-run; unrelated findings remain open under `CLEAN-003`
+
 ## Remaining groups
 
-1. Playwright and test tooling.
-2. PostHog, OpenTelemetry, and AI packages.
-3. Resend, Stripe, Google integrations, and general utilities.
+1. PostHog, OpenTelemetry, and AI packages.
+2. Resend, Stripe, Google integrations, and general utilities.
 
 The completion condition remains no critical/high advisory, no unreviewed lower-severity advisory, no stale compatible direct dependency, and no unexplained duplicate family.

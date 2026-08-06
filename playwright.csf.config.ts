@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { loadEnvConfig } from "@next/env";
+import nextEnv from "@next/env";
 import { defineConfig, devices } from "@playwright/test";
 
 import {
@@ -9,6 +9,8 @@ import {
   getCsfIsolatedSupabaseEnv,
   inspectCsfIsolatedWorkDir,
 } from "./scripts/local-dev/dv-local-env.mjs";
+
+const { loadEnvConfig } = nextEnv;
 
 loadEnvConfig(process.cwd());
 

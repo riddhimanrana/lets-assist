@@ -283,6 +283,26 @@ describe("CI replays the five-route cron smoke in the right order", () => {
 describe("both browser suites start only the isolated app runner", () => {
   const configs = ["playwright.csf.config.ts", "playwright.dv.config.ts"];
 
+  test("Playwright loads the isolated ESM validator without a CommonJS transform", () => {
+    const packageJson = JSON.parse(
+      readFileSync(join(repositoryRoot, "package.json"), "utf8"),
+    ) as { type?: string };
+    const csfConfig = readFileSync(
+      join(repositoryRoot, "playwright.csf.config.ts"),
+      "utf8",
+    );
+    const sitemapConfig = readFileSync(
+      join(repositoryRoot, "next-sitemap.config.js"),
+      "utf8",
+    );
+
+    expect(packageJson.type).toBe("module");
+    expect(csfConfig).toContain('from "./scripts/local-dev/dv-local-env.mjs"');
+    expect(csfConfig).toContain('import nextEnv from "@next/env"');
+    expect(sitemapConfig).toContain('import fg from "fast-glob"');
+    expect(sitemapConfig).toContain("export default {");
+  });
+
   test("each web server is the runner on the owned fixed port", () => {
     for (const file of configs) {
       const source = readFileSync(join(repositoryRoot, file), "utf8");
