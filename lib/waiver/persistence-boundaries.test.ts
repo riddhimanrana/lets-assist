@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { readProjectActionSource } from "@/tests/support/project-action-source";
 
 const ROOT = process.cwd();
 
@@ -9,7 +10,7 @@ function read(relativePath: string) {
 }
 
 test("anonymous waiver discovery is not exposed as an email oracle", () => {
-  const actionSource = read("app/projects/[id]/actions.ts");
+  const actionSource = readProjectActionSource(ROOT);
   const formSource = read("app/projects/[id]/ProjectForm.tsx");
 
   assert.doesNotMatch(
@@ -21,7 +22,7 @@ test("anonymous waiver discovery is not exposed as an email oracle", () => {
 });
 
 test("every supported signature mode persists its real evidence", () => {
-  const actionSource = read("app/projects/[id]/actions.ts");
+  const actionSource = readProjectActionSource(ROOT);
 
   assert.match(actionSource, /signature_storage_path: signatureStoragePath/u);
   assert.match(actionSource, /upload_storage_path: uploadStoragePath/u);
@@ -48,7 +49,7 @@ test("signed uploads are read from the private evidence bucket", () => {
 });
 
 test("public waiver lookup resolves project visibility before service-role definition access", () => {
-  const source = read("app/projects/[id]/actions.ts");
+  const source = readProjectActionSource(ROOT);
   const lookupStart = source.indexOf("export async function getProjectWaiver");
   const lookupEnd = source.indexOf(
     "export async function uploadProjectWaiverPdf",
@@ -66,7 +67,7 @@ test("public waiver lookup resolves project visibility before service-role defin
 });
 
 test("waiver definition reads and versioned saves remain scoped to their project", () => {
-  const source = read("app/projects/[id]/actions.ts");
+  const source = readProjectActionSource(ROOT);
   const readStart = source.indexOf("export async function getWaiverDefinition");
   const saveStart = source.indexOf(
     "export async function saveWaiverDefinition",
@@ -93,32 +94,31 @@ test("waiver definition reads and versioned saves remain scoped to their project
 });
 
 test("registered signup captures its row id before waiver persistence and plugin hooks", () => {
-  const source = read("app/projects/[id]/actions.ts");
-  const signupStart = source.indexOf("export async function signUpForProject");
-  const registeredStart = source.indexOf("if (user) {", signupStart);
-  const anonymousStart = source.indexOf(
-    "} else if (isAnonymous && anonymousData)",
-    registeredStart,
-  );
-  const registeredFlow = source.slice(registeredStart, anonymousStart);
+  const orchestration = read("app/projects/[id]/server/signup.ts");
+  const registeredFlow = read("app/projects/[id]/server/signup-registered.ts");
 
   assert.match(registeredFlow, /insertProjectSignupAtomically/u);
-  assert.match(registeredFlow, /createdSignupId = insertedSignup\.id/u);
-  assert.doesNotMatch(source, /else if \(user\)/u);
+  assert.match(registeredFlow, /createdSignupId: insertedSignup\.id/u);
+  assert.match(orchestration, /registerAuthenticatedSignup/u);
+  assert.match(
+    orchestration,
+    /createdSignupId = registeredResult\.createdSignupId/u,
+  );
+  assert.doesNotMatch(orchestration, /else if \(user\)/u);
 
-  const waiverStart = source.indexOf(
+  const waiverStart = orchestration.indexOf(
     "if ((project.waiver_required || waiverSignature) && createdSignupId)",
   );
-  const hooksStart = source.indexOf(
+  const hooksStart = orchestration.indexOf(
     "if (project.organization_id && createdSignupId)",
     waiverStart,
   );
-  assert.ok(waiverStart > anonymousStart);
+  assert.ok(waiverStart > orchestration.indexOf("registerAnonymousSignup"));
   assert.ok(hooksStart > waiverStart);
 });
 
 test("multi-slot waiver reuse copies evidence instead of sharing cleanup paths", () => {
-  const source = read("app/projects/[id]/actions.ts");
+  const source = readProjectActionSource(ROOT);
   const cloneStart = source.indexOf(
     "async function cloneAnonymousWaiverSignatureToSignup",
   );
@@ -140,7 +140,7 @@ test("multi-slot waiver reuse copies evidence instead of sharing cleanup paths",
 });
 
 test("signup cancellation and project deletion cannot erase signed evidence", () => {
-  const source = read("app/projects/[id]/actions.ts");
+  const source = readProjectActionSource(ROOT);
   const cancelStart = source.indexOf("export async function cancelSignup");
   const cancelEnd = source.indexOf("export async function", cancelStart + 30);
   const cancelFlow = source.slice(cancelStart, cancelEnd);

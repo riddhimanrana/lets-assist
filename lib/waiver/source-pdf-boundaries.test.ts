@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { readProjectActionSource } from "@/tests/support/project-action-source";
 
 const ROOT = process.cwd();
 
@@ -35,7 +36,7 @@ test("preview and download load source PDFs through the bounded server loader", 
 });
 
 test("signatures snapshot source paths and definition saves are version-on-write", () => {
-  const actions = read("app/projects/[id]/actions.ts");
+  const actions = readProjectActionSource(ROOT);
 
   assert.match(actions, /waiver_pdf_storage_path: waiverPdfStoragePath/u);
   assert.match(actions, /save_project_waiver_definition_version/u);

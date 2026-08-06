@@ -2,14 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { readOrganizationSheetActionsSource } from "@/tests/support/organization-sheet-actions-source";
 
 const readWorkspaceFile = (relativePath: string) =>
   readFileSync(join(process.cwd(), relativePath), "utf8");
 
 test("manual and cron report syncs share the RAW write-first replacement", () => {
-  const manual = readWorkspaceFile(
-    "app/organization/[id]/reports/sheets-actions.ts",
-  );
+  const manual = readOrganizationSheetActionsSource();
   const cron = readWorkspaceFile(
     "app/api/cron/organization-sheet-sync/route.ts",
   );

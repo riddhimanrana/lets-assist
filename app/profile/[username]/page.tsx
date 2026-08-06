@@ -11,7 +11,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { format, parseISO, differenceInMinutes, isBefore } from "date-fns";
+import { format } from "date-fns";
 import { notFound } from "next/navigation";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import {
@@ -37,49 +37,14 @@ import { stripHtml } from "@/lib/utils";
 import OrganizationCard from "@/app/organization/OrganizationCard";
 import { resolveOrganizationPluginExperiences } from "@/lib/plugins/resolve-org-plugins";
 import { ProfileActions } from "./ProfileActions";
-
-interface Profile {
-  id: string;
-  username: string;
-  full_name: string;
-  avatar_url: string | null;
-  created_at: string;
-  volunteer_hours?: number;
-  verified_hours?: number;
-  trusted_member?: boolean;
-  profile_visibility?: string | null;
-}
-
-interface Project {
-  id: string;
-  title: string;
-  description: string;
-  location: string;
-  event_type: string;
-  status: "upcoming" | "in-progress" | "completed" | "cancelled";
-  created_at: string;
-  cover_image_url?: string;
-}
-
-interface Organization {
-  id: string;
-  name: string;
-  username: string;
-  type: string;
-  verified: boolean;
-  logo_url: string | null;
-  description: string | null;
-}
-
-interface OrganizationMembership {
-  role: "admin" | "staff" | "member";
-  organizations: Organization[];
-}
-
-interface OrganizationResponse {
-  role: "admin" | "staff" | "member";
-  organizations: Organization[];
-}
+import {
+  buildProfileMetadata,
+  calculateHours,
+  type OrganizationMembership,
+  type OrganizationResponse,
+  type Profile,
+  type Project,
+} from "./profile-page-data";
 
 type Props = {
   params: Promise<{ username: string }>;
@@ -87,67 +52,7 @@ type Props = {
 
 export async function generateMetadata(params: Props): Promise<Metadata> {
   const { username } = await params.params;
-  const { data: profile } = await getPublicProfileByUsername(username);
-
-  const baseUrl = new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ??
-      (process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000"),
-  );
-  const profileUrl = new URL(`/profile/${username}`, baseUrl);
-  const ogImageUrl = new URL(`/profile/${username}/opengraph-image`, baseUrl);
-  const displayName = profile?.full_name || username;
-  const isPublic = profile?.profile_visibility === "public";
-  const description = isPublic
-    ? `Profile page for ${displayName}`
-    : "Profile on Let's Assist.";
-
-  return {
-    title: `${displayName} (${username})` || username,
-    description,
-    metadataBase: baseUrl,
-    alternates: {
-      canonical: profileUrl,
-    },
-    openGraph: {
-      title: `${displayName} (${username})` || username,
-      description,
-      type: "profile",
-      url: profileUrl,
-      siteName: "Let's Assist",
-      images: [
-        {
-          url: ogImageUrl,
-          width: 1200,
-          height: 630,
-          alt: `${displayName} — Let's Assist`,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: `${displayName} (${username})` || username,
-      description,
-      images: [ogImageUrl],
-    },
-  };
-}
-
-// Helper function to calculate hours (copied from dashboard logic)
-function calculateHours(startTimeStr: string, endTimeStr: string): number {
-  try {
-    if (!startTimeStr || !endTimeStr) return 0;
-    const start = parseISO(startTimeStr);
-    const end = parseISO(endTimeStr);
-    if (isBefore(end, start)) return 0;
-    // Calculate difference in minutes, then convert to hours, rounded to 1 decimal place
-    const diffMins = differenceInMinutes(end, start);
-    return Math.round((diffMins / 60) * 10) / 10;
-  } catch (e) {
-    console.error("Error calculating hours:", e, { startTimeStr, endTimeStr });
-    return 0;
-  }
+  return buildProfileMetadata(username);
 }
 
 export default async function ProfilePage(

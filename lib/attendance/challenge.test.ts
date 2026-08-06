@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { readAttendanceActionSource } from "@/tests/support/attendance-action-source";
 
 import {
   createAttendanceCheckoutCapability,
@@ -190,10 +191,7 @@ test("attendance Server Actions require signed presence and never return stored 
     join(process.cwd(), "app/attend/[projectId]/prepare/actions.ts"),
     "utf8",
   );
-  const attendanceActions = readFileSync(
-    join(process.cwd(), "app/attend/[projectId]/actions.ts"),
-    "utf8",
-  );
+  const attendanceActions = readAttendanceActionSource();
   const qrActions = readFileSync(
     join(process.cwd(), "app/projects/[id]/attendance/qr-actions.ts"),
     "utf8",

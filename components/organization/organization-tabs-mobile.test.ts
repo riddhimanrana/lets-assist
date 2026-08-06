@@ -1,10 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
-const source = readFileSync(
+const controllerSource = readFileSync(
   new URL("./OrganizationTabs.tsx", import.meta.url),
   "utf8",
 );
+const navigationSource = readFileSync(
+  new URL("./OrganizationTabsNavigation.tsx", import.meta.url),
+  "utf8",
+);
+const source = `${controllerSource}\n${navigationSource}`;
 
 describe("compact organization navigation on phones", () => {
   test("opts into the full-section switcher through existing navigation metadata", () => {
@@ -83,8 +88,8 @@ describe("compact organization navigation on phones", () => {
     expect(source).toContain(
       "const activeMoreTab = morePluginTabs.find((tab) =>\n    isNavigationValueActive(tab.value, activeTab, activePluginParentValue),\n  );",
     );
-    expect(source).toContain(
-      "const isActive = isNavigationValueActive(\n                    pt.value,\n                    activeTab,\n                    activePluginParentValue,\n                  );",
+    expect(source).toMatch(
+      /const isActive = isNavigationValueActive\(\s*pt\.value,\s*activeTab,\s*activePluginParentValue,?\s*\);/u,
     );
     expect(source).toContain(
       '{isActive ? <Check aria-hidden="true" /> : null}',

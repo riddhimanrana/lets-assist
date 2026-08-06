@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { readOrganizationSheetActionsSource } from "@/tests/support/organization-sheet-actions-source";
+import { readCalendarServiceSource } from "@/tests/support/calendar-service-source";
 
 const root = process.cwd();
 const readSource = (path: string) => readFileSync(join(root, path), "utf8");
@@ -35,11 +37,9 @@ describe("Google OAuth credential purpose boundaries", () => {
   });
 
   test("generic and organization consumers declare a purpose binding", () => {
-    const service = readSource("services/calendar.ts");
+    const service = readCalendarServiceSource();
     const orgCalendar = readSource("lib/organization/calendar-sync.ts");
-    const orgSheets = readSource(
-      "app/organization/[id]/reports/sheets-actions.ts",
-    );
+    const orgSheets = readOrganizationSheetActionsSource();
     const sheetsWorker = readSource(
       "app/api/cron/organization-sheet-sync/route.ts",
     );
@@ -60,14 +60,12 @@ describe("Google OAuth credential purpose boundaries", () => {
   });
 
   test("disconnects delete only the selected purpose credential and report shared-grant handling", () => {
-    const service = readSource("services/calendar.ts");
+    const service = readCalendarServiceSource();
     const personalDisconnect = readSource(
       "app/api/calendar/google/disconnect/route.ts",
     );
     const orgCalendar = readSource("app/organization/[id]/calendar/actions.ts");
-    const orgSheets = readSource(
-      "app/organization/[id]/reports/sheets-actions.ts",
-    );
+    const orgSheets = readOrganizationSheetActionsSource();
 
     expect(service).toContain(
       "options.expectedBinding ?? PERSONAL_CALENDAR_GOOGLE_BINDING",
@@ -93,7 +91,7 @@ describe("Google OAuth credential purpose boundaries", () => {
   });
 
   test("organization token reads reauthorize the current membership and exact CSF capability", () => {
-    const service = readSource("services/calendar.ts");
+    const service = readCalendarServiceSource();
     const authorizationIndex = service.indexOf(
       "authorizeGoogleOAuthOrganizationRequest({",
     );
@@ -113,7 +111,7 @@ describe("Google OAuth credential purpose boundaries", () => {
   });
 
   test("slow token refreshes reauthorize before persistence and return", () => {
-    const service = readSource("services/calendar.ts");
+    const service = readCalendarServiceSource();
     const functionStart = service.indexOf(
       "export async function getGoogleAccessTokenForUser(",
     );
@@ -148,7 +146,7 @@ describe("Google OAuth credential purpose boundaries", () => {
 
   test("OAuth token failures never log provider response bodies", () => {
     const callback = readSource("app/api/calendar/google/callback/route.ts");
-    const service = readSource("services/calendar.ts");
+    const service = readCalendarServiceSource();
     const refreshStart = service.indexOf("async function refreshAccessToken(");
     const refreshEnd = service.indexOf(
       "\n/**\n * Get a valid access token",
@@ -165,7 +163,7 @@ describe("Google OAuth credential purpose boundaries", () => {
 
   test("unbound legacy rows fail closed and are surfaced as reconnect-required", () => {
     const store = readSource("lib/auth/google-oauth-connection-store.ts");
-    const service = readSource("services/calendar.ts");
+    const service = readCalendarServiceSource();
     const calendarPage = readSource("app/account/calendar/page.tsx");
     const csfActions = readSource(
       "lib/plugins/private/plugins/dvhs-csf/actions.ts",

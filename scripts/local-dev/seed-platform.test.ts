@@ -12,10 +12,13 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const seedSource = readFileSync(
-  new URL("./seed-platform.mjs", import.meta.url),
-  "utf8",
-);
+const seedSource = [
+  "./seed-platform.mjs",
+  "./seed-platform-fixtures.mjs",
+  "./seed-platform-csf-plan.mjs",
+]
+  .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
+  .join("\n");
 const actorHelperSource = readFileSync(
   new URL("../../tests/e2e/csf/helpers.ts", import.meta.url),
   "utf8",

@@ -121,7 +121,7 @@ describe("getGoogleDriveFileMetadata", () => {
    */
   const acquisitionSource = (() => {
     const source = readFileSync(
-      join(import.meta.dir, "google-sheets.ts"),
+      join(import.meta.dir, "google-drive.ts"),
       "utf8",
     );
     const start = source.indexOf(
@@ -663,12 +663,12 @@ describe("getCsfSheetSourceLiveEvidence", () => {
    */
   test("the wrapper keeps its own independent identity and MIME refusals", () => {
     const source = readFileSync(
-      join(import.meta.dir, "google-sheets.ts"),
+      join(import.meta.dir, "google-drive.ts"),
       "utf8",
     );
     const wrapper = source.slice(
       source.indexOf("export async function getCsfSheetSourceLiveEvidence"),
-      source.indexOf("const GOOGLE_SHEETS_MAX_COLUMN_INDEX"),
+      source.length,
     );
     expect(wrapper).toContain("metadata.id !== metadata.requestedFileId");
     expect(wrapper).toContain('reason: "identity_mismatch"');
