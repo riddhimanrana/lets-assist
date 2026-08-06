@@ -1,7 +1,7 @@
-const fg = require("fast-glob");
+import fg from "fast-glob";
 
 /** @type {import('next-sitemap').IConfig} */
-module.exports = {
+export default {
   siteUrl: "https://lets-assist.com/",
   generateIndexSitemap: false,
   generateRobotsTxt: true,
