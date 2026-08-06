@@ -52,7 +52,6 @@ const BINARY_EXTENSIONS = new Set([
 const OVERSIZED_BASELINE = Object.freeze({
   "lets-assist": Object.freeze({
     "components/projects/ProjectsInfiniteScroll.tsx": 1759,
-    "components/waiver/WaiverSigningDialog.tsx": 1321,
   }),
   private: Object.freeze({
     "plugins/dvhs-csf/actions.ts": 11145,

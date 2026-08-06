@@ -13,29 +13,14 @@ import { Button } from "@/components/ui/button";
 import {
   SignerData,
   SignaturePayload,
-  WaiverDefinitionSigner,
   WaiverDefinitionFull,
   WaiverDefinitionField,
 } from "@/types/waiver-definitions";
 import { WaiverSignatureInput } from "@/types/waiver";
-import { SignatureCapture } from "./SignatureCapture";
-import type { CustomPlacement } from "./PdfViewerWithOverlay";
-import { validateWaiverFieldValue, WaiverFieldForm } from "./WaiverFieldForm";
-import { WaiverConsentStep } from "./WaiverConsentStep";
-import {
-  Loader2,
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle,
-  Upload,
-  PenTool,
-  ExternalLink,
-  Download,
-  Printer,
-} from "lucide-react";
+import { validateWaiverFieldValue } from "./WaiverFieldForm";
+import { Loader2, Upload } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { toast } from "sonner";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -92,16 +77,8 @@ function normalizeWaiverPdfUrl(url: string | null | undefined): string | null {
   }
 }
 
-type StepType = "review" | "fields" | "sign" | "confirm";
-
-interface WizardStep {
-  id: string;
-  type: StepType;
-  title: string;
-  description?: string;
-  signer?: WaiverDefinitionSigner;
-  isLast?: boolean;
-}
+import { WaiverSigningStepsPanel } from "./waiver-signing/WaiverSigningStepsPanel";
+import { useWaiverSigningDefinition } from "./waiver-signing/useWaiverSigningDefinition";
 
 export function WaiverSigningDialog({
   isOpen,
@@ -140,174 +117,15 @@ export function WaiverSigningDialog({
     }
   }, [isOpen]);
 
-  // Construct effective definition (Legacy support)
-  const effectiveDefinition = useMemo(() => {
-    if (waiverDefinition) return waiverDefinition;
-
-    // Fallback for legacy waivers
-    const dummySigner: WaiverDefinitionSigner = {
-      id: "legacy-signer",
-      waiver_definition_id: "legacy",
-      role_key: "volunteer",
-      label: "Volunteer",
-      required: true,
-      order_index: 0,
-      rules: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    return {
-      id: "legacy",
-      scope: "project",
-      project_id: null,
-      title: "Waiver",
-      version: 1,
-      active: true,
-      pdf_storage_path: null,
-      pdf_public_url: safeWaiverPdfUrl || null,
-      source: "project_pdf",
-      created_by: null,
-      created_at: "",
-      updated_at: "",
-      signers: [dummySigner],
-      fields: [],
-    } as WaiverDefinitionFull;
-  }, [waiverDefinition, safeWaiverPdfUrl]);
-
-  // Sort signers ensure correct order
-  const sortedSigners = useMemo(() => {
-    if (effectiveDefinition.signers.length > 0) {
-      return [...effectiveDefinition.signers].sort(
-        (a, b) => a.order_index - b.order_index,
-      );
-    }
-    // Legacy check: if no signers defined but we have legacy mode, create one
-    return [
-      {
-        id: "legacy-signer",
-        waiver_definition_id: "legacy",
-        role_key: "volunteer",
-        label: "Volunteer",
-        required: true,
-        order_index: 0,
-        rules: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-    ];
-  }, [effectiveDefinition.signers]);
-
-  // Build Wizard Steps
-  const steps = useMemo<WizardStep[]>(() => {
-    const s: WizardStep[] = [];
-
-    // Step 1: Review/Consent
-    s.push({
-      id: "review",
-      type: "review",
-      title: "Review Waiver",
-      description: "Please review the waiver document.",
-    });
-
-    // Global/Common Fields (fields with no signer_role_key)
-    const globalFields = effectiveDefinition.fields.filter(
-      (f) => f.field_type !== "signature" && !f.signer_role_key,
-    );
-
-    if (globalFields.length > 0) {
-      s.push({
-        id: "global-fields",
-        type: "fields",
-        title: "Your Information",
-        description: "Please provide your details.",
-        // No signer attached
-      });
-    }
-
-    // Per-signer steps
-    sortedSigners.forEach((signer) => {
-      // Check if this signer has any non-signature fields
-      const signerFields = effectiveDefinition.fields.filter(
-        (f) =>
-          f.signer_role_key === signer.role_key && f.field_type !== "signature",
-      );
-
-      if (signerFields.length > 0) {
-        s.push({
-          id: `fields-${signer.role_key}`,
-          type: "fields",
-          title: `${signer.label} Information`,
-          description: `Please fill in the required fields for ${signer.label}.`,
-          signer: signer,
-        });
-      }
-
-      // Only add signature step if:
-      // 1. There are actual signature boxes placed for this role
-      // 2. OR this is a legacy-style single signer (volunteer) and definition fields are empty
-      const hasSignatureField = effectiveDefinition.fields.some(
-        (f) =>
-          f.signer_role_key === signer.role_key && f.field_type === "signature",
-      );
-
-      const isLegacyVolunteer =
-        effectiveDefinition.id === "legacy" && signer.role_key === "volunteer";
-
-      if (hasSignatureField || isLegacyVolunteer) {
-        s.push({
-          id: `sign-${signer.role_key}`,
-          type: "sign",
-          title: `Sign as ${signer.label}`,
-          description: `Please provide your signature for ${signer.label}.`,
-          signer: signer,
-        });
-      }
-    });
-
-    if (s.length > 0) {
-      s[s.length - 1].isLast = true;
-    }
-
-    return s;
-  }, [effectiveDefinition, sortedSigners]);
-
+  const {
+    effectiveDefinition,
+    sortedSigners,
+    steps,
+    generatedWaiverPreview,
+    allPlacements,
+  } = useWaiverSigningDefinition(waiverDefinition, safeWaiverPdfUrl);
   const currentStep = steps[currentStepIndex];
   const hasPdfDocument = Boolean(safeWaiverPdfUrl);
-
-  const generatedWaiverPreview = useMemo(() => {
-    const signerLabels = sortedSigners.map((s) => s.label).join(", ");
-    const signersText = signerLabels.length > 0 ? signerLabels : "Volunteer";
-
-    return [
-      "WAIVER & RELEASE OF LIABILITY",
-      "",
-      "By participating in this activity, I acknowledge and agree that participation may involve risks, including possible injury, loss, or damage.",
-      "",
-      "I voluntarily assume all such risks and release the organizer, host venue, and affiliated staff/volunteers from claims arising from my participation, except where prohibited by law.",
-      "",
-      `This waiver applies to the following signer role(s): ${signersText}.`,
-      "",
-      "I confirm that I have read this waiver, understand its contents, and agree that my electronic signature is legally binding.",
-      "",
-      "Signed electronically via Lets Assist.",
-    ].join("\n");
-  }, [sortedSigners]);
-
-  // Convert ALL definition fields to placements for PDF overlay value rendering.
-  // (We still keep currentSignerFields for any step-specific UX decisions.)
-  const allPlacements = useMemo<CustomPlacement[]>(() => {
-    return (effectiveDefinition.fields || []).map((field) => ({
-      id: field.id ?? field.field_key,
-      fieldKey: field.field_key,
-      label: field.label,
-      signerRoleKey: field.signer_role_key || "global",
-      fieldType: field.field_type,
-      required: field.required,
-      pageIndex: field.page_index,
-      rect: field.rect,
-    }));
-  }, [effectiveDefinition.fields]);
 
   // Logic to determine if current step is valid
   const isStepValid = useMemo(() => {
@@ -648,670 +466,69 @@ export function WaiverSigningDialog({
                 maxSize="66%"
                 className="min-w-0"
               >
-                {/* Right Panel / Steps Container */}
-                <div className="h-full flex flex-col bg-background overflow-hidden relative z-10 shadow-sm">
-                  <div className="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth">
-                    {/* Step Content */}
-                    <div className="space-y-6">
-                      {/* Review Consent Step */}
-                      {currentStep?.type === "review" && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                          <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 text-sm mb-4">
-                            {hasPdfDocument
-                              ? "Please review the waiver document on the left carefully."
-                              : "Please review the generated waiver text on the left carefully."}
-                          </div>
-
-                          {/* Always provide explicit PDF actions in the review step */}
-                          {safeWaiverPdfUrl && (
-                            <div className="grid gap-2 sm:grid-cols-3">
-                              <Button
-                                variant="outline"
-                                className="w-full"
-                                onClick={() =>
-                                  window.open(
-                                    safeWaiverPdfUrl,
-                                    "_blank",
-                                    "noopener,noreferrer",
-                                  )
-                                }
-                              >
-                                <ExternalLink className="h-4 w-4 mr-2" />
-                                View PDF
-                              </Button>
-                              <Button
-                                variant="outline"
-                                className="w-full"
-                                onClick={handleDownload}
-                              >
-                                <Download className="h-4 w-4 mr-2" />
-                                Download
-                              </Button>
-                              <Button
-                                variant="outline"
-                                className="w-full"
-                                onClick={handlePrint}
-                              >
-                                <Printer className="h-4 w-4 mr-2" />
-                                Print
-                              </Button>
-                            </div>
-                          )}
-
-                          {!hasPdfDocument && (
-                            <div className="rounded-lg border bg-muted/30 p-4">
-                              <p className="text-xs font-medium text-muted-foreground mb-2">
-                                Generated waiver preview
-                              </p>
-                              <p className="text-sm text-muted-foreground whitespace-pre-wrap max-h-56 overflow-y-auto leading-6">
-                                {generatedWaiverPreview}
-                              </p>
-                            </div>
-                          )}
-
-                          <WaiverConsentStep
-                            consented={consented}
-                            onConsent={setConsented}
-                            waiverTitle={effectiveDefinition.title}
-                          />
-
-                          {/* Choice between E-Sign and Print/Upload */}
-                          {!disableEsignature && (
-                            <div className="pt-6 mt-6 border-t">
-                              <h4 className="font-semibold text-sm mb-4">
-                                How would you like to sign?
-                              </h4>
-                              <div className="grid gap-3">
-                                <div className="p-3 sm:p-4 border-2 border-primary rounded-lg bg-primary/5">
-                                  <div className="flex flex-col sm:flex-row items-start gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                      <PenTool className="h-5 w-5 text-primary" />
-                                    </div>
-                                    <div className="flex-1 min-w-0 w-full">
-                                      <h5 className="font-medium text-sm mb-1">
-                                        Sign Electronically (Recommended)
-                                      </h5>
-                                      <p className="text-xs text-muted-foreground mb-3">
-                                        Complete your signature directly in your
-                                        browser. Fast and secure.
-                                      </p>
-                                      <Button
-                                        variant="default"
-                                        size="sm"
-                                        onClick={handleNext}
-                                        disabled={!consented}
-                                        className="w-full"
-                                      >
-                                        Continue to E-Sign
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {allowUpload && (
-                                  <div className="p-3 sm:p-4 border rounded-lg">
-                                    <div className="flex flex-col sm:flex-row items-start gap-3">
-                                      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                                        <Upload className="h-5 w-5 text-muted-foreground" />
-                                      </div>
-                                      <div className="flex-1 min-w-0 w-full">
-                                        <h5 className="font-medium text-sm mb-1">
-                                          Print, Sign & Upload
-                                        </h5>
-                                        <p className="text-xs text-muted-foreground mb-3">
-                                          Download the waiver, print it, sign
-                                          manually, and upload a photo or scan.
-                                        </p>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={handleOfflineUpload}
-                                          className="w-full"
-                                        >
-                                          <Upload className="mr-2 h-4 w-4" />{" "}
-                                          Upload Signed Copy
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Print/Upload only mode */}
-                          {disableEsignature && allowUpload && (
-                            <div className="pt-8 mt-8 border-t">
-                              <div className="text-center">
-                                <p className="text-sm text-muted-foreground mb-3">
-                                  This waiver requires a printed and signed
-                                  copy.
-                                </p>
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={handleOfflineUpload}
-                                  className="w-full"
-                                >
-                                  <Upload className="mr-2 h-4 w-4" /> Upload
-                                  Signed Waiver
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Fields Step */}
-                      {currentStep?.type === "fields" && (
-                        <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                          {currentStep.signer ? (
-                            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                              <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs">
-                                {sortedSigners.indexOf(currentStep.signer) + 1}
-                              </span>
-                              {currentStep.signer.label} Details
-                            </h3>
-                          ) : (
-                            <h3 className="text-lg font-semibold mb-4">
-                              Your Information
-                            </h3>
-                          )}
-                          <WaiverFieldForm
-                            fields={
-                              currentStep.signer
-                                ? effectiveDefinition.fields.filter(
-                                    (f) =>
-                                      f.signer_role_key ===
-                                      currentStep.signer?.role_key,
-                                  )
-                                : effectiveDefinition.fields.filter(
-                                    (f) => !f.signer_role_key,
-                                  )
-                            }
-                            values={fieldValues}
-                            onChange={handleFieldChange}
-                            signerRoleKey={currentStep.signer?.role_key}
-                            showErrors={false}
-                            className="pb-4"
-                          />
-                        </div>
-                      )}
-
-                      {/* Signature Step */}
-                      {currentStep?.type === "sign" && currentStep.signer && (
-                        <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                          {disableEsignature && (
-                            <Alert className="mb-4 border-warning/40 bg-warning/10 text-warning">
-                              <AlertDescription className="text-sm">
-                                ⚠️ This waiver requires a printed, signed, and
-                                uploaded copy. E-signatures are not available.
-                              </AlertDescription>
-                            </Alert>
-                          )}
-
-                          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs">
-                              {sortedSigners.indexOf(currentStep.signer) + 1}
-                            </span>
-                            Sign as {currentStep.signer.label}
-                          </h3>
-
-                          {disableEsignature ? (
-                            <div className="space-y-4">
-                              <div className="p-6 border-2 border-dashed rounded-lg text-center">
-                                <Upload className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-                                <p className="text-sm font-medium mb-2">
-                                  Print and Upload Required
-                                </p>
-                                <p className="text-xs text-muted-foreground mb-4">
-                                  Please download the waiver, print it, sign it,
-                                  and upload a scanned copy.
-                                </p>
-                                <div className="flex flex-col gap-2">
-                                  <Button
-                                    variant="outline"
-                                    onClick={handleDownload}
-                                  >
-                                    Download Waiver PDF
-                                  </Button>
-                                  <Button onClick={handleOfflineUpload}>
-                                    <Upload className="mr-2 h-4 w-4" /> Upload
-                                    Signed Copy
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <SignatureCapture
-                              signerRole={currentStep.signer}
-                              onSignatureComplete={(sig) =>
-                                handleSignatureComplete(
-                                  currentStep.signer!.role_key,
-                                  sig,
-                                )
-                              }
-                              existingSignature={
-                                signatures[currentStep.signer.role_key]
-                              }
-                              userName={defaultSignerName}
-                              allowUpload={false}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Footer Controls */}
-                  <div className="p-4 border-t bg-background shrink-0 flex items-center justify-between gap-4 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                    {currentStep?.type === "review" && !disableEsignature ? (
-                      <div className="w-full text-center text-xs text-muted-foreground">
-                        Choose your signing method above to continue
-                      </div>
-                    ) : (
-                      <>
-                        <Button
-                          variant="outline"
-                          onClick={handleBack}
-                          disabled={isSubmitting || currentStepIndex === 0}
-                          data-testid="waiver-signer-back"
-                        >
-                          <ArrowLeft className="h-4 w-4 mr-2" /> Back
-                        </Button>
-
-                        <div className="flex gap-2">
-                          {(currentStep?.type === "sign" ||
-                            currentStep?.type === "fields") &&
-                            currentStep.signer &&
-                            !currentStep.signer.required && (
-                              <Button
-                                variant="outline"
-                                onClick={handleSkipOptionalSigner}
-                                disabled={isSubmitting}
-                                className="shadow-sm"
-                                data-testid="waiver-signer-skip-optional"
-                              >
-                                Skip (Optional)
-                              </Button>
-                            )}
-
-                          {currentStep?.isLast ? (
-                            <Button
-                              onClick={handleSubmit}
-                              disabled={!isStepValid || isSubmitting}
-                              className="w-32 shadow-md"
-                              variant="default"
-                              data-testid="waiver-signer-complete"
-                            >
-                              {isSubmitting ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <>
-                                  Complete{" "}
-                                  <CheckCircle className="h-4 w-4 ml-2" />
-                                </>
-                              )}
-                            </Button>
-                          ) : (
-                            <Button
-                              onClick={handleNext}
-                              disabled={
-                                !isStepValid ||
-                                (currentStep?.type === "review" && !consented)
-                              }
-                              className="shadow-sm"
-                              data-testid="waiver-signer-next"
-                            >
-                              Next <ArrowRight className="h-4 w-4 ml-2" />
-                            </Button>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
+                <WaiverSigningStepsPanel
+                  isDesktop={true}
+                  currentStepIndex={currentStepIndex}
+                  steps={steps}
+                  currentStep={currentStep}
+                  hasPdfDocument={hasPdfDocument}
+                  generatedWaiverPreview={generatedWaiverPreview}
+                  safeWaiverPdfUrl={safeWaiverPdfUrl}
+                  handleDownload={handleDownload}
+                  handlePrint={handlePrint}
+                  handleOfflineUpload={handleOfflineUpload}
+                  consented={consented}
+                  setConsented={setConsented}
+                  effectiveDefinition={effectiveDefinition}
+                  disableEsignature={disableEsignature}
+                  allowUpload={allowUpload}
+                  handleNext={handleNext}
+                  sortedSigners={sortedSigners}
+                  fieldValues={fieldValues}
+                  handleFieldChange={handleFieldChange}
+                  handleSignatureComplete={handleSignatureComplete}
+                  signatures={signatures}
+                  defaultSignerName={defaultSignerName}
+                  handleBack={handleBack}
+                  isSubmitting={isSubmitting}
+                  handleSkipOptionalSigner={handleSkipOptionalSigner}
+                  handleSubmit={handleSubmit}
+                  isStepValid={isStepValid}
+                />
               </ResizablePanel>
             </ResizablePanelGroup>
           ) : (
             <div className="h-full w-full min-h-0 overflow-hidden">
               {/* Right Panel / Steps Container */}
-              <div className="w-full h-full flex flex-col bg-background overflow-hidden transition-all absolute inset-0 z-10">
-                {/* Mobile Header (since global header might be covered or we want context) */}
-                {!isDesktop && (
-                  <div className="bg-muted/10 p-2 text-center text-xs font-medium border-b flex justify-between px-4 items-center">
-                    <span>
-                      Step {currentStepIndex + 1} of {steps.length}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {currentStep?.title}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth">
-                  {/* Step Content */}
-                  <div className="space-y-6">
-                    {/* Review Consent Step */}
-                    {currentStep?.type === "review" && (
-                      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                        {isDesktop && (
-                          <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 text-sm mb-4">
-                            Please review the waiver document on the left
-                            carefully.
-                          </div>
-                        )}
-
-                        {/* Always provide explicit PDF actions in the review step */}
-                        {safeWaiverPdfUrl && (
-                          <div className="grid gap-2 sm:grid-cols-3">
-                            <Button
-                              variant="outline"
-                              className="w-full"
-                              onClick={() =>
-                                window.open(
-                                  safeWaiverPdfUrl,
-                                  "_blank",
-                                  "noopener,noreferrer",
-                                )
-                              }
-                            >
-                              <ExternalLink className="h-4 w-4 mr-2" />
-                              View PDF
-                            </Button>
-                            <Button
-                              variant="outline"
-                              className="w-full"
-                              onClick={handleDownload}
-                            >
-                              <Download className="h-4 w-4 mr-2" />
-                              Download
-                            </Button>
-                            <Button
-                              variant="outline"
-                              className="w-full"
-                              onClick={handlePrint}
-                            >
-                              <Printer className="h-4 w-4 mr-2" />
-                              Print
-                            </Button>
-                          </div>
-                        )}
-
-                        {!hasPdfDocument && (
-                          <div className="rounded-lg border bg-muted/30 p-4">
-                            <p className="text-xs font-medium text-muted-foreground mb-2">
-                              Generated waiver preview
-                            </p>
-                            <p className="text-sm text-muted-foreground whitespace-pre-wrap max-h-56 overflow-y-auto leading-6">
-                              {generatedWaiverPreview}
-                            </p>
-                          </div>
-                        )}
-
-                        <WaiverConsentStep
-                          consented={consented}
-                          onConsent={setConsented}
-                          waiverTitle={effectiveDefinition.title}
-                        />
-
-                        {/* Choice between E-Sign and Print/Upload */}
-                        {!disableEsignature && (
-                          <div className="pt-6 mt-6 border-t">
-                            <h4 className="font-semibold text-sm mb-4">
-                              How would you like to sign?
-                            </h4>
-                            <div className="grid gap-3">
-                              <div className="p-3 sm:p-4 border-2 border-primary rounded-lg bg-primary/5">
-                                <div className="flex flex-col sm:flex-row items-start gap-3">
-                                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                    <PenTool className="h-5 w-5 text-primary" />
-                                  </div>
-                                  <div className="flex-1 min-w-0 w-full">
-                                    <h5 className="font-medium text-sm mb-1">
-                                      Sign Electronically (Recommended)
-                                    </h5>
-                                    <p className="text-xs text-muted-foreground mb-3">
-                                      Complete your signature directly in your
-                                      browser. Fast and secure.
-                                    </p>
-                                    <Button
-                                      variant="default"
-                                      size="sm"
-                                      onClick={handleNext}
-                                      disabled={!consented}
-                                      className="w-full"
-                                    >
-                                      Continue to E-Sign
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {allowUpload && (
-                                <div className="p-3 sm:p-4 border rounded-lg">
-                                  <div className="flex flex-col sm:flex-row items-start gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                                      <Upload className="h-5 w-5 text-muted-foreground" />
-                                    </div>
-                                    <div className="flex-1 min-w-0 w-full">
-                                      <h5 className="font-medium text-sm mb-1">
-                                        Print, Sign & Upload
-                                      </h5>
-                                      <p className="text-xs text-muted-foreground mb-3">
-                                        Download the waiver, print it, sign
-                                        manually, and upload a photo or scan.
-                                      </p>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleOfflineUpload}
-                                        className="w-full"
-                                      >
-                                        <Upload className="mr-2 h-4 w-4" />{" "}
-                                        Upload Signed Copy
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Print/Upload only mode */}
-                        {disableEsignature && allowUpload && (
-                          <div className="pt-8 mt-8 border-t">
-                            <div className="text-center">
-                              <p className="text-sm text-muted-foreground mb-3">
-                                This waiver requires a printed and signed copy.
-                              </p>
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={handleOfflineUpload}
-                                className="w-full"
-                              >
-                                <Upload className="mr-2 h-4 w-4" /> Upload
-                                Signed Waiver
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Fields Step */}
-                    {currentStep?.type === "fields" && (
-                      <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                        {currentStep.signer ? (
-                          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs">
-                              {sortedSigners.indexOf(currentStep.signer) + 1}
-                            </span>
-                            {currentStep.signer.label} Details
-                          </h3>
-                        ) : (
-                          <h3 className="text-lg font-semibold mb-4">
-                            Your Information
-                          </h3>
-                        )}
-                        <WaiverFieldForm
-                          fields={
-                            currentStep.signer
-                              ? effectiveDefinition.fields.filter(
-                                  (f) =>
-                                    f.signer_role_key ===
-                                    currentStep.signer?.role_key,
-                                )
-                              : effectiveDefinition.fields.filter(
-                                  (f) => !f.signer_role_key,
-                                )
-                          }
-                          values={fieldValues}
-                          onChange={handleFieldChange}
-                          signerRoleKey={currentStep.signer?.role_key}
-                          showErrors={false} // Could enable this on "next" attempt
-                          className="pb-4"
-                        />
-                      </div>
-                    )}
-
-                    {/* Signature Step */}
-                    {currentStep?.type === "sign" && currentStep.signer && (
-                      <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                        {disableEsignature && (
-                          <Alert className="mb-4 border-warning/40 bg-warning/10 text-warning">
-                            <AlertDescription className="text-sm">
-                              ⚠️ This waiver requires a printed, signed, and
-                              uploaded copy. E-signatures are not available.
-                            </AlertDescription>
-                          </Alert>
-                        )}
-
-                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                          <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs">
-                            {sortedSigners.indexOf(currentStep.signer) + 1}
-                          </span>
-                          Sign as {currentStep.signer.label}
-                        </h3>
-
-                        {disableEsignature ? (
-                          <div className="space-y-4">
-                            <div className="p-6 border-2 border-dashed rounded-lg text-center">
-                              <Upload className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-                              <p className="text-sm font-medium mb-2">
-                                Print and Upload Required
-                              </p>
-                              <p className="text-xs text-muted-foreground mb-4">
-                                Please download the waiver, print it, sign it,
-                                and upload a scanned copy.
-                              </p>
-                              <div className="flex flex-col gap-2">
-                                <Button
-                                  variant="outline"
-                                  onClick={handleDownload}
-                                >
-                                  Download Waiver PDF
-                                </Button>
-                                <Button onClick={handleOfflineUpload}>
-                                  <Upload className="mr-2 h-4 w-4" /> Upload
-                                  Signed Copy
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <SignatureCapture
-                            signerRole={currentStep.signer}
-                            onSignatureComplete={(sig) =>
-                              handleSignatureComplete(
-                                currentStep.signer!.role_key,
-                                sig,
-                              )
-                            }
-                            existingSignature={
-                              signatures[currentStep.signer.role_key]
-                            }
-                            userName={defaultSignerName}
-                            allowUpload={false} // Only draw/type allowed here. Full upload handled separately.
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Footer Controls */}
-                <div className="p-4 border-t bg-background shrink-0 flex items-center justify-between gap-4 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                  {currentStep?.type === "review" && !disableEsignature ? (
-                    // Special footer for review step with choice - no nav buttons
-                    <div className="w-full text-center text-xs text-muted-foreground">
-                      Choose your signing method above to continue
-                    </div>
-                  ) : (
-                    <>
-                      <Button
-                        variant="outline"
-                        onClick={handleBack}
-                        disabled={isSubmitting || currentStepIndex === 0}
-                        data-testid="waiver-signer-back"
-                      >
-                        <ArrowLeft className="h-4 w-4 mr-2" /> Back
-                      </Button>
-
-                      <div className="flex gap-2">
-                        {/* Skip button for optional signers */}
-                        {(currentStep?.type === "sign" ||
-                          currentStep?.type === "fields") &&
-                          currentStep.signer &&
-                          !currentStep.signer.required && (
-                            <Button
-                              variant="outline"
-                              onClick={handleSkipOptionalSigner}
-                              disabled={isSubmitting}
-                              className="shadow-sm"
-                              data-testid="waiver-signer-skip-optional"
-                            >
-                              Skip (Optional)
-                            </Button>
-                          )}
-
-                        {currentStep?.isLast ? (
-                          <Button
-                            onClick={handleSubmit}
-                            disabled={!isStepValid || isSubmitting}
-                            className="w-32 shadow-md"
-                            variant="default" // Primary action
-                            data-testid="waiver-signer-complete"
-                          >
-                            {isSubmitting ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                Complete{" "}
-                                <CheckCircle className="h-4 w-4 ml-2" />
-                              </>
-                            )}
-                          </Button>
-                        ) : (
-                          <Button
-                            onClick={handleNext}
-                            disabled={
-                              !isStepValid ||
-                              (currentStep?.type === "review" && !consented)
-                            }
-                            className="shadow-sm"
-                            data-testid="waiver-signer-next"
-                          >
-                            Next <ArrowRight className="h-4 w-4 ml-2" />
-                          </Button>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
+              <WaiverSigningStepsPanel
+                isDesktop={false}
+                currentStepIndex={currentStepIndex}
+                steps={steps}
+                currentStep={currentStep}
+                hasPdfDocument={hasPdfDocument}
+                generatedWaiverPreview={generatedWaiverPreview}
+                safeWaiverPdfUrl={safeWaiverPdfUrl}
+                handleDownload={handleDownload}
+                handlePrint={handlePrint}
+                handleOfflineUpload={handleOfflineUpload}
+                consented={consented}
+                setConsented={setConsented}
+                effectiveDefinition={effectiveDefinition}
+                disableEsignature={disableEsignature}
+                allowUpload={allowUpload}
+                handleNext={handleNext}
+                sortedSigners={sortedSigners}
+                fieldValues={fieldValues}
+                handleFieldChange={handleFieldChange}
+                handleSignatureComplete={handleSignatureComplete}
+                signatures={signatures}
+                defaultSignerName={defaultSignerName}
+                handleBack={handleBack}
+                isSubmitting={isSubmitting}
+                handleSkipOptionalSigner={handleSkipOptionalSigner}
+                handleSubmit={handleSubmit}
+                isStepValid={isStepValid}
+              />
             </div>
           )}
         </div>
