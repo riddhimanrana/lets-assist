@@ -57,8 +57,6 @@ const OVERSIZED_BASELINE = Object.freeze({
     "components/waiver/WaiverSigningDialog.tsx": 1321,
     "scripts/local-dev/dv-local-env.test.ts": 1283,
     "components/waiver/WaiverBuilderDialog.tsx": 1220,
-    "components/layout/Navbar.tsx": 880,
-    "components/ui/sidebar.tsx": 723,
   }),
   private: Object.freeze({
     "plugins/dvhs-csf/actions.ts": 11145,
