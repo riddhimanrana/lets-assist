@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { readOrganizationSheetActionsSource } from "@/tests/support/organization-sheet-actions-source";
 
 const root = process.cwd();
 const readSource = (path: string) => readFileSync(join(root, path), "utf8");
@@ -37,9 +38,7 @@ describe("Google OAuth credential purpose boundaries", () => {
   test("generic and organization consumers declare a purpose binding", () => {
     const service = readSource("services/calendar.ts");
     const orgCalendar = readSource("lib/organization/calendar-sync.ts");
-    const orgSheets = readSource(
-      "app/organization/[id]/reports/sheets-actions.ts",
-    );
+    const orgSheets = readOrganizationSheetActionsSource();
     const sheetsWorker = readSource(
       "app/api/cron/organization-sheet-sync/route.ts",
     );
@@ -65,9 +64,7 @@ describe("Google OAuth credential purpose boundaries", () => {
       "app/api/calendar/google/disconnect/route.ts",
     );
     const orgCalendar = readSource("app/organization/[id]/calendar/actions.ts");
-    const orgSheets = readSource(
-      "app/organization/[id]/reports/sheets-actions.ts",
-    );
+    const orgSheets = readOrganizationSheetActionsSource();
 
     expect(service).toContain(
       "options.expectedBinding ?? PERSONAL_CALENDAR_GOOGLE_BINDING",

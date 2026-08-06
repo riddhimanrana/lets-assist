@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { readProjectActionSource } from "@/tests/support/project-action-source";
 
 const root = join(import.meta.dir, "../..");
 
@@ -91,7 +92,7 @@ describe("plugin control-plane action wiring", () => {
 
   test("project creation and signup lifecycle integrations remain wired", () => {
     const projectCreate = read("app/projects/create/actions.ts");
-    const projectActions = read("app/projects/[id]/actions.ts");
+    const projectActions = readProjectActionSource(root);
     expect(projectCreate).toContain("runProjectCreate(plugin, {");
     expect(projectActions).toContain("runPluginOnSignup(definition, {");
   });

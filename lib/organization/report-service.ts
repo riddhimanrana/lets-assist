@@ -4,117 +4,34 @@ import { escapeCsvCell } from "@/lib/organization/report-output-safety";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { differenceInMinutes, endOfDay, format, startOfDay } from "date-fns";
+
+import { buildReportRows } from "@/lib/organization/report/rows";
+import type {
+  CertificateRow,
+  MonthlyHours,
+  OrganizationReportData,
+  ProjectRow,
+  ProjectSummary,
+  ReportDateRange,
+  ReportMetrics,
+  ReportType,
+  SignupRow,
+  VolunteerSummary,
+} from "@/lib/organization/report/types";
 import {
-  differenceInMinutes,
-  eachMonthOfInterval,
-  endOfDay,
-  endOfMonth,
-  format,
-  startOfDay,
-  startOfMonth,
-  subMonths,
-} from "date-fns";
+  buildMonthlyHoursSeed,
+  buildReportFilename,
+  resolveReportWindow,
+} from "@/lib/organization/report/window";
 
-export type ReportDateRange = {
-  from?: string;
-  to?: string;
-};
-
-type VolunteerSummary = {
-  key: string;
-  userId?: string | null;
-  name: string;
-  email: string | null;
-  source: "registered" | "anonymous";
-  totalHours: number;
-  verifiedHours: number;
-  pendingHours: number;
-  eventsAttended: number;
-  lastActivity?: string;
-};
-
-type MonthlyHours = {
-  month: string;
-  sortKey: string;
-  verified: number;
-  pending: number;
-  total: number;
-};
-
-type ProjectSummary = {
-  id: string;
-  title: string;
-  status: string | null;
-  verifiedHours: number;
-  pendingHours: number;
-  totalHours: number;
-  volunteerCount: number;
-};
-
-type ReportMetrics = {
-  totalVolunteers: number;
-  registeredVolunteers: number;
-  anonymousVolunteers: number;
-  verifiedHours: number;
-  pendingHours: number;
-  totalHours: number;
-  totalProjects: number;
-};
-
-type ProjectRow = {
-  id: string;
-  title: string;
-  status: string | null;
-  workflow_status?: string | null;
-  created_at?: string | null;
-};
-
-type CertificateRow = {
-  id: string;
-  user_id?: string | null;
-  volunteer_name?: string | null;
-  volunteer_email?: string | null;
-  is_certified: boolean;
-  type?: string | null;
-  issued_at: string;
-  project_id?: string | null;
-  project_title?: string | null;
-  event_start?: string | null;
-  event_end?: string | null;
-  signup_id?: string | null;
-};
-
-type SignupRow = {
-  id: string;
-  user_id?: string | null;
-  anonymous_id?: string | null;
-  check_in_time?: string | null;
-  check_out_time?: string | null;
-  project_id?: string | null;
-  schedule_id?: string | null;
-  profiles?:
-    | { id: string; full_name?: string | null; email?: string | null }
-    | { id: string; full_name?: string | null; email?: string | null }[]
-    | null;
-  anonymous_signup?:
-    | { id: string; name?: string | null; email?: string | null }
-    | { id: string; name?: string | null; email?: string | null }[]
-    | null;
-};
-
-export type OrganizationReportData = {
-  metrics: ReportMetrics;
-  volunteers: VolunteerSummary[];
-  monthlyHours: MonthlyHours[];
-  projects: ProjectSummary[];
-  updatedAt: string;
-};
-
-export type ReportType = "member-hours" | "project-summary" | "monthly-summary";
+export type {
+  OrganizationReportData,
+  ReportDateRange,
+  ReportType,
+} from "@/lib/organization/report/types";
 
 const roundHours = (hours: number) => Math.round(hours * 10) / 10;
-const DEFAULT_REPORT_MONTH_WINDOW = 12;
-
 const calculateHours = (start?: string | null, end?: string | null): number => {
   if (!start || !end) return 0;
   try {
@@ -126,72 +43,13 @@ const calculateHours = (start?: string | null, end?: string | null): number => {
   }
 };
 
-type ResolvedReportWindow = {
-  queryRange: Required<ReportDateRange>;
-  monthStart: Date;
-  monthEnd: Date;
-};
-
-const getResolvedReportWindow = (
-  range?: ReportDateRange,
-): ResolvedReportWindow => {
-  const now = new Date();
-  const fallbackFrom = startOfMonth(
-    subMonths(now, DEFAULT_REPORT_MONTH_WINDOW - 1),
-  );
-  const fallbackTo = endOfMonth(now);
-
-  const parsedFrom = range?.from ? new Date(range.from) : fallbackFrom;
-  const parsedTo = range?.to ? new Date(range.to) : fallbackTo;
-
-  const safeFrom = Number.isNaN(parsedFrom.getTime())
-    ? fallbackFrom
-    : parsedFrom;
-  const safeTo = Number.isNaN(parsedTo.getTime()) ? fallbackTo : parsedTo;
-  const [from, to] =
-    safeFrom <= safeTo ? [safeFrom, safeTo] : [safeTo, safeFrom];
-
-  return {
-    queryRange: {
-      from: startOfDay(from).toISOString(),
-      to: endOfDay(to).toISOString(),
-    },
-    monthStart: startOfMonth(from),
-    monthEnd: startOfMonth(to),
-  };
-};
-
-const buildMonthlyHoursSeed = (
-  monthStart: Date,
-  monthEnd: Date,
-): MonthlyHours[] =>
-  eachMonthOfInterval({ start: monthStart, end: monthEnd }).map(
-    (monthDate) => ({
-      month: format(monthDate, "MMM yyyy"),
-      sortKey: format(monthDate, "yyyy-MM"),
-      verified: 0,
-      pending: 0,
-      total: 0,
-    }),
-  );
-
-const buildFilename = (reportType: ReportType, range?: ReportDateRange) => {
-  const today = format(new Date(), "yyyy-MM-dd");
-  if (!range?.from || !range?.to) {
-    return `${reportType}-lifetime-${today}.csv`;
-  }
-  const from = format(new Date(range.from), "yyyy-MM-dd");
-  const to = format(new Date(range.to), "yyyy-MM-dd");
-  return `${reportType}-${from}-to-${to}.csv`;
-};
-
 async function buildReportDataForOrg(
   supabase: Awaited<ReturnType<typeof createClient>>,
   organizationId: string,
   dateRange?: ReportDateRange,
 ): Promise<{ data?: OrganizationReportData; error?: string }> {
   try {
-    const reportWindow = getResolvedReportWindow(dateRange);
+    const reportWindow = resolveReportWindow(dateRange);
 
     const { data: projects, error: projectsError } = (await supabase
       .from("projects")
@@ -604,70 +462,7 @@ export async function buildOrganizationReportRows(
   if (!report.data || report.error) {
     return { error: report.error || "Report unavailable" };
   }
-
-  if (reportType === "member-hours") {
-    const rows = [
-      [
-        "Volunteer Name",
-        "Email",
-        "Total Hours",
-        "Verified Hours",
-        "Pending Hours",
-        "Events Attended",
-        "Last Activity",
-        "Source",
-      ],
-      ...report.data.volunteers.map((volunteer) => [
-        volunteer.name,
-        volunteer.email || "",
-        (volunteer.totalHours ?? 0).toFixed(1),
-        (volunteer.verifiedHours ?? 0).toFixed(1),
-        (volunteer.pendingHours ?? 0).toFixed(1),
-        volunteer.eventsAttended.toString(),
-        volunteer.lastActivity
-          ? format(new Date(volunteer.lastActivity), "yyyy-MM-dd")
-          : "",
-        volunteer.source === "registered" ? "Registered" : "Anonymous",
-      ]),
-    ];
-
-    return { rows };
-  }
-
-  if (reportType === "project-summary") {
-    const rows = [
-      [
-        "Project",
-        "Status",
-        "Verified Hours",
-        "Pending Hours",
-        "Total Hours",
-        "Volunteer Count",
-      ],
-      ...report.data.projects.map((project) => [
-        project.title,
-        project.status || "",
-        (project.verifiedHours ?? 0).toFixed(1),
-        (project.pendingHours ?? 0).toFixed(1),
-        (project.totalHours ?? 0).toFixed(1),
-        project.volunteerCount.toString(),
-      ]),
-    ];
-
-    return { rows };
-  }
-
-  const rows = [
-    ["Month", "Verified Hours", "Pending Hours", "Total Hours"],
-    ...report.data.monthlyHours.map((month) => [
-      month.month,
-      (month.verified ?? 0).toFixed(1),
-      (month.pending ?? 0).toFixed(1),
-      (month.total ?? 0).toFixed(1),
-    ]),
-  ];
-
-  return { rows };
+  return { rows: buildReportRows(report.data, reportType) };
 }
 
 export async function buildOrganizationReportRowsForSync(
@@ -682,70 +477,7 @@ export async function buildOrganizationReportRowsForSync(
   if (!report.data || report.error) {
     return { error: report.error || "Report unavailable" };
   }
-
-  if (reportType === "member-hours") {
-    const rows = [
-      [
-        "Volunteer Name",
-        "Email",
-        "Total Hours",
-        "Verified Hours",
-        "Pending Hours",
-        "Events Attended",
-        "Last Activity",
-        "Source",
-      ],
-      ...report.data.volunteers.map((volunteer) => [
-        volunteer.name,
-        volunteer.email || "",
-        (volunteer.totalHours ?? 0).toFixed(1),
-        (volunteer.verifiedHours ?? 0).toFixed(1),
-        (volunteer.pendingHours ?? 0).toFixed(1),
-        volunteer.eventsAttended.toString(),
-        volunteer.lastActivity
-          ? format(new Date(volunteer.lastActivity), "yyyy-MM-dd")
-          : "",
-        volunteer.source === "registered" ? "Registered" : "Anonymous",
-      ]),
-    ];
-
-    return { rows };
-  }
-
-  if (reportType === "project-summary") {
-    const rows = [
-      [
-        "Project",
-        "Status",
-        "Verified Hours",
-        "Pending Hours",
-        "Total Hours",
-        "Volunteer Count",
-      ],
-      ...report.data.projects.map((project) => [
-        project.title,
-        project.status || "",
-        (project.verifiedHours ?? 0).toFixed(1),
-        (project.pendingHours ?? 0).toFixed(1),
-        (project.totalHours ?? 0).toFixed(1),
-        project.volunteerCount.toString(),
-      ]),
-    ];
-
-    return { rows };
-  }
-
-  const rows = [
-    ["Month", "Verified Hours", "Pending Hours", "Total Hours"],
-    ...report.data.monthlyHours.map((month) => [
-      month.month,
-      (month.verified ?? 0).toFixed(1),
-      (month.pending ?? 0).toFixed(1),
-      (month.total ?? 0).toFixed(1),
-    ]),
-  ];
-
-  return { rows };
+  return { rows: buildReportRows(report.data, reportType) };
 }
 
 export async function exportOrganizationReport(
@@ -766,6 +498,6 @@ export async function exportOrganizationReport(
   const csvRows = rows.map((row) => row.map(escapeCsvCell).join(","));
   return {
     csvData: csvRows.join("\n"),
-    filename: buildFilename(reportType, dateRange),
+    filename: buildReportFilename(reportType, dateRange),
   };
 }

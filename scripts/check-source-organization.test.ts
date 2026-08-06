@@ -56,8 +56,8 @@ describe("source organization guard", () => {
       findMaintainabilityIssues(
         [{ file: "app/projects/[id]/actions.ts", lines: 3698 }],
         "lets-assist",
-      ),
-    ).toEqual([]);
+      ).map((issue: { file: string }) => issue.file),
+    ).toEqual(["app/projects/[id]/actions.ts"]);
   });
 
   test("rejects generated artifacts", () => {

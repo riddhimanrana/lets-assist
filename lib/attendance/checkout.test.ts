@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { readProjectActionSource } from "@/tests/support/project-action-source";
 
 import { resolveServerCheckoutTime } from "./checkout";
 
@@ -34,10 +35,7 @@ test("participant and organizer checkout paths enforce separate ownership bounda
     join(process.cwd(), "app/attend/[projectId]/actions.ts"),
     "utf8",
   );
-  const organizerActions = readFileSync(
-    join(process.cwd(), "app/projects/[id]/actions.ts"),
-    "utf8",
-  );
+  const organizerActions = readProjectActionSource();
   const organizerClient = readFileSync(
     join(process.cwd(), "app/projects/[id]/attendance/AttendanceClient.tsx"),
     "utf8",
@@ -106,10 +104,7 @@ test("verified registered check-in crosses the client boundary through the serve
 });
 
 test("signup creation and anonymous confirmation use the capacity lock", () => {
-  const signupActions = readFileSync(
-    join(process.cwd(), "app/projects/[id]/actions.ts"),
-    "utf8",
-  );
+  const signupActions = readProjectActionSource();
   const confirmationPage = readFileSync(
     join(process.cwd(), "app/anonymous/[id]/confirm/page.tsx"),
     "utf8",

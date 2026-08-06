@@ -1,11 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
+import { readProjectActionSource } from "@/tests/support/project-action-source";
 
-const source = readFileSync(
-  `${process.cwd()}/app/projects/[id]/actions.ts`,
-  "utf8",
-);
+const source = readProjectActionSource();
 
 test("anonymous confirmation resend is CAPTCHA-first, rate-limited, and token-bound", () => {
   const start = source.indexOf(
@@ -34,10 +31,14 @@ test("domain-restricted signup-only projects still require email ownership proof
   );
   assert.match(
     source,
-    /status: anonymousEmailConfirmationRequired \? "pending" : "approved"/u,
+    /confirmationRequired: anonymousEmailConfirmationRequired/u,
   );
   assert.match(
     source,
-    /confirmed_at:\s*anonymousEmailConfirmationRequired\s*\?\s*null\s*:\s*new Date\(\)\.toISOString\(\)/u,
+    /status: confirmationRequired \? "pending" : "approved"/u,
+  );
+  assert.match(
+    source,
+    /confirmed_at:\s*confirmationRequired\s*\?\s*null\s*:\s*new Date\(\)\.toISOString\(\)/u,
   );
 });
