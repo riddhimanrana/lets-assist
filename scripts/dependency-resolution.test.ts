@@ -8,6 +8,7 @@ const manifest = JSON.parse(
   readFileSync(join(repositoryRoot, "package.json"), "utf8"),
 ) as {
   dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
   overrides?: Record<string, string>;
 };
 
@@ -25,5 +26,14 @@ describe("fresh-install dependency resolution", () => {
 
     expect(appVersion).toBe("8.20.0");
     expect(eslintVersion).toMatch(/^6\./);
+  });
+
+  test("declares the Tailwind v4 Shadcn stylesheet imported by globals.css", () => {
+    expect(manifest.devDependencies?.shadcn).toBe("4.16.2");
+
+    const appRequire = createRequire(join(repositoryRoot, "package.json"));
+    expect(appRequire.resolve("shadcn/tailwind.css")).toEndWith(
+      "/shadcn/dist/tailwind.css",
+    );
   });
 });
