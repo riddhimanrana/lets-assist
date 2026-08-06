@@ -51,11 +51,9 @@ const BINARY_EXTENSIONS = new Set([
 // entries as modules are split below their category limit.
 const OVERSIZED_BASELINE = Object.freeze({
   "lets-assist": Object.freeze({
-    "app/api/resend/webhook/route.test.ts": 2067,
     "components/projects/ProjectsInfiniteScroll.tsx": 1759,
     "components/organization/OrganizationTabs.tsx": 1340,
     "components/waiver/WaiverSigningDialog.tsx": 1321,
-    "scripts/local-dev/dv-local-env.test.ts": 1283,
     "components/waiver/WaiverBuilderDialog.tsx": 1220,
   }),
   private: Object.freeze({

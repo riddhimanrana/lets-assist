@@ -20,6 +20,7 @@ const groups = [
       "scripts/check-source-organization.test.ts",
       "scripts/check-supabase-seed-safety.test.ts",
       "scripts/private-submodule-ci-credential.test.ts",
+      "scripts/local-dev/dv-local-env-app.test.ts",
       "scripts/local-dev/dv-local-env.test.ts",
       "scripts/local-dev/supabase-cli-version.test.ts",
       "scripts/verify-supabase-migration-parity.test.ts",
