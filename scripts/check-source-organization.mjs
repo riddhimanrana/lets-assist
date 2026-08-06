@@ -52,9 +52,7 @@ const BINARY_EXTENSIONS = new Set([
 const OVERSIZED_BASELINE = Object.freeze({
   "lets-assist": Object.freeze({
     "app/api/resend/webhook/route.test.ts": 2067,
-    "services/google-sheets.ts": 1851,
     "components/projects/ProjectsInfiniteScroll.tsx": 1759,
-    "services/calendar.ts": 1582,
     "services/csf-import-contract.ts": 1493,
     "components/organization/OrganizationTabs.tsx": 1340,
     "components/waiver/WaiverSigningDialog.tsx": 1321,
@@ -63,7 +61,6 @@ const OVERSIZED_BASELINE = Object.freeze({
     "components/waiver/PdfViewerWithOverlay.tsx": 1010,
     "app/dashboard/page.tsx": 915,
     "components/layout/Navbar.tsx": 880,
-    "services/email.ts": 887,
     "components/projects/ProjectViewToggle.tsx": 752,
     "components/ui/sidebar.tsx": 723,
     "components/projects/ProjectsMapView.tsx": 675,

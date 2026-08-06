@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { readCalendarServiceSource } from "@/tests/support/calendar-service-source";
 
 import { resolveCalendarSyncSources } from "./calendar-sync-safety";
 
@@ -101,10 +102,7 @@ test("calendar sync loads and validates both sources before calling Google", () 
 test("organization calendar accepts the minimum app-created or staged legacy write grant", () => {
   const functionSource = readSyncFunctionSource();
   const tokenRead = statementAt(functionSource, "const accessToken");
-  const calendarService = readFileSync(
-    join(process.cwd(), "services/calendar.ts"),
-    "utf8",
-  );
+  const calendarService = readCalendarServiceSource();
 
   assert.ok(tokenRead.includes('connectionType: "calendar"'));
   assert.ok(

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import test from "node:test";
+import { readCalendarServiceSource } from "@/tests/support/calendar-service-source";
 
 import {
   classifyGoogleCalendarLookupError,
@@ -121,10 +120,7 @@ test("malformed and thrown lookups fail closed as retryable errors", () => {
 });
 
 test("organization calendar replacement is gated on the missing state", () => {
-  const calendarService = readFileSync(
-    join(process.cwd(), "services/calendar.ts"),
-    "utf8",
-  );
+  const calendarService = readCalendarServiceSource();
   const ensureStart = calendarService.indexOf(
     "export async function ensureOrganizationCalendar",
   );
@@ -174,15 +170,12 @@ test("organization calendar replacement is gated on the missing state", () => {
 });
 
 test("personal volunteering calendar replacement is gated on the missing state", () => {
-  const calendarService = readFileSync(
-    join(process.cwd(), "services/calendar.ts"),
-    "utf8",
-  );
+  const calendarService = readCalendarServiceSource();
   const ensureStart = calendarService.indexOf(
     "async function getOrCreateVolunteeringCalendar",
   );
   const ensureEnd = calendarService.indexOf(
-    "\nasync function getGoogleCalendarAccessState",
+    "\nexport async function getGoogleCalendarAccessState",
     ensureStart,
   );
   assert.ok(ensureStart >= 0 && ensureEnd > ensureStart);
