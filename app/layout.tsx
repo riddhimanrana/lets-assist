@@ -91,7 +91,7 @@ const nohemi = localFont({
 });
 
 const cheeseMilky = localFont({
-  src: "../Cheese Milky.otf",
+  src: "./fonts/cheese-milky.otf",
   display: "swap",
   variable: "--font-cheese-milky",
   weight: "400",
