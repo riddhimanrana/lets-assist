@@ -38,6 +38,6 @@ test("domain-restricted signup-only projects still require email ownership proof
   );
   assert.match(
     source,
-    /confirmed_at: anonymousEmailConfirmationRequired \? null : new Date\(\)\.toISOString\(\)/u,
+    /confirmed_at:\s*anonymousEmailConfirmationRequired\s*\?\s*null\s*:\s*new Date\(\)\.toISOString\(\)/u,
   );
 });

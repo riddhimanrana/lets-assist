@@ -41,7 +41,7 @@ const createTransport = mock(() => ({ sendMail }));
 
 mock.module("resend", () => ({ Resend: MockResend }));
 mock.module("@/lib/supabase/server", () => ({ createClient }));
-mock.module("@react-email/components", () => ({ render }));
+mock.module("react-email", () => ({ render }));
 mock.module("@/lib/logger", () => ({ logError, logInfo, logWarn }));
 mock.module("nodemailer", () => ({ createTransport }));
 

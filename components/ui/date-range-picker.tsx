@@ -3,7 +3,7 @@
 import * as React from "react";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
-import { DateRange } from "react-day-picker";
+import { DateRange } from "@daypicker/react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";

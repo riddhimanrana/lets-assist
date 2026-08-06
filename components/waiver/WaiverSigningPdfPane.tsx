@@ -39,6 +39,8 @@ export function WaiverSigningPdfPane({
   useEffect(() => {
     // Reset to page 1 when PDF changes
     setCurrentPage(1);
+    let isStale = false;
+    let loadingTask: pdfjsLib.PDFDocumentLoadingTask | null = null;
 
     const loadPdf = async () => {
       if (!pdfUrl) return;
@@ -46,12 +48,14 @@ export function WaiverSigningPdfPane({
       try {
         setLoading(true);
         setError(null);
-        const loadingTask = pdfjsLib.getDocument(pdfUrl);
+        loadingTask = pdfjsLib.getDocument({ url: pdfUrl });
         const doc = await loadingTask.promise;
+        if (isStale) return;
         setPdfDoc(doc);
         setPageCount(doc.numPages);
         setLoading(false);
       } catch (err) {
+        if (isStale) return;
         console.error("Error loading PDF:", err);
         setError("Failed to load PDF document.");
         setLoading(false);
@@ -59,6 +63,11 @@ export function WaiverSigningPdfPane({
     };
 
     loadPdf();
+
+    return () => {
+      isStale = true;
+      void loadingTask?.destroy();
+    };
   }, [pdfUrl]);
 
   // Handle page navigation

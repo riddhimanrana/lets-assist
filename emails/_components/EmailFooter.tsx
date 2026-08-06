@@ -1,4 +1,4 @@
-import { Section, Text, Link, Row, Column } from "@react-email/components";
+import { Section, Text, Link, Row, Column } from "react-email";
 import * as React from "react";
 
 export default function EmailFooter() {

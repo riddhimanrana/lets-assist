@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import fg from "fast-glob";
 
 const preload = [
   "--preload",
@@ -66,6 +68,41 @@ const groups = [
   },
 ];
 
+const testFilePatterns = [
+  "**/*.test.{ts,tsx,js,mjs,cjs}",
+  "**/*.spec.{ts,tsx,js,mjs,cjs}",
+];
+const discoveryIgnore = [
+  ".artifacts/**",
+  ".next/**",
+  "lib/plugins/**",
+  "node_modules/**",
+  "tests/e2e/**",
+];
+
+function filesNamedByGroup(group) {
+  return group.args.filter((arg) =>
+    /\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(arg),
+  );
+}
+
+const explicitlyGroupedFiles = new Set(groups.flatMap(filesNamedByGroup));
+const discoveredRootFiles = await fg(testFilePatterns, {
+  cwd: process.cwd(),
+  ignore: discoveryIgnore,
+  onlyFiles: true,
+  unique: true,
+});
+const remainingRootFiles = discoveredRootFiles
+  .filter((file) => !explicitlyGroupedFiles.has(file))
+  .sort();
+const isolatedMockFiles = remainingRootFiles.filter((file) =>
+  /\bmock\.module\s*\(/u.test(readFileSync(file, "utf8")),
+);
+const ordinaryRootFiles = remainingRootFiles.filter(
+  (file) => !isolatedMockFiles.includes(file),
+);
+
 function run(name, command, args) {
   console.log(`\n[test] ${name}`);
   const result = spawnSync(command, args, {
@@ -79,10 +116,22 @@ function run(name, command, args) {
 
 for (const group of groups) run(group.name, "bun", group.args);
 
+if (ordinaryRootFiles.length > 0) {
+  run("remaining root unit tests", "bun", [
+    "test",
+    ...preload,
+    ...ordinaryRootFiles,
+  ]);
+}
+
+for (const file of isolatedMockFiles) {
+  run(`mock-isolated root test: ${file}`, "bun", ["test", ...preload, file]);
+}
+
 if (!process.argv.includes("--root-only")) {
   run("plugin unit and security", "bun", ["test", ...preload, "lib/plugins"]);
 }
 
 console.log(
-  "\n[test] PASS: every mock-sensitive group passed in its own Bun process.",
+  `\n[test] PASS: ${discoveredRootFiles.length} root test files were discovered; every mock-sensitive file ran in its own Bun process.`,
 );

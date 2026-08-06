@@ -18,6 +18,8 @@ const navbarSource = readFileSync(
   new URL("../layout/Navbar.tsx", import.meta.url),
   "utf8",
 );
+const normalizedSource = source.replace(/\s+/gu, " ");
+const normalizedNavbarSource = navbarSource.replace(/\s+/gu, " ");
 
 const VIEWPORTS: NotificationViewport[] = ["mobile", "desktop"];
 
@@ -112,11 +114,11 @@ describe("notification trigger accessibility", () => {
   test("names every real and fallback trigger without adding visible text", () => {
     // Real trigger, hydration fallback: both labelled, both icon-only.
     expect(source.match(/aria-label="Notifications"/g)).toHaveLength(2);
-    expect(source).toContain(
-      '<Button className={triggerClasses} variant="ghost" aria-label="Notifications">',
+    expect(normalizedSource).toMatch(
+      /<Button className=\{triggerClasses\} variant="ghost" aria-label="Notifications"\s*>/u,
     );
     // The bell is decorative once the button itself carries the name.
-    expect(source).toContain('<Bell\n        aria-hidden="true"');
+    expect(normalizedSource).toContain('<Bell aria-hidden="true"');
     expect(source).toContain(
       '<Bell aria-hidden="true" className="h-5 w-5 text-muted-foreground" />',
     );
@@ -153,13 +155,13 @@ describe("single-instance mounting", () => {
   });
 
   test("requires an explicit viewport contract from the parent", () => {
-    expect(source).toContain(
-      "export function NotificationPopover({ viewport }: { viewport: NotificationViewport })",
+    expect(normalizedSource).toContain(
+      "export function NotificationPopover({ viewport, }: { viewport: NotificationViewport; })",
     );
-    expect(navbarSource).toContain(
+    expect(normalizedNavbarSource).toContain(
       '<NotificationPopover key={user.id} viewport="desktop" />',
     );
-    expect(navbarSource).toContain(
+    expect(normalizedNavbarSource).toContain(
       '<NotificationPopover key={user.id} viewport="mobile" />',
     );
     // No instance may be mounted without declaring its container.
@@ -178,7 +180,7 @@ describe("single-instance mounting", () => {
 
 describe("preserved notification behavior", () => {
   test("keeps the unread badge, drawer, popover and detail dialog", () => {
-    expect(source).toContain("{unreadCount > 9 ? '9+' : unreadCount}");
+    expect(source).toMatch(/\{unreadCount > 9 \? ["']9\+["'] : unreadCount\}/u);
     expect(source).toContain("<DrawerTrigger asChild>");
     expect(source).toContain("<PopoverTrigger render={NotificationTrigger} />");
     expect(source).toContain("<DrawerTitle>Notifications</DrawerTitle>");

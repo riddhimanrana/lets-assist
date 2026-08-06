@@ -8,7 +8,6 @@ This register separates actionable repository defects from provider/account and 
 | --------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | -------------------------------------------------------- |
 | CLEAN-001 | P2       | Split oversized root action, report, moderation, and seed modules without changing public contracts.                                                      | Root cleanup PRs       | Maintainability check plus focused tests and build       |
 | CLEAN-002 | P2       | Split oversized private CSF actions, dashboard assembly, and import-integrity tests.                                                                      | Private CSF cleanup PR | Private tests, root gitlink integration, isolated replay |
-| CLEAN-003 | P1       | Triage and resolve production dependency advisories; no unreviewed high/critical finding.                                                                 | Dependency PR series   | Lockfile-only audit report and hosted CI                 |
 | CLEAN-004 | P2       | Complete keyboard, focus, reduced-motion, and screen-reader acceptance for CSF roles and breakpoints.                                                     | CSF UX cleanup PR      | Automated checks plus sanitized browser evidence         |
 | CLEAN-005 | P2       | Complete visible synthetic CSF mutation lifecycle for profile claim/resolution, imports, applications, points, meetings/clubs, close/reopen, and reports. | CSF acceptance PR      | Role matrix at desktop/tablet/phone                      |
 
@@ -25,8 +24,9 @@ No repository-owned P0 is currently recorded. This is not a claim that undiscove
 
 ## Completed milestones
 
-| Milestone                           | Evidence                                                                                                                                                                  |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Root browser harness modularization | The former 3,277-line harness is split by launcher ownership, Docker lifecycle, verifier workflow, and CI contracts; all resulting test modules remain below 1,200 lines. |
-| Test process isolation              | `bun run test` executes mock-sensitive groups in separate Bun processes and completes the root and private-plugin suites.                                                 |
-| Artifact boundary                   | Generated browser output and formatter caches use ignored `.artifacts/`; the allowlisted cleaner is dry-run by default.                                                   |
+| Milestone                           | Evidence                                                                                                                                                                                               |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Root browser harness modularization | The former 3,277-line harness is split by launcher ownership, Docker lifecycle, verifier workflow, and CI contracts; all resulting test modules remain below 1,200 lines.                              |
+| Test process isolation              | `bun run test` executes mock-sensitive groups in separate Bun processes and completes the root and private-plugin suites.                                                                              |
+| Artifact boundary                   | Generated browser output and formatter caches use ignored `.artifacts/`; the allowlisted cleaner is dry-run by default.                                                                                |
+| Production dependency audit         | `bun audit --production` reports no vulnerabilities and now runs inside `quality:static`; compatible direct dependencies are current and four major-version holds have explicit peer/runtime evidence. |

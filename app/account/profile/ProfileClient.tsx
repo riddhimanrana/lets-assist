@@ -51,7 +51,7 @@ import { z } from "zod";
 import ImageCropper from "@/components/shared/ImageCropper";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { ProfileVisibility } from "@/types";

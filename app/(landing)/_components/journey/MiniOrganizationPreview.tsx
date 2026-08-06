@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { Building2, BadgeCheck, Users, Clock } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 
 interface Member {
   name: string;

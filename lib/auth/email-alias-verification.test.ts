@@ -80,7 +80,7 @@ test("alias writes are server-only and verification is bounded in SQL", () => {
 
   assert.match(
     actions,
-    /getAuthUser\(\{ sensitive: true, checkMfa: true \}\)/u,
+    /getAuthUser\(\{\s*sensitive:\s*true,\s*checkMfa:\s*true,?\s*\}\)/u,
   );
   assert.match(actions, /verify_user_email_alias/u);
   assert.match(actions, /issue_user_email_alias_verification/u);

@@ -8,8 +8,8 @@ const source = readFileSync(
 
 describe("compact organization navigation on phones", () => {
   test("opts into the full-section switcher through existing navigation metadata", () => {
-    expect(source).toContain(
-      "const usesFullSectionMobileNav = Boolean(pluginNavigationOverrides.compactHeader);",
+    expect(source).toMatch(
+      /const usesFullSectionMobileNav = Boolean\(\s*pluginNavigationOverrides\.compactHeader,?\s*\);/u,
     );
     expect(source).toContain('data-testid="organization-section-switcher"');
   });
@@ -95,8 +95,8 @@ describe("compact organization navigation on phones", () => {
 
   test("derives destinations only from server-filtered navigation inputs", () => {
     expect(source).toContain("...primaryPluginTabs.map((tab) => ({");
-    expect(source).toContain(
-      "const utilityCandidateDestinations: OrganizationNavigationDestination[] = morePluginTabs.map((tab) => ({",
+    expect(source).toMatch(
+      /const utilityCandidateDestinations: OrganizationNavigationDestination\[\] =\s*morePluginTabs\.map\(\(tab\) => \(\{/u,
     );
     expect(source).toContain("...visiblePluginRouteTabs.map((tab) => ({");
     // No plugin-specific destinations may be hardcoded in host navigation.
@@ -112,8 +112,8 @@ describe("compact organization navigation on phones", () => {
 
   test("preserves generic organization navigation at every width", () => {
     expect(source).toContain("{morePluginTabs.length > 0 ? (");
-    expect(source).toContain(
-      'cn("shrink-0", usesFullSectionMobileNav && "hidden sm:flex")',
+    expect(source).toMatch(
+      /cn\(\s*"shrink-0",\s*usesFullSectionMobileNav && "hidden sm:flex",?\s*\)/u,
     );
     expect(source).not.toContain('morePluginTabs.length === 0 && "sm:hidden"');
   });

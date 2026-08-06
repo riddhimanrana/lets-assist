@@ -47,7 +47,7 @@ import {
   PopoverTitle,
   PopoverDescription,
 } from "@/components/ui/popover";
-import { DateRange } from "react-day-picker";
+import { DateRange } from "@daypicker/react";
 import {
   DateRangePicker,
   formatDateRangeLabel,

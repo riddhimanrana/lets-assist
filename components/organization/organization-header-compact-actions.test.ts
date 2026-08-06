@@ -5,6 +5,7 @@ const source = readFileSync(
   new URL("./OrganizationHeader.tsx", import.meta.url),
   "utf8",
 );
+const normalizedSource = source.replace(/\s+/gu, " ");
 
 describe("compact organization header actions", () => {
   test("keeps Share a compact action instead of a full-width phone row", () => {
@@ -34,16 +35,16 @@ describe("compact organization header actions", () => {
   });
 
   test("gives the compact identity the free space and constrains its overflow", () => {
-    expect(source).toContain(
+    expect(normalizedSource).toContain(
       'compact ? "flex min-w-0 grow basis-48 flex-row items-center gap-2.5"',
     );
-    expect(source).toContain(
+    expect(normalizedSource).toContain(
       'compact ? "min-w-0 items-start gap-1 overflow-hidden text-left"',
     );
-    expect(source).toContain(
+    expect(normalizedSource).toContain(
       'compact ? "truncate text-lg md:text-xl" : "text-2xl md:text-3xl"',
     );
-    expect(source).toContain(
+    expect(normalizedSource).toContain(
       'cn("flex items-center gap-2", compact && "min-w-0")',
     );
   });
@@ -51,17 +52,19 @@ describe("compact organization header actions", () => {
   test("truncates compact metadata rows so long values cannot widen the header", () => {
     // Both metadata rows are width-constrained in compact mode.
     expect(
-      source.match(
-        /compact \? "min-w-0 max-w-full" : "justify-center md:justify-start"/g,
+      normalizedSource.match(
+        /compact \? "min-w-0 max-w-full" : "justify-center md:justify-start"/gu,
       ),
     ).toHaveLength(2);
     // Username and website are the unbounded values, so both truncate.
-    expect(source).toContain(
-      'cn("text-sm text-muted-foreground font-mono", compact && "truncate")',
+    expect(normalizedSource).toMatch(
+      /cn\( "text-sm text-muted-foreground font-mono", compact && "truncate",? \)/u,
     );
-    expect(source).toContain('<span className={cn(compact && "truncate")}>');
-    expect(source).toContain(
-      'cn("flex items-center gap-1", compact && "shrink-0 whitespace-nowrap")',
+    expect(normalizedSource).toContain(
+      '<span className={cn(compact && "truncate")}>',
+    );
+    expect(normalizedSource).toMatch(
+      /cn\( "flex items-center gap-1", compact && "shrink-0 whitespace-nowrap",? \)/u,
     );
   });
 
@@ -77,12 +80,12 @@ describe("compact organization header actions", () => {
       '<Plus className="mr-2 h-4 w-4" aria-hidden="true" />',
     ]) {
       expect(
-        source,
+        normalizedSource,
         `${icon} should be hidden from assistive technology`,
       ).toContain(icon);
     }
-    expect(source).toContain(
-      '<BadgeCheck\n                  className="hidden md:block h-6 w-6 text-primary"\n                  aria-hidden="true"\n                />',
+    expect(normalizedSource).toContain(
+      '<BadgeCheck className="hidden md:block h-6 w-6 text-primary" aria-hidden="true" />',
     );
   });
 

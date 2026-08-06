@@ -8,7 +8,7 @@ import {
   Heading,
   Preview,
   Link,
-} from "@react-email/components";
+} from "react-email";
 import * as React from "react";
 import EmailButton from "./_components/EmailButton";
 import EmailHeader from "./_components/EmailHeader";

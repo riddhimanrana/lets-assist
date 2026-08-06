@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock, Award, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

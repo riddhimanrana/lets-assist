@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Award, BadgeCheck, Building2, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 

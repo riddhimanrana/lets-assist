@@ -16,6 +16,7 @@ import {
   getCustomPlacementFieldSize,
 } from "@/lib/waiver/custom-field-config";
 import { DetectedPdfField, PdfRect } from "@/lib/waiver/pdf-field-detect";
+import { convertPdfRectToViewport } from "@/lib/waiver/pdf-viewport";
 import { WaiverFieldType } from "@/types/waiver-definitions";
 import type { SignerData } from "@/types/waiver-definitions";
 
@@ -86,7 +87,7 @@ export function PdfViewerWithOverlay({
         setError(null);
         setCurrentPage(1);
 
-        loadingTask = pdfjsLib.getDocument(pdfUrl);
+        loadingTask = pdfjsLib.getDocument({ url: pdfUrl });
         const doc = await loadingTask.promise;
         if (isStale) return;
         setPdfDoc(doc);
@@ -451,14 +452,7 @@ function PdfPage({
   // Helper to convert PDF rect to specific canvas style
   const getStyle = (rect: PdfRect) => {
     // PDF coords: x, y, width, height. y is from bottom if it's raw PDF, but PDF.js viewport handles the transform
-    // viewport.convertToViewportRectangle([x, y, x+w, y+h]) returns [x1, y1, x2, y2] in canvas coords
-
-    const [x1, y1, x2, y2] = viewport.convertToViewportRectangle([
-      rect.x,
-      rect.y,
-      rect.x + rect.width,
-      rect.y + rect.height,
-    ]);
+    const [x1, y1, x2, y2] = convertPdfRectToViewport(viewport, rect);
 
     // Calculate CSS properties
     // Note: viewport rectangle might have y1 > y2 or vice versa depending on rotation/inversion
@@ -690,12 +684,7 @@ function ResizablePlacement({
   }, [placement.rect, isDragging, isResizing]);
 
   const getStyle = (rect: PdfRect) => {
-    const [x1, y1, x2, y2] = viewport.convertToViewportRectangle([
-      rect.x,
-      rect.y,
-      rect.x + rect.width,
-      rect.y + rect.height,
-    ]);
+    const [x1, y1, x2, y2] = convertPdfRectToViewport(viewport, rect);
 
     const minX = Math.min(x1, x2);
     const maxX = Math.max(x1, x2);
