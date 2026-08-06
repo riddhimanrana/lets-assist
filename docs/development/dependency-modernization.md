@@ -101,8 +101,36 @@ Validation completed for this group:
 - preview-isolated production build under Node `22.23.2`
 - production dependency audit reduced from 94 findings before the dependency series to 36; remaining provider/general findings stay open under `CLEAN-003`
 
-## Remaining groups
+## Providers and general utilities — 2026-08-05
 
-1. Resend, Stripe, Google integrations, and general utilities.
+| Package family       | Previous                          | Selected                          | Decision                                                                                                                                                                                                            |
+| -------------------- | --------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stripe               | 22.0.1                            | 22.4.0                            | Latest stable SDK and API version `2026-07-29.dahlia`; webhook handling continues to verify the raw request body before any database mutation.                                                                      |
+| Resend / React Email | Resend 6.18.1, React Email 5.2.10 | Resend 6.18.1, React Email 6.9.1  | Resend was already current. React Email now uses the unified `react-email` runtime and `@react-email/ui` CLI, removing the stale preview-server Next.js tree.                                                       |
+| Google Maps          | two React wrappers                | `@vis.gl/react-google-maps` 1.9.0 | Removed the duplicate wrapper and migrated the map to one provider with explicit loading and failure states.                                                                                                        |
+| Motion               | Framer Motion / Motion 12.38      | Motion 13.0.0                     | Consolidated all React imports on the supported `motion/react` entrypoint.                                                                                                                                          |
+| TanStack Table       | 8.21.3                            | 9.0.0                             | Current package with one documented v8 compatibility boundary. Existing tables retain behavior while module refactors move them to native v9 features.                                                              |
+| PDF.js               | 5.6.205                           | 6.2.108                           | Current Node 22-compatible line. URL inputs now use document parameters, worker cleanup belongs to loading tasks, and the removed viewport rectangle helper has a tested two-corner replacement.                    |
+| DayPicker            | `react-day-picker` 9.14           | `@daypicker/react` 10.0.1         | Migrated to the current package name and removed the compatibility package.                                                                                                                                         |
+| UI/general           | mixed                             | current stable                    | Updated Base UI, Speed Insights, Lucide, Nano ID, React Easy Crop, Intersection Observer, Recharts, UUID, AJV, and all compatible direct utility lines. Removed unused Shadcn CLI and duplicate Base UI dependency. |
 
-The completion condition remains no critical/high advisory, no unreviewed lower-severity advisory, no stale compatible direct dependency, and no unexplained duplicate family.
+The production audit now reports no vulnerabilities. `security:audit` is a required part of `quality:static`, so a newly disclosed or reintroduced production-tree advisory fails the standard local and CI gate.
+
+Four direct dependencies intentionally remain below the registry's newest major because the newer version is incompatible with the selected runtime or a declared peer contract:
+
+- AI SDK 7 installs provider API 4 while PostHog AI 8.6.7 declares provider API 2 or 3.
+- TypeScript 7 exceeds the current `typescript-eslint` peer range (`<6.1.0`).
+- ESLint 10 is not declared by the complete Next.js plugin matrix.
+- Node typings remain on 22.x because the application runtime is explicitly Node 22.
+
+Validation completed for this group:
+
+- frozen Bun install and one generated `bun.lock`
+- React Email CLI load
+- `bun run quality:static`, including the zero-finding production audit
+- `bun run test`, including 2,426 private-plugin tests and the PDF geometry regression
+- preview-isolated production build under Node `22.23.2`, with 80 generated routes
+- private plugin PR #6 merged before the root gitlink update
+- `bun outdated` reviewed line-by-line; only the four compatibility holds above remain
+
+The dependency-series completion condition is met locally: no critical/high or unreviewed lower-severity advisory, no stale compatible direct dependency, and no unexplained duplicate package family. Hosted Development remains a separately recorded account-access gate.

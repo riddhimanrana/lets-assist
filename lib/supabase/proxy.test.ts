@@ -201,10 +201,11 @@ test("proxy refreshes authoritative auth state before trusting account-access me
     "await supabase.auth.getUser()",
     claimsIndex,
   );
-  const accessIndex = source.indexOf(
-    "readAccountAccessFromMetadata(user.app_metadata",
-    freshUserIndex,
-  );
+  const relativeAccessIndex = source
+    .slice(freshUserIndex)
+    .search(/readAccountAccessFromMetadata\(\s*user\.app_metadata/u);
+  const accessIndex =
+    relativeAccessIndex < 0 ? -1 : freshUserIndex + relativeAccessIndex;
 
   assert.ok(claimsIndex >= 0);
   assert.ok(freshUserIndex > claimsIndex);

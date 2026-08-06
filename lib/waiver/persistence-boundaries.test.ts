@@ -38,11 +38,11 @@ test("signed uploads are read from the private evidence bucket", () => {
     const source = read(route);
     assert.doesNotMatch(
       source,
-      /\.from\('waiver-uploads'\)\s*\n\s*\.download\(typedSignature\.upload_storage_path\)/u,
+      /\.from\(["']waiver-uploads["']\)\s*\n\s*\.download\(typedSignature\.upload_storage_path\)/u,
     );
     assert.match(
       source,
-      /\.from\('waiver-signatures'\)\s*\n\s*\.download\(typedSignature\.upload_storage_path\)/u,
+      /\.from\(["']waiver-signatures["']\)\s*\n\s*\.download\(typedSignature\.upload_storage_path\)/u,
     );
   }
 });
@@ -94,7 +94,8 @@ test("waiver definition reads and versioned saves remain scoped to their project
 
 test("registered signup captures its row id before waiver persistence and plugin hooks", () => {
   const source = read("app/projects/[id]/actions.ts");
-  const registeredStart = source.indexOf("if (user) { // Logged-in user check");
+  const signupStart = source.indexOf("export async function signUpForProject");
+  const registeredStart = source.indexOf("if (user) {", signupStart);
   const anonymousStart = source.indexOf(
     "} else if (isAnonymous && anonymousData)",
     registeredStart,

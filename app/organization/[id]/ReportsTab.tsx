@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { DateRange } from "react-day-picker";
+import { DateRange } from "@daypicker/react";
 import {
   endOfDay,
   format,

@@ -80,7 +80,7 @@ export interface PdfTextExtractionResult {
 export async function extractPdfTextWithPositions(
   pdfData: Uint8Array,
 ): Promise<PdfTextExtractionResult> {
-  let pdfDocument: pdfjsLib.PDFDocumentProxy | null = null;
+  let loadingTask: pdfjsLib.PDFDocumentLoadingTask | null = null;
 
   try {
     // Validate input
@@ -106,8 +106,8 @@ export async function extractPdfTextWithPositions(
       useSystemFonts: true,
       disableFontFace: true,
     };
-    const loadingTask = pdfjsLib.getDocument(documentParams);
-    pdfDocument = await loadingTask.promise;
+    loadingTask = pdfjsLib.getDocument(documentParams);
+    const pdfDocument = await loadingTask.promise;
     const pageCount = pdfDocument.numPages;
 
     const allTextItems: PdfTextItem[] = [];
@@ -247,9 +247,7 @@ export async function extractPdfTextWithPositions(
           : "Unknown error during PDF text extraction",
     };
   } finally {
-    // Clean up PDF document to prevent memory leaks
-    if (pdfDocument) {
-      pdfDocument.destroy();
-    }
+    // PDF.js 6 owns worker/network cleanup on the loading task.
+    await loadingTask?.destroy();
   }
 }

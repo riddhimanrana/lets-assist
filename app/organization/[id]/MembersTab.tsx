@@ -51,7 +51,7 @@ import { getMemberVolunteerHours } from "./member-hours-actions";
 import MemberDetailsDialog from "./MemberDetailsDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { DateRange } from "react-day-picker";
+import { DateRange } from "@daypicker/react";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -64,7 +64,7 @@ import {
   getSortedRowModel,
   useReactTable,
   FilterFn,
-} from "@tanstack/react-table";
+} from "@/lib/table/legacy";
 
 interface MembersTabProps {
   members: OrganizationMember[];
@@ -413,7 +413,7 @@ export default function MembersTab({
           );
         },
         cell: ({ row }) => <RoleBadge role={row.original.role} />,
-        sortingFn: (rowA, rowB, columnId) => {
+        sortFn: (rowA, rowB, columnId) => {
           const roleOrder = { admin: 3, staff: 2, member: 1 };
           const roleA = rowA.getValue(columnId) as keyof typeof roleOrder;
           const roleB = rowB.getValue(columnId) as keyof typeof roleOrder;

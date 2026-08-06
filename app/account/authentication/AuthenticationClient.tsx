@@ -1,7 +1,7 @@
 "use client";
 
 import { REGEXP_ONLY_DIGITS } from "input-otp";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import Image from "next/image";
 import {
   Copy,

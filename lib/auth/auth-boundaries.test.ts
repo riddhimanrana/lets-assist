@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const ROOT = process.cwd();
+const SENSITIVE_MFA_GUARD =
+  /getAuthUser\(\{\s*sensitive:\s*true,\s*checkMfa:\s*true,?\s*\}\)/u;
 
 function read(relativePath: string) {
   return readFileSync(`${ROOT}/${relativePath}`, "utf8");
@@ -103,10 +105,7 @@ test("account-security mutations require fresh auth and completed MFA", () => {
     );
     const end = securityActions.indexOf("export async function", start + 30);
     const action = securityActions.slice(start, end === -1 ? undefined : end);
-    assert.match(
-      action,
-      /getAuthUser\(\{ sensitive: true, checkMfa: true \}\)/u,
-    );
+    assert.match(action, SENSITIVE_MFA_GUARD);
   }
 
   const primaryStart = emailActions.indexOf(
@@ -118,7 +117,7 @@ test("account-security mutations require fresh auth and completed MFA", () => {
   );
   assert.match(
     emailActions.slice(primaryStart, primaryEnd),
-    /getAuthUser\(\{ sensitive: true, checkMfa: true \}\)/u,
+    SENSITIVE_MFA_GUARD,
   );
   assert.match(mfaPaths, /"\/account\/security"/u);
 });

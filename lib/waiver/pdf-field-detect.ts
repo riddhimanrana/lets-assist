@@ -90,6 +90,7 @@ export async function detectPdfWidgets(
   source: File | string,
 ): Promise<PdfFieldDetectionResult> {
   const errors: string[] = [];
+  let loadingTask: pdfjsLib.PDFDocumentLoadingTask | null = null;
 
   try {
     // Load PDF document
@@ -112,7 +113,7 @@ export async function detectPdfWidgets(
     const documentParams: Record<string, unknown> = {
       data: pdfData,
     };
-    const loadingTask = pdfjsLib.getDocument(documentParams);
+    loadingTask = pdfjsLib.getDocument(documentParams);
     const pdfDocument = await loadingTask.promise;
 
     const pageCount = pdfDocument.numPages;
@@ -185,6 +186,8 @@ export async function detectPdfWidgets(
         ],
       };
     }
+  } finally {
+    await loadingTask?.destroy().catch(() => undefined);
   }
 }
 

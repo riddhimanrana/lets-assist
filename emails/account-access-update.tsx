@@ -7,7 +7,7 @@ import {
   Preview,
   Section,
   Text,
-} from "@react-email/components";
+} from "react-email";
 import * as React from "react";
 
 import type { AccountAccessStatus } from "@/lib/auth/account-access";

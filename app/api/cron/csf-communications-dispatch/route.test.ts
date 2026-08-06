@@ -49,7 +49,7 @@ mock.module("@/lib/supabase/server", () => ({
     );
   },
 }));
-mock.module("@react-email/components", () => ({
+mock.module("react-email", () => ({
   render: async () => "<p>x</p>",
 }));
 

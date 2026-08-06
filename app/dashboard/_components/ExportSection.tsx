@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { DateRange } from "react-day-picker";
+import { DateRange } from "@daypicker/react";
 import { Download, Calendar, CircleCheck, UserCheck } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";

@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import { createClient } from "@/lib/supabase/server";
-import { render } from "@react-email/components";
+import { render } from "react-email";
 import * as React from "react";
 import { logError, logInfo, logWarn } from "@/lib/logger";
 

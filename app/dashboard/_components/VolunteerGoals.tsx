@@ -13,7 +13,7 @@ import {
   Target,
   Calendar,
 } from "lucide-react";
-import { DateRange } from "react-day-picker";
+import { DateRange } from "@daypicker/react";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
   Select,

@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
-    "types": ["bun"],
+    "types": ["bun", "google.maps"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,

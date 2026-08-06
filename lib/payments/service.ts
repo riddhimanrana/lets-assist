@@ -10,9 +10,8 @@
  *   Stripe → webhook → updates payment_request status
  *   Org → Stripe Connect payout (if connected)
  *
- * Note: Stripe SDK is not yet installed. This module is designed
- * to work once `stripe` is added as a dependency and keys are configured.
- * Methods are fully typed but will throw "not configured" until then.
+ * The SDK is loaded lazily so builds and non-payment workflows do not require
+ * provider credentials. Payment calls still fail closed until keys are configured.
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -58,16 +57,18 @@ type StripeConfig = NonNullable<
 async function getStripe(): Promise<import("stripe").default> {
   if (_stripe) return _stripe;
 
+  let Stripe: typeof import("stripe").default;
   try {
-    const Stripe = (await import("stripe")).default;
-    _stripe = new Stripe(getStripeSecretKey(), {
-      apiVersion: "2025-03-31.basil" as StripeConfig["apiVersion"],
-      typescript: true,
-    });
-    return _stripe;
+    Stripe = (await import("stripe")).default;
   } catch {
-    throw new Error("Stripe SDK not installed. Run: bun add stripe");
+    throw new Error("Stripe SDK could not be loaded.");
   }
+
+  _stripe = new Stripe(getStripeSecretKey(), {
+    apiVersion: "2026-07-29.dahlia" as StripeConfig["apiVersion"],
+    typescript: true,
+  });
+  return _stripe;
 }
 
 // ---------------------------------------------------------------------------

@@ -45,7 +45,7 @@ mock.module("@/lib/supabase/server", () => ({
     throw new Error("notification settings must not be queried in these tests");
   },
 }));
-mock.module("@react-email/components", () => ({
+mock.module("react-email", () => ({
   render: async () => "<p>x</p>",
 }));
 mock.module("@/lib/logger", () => ({
@@ -89,7 +89,7 @@ function providerErrorClassificationTable(): Map<string, string> {
 
   const entries = new Map<string, string>();
   for (const match of block[1].matchAll(
-    /^\s*([a-z0-9_]+)\s*:\s*'(rejected|throttled|ambiguous)'/gm,
+    /^\s*([a-z0-9_]+)\s*:\s*["'](rejected|throttled|ambiguous)["']/gmu,
   )) {
     entries.set(match[1], match[2]);
   }

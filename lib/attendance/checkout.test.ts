@@ -97,7 +97,7 @@ test("verified registered check-in crosses the client boundary through the serve
 
   assert.match(
     participantActions,
-    /const serviceSupabase = getAdminClient\(\);[\s\S]*\.eq\('user_id', user\.id\)[\s\S]*\.is\('check_in_time', null\)/u,
+    /const serviceSupabase = getAdminClient\(\);[\s\S]*\.eq\(["']user_id["'], user\.id\)[\s\S]*\.is\(["']check_in_time["'], null\)/u,
   );
   assert.match(
     participantActions,
