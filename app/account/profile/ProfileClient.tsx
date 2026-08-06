@@ -71,6 +71,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 // Constants for character limits
 const NAME_MAX_LENGTH = 64;
@@ -134,6 +135,7 @@ interface AvatarProps {
 }
 
 function Avatar({ url, onUpload, onRemove }: AvatarProps) {
+  const router = useRouter();
   const [tempImageUrl, setTempImageUrl] = useState<string>("");
   const [showCropper, setShowCropper] = useState(false);
   const [isRemoving] = useState(false);
@@ -168,7 +170,7 @@ function Avatar({ url, onUpload, onRemove }: AvatarProps) {
       toast.success("Profile picture updated successfully");
       // Refresh the page after a short delay
       setTimeout(() => {
-        window.location.href = "/account/profile";
+        router.refresh();
       }, 1000);
     } catch (error) {
       console.error("Error uploading profile picture:", error);
@@ -240,6 +242,7 @@ function Avatar({ url, onUpload, onRemove }: AvatarProps) {
 }
 
 export default function ProfileClient() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
     null,
@@ -529,7 +532,7 @@ export default function ProfileClient() {
         // Optionally reset form dirty state if needed
         // form.reset({}, { keepValues: true });
         setTimeout(() => {
-          window.location.href = "/account/profile";
+          router.refresh();
         }, 1000);
       }
     } catch (error) {
@@ -581,7 +584,7 @@ export default function ProfileClient() {
     setDefaultValues((prev) => ({ ...prev, avatarUrl: undefined }));
     toast.success("Profile picture removed successfully");
     setTimeout(() => {
-      window.location.href = "/account/profile";
+      router.refresh();
     }, 1000);
   };
 

@@ -112,6 +112,7 @@ export default function CalendarOptionsModal({
     sessionStorage.setItem("reopenCalendarModal", "true");
 
     // Redirect to Google OAuth
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = `/api/calendar/google/connect?purpose=personal_calendar&scopes=calendar&return_to=${encodeURIComponent(projectUrl)}`;
   };
 

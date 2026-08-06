@@ -275,9 +275,9 @@ export default function Navbar() {
       const result = await logout();
 
       if (result.success) {
-        // useAuth hook will automatically handle cache clearing via auth listener
-        // Use a small delay before redirecting to ensure state updates are processed
         setTimeout(() => {
+          // Logout must reload the document so no authenticated client state survives.
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
           window.location.href = "/";
         }, 100);
       } else {

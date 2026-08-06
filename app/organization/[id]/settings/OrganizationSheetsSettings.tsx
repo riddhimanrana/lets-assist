@@ -111,6 +111,10 @@ export default function OrganizationSheetsSettings({
       )}`,
     [organizationId, organizationSlug],
   );
+  const startGoogleConnection = () => {
+    // OAuth begins with a redirect response, so this must be a document navigation.
+    window.location.href = connectUrl;
+  };
 
   const loadStatus = async () => {
     setLoading(true);
@@ -573,9 +577,11 @@ export default function OrganizationSheetsSettings({
 
             <div className="pt-2 flex flex-col gap-2 items-center">
               <Button
-                onClick={() => {
-                  window.location.href = `/organization/${organizationSlug}?tab=reports&setup=1`;
-                }}
+                onClick={() =>
+                  router.push(
+                    `/organization/${organizationSlug}?tab=reports&setup=1`,
+                  )
+                }
                 className="gap-2"
               >
                 <Settings2 className="h-4 w-4" />
@@ -584,9 +590,7 @@ export default function OrganizationSheetsSettings({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  window.location.href = connectUrl;
-                }}
+                onClick={startGoogleConnection}
                 className="text-muted-foreground"
               >
                 Switch Account
@@ -621,12 +625,7 @@ export default function OrganizationSheetsSettings({
             </div>
 
             <div className="pt-2 flex flex-col gap-2 items-center">
-              <Button
-                onClick={() => {
-                  window.location.href = connectUrl;
-                }}
-                className="gap-2"
-              >
+              <Button onClick={startGoogleConnection} className="gap-2">
                 <UserCircle className="h-4 w-4" />
                 Connect Google Account
               </Button>
