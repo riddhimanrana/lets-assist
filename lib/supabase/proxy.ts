@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { SUPABASE_DB_OPTIONS } from "./retry-policy";
 import { type NextRequest, NextResponse } from "next/server";
 import {
   getAccountAccessErrorCode,
@@ -260,6 +261,7 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      db: SUPABASE_DB_OPTIONS,
       cookies: {
         getAll() {
           return request.cookies.getAll();

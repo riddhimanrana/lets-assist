@@ -20,9 +20,9 @@
         "@radix-ui/react-visually-hidden": "^1.2.4",
         "@react-email/components": "^1.0.12",
         "@react-google-maps/api": "^2.20.8",
-        "@supabase/postgrest-js": "2.108.2",
-        "@supabase/ssr": "0.12.0",
-        "@supabase/supabase-js": "2.108.2",
+        "@supabase/postgrest-js": "2.112.1",
+        "@supabase/ssr": "0.12.4",
+        "@supabase/supabase-js": "2.112.1",
         "@tanstack/react-table": "^8.21.3",
         "@tiptap/extensions": "^3.29.2",
         "@tiptap/react": "^3.29.2",
@@ -85,7 +85,7 @@
         "@tailwindcss/postcss": "4.3.3",
         "@tailwindcss/typography": "0.5.20",
         "@types/bun": "1.3.14",
-        "@types/node": "20.19.43",
+        "@types/node": "22.20.1",
         "@types/nodemailer": "^8.0.1",
         "@types/react": "19.2.18",
         "@types/react-dom": "19.2.4",
@@ -650,21 +650,21 @@
 
     "@standard-schema/utils": ["@standard-schema/utils@0.3.0", "", {}, "sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g=="],
 
-    "@supabase/auth-js": ["@supabase/auth-js@2.108.2", "", { "dependencies": { "tslib": "2.8.1" } }, "sha512-tNaQmBgodDZwgB40mRwVbxFy8IDYwjdpcZ0BYrWiwlULCSQoJj4QoG4zgJT7QRPXcqipefNOzvO/qAu4dF98ag=="],
+    "@supabase/auth-js": ["@supabase/auth-js@2.112.1", "", { "dependencies": { "tslib": "2.8.1" } }, "sha512-TBacB69YXSYYFFet9ISgNC2jsPExFPIWngmzeLHAWrp/xvKWfYIyhh0nyvDLryi8WP6KoexkXO9kRF6Y9oBUTA=="],
 
-    "@supabase/functions-js": ["@supabase/functions-js@2.108.2", "", { "dependencies": { "tslib": "2.8.1" } }, "sha512-RNUX8EiBy3iLwAX19jtRzLyePnl11/fHcgwDHLnpKcDSXt/5qBnh3LUwAtIjT21Q66QsmNUR2esrHziLCpNubw=="],
+    "@supabase/functions-js": ["@supabase/functions-js@2.112.1", "", { "dependencies": { "tslib": "2.8.1" } }, "sha512-t5L8qBpRC2ZswHD4A7DNL/sNpFLEeflaYaZVe5dCWvAD82pm2WOysU8EKgiJub3doxo/QU8RuDvYFlRyRk8ghw=="],
 
-    "@supabase/phoenix": ["@supabase/phoenix@0.4.4", "", {}, "sha512-Gt0pqoXuIqX/8dvG0OKp/wMCobXNH3klNbUPBNyOfN0YA1IswrM3HyWFMOPk1Jy+BRaIyDPcFx4jLBwHNmlyfQ=="],
+    "@supabase/phoenix": ["@supabase/phoenix@0.4.5", "", {}, "sha512-aAn9H9ovVyeApKy11OWOrrOGq8DV68yWeH4ud2lN9fzn4aO8Zb5GLL9m1pUg9nLqIcT+ZDfAcsZe0E/nqdv2lw=="],
 
-    "@supabase/postgrest-js": ["@supabase/postgrest-js@2.108.2", "", { "dependencies": { "tslib": "2.8.1" } }, "sha512-GQ28/Y8hk3CFmkb3kXH1h/AQx6JIYSQfO0CJMRVBcEKZoNy6C45cXAZ4fcJvRC5Id0cs6xnkUV0+c0rIocigsw=="],
+    "@supabase/postgrest-js": ["@supabase/postgrest-js@2.112.1", "", { "dependencies": { "tslib": "2.8.1" } }, "sha512-oX42JgoVT8bP73/XYE1+kQdj6/Ql1j6lD6zpCoL8aq1B0uhZsz4FSoT+cBJB3pi4aPZEA0Ntkid6w7uzuAH5jQ=="],
 
-    "@supabase/realtime-js": ["@supabase/realtime-js@2.108.2", "", { "dependencies": { "@supabase/phoenix": "^0.4.2", "tslib": "2.8.1" } }, "sha512-aAGxCSUemZvQIibnCdvNvgaKib28I4rfrNjKbQ9cG1uBLwUsI7hVpGXgEbypCCDhLjQlDTAiJlu7rgljYUT73g=="],
+    "@supabase/realtime-js": ["@supabase/realtime-js@2.112.1", "", { "dependencies": { "@supabase/phoenix": "0.4.5", "tslib": "2.8.1" } }, "sha512-jp5TgXXTb1m2rqF6kiirOhVnvAoFHrjj7ZHOzWRa+SL+Am0BbcMcQr6FyHkJJS1ngw0TAL2DeymfGgKkSanN0A=="],
 
-    "@supabase/ssr": ["@supabase/ssr@0.12.0", "", { "dependencies": { "cookie": "^1.0.2" }, "peerDependencies": { "@supabase/supabase-js": "^2.108.0" } }, "sha512-d9XV5XzJvzzZbeAIM7fWTCUYxQJZ2Ru6ny3dJHmHGp/LIrJ+o9FpD7N9Rf/UhhWEvHXSoDe8SI32Z2ouOdMjBg=="],
+    "@supabase/ssr": ["@supabase/ssr@0.12.4", "", { "dependencies": { "cookie": "^1.0.2" }, "peerDependencies": { "@supabase/supabase-js": "^2.111.0" } }, "sha512-xHzcgI8cC1TpBKSwJcR5Yd8CCwfIq0SBc5yb4yz/YFw5tbCrEQ0QT3a+2jymCxHgQWLfzwN93HZ6eRbcoMkOlA=="],
 
-    "@supabase/storage-js": ["@supabase/storage-js@2.108.2", "", { "dependencies": { "iceberg-js": "^0.8.1", "tslib": "2.8.1" } }, "sha512-TVZPQxXGxY2+A6yTtm77zUHsh70lBhYUEaJL8RQC+BghcX/ygiMG/rmXrNVBce30/WAeNPa8FiG8HbqlGeV05g=="],
+    "@supabase/storage-js": ["@supabase/storage-js@2.112.1", "", { "dependencies": { "iceberg-js": "^0.8.1", "tslib": "2.8.1" } }, "sha512-FHKAQTw4KUV9nF3bnOLvZvjB3bkmtl6ltavlJfdJKdabvqMtQQ2iyBliFyp2dSHMCn9qA8c6WoZoRkgV5nxAmg=="],
 
-    "@supabase/supabase-js": ["@supabase/supabase-js@2.108.2", "", { "dependencies": { "@supabase/auth-js": "2.108.2", "@supabase/functions-js": "2.108.2", "@supabase/postgrest-js": "2.108.2", "@supabase/realtime-js": "2.108.2", "@supabase/storage-js": "2.108.2" } }, "sha512-hFhnPveb5JQg4a0QYicM0swT253YHMdfeRAl2BKHOlI5VAzuHxUGSr8RbwNLYNPauWOgQMS1H8sz8bvYlgwUfQ=="],
+    "@supabase/supabase-js": ["@supabase/supabase-js@2.112.1", "", { "dependencies": { "@supabase/auth-js": "2.112.1", "@supabase/functions-js": "2.112.1", "@supabase/postgrest-js": "2.112.1", "@supabase/realtime-js": "2.112.1", "@supabase/storage-js": "2.112.1" }, "peerDependencies": { "@opentelemetry/api": ">=1.0.0" }, "optionalPeers": ["@opentelemetry/api"] }, "sha512-KooEPqALZNkQCr1PBhbEImnPm6Ko6TKWiOrj3UxQki74g2KWlXGleQgEudUwRAKZs5U1ilSssO0TpxgVOspihQ=="],
 
     "@swc/helpers": ["@swc/helpers@0.5.15", "", { "dependencies": { "tslib": "^2.8.0" } }, "sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g=="],
 
@@ -798,7 +798,7 @@
 
     "@types/json5": ["@types/json5@0.0.29", "", {}, "sha512-dRLjCWHYg4oaA77cxO64oO+7JwCwnIzkZPdrrC71jQmQtlhM556pwKo5bUzqvZndkVbeFLIIi+9TC40JNF5hNQ=="],
 
-    "@types/node": ["@types/node@20.19.43", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA=="],
+    "@types/node": ["@types/node@22.20.1", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-EANqOCF9QFyra+4pfxUcX9STKJpCLjMbObVzljIJomAWSnuSIEAvyzEU53GaajbXJEgdh0iEcPL+DGvpUd4k1Q=="],
 
     "@types/nodemailer": ["@types/nodemailer@8.0.1", "", { "dependencies": { "@types/node": "*" } }, "sha512-PxpaInm8V1JQDd4j0ds5HfvWQk8JupS1C0Picb96QJsrrRDjBH+DlK7L4ZdNSqNULhiZRQHc40nLVShaGxXAMw=="],
 

@@ -33,6 +33,7 @@ const groups = [
       "components/projects/project-feed-lifecycle.test.ts",
       "lib/auth/theme-script-boundary.test.ts",
       "lib/supabase/retry-query.test.ts",
+      "lib/supabase/retry-policy-boundary.test.ts",
       "scripts/local-dev/csf-browser-harness.launcher-ownership.test.ts",
       "scripts/local-dev/csf-browser-harness.docker-lifecycle.test.ts",
       "scripts/local-dev/csf-browser-harness.verifier-workflow.test.ts",

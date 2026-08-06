@@ -29,6 +29,7 @@
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { SUPABASE_DB_OPTIONS } from "./retry-policy";
 
 export async function createClient() {
   let cookieStore: Awaited<ReturnType<typeof cookies>> | undefined;
@@ -42,6 +43,7 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      db: SUPABASE_DB_OPTIONS,
       cookies: {
         getAll() {
           return cookieStore?.getAll() ?? [];

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
+import { SUPABASE_DB_OPTIONS } from "./retry-policy";
 
 export function getAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -15,6 +16,7 @@ export function getAdminClient() {
   // Create a new client every time or cache it if desired.
   // For admin operations, caching is usually fine but let's keep it simple.
   return createClient(supabaseUrl, secretKey, {
+    db: SUPABASE_DB_OPTIONS,
     auth: {
       autoRefreshToken: false,
       persistSession: false,
