@@ -39,7 +39,10 @@ test("project parser authenticates, validates input, meters, and emits user tele
   assert.match(route, /distinctId: user\.id/u);
   assert.match(route, /parseProjectOutputSchema\.safeParse/u);
   assert.match(route, /status: 502/u);
-  assert.match(migration, /create table if not exists public\.api_rate_limits/u);
+  assert.match(
+    migration,
+    /create table if not exists public\.api_rate_limits/u,
+  );
   assert.match(migration, /security definer/u);
   assert.match(
     migration,

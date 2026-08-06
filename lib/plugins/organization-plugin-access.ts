@@ -64,10 +64,7 @@ type SupabaseLikeError = {
 };
 
 export function isEntitlementActive(
-  entitlement: Pick<
-    PluginEntitlementRow,
-    "status" | "starts_at" | "ends_at"
-  >,
+  entitlement: Pick<PluginEntitlementRow, "status" | "starts_at" | "ends_at">,
   now = new Date(),
 ): boolean {
   if (entitlement.status !== "active") return false;
@@ -116,7 +113,7 @@ function isBlockedByForcedUpdate(row: {
 
   return Boolean(
     row.force_update_version &&
-      isPluginVersionBehind(installedVersion, row.force_update_version),
+    isPluginVersionBehind(installedVersion, row.force_update_version),
   );
 }
 
@@ -150,7 +147,10 @@ export function resolveLegacyOrganizationPluginAccess(input: {
 }): OrganizationPluginAccessRow[] {
   const now = input.now ?? new Date();
   const catalogByKey = new Map(input.catalog.map((row) => [row.key, row]));
-  const activeEntitlementByOrganizationPlugin = new Map<string, PluginEntitlementRow>();
+  const activeEntitlementByOrganizationPlugin = new Map<
+    string,
+    PluginEntitlementRow
+  >();
 
   for (const entitlement of input.entitlements) {
     if (
@@ -264,50 +264,46 @@ export async function loadAccessibleOrganizationPluginAccess(input: {
       return handlePluginAccessReadFailure(failureMode, accessResult.error);
     }
 
-    const [catalogResult, entitlementResult, installResult] = await Promise.all([
-      withRetryableSupabaseQuery(
-        () =>
-          input.supabase
-            .from("plugins")
-            .select(
-              "key, visibility, is_active, latest_version, force_update_version",
-            )
-            .eq("is_active", true),
-        { maxAttempts: 2, initialDelayMs: 75, maxDelayMs: 75 },
-      ),
-      withRetryableSupabaseQuery(
-        () =>
-          input.supabase
-            .from("organization_plugin_entitlements")
-            .select(
-              "organization_id, plugin_key, status, starts_at, ends_at, is_forced",
-            )
-            .in("organization_id", organizationIds),
-        { maxAttempts: 2, initialDelayMs: 75, maxDelayMs: 75 },
-      ),
-      withRetryableSupabaseQuery(
-        () =>
-          input.supabase
-            .from("organization_plugin_installs")
-            .select(
-              "organization_id, plugin_key, enabled, configuration, installed_at, installed_version",
-            )
-            .in("organization_id", organizationIds)
-            .eq("enabled", true),
-        { maxAttempts: 2, initialDelayMs: 75, maxDelayMs: 75 },
-      ),
-    ]);
+    const [catalogResult, entitlementResult, installResult] = await Promise.all(
+      [
+        withRetryableSupabaseQuery(
+          () =>
+            input.supabase
+              .from("plugins")
+              .select(
+                "key, visibility, is_active, latest_version, force_update_version",
+              )
+              .eq("is_active", true),
+          { maxAttempts: 2, initialDelayMs: 75, maxDelayMs: 75 },
+        ),
+        withRetryableSupabaseQuery(
+          () =>
+            input.supabase
+              .from("organization_plugin_entitlements")
+              .select(
+                "organization_id, plugin_key, status, starts_at, ends_at, is_forced",
+              )
+              .in("organization_id", organizationIds),
+          { maxAttempts: 2, initialDelayMs: 75, maxDelayMs: 75 },
+        ),
+        withRetryableSupabaseQuery(
+          () =>
+            input.supabase
+              .from("organization_plugin_installs")
+              .select(
+                "organization_id, plugin_key, enabled, configuration, installed_at, installed_version",
+              )
+              .in("organization_id", organizationIds)
+              .eq("enabled", true),
+          { maxAttempts: 2, initialDelayMs: 75, maxDelayMs: 75 },
+        ),
+      ],
+    );
 
-    if (
-      catalogResult.error ||
-      entitlementResult.error ||
-      installResult.error
-    ) {
+    if (catalogResult.error || entitlementResult.error || installResult.error) {
       return handlePluginAccessReadFailure(
         failureMode,
-        catalogResult.error ??
-          entitlementResult.error ??
-          installResult.error,
+        catalogResult.error ?? entitlementResult.error ?? installResult.error,
       );
     }
 

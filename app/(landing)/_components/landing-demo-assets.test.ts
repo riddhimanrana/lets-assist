@@ -10,15 +10,11 @@ describe("landing demo assets", () => {
       "http://[::1]:54321",
     ]) {
       const assets = landingDemoAssets(url);
-      expect(assets.projectId).toBe(
-        "10000000-0000-4000-8000-000000000020",
-      );
+      expect(assets.projectId).toBe("10000000-0000-4000-8000-000000000020");
       expect(assets.projectImage).toBe(
         "/demo/projects/santa-cruz-beach-cleanup.png",
       );
-      expect(assets.coordinatorImage).toBe(
-        "/demo/avatars/riddhiman-rana.png",
-      );
+      expect(assets.coordinatorImage).toBe("/demo/avatars/riddhiman-rana.png");
     }
   });
 

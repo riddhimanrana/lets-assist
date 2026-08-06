@@ -37,7 +37,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function toTargetingConfig(value: unknown): OrganizationPluginTargetingConfig | undefined {
+function toTargetingConfig(
+  value: unknown,
+): OrganizationPluginTargetingConfig | undefined {
   if (!isRecord(value)) {
     return undefined;
   }
@@ -70,7 +72,8 @@ export async function resolveOrganizationPluginBehaviorHook<
     organizationIds: [options.organizationId],
   });
 
-  const results: Array<ResolvedOrganizationPluginBehaviorContribution<THook>> = [];
+  const results: Array<ResolvedOrganizationPluginBehaviorContribution<THook>> =
+    [];
 
   for (const install of installRows) {
     const plugin = getRegisteredPlugin(install.plugin_key);
@@ -126,23 +129,26 @@ export function mergeAnonymousProfileExperienceBehaviors(
     return null;
   }
 
-  return behaviors.reduce<AnonymousProfileExperienceBehavior>((acc, behavior) => {
-    return {
-      bannerMessage: behavior.bannerMessage ?? acc.bannerMessage,
-      hideLinkingSection:
-        behavior.hideLinkingSection === true
-          ? true
-          : (acc.hideLinkingSection ?? false),
-      disableSlotCancellation:
-        behavior.disableSlotCancellation === true
-          ? true
-          : (acc.disableSlotCancellation ?? false),
-      cancellationDisabledReason:
-        behavior.cancellationDisabledReason ?? acc.cancellationDisabledReason,
-      primaryActions: [
-        ...(acc.primaryActions ?? []),
-        ...(behavior.primaryActions ?? []),
-      ],
-    };
-  }, {});
+  return behaviors.reduce<AnonymousProfileExperienceBehavior>(
+    (acc, behavior) => {
+      return {
+        bannerMessage: behavior.bannerMessage ?? acc.bannerMessage,
+        hideLinkingSection:
+          behavior.hideLinkingSection === true
+            ? true
+            : (acc.hideLinkingSection ?? false),
+        disableSlotCancellation:
+          behavior.disableSlotCancellation === true
+            ? true
+            : (acc.disableSlotCancellation ?? false),
+        cancellationDisabledReason:
+          behavior.cancellationDisabledReason ?? acc.cancellationDisabledReason,
+        primaryActions: [
+          ...(acc.primaryActions ?? []),
+          ...(behavior.primaryActions ?? []),
+        ],
+      };
+    },
+    {},
+  );
 }

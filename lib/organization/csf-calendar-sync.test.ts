@@ -46,7 +46,9 @@ describe("CSF calendar projections", () => {
         end: { dateTime: "2026-09-10T18:00:00.000Z" },
       },
     });
-    expect(projections[0]?.event.description).toContain("https://lets-assist.com/projects/example");
+    expect(projections[0]?.event.description).toContain(
+      "https://lets-assist.com/projects/example",
+    );
   });
 
   test("projects active meeting sessions without leaking attendance-source coordinates", () => {
@@ -126,27 +128,31 @@ describe("CSF calendar projections", () => {
 
   test("drops malformed dates and unsafe external or protocol-relative links", () => {
     const projections = buildCsfCalendarProjections({
-      opportunities: [{
-        id: "bad-opportunity",
-        title: "Bad date",
-        body: null,
-        starts_at: "not-a-date",
-        ends_at: null,
-        location: null,
-        signup_url: "javascript:alert(1)",
-        status: "published",
-      }],
+      opportunities: [
+        {
+          id: "bad-opportunity",
+          title: "Bad date",
+          body: null,
+          starts_at: "not-a-date",
+          ends_at: null,
+          location: null,
+          signup_url: "javascript:alert(1)",
+          status: "published",
+        },
+      ],
       meetings: [],
       meetingSessions: [],
-      deadlines: [{
-        id: "deadline-safe",
-        title: "Safe route",
-        description: null,
-        due_at: "2026-09-20T06:59:00.000Z",
-        status: "planned",
-        audience: "all",
-        related_route: "//external.example/path",
-      }],
+      deadlines: [
+        {
+          id: "deadline-safe",
+          title: "Safe route",
+          description: null,
+          due_at: "2026-09-20T06:59:00.000Z",
+          status: "planned",
+          audience: "all",
+          related_route: "//external.example/path",
+        },
+      ],
     });
 
     expect(projections).toHaveLength(1);

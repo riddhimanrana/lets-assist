@@ -4,7 +4,10 @@ import { join } from "node:path";
 
 describe("local browser verification origin", () => {
   test("permits only the loopback hostname required by local browser tests", () => {
-    const source = readFileSync(join(import.meta.dir, "../../next.config.ts"), "utf8");
+    const source = readFileSync(
+      join(import.meta.dir, "../../next.config.ts"),
+      "utf8",
+    );
 
     expect(source).toContain('allowedDevOrigins: ["127.0.0.1"]');
     expect(source).not.toMatch(/allowedDevOrigins:\s*\[[^\]]*["']\*["']/);
@@ -19,7 +22,9 @@ describe("local browser verification origin", () => {
 
     // Bound the assertion to the credential form's own opening tag, whitespace
     // and line breaks included, rather than to one formatting of that JSX.
-    const formTags = [...source.matchAll(/<form\b[^>]*>/gu)].map((match) => match[0]);
+    const formTags = [...source.matchAll(/<form\b[^>]*>/gu)].map(
+      (match) => match[0],
+    );
     expect(formTags.length).toBe(1);
 
     const [credentialForm] = formTags;
@@ -45,7 +50,10 @@ describe("local browser verification origin", () => {
 
   test("the CSF isolated stack pins the Let’s Assist port", () => {
     const launcher = readFileSync(
-      join(import.meta.dir, "../../scripts/local-dev/start-dvhs-csf-isolated-stack.sh"),
+      join(
+        import.meta.dir,
+        "../../scripts/local-dev/start-dvhs-csf-isolated-stack.sh",
+      ),
       "utf8",
     );
     const environmentContract = readFileSync(
@@ -53,9 +61,15 @@ describe("local browser verification origin", () => {
       "utf8",
     );
 
-    expect(launcher).toContain('emit_app_env_value NEXT_PUBLIC_SITE_URL "http://localhost:3000"');
-    expect(launcher).toContain('emit_app_env_value SITE_URL "http://localhost:3000"');
-    expect(launcher).toContain('emit_app_env_value NEXT_PUBLIC_VERCEL_URL "localhost:3000"');
+    expect(launcher).toContain(
+      'emit_app_env_value NEXT_PUBLIC_SITE_URL "http://localhost:3000"',
+    );
+    expect(launcher).toContain(
+      'emit_app_env_value SITE_URL "http://localhost:3000"',
+    );
+    expect(launcher).toContain(
+      'emit_app_env_value NEXT_PUBLIC_VERCEL_URL "localhost:3000"',
+    );
     expect(environmentContract).toContain(
       'const CSF_ISOLATED_SITE_URL = "http://localhost:3000";',
     );
@@ -66,7 +80,10 @@ describe("local browser verification origin", () => {
 
   test("the CSF workflow gate never assumes a default app origin", () => {
     const source = readFileSync(
-      join(import.meta.dir, "../../scripts/local-dev/test-dvhs-csf-workflows.mjs"),
+      join(
+        import.meta.dir,
+        "../../scripts/local-dev/test-dvhs-csf-workflows.mjs",
+      ),
       "utf8",
     );
 
@@ -75,7 +92,9 @@ describe("local browser verification origin", () => {
     expect(source).not.toContain('"http://localhost:3001"');
     expect(source).not.toContain('"http://localhost:3000"');
     expect(source).not.toMatch(/CSF_APP_URL\s*\?\?/u);
-    expect(source).toContain("const appOrigin = process.env.CSF_APP_URL?.trim();");
+    expect(source).toContain(
+      "const appOrigin = process.env.CSF_APP_URL?.trim();",
+    );
     expect(source).toContain("if (appOrigin) {");
     expect(source).toMatch(/fetch\(`\$\{appOrigin\}/u);
   });

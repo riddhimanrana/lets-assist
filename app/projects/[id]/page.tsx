@@ -208,8 +208,13 @@ export default async function ProjectPage({
           projectScheduleIds.push(`${day.date}-${slotIndex}`);
         });
       });
-    } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
-      project.schedule.sameDayMultiArea.roles.forEach(role => projectScheduleIds.push(role.name));
+    } else if (
+      project.event_type === "sameDayMultiArea" &&
+      project.schedule.sameDayMultiArea
+    ) {
+      project.schedule.sameDayMultiArea.roles.forEach((role) =>
+        projectScheduleIds.push(role.name),
+      );
     }
 
     const { data: signups } = await supabase
@@ -227,36 +232,43 @@ export default async function ProjectPage({
   // Fetch full signup data for the UserDashboard
   let userSignupsData: Signup[] = [];
   if (user) {
-    const { data: relevantSignups, error: relevantSignupsError } = (await supabase
-      .from("project_signups")
-      .select(
-        "id, schedule_id, status, check_in_time, check_out_time, created_at",
-      )
-      .eq("project_id", project.id)
-      .eq("user_id", user.id)
-      .in("status", [...VOLUNTEER_DASHBOARD_SIGNUP_STATUSES])
-      .order("created_at", { ascending: true })) as {
-      data: ApprovedSignupRow[] | null;
-      error: { message: string } | null;
-    };
+    const { data: relevantSignups, error: relevantSignupsError } =
+      (await supabase
+        .from("project_signups")
+        .select(
+          "id, schedule_id, status, check_in_time, check_out_time, created_at",
+        )
+        .eq("project_id", project.id)
+        .eq("user_id", user.id)
+        .in("status", [...VOLUNTEER_DASHBOARD_SIGNUP_STATUSES])
+        .order("created_at", { ascending: true })) as {
+        data: ApprovedSignupRow[] | null;
+        error: { message: string } | null;
+      };
 
     if (relevantSignupsError) {
-      console.error("Error fetching user dashboard signups:", relevantSignupsError);
+      console.error(
+        "Error fetching user dashboard signups:",
+        relevantSignupsError,
+      );
     } else if (relevantSignups) {
       userSignupsData = relevantSignups as Signup[];
 
       const dashboardState = buildVolunteerDashboardSlotState(userSignupsData);
-      
+
       // Expand legacy IDs to new unique IDs for multi-day events to handle collision issues
       if (project.event_type === "multiDay" && project.schedule.multiDay) {
         project.schedule.multiDay.forEach((day, dayIndex) => {
           day.slots.forEach((_, slotIndex) => {
             const legacyId = `${day.date}-${slotIndex}`;
             const newId = `${day.date}-${dayIndex}-${slotIndex}`;
-            
-            if (dashboardState.userSignups[legacyId]) dashboardState.userSignups[newId] = true;
-            if (dashboardState.attendedSlots[legacyId]) dashboardState.attendedSlots[newId] = true;
-            if (dashboardState.pendingSlots[legacyId]) dashboardState.pendingSlots[newId] = true;
+
+            if (dashboardState.userSignups[legacyId])
+              dashboardState.userSignups[newId] = true;
+            if (dashboardState.attendedSlots[legacyId])
+              dashboardState.attendedSlots[newId] = true;
+            if (dashboardState.pendingSlots[legacyId])
+              dashboardState.pendingSlots[newId] = true;
           });
         });
       }

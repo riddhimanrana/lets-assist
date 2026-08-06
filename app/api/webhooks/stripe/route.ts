@@ -29,10 +29,7 @@ export async function POST(request: NextRequest) {
     const result = await handleStripeWebhook(body, signature);
 
     if (!result.received) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
     return NextResponse.json({ received: true });

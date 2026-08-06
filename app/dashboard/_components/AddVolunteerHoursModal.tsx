@@ -31,18 +31,21 @@ interface AddVolunteerHoursModalProps {
 }
 
 interface UnverifiedHoursData {
-  title: string;                // Required self-reported title
-  creatorName: string;          // Person who supervised / creator reference
-  organizationName?: string;    // Optional organization name
-  date: Date | undefined;       // Required date
-  startTime: string;            // Required start time
-  endTime: string;              // Required end time
-  description?: string;         // What they did
+  title: string; // Required self-reported title
+  creatorName: string; // Person who supervised / creator reference
+  organizationName?: string; // Optional organization name
+  date: Date | undefined; // Required date
+  startTime: string; // Required start time
+  endTime: string; // Required end time
+  description?: string; // What they did
 }
 
 type FormErrors = Partial<Record<keyof UnverifiedHoursData, string>>;
 
-export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModalProps) {
+export function AddVolunteerHoursModal({
+  onAdd,
+  trigger,
+}: AddVolunteerHoursModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<UnverifiedHoursData>({
@@ -97,8 +100,12 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
 
     // Validate time logic
     if (formData.date && formData.startTime && formData.endTime) {
-      const startDateTime = new Date(`${format(formData.date, "yyyy-MM-dd")}T${formData.startTime}`);
-      const endDateTime = new Date(`${format(formData.date, "yyyy-MM-dd")}T${formData.endTime}`);
+      const startDateTime = new Date(
+        `${format(formData.date, "yyyy-MM-dd")}T${formData.startTime}`,
+      );
+      const endDateTime = new Date(
+        `${format(formData.date, "yyyy-MM-dd")}T${formData.endTime}`,
+      );
 
       if (endDateTime <= startDateTime) {
         newErrors.endTime = "End time must be after start time";
@@ -118,8 +125,12 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
   const calculateDuration = (): string => {
     if (!formData.date || !formData.startTime || !formData.endTime) return "";
 
-    const startDateTime = new Date(`${format(formData.date, "yyyy-MM-dd")}T${formData.startTime}`);
-    const endDateTime = new Date(`${format(formData.date, "yyyy-MM-dd")}T${formData.endTime}`);
+    const startDateTime = new Date(
+      `${format(formData.date, "yyyy-MM-dd")}T${formData.startTime}`,
+    );
+    const endDateTime = new Date(
+      `${format(formData.date, "yyyy-MM-dd")}T${formData.endTime}`,
+    );
 
     if (endDateTime <= startDateTime) return "";
 
@@ -172,7 +183,7 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
       // Trigger a soft refresh so new hours appear
       try {
         // Prefer router.refresh but to avoid importing, fallback to location.reload if needed
-        if (typeof window !== 'undefined' && window.location) {
+        if (typeof window !== "undefined" && window.location) {
           // Use partial reload by calling a revalidation endpoint in future; for now simple reload
           window.location.reload();
         }
@@ -197,7 +208,10 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
       setErrors({});
       setIsOpen(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Please try again or contact support if the problem persists.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Please try again or contact support if the problem persists.";
       toast.error("Failed to add volunteer hours", {
         description: message,
       });
@@ -217,9 +231,13 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger render={
-        (React.isValidElement(trigger) ? trigger : defaultTrigger) as React.ReactElement
-      } />
+      <DialogTrigger
+        render={
+          (React.isValidElement(trigger)
+            ? trigger
+            : defaultTrigger) as React.ReactElement
+        }
+      />
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -227,7 +245,8 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
             Add Self-Reported Hours
           </DialogTitle>
           <DialogDescription>
-            Log volunteer hours performed outside the platform. Provide a clear title, supervisor/creator, and optional organization.
+            Log volunteer hours performed outside the platform. Provide a clear
+            title, supervisor/creator, and optional organization.
           </DialogDescription>
         </DialogHeader>
 
@@ -238,11 +257,15 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
             <Input
               id="title"
               value={formData.title}
-              onChange={(e) => setFormData(p => ({ ...p, title: e.target.value }))}
+              onChange={(e) =>
+                setFormData((p) => ({ ...p, title: e.target.value }))
+              }
               placeholder="e.g., Community Cleanup, Tutoring Session"
               className={errors.title ? "border-destructive" : ""}
             />
-            {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
+            {errors.title && (
+              <p className="text-sm text-destructive">{errors.title}</p>
+            )}
           </div>
 
           {/* Creator / Supervisor Name */}
@@ -254,23 +277,38 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
             <Input
               id="creatorName"
               value={formData.creatorName}
-              onChange={(e) => setFormData(prev => ({ ...prev, creatorName: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  creatorName: e.target.value,
+                }))
+              }
               placeholder="e.g., Jane Smith"
               className={errors.creatorName ? "border-destructive" : ""}
             />
-            {errors.creatorName && <p className="text-sm text-destructive">{errors.creatorName}</p>}
+            {errors.creatorName && (
+              <p className="text-sm text-destructive">{errors.creatorName}</p>
+            )}
           </div>
 
           {/* Organization (Optional) */}
           <div className="space-y-2">
-            <Label htmlFor="organizationName" className="flex items-center gap-2">
+            <Label
+              htmlFor="organizationName"
+              className="flex items-center gap-2"
+            >
               <Building2 className="h-4 w-4" />
               Organization (Optional)
             </Label>
             <Input
               id="organizationName"
               value={formData.organizationName}
-              onChange={(e) => setFormData(prev => ({ ...prev, organizationName: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  organizationName: e.target.value,
+                }))
+              }
               placeholder="e.g., Local Food Bank"
             />
           </div>
@@ -282,24 +320,32 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
               Date *
             </Label>
             <Popover>
-              <PopoverTrigger render={
-                <Button
-                  variant="outline"
-                  className={`w-full justify-start text-left font-normal ${!formData.date ? "text-muted-foreground" : ""} ${errors.date ? "border-destructive" : ""}`}
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {formData.date ? format(formData.date, "PPP") : "Select date"}
-                </Button>
-              } />
+              <PopoverTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    className={`w-full justify-start text-left font-normal ${!formData.date ? "text-muted-foreground" : ""} ${errors.date ? "border-destructive" : ""}`}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {formData.date
+                      ? format(formData.date, "PPP")
+                      : "Select date"}
+                  </Button>
+                }
+              />
               <PopoverContent className="w-auto p-0" align="start">
                 <CalendarComponent
                   mode="single"
                   selected={formData.date}
-                  onSelect={(date) => setFormData(prev => ({ ...prev, date }))}
+                  onSelect={(date) =>
+                    setFormData((prev) => ({ ...prev, date }))
+                  }
                   disabled={(date) => {
                     const oneWeekFromNow = new Date();
                     oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
-                    return date > oneWeekFromNow || date < new Date("1900-01-01");
+                    return (
+                      date > oneWeekFromNow || date < new Date("1900-01-01")
+                    );
                   }}
                   initialFocus
                 />
@@ -314,7 +360,9 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
           <div className="grid grid-cols-2 gap-4">
             <TimePicker
               value={formData.startTime}
-              onChangeAction={(time) => setFormData(prev => ({ ...prev, startTime: time }))}
+              onChangeAction={(time) =>
+                setFormData((prev) => ({ ...prev, startTime: time }))
+              }
               label="Start Time *"
               error={!!errors.startTime}
               errorMessage={errors.startTime}
@@ -322,7 +370,9 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
 
             <TimePicker
               value={formData.endTime}
-              onChangeAction={(time) => setFormData(prev => ({ ...prev, endTime: time }))}
+              onChangeAction={(time) =>
+                setFormData((prev) => ({ ...prev, endTime: time }))
+              }
               label="End Time *"
               error={!!errors.endTime}
               errorMessage={errors.endTime}
@@ -333,7 +383,8 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
           {duration && (
             <div className="bg-muted/50 p-3 rounded-lg">
               <p className="text-sm font-medium text-center">
-                Duration: <span className="text-primary font-bold">{duration}</span>
+                Duration:{" "}
+                <span className="text-primary font-bold">{duration}</span>
               </p>
             </div>
           )}
@@ -342,7 +393,9 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
           <div className="space-y-2">
             <Label htmlFor="description">
               Activity Description
-              <span className="text-xs text-muted-foreground ml-2">(Optional)</span>
+              <span className="text-xs text-muted-foreground ml-2">
+                (Optional)
+              </span>
             </Label>
             <Textarea
               id="description"
@@ -350,7 +403,7 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
               onChange={(e) => {
                 const value = e.target.value;
                 if (value.length <= 200) {
-                  setFormData(prev => ({ ...prev, description: value }));
+                  setFormData((prev) => ({ ...prev, description: value }));
                 }
               }}
               placeholder="Briefly describe what you did during these volunteer hours..."

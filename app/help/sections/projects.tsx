@@ -1,7 +1,18 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -25,16 +36,30 @@ export function ProjectsSection() {
                 <AccordionTrigger>How to Create a New Project</AccordionTrigger>
                 <AccordionContent className="space-y-2 text-sm">
                   <ol className="list-decimal list-inside space-y-1">
-                    <li>Click the &quot;Create Project&quot; button from dashboard or projects page</li>
+                    <li>
+                      Click the &quot;Create Project&quot; button from dashboard
+                      or projects page
+                    </li>
                     <li>Fill in project name and detailed description</li>
                     <li>Set start and end dates for your volunteer work</li>
-                    <li>Choose project category (Community Service, Education, Environment, etc.)</li>
-                    <li>Set hour tracking preferences and verification requirements</li>
+                    <li>
+                      Choose project category (Community Service, Education,
+                      Environment, etc.)
+                    </li>
+                    <li>
+                      Set hour tracking preferences and verification
+                      requirements
+                    </li>
                     <li>Add location if applicable</li>
                     <li>Invite team members (optional)</li>
                   </ol>
                   <div className="mt-3">
-                    <Link href="/projects/create" className={cn(buttonVariants({ size: "sm" }))}>Create Your First Project</Link>
+                    <Link
+                      href="/projects/create"
+                      className={cn(buttonVariants({ size: "sm" }))}
+                    >
+                      Create Your First Project
+                    </Link>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -90,7 +115,10 @@ export function ProjectsSection() {
                       <Timer className="h-4 w-4 mt-1 text-primary" />
                       <div>
                         <h6 className="font-medium">Live Timer</h6>
-                        <p className="text-muted-foreground">Start/stop timer while volunteering for accurate tracking</p>
+                        <p className="text-muted-foreground">
+                          Start/stop timer while volunteering for accurate
+                          tracking
+                        </p>
                       </div>
                     </div>
                     {/* <div className="flex items-start gap-3">
@@ -117,12 +145,22 @@ export function ProjectsSection() {
                   <p>Your volunteer hours can be verified through:</p>
                   <ul className="list-disc list-inside space-y-1 ml-2">
                     {/* <li><strong>Project supervisors:</strong> People you designate as supervisors</li> */}
-                    <li><strong>Organization coordinators:</strong> Official organization administrators</li>
-                    <li><strong>Automatic verification:</strong> For certain project types and organizations</li>
-                    <li><strong>Self-verification:</strong> For individual projects (noted in certificates)</li>
+                    <li>
+                      <strong>Organization coordinators:</strong> Official
+                      organization administrators
+                    </li>
+                    <li>
+                      <strong>Automatic verification:</strong> For certain
+                      project types and organizations
+                    </li>
+                    <li>
+                      <strong>Self-verification:</strong> For individual
+                      projects (noted in certificates)
+                    </li>
                   </ul>
                   <div className="mt-2 p-2 bg-muted/50 rounded text-xs">
-                    <strong>Tip:</strong> Verified hours from organizations carry more weight for school requirements
+                    <strong>Tip:</strong> Verified hours from organizations
+                    carry more weight for school requirements
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -130,14 +168,27 @@ export function ProjectsSection() {
               <AccordionItem value="certificates">
                 <AccordionTrigger>Earning Certificates</AccordionTrigger>
                 <AccordionContent className="space-y-2 text-sm">
-                  <p>After completing volunteer work, you automatically receive:</p>
+                  <p>
+                    After completing volunteer work, you automatically receive:
+                  </p>
                   <ul className="list-disc list-inside space-y-1 ml-2">
                     <li>Digital certificate with project details</li>
                     <li>Hour totals and verification status</li>
                     <li>Downloadable PDF for records</li>
                     <li>Shareable links for verification</li>
                   </ul>
-                  <Link href="/certificates" className={cn(buttonVariants({ size: "sm", variant: "outline", className: "mt-2" }))}>View My Certificates</Link>
+                  <Link
+                    href="/certificates"
+                    className={cn(
+                      buttonVariants({
+                        size: "sm",
+                        variant: "outline",
+                        className: "mt-2",
+                      }),
+                    )}
+                  >
+                    View My Certificates
+                  </Link>
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
@@ -160,7 +211,10 @@ export function ProjectsSection() {
             <AccordionItem value="csv-export">
               <AccordionTrigger>Exporting Your Data</AccordionTrigger>
               <AccordionContent className="space-y-3 text-sm">
-                <p>Export your volunteer hours for reports or school requirements:</p>
+                <p>
+                  Export your volunteer hours for reports or school
+                  requirements:
+                </p>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <h6 className="font-medium mb-2">From Dashboard:</h6>
@@ -172,7 +226,9 @@ export function ProjectsSection() {
                     </ol>
                   </div>
                   <div>
-                    <h6 className="font-medium mb-2">From Certificates Page:</h6>
+                    <h6 className="font-medium mb-2">
+                      From Certificates Page:
+                    </h6>
                     <ol className="list-decimal list-inside space-y-1 text-xs">
                       <li>Visit your Certificates page</li>
                       <li>Use export options</li>
@@ -182,7 +238,10 @@ export function ProjectsSection() {
                   </div>
                 </div>
                 <div className="bg-info/20 p-3 rounded-lg">
-                  <p className="text-xs"><strong>Tip:</strong> CSV files can be opened in Excel or Google Sheets for further analysis and school submissions.</p>
+                  <p className="text-xs">
+                    <strong>Tip:</strong> CSV files can be opened in Excel or
+                    Google Sheets for further analysis and school submissions.
+                  </p>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -192,17 +251,26 @@ export function ProjectsSection() {
               <AccordionContent className="space-y-3 text-sm">
                 <p>Upload your existing volunteer hour records:</p>
                 <ol className="list-decimal list-inside space-y-1">
-                  <li>Prepare your CSV with columns: Date, Hours, Description, Organization</li>
+                  <li>
+                    Prepare your CSV with columns: Date, Hours, Description,
+                    Organization
+                  </li>
                   <li>Go to Projects → Import Hours</li>
                   <li>Upload your CSV file</li>
                   <li>Review and map columns</li>
                   <li>Confirm import</li>
                 </ol>
                 <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-                  <h6 className="font-medium text-xs mb-1">Required CSV Format:</h6>
-                  <code className="text-xs bg-background p-1 rounded">Date,Hours,Description,Organization</code>
+                  <h6 className="font-medium text-xs mb-1">
+                    Required CSV Format:
+                  </h6>
+                  <code className="text-xs bg-background p-1 rounded">
+                    Date,Hours,Description,Organization
+                  </code>
                   <br />
-                  <code className="text-xs bg-background p-1 rounded">2024-01-15,2.5,&quot;Food bank sorting&quot;,Local Food Bank</code>
+                  <code className="text-xs bg-background p-1 rounded">
+                    2024-01-15,2.5,&quot;Food bank sorting&quot;,Local Food Bank
+                  </code>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -215,10 +283,30 @@ export function ProjectsSection() {
                   <div>
                     <h6 className="font-medium mb-2">Project Status:</h6>
                     <ul className="space-y-1 text-xs">
-                      <li><Badge variant="outline" className="mr-1">Planning</Badge> Project being set up</li>
-                      <li><Badge variant="outline" className="mr-1">Active</Badge> Currently accepting volunteers</li>
-                      <li><Badge variant="outline" className="mr-1">Completed</Badge> Project finished</li>
-                      <li><Badge variant="outline" className="mr-1">Cancelled</Badge> Project cancelled</li>
+                      <li>
+                        <Badge variant="outline" className="mr-1">
+                          Planning
+                        </Badge>{" "}
+                        Project being set up
+                      </li>
+                      <li>
+                        <Badge variant="outline" className="mr-1">
+                          Active
+                        </Badge>{" "}
+                        Currently accepting volunteers
+                      </li>
+                      <li>
+                        <Badge variant="outline" className="mr-1">
+                          Completed
+                        </Badge>{" "}
+                        Project finished
+                      </li>
+                      <li>
+                        <Badge variant="outline" className="mr-1">
+                          Cancelled
+                        </Badge>{" "}
+                        Project cancelled
+                      </li>
                     </ul>
                   </div>
                   <div>

@@ -55,7 +55,7 @@ export interface FormFieldDefinition {
     max?: number;
     minLength?: number;
     maxLength?: number;
-    fileTypes?: string[];    // MIME types for file fields
+    fileTypes?: string[]; // MIME types for file fields
     maxFileSizeMb?: number;
   };
 
@@ -145,9 +145,13 @@ export function isFieldVisible(
         ? currentValue.includes(value)
         : false;
     case "not_empty":
-      return currentValue != null && currentValue !== "" && currentValue !== false;
+      return (
+        currentValue != null && currentValue !== "" && currentValue !== false
+      );
     case "empty":
-      return currentValue == null || currentValue === "" || currentValue === false;
+      return (
+        currentValue == null || currentValue === "" || currentValue === false
+      );
     default:
       return true;
   }
@@ -181,7 +185,10 @@ export function validateSubmission(
     if (field.required) {
       if (field.type === "checkbox") {
         if (value !== true && value !== "true") {
-          errors.push({ field: field.key, message: `${field.label} is required` });
+          errors.push({
+            field: field.key,
+            message: `${field.label} is required`,
+          });
           continue;
         }
       } else if (field.type === "file") {
@@ -191,11 +198,21 @@ export function validateSubmission(
             : value != null && value !== "";
 
         if (!hasFileValue) {
-          errors.push({ field: field.key, message: `${field.label} is required` });
+          errors.push({
+            field: field.key,
+            message: `${field.label} is required`,
+          });
           continue;
         }
-      } else if (value == null || value === "" || (Array.isArray(value) && value.length === 0)) {
-        errors.push({ field: field.key, message: `${field.label} is required` });
+      } else if (
+        value == null ||
+        value === "" ||
+        (Array.isArray(value) && value.length === 0)
+      ) {
+        errors.push({
+          field: field.key,
+          message: `${field.label} is required`,
+        });
         continue;
       }
     }
@@ -251,7 +268,10 @@ export function validateSubmission(
     if (field.type === "email" && typeof value === "string") {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(value)) {
-        errors.push({ field: field.key, message: `${field.label} must be a valid email` });
+        errors.push({
+          field: field.key,
+          message: `${field.label} must be a valid email`,
+        });
       }
     }
 
@@ -259,7 +279,10 @@ export function validateSubmission(
     if (field.type === "tel" && typeof value === "string") {
       const digitsOnly = value.replace(/\D/g, "");
       if (digitsOnly.length < 10) {
-        errors.push({ field: field.key, message: `${field.label} must be a valid phone number` });
+        errors.push({
+          field: field.key,
+          message: `${field.label} must be a valid phone number`,
+        });
       }
     }
 
@@ -275,15 +298,25 @@ export function validateSubmission(
     }
 
     // File fields: validate file type and size when a File is provided.
-    if (field.type === "file" && typeof File !== "undefined" && value instanceof File) {
+    if (
+      field.type === "file" &&
+      typeof File !== "undefined" &&
+      value instanceof File
+    ) {
       const fileName = value.name.toLowerCase();
       const fileType = value.type.toLowerCase();
 
       if (field.validation?.fileTypes?.length) {
-        const acceptedTypes = field.validation.fileTypes.map((t) => t.toLowerCase());
+        const acceptedTypes = field.validation.fileTypes.map((t) =>
+          t.toLowerCase(),
+        );
         const matchesAllowedType = acceptedTypes.some((type) => {
           const normalized = type.startsWith(".") ? type : `.${type}`;
-          return fileName.endsWith(normalized) || fileType === type || fileType.endsWith(type.replace(/^\./, ""));
+          return (
+            fileName.endsWith(normalized) ||
+            fileType === type ||
+            fileType.endsWith(type.replace(/^\./, ""))
+          );
         });
 
         if (!matchesAllowedType) {
@@ -294,7 +327,10 @@ export function validateSubmission(
         }
       }
 
-      if (field.validation?.maxFileSizeMb && value.size > field.validation.maxFileSizeMb * 1024 * 1024) {
+      if (
+        field.validation?.maxFileSizeMb &&
+        value.size > field.validation.maxFileSizeMb * 1024 * 1024
+      ) {
         errors.push({
           field: field.key,
           message: `${field.label} must be smaller than ${field.validation.maxFileSizeMb}MB`,
@@ -303,7 +339,11 @@ export function validateSubmission(
     }
 
     // Multi-select: all values must be in options
-    if (field.type === "multi-select" && field.options && Array.isArray(value)) {
+    if (
+      field.type === "multi-select" &&
+      field.options &&
+      Array.isArray(value)
+    ) {
       const validValues = field.options.map((o) => o.value);
       for (const v of value) {
         if (!validValues.includes(v as string)) {
@@ -338,19 +378,35 @@ export function createSection(
   };
 }
 
-export function textField(key: string, label: string, opts?: Partial<FormFieldDefinition>): FormFieldDefinition {
+export function textField(
+  key: string,
+  label: string,
+  opts?: Partial<FormFieldDefinition>,
+): FormFieldDefinition {
   return { key, label, type: "text", ...opts };
 }
 
-export function emailField(key: string, label: string, opts?: Partial<FormFieldDefinition>): FormFieldDefinition {
+export function emailField(
+  key: string,
+  label: string,
+  opts?: Partial<FormFieldDefinition>,
+): FormFieldDefinition {
   return { key, label, type: "email", ...opts };
 }
 
-export function phoneField(key: string, label: string, opts?: Partial<FormFieldDefinition>): FormFieldDefinition {
+export function phoneField(
+  key: string,
+  label: string,
+  opts?: Partial<FormFieldDefinition>,
+): FormFieldDefinition {
   return { key, label, type: "tel", ...opts };
 }
 
-export function numberField(key: string, label: string, opts?: Partial<FormFieldDefinition>): FormFieldDefinition {
+export function numberField(
+  key: string,
+  label: string,
+  opts?: Partial<FormFieldDefinition>,
+): FormFieldDefinition {
   return { key, label, type: "number", ...opts };
 }
 
@@ -363,10 +419,18 @@ export function selectField(
   return { key, label, type: "select", options, ...opts };
 }
 
-export function checkboxField(key: string, label: string, opts?: Partial<FormFieldDefinition>): FormFieldDefinition {
+export function checkboxField(
+  key: string,
+  label: string,
+  opts?: Partial<FormFieldDefinition>,
+): FormFieldDefinition {
   return { key, label, type: "checkbox", ...opts };
 }
 
-export function textareaField(key: string, label: string, opts?: Partial<FormFieldDefinition>): FormFieldDefinition {
+export function textareaField(
+  key: string,
+  label: string,
+  opts?: Partial<FormFieldDefinition>,
+): FormFieldDefinition {
   return { key, label, type: "textarea", ...opts };
 }

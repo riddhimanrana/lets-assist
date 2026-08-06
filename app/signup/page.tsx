@@ -8,7 +8,8 @@ import { getAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
   title: "Sign Up",
-  description: "Join Let's Assist and start making a difference by finding volunteering opportunities.",
+  description:
+    "Join Let's Assist and start making a difference by finding volunteering opportunities.",
 };
 
 interface SignupPageProps {
@@ -24,7 +25,15 @@ interface SignupPageProps {
 }
 
 export default async function SignupPage({ searchParams }: SignupPageProps) {
-  const { redirect: redirectPath, staff_token, org, email, invite_token, member_token, token } = await searchParams;
+  const {
+    redirect: redirectPath,
+    staff_token,
+    org,
+    email,
+    invite_token,
+    member_token,
+    token,
+  } = await searchParams;
 
   const inviteToken = invite_token || member_token || token;
 
@@ -66,31 +75,37 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
       .select("email, invited_full_name, invited_phone, invited_profile_data")
       .eq("token", inviteToken)
       .single();
-    
+
     if (invite) {
       if (!prefilledEmail && invite.email) {
         prefilledEmail = invite.email;
       }
-      
+
       // Use invited_full_name first, then fall back to profile_data
       prefilledName = invite.invited_full_name;
       if (!prefilledName && invite.invited_profile_data) {
-        const profileData = invite.invited_profile_data as Record<string, string> | null;
+        const profileData = invite.invited_profile_data as Record<
+          string,
+          string
+        > | null;
         prefilledName = profileData?.full_name || profileData?.fullName;
       }
-      
+
       // Use invited_phone first, then fall back to profile_data
       prefilledPhone = invite.invited_phone;
       if (!prefilledPhone && invite.invited_profile_data) {
-        const profileData = invite.invited_profile_data as Record<string, string> | null;
+        const profileData = invite.invited_profile_data as Record<
+          string,
+          string
+        > | null;
         prefilledPhone = profileData?.phone;
       }
     }
   }
 
   return (
-    <SignupClient 
-      redirectPath={finalRedirectPath} 
+    <SignupClient
+      redirectPath={finalRedirectPath}
       staffToken={staff_token}
       orgUsername={org}
       inviteToken={inviteToken}

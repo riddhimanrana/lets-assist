@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-import { getCsfIsolatedSupabaseEnv } from "../../scripts/local-dev/dv-local-env.mjs";
+import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
 import {
   CSF_ORGANIZATION_PATH,
   CSF_PUBLIC_PATH,
@@ -49,7 +49,9 @@ async function loadClaimFixture(): Promise<ClaimFixture> {
     );
   }
   if (usersResult.error) {
-    throw new Error(`Could not load local auth fixtures: ${usersResult.error.message}`);
+    throw new Error(
+      `Could not load local auth fixtures: ${usersResult.error.message}`,
+    );
   }
 
   const user = usersResult.data.users.find(
@@ -100,7 +102,8 @@ async function cleanClaimFixture(fixture: ClaimFixture) {
     .delete()
     .eq("organization_id", fixture.organizationId)
     .eq("user_id", fixture.userId);
-  if (requestsError) throw new Error(`Could not clean claim requests: ${requestsError.message}`);
+  if (requestsError)
+    throw new Error(`Could not clean claim requests: ${requestsError.message}`);
 
   const { error: membershipError } = await fixture.admin
     .from("organization_members")
@@ -108,7 +111,9 @@ async function cleanClaimFixture(fixture: ClaimFixture) {
     .eq("organization_id", fixture.organizationId)
     .eq("user_id", fixture.userId);
   if (membershipError) {
-    throw new Error(`Could not clean the organization membership: ${membershipError.message}`);
+    throw new Error(
+      `Could not clean the organization membership: ${membershipError.message}`,
+    );
   }
 
   const { error: accountError } = await plugin
@@ -121,7 +126,8 @@ async function cleanClaimFixture(fixture: ClaimFixture) {
     })
     .eq("organization_id", fixture.organizationId)
     .eq("user_id", fixture.userId);
-  if (accountError) throw new Error(`Could not retire claim accounts: ${accountError.message}`);
+  if (accountError)
+    throw new Error(`Could not retire claim accounts: ${accountError.message}`);
 
   // Confirmed claims are referenced by immutable audit rows, so browser
   // fixtures are de-identified rather than deleted. This preserves the
@@ -134,14 +140,18 @@ async function cleanClaimFixture(fixture: ClaimFixture) {
       merged_into_profile_id: fixture.retirementTargetProfileId,
       merged_at: new Date().toISOString(),
       merged_by: fixture.userId,
-      merge_reason: "Retired synthetic browser claim fixture after verification.",
+      merge_reason:
+        "Retired synthetic browser claim fixture after verification.",
       personal_email: null,
       normalized_personal_email: null,
     })
     .eq("organization_id", fixture.organizationId)
     .eq("record_status", "active")
     .contains("source_summary", { e2eFixture: true });
-  if (profileError) throw new Error(`Could not retire the claim profile: ${profileError.message}`);
+  if (profileError)
+    throw new Error(
+      `Could not retire the claim profile: ${profileError.message}`,
+    );
 }
 
 async function seedClaimCandidate(fixture: ClaimFixture) {
@@ -161,7 +171,10 @@ async function seedClaimCandidate(fixture: ClaimFixture) {
     normalized_personal_email: localActors.outsider.email,
     source_summary: { e2eFixture: true },
   });
-  if (profileError) throw new Error(`Could not seed the claim profile: ${profileError.message}`);
+  if (profileError)
+    throw new Error(
+      `Could not seed the claim profile: ${profileError.message}`,
+    );
 
   const { error: cohortMembershipError } = await plugin
     .from("csf_profile_cohort_memberships")
@@ -172,7 +185,9 @@ async function seedClaimCandidate(fixture: ClaimFixture) {
       status: "active",
     });
   if (cohortMembershipError) {
-    throw new Error(`Could not seed the cohort membership: ${cohortMembershipError.message}`);
+    throw new Error(
+      `Could not seed the cohort membership: ${cohortMembershipError.message}`,
+    );
   }
 
   return profileId;
@@ -203,15 +218,21 @@ test.describe("reusable class-link profile claiming", () => {
     await loginAs(page, "outsider", connectPath);
 
     await expect(
-      page.getByRole("heading", { name: "We found your CSF record — is this you?" }),
+      page.getByRole("heading", {
+        name: "We found your CSF record — is this you?",
+      }),
     ).toBeVisible();
     await expect(
       page.getByRole("main").getByText("Taylor Fixture", { exact: true }),
     ).toBeVisible();
     await expect(
-      page.locator('[data-slot="badge"]').filter({ hasText: /^Class of 2028$/ }),
+      page
+        .locator('[data-slot="badge"]')
+        .filter({ hasText: /^Class of 2028$/ }),
     ).toBeVisible();
-    await expect(page.getByText(localActors.outsider.email, { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByText(localActors.outsider.email, { exact: true }),
+    ).toHaveCount(0);
 
     // Neither the matched email nor the internal profile identifier may reach
     // the rendered document, including hidden inputs and the RSC payload.
@@ -219,34 +240,37 @@ test.describe("reusable class-link profile claiming", () => {
     expect(candidateHtml).not.toContain(localActors.outsider.email);
     expect(candidateHtml).not.toContain(profileId);
 
-    await page.getByRole("button", { name: "Yes, connect this record" }).click();
+    await page
+      .getByRole("button", { name: "Yes, connect this record" })
+      .click();
     await expect
       .poll(async () => {
-        const [{ data: member }, { data: account }, { data: request }] = await Promise.all([
-          fixture.admin
-            .from("organization_members")
-            .select("role,status")
-            .eq("organization_id", fixture.organizationId)
-            .eq("user_id", fixture.userId)
-            .maybeSingle(),
-          fixture.admin
-            .schema("plugin_data")
-            .from("csf_profile_accounts")
-            .select("status,is_primary")
-            .eq("organization_id", fixture.organizationId)
-            .eq("profile_id", profileId)
-            .eq("user_id", fixture.userId)
-            .maybeSingle(),
-          fixture.admin
-            .schema("plugin_data")
-            .from("csf_profile_link_requests")
-            .select("match_status")
-            .eq("organization_id", fixture.organizationId)
-            .eq("user_id", fixture.userId)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        ]);
+        const [{ data: member }, { data: account }, { data: request }] =
+          await Promise.all([
+            fixture.admin
+              .from("organization_members")
+              .select("role,status")
+              .eq("organization_id", fixture.organizationId)
+              .eq("user_id", fixture.userId)
+              .maybeSingle(),
+            fixture.admin
+              .schema("plugin_data")
+              .from("csf_profile_accounts")
+              .select("status,is_primary")
+              .eq("organization_id", fixture.organizationId)
+              .eq("profile_id", profileId)
+              .eq("user_id", fixture.userId)
+              .maybeSingle(),
+            fixture.admin
+              .schema("plugin_data")
+              .from("csf_profile_link_requests")
+              .select("match_status")
+              .eq("organization_id", fixture.organizationId)
+              .eq("user_id", fixture.userId)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+          ]);
         return { member, account, request };
       })
       .toEqual({
@@ -260,48 +284,55 @@ test.describe("reusable class-link profile claiming", () => {
       page.getByRole("main").getByText("Taylor Fixture", { exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "We found your CSF record — is this you?" }),
+      page.getByRole("heading", {
+        name: "We found your CSF record — is this you?",
+      }),
     ).toHaveCount(0);
 
     expectNoBrowserFailures(failures);
   });
 
-  test("Not me creates officer review without linking the account", async ({ page }) => {
+  test("Not me creates officer review without linking the account", async ({
+    page,
+  }) => {
     const failures = watchBrowserFailures(page);
     await loginAs(page, "outsider", connectPath);
     await expect(
-      page.getByRole("heading", { name: "We found your CSF record — is this you?" }),
+      page.getByRole("heading", {
+        name: "We found your CSF record — is this you?",
+      }),
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Not me", exact: true }).click();
 
     await expect
       .poll(async () => {
-        const [{ data: member }, { data: account }, { data: request }] = await Promise.all([
-          fixture.admin
-            .from("organization_members")
-            .select("id")
-            .eq("organization_id", fixture.organizationId)
-            .eq("user_id", fixture.userId)
-            .maybeSingle(),
-          fixture.admin
-            .schema("plugin_data")
-            .from("csf_profile_accounts")
-            .select("id")
-            .eq("organization_id", fixture.organizationId)
-            .eq("profile_id", profileId)
-            .eq("user_id", fixture.userId)
-            .maybeSingle(),
-          fixture.admin
-            .schema("plugin_data")
-            .from("csf_profile_link_requests")
-            .select("match_status,matched_profile_id,candidate_profile_ids")
-            .eq("organization_id", fixture.organizationId)
-            .eq("user_id", fixture.userId)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        ]);
+        const [{ data: member }, { data: account }, { data: request }] =
+          await Promise.all([
+            fixture.admin
+              .from("organization_members")
+              .select("id")
+              .eq("organization_id", fixture.organizationId)
+              .eq("user_id", fixture.userId)
+              .maybeSingle(),
+            fixture.admin
+              .schema("plugin_data")
+              .from("csf_profile_accounts")
+              .select("id")
+              .eq("organization_id", fixture.organizationId)
+              .eq("profile_id", profileId)
+              .eq("user_id", fixture.userId)
+              .maybeSingle(),
+            fixture.admin
+              .schema("plugin_data")
+              .from("csf_profile_link_requests")
+              .select("match_status,matched_profile_id,candidate_profile_ids")
+              .eq("organization_id", fixture.organizationId)
+              .eq("user_id", fixture.userId)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+          ]);
         return { member, account, request };
       })
       .toEqual({
@@ -335,11 +366,19 @@ test.describe("signed-out CSF connection states", () => {
 
     // No profile or candidate controls exist without an invitation.
     await expect(page.locator("main form")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /Find my record/ })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /Add profile details/ })).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /Find my record/ }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /Add profile details/ }),
+    ).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Not me/ })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /Yes, connect this record/ })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /Accept invitation/ })).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /Yes, connect this record/ }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /Accept invitation/ }),
+    ).toHaveCount(0);
 
     const returnLink = await soleAccessibleAction(page, "Back to the CSF page");
     await expect(returnLink).toHaveAttribute("href", CSF_PUBLIC_PATH);
@@ -374,13 +413,23 @@ test.describe("signed-out CSF connection states", () => {
 
     // No connection form, and no sign-in tied to the unusable code.
     await expect(page.locator("main form")).toHaveCount(0);
-    await expect(page.locator("main").getByRole("button", { name: /Sign in/ })).toHaveCount(0);
-    await expect(page.locator("main").getByRole("button", { name: /claim profile/i })).toHaveCount(0);
+    await expect(
+      page.locator("main").getByRole("button", { name: /Sign in/ }),
+    ).toHaveCount(0);
+    await expect(
+      page.locator("main").getByRole("button", { name: /claim profile/i }),
+    ).toHaveCount(0);
 
-    const hrefs = await page.locator("main a").evaluateAll((links) =>
-      links.map((link) => (link as HTMLAnchorElement).getAttribute("href") ?? ""),
+    const hrefs = await page
+      .locator("main a")
+      .evaluateAll((links) =>
+        links.map(
+          (link) => (link as HTMLAnchorElement).getAttribute("href") ?? "",
+        ),
+      );
+    expect(hrefs.some((href) => href.includes("not-a-real-csf-link"))).toBe(
+      false,
     );
-    expect(hrefs.some((href) => href.includes("not-a-real-csf-link"))).toBe(false);
     expect(hrefs.some((href) => href.includes("/login"))).toBe(false);
 
     const returnLink = await soleAccessibleAction(page, "Back to the CSF page");
@@ -410,7 +459,9 @@ test.describe("signed-out CSF connection states", () => {
 
     // A signed-out visitor sees no candidate and no officer-review form.
     await expect(page.getByRole("button", { name: /Not me/ })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /Yes, connect this record/ })).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /Yes, connect this record/ }),
+    ).toHaveCount(0);
     await expect(page.locator("main form")).toHaveCount(0);
 
     expectNoBrowserFailures(failures);

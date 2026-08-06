@@ -21,7 +21,8 @@ type ContinuationIdentity = Pick<
 
 function getSecret() {
   const secret =
-    process.env.ANONYMOUS_SIGNUP_CONTINUATION_SECRET ?? process.env.ENCRYPTION_KEY;
+    process.env.ANONYMOUS_SIGNUP_CONTINUATION_SECRET ??
+    process.env.ENCRYPTION_KEY;
 
   if (!secret || secret.length < MINIMUM_SECRET_LENGTH) {
     throw new Error(
@@ -86,7 +87,9 @@ export function createAnonymousSignupContinuation(
     issuedAt,
     expiresAt: issuedAt + TTL_MS,
   };
-  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString(
+    "base64url",
+  );
   const signature = signPayload(encodedPayload, options.secret ?? getSecret());
   return `${encodedPayload}.${signature}`;
 }
@@ -102,7 +105,10 @@ export function verifyAnonymousSignupContinuation(
 
   try {
     const [encodedPayload, suppliedSignature] = parts;
-    const expectedSignature = signPayload(encodedPayload, options.secret ?? getSecret());
+    const expectedSignature = signPayload(
+      encodedPayload,
+      options.secret ?? getSecret(),
+    );
     if (!safelyEqual(suppliedSignature, expectedSignature)) return false;
 
     const payload = JSON.parse(

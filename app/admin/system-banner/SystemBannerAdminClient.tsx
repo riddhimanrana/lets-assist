@@ -6,7 +6,13 @@ import { AlertTriangle, Globe, Home } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Input } from "@/components/ui/input";
@@ -99,7 +105,10 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
   const router = useRouter();
   const initialValues = useMemo(() => buildInitialValues(banner), [banner]);
   const [formValues, setFormValues] = useState<BannerFormValues>(initialValues);
-  const [saveState, saveAction, savePending] = useActionState(saveSystemBanner, INITIAL_STATE);
+  const [saveState, saveAction, savePending] = useActionState(
+    saveSystemBanner,
+    INITIAL_STATE,
+  );
   const [deactivateState, deactivateAction, deactivatePending] = useActionState(
     deactivateSystemBannerScope,
     INITIAL_STATE,
@@ -133,13 +142,22 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
     if (deactivateState.error) {
       toast.error(deactivateState.error);
     }
-  }, [deactivateState.error, deactivateState.message, deactivateState.success, router]);
+  }, [
+    deactivateState.error,
+    deactivateState.message,
+    deactivateState.success,
+    router,
+  ]);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl">
-          {isLandingScope ? <Home className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
+          {isLandingScope ? (
+            <Home className="h-5 w-5" />
+          ) : (
+            <Globe className="h-5 w-5" />
+          )}
           {isLandingScope ? "Landing-only banner" : "Sitewide banner"}
         </CardTitle>
         <CardDescription>
@@ -155,22 +173,49 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
           </p>
           {banner ? (
             <p className="mt-2 text-muted-foreground">
-              Last updated {new Date(banner.updated_at).toLocaleString()} • Type: {banner.banner_type}
+              Last updated {new Date(banner.updated_at).toLocaleString()} •
+              Type: {banner.banner_type}
             </p>
           ) : (
-            <p className="mt-2 text-muted-foreground">No banner configured for this scope yet.</p>
+            <p className="mt-2 text-muted-foreground">
+              No banner configured for this scope yet.
+            </p>
           )}
         </div>
 
         <form action={saveAction} className="space-y-4">
           <input type="hidden" name="targetScope" value={scope} />
           <input type="hidden" name="bannerId" value={banner?.id ?? ""} />
-          <input type="hidden" name="bannerType" value={formValues.bannerType} />
-          <input type="hidden" name="startsAt" value={formValues.startsAt?.toISOString() ?? ""} />
-          <input type="hidden" name="endsAt" value={formValues.endsAt?.toISOString() ?? ""} />
-          <input type="hidden" name="isActive" value={String(formValues.isActive)} />
-          <input type="hidden" name="dismissible" value={String(formValues.dismissible)} />
-          <input type="hidden" name="showIcon" value={String(formValues.showIcon)} />
+          <input
+            type="hidden"
+            name="bannerType"
+            value={formValues.bannerType}
+          />
+          <input
+            type="hidden"
+            name="startsAt"
+            value={formValues.startsAt?.toISOString() ?? ""}
+          />
+          <input
+            type="hidden"
+            name="endsAt"
+            value={formValues.endsAt?.toISOString() ?? ""}
+          />
+          <input
+            type="hidden"
+            name="isActive"
+            value={String(formValues.isActive)}
+          />
+          <input
+            type="hidden"
+            name="dismissible"
+            value={String(formValues.dismissible)}
+          />
+          <input
+            type="hidden"
+            name="showIcon"
+            value={String(formValues.showIcon)}
+          />
           <input type="hidden" name="textAlign" value={formValues.textAlign} />
 
           <div className="grid gap-2">
@@ -370,7 +415,8 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
 
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
-              Only one active banner per scope is allowed. Activating this one auto-disables other active banners in the same scope.
+              Only one active banner per scope is allowed. Activating this one
+              auto-disables other active banners in the same scope.
             </span>
           </div>
         </form>
@@ -378,7 +424,9 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
         <form action={deactivateAction}>
           <input type="hidden" name="targetScope" value={scope} />
           <Button type="submit" variant="outline" disabled={deactivatePending}>
-            {deactivatePending ? "Deactivating..." : "Deactivate current active banner"}
+            {deactivatePending
+              ? "Deactivating..."
+              : "Deactivate current active banner"}
           </Button>
         </form>
       </CardContent>

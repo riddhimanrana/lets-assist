@@ -50,8 +50,14 @@ import {
  */
 
 const repositoryRoot = process.cwd();
-const runnerPath = join(repositoryRoot, "scripts/local-dev/run-dvhs-csf-isolated-app.mjs");
-const guardPath = join(repositoryRoot, "scripts/local-dev/cron-egress-guard.cjs");
+const runnerPath = join(
+  repositoryRoot,
+  "scripts/local-dev/run-dvhs-csf-isolated-app.mjs",
+);
+const guardPath = join(
+  repositoryRoot,
+  "scripts/local-dev/cron-egress-guard.cjs",
+);
 const runnerSource = readFileSync(runnerPath, "utf8");
 
 const temporaryDirectories: string[] = [];
@@ -96,7 +102,9 @@ const APP_ENV: Record<string, string> = {
   CSF_ISOLATED_WORK_DIR: "/tmp/lets-assist-csf-browser-runner-test",
 };
 
-function build(options: Partial<Parameters<typeof buildIsolatedChildEnvironment>[0]> = {}) {
+function build(
+  options: Partial<Parameters<typeof buildIsolatedChildEnvironment>[0]> = {},
+) {
   return buildIsolatedChildEnvironment({
     mode: "isolated-app",
     appEnv: APP_ENV,
@@ -122,11 +130,13 @@ describe("the isolated app child environment is built, not inherited", () => {
       STRIPE_SECRET_KEY: "sk_live_planted_parent",
       NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: "phc_planted_parent",
       TURNSTILE_SECRET_KEY: "planted-parent-turnstile",
-      NEXT_PUBLIC_REMOTE_SUPABASE_URL: "https://fotdmeakexgrkronxlof.supabase.co",
+      NEXT_PUBLIC_REMOTE_SUPABASE_URL:
+        "https://fotdmeakexgrkronxlof.supabase.co",
       SUPABASE_ACCESS_TOKEN: "sbp_planted_parent",
       AWS_SECRET_ACCESS_KEY: "planted-parent-aws",
     };
-    for (const [key, value] of Object.entries(planted)) process.env[key] = value;
+    for (const [key, value] of Object.entries(planted))
+      process.env[key] = value;
     try {
       const { childEnv } = build();
       const serialized = JSON.stringify(childEnv);
@@ -147,7 +157,8 @@ describe("the isolated app child environment is built, not inherited", () => {
     const { childEnv } = build();
     const expected = new Set([
       ...OS_RUNTIME_KEYS.filter(
-        (key: string) => typeof process.env[key] === "string" && process.env[key] !== "",
+        (key: string) =>
+          typeof process.env[key] === "string" && process.env[key] !== "",
       ),
       ...Object.keys(APP_ENV),
       ...DISABLED_WORKER_ENV_KEYS,
@@ -201,7 +212,9 @@ describe("the isolated app child environment is built, not inherited", () => {
 
   test("every worker flag, including the CSF communications worker, is false", () => {
     const { childEnv } = build();
-    expect(DISABLED_WORKER_ENV_KEYS).toContain("CSF_COMMUNICATIONS_WORKER_ENABLED");
+    expect(DISABLED_WORKER_ENV_KEYS).toContain(
+      "CSF_COMMUNICATIONS_WORKER_ENABLED",
+    );
     for (const key of DISABLED_WORKER_ENV_KEYS) {
       expect(childEnv[key], key).toBe("false");
     }
@@ -229,7 +242,9 @@ describe("the isolated app child environment is built, not inherited", () => {
 
     expect(discovered.size).toBeGreaterThan(0);
     for (const key of discovered) {
-      expect(DISABLED_WORKER_ENV_KEYS, `${key} is not forced false`).toContain(key);
+      expect(DISABLED_WORKER_ENV_KEYS, `${key} is not forced false`).toContain(
+        key,
+      );
     }
   });
 
@@ -246,9 +261,16 @@ describe("the isolated app child environment is built, not inherited", () => {
   test("only loopback Supabase, database, SMTP, and the local app are permitted", () => {
     const { childEnv } = build();
     expect(childEnv.CRON_EGRESS_ALLOWED_LOOPBACK_PORTS).toBe(
-      [ISOLATED.apiPort, ISOLATED.databasePort, ISOLATED.smtpPort, APP_PORT].join(","),
+      [
+        ISOLATED.apiPort,
+        ISOLATED.databasePort,
+        ISOLATED.smtpPort,
+        APP_PORT,
+      ].join(","),
     );
-    expect(childEnv.CRON_EGRESS_ALLOWED_SMTP_PORTS).toBe(String(ISOLATED.smtpPort));
+    expect(childEnv.CRON_EGRESS_ALLOWED_SMTP_PORTS).toBe(
+      String(ISOLATED.smtpPort),
+    );
     expect(childEnv.NODE_OPTIONS).toBe(`--require ${guardPath}`);
   });
 
@@ -337,7 +359,9 @@ describe("repository .env* keys are discovered by a real @next/env load", () => 
     }
     // Sterile: the discovery ran in its own process, so nothing was written here.
     for (const key of Object.keys(PLANTED)) {
-      expect(process.env[key], `${key} leaked into this process`).toBe(before[key]);
+      expect(process.env[key], `${key} leaked into this process`).toBe(
+        before[key],
+      );
     }
     expect(process.env.SOME_UNCLASSIFIED_FIXTURE_KEY).toBeUndefined();
   });
@@ -348,7 +372,8 @@ describe("repository .env* keys are discovered by a real @next/env load", () => 
 
     // Plant the same values in the parent too, so the child has two independent
     // routes to a real credential and must close both.
-    for (const [key, value] of Object.entries(PLANTED)) process.env[key] = value;
+    for (const [key, value] of Object.entries(PLANTED))
+      process.env[key] = value;
     try {
       const { childEnv, shadowedEnvFileKeys } = build({ envFileKeys });
       const serialized = JSON.stringify(childEnv);
@@ -373,7 +398,9 @@ describe("repository .env* keys are discovered by a real @next/env load", () => 
       }
 
       // And the generated local values survive all of that, exactly.
-      expect(childEnv.NEXT_PUBLIC_SUPABASE_URL).toBe(APP_ENV.NEXT_PUBLIC_SUPABASE_URL);
+      expect(childEnv.NEXT_PUBLIC_SUPABASE_URL).toBe(
+        APP_ENV.NEXT_PUBLIC_SUPABASE_URL,
+      );
       expect(childEnv.SUPABASE_DB_URL).toBe(APP_ENV.SUPABASE_DB_URL);
       expect(childEnv.MAILPIT_SMTP_PORT).toBe(String(ISOLATED.smtpPort));
     } finally {
@@ -398,8 +425,8 @@ describe("repository .env* keys are discovered by a real @next/env load", () => 
     for (const write of writes) {
       expect(write).toMatch(/writeFileSync\((ledgerPath|ownerPath)/u);
     }
-    expect(runnerSource).toContain(
-      'path.join(isolated.workDir, "isolated-app-egress-ledger.jsonl")',
+    expect(runnerSource).toMatch(
+      /path\.join\(\s*isolated\.workDir,\s*"isolated-app-egress-ledger\.jsonl"\s*,?\s*\)/u,
     );
   });
 });
@@ -418,7 +445,8 @@ describe("the fixed app port is owned through one atomic claim", () => {
   }
 
   test("the claim root is global per user and the override needs the test guard", () => {
-    const uid = typeof process.getuid === "function" ? process.getuid() : "shared";
+    const uid =
+      typeof process.getuid === "function" ? process.getuid() : "shared";
     const noOverride = {} as unknown as NodeJS.ProcessEnv;
     const looseOverride = {
       CSF_ISOLATED_CLAIM_ROOT: "/tmp/anything",
@@ -510,7 +538,9 @@ describe("the fixed app port is owned through one atomic claim", () => {
       "await assertPortFree(APP_PORT);",
       claimIndex,
     );
-    const releaseOnFailure = runnerSource.indexOf("release();\n    throw error;");
+    const releaseOnFailure = runnerSource.indexOf(
+      "release();\n    throw error;",
+    );
     const spawnIndex = runnerSource.indexOf("child = spawn(next.start.command");
 
     expect(claimIndex).toBeGreaterThan(-1);
@@ -523,13 +553,17 @@ describe("the fixed app port is owned through one atomic claim", () => {
     expect(runnerSource).toContain("detached: true");
     expect(runnerSource).toContain("process.kill(-child.pid, signal)");
     expect(runnerSource).toContain('forward("SIGKILL")');
-    expect(runnerSource).toContain("process.removeListener(registeredSignal, handler)");
+    expect(runnerSource).toContain(
+      "process.removeListener(registeredSignal, handler)",
+    );
     for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
       expect(runnerSource).toContain(signal);
     }
     // Awaiting the group's exit before releasing is what stops a peer from
     // taking a port this runner is still vacating.
-    const awaitExit = runnerSource.indexOf("const { code, signal } = await exited;");
+    const awaitExit = runnerSource.indexOf(
+      "const { code, signal } = await exited;",
+    );
     const releaseAfter = runnerSource.indexOf("release();", awaitExit);
     expect(awaitExit).toBeGreaterThan(-1);
     expect(releaseAfter).toBeGreaterThan(awaitExit);
@@ -558,7 +592,11 @@ describe("the runner starts Next directly through Node", () => {
   });
 
   test("keeps Turbopack an explicit server-only probe option", () => {
-    const command = resolveNextDevCommand(APP_PORT, repositoryRoot, "turbopack");
+    const command = resolveNextDevCommand(
+      APP_PORT,
+      repositoryRoot,
+      "turbopack",
+    );
     expect(command.args.slice(1)).toEqual([
       "dev",
       "--turbopack",
@@ -589,7 +627,9 @@ describe("the runner starts Next directly through Node", () => {
   test("never shells out to a package script or a bun runtime", () => {
     // Structural, not textual: the prose above the code explains what it
     // replaced, so the assertion has to look at the spawn itself.
-    expect(runnerSource).toContain("child = spawn(next.start.command, next.start.args, {");
+    expect(runnerSource).toContain(
+      "child = spawn(next.start.command, next.start.args, {",
+    );
     expect(runnerSource).not.toMatch(/spawn(Sync)?\(\s*"bun"/u);
     expect(runnerSource).not.toMatch(/"run",\s*"dev"/u);
     expect(runnerSource).not.toMatch(/shell:\s*true/u);
@@ -599,7 +639,9 @@ describe("the runner starts Next directly through Node", () => {
     // Only counts, ports, and paths are logged.
     expect(runnerSource).not.toContain("console.log(childEnv");
     expect(runnerSource).not.toContain("JSON.stringify(childEnv");
-    expect(runnerSource).toContain("child env keys   : ${Object.keys(childEnv).length}");
+    expect(runnerSource).toContain(
+      "child env keys   : ${Object.keys(childEnv).length}",
+    );
   });
 
   test("the package scripts point at the one-command bootstrap", () => {
@@ -692,7 +734,9 @@ describe("this suite mutates nothing outside its own temporary directories", () 
     if (!existsSync(target)) return;
     const before = readFileSync(target);
     const directory = scratchDirectory("csf-runner-untouched-");
-    writeFileSync(join(directory, ".env.local"), "PLANTED=value\n", { mode: 0o600 });
+    writeFileSync(join(directory, ".env.local"), "PLANTED=value\n", {
+      mode: 0o600,
+    });
     chmodSync(join(directory, ".env.local"), 0o600);
     expect(readFileSync(target).equals(before)).toBe(true);
   });

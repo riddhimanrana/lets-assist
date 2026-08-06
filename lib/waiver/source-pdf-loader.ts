@@ -8,7 +8,8 @@ export const WAIVER_SOURCE_FETCH_TIMEOUT_MS = 5_000;
 
 const PUBLIC_STORAGE_PATH_PREFIX = `/storage/v1/object/public/${WAIVER_SOURCE_BUCKET}/`;
 const PDF_HEADER = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]); // %PDF-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 type StorageDownloadError = {
   message?: string;
@@ -58,10 +59,7 @@ export class WaiverSourcePdfError extends Error {
   }
 }
 
-function fail(
-  code: WaiverSourcePdfError["code"],
-  message: string,
-): never {
+function fail(code: WaiverSourcePdfError["code"], message: string): never {
   throw new WaiverSourcePdfError(message, code);
 }
 
@@ -85,7 +83,9 @@ export function validateWaiverSourceStoragePath(
   }
 
   const segments = value.split("/");
-  if (segments.some((segment) => !segment || segment === "." || segment === "..")) {
+  if (
+    segments.some((segment) => !segment || segment === "." || segment === "..")
+  ) {
     return fail("invalid-storage-path", "Invalid waiver source Storage path");
   }
 
@@ -94,7 +94,10 @@ export function validateWaiverSourceStoragePath(
     (!UUID_PATTERN.test(expectedProjectId) ||
       !value.startsWith(`project_waivers/${expectedProjectId}/`))
   ) {
-    return fail("invalid-storage-path", "Waiver source Storage path belongs to another project");
+    return fail(
+      "invalid-storage-path",
+      "Waiver source Storage path belongs to another project",
+    );
   }
 
   return value;
@@ -121,7 +124,10 @@ function isPrivateOrLocalIpv4(hostname: string): boolean {
 }
 
 function isPrivateOrLocalHostname(rawHostname: string): boolean {
-  const hostname = rawHostname.toLowerCase().replace(/^\[|\]$/gu, "").replace(/\.$/u, "");
+  const hostname = rawHostname
+    .toLowerCase()
+    .replace(/^\[|\]$/gu, "")
+    .replace(/\.$/u, "");
 
   if (
     hostname === "localhost" ||
@@ -185,7 +191,9 @@ export function validateLegacyWaiverSourceUrl(
     return fail("invalid-legacy-url", "Untrusted legacy waiver source URL");
   }
 
-  const objectPath = sourceUrl.pathname.slice(PUBLIC_STORAGE_PATH_PREFIX.length);
+  const objectPath = sourceUrl.pathname.slice(
+    PUBLIC_STORAGE_PATH_PREFIX.length,
+  );
   validateWaiverSourceStoragePath(objectPath, expectedProjectId);
 
   return sourceUrl;
@@ -200,7 +208,10 @@ function assertPdfContentType(contentType: string | null | undefined): void {
 
 function assertPdfBytes(bytes: Uint8Array, maxBytes: number): Uint8Array {
   if (bytes.byteLength === 0 || bytes.byteLength > maxBytes) {
-    fail("source-too-large", "Waiver source PDF is empty or exceeds the size limit");
+    fail(
+      "source-too-large",
+      "Waiver source PDF is empty or exceeds the size limit",
+    );
   }
 
   if (PDF_HEADER.some((byte, index) => bytes[index] !== byte)) {
@@ -222,7 +233,10 @@ async function readBoundedResponseBody(
   }
 
   if (!response.body) {
-    return assertPdfBytes(new Uint8Array(await response.arrayBuffer()), maxBytes);
+    return assertPdfBytes(
+      new Uint8Array(await response.arrayBuffer()),
+      maxBytes,
+    );
   }
 
   const reader = response.body.getReader();
@@ -269,7 +283,10 @@ async function loadFromStorage(
     .download(path);
 
   if (error || !data) {
-    fail("storage-download-failed", "Waiver source PDF could not be read from Storage");
+    fail(
+      "storage-download-failed",
+      "Waiver source PDF could not be read from Storage",
+    );
   }
 
   assertPdfContentType(data.type);
@@ -313,12 +330,18 @@ async function loadFromLegacyUrl(
       signal: controller.signal,
     });
 
-    if (response.redirected || (response.status >= 300 && response.status < 400)) {
+    if (
+      response.redirected ||
+      (response.status >= 300 && response.status < 400)
+    ) {
       fail("legacy-redirect", "Legacy waiver source redirects are not allowed");
     }
 
     if (response.status !== 200) {
-      fail("legacy-fetch-failed", "Legacy waiver source could not be downloaded");
+      fail(
+        "legacy-fetch-failed",
+        "Legacy waiver source could not be downloaded",
+      );
     }
 
     assertPdfContentType(response.headers.get("content-type"));
@@ -357,7 +380,12 @@ export async function loadWaiverSourcePdf(
   }
 
   if (reference.legacyUrl) {
-    return loadFromLegacyUrl(reference.legacyUrl, reference.projectId, dependencies, maxBytes);
+    return loadFromLegacyUrl(
+      reference.legacyUrl,
+      reference.projectId,
+      dependencies,
+      maxBytes,
+    );
   }
 
   return fail("missing-source", "Waiver source PDF is not available");

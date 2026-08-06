@@ -40,9 +40,12 @@ export function buildPluginRuntimeContractRow(
     ? manifest.dataAccess
     : (manifest.dataScope ?? []).map((relation) => ({
         schema: relation.includes(".") ? relation.split(".")[0] : "plugin_data",
-        relation: relation.includes(".") ? relation.split(".").slice(1).join(".") : relation,
+        relation: relation.includes(".")
+          ? relation.split(".").slice(1).join(".")
+          : relation,
         access: "rls-client",
-        purpose: "Legacy plugin data scope. Convert to structured dataAccess before revoking direct Data API exposure.",
+        purpose:
+          "Legacy plugin data scope. Convert to structured dataAccess before revoking direct Data API exposure.",
       }));
 
   return {
@@ -70,10 +73,14 @@ export async function syncRegisteredPluginRuntimeContracts() {
     .select("key");
 
   if (catalogError) {
-    throw new Error(`Failed to load plugin catalog for contract sync: ${catalogError.message}`);
+    throw new Error(
+      `Failed to load plugin catalog for contract sync: ${catalogError.message}`,
+    );
   }
 
-  const catalogKeys = new Set((catalogRows ?? []).map((row) => row.key as string));
+  const catalogKeys = new Set(
+    (catalogRows ?? []).map((row) => row.key as string),
+  );
   const registeredPlugins = listRegisteredPlugins();
   const rows = registeredPlugins
     .filter((definition) => catalogKeys.has(definition.manifest.key))
@@ -84,7 +91,10 @@ export async function syncRegisteredPluginRuntimeContracts() {
   );
 
   if (rows.length === 0) {
-    return { synced: 0, skipped: skipped.map((definition) => definition.manifest.key) };
+    return {
+      synced: 0,
+      skipped: skipped.map((definition) => definition.manifest.key),
+    };
   }
 
   const { error } = await service
@@ -92,8 +102,13 @@ export async function syncRegisteredPluginRuntimeContracts() {
     .upsert(rows, { onConflict: "plugin_key" });
 
   if (error) {
-    throw new Error(`Failed to sync plugin runtime contracts: ${error.message}`);
+    throw new Error(
+      `Failed to sync plugin runtime contracts: ${error.message}`,
+    );
   }
 
-  return { synced: rows.length, skipped: skipped.map((definition) => definition.manifest.key) };
+  return {
+    synced: rows.length,
+    skipped: skipped.map((definition) => definition.manifest.key),
+  };
 }

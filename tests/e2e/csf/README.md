@@ -25,7 +25,7 @@ fixture re-upsert, the sanitized gallery is opt-in and passed 3/3 capture tests 
 `20260716-final-gallery`:
 
 ```bash
-CSF_CAPTURE_GALLERY=1 CSF_E2E_RUN_ID=20260716-final-gallery bun run csf:test:e2e -- tests/csf/screenshot-gallery.spec.ts
+CSF_CAPTURE_GALLERY=1 CSF_E2E_RUN_ID=20260716-final-gallery bun run test:e2e:csf -- tests/e2e/csf/screenshot-gallery.spec.ts
 ```
 
 Complementary local gates:

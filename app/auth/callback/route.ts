@@ -40,9 +40,7 @@ export async function GET(request: Request) {
   // For password reset flow
   if (code && type === "recovery") {
     // Simply redirect to the reset password page with the code (token)
-    return NextResponse.redirect(
-      `${origin}/reset-password/${code}`
-    );
+    return NextResponse.redirect(`${origin}/reset-password/${code}`);
   }
 
   // Handle errors for all flows
@@ -67,13 +65,15 @@ export async function GET(request: Request) {
   // Normal OAuth flow or email verification
   if (!error && code) {
     const supabase = await createClient();
-    
+
     // First, check if this is an email verification (signup) or OAuth by checking the code without creating a session
     // For email verification, we want to show success page without logging in
     // For OAuth, we want to create a session and profile
-    
+
     // Try to exchange the code for session info (without storing session)
-    let exchangeResult: Awaited<ReturnType<typeof supabase.auth.exchangeCodeForSession>>;
+    let exchangeResult: Awaited<
+      ReturnType<typeof supabase.auth.exchangeCodeForSession>
+    >;
 
     try {
       exchangeResult = await withRetryableAuthOperation(async () => {
@@ -95,7 +95,7 @@ export async function GET(request: Request) {
 
       if (from === "authentication") {
         return NextResponse.redirect(
-          `${origin}/account/authentication?error=linking_failed`
+          `${origin}/account/authentication?error=linking_failed`,
         );
       }
 
@@ -135,14 +135,16 @@ export async function GET(request: Request) {
 
           if (from === "authentication") {
             return NextResponse.redirect(
-              `${origin}/account/authentication?error=linking_failed`
+              `${origin}/account/authentication?error=linking_failed`,
             );
           }
 
           return NextResponse.redirect(`${origin}/error`);
         }
 
-        const accountAccess = readAccountAccessFromMetadata(user.app_metadata ?? null);
+        const accountAccess = readAccountAccessFromMetadata(
+          user.app_metadata ?? null,
+        );
 
         if (isAccountBlockedStatus(accountAccess.status)) {
           await supabase.auth.signOut();
@@ -173,33 +175,40 @@ export async function GET(request: Request) {
 
           if (blacklisted) {
             await supabase.auth.signOut();
-            return NextResponse.redirect(`${origin}/login?error=account-banned`);
+            return NextResponse.redirect(
+              `${origin}/login?error=account-banned`,
+            );
           }
         }
 
-
         let inviteOutcome: StaffInviteOutcome | null = null;
-  let isNewAccount = false;
+        let isNewAccount = false;
 
         // Handle account linking redirection for authentication page
         if (from === "authentication") {
-          return NextResponse.redirect(`${origin}/account/authentication?success=linked`);
+          return NextResponse.redirect(
+            `${origin}/account/authentication?success=linked`,
+          );
         }
-        
+
         // Check if this is an email verification (signup confirmation)
         // Detect by checking if the user was just created (within last 5 minutes)
         const userCreatedAt = new Date(user.created_at);
         const now = new Date();
         const timeSinceCreation = now.getTime() - userCreatedAt.getTime();
         const isRecentSignup = timeSinceCreation < 5 * 60 * 1000; // 5 minutes
-        
+
         // Check if user has completed onboarding
-        const userMetadata = user.user_metadata as { has_completed_onboarding?: boolean } | null;
-        const hasCompletedOnboarding = userMetadata?.has_completed_onboarding === true;
-        
+        const userMetadata = user.user_metadata as {
+          has_completed_onboarding?: boolean;
+        } | null;
+        const hasCompletedOnboarding =
+          userMetadata?.has_completed_onboarding === true;
+
         // Check if this is an OAuth login (Google, etc.) by checking identities
-        const identities = (user as { identities?: Array<{ provider?: string | null }> })
-          .identities;
+        const identities = (
+          user as { identities?: Array<{ provider?: string | null }> }
+        ).identities;
         const isOAuthLogin =
           !!identities &&
           identities.length > 0 &&
@@ -229,15 +238,20 @@ export async function GET(request: Request) {
         // ONLY show verification success page for email/password signups (not OAuth)
         // If this is a recent email/password signup verification, DON'T sign in the user
         // Just show the success page
-        if (isRecentSignup && !hasCompletedOnboarding && !redirectAfterAuth && !isOAuthLogin) {
+        if (
+          isRecentSignup &&
+          !hasCompletedOnboarding &&
+          !redirectAfterAuth &&
+          !isOAuthLogin
+        ) {
           const userEmail = user.email;
           // Sign out to clear the session that was just created
           await supabase.auth.signOut();
-          
+
           const redirectUrl = new URL(`${origin}/auth/verification-success`);
-          redirectUrl.searchParams.set('type', 'signup');
+          redirectUrl.searchParams.set("type", "signup");
           if (userEmail) {
-            redirectUrl.searchParams.set('email', userEmail);
+            redirectUrl.searchParams.set("email", userEmail);
           }
           return NextResponse.redirect(redirectUrl.toString());
         }
@@ -253,8 +267,11 @@ export async function GET(request: Request) {
           isNewAccount = true;
 
           // Get user's full name and avatar from identity data, then fallback to metadata
-          const identities = (user as { identities?: Array<{ identity_data?: Record<string, unknown> }> })
-            .identities;
+          const identities = (
+            user as {
+              identities?: Array<{ identity_data?: Record<string, unknown> }>;
+            }
+          ).identities;
           const identityData = identities?.[0]?.identity_data as
             | {
                 full_name?: string;
@@ -263,14 +280,12 @@ export async function GET(request: Request) {
                 picture?: string;
               }
             | undefined;
-          const userMetadata = user.user_metadata as
-            | {
-                full_name?: string;
-                name?: string;
-                avatar_url?: string;
-                picture?: string;
-              }
-            | null;
+          const userMetadata = user.user_metadata as {
+            full_name?: string;
+            name?: string;
+            avatar_url?: string;
+            picture?: string;
+          } | null;
           const fullName =
             identityData?.full_name ||
             identityData?.name ||
@@ -308,7 +323,10 @@ export async function GET(request: Request) {
             try {
               await applyVerifiedDomainAffiliation(user.id);
             } catch (affiliationError) {
-              console.error("Error processing email affiliation:", affiliationError);
+              console.error(
+                "Error processing email affiliation:",
+                affiliationError,
+              );
               // Don't fail signup if affiliation processing fails
             }
           }
@@ -325,9 +343,9 @@ export async function GET(request: Request) {
           // Update email in case it changed
           const { error: updateError } = (await supabase
             .from("profiles")
-            .update({ 
+            .update({
               email: user.email,
-              updated_at: new Date().toISOString()
+              updated_at: new Date().toISOString(),
             })
             .eq("id", user.id)) as { error: { message?: string } | null };
 
@@ -347,29 +365,37 @@ export async function GET(request: Request) {
         }
 
         // Check if user needs MFA challenge before redirecting
-        const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+        const { data: claimsData, error: claimsError } =
+          await supabase.auth.getClaims();
 
         if (claimsError && process.env.NODE_ENV === "development") {
-          console.debug("Could not fetch auth claims during callback:", claimsError);
+          console.debug(
+            "Could not fetch auth claims during callback:",
+            claimsError,
+          );
         }
 
-        const currentAal = typeof claimsData?.claims?.aal === "string"
-          ? claimsData.claims.aal
-          : null;
+        const currentAal =
+          typeof claimsData?.claims?.aal === "string"
+            ? claimsData.claims.aal
+            : null;
         let mfaFactors: MfaListFactorsLike = { totp: [], phone: [] };
-        
+
         try {
           const { data: factors } = await supabase.auth.mfa.listFactors();
           if (factors) {
             mfaFactors = factors as MfaListFactorsLike;
           }
         } catch (mfaError) {
-          console.debug('Could not fetch MFA factors during callback:', mfaError);
+          console.debug(
+            "Could not fetch MFA factors during callback:",
+            mfaError,
+          );
         }
 
         const userNeedsMfa = shouldPromptForMfaChallenge(
           deriveAuthenticatorAssurance(currentAal, mfaFactors),
-          mfaFactors
+          mfaFactors,
         );
 
         // If user needs MFA, redirect to MFA challenge (preserving the intended destination)
@@ -383,12 +409,14 @@ export async function GET(request: Request) {
             : resolvePostAuthRedirectPath(redirectAfterAuth);
 
           const mfaRedirectPath = buildMfaRedirectPath(targetPath);
-          
+
           const forwardedHost = request.headers.get("x-forwarded-host");
           if (process.env.NODE_ENV === "development") {
             return NextResponse.redirect(`${origin}${mfaRedirectPath}`);
           } else if (forwardedHost) {
-            return NextResponse.redirect(`https://${forwardedHost}${mfaRedirectPath}`);
+            return NextResponse.redirect(
+              `https://${forwardedHost}${mfaRedirectPath}`,
+            );
           } else {
             return NextResponse.redirect(`${origin}${mfaRedirectPath}`);
           }
@@ -405,12 +433,14 @@ export async function GET(request: Request) {
         const destinationPath = finalRedirectTo;
 
         const forwardedHost = request.headers.get("x-forwarded-host");
-        
+
         // Handle redirect based on environment
         if (process.env.NODE_ENV === "development") {
           return NextResponse.redirect(`${origin}${destinationPath}`);
         } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}${destinationPath}`);
+          return NextResponse.redirect(
+            `https://${forwardedHost}${destinationPath}`,
+          );
         } else {
           return NextResponse.redirect(`${origin}${destinationPath}`);
         }
@@ -422,7 +452,7 @@ export async function GET(request: Request) {
       console.error("Session error:", exchangeError);
       if (from === "authentication") {
         return NextResponse.redirect(
-          `${origin}/account/authentication?error=linking_failed`
+          `${origin}/account/authentication?error=linking_failed`,
         );
       }
       if (exchangeError?.message?.includes("email already exists")) {

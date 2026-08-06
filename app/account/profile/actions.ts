@@ -50,7 +50,10 @@ async function ensureProfileExists() {
 
   const fallbackUsername =
     user.user_metadata?.username ||
-    user.email?.split("@")[0]?.toLowerCase().replace(/[^a-z0-9_]/g, "-") ||
+    user.email
+      ?.split("@")[0]
+      ?.toLowerCase()
+      .replace(/[^a-z0-9_]/g, "-") ||
     null;
 
   const fallbackFullName =
@@ -92,7 +95,8 @@ export async function updateProfileInfo(formData: FormData) {
     return { error: validatedFields.error.flatten().fieldErrors };
   }
 
-  const { fullName: validFullName, username: validUsername } = validatedFields.data;
+  const { fullName: validFullName, username: validUsername } =
+    validatedFields.data;
 
   // Normalize and validate username uniqueness if provided
   if (validUsername) {
@@ -101,7 +105,9 @@ export async function updateProfileInfo(formData: FormData) {
     // Check for profanity in username
     const profanity = await checkOffensiveLanguage(normalizedUsername);
     if (profanity.isProfane) {
-      return { error: { username: [profanity.error || "Inappropriate language"] } };
+      return {
+        error: { username: [profanity.error || "Inappropriate language"] },
+      };
     }
 
     // Check for uniqueness (excluding current user's existing username)
@@ -119,7 +125,7 @@ export async function updateProfileInfo(formData: FormData) {
       updated_at: new Date().toISOString(),
       username: normalizedUsername,
     };
-    
+
     if (validFullName !== undefined) updateFields.full_name = validFullName;
 
     const { error: updateError } = (await supabase
@@ -139,7 +145,7 @@ export async function updateProfileInfo(formData: FormData) {
     } = {
       updated_at: new Date().toISOString(),
     };
-    
+
     if (validFullName !== undefined) updateFields.full_name = validFullName;
 
     const { error: updateError } = (await supabase
@@ -152,7 +158,7 @@ export async function updateProfileInfo(formData: FormData) {
       return { error: { server: ["Failed to update profile"] } };
     }
   }
-  
+
   return { success: true };
 }
 
@@ -169,10 +175,11 @@ export async function completeOnboarding(formData: FormData) {
   // Get form values, ensuring undefined for missing fields
   const fullName = formData.get("fullName")?.toString() || undefined;
   const username = formData.get("username")?.toString() || undefined;
-  
+
   // Only process avatarUrl if it's explicitly included in the form
   const avatarUrlValue = formData.get("avatarUrl");
-  const avatarUrl = avatarUrlValue !== null ? avatarUrlValue.toString() || null : undefined;
+  const avatarUrl =
+    avatarUrlValue !== null ? avatarUrlValue.toString() || null : undefined;
 
   const validatedFields = onboardingSchema.safeParse({
     fullName,
@@ -184,14 +191,20 @@ export async function completeOnboarding(formData: FormData) {
     return { error: validatedFields.error.flatten().fieldErrors };
   }
 
-  const { fullName: validFullName, username: validUsername, avatarUrl: validAvatarUrl } = validatedFields.data;
+  const {
+    fullName: validFullName,
+    username: validUsername,
+    avatarUrl: validAvatarUrl,
+  } = validatedFields.data;
 
   if (validUsername) {
     const normalizedUsername = validUsername.trim().toLowerCase();
 
     const profanity = await checkOffensiveLanguage(normalizedUsername);
     if (profanity.isProfane) {
-      return { error: { username: [profanity.error || "Inappropriate language"] } };
+      return {
+        error: { username: [profanity.error || "Inappropriate language"] },
+      };
     }
 
     // Check for uniqueness
@@ -208,16 +221,21 @@ export async function completeOnboarding(formData: FormData) {
     avatar_url?: string | null;
     updated_at?: string;
   } = {};
-  
+
   if (validFullName !== undefined) updateFields.full_name = validFullName;
-  if (validUsername !== undefined) updateFields.username = validUsername.trim().toLowerCase();
+  if (validUsername !== undefined)
+    updateFields.username = validUsername.trim().toLowerCase();
 
   // Only process avatarUrl if it was explicitly included in the form data
   let metadataAvatarUrl: string | null | undefined = undefined;
 
   if (avatarUrlValue !== null && validAvatarUrl !== undefined) {
     // Process avatar URL only if explicitly included in the form
-    if (validAvatarUrl && typeof validAvatarUrl === 'string' && validAvatarUrl.startsWith("data:image")) {
+    if (
+      validAvatarUrl &&
+      typeof validAvatarUrl === "string" &&
+      validAvatarUrl.startsWith("data:image")
+    ) {
       // First, get the current avatar URL to check if we need to delete an old image
       const { data: profile } = (await supabase
         .from("profiles")
@@ -226,7 +244,8 @@ export async function completeOnboarding(formData: FormData) {
         .single()) as { data: { avatar_url?: string | null } | null };
 
       // Delete old image if it exists and is from Supabase storage
-      if (profile?.avatar_url?.includes("supabase.co")) { // note: when and if i use a custom supabase domain we need to change this
+      if (profile?.avatar_url?.includes("supabase.co")) {
+        // note: when and if i use a custom supabase domain we need to change this
         try {
           const urlParts = new URL(profile.avatar_url);
           const pathParts = urlParts.pathname.split("/");
@@ -345,7 +364,8 @@ export async function removeProfilePicture() {
     .eq("id", user.id)
     .single()) as { data: { avatar_url?: string | null } | null };
 
-  if (profile?.avatar_url && profile.avatar_url.includes("supabase.co")) { // note: when and if i use a custom supabase domain we need to change this
+  if (profile?.avatar_url && profile.avatar_url.includes("supabase.co")) {
+    // note: when and if i use a custom supabase domain we need to change this
     try {
       // Extract filename from the full URL
       const urlParts = new URL(profile.avatar_url);
@@ -394,7 +414,10 @@ export async function removeProfilePicture() {
   });
 
   if (metadataError) {
-    console.error("removeProfilePicture: Error updating auth metadata:", metadataError);
+    console.error(
+      "removeProfilePicture: Error updating auth metadata:",
+      metadataError,
+    );
     return { error: { server: ["Failed to update user metadata"] } };
   }
 
@@ -402,7 +425,12 @@ export async function removeProfilePicture() {
 }
 
 // Extremely simple function with no avatar handling at all
-export async function updateNameAndUsername(fullName?: string, username?: string, phoneNumber?: string) { // Add phoneNumber parameter
+export async function updateNameAndUsername(
+  fullName?: string,
+  username?: string,
+  phoneNumber?: string,
+) {
+  // Add phoneNumber parameter
   const { supabase, user } = await ensureProfileExists();
   const userId = user?.id;
 
@@ -414,13 +442,15 @@ export async function updateNameAndUsername(fullName?: string, username?: string
   if (fullName && fullName.length < 3) {
     return { error: { fullName: ["Full name must be at least 3 characters"] } };
   }
-  
+
   if (username && username.length < 3) {
     return { error: { username: ["Username must be at least 3 characters"] } };
   }
 
   if (phoneNumber && phoneNumber.length !== 10) {
-      return { error: { phoneNumber: ["Phone number must be exactly 10 digits"] } };
+    return {
+      error: { phoneNumber: ["Phone number must be exactly 10 digits"] },
+    };
   }
 
   // Create a simple update object
@@ -432,12 +462,11 @@ export async function updateNameAndUsername(fullName?: string, username?: string
   } = {
     updated_at: new Date().toISOString(),
   };
-  
+
   if (fullName !== undefined) updateFields.full_name = fullName;
   if (username !== undefined) updateFields.username = username;
   // Add phone number only if it's provided (it's optional)
   if (phoneNumber !== undefined) updateFields.phone = phoneNumber;
-
 
   // Perform the update
   const { error: updateError } = (await supabase
@@ -449,18 +478,19 @@ export async function updateNameAndUsername(fullName?: string, username?: string
     console.log(updateError);
     // Check for unique constraint violation on username
     const errorMessage = updateError.message ?? "";
-    if (updateError.code === '23505' && errorMessage.includes('profiles_username_key')) {
+    if (
+      updateError.code === "23505" &&
+      errorMessage.includes("profiles_username_key")
+    ) {
       return { error: { username: ["Username already taken"] } };
     }
     return { error: { server: ["Failed to update profile"] } };
   }
-  
+
   return { success: true };
 }
 
-export async function updateProfileVisibility(
-  visibility: ProfileVisibility,
-) {
+export async function updateProfileVisibility(visibility: ProfileVisibility) {
   const { supabase, user } = await ensureProfileExists();
 
   if (!user) {
@@ -483,7 +513,10 @@ export async function updateProfileVisibility(
     .eq("id", user.id)) as { error: { message?: string } | null };
 
   if (updateError) {
-    console.error("updateProfileVisibility: failed to update profile", updateError);
+    console.error(
+      "updateProfileVisibility: failed to update profile",
+      updateError,
+    );
     return { error: { server: ["Failed to update profile visibility"] } };
   }
 

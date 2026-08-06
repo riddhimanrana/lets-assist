@@ -65,11 +65,19 @@ export interface ParsedContactImportResult {
 }
 
 function normalizeHeader(value: string): string {
-  return value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
 }
 
-function hasMatchingHeader(normalizedHeader: string, allowedKeys: string[]): boolean {
-  return allowedKeys.some((key) => normalizedHeader === key || normalizedHeader.includes(key));
+function hasMatchingHeader(
+  normalizedHeader: string,
+  allowedKeys: string[],
+): boolean {
+  return allowedKeys.some(
+    (key) => normalizedHeader === key || normalizedHeader.includes(key),
+  );
 }
 
 function normalizeMetadataHeader(value: string): string {
@@ -108,7 +116,9 @@ function inferFileType(fileName: string): ContactImportFileType | null {
   return null;
 }
 
-function getIndexedRows(rawRows: unknown[]): Array<{ sourceRowNumber: number; cells: string[] }> {
+function getIndexedRows(
+  rawRows: unknown[],
+): Array<{ sourceRowNumber: number; cells: string[] }> {
   const indexedRows: Array<{ sourceRowNumber: number; cells: string[] }> = [];
 
   for (let i = 0; i < rawRows.length; i++) {
@@ -134,7 +144,9 @@ function getIndexedRows(rawRows: unknown[]): Array<{ sourceRowNumber: number; ce
   return indexedRows;
 }
 
-export async function parseContactImportFile(file: File): Promise<ParsedContactImportResult> {
+export async function parseContactImportFile(
+  file: File,
+): Promise<ParsedContactImportResult> {
   if (!file || !file.name) {
     throw new Error("Please choose a file to import.");
   }
@@ -149,7 +161,9 @@ export async function parseContactImportFile(file: File): Promise<ParsedContactI
 
   const fileType = inferFileType(file.name);
   if (!fileType) {
-    throw new Error("Unsupported file type. Please upload a CSV or Excel (.xlsx/.xls) file.");
+    throw new Error(
+      "Unsupported file type. Please upload a CSV or Excel (.xlsx/.xls) file.",
+    );
   }
 
   const fileBuffer = Buffer.from(await file.arrayBuffer());
@@ -168,7 +182,9 @@ export async function parseContactImportFile(file: File): Promise<ParsedContactI
   const worksheet = workbook.Sheets[firstSheetName];
 
   if (!worksheet) {
-    throw new Error("Unable to read the first worksheet from the uploaded file.");
+    throw new Error(
+      "Unable to read the first worksheet from the uploaded file.",
+    );
   }
 
   const rawRows = XLSX.utils.sheet_to_json(worksheet, {
@@ -196,7 +212,9 @@ export async function parseContactImportFile(file: File): Promise<ParsedContactI
   }
 
   if (indexedRows.length > MAX_IMPORT_ROWS + 1) {
-    throw new Error(`Too many rows. Maximum supported rows per import: ${MAX_IMPORT_ROWS}.`);
+    throw new Error(
+      `Too many rows. Maximum supported rows per import: ${MAX_IMPORT_ROWS}.`,
+    );
   }
 
   const firstDataCandidate = indexedRows[0];
@@ -211,7 +229,10 @@ export async function parseContactImportFile(file: File): Promise<ParsedContactI
   const hasHeaderRow =
     emailHeaderIndex >= 0 ||
     normalizedFirstRow.some(
-      (header) => header.includes("email") || header.includes("name") || header.includes("role"),
+      (header) =>
+        header.includes("email") ||
+        header.includes("name") ||
+        header.includes("role"),
     );
 
   if (hasHeaderRow && emailHeaderIndex < 0) {
@@ -241,7 +262,9 @@ export async function parseContactImportFile(file: File): Promise<ParsedContactI
     const normalizedEmail = rawEmail.toLowerCase();
 
     if (!rawEmail) {
-      const isEntireRowEmpty = row.cells.every((cell) => cell.trim().length === 0);
+      const isEntireRowEmpty = row.cells.every(
+        (cell) => cell.trim().length === 0,
+      );
 
       if (isEntireRowEmpty) {
         skippedEmptyRows++;
@@ -278,13 +301,18 @@ export async function parseContactImportFile(file: File): Promise<ParsedContactI
     seenEmails.add(normalizedEmail);
 
     const fullName =
-      fullNameColumnIndex >= 0 ? row.cells[fullNameColumnIndex]?.trim() || null : null;
+      fullNameColumnIndex >= 0
+        ? row.cells[fullNameColumnIndex]?.trim() || null
+        : null;
 
     const profileData: Record<string, string> = {};
 
     if (hasHeaderRow) {
       for (let columnIndex = 0; columnIndex < row.cells.length; columnIndex++) {
-        if (columnIndex === emailColumnIndex || columnIndex === fullNameColumnIndex) {
+        if (
+          columnIndex === emailColumnIndex ||
+          columnIndex === fullNameColumnIndex
+        ) {
           continue;
         }
 

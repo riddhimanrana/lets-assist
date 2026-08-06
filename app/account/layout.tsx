@@ -1,7 +1,16 @@
 "use client";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Search, Menu, User, Shield, Key, Bell, Calendar, ChevronRight } from "lucide-react";
+import {
+  Search,
+  Menu,
+  User,
+  Shield,
+  Key,
+  Bell,
+  Calendar,
+  ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
@@ -54,9 +63,10 @@ export default function AccountLayout({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredItems = sidebarItems.filter((item) =>
-    item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.description.toLowerCase().includes(searchTerm.toLowerCase()),
+  const filteredItems = sidebarItems.filter(
+    (item) =>
+      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const pathname = usePathname();
@@ -100,12 +110,18 @@ export default function AccountLayout({
                       }`}
                       onClick={() => setIsDrawerOpen(false)}
                     >
-                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${isActive ? 'bg-primary/20 text-primary' : 'bg-muted'}`}>
+                      <div
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${isActive ? "bg-primary/20 text-primary" : "bg-muted"}`}
+                      >
                         <Icon className="h-4 w-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium leading-none mb-1">{item.title}</p>
-                        <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                        <p className="text-sm font-medium leading-none mb-1">
+                          {item.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {item.description}
+                        </p>
                       </div>
                       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                     </div>
@@ -116,9 +132,13 @@ export default function AccountLayout({
           </DrawerContent>
         </Drawer>
         <div className="flex-1 min-w-0">
-          <h2 className="font-semibold leading-none truncate">{currentItem?.title || "Settings"}</h2>
+          <h2 className="font-semibold leading-none truncate">
+            {currentItem?.title || "Settings"}
+          </h2>
           {currentItem && (
-            <p className="text-xs text-muted-foreground mt-1 truncate">{currentItem.description}</p>
+            <p className="text-xs text-muted-foreground mt-1 truncate">
+              {currentItem.description}
+            </p>
           )}
         </div>
       </div>
@@ -129,7 +149,9 @@ export default function AccountLayout({
           {/* Header */}
           <div className="px-5 pt-6 pb-5 border-b">
             <h2 className="text-xl font-semibold tracking-tight">Settings</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Manage your account</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Manage your account
+            </p>
           </div>
           {/* Search */}
           <div className="px-4 py-4">
@@ -157,14 +179,22 @@ export default function AccountLayout({
                         : "text-muted-foreground hover:bg-accent hover:text-foreground"
                     }`}
                   >
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                      isActive ? "bg-primary/20 text-primary" : "bg-muted group-hover:bg-background"
-                    }`}>
+                    <div
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                        isActive
+                          ? "bg-primary/20 text-primary"
+                          : "bg-muted group-hover:bg-background"
+                      }`}
+                    >
                       <Icon className="h-4.5 w-4.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium leading-none mb-1">{item.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                      <p className="text-sm font-medium leading-none mb-1">
+                        {item.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {item.description}
+                      </p>
                     </div>
                   </div>
                 </Link>

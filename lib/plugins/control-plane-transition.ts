@@ -82,7 +82,9 @@ function organizationContext(
 }
 
 function normalizedConfiguration(value: Record<string, unknown> | null) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
 }
 
 function mutationRow(
@@ -121,7 +123,9 @@ async function transitionOrganizationPluginInstallWithLease(
       },
     );
     if (error) {
-      throw new Error(`Failed to refresh plugin transition lock: ${error.message}`);
+      throw new Error(
+        `Failed to refresh plugin transition lock: ${error.message}`,
+      );
     }
     if (data !== true) {
       throw new PluginControlPlaneConcurrencyError(
@@ -133,7 +137,9 @@ async function transitionOrganizationPluginInstallWithLease(
   const [organizationResult, installResult] = await Promise.all([
     service
       .from("organizations")
-      .select("id, name, username, description, logo_url, type, verified, allowed_email_domains, show_members_publicly")
+      .select(
+        "id, name, username, description, logo_url, type, verified, allowed_email_domains, show_members_publicly",
+      )
       .eq("id", input.organizationId)
       .maybeSingle(),
     service
@@ -194,14 +200,20 @@ async function transitionOrganizationPluginInstallWithLease(
     }
     installLifecycleComplete = (installAudits ?? []).some((row) => {
       const details = row.details;
-      return Boolean(details && typeof details === "object" && !Array.isArray(details) && details.success === true);
+      return Boolean(
+        details &&
+        typeof details === "object" &&
+        !Array.isArray(details) &&
+        details.success === true,
+      );
     });
   }
   const current: PluginInstallSnapshot | null = install
     ? {
         id: install.id,
         enabled: install.enabled,
-        installedVersion: install.installed_version ?? definition.manifest.version,
+        installedVersion:
+          install.installed_version ?? definition.manifest.version,
         configuration: normalizedConfiguration(install.configuration),
         updatedAt: install.updated_at,
         installLifecycleComplete,
@@ -260,23 +272,27 @@ async function transitionOrganizationPluginInstallWithLease(
       createInstall: async ({ enabled, installedVersion, configuration }) => {
         await refreshLease();
         const now = new Date().toISOString();
-        const { error } = await service.from("organization_plugin_installs").insert({
-          organization_id: input.organizationId,
-          plugin_key: input.pluginKey,
-          enabled,
-          configuration,
-          installed_version: installedVersion,
-          installed_by: input.actor.id,
-          installed_at: now,
-          updated_by: input.actor.id,
-          last_version_update_at: now,
-          updated_at: now,
-        });
-        if (error?.code === "23505") throw new PluginControlPlaneConcurrencyError();
+        const { error } = await service
+          .from("organization_plugin_installs")
+          .insert({
+            organization_id: input.organizationId,
+            plugin_key: input.pluginKey,
+            enabled,
+            configuration,
+            installed_version: installedVersion,
+            installed_by: input.actor.id,
+            installed_at: now,
+            updated_by: input.actor.id,
+            last_version_update_at: now,
+            updated_at: now,
+          });
+        if (error?.code === "23505")
+          throw new PluginControlPlaneConcurrencyError();
         if (error) throw new Error(error.message);
       },
       updateInstall: async (mutation) => {
-        if (!current) throw new Error("Plugin install state disappeared before update.");
+        if (!current)
+          throw new Error("Plugin install state disappeared before update.");
         await refreshLease();
         const now = new Date().toISOString();
         const { data, error } = await service
@@ -292,7 +308,8 @@ async function transitionOrganizationPluginInstallWithLease(
         if (!data) throw new PluginControlPlaneConcurrencyError();
       },
       removeInstall: async () => {
-        if (!current) throw new Error("Plugin install state disappeared before uninstall.");
+        if (!current)
+          throw new Error("Plugin install state disappeared before uninstall.");
         await refreshLease();
         const { data, error } = await service
           .from("organization_plugin_installs")
@@ -378,7 +395,8 @@ export async function transitionOrganizationPluginInstall(
       success: false,
       changed: false,
       actions: [],
-      error: "Another plugin transition is already running. Retry after it finishes.",
+      error:
+        "Another plugin transition is already running. Retry after it finishes.",
     };
   }
 

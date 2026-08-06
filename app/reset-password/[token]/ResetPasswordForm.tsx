@@ -76,7 +76,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
       } else if (result.success) {
         toast.success(
           "Your password has been reset successfully. Please log in with your new password.",
-          { duration: 5000 }
+          { duration: 5000 },
         );
         router.push("/login");
       }
@@ -111,7 +111,9 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
                     {...field}
                     aria-invalid={fieldState.invalid}
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                   <div className="mt-3 space-y-2">
                     <div className="rounded-lg bg-warning/15 border border-warning/40 p-3 shadow-xs">
                       <p className="text-xs font-semibold text-warning mb-2 flex items-center gap-2">
@@ -125,7 +127,9 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                          <span>Cannot be a commonly used or compromised password</span>
+                          <span>
+                            Cannot be a commonly used or compromised password
+                          </span>
                         </li>
                       </ul>
                     </div>
@@ -138,7 +142,9 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
               name="confirmPassword"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Confirm New Password</FieldLabel>
+                  <FieldLabel htmlFor={field.name}>
+                    Confirm New Password
+                  </FieldLabel>
                   <Input
                     id={field.name}
                     type="password"
@@ -146,7 +152,9 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
                     {...field}
                     aria-invalid={fieldState.invalid}
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />

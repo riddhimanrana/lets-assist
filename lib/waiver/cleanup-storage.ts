@@ -31,7 +31,9 @@ function isStoredSignatureAsset(value: unknown): value is string {
 }
 
 /** Collects all persisted object paths, including multi-signer payload assets. */
-export function collectWaiverStoragePaths(records: WaiverStorageRecord[]): WaiverStoragePaths {
+export function collectWaiverStoragePaths(
+  records: WaiverStorageRecord[],
+): WaiverStoragePaths {
   const signaturePaths = new Set<string>();
   const uploadPaths = new Set<string>();
 
@@ -46,7 +48,10 @@ export function collectWaiverStoragePaths(records: WaiverStorageRecord[]): Waive
       signaturePaths.add(record.upload_storage_path);
     }
 
-    if (!record.signature_payload || typeof record.signature_payload !== "object") {
+    if (
+      !record.signature_payload ||
+      typeof record.signature_payload !== "object"
+    ) {
       continue;
     }
 
@@ -57,7 +62,10 @@ export function collectWaiverStoragePaths(records: WaiverStorageRecord[]): Waive
       if (!signer || typeof signer !== "object") continue;
 
       const { method, data } = signer as { method?: unknown; data?: unknown };
-      if ((method === "draw" || method === "upload") && isStoredSignatureAsset(data)) {
+      if (
+        (method === "draw" || method === "upload") &&
+        isStoredSignatureAsset(data)
+      ) {
         signaturePaths.add(data);
       }
     }
@@ -123,7 +131,10 @@ export async function drainWaiverStorageDeletionQueue(
     .limit(limit);
 
   if (error) {
-    return { deleted: 0, error: "Failed to load waiver Storage deletion queue" };
+    return {
+      deleted: 0,
+      error: "Failed to load waiver Storage deletion queue",
+    };
   }
 
   const rows = (data ?? []) as WaiverStorageDeletionQueueRow[];
@@ -155,17 +166,21 @@ export async function drainWaiverStorageDeletionQueue(
         continue;
       }
 
-      const filteredRows = (filteredData ?? []) as WaiverStorageDeletionQueueRow[];
+      const filteredRows = (filteredData ??
+        []) as WaiverStorageDeletionQueueRow[];
       if (filteredRows.length === 0) {
         continue;
       }
 
       const filteredIds = filteredRows.map((row) => row.id);
       const paths = filteredRows.map((row) => row.object_path);
-      const { error: storageError } = await supabase.storage.from(bucket).remove(paths);
+      const { error: storageError } = await supabase.storage
+        .from(bucket)
+        .remove(paths);
 
       if (storageError) {
-        const message = storageError.message?.slice(0, 1000) || "Storage deletion failed";
+        const message =
+          storageError.message?.slice(0, 1000) || "Storage deletion failed";
         const { error: trackingError } = await supabase
           .from("waiver_storage_deletion_queue")
           .update({
@@ -186,7 +201,8 @@ export async function drainWaiverStorageDeletionQueue(
         .in("id", filteredIds);
 
       if (queueDeleteError) {
-        firstError ??= "Storage was deleted but its idempotent queue cleanup must be retried";
+        firstError ??=
+          "Storage was deleted but its idempotent queue cleanup must be retried";
         continue;
       }
 

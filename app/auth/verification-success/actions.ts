@@ -13,7 +13,9 @@ type VerifyEmailResponse = {
  * @param token The verification token from the email link
  * @returns Response indicating success/error and the verified email if successful
  */
-export async function verifyEmailToken(token: string): Promise<VerifyEmailResponse> {
+export async function verifyEmailToken(
+  token: string,
+): Promise<VerifyEmailResponse> {
   if (!token) {
     return { success: false, error: "No verification token provided" };
   }
@@ -22,15 +24,18 @@ export async function verifyEmailToken(token: string): Promise<VerifyEmailRespon
 
   try {
     console.log("Starting email verification with token");
-    
+
     // Step 1: Exchange the token for a session (similar to password reset flow)
-    const { error: sessionError } = await supabase.auth.exchangeCodeForSession(token);
+    const { error: sessionError } =
+      await supabase.auth.exchangeCodeForSession(token);
 
     if (sessionError) {
       console.error("Session exchange error:", sessionError);
-      return { 
-        success: false, 
-        error: sessionError.message || "Failed to verify email - invalid or expired token"
+      return {
+        success: false,
+        error:
+          sessionError.message ||
+          "Failed to verify email - invalid or expired token",
       };
     }
 
@@ -41,7 +46,10 @@ export async function verifyEmailToken(token: string): Promise<VerifyEmailRespon
 
     // Get the trusted user data after the code exchange
     if (!user) {
-      console.error("No trusted user available after email verification", userError);
+      console.error(
+        "No trusted user available after email verification",
+        userError,
+      );
       return { success: false, error: "User not found in verification data" };
     }
 
@@ -49,15 +57,15 @@ export async function verifyEmailToken(token: string): Promise<VerifyEmailRespon
 
     // Extract email from user data
     const newEmail = user.email;
-    
+
     // Step 2: Update user's profile if you have a profiles table
     try {
       // Update the email in your profile table if needed
       const { error: profileUpdateError } = (await supabase
         .from("profiles")
-        .update({ 
+        .update({
           email: newEmail,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq("id", user.id)) as { error: { message?: string } | null };
 
@@ -73,16 +81,16 @@ export async function verifyEmailToken(token: string): Promise<VerifyEmailRespon
     // Step 3: Sign out the user - often a good practice after sensitive account changes
     await supabase.auth.signOut();
 
-    return { 
+    return {
       success: true,
-      email: newEmail
+      email: newEmail,
     };
-
   } catch (error) {
     console.error("Unexpected error during email verification:", error);
-    return { 
+    return {
       success: false,
-      error: error instanceof Error ? error.message : "An unexpected error occurred"
+      error:
+        error instanceof Error ? error.message : "An unexpected error occurred",
     };
   }
 }

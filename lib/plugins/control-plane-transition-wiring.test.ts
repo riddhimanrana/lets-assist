@@ -25,7 +25,8 @@ describe("plugin control-plane action wiring", () => {
   const transitionLockMigration = read(
     "supabase/migrations/20260712012500_serialize_plugin_control_plane_transitions.sql",
   );
-  const directInstallMutation = /\.from\(["']organization_plugin_installs["']\)[\s\S]*?\.(?:insert|upsert|update|delete)\(/;
+  const directInstallMutation =
+    /\.from\(["']organization_plugin_installs["']\)[\s\S]*?\.(?:insert|upsert|update|delete)\(/;
 
   for (const name of [
     "setOrganizationPluginInstallState",
@@ -64,8 +65,12 @@ describe("plugin control-plane action wiring", () => {
     );
     expect(source).toContain("getRegisteredPlugin(input.pluginKey)");
     expect(source).toContain("validatePluginConfig(");
-    expect(source).toContain("Install the plugin before updating its configuration.");
-    expect(source).not.toContain('.insert({\n        organization_id: input.organizationId');
+    expect(source).toContain(
+      "Install the plugin before updating its configuration.",
+    );
+    expect(source).not.toContain(
+      ".insert({\n        organization_id: input.organizationId",
+    );
   });
 
   test("force install compensates only entitlement access provisioned by that request", () => {
@@ -77,7 +82,9 @@ describe("plugin control-plane action wiring", () => {
     expect(source).toContain('kind: "delete_created"');
     expect(source).toContain('kind: "restore_reactivated"');
     expect(source).toContain("if (!transitionResult.success)");
-    expect(source).toContain('.eq("updated_at", entitlementCompensation.activationUpdatedAt)');
+    expect(source).toContain(
+      '.eq("updated_at", entitlementCompensation.activationUpdatedAt)',
+    );
     expect(source).toContain("Private entitlement rollback also failed");
     expect(source).not.toContain(".upsert(");
   });
@@ -91,7 +98,7 @@ describe("plugin control-plane action wiring", () => {
 
   test("plugin permission confirmation remains reachable within the viewport", () => {
     expect(organizationPluginSettings).toContain(
-      'max-h-[calc(100dvh-2rem)] gap-0 overflow-x-hidden overflow-y-auto',
+      "max-h-[calc(100dvh-2rem)] gap-0 overflow-x-hidden overflow-y-auto",
     );
     expect(organizationPluginSettings).toContain(
       "max-h-64 flex-col gap-3 overflow-y-auto",
@@ -111,8 +118,12 @@ describe("plugin control-plane action wiring", () => {
     expect(transitionAdapter).toContain(
       '"release_plugin_control_plane_transition_lock"',
     );
-    expect(transitionAdapter.indexOf("acquire_plugin_control_plane_transition_lock")).toBeLessThan(
-      transitionAdapter.indexOf("return await transitionOrganizationPluginInstallWithLease("),
+    expect(
+      transitionAdapter.indexOf("acquire_plugin_control_plane_transition_lock"),
+    ).toBeLessThan(
+      transitionAdapter.indexOf(
+        "return await transitionOrganizationPluginInstallWithLease(",
+      ),
     );
 
     expect(transitionLockMigration).toContain(
@@ -120,7 +131,9 @@ describe("plugin control-plane action wiring", () => {
     );
     expect(transitionLockMigration).toContain("security definer");
     expect(transitionLockMigration).toContain("to service_role;");
-    expect(transitionLockMigration).toContain("from public, anon, authenticated;");
+    expect(transitionLockMigration).toContain(
+      "from public, anon, authenticated;",
+    );
   });
 
   test("the server-only marker is a pinned runtime dependency", () => {

@@ -121,15 +121,20 @@ export default function AutoPublishedCertificate({
               <Text style={paragraph}>Hi {volunteerName},</Text>
 
               <Text style={paragraph}>
-                Your volunteer certificate for <strong>{projectTitle}</strong> has been automatically published and is now ready for download.
+                Your volunteer certificate for <strong>{projectTitle}</strong>{" "}
+                has been automatically published and is now ready for download.
               </Text>
 
               <Section style={autoPublishBox}>
                 <Row>
                   <Column style={autoPublishContent}>
-                    <Heading style={autoPublishTitle}>📅 Automatic Publishing</Heading>
+                    <Heading style={autoPublishTitle}>
+                      📅 Automatic Publishing
+                    </Heading>
                     <Text style={autoPublishText}>
-                      This certificate was automatically generated 48 hours after the event ended, as no manual adjustments were needed.
+                      This certificate was automatically generated 48 hours
+                      after the event ended, as no manual adjustments were
+                      needed.
                     </Text>
                   </Column>
                 </Row>
@@ -178,7 +183,9 @@ export default function AutoPublishedCertificate({
               </Section>
 
               <Section style={buttonContainer}>
-                <EmailButton href={certificateUrl}>Download Certificate</EmailButton>
+                <EmailButton href={certificateUrl}>
+                  Download Certificate
+                </EmailButton>
               </Section>
 
               <Section style={gettingStarted}>
@@ -192,7 +199,8 @@ export default function AutoPublishedCertificate({
               </Section>
 
               <Text style={helpText}>
-                Your certificate is official recognition of your volunteer contribution. You can download, print, and share it anytime.
+                Your certificate is official recognition of your volunteer
+                contribution. You can download, print, and share it anytime.
               </Text>
             </Section>
 

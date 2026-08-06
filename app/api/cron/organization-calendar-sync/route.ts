@@ -21,7 +21,7 @@ function isAuthorized(request: NextRequest) {
   const token = authHeader.replace("Bearer ", "");
 
   const allowedTokens = [WORKER_TOKEN, CRON_SECRET].filter(
-    (value): value is string => Boolean(value)
+    (value): value is string => Boolean(value),
   );
 
   if (allowedTokens.length === 0) {
@@ -52,14 +52,17 @@ export async function POST(request: NextRequest) {
   if (probe) return probe;
 
   if (!WORKER_ENABLED) {
-    return NextResponse.json({ message: "Calendar sync worker disabled" }, { status: 200 });
+    return NextResponse.json(
+      { message: "Calendar sync worker disabled" },
+      { status: 200 },
+    );
   }
 
   const supabase = getAdminClient();
   const { data: syncRows, error } = await supabase
     .from("organization_calendar_syncs")
     .select(
-      "organization_id, calendar_id, calendar_email, auto_sync, last_synced_at, created_by"
+      "organization_id, calendar_id, calendar_email, auto_sync, last_synced_at, created_by",
     )
     .eq("auto_sync", true);
 
@@ -78,39 +81,47 @@ export async function POST(request: NextRequest) {
     CALENDAR_SYNC_CONCURRENCY,
     async (row) => {
       try {
-        const result = await syncOrganizationCalendarInternal(row.organization_id);
-        
+        const result = await syncOrganizationCalendarInternal(
+          row.organization_id,
+        );
+
         if (result.success) {
-          return { 
-            organizationId: row.organization_id, 
+          return {
+            organizationId: row.organization_id,
             success: true,
             createdCount: result.createdCount,
             updatedCount: result.updatedCount,
             removedCount: result.removedCount,
           };
         } else {
-          return { 
-            organizationId: row.organization_id, 
-            success: false, 
-            error: result.error || "Unknown error" 
+          return {
+            organizationId: row.organization_id,
+            success: false,
+            error: result.error || "Unknown error",
           };
         }
       } catch (error) {
-        console.error(`Failed to sync calendar for org ${row.organization_id}:`, error);
-        return { 
-          organizationId: row.organization_id, 
-          success: false, 
-          error: error instanceof Error ? error.message : "Unknown error" 
+        console.error(
+          `Failed to sync calendar for org ${row.organization_id}:`,
+          error,
+        );
+        return {
+          organizationId: row.organization_id,
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
         };
       }
     },
   );
 
-  return NextResponse.json({ 
-    processed: results.length, 
-    results,
-    timestamp: new Date().toISOString(),
-  }, { status: 200 });
+  return NextResponse.json(
+    {
+      processed: results.length,
+      results,
+      timestamp: new Date().toISOString(),
+    },
+    { status: 200 },
+  );
 }
 
 export async function GET(request: NextRequest) {

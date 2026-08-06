@@ -16,7 +16,6 @@ export function canManageProjectAccess(
   if (input.organizationRole === "admin") return true;
 
   return (
-    input.organizationRole === "staff" &&
-    input.canBeManagedByStaff === true
+    input.organizationRole === "staff" && input.canBeManagedByStaff === true
   );
 }

@@ -1,7 +1,7 @@
 /**
  * Type definitions for the Waiver Definitions System
  * Phase 1: Database Schema Types
- * 
+ *
  * These types represent the new waiver definitions system that supports
  * multiple signers, field placements, and backward compatibility with
  * the existing waiver system.
@@ -11,10 +11,21 @@
 // Core Enums
 // ============================================================================
 
-export type WaiverDefinitionScope = 'project';
-export type WaiverDefinitionSource = 'project_pdf' | 'rich_text';
-export type WaiverFieldType = 'signature' | 'name' | 'date' | 'email' | 'phone' | 'address' | 'text' | 'checkbox' | 'radio' | 'dropdown' | 'initial';
-export type WaiverFieldSource = 'pdf_widget' | 'custom_overlay';
+export type WaiverDefinitionScope = "project";
+export type WaiverDefinitionSource = "project_pdf" | "rich_text";
+export type WaiverFieldType =
+  | "signature"
+  | "name"
+  | "date"
+  | "email"
+  | "phone"
+  | "address"
+  | "text"
+  | "checkbox"
+  | "radio"
+  | "dropdown"
+  | "initial";
+export type WaiverFieldSource = "pdf_widget" | "custom_overlay";
 
 // ============================================================================
 // Database Table Types
@@ -112,21 +123,21 @@ export interface FieldMeta {
   // For dropdown/radio fields
   options?: string[];
   defaultValue?: string | boolean | string[];
-  
+
   // For text fields
   placeholder?: string;
   maxLength?: number;
   pattern?: string;
-  
+
   // For date fields
   minDate?: string;
   maxDate?: string;
-  
+
   // For signature fields
-  signatureFormat?: 'png' | 'svg';
+  signatureFormat?: "png" | "svg";
   signatureWidth?: number;
   signatureHeight?: number;
-  
+
   [key: string]: unknown; // Allow additional properties
 }
 
@@ -156,7 +167,7 @@ export interface WaiverSignatureExtended {
   anonymous_id: string | null;
   signer_name: string;
   signer_email: string;
-  signature_type: 'draw' | 'typed' | 'upload';
+  signature_type: "draw" | "typed" | "upload";
   signature_text: string | null;
   signature_storage_path: string | null;
   upload_storage_path: string | null;
@@ -166,7 +177,7 @@ export interface WaiverSignatureExtended {
   user_agent: string | null;
   expires_at: string;
   created_at: string;
-  
+
   // NEW fields for multi-signer system
   waiver_definition_id: string | null;
   signature_payload: SignaturePayload | null;
@@ -186,7 +197,7 @@ export interface SignaturePayload {
  */
 export interface SignerData {
   role_key: string;
-  method: 'draw' | 'typed' | 'upload';
+  method: "draw" | "typed" | "upload";
   data: string; // Base64 encoded signature image or typed text
   timestamp: string;
   signer_name?: string;
@@ -201,7 +212,7 @@ export interface SignerData {
  */
 export interface SignaturePreviewSigner {
   role_key: string;
-  method: SignerData['method'];
+  method: SignerData["method"];
   timestamp: string;
   signer_name?: string;
   signer_email?: string;
@@ -274,7 +285,7 @@ export interface SubmitWaiverInput {
   signup_id: string;
   signers: {
     role_key: string;
-    method: 'draw' | 'typed' | 'upload';
+    method: "draw" | "typed" | "upload";
     data: string; // Base64 for draw/upload, text for typed
     signer_name?: string;
     signer_email?: string;
@@ -290,7 +301,10 @@ export interface SubmitWaiverInput {
  * Type guard to check if a waiver signature uses the new system
  */
 export function isNewWaiverSystem(signature: WaiverSignatureExtended): boolean {
-  return signature.waiver_definition_id !== null && signature.signature_payload !== null;
+  return (
+    signature.waiver_definition_id !== null &&
+    signature.signature_payload !== null
+  );
 }
 
 // ============================================================================

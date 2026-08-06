@@ -104,7 +104,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
       } else {
         toast.success("Draft deleted");
         // Update local state and keep the sheet/drawer open
-        setDrafts(prevDrafts => prevDrafts.filter((d) => d.id !== draftId));
+        setDrafts((prevDrafts) => prevDrafts.filter((d) => d.id !== draftId));
         setDeleteDialogOpen(null);
         // Refresh the page data in the background
         router.refresh();
@@ -126,7 +126,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
       } else if ("success" in result && result.success && result.id) {
         toast.success("Project published successfully!");
         // Update local state
-        setDrafts(prevDrafts => prevDrafts.filter((d) => d.id !== draftId));
+        setDrafts((prevDrafts) => prevDrafts.filter((d) => d.id !== draftId));
         router.push(`/projects/${result.id}`);
       }
     } catch (error) {
@@ -154,14 +154,20 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
       const days = schedule.multiDay?.length ?? 0;
       return days > 0 ? `${days} days` : "Incomplete";
     }
-    if (draft.event_type === "sameDayMultiArea" && schedule.sameDayMultiArea?.date) {
+    if (
+      draft.event_type === "sameDayMultiArea" &&
+      schedule.sameDayMultiArea?.date
+    ) {
       return format(new Date(schedule.sameDayMultiArea.date), "MMM d");
     }
     return "Incomplete";
   };
 
   const DraftItem = ({ draft }: { draft: Draft }) => (
-    <Card className="overflow-hidden cursor-pointer hover:bg-muted/60 transition" onClick={() => handleContinue(draft.id)}>
+    <Card
+      className="overflow-hidden cursor-pointer hover:bg-muted/60 transition"
+      onClick={() => handleContinue(draft.id)}
+    >
       <CardContent className="p-3">
         <div className="flex gap-3">
           {/* Thumbnail */}
@@ -207,12 +213,23 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
 
           {/* Menu */}
           <DropdownMenu>
-            <DropdownMenuTrigger render={
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={(e) => e.stopPropagation()}>
-                <MoreVertical className="h-3 w-3" />
-              </Button>
-            } />
-            <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="h-3 w-3" />
+                </Button>
+              }
+            />
+            <DropdownMenuContent
+              align="end"
+              className="w-48"
+              onClick={(e) => e.stopPropagation()}
+            >
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
@@ -265,9 +282,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
           </EmptyHeader>
         </Empty>
       ) : (
-        drafts.map((draft) => (
-          <DraftItem key={draft.id} draft={draft} />
-        ))
+        drafts.map((draft) => <DraftItem key={draft.id} draft={draft} />)
       )}
     </div>
   );
@@ -276,9 +291,12 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
     <>
       <TooltipProvider>
         {/* Delete confirmation dialog */}
-        <AlertDialog open={!!deleteDialogOpen} onOpenChange={(open) => {
-          if (!open) setDeleteDialogOpen(null);
-        }}>
+        <AlertDialog
+          open={!!deleteDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) setDeleteDialogOpen(null);
+          }}
+        >
           <AlertDialogContent onClick={(e) => e.stopPropagation()}>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete draft?</AlertDialogTitle>
@@ -287,10 +305,12 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={(e) => {
-                e.stopPropagation();
-                setDeleteDialogOpen(null);
-              }}>
+              <AlertDialogCancel
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteDialogOpen(null);
+                }}
+              >
                 Cancel
               </AlertDialogCancel>
               <AlertDialogAction
@@ -313,13 +333,15 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
         <div className="md:hidden">
           <Drawer open={isOpenMobile} onOpenChange={setIsOpenMobile}>
             <Tooltip>
-              <TooltipTrigger render={
-                <DrawerTrigger asChild>
-                  <Button variant="secondary" size="icon" className="h-9 w-9">
-                    <FileText className="h-4 w-4" />
-                  </Button>
-                </DrawerTrigger>
-              } />
+              <TooltipTrigger
+                render={
+                  <DrawerTrigger asChild>
+                    <Button variant="secondary" size="icon" className="h-9 w-9">
+                      <FileText className="h-4 w-4" />
+                    </Button>
+                  </DrawerTrigger>
+                }
+              />
               <TooltipContent>
                 <p>My Drafts ({drafts.length})</p>
               </TooltipContent>
@@ -342,17 +364,21 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
         <div className="hidden md:block">
           <Sheet open={isOpenDesktop} onOpenChange={setIsOpenDesktop}>
             <Tooltip>
-              <TooltipTrigger render={
-                <SheetTrigger render={
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="h-9 w-9"
-                  >
-                    <FileText className="h-4 w-4" />
-                  </Button>
-                } />
-              } />
+              <TooltipTrigger
+                render={
+                  <SheetTrigger
+                    render={
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        className="h-9 w-9"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                    }
+                  />
+                }
+              />
               <TooltipContent>
                 <p>My Drafts ({drafts.length})</p>
               </TooltipContent>
@@ -369,8 +395,8 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
               </div>
             </SheetContent>
           </Sheet>
-        </div >
-      </TooltipProvider >
+        </div>
+      </TooltipProvider>
     </>
   );
 }

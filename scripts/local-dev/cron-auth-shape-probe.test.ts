@@ -1,4 +1,12 @@
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import {
   chmodSync,
   linkSync,
@@ -72,7 +80,9 @@ const ZERO_DANGER_CALLS = {
 mock.module("@supabase/supabase-js", () => ({
   createClient: (...args: unknown[]) => {
     createClientCalls.push(args);
-    throw new Error("processExpiredSessions() must not construct a Supabase client under the probe");
+    throw new Error(
+      "processExpiredSessions() must not construct a Supabase client under the probe",
+    );
   },
 }));
 
@@ -93,21 +103,27 @@ mock.module("@/services/email", () => ({
 mock.module("@/lib/supabase/data-export-jobs", () => ({
   processPendingDataExportJobs: async (limit: unknown) => {
     dataExportCalls.push(limit);
-    throw new Error("processPendingDataExportJobs() must not be reached under the probe");
+    throw new Error(
+      "processPendingDataExportJobs() must not be reached under the probe",
+    );
   },
 }));
 
 mock.module("@/lib/organization/calendar-sync", () => ({
   syncOrganizationCalendarInternal: async (organizationId: unknown) => {
     calendarSyncCalls.push(organizationId);
-    throw new Error("syncOrganizationCalendarInternal() must not be reached under the probe");
+    throw new Error(
+      "syncOrganizationCalendarInternal() must not be reached under the probe",
+    );
   },
 }));
 
 mock.module("@/services/google-sheets", () => ({
   replaceSpreadsheetReportValues: async (...args: unknown[]) => {
     sheetsWriteCalls.push(args);
-    throw new Error("replaceSpreadsheetReportValues() must not be reached under the probe");
+    throw new Error(
+      "replaceSpreadsheetReportValues() must not be reached under the probe",
+    );
   },
 }));
 
@@ -116,20 +132,26 @@ mock.module("@/services/calendar", () => ({
     googleTokenCalls.push(args);
     throw new Error("Google access tokens must not be minted under the probe");
   },
-  organizationSheetsGoogleBinding: (organizationId: unknown) => ({ organizationId }),
+  organizationSheetsGoogleBinding: (organizationId: unknown) => ({
+    organizationId,
+  }),
 }));
 
 mock.module("@/lib/auth/google-oauth-authorization", () => ({
   authorizeGoogleOAuthOrganizationRequest: async (...args: unknown[]) => {
     googleAuthCalls.push(args);
-    throw new Error("Google OAuth authorization must not be reached under the probe");
+    throw new Error(
+      "Google OAuth authorization must not be reached under the probe",
+    );
   },
 }));
 
 mock.module("@/lib/organization/report-service", () => ({
   buildOrganizationReportRowsForSync: async (...args: unknown[]) => {
     reportRowCalls.push(args);
-    throw new Error("Organization report rows must not be built under the probe");
+    throw new Error(
+      "Organization report rows must not be built under the probe",
+    );
   },
 }));
 
@@ -157,18 +179,20 @@ const DISABLED_GOOGLE_AUTH_LINES = [
   "skip_nonce_check = false",
 ];
 
-function createIsolatedWorkDir(options: {
-  projectId?: string;
-  state?: string;
-  databaseVolume?: string;
-  workDirLine?: string;
-  markerMode?: number;
-  omitMarker?: boolean;
-  omitConfig?: boolean;
-  configProjectId?: string;
-  ports?: number[];
-  googleAuthLines?: string[];
-} = {}) {
+function createIsolatedWorkDir(
+  options: {
+    projectId?: string;
+    state?: string;
+    databaseVolume?: string;
+    workDirLine?: string;
+    markerMode?: number;
+    omitMarker?: boolean;
+    omitConfig?: boolean;
+    configProjectId?: string;
+    ports?: number[];
+    googleAuthLines?: string[];
+  } = {},
+) {
   const directory = mkdtempSync(join(tmpdir(), "csf-probe-identity-"));
   temporaryDirectories.push(directory);
   const projectId = options.projectId ?? "lets-assist-csf-browser-probe-test";
@@ -194,8 +218,17 @@ function createIsolatedWorkDir(options: {
 
   if (!options.omitConfig) {
     mkdirSync(join(directory, "supabase"), { mode: 0o700 });
-    const [shadow, api, database, studio, inbucket, smtp, inspector, analytics, pooler] =
-      options.ports ?? PORT_OFFSETS.map((offset) => BASE_PORT + offset);
+    const [
+      shadow,
+      api,
+      database,
+      studio,
+      inbucket,
+      smtp,
+      inspector,
+      analytics,
+      pooler,
+    ] = options.ports ?? PORT_OFFSETS.map((offset) => BASE_PORT + offset);
     const configPath = join(directory, "supabase", "config.toml");
     writeFileSync(
       configPath,
@@ -259,8 +292,10 @@ const LOAD_TIME_ENV: Record<string, string> = {
   PROJECT_CANCELLATION_WORKER_ENABLED: "true",
   ORG_SHEET_SYNC_WORKER_ENABLED: "true",
 };
-for (const [key, value] of Object.entries(LOAD_TIME_ENV)) process.env[key] = value;
-for (const [key, value] of Object.entries(ISOLATED_RUNTIME_ENV)) process.env[key] = value;
+for (const [key, value] of Object.entries(LOAD_TIME_ENV))
+  process.env[key] = value;
+for (const [key, value] of Object.entries(ISOLATED_RUNTIME_ENV))
+  process.env[key] = value;
 
 const { NextRequest } = await import("next/server");
 const {
@@ -273,9 +308,12 @@ const {
 
 const routeModules = {
   "auto-publish-hours": await import("@/app/api/cron/auto-publish-hours/route"),
-  "project-cancellations": await import("@/app/api/cron/project-cancellations/route"),
-  "organization-calendar-sync": await import("@/app/api/cron/organization-calendar-sync/route"),
-  "organization-sheet-sync": await import("@/app/api/cron/organization-sheet-sync/route"),
+  "project-cancellations":
+    await import("@/app/api/cron/project-cancellations/route"),
+  "organization-calendar-sync":
+    await import("@/app/api/cron/organization-calendar-sync/route"),
+  "organization-sheet-sync":
+    await import("@/app/api/cron/organization-sheet-sync/route"),
   "data-exports": await import("@/app/api/cron/data-exports/route"),
 } as const;
 
@@ -294,7 +332,10 @@ function makeRequest(
   method: "GET" | "POST",
   headers: Record<string, string> = {},
 ) {
-  return new NextRequest(`http://127.0.0.1:3009${ROUTE_PATHS[routeId]}`, { method, headers });
+  return new NextRequest(`http://127.0.0.1:3009${ROUTE_PATHS[routeId]}`, {
+    method,
+    headers,
+  });
 }
 
 function resetCounters() {
@@ -315,7 +356,8 @@ function resetCounters() {
 
 beforeEach(() => {
   resetCounters();
-  for (const [key, value] of Object.entries(ISOLATED_RUNTIME_ENV)) process.env[key] = value;
+  for (const [key, value] of Object.entries(ISOLATED_RUNTIME_ENV))
+    process.env[key] = value;
   delete process.env.CRON_AUTH_SHAPE_PROBE_ONLY;
   delete process.env.VERCEL;
   delete process.env.VERCEL_ENV;
@@ -376,21 +418,39 @@ describe("cron auth/shape probe helper contract", () => {
 
   test("returns null when probe mode is unset or empty, leaving normal behavior unchanged", () => {
     for (const routeId of CRON_PROBE_ROUTE_IDS) {
-      expect(cronAuthShapeProbe(routeId, EXACT_PROBE_HEADERS, probeEnv({
-        CRON_AUTH_SHAPE_PROBE_ONLY: undefined,
-      }))).toBeNull();
-      expect(cronAuthShapeProbe(routeId, EXACT_PROBE_HEADERS, probeEnv({
-        CRON_AUTH_SHAPE_PROBE_ONLY: "",
-      }))).toBeNull();
+      expect(
+        cronAuthShapeProbe(
+          routeId,
+          EXACT_PROBE_HEADERS,
+          probeEnv({
+            CRON_AUTH_SHAPE_PROBE_ONLY: undefined,
+          }),
+        ),
+      ).toBeNull();
+      expect(
+        cronAuthShapeProbe(
+          routeId,
+          EXACT_PROBE_HEADERS,
+          probeEnv({
+            CRON_AUTH_SHAPE_PROBE_ONLY: "",
+          }),
+        ),
+      ).toBeNull();
     }
   });
 
   test("an authenticated exact probe returns 200 with the exact auth-shape-v1 body", async () => {
     for (const routeId of CRON_PROBE_ROUTE_IDS) {
-      const response = cronAuthShapeProbe(routeId, EXACT_PROBE_HEADERS, probeEnv());
+      const response = cronAuthShapeProbe(
+        routeId,
+        EXACT_PROBE_HEADERS,
+        probeEnv(),
+      );
       expect(response).not.toBeNull();
       expect(response!.status).toBe(200);
-      expect(response!.headers.get("content-type")).toContain("application/json");
+      expect(response!.headers.get("content-type")).toContain(
+        "application/json",
+      );
       expect(await response!.text()).toBe(
         `{"ok":true,"route":"${routeId}","mode":"auth-shape-v1","dispatched":false}`,
       );
@@ -415,7 +475,13 @@ describe("cron auth/shape probe helper contract", () => {
   });
 
   test("a misspelled probe env value fails closed rather than falling through to dispatch", async () => {
-    for (const wrongValue of ["auth-shape-v2", "auth_shape_v1", "AUTH-SHAPE-V1", "1", "true"]) {
+    for (const wrongValue of [
+      "auth-shape-v2",
+      "auth_shape_v1",
+      "AUTH-SHAPE-V1",
+      "1",
+      "true",
+    ]) {
       const response = cronAuthShapeProbe(
         "data-exports",
         EXACT_PROBE_HEADERS,
@@ -430,23 +496,46 @@ describe("cron auth/shape probe helper contract", () => {
   });
 
   test("probe mode without a validated isolated identity returns exactly 503", async () => {
-    const invalidIdentities: Array<[string, Record<string, string | undefined>]> = [
+    const invalidIdentities: Array<
+      [string, Record<string, string | undefined>]
+    > = [
       ["absent work dir", { CSF_ISOLATED_WORK_DIR: undefined }],
       ["relative work dir", { CSF_ISOLATED_WORK_DIR: "relative/path" }],
-      ["nonexistent work dir", { CSF_ISOLATED_WORK_DIR: "/nonexistent/csf-probe" }],
-      ["no marker", { CSF_ISOLATED_WORK_DIR: createIsolatedWorkDir({ omitMarker: true }) }],
-      ["transitional marker", { CSF_ISOLATED_WORK_DIR: createIsolatedWorkDir({ state: "starting" }) }],
+      [
+        "nonexistent work dir",
+        { CSF_ISOLATED_WORK_DIR: "/nonexistent/csf-probe" },
+      ],
+      [
+        "no marker",
+        { CSF_ISOLATED_WORK_DIR: createIsolatedWorkDir({ omitMarker: true }) },
+      ],
+      [
+        "transitional marker",
+        { CSF_ISOLATED_WORK_DIR: createIsolatedWorkDir({ state: "starting" }) },
+      ],
       [
         "non-isolated project id",
-        { CSF_ISOLATED_WORK_DIR: createIsolatedWorkDir({ projectId: "lets-assist" }) },
+        {
+          CSF_ISOLATED_WORK_DIR: createIsolatedWorkDir({
+            projectId: "lets-assist",
+          }),
+        },
       ],
       [
         "mismatched database volume",
-        { CSF_ISOLATED_WORK_DIR: createIsolatedWorkDir({ databaseVolume: "supabase_db_other" }) },
+        {
+          CSF_ISOLATED_WORK_DIR: createIsolatedWorkDir({
+            databaseVolume: "supabase_db_other",
+          }),
+        },
       ],
       [
         "marker describing another directory",
-        { CSF_ISOLATED_WORK_DIR: createIsolatedWorkDir({ workDirLine: tmpdir() }) },
+        {
+          CSF_ISOLATED_WORK_DIR: createIsolatedWorkDir({
+            workDirLine: tmpdir(),
+          }),
+        },
       ],
       [
         "group-readable marker",
@@ -499,7 +588,10 @@ describe("cron auth/shape probe helper contract", () => {
         {
           CSF_ISOLATED_WORK_DIR: (() => {
             const directory = createIsolatedWorkDir();
-            const markerPath = join(directory, ".lets-assist-csf-isolated-stack");
+            const markerPath = join(
+              directory,
+              ".lets-assist-csf-isolated-stack",
+            );
             writeFileSync(
               markerPath,
               `${readFileSync(markerPath, "utf8")}state=ready\n`,
@@ -514,7 +606,10 @@ describe("cron auth/shape probe helper contract", () => {
         {
           CSF_ISOLATED_WORK_DIR: (() => {
             const directory = createIsolatedWorkDir();
-            const markerPath = join(directory, ".lets-assist-csf-isolated-stack");
+            const markerPath = join(
+              directory,
+              ".lets-assist-csf-isolated-stack",
+            );
             writeFileSync(
               markerPath,
               readFileSync(markerPath, "utf8").replace(/\n$/u, ""),
@@ -539,12 +634,27 @@ describe("cron auth/shape probe helper contract", () => {
       ],
       ["hosted runtime marker VERCEL", { VERCEL: "1" }],
       ["hosted runtime marker VERCEL_ENV", { VERCEL_ENV: "production" }],
-      ["hosted supabase url", { NEXT_PUBLIC_SUPABASE_URL: "https://fotdmeakexgrkronxlof.supabase.co" }],
-      ["hosted site url", { NEXT_PUBLIC_SITE_URL: "https://lets-assist.com", SITE_URL: "https://lets-assist.com" }],
+      [
+        "hosted supabase url",
+        {
+          NEXT_PUBLIC_SUPABASE_URL: "https://fotdmeakexgrkronxlof.supabase.co",
+        },
+      ],
+      [
+        "hosted site url",
+        {
+          NEXT_PUBLIC_SITE_URL: "https://lets-assist.com",
+          SITE_URL: "https://lets-assist.com",
+        },
+      ],
     ];
 
     for (const [label, overrides] of invalidIdentities) {
-      const response = cronAuthShapeProbe("auto-publish-hours", EXACT_PROBE_HEADERS, probeEnv(overrides));
+      const response = cronAuthShapeProbe(
+        "auto-publish-hours",
+        EXACT_PROBE_HEADERS,
+        probeEnv(overrides),
+      );
       expect(response, label).not.toBeNull();
       expect(response!.status, label).toBe(503);
       expect(await response!.text()).toBe(
@@ -557,20 +667,28 @@ describe("cron auth/shape probe helper contract", () => {
     const workDir = createIsolatedWorkDir();
     const env = probeEnv({ CSF_ISOLATED_WORK_DIR: workDir });
 
-    expect(cronAuthShapeProbe("data-exports", EXACT_PROBE_HEADERS, env)!.status).toBe(200);
+    expect(
+      cronAuthShapeProbe("data-exports", EXACT_PROBE_HEADERS, env)!.status,
+    ).toBe(200);
     rmSync(join(workDir, ".lets-assist-csf-isolated-stack"), { force: true });
-    expect(cronAuthShapeProbe("data-exports", EXACT_PROBE_HEADERS, env)!.status).toBe(503);
+    expect(
+      cronAuthShapeProbe("data-exports", EXACT_PROBE_HEADERS, env)!.status,
+    ).toBe(503);
   });
 
   test("revoked generated-config evidence is observed on the next call too", async () => {
     const workDir = createIsolatedWorkDir();
     const env = probeEnv({ CSF_ISOLATED_WORK_DIR: workDir });
 
-    expect(cronAuthShapeProbe("data-exports", EXACT_PROBE_HEADERS, env)!.status).toBe(200);
+    expect(
+      cronAuthShapeProbe("data-exports", EXACT_PROBE_HEADERS, env)!.status,
+    ).toBe(200);
     // The marker is untouched; only the generated config changes. A probe that
     // still validated the marker alone would keep answering 200 here.
     rmSync(join(workDir, "supabase", "config.toml"), { force: true });
-    expect(cronAuthShapeProbe("data-exports", EXACT_PROBE_HEADERS, env)!.status).toBe(503);
+    expect(
+      cronAuthShapeProbe("data-exports", EXACT_PROBE_HEADERS, env)!.status,
+    ).toBe(503);
   });
 
   test("probe mode is detected before any filesystem validation", async () => {
@@ -614,7 +732,9 @@ describe("cron auth/shape probe helper contract", () => {
     // evidence is one too many, and the weaker one decides.
     expect(probeSource).toContain("inspectCsfIsolatedWorkDir");
     expect(probeSource).toContain("/* turbopackIgnore: true */ process.cwd()");
-    expect(probeSource).not.toContain('from "@/scripts/local-dev/dv-local-env.mjs"');
+    expect(probeSource).not.toContain(
+      'from "@/scripts/local-dev/dv-local-env.mjs"',
+    );
     expect(probeSource).not.toContain("CSF_MARKER_LINE_PATTERN");
     expect(probeSource).not.toContain(".lets-assist-csf-isolated-stack");
     expect(probeSource).not.toContain("readFileSync");
@@ -639,9 +759,14 @@ describe("cron routes fail closed under the probe without dispatching", () => {
         expect(noAuth.status, `${method} ${routeId} without auth`).toBe(401);
 
         const wrongAuth = await handler(
-          makeRequest(routeId, method, { authorization: "Bearer wrong-secret" }),
+          makeRequest(routeId, method, {
+            authorization: "Bearer wrong-secret",
+          }),
         );
-        expect(wrongAuth.status, `${method} ${routeId} with a wrong bearer`).toBe(401);
+        expect(
+          wrongAuth.status,
+          `${method} ${routeId} with a wrong bearer`,
+        ).toBe(401);
       }
     }
 
@@ -660,7 +785,9 @@ describe("cron routes fail closed under the probe without dispatching", () => {
           }),
         );
         expect(response.status, `${method} ${routeId}`).toBe(200);
-        expect(response.headers.get("content-type")).toContain("application/json");
+        expect(response.headers.get("content-type")).toContain(
+          "application/json",
+        );
         expect(await response.text()).toBe(
           `{"ok":true,"route":"${routeId}","mode":"auth-shape-v1","dispatched":false}`,
         );
@@ -676,7 +803,9 @@ describe("cron routes fail closed under the probe without dispatching", () => {
     for (const routeId of routeIds) {
       for (const method of ["GET", "POST"] as const) {
         const response = await routeModules[routeId][method](
-          makeRequest(routeId, method, { authorization: `Bearer ${CRON_SECRET}` }),
+          makeRequest(routeId, method, {
+            authorization: `Bearer ${CRON_SECRET}`,
+          }),
         );
         expect(response.status, `${method} ${routeId}`).toBe(428);
         expect(await response.text()).toBe(
@@ -690,7 +819,9 @@ describe("cron routes fail closed under the probe without dispatching", () => {
 
   test("an authenticated call with an invalid isolated identity returns 503 and dispatches nothing", async () => {
     process.env.CRON_AUTH_SHAPE_PROBE_ONLY = CRON_AUTH_SHAPE_PROBE_MODE;
-    process.env.CSF_ISOLATED_WORK_DIR = createIsolatedWorkDir({ omitMarker: true });
+    process.env.CSF_ISOLATED_WORK_DIR = createIsolatedWorkDir({
+      omitMarker: true,
+    });
 
     for (const routeId of routeIds) {
       for (const method of ["GET", "POST"] as const) {
@@ -713,7 +844,10 @@ describe("cron routes fail closed under the probe without dispatching", () => {
   test("the auto-publish status path is probed too, so no authenticated path escapes", async () => {
     process.env.CRON_AUTH_SHAPE_PROBE_ONLY = CRON_AUTH_SHAPE_PROBE_MODE;
 
-    for (const routeId of ["auto-publish-hours", "project-cancellations"] as const) {
+    for (const routeId of [
+      "auto-publish-hours",
+      "project-cancellations",
+    ] as const) {
       const request = new NextRequest(
         `http://127.0.0.1:3009${ROUTE_PATHS[routeId]}?status=1`,
         { method: "GET", headers: { authorization: `Bearer ${CRON_SECRET}` } },
@@ -732,7 +866,9 @@ describe("cron routes fail closed under the probe without dispatching", () => {
     delete process.env.CRON_AUTH_SHAPE_PROBE_ONLY;
 
     const dispatched = await routeModules["data-exports"].POST(
-      makeRequest("data-exports", "POST", { authorization: `Bearer ${CRON_SECRET}` }),
+      makeRequest("data-exports", "POST", {
+        authorization: `Bearer ${CRON_SECRET}`,
+      }),
     );
     expect(dispatched.status).toBe(500);
     expect(dataExportCalls.length).toBe(1);
@@ -740,7 +876,9 @@ describe("cron routes fail closed under the probe without dispatching", () => {
     resetCounters();
 
     const cancellations = await routeModules["project-cancellations"].POST(
-      makeRequest("project-cancellations", "POST", { authorization: `Bearer ${CRON_SECRET}` }),
+      makeRequest("project-cancellations", "POST", {
+        authorization: `Bearer ${CRON_SECRET}`,
+      }),
     );
     expect(cancellations.status).toBe(500);
     expect(adminClientCalls.length).toBe(1);

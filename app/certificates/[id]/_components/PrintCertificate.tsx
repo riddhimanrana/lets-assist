@@ -1,8 +1,6 @@
 "use client";
 
-import {
-  Printer,
-} from "lucide-react";
+import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { escapeHtml } from "@/lib/security/html";
 import { format, parseISO } from "date-fns";
@@ -60,28 +58,34 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
     const userTimezone = getUserTimezone();
 
     // Format dates in user's timezone for print
-    const printEventDate = format(
-      parseISO(data.event_start),
-      "MMMM d, yyyy",
-      { in: tz(userTimezone) }
-    );
+    const printEventDate = format(parseISO(data.event_start), "MMMM d, yyyy", {
+      in: tz(userTimezone),
+    });
 
-    const printIssuedDate = format(
-      parseISO(data.issued_at),
-      "MMM d, yyyy",
-      { in: tz(userTimezone) }
-    );
+    const printIssuedDate = format(parseISO(data.issued_at), "MMM d, yyyy", {
+      in: tz(userTimezone),
+    });
 
     const safeCertificateId = escapeHtml(data.id);
     const safeIssuedDate = escapeHtml(printIssuedDate);
     const safeEventDate = escapeHtml(printEventDate);
-    const safeVolunteerName = escapeHtml(data.volunteer_name || "Unnamed Volunteer");
+    const safeVolunteerName = escapeHtml(
+      data.volunteer_name || "Unnamed Volunteer",
+    );
     const safeDurationText = escapeHtml(data.durationText);
     const safeProjectTitle = escapeHtml(data.project_title);
-    const safeOrganizationName = data.organization_name ? escapeHtml(data.organization_name) : "";
-    const safeProjectLocation = data.project_location ? escapeHtml(data.project_location) : "";
-    const safeCreatorName = escapeHtml(data.creator_name || "Let's Assist Admin");
-    const safeCertificateUrl = escapeHtml(`lets-assist.com/certificates/${data.id}`);
+    const safeOrganizationName = data.organization_name
+      ? escapeHtml(data.organization_name)
+      : "";
+    const safeProjectLocation = data.project_location
+      ? escapeHtml(data.project_location)
+      : "";
+    const safeCreatorName = escapeHtml(
+      data.creator_name || "Let's Assist Admin",
+    );
+    const safeCertificateUrl = escapeHtml(
+      `lets-assist.com/certificates/${data.id}`,
+    );
 
     // Assemble the HTML content for the certificate
     const certificateHtml = `
@@ -135,24 +139,26 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
                 <p class="print-text" style="margin:.5rem 0">${safeEventDate}</p>
                 <p class="print-text" style="margin:0;font-size:0.9rem;">Event Date</p>
               </div>
-                ${data.organization_name
-        ? `
+                ${
+                  data.organization_name
+                    ? `
                 <div style="text-align:center">
                   <span class="print-accent" aria-hidden="true">🏢</span>
                   <p class="print-text" style="margin:.5rem 0">${safeOrganizationName}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Organization</p>
                 </div>`
-        : ""
-      }
-                ${data.project_location
-        ? `
+                    : ""
+                }
+                ${
+                  data.project_location
+                    ? `
                 <div style="text-align:center">
                   <span class="print-accent" aria-hidden="true">📍</span>
                   <p class="print-text" style="margin:.5rem 0">${safeProjectLocation}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Location</p>
                 </div>`
-        : ""
-      }
+                    : ""
+                }
                 <div style="text-align:center">
                   <span class="print-accent" aria-hidden="true">⏰</span>
                   <p class="print-text" style="margin:.5rem 0">${safeDurationText}</p>
@@ -167,14 +173,15 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
                 <p class="print-text" style="font-weight:bold;margin:.25rem 0">${safeCreatorName}</p>
                 <p class="print-text" style="margin:0;font-size:0.9rem;">Issued: ${safeIssuedDate}</p>
               </div>
-              ${data.is_certified
-        ? `
+              ${
+                data.is_certified
+                  ? `
               <div style="display:flex;align-items:center">
                 <span class="print-accent" aria-hidden="true" style="font-size:2rem;">🏅</span>
                 <span class="print-text print-accent" style="font-weight:bold;margin-left:.5rem">OFFICIALLY VERIFIED</span>
               </div>`
-        : ""
-      }
+                  : ""
+              }
               <div style="text-align:right">
                 <p class="print-text" style="margin:0">Verify at:</p>
                 <p class="print-text" style="font-weight:bold;margin:.25rem 0">${safeCertificateUrl}</p>
@@ -218,12 +225,12 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
       try {
         if (iframe.contentWindow) {
           iframe.contentWindow.focus();
-          
+
           // Set up after-print handler to cleanup
           iframe.contentWindow.onafterprint = () => {
             cleanup();
           };
-          
+
           iframe.contentWindow.print();
 
           // Set up cancel detection

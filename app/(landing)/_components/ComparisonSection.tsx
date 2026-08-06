@@ -1138,7 +1138,6 @@ export default function ComparisonSection() {
             )}
           </Card>
         </motion.div>
-
       </div>
     </section>
   );

@@ -75,7 +75,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = await createClient();
   const previewSource = await getServerPreviewSource();
   const readClient =
-    previewSource === "remote" ? createRemoteReadonlyClient() ?? supabase : supabase;
+    previewSource === "remote"
+      ? (createRemoteReadonlyClient() ?? supabase)
+      : supabase;
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com";
 
   // Try to fetch by username first through the public-safe read model.
@@ -149,7 +151,9 @@ export default async function OrganizationPage({
   const supabase = await createClient();
   const previewSource = await getServerPreviewSource();
   const readClient =
-    previewSource === "remote" ? createRemoteReadonlyClient() ?? supabase : supabase;
+    previewSource === "remote"
+      ? (createRemoteReadonlyClient() ?? supabase)
+      : supabase;
   // Get current user using getClaims() for better performance
   const { user } = await getAuthUser();
 
@@ -159,17 +163,19 @@ export default async function OrganizationPage({
 
   // Fetch public-safe organization data. Sensitive base fields such as join
   // codes, staff tokens, domains, and creator internals stay off this page.
-  const { data: organization } = (isUUID
-    ? await readClient
-        .from("organization_public_read_model")
-        .select("*")
-        .eq("id", id)
-        .single()
-    : await readClient
-        .from("organization_public_read_model")
-        .select("*")
-        .eq("username", id)
-        .single()) as {
+  const { data: organization } = (
+    isUUID
+      ? await readClient
+          .from("organization_public_read_model")
+          .select("*")
+          .eq("id", id)
+          .single()
+      : await readClient
+          .from("organization_public_read_model")
+          .select("*")
+          .eq("username", id)
+          .single()
+  ) as {
     data: OrganizationReadModelRow | null;
     error: { message?: string } | null;
   };
@@ -241,13 +247,17 @@ export default async function OrganizationPage({
     );
   }
 
-  if (shouldRedirectMemberToPluginRoot({
-    userRole,
-    publicPage: organizationExperience?.publicPage ?? null,
-    hasEmbeddedOrganizationTabs,
-  })) {
+  if (
+    shouldRedirectMemberToPluginRoot({
+      userRole,
+      publicPage: organizationExperience?.publicPage ?? null,
+      hasEmbeddedOrganizationTabs,
+    })
+  ) {
     const organizationSlug = organization.username ?? organization.id;
-    redirect(`/organization/${organizationSlug}/plugins/${pluginExperience.pluginKey}`);
+    redirect(
+      `/organization/${organizationSlug}/plugins/${pluginExperience.pluginKey}`,
+    );
   }
 
   // Check if members should be visible
@@ -255,7 +265,6 @@ export default async function OrganizationPage({
   const canViewMembers =
     organizationExperience?.members !== "hidden" &&
     (organization.show_members_publicly !== false || !!userRole);
-
 
   let memberCount = organization.public_member_count ?? 0;
 
@@ -286,12 +295,11 @@ export default async function OrganizationPage({
     // No need to query profiles if there are no members
     let profilesData: ProfileRow[] = [];
     if (userIds.length > 0) {
-      const { data: profiles, error: profilesError } = (await getPublicProfilesByIds(
-        userIds,
-      )) as {
-        data: ProfileRow[] | null;
-        error: { message?: string } | null;
-      };
+      const { data: profiles, error: profilesError } =
+        (await getPublicProfilesByIds(userIds)) as {
+          data: ProfileRow[] | null;
+          error: { message?: string } | null;
+        };
 
       if (profilesError) {
         console.error("Error fetching member profiles:", profilesError);
@@ -327,13 +335,14 @@ export default async function OrganizationPage({
   }
 
   // Get organization projects
-  const { data: projects } = organizationExperience?.projects === "hidden"
-    ? { data: [] }
-    : await readClient
-        .from("projects")
-        .select("*")
-        .eq("organization_id", organization.id)
-        .order("created_at", { ascending: false });
+  const { data: projects } =
+    organizationExperience?.projects === "hidden"
+      ? { data: [] }
+      : await readClient
+          .from("projects")
+          .select("*")
+          .eq("organization_id", organization.id)
+          .order("created_at", { ascending: false });
 
   let reportSummary: { totalHours: number } | null = null;
 
@@ -354,33 +363,34 @@ export default async function OrganizationPage({
     organization.created_at,
   );
 
-    const pluginOverviewExtensions = pluginRole
-      ? await resolveOrganizationPluginSurfaces({
-          organizationId: organization.id,
-          surface: "organization.overview.cards",
-          viewerRole: pluginRole,
-          target: {
-            userId: user?.id ?? null,
-          },
-          useAdminClient: true,
-        })
-      : [];
-    const navOverridesContributions = pluginRole
-      ? await resolveOrganizationPluginBehaviorHook({
-          organizationId: organization.id,
-          organizationSlug: organization.username ?? organization.id,
-          organizationName: organization.name,
-          hook: "organization.navigation.overrides",
-          viewerRole: pluginRole,
-          target: {
-            userId: user?.id ?? null,
-            userEmail: user?.email ?? null,
-          },
-          useAdminClient: true,
-        })
-      : [];
-    
-    const navOverrides = navOverridesContributions.reduce<OrganizationNavigationBehavior>(
+  const pluginOverviewExtensions = pluginRole
+    ? await resolveOrganizationPluginSurfaces({
+        organizationId: organization.id,
+        surface: "organization.overview.cards",
+        viewerRole: pluginRole,
+        target: {
+          userId: user?.id ?? null,
+        },
+        useAdminClient: true,
+      })
+    : [];
+  const navOverridesContributions = pluginRole
+    ? await resolveOrganizationPluginBehaviorHook({
+        organizationId: organization.id,
+        organizationSlug: organization.username ?? organization.id,
+        organizationName: organization.name,
+        hook: "organization.navigation.overrides",
+        viewerRole: pluginRole,
+        target: {
+          userId: user?.id ?? null,
+          userEmail: user?.email ?? null,
+        },
+        useAdminClient: true,
+      })
+    : [];
+
+  const navOverrides =
+    navOverridesContributions.reduce<OrganizationNavigationBehavior>(
       (acc, c) => ({
         ...acc,
         ...c.behavior,
@@ -391,91 +401,102 @@ export default async function OrganizationPage({
       }),
       {},
     );
-    const allowedPluginSurfaces = navOverrides.pluginSurfaceAllowlist;
-    const isAllowedPluginSurface = (pluginKey: string) =>
-      !allowedPluginSurfaces?.length || allowedPluginSurfaces.includes(pluginKey);
-    const visiblePluginOverviewExtensions = pluginOverviewExtensions.filter((surface) =>
-      isAllowedPluginSurface(surface.pluginKey),
-    );
-    const pluginTabs = pluginTabsContributions
-      .filter((contribution) => isAllowedPluginSurface(contribution.pluginKey))
-      .flatMap((c) => c.behavior);
-    const organizationForDisplay = {
-      id: organization.id,
-      name: organization.name,
-      username: organization.username ?? organization.id,
-      description: organization.description ?? undefined,
-      website: organization.website,
-      logo_url: organization.logo_url ?? undefined,
-      type: organization.type,
-      verified: organization.verified ?? false,
-      show_members_publicly: organization.show_members_publicly,
-      created_at: organization.created_at,
-    } satisfies Organization & {
-      website?: string | null;
-      created_at?: string | null;
-    };
+  const allowedPluginSurfaces = navOverrides.pluginSurfaceAllowlist;
+  const isAllowedPluginSurface = (pluginKey: string) =>
+    !allowedPluginSurfaces?.length || allowedPluginSurfaces.includes(pluginKey);
+  const visiblePluginOverviewExtensions = pluginOverviewExtensions.filter(
+    (surface) => isAllowedPluginSurface(surface.pluginKey),
+  );
+  const pluginTabs = pluginTabsContributions
+    .filter((contribution) => isAllowedPluginSurface(contribution.pluginKey))
+    .flatMap((c) => c.behavior);
+  const organizationForDisplay = {
+    id: organization.id,
+    name: organization.name,
+    username: organization.username ?? organization.id,
+    description: organization.description ?? undefined,
+    website: organization.website,
+    logo_url: organization.logo_url ?? undefined,
+    type: organization.type,
+    verified: organization.verified ?? false,
+    show_members_publicly: organization.show_members_publicly,
+    created_at: organization.created_at,
+  } satisfies Organization & {
+    website?: string | null;
+    created_at?: string | null;
+  };
 
-    const resolvedPlugins = pluginRole
-      ? (await resolveOrganizationPlugins({
+  const resolvedPlugins = pluginRole
+    ? (
+        await resolveOrganizationPlugins({
           organizationId: organization.id,
           userRole: pluginRole,
-        })).filter((plugin) => isAllowedPluginSurface(plugin.key))
-      : [];
-    const pluginRouteTabs: OrganizationPluginRouteTabLink[] = resolvedPlugins.flatMap(
-      (plugin) => {
-        const definition = getRegisteredPlugin(plugin.key);
-        if (!definition?.manifest.routes?.length) return [];
+        })
+      ).filter((plugin) => isAllowedPluginSurface(plugin.key))
+    : [];
+  const pluginRouteTabs: OrganizationPluginRouteTabLink[] =
+    resolvedPlugins.flatMap((plugin) => {
+      const definition = getRegisteredPlugin(plugin.key);
+      if (!definition?.manifest.routes?.length) return [];
 
-        return definition.manifest.routes
-          .filter((route) => route.navSection === "organization")
-          .filter((route) => {
-            const minimumRole = route.minimumRole ?? plugin.minimumRole ?? "member";
-            if (minimumRole === "public") return true;
-            return hasOrganizationPluginAccess(pluginRole, minimumRole);
-          })
-          .map((route) => ({
-            value: `${plugin.key}:${route.path}`,
-            label: route.label,
-            href: `/organization/${organizationForDisplay.username}/plugins/${plugin.key}${
-              route.path === "overview" ? "" : `/${route.path}`
-            }`,
-            minimumRole: route.minimumRole ?? plugin.minimumRole ?? "member",
-          }));
-      },
+      return definition.manifest.routes
+        .filter((route) => route.navSection === "organization")
+        .filter((route) => {
+          const minimumRole =
+            route.minimumRole ?? plugin.minimumRole ?? "member";
+          if (minimumRole === "public") return true;
+          return hasOrganizationPluginAccess(pluginRole, minimumRole);
+        })
+        .map((route) => ({
+          value: `${plugin.key}:${route.path}`,
+          label: route.label,
+          href: `/organization/${organizationForDisplay.username}/plugins/${plugin.key}${
+            route.path === "overview" ? "" : `/${route.path}`
+          }`,
+          minimumRole: route.minimumRole ?? plugin.minimumRole ?? "member",
+        }));
+    });
+
+  const overviewReplacement = navOverrides.coreTabReplacements?.overview;
+  const canUseOverviewReplacement =
+    overviewReplacement &&
+    (overviewReplacement.minimumRole === "public" ||
+      hasOrganizationPluginAccess(
+        pluginRole,
+        overviewReplacement.minimumRole ?? "member",
+      ));
+
+  if (
+    !resolvedSearchParams.tab &&
+    overviewReplacement &&
+    canUseOverviewReplacement
+  ) {
+    redirect(
+      `/organization/${organizationForDisplay.username}/plugins/${overviewReplacement.pluginKey}${
+        overviewReplacement.routePath ? `/${overviewReplacement.routePath}` : ""
+      }`,
     );
-
-    const overviewReplacement = navOverrides.coreTabReplacements?.overview;
-    const canUseOverviewReplacement =
-      overviewReplacement &&
-      (overviewReplacement.minimumRole === "public" ||
-        hasOrganizationPluginAccess(
-          pluginRole,
-          overviewReplacement.minimumRole ?? "member",
-        ));
-
-    if (!resolvedSearchParams.tab && overviewReplacement && canUseOverviewReplacement) {
-      redirect(
-        `/organization/${organizationForDisplay.username}/plugins/${overviewReplacement.pluginKey}${
-          overviewReplacement.routePath ? `/${overviewReplacement.routePath}` : ""
-        }`,
-      );
-    }
+  }
 
   return (
     <div className="flex flex-col w-full">
-      <div className={cn(
-        "w-full absolute bg-linear-to-br from-primary/15 via-primary/5 to-background/0 before:content-[''] before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:to-background",
-        navOverrides.compactHeader ? "min-h-40" : "min-h-72",
-      )} />
+      <div
+        className={cn(
+          "w-full absolute bg-linear-to-br from-primary/15 via-primary/5 to-background/0 before:content-[''] before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:to-background",
+          navOverrides.compactHeader ? "min-h-40" : "min-h-72",
+        )}
+      />
 
-      <div className={cn(
-        "relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6",
-        navOverrides.compactHeader ? "pt-4 sm:pt-5" : "pt-6 sm:pt-10",
-      )}>
+      <div
+        className={cn(
+          "relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6",
+          navOverrides.compactHeader ? "pt-4 sm:pt-5" : "pt-6 sm:pt-10",
+        )}
+      >
         {previewSource === "remote" && (
           <div className="mb-4 rounded-md border border-warning bg-warning/15 px-4 py-3 text-sm text-warning">
-            Remote preview mode is active (read-only). Member and org data shown here comes from remote, but all edits still apply to local data.
+            Remote preview mode is active (read-only). Member and org data shown
+            here comes from remote, but all edits still apply to local data.
           </div>
         )}
         <OrganizationHeader
@@ -488,10 +509,14 @@ export default async function OrganizationPage({
           compact={navOverrides.compactHeader}
         />
 
-        <div className={cn(
-          "bg-card rounded-xl border border-border/60 shadow-xs mb-8",
-          navOverrides.compactHeader ? "mt-4 p-3 sm:mt-5 sm:p-4" : "mt-8 p-4 sm:mt-12 sm:p-6",
-        )}>
+        <div
+          className={cn(
+            "bg-card rounded-xl border border-border/60 shadow-xs mb-8",
+            navOverrides.compactHeader
+              ? "mt-4 p-3 sm:mt-5 sm:p-4"
+              : "mt-8 p-4 sm:mt-12 sm:p-6",
+          )}
+        >
           <OrganizationTabs
             organization={organizationForDisplay}
             members={formattedMembers}

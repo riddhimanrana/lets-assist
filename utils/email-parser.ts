@@ -10,7 +10,8 @@ export function parseEmails(input: string): string[] {
   // - john@example.com
   // - John Doe <john@example.com>
   // - CSV / semicolon / newline / tab-delimited rows
-  const matchedEmails = input.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? [];
+  const matchedEmails =
+    input.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? [];
 
   const emails = matchedEmails
     .map((e) => e.trim().toLowerCase())

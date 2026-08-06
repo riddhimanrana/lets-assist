@@ -30,7 +30,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ProfileHoverCard, OrganizationHoverCard } from "@/components/shared/ProfileHoverCard";
+import {
+  ProfileHoverCard,
+  OrganizationHoverCard,
+} from "@/components/shared/ProfileHoverCard";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,9 +41,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Project as BaseProject, Organization, Signup } from "@/types";
-import {
-  getProjectRemainingSpots,
-} from "@/lib/projects/availability";
+import { getProjectRemainingSpots } from "@/lib/projects/availability";
 import { getProjectStatus as getProjectStatusUtil } from "@/utils/project";
 
 type ProjectWithExtras = BaseProject & {
@@ -89,7 +90,10 @@ const formatDateDisplay = (project: ProjectWithExtras) => {
       return format(date, "MMM d");
     }
     case "multiDay": {
-      if (!project.schedule.multiDay || project.schedule.multiDay.length === 0) {
+      if (
+        !project.schedule.multiDay ||
+        project.schedule.multiDay.length === 0
+      ) {
         return "";
       }
       const dates = project.schedule.multiDay
@@ -166,7 +170,10 @@ const getEventScheduleSummary = (project: ProjectWithExtras) => {
       return date;
     }
     case "multiDay": {
-      if (!project.schedule.multiDay || project.schedule.multiDay.length === 0) {
+      if (
+        !project.schedule.multiDay ||
+        project.schedule.multiDay.length === 0
+      ) {
         return "Not specified";
       }
       const days = project.schedule.multiDay.length;
@@ -253,7 +260,8 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
   onViewChangeAction,
 }) => {
   const [initialViewLoaded, setInitialViewLoaded] = useState(false);
-  const [reportingProject, setReportingProject] = useState<ProjectWithExtras | null>(null);
+  const [reportingProject, setReportingProject] =
+    useState<ProjectWithExtras | null>(null);
 
   // Update the effect to properly handle view persistence
   useEffect(() => {
@@ -307,11 +315,17 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     </div>
 
                     <div className="flex flex-wrap gap-2 mb-4">
-                      <Badge variant="outline" className="gap-1.5 py-1 px-2.5 font-medium border-muted-foreground/20 text-xs">
+                      <Badge
+                        variant="outline"
+                        className="gap-1.5 py-1 px-2.5 font-medium border-muted-foreground/20 text-xs"
+                      >
                         <Calendar className="h-3.5 w-3.5" />
                         {formatDateDisplay(project)}
                       </Badge>
-                      <Badge variant="outline" className="gap-1.5 py-1 px-2.5 font-medium border-muted-foreground/20 text-xs">
+                      <Badge
+                        variant="outline"
+                        className="gap-1.5 py-1 px-2.5 font-medium border-muted-foreground/20 text-xs"
+                      >
                         <Users className="h-3.5 w-3.5" />
                         {formatSpots(getRemainingSpots(project))}
                       </Badge>
@@ -337,11 +351,16 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                             {project.organization_id ? (
                               <OrganizationHoverCard
                                 organization={{
-                                  username: project.organization?.username || project.organizations?.username || "",
+                                  username:
+                                    project.organization?.username ||
+                                    project.organizations?.username ||
+                                    "",
                                   name: getProjectCreator(project),
                                   logo_url: getCreatorAvatarUrl(project),
                                   verified: isOrganizationVerified(project),
-                                  type: project.organization?.type || project.organizations?.type,
+                                  type:
+                                    project.organization?.type ||
+                                    project.organizations?.type,
                                 }}
                               >
                                 <span className="text-sm font-semibold truncate cursor-pointer">
@@ -352,17 +371,22 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                               <ProfileHoverCard
                                 username={project.profiles?.username || ""}
                                 fullName={getProjectCreator(project)}
-                                avatarUrl={getCreatorAvatarUrl(project) || undefined}
-                                createdAt={project.profiles?.created_at || undefined}
+                                avatarUrl={
+                                  getCreatorAvatarUrl(project) || undefined
+                                }
+                                createdAt={
+                                  project.profiles?.created_at || undefined
+                                }
                               >
                                 <span className="text-sm font-semibold truncate cursor-pointer">
                                   {getProjectCreator(project)}
                                 </span>
                               </ProfileHoverCard>
                             )}
-                            {project.organization_id && isOrganizationVerified(project) && (
-                              <BadgeCheck className="h-4 w-4 shrink-0 text-success" />
-                            )}
+                            {project.organization_id &&
+                              isOrganizationVerified(project) && (
+                                <BadgeCheck className="h-4 w-4 shrink-0 text-success" />
+                              )}
                           </div>
                         </div>
                       </div>
@@ -374,19 +398,23 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
               {/* Three-dot menu in top-right corner */}
               <div className="absolute top-4 right-4 z-10">
                 <DropdownMenu>
-                  <DropdownMenuTrigger render={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                      <span className="sr-only">Open menu</span>
-                    </Button>
-                  } />
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                        <span className="sr-only">Open menu</span>
+                      </Button>
+                    }
+                  />
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setReportingProject(project)}>
+                    <DropdownMenuItem
+                      onClick={() => setReportingProject(project)}
+                    >
                       <Flag className="mr-2 h-4 w-4" />
                       <span>Report Project</span>
                     </DropdownMenuItem>
@@ -450,11 +478,16 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                         {project.organization_id ? (
                           <OrganizationHoverCard
                             organization={{
-                              username: project.organization?.username || project.organizations?.username || "",
+                              username:
+                                project.organization?.username ||
+                                project.organizations?.username ||
+                                "",
                               name: getProjectCreator(project),
                               logo_url: getCreatorAvatarUrl(project),
                               verified: isOrganizationVerified(project),
-                              type: project.organization?.type || project.organizations?.type,
+                              type:
+                                project.organization?.type ||
+                                project.organizations?.type,
                             }}
                           >
                             <span className="text-sm font-medium truncate cursor-pointer">
@@ -465,42 +498,51 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                           <ProfileHoverCard
                             username={project.profiles?.username || ""}
                             fullName={getProjectCreator(project)}
-                            avatarUrl={getCreatorAvatarUrl(project) || undefined}
-                            createdAt={project.profiles?.created_at || undefined}
+                            avatarUrl={
+                              getCreatorAvatarUrl(project) || undefined
+                            }
+                            createdAt={
+                              project.profiles?.created_at || undefined
+                            }
                           >
                             <span className="text-sm font-medium truncate cursor-pointer">
                               {getProjectCreator(project)}
                             </span>
                           </ProfileHoverCard>
                         )}
-                        {project.organization_id && isOrganizationVerified(project) && (
-                          <BadgeCheck className="h-4 w-4 shrink-0 text-success" />
-                        )}
+                        {project.organization_id &&
+                          isOrganizationVerified(project) && (
+                            <BadgeCheck className="h-4 w-4 shrink-0 text-success" />
+                          )}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <DropdownMenu modal={false}>
-                      <DropdownMenuTrigger render={
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">Open menu</span>
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            setReportingProject(project);
                           }}
                         >
-                          <MoreVertical className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
-                        </Button>
-                      } />
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setReportingProject(project);
-                        }}>
                           <Flag className="mr-2 h-4 w-4" />
                           <span>Report Project</span>
                         </DropdownMenuItem>
@@ -594,11 +636,16 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     {project.organization_id ? (
                       <OrganizationHoverCard
                         organization={{
-                          username: project.organization?.username || project.organizations?.username || "",
+                          username:
+                            project.organization?.username ||
+                            project.organizations?.username ||
+                            "",
                           name: getProjectCreator(project),
                           logo_url: getCreatorAvatarUrl(project),
                           verified: isOrganizationVerified(project),
-                          type: project.organization?.type || project.organizations?.type,
+                          type:
+                            project.organization?.type ||
+                            project.organizations?.type,
                         }}
                       >
                         <div className="flex items-center gap-2 cursor-pointer">
@@ -685,8 +732,16 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
           contentType="project"
           contentId={reportingProject.id}
           contentTitle={reportingProject.title}
-          contentCreator={reportingProject.profiles?.full_name || reportingProject.profiles?.username || undefined}
-          contentContext={reportingProject.organization?.name || reportingProject.organizations?.name || undefined}
+          contentCreator={
+            reportingProject.profiles?.full_name ||
+            reportingProject.profiles?.username ||
+            undefined
+          }
+          contentContext={
+            reportingProject.organization?.name ||
+            reportingProject.organizations?.name ||
+            undefined
+          }
           open={!!reportingProject}
           onOpenChange={(open) => !open && setReportingProject(null)}
           showTrigger={false}

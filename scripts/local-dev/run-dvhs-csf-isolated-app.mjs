@@ -174,14 +174,18 @@ const ENV_KEY_DISCOVERY_SOURCE = [
 export function discoverRepositoryEnvFileKeys(repoRoot = REPO_ROOT) {
   // A real node, so the discovery resolves `@next/env` exactly the way the Next
   // server about to be started will.
-  const result = spawnSync(resolveNodeExecutable(), ["-e", ENV_KEY_DISCOVERY_SOURCE], {
-    cwd: repoRoot,
-    env: {
-      PATH: process.env.PATH ?? "/usr/bin:/bin",
-      NODE_ENV: "development",
+  const result = spawnSync(
+    resolveNodeExecutable(),
+    ["-e", ENV_KEY_DISCOVERY_SOURCE],
+    {
+      cwd: repoRoot,
+      env: {
+        PATH: process.env.PATH ?? "/usr/bin:/bin",
+        NODE_ENV: "development",
+      },
+      encoding: "utf8",
     },
-    encoding: "utf8",
-  });
+  );
 
   if (result.error) throw result.error;
   if (result.status !== 0) {
@@ -193,7 +197,10 @@ export function discoverRepositoryEnvFileKeys(repoRoot = REPO_ROOT) {
     );
   }
 
-  return result.stdout.split("\n").map((key) => key.trim()).filter(Boolean);
+  return result.stdout
+    .split("\n")
+    .map((key) => key.trim())
+    .filter(Boolean);
 }
 
 // ---------------------------------------------------------------------------
@@ -238,7 +245,9 @@ export function buildIsolatedChildEnvironment(options) {
     throw new Error(`Unknown isolated child environment mode: ${mode}`);
   }
   if (mode === "cron-probe" && (!secret || !probeMode)) {
-    throw new Error("The cron-probe child environment requires a run-scoped secret and probe mode.");
+    throw new Error(
+      "The cron-probe child environment requires a run-scoped secret and probe mode.",
+    );
   }
   if (serverMode !== "development" && serverMode !== "production") {
     throw new Error(`Unknown isolated browser server mode: ${serverMode}`);
@@ -354,9 +363,13 @@ export function resolveNodeExecutable() {
   const base = path.basename(process.execPath);
   if (base === "node" || base === "node.exe") return process.execPath;
 
-  const found = spawnSync("node", ["-e", "process.stdout.write(process.execPath)"], {
-    encoding: "utf8",
-  });
+  const found = spawnSync(
+    "node",
+    ["-e", "process.stdout.write(process.execPath)"],
+    {
+      encoding: "utf8",
+    },
+  );
   if (found.status === 0 && found.stdout.trim()) return found.stdout.trim();
   throw new Error(
     "The isolated DVHS CSF children require a real node executable on PATH.",
@@ -368,8 +381,19 @@ export function resolveNodeExecutable() {
  * @param {string} [repoRoot]
  * @param {"webpack" | "turbopack"} [bundler]
  */
-export function resolveNextDevCommand(port, repoRoot = REPO_ROOT, bundler = "webpack") {
-  const nextBin = path.join(repoRoot, "node_modules", "next", "dist", "bin", "next");
+export function resolveNextDevCommand(
+  port,
+  repoRoot = REPO_ROOT,
+  bundler = "webpack",
+) {
+  const nextBin = path.join(
+    repoRoot,
+    "node_modules",
+    "next",
+    "dist",
+    "bin",
+    "next",
+  );
   if (!existsSync(nextBin)) {
     throw new Error(`Missing the local Next executable: ${nextBin}`);
   }
@@ -408,7 +432,14 @@ export function resolveNextDevCommand(port, repoRoot = REPO_ROOT, bundler = "web
  * @param {string} [repoRoot]
  */
 export function resolveNextProductionCommands(port, repoRoot = REPO_ROOT) {
-  const nextBin = path.join(repoRoot, "node_modules", "next", "dist", "bin", "next");
+  const nextBin = path.join(
+    repoRoot,
+    "node_modules",
+    "next",
+    "dist",
+    "bin",
+    "next",
+  );
   if (!existsSync(nextBin)) {
     throw new Error(`Missing the local Next executable: ${nextBin}`);
   }
@@ -473,19 +504,26 @@ export function appPortClaimRoot(env = process.env) {
     }
     return override;
   }
-  const uid = typeof process.getuid === "function" ? process.getuid() : "shared";
+  const uid =
+    typeof process.getuid === "function" ? process.getuid() : "shared";
   return `/tmp/lets-assist-csf-isolated-claims-${uid}`;
 }
 
 function assertPrivateDirectory(target) {
   const stats = lstatSync(target);
-  if (stats.isSymbolicLink()) throw new Error(`Refusing a symlinked claim path: ${target}`);
-  if (!stats.isDirectory()) throw new Error(`Refusing a non-directory claim path: ${target}`);
+  if (stats.isSymbolicLink())
+    throw new Error(`Refusing a symlinked claim path: ${target}`);
+  if (!stats.isDirectory())
+    throw new Error(`Refusing a non-directory claim path: ${target}`);
   if (typeof process.getuid === "function" && stats.uid !== process.getuid()) {
-    throw new Error(`Refusing a claim directory owned by another user: ${target}`);
+    throw new Error(
+      `Refusing a claim directory owned by another user: ${target}`,
+    );
   }
   if ((stats.mode & 0o077) !== 0) {
-    throw new Error(`Refusing a group/world-accessible claim directory: ${target}`);
+    throw new Error(
+      `Refusing a group/world-accessible claim directory: ${target}`,
+    );
   }
 }
 
@@ -515,7 +553,9 @@ export function claimAppPort(env = process.env) {
 
   const token = randomBytes(16).toString("hex");
   const ownerPath = path.join(claimPath, "owner");
-  writeFileSync(ownerPath, `pid=${process.pid}\ntoken=${token}\n`, { mode: 0o600 });
+  writeFileSync(ownerPath, `pid=${process.pid}\ntoken=${token}\n`, {
+    mode: 0o600,
+  });
 
   return { claimPath, ownerPath, token };
 }
@@ -569,7 +609,9 @@ function isEntrypoint() {
 
 async function main() {
   const isolated = inspectCsfIsolatedWorkDir(process.env.CSF_ISOLATED_WORK_DIR);
-  const appEnv = loadCsfIsolatedAppEnvironment(process.env.CSF_ISOLATED_WORK_DIR);
+  const appEnv = loadCsfIsolatedAppEnvironment(
+    process.env.CSF_ISOLATED_WORK_DIR,
+  );
 
   const serverMode = process.env.CSF_BROWSER_SERVER_MODE ?? "development";
   if (serverMode !== "development" && serverMode !== "production") {
@@ -580,7 +622,10 @@ async function main() {
       ? resolveNextProductionCommands(APP_PORT, REPO_ROOT)
       : { start: resolveNextDevCommand(APP_PORT, REPO_ROOT) };
   const envFileKeys = discoverRepositoryEnvFileKeys(REPO_ROOT);
-  const ledgerPath = path.join(isolated.workDir, "isolated-app-egress-ledger.jsonl");
+  const ledgerPath = path.join(
+    isolated.workDir,
+    "isolated-app-egress-ledger.jsonl",
+  );
   writeFileSync(ledgerPath, "", { mode: 0o600 });
 
   const { childEnv, shadowedEnvFileKeys } = buildIsolatedChildEnvironment({
@@ -617,8 +662,12 @@ async function main() {
   console.log("DVHS CSF isolated app runner");
   console.log(`  isolated project : ${isolated.projectId}`);
   console.log(`  supabase api     : 127.0.0.1:${isolated.apiPort}`);
-  console.log(`  mailpit smtp     : 127.0.0.1:${isolated.smtpPort} (local mail only)`);
-  console.log(`  app              : http://127.0.0.1:${APP_PORT} (owned claim ${claim.claimPath})`);
+  console.log(
+    `  mailpit smtp     : 127.0.0.1:${isolated.smtpPort} (local mail only)`,
+  );
+  console.log(
+    `  app              : http://127.0.0.1:${APP_PORT} (owned claim ${claim.claimPath})`,
+  );
   console.log(`  child env keys   : ${Object.keys(childEnv).length}`);
   console.log(`  .env* keys shadowed: ${shadowedEnvFileKeys.length}`);
   console.log(`  egress ledger    : ${ledgerPath}`);
@@ -633,7 +682,9 @@ async function main() {
     if (build.error) throw build.error;
     if (build.status !== 0) {
       release();
-      throw new Error(`The isolated Next production build exited with code ${build.status}.`);
+      throw new Error(
+        `The isolated Next production build exited with code ${build.status}.`,
+      );
     }
   } else {
     console.log("  browser runtime  : development server");

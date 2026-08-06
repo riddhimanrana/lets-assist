@@ -8,10 +8,10 @@ export interface OrganizationInvitation {
   organization_id: string;
   import_job_id?: string | null;
   email: string;
-  role: 'admin' | 'staff' | 'member';
+  role: "admin" | "staff" | "member";
   token: string;
   invited_by: string | null;
-  status: 'pending' | 'accepted' | 'expired' | 'cancelled';
+  status: "pending" | "accepted" | "expired" | "cancelled";
   invitation_duration?: InvitationDuration;
   email_delivery_status?: InvitationDeliveryStatus;
   email_delivery_error?: string | null;

@@ -39,7 +39,7 @@ interface FormatDateRangeLabelOptions {
 
 export function formatDateRangeLabel(
   value?: DateRange,
-  options: FormatDateRangeLabelOptions = {}
+  options: FormatDateRangeLabelOptions = {},
 ) {
   if (!value?.from) {
     return undefined;
@@ -63,7 +63,7 @@ export function DateRangePicker({
   className,
   buttonClassName: _buttonClassName,
   align = "start",
-  showQuickSelect = false
+  showQuickSelect = false,
 }: DateRangePickerProps) {
   const isMobile = useIsMobile();
   const [open, setOpen] = React.useState(false);
@@ -84,16 +84,19 @@ export function DateRangePicker({
       case "academic-year":
         // Academic year: August 1st to July 31st
         const currentYear = now.getFullYear();
-        const academicStartYear = now.getMonth() >= 7 ? currentYear : currentYear - 1;
+        const academicStartYear =
+          now.getMonth() >= 7 ? currentYear : currentYear - 1;
         from = new Date(academicStartYear, 7, 1); // Aug 1
         to = new Date(academicStartYear + 1, 6, 31); // July 31
         break;
       case "academic-semester":
         const currentMonth = now.getMonth();
-        if (currentMonth >= 7) { // Fall: Aug - Dec
+        if (currentMonth >= 7) {
+          // Fall: Aug - Dec
           from = new Date(now.getFullYear(), 7, 1);
           to = new Date(now.getFullYear(), 11, 31);
-        } else { // Spring: Jan - May
+        } else {
+          // Spring: Jan - May
           from = new Date(now.getFullYear(), 0, 1);
           to = new Date(now.getFullYear(), 4, 31);
         }
@@ -129,31 +132,43 @@ export function DateRangePicker({
   const getSelectedPreset = (): string => {
     if (!value?.from || !value?.to) return "";
 
-    const encodeDate = (d: Date) => format(d, 'yyyy-MM-dd');
+    const encodeDate = (d: Date) => format(d, "yyyy-MM-dd");
     const vFrom = encodeDate(value.from);
     const vTo = encodeDate(value.to);
 
-    const check = (f: Date, t: Date) => vFrom === encodeDate(f) && vTo === encodeDate(t);
+    const check = (f: Date, t: Date) =>
+      vFrom === encodeDate(f) && vTo === encodeDate(t);
 
     const now = new Date();
     const currentYear = now.getFullYear();
 
     // Check Academic Year
-    const academicStartYear = now.getMonth() >= 7 ? currentYear : currentYear - 1;
-    if (check(new Date(academicStartYear, 7, 1), new Date(academicStartYear + 1, 6, 31))) return "academic-year";
+    const academicStartYear =
+      now.getMonth() >= 7 ? currentYear : currentYear - 1;
+    if (
+      check(
+        new Date(academicStartYear, 7, 1),
+        new Date(academicStartYear + 1, 6, 31),
+      )
+    )
+      return "academic-year";
 
     // Semester
     if (now.getMonth() >= 7) {
-      if (check(new Date(currentYear, 7, 1), new Date(currentYear, 11, 31))) return "academic-semester";
+      if (check(new Date(currentYear, 7, 1), new Date(currentYear, 11, 31)))
+        return "academic-semester";
     } else {
-      if (check(new Date(currentYear, 0, 1), new Date(currentYear, 4, 31))) return "academic-semester";
+      if (check(new Date(currentYear, 0, 1), new Date(currentYear, 4, 31)))
+        return "academic-semester";
     }
 
     // Summer
-    if (check(new Date(currentYear, 5, 1), new Date(currentYear, 7, 31))) return "summer";
+    if (check(new Date(currentYear, 5, 1), new Date(currentYear, 7, 31)))
+      return "summer";
 
     // Last Month
-    if (check(startOfMonth(subMonths(now, 1)), endOfMonth(subMonths(now, 1)))) return "last-month";
+    if (check(startOfMonth(subMonths(now, 1)), endOfMonth(subMonths(now, 1))))
+      return "last-month";
 
     return "";
   };
@@ -166,18 +181,26 @@ export function DateRangePicker({
         <Select value={selectedPreset} onValueChange={handleQuickSelect}>
           <SelectTrigger className="w-full sm:w-[200px] h-9">
             <SelectValue placeholder="Quick select">
-              {selectedPreset === "academic-year" ? "This Academic Year" :
-                selectedPreset === "academic-semester" ? "This Academic Semester" :
-                  selectedPreset === "summer" ? "Summer" :
-                    selectedPreset === "last-month" ? "Last Month" :
-                      selectedPreset === "last-6-months" ? "Last 6 Months" :
-                        selectedPreset === "lifetime" ? "Lifetime" :
-                          "Quick select"}
+              {selectedPreset === "academic-year"
+                ? "This Academic Year"
+                : selectedPreset === "academic-semester"
+                  ? "This Academic Semester"
+                  : selectedPreset === "summer"
+                    ? "Summer"
+                    : selectedPreset === "last-month"
+                      ? "Last Month"
+                      : selectedPreset === "last-6-months"
+                        ? "Last 6 Months"
+                        : selectedPreset === "lifetime"
+                          ? "Lifetime"
+                          : "Quick select"}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="academic-year">this academic year</SelectItem>
-            <SelectItem value="academic-semester">this academic semester</SelectItem>
+            <SelectItem value="academic-semester">
+              this academic semester
+            </SelectItem>
             <SelectItem value="summer">summer</SelectItem>
             <SelectItem value="last-month">last month</SelectItem>
             <SelectItem value="last-6-months">last 6 months</SelectItem>
@@ -193,7 +216,7 @@ export function DateRangePicker({
               variant="outline"
               className={cn(
                 "justify-start text-left",
-                !value && "text-muted-foreground"
+                !value && "text-muted-foreground",
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -205,11 +228,7 @@ export function DateRangePicker({
             </Button>
           }
         />
-        <PopoverContent 
-          className="w-auto p-0" 
-          align={align}
-          sideOffset={4}
-        >
+        <PopoverContent className="w-auto p-0" align={align} sideOffset={4}>
           <Calendar
             mode="range"
             defaultMonth={value?.from}

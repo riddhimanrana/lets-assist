@@ -6,12 +6,16 @@ import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { escapeHtml, escapeHtmlWithLineBreaks } from "@/lib/security/html";
 import { Project } from "@/types";
-import { getWaiverDownloadUrl, togglePauseSignups, unrejectSignup } from "../actions";
+import {
+  getWaiverDownloadUrl,
+  togglePauseSignups,
+  unrejectSignup,
+} from "../actions";
 import { getOrganizerSignupsWithWaiverStatus } from "./actions";
 import {
   formatScheduleDisplay,
   formatDateForDisplay,
-  ProjectScheduleTime
+  ProjectScheduleTime,
 } from "@/utils/timezone";
 import { getMultiDaySlotDisplayName } from "@/utils/project";
 import Link from "next/link";
@@ -33,13 +37,35 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch, ArrowUpDown, ChevronUp, ChevronDown, Printer, RefreshCw, Pause, Play, UserCheck, Eye, Download, MoreVertical, FileText } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ArrowLeft,
+  Loader2,
+  UserRoundSearch,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
+  Printer,
+  RefreshCw,
+  Pause,
+  Play,
+  UserCheck,
+  Eye,
+  Download,
+  MoreVertical,
+  FileText,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { NotificationService } from "@/services/notifications";
-import { WaiverPreviewDialog, WaiverPreviewSignature } from "@/components/projects/WaiverPreviewDialog";
+import {
+  WaiverPreviewDialog,
+  WaiverPreviewSignature,
+} from "@/components/projects/WaiverPreviewDialog";
 import { SignupResponsesDialog } from "@/components/projects/SignupResponsesDialog";
 import {
   DropdownMenu,
@@ -63,13 +89,15 @@ type Signup = {
   volunteer_comment?: string | null;
   response_data?: Record<string, unknown> | null;
   waiver_signature?: WaiverPreviewSignature | WaiverPreviewSignature[];
-  profile?: { // Data from profiles table (if user_id exists)
+  profile?: {
+    // Data from profiles table (if user_id exists)
     full_name: string;
     username: string;
     email: string;
     phone?: string;
   };
-  anonymous_signup?: { // Data from anonymous_signups table (if anonymous_id exists)
+  anonymous_signup?: {
+    // Data from anonymous_signups table (if anonymous_id exists)
     id: string;
     name: string;
     email: string;
@@ -91,30 +119,36 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   const [signups, setSignups] = useState<Signup[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingSignups, setProcessingSignups] = useState<Record<string, boolean>>({});
+  const [processingSignups, setProcessingSignups] = useState<
+    Record<string, boolean>
+  >({});
   const [searchTerm, setSearchTerm] = useState("");
   const [project, setProject] = useState<Project | null>(null);
   const [sort, setSort] = useState<Sort>({ field: "status", direction: "asc" });
   const [isPausingSignups, setIsPausingSignups] = useState(false);
   const [pausedSignups, setPausedSignups] = useState(false);
-  const [unrejectingSignups, setUnrejectingSignups] = useState<Record<string, boolean>>({});
-  const [waiverDownloads, setWaiverDownloads] = useState<Record<string, boolean>>({});
-  
+  const [unrejectingSignups, setUnrejectingSignups] = useState<
+    Record<string, boolean>
+  >({});
+  const [waiverDownloads, setWaiverDownloads] = useState<
+    Record<string, boolean>
+  >({});
+
   // Waiver preview state
-  const [previewSignature, setPreviewSignature] = useState<WaiverPreviewSignature | null>(null);
+  const [previewSignature, setPreviewSignature] =
+    useState<WaiverPreviewSignature | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   // Response dialog state
-  const [selectedSignupForResponse, setSelectedSignupForResponse] = useState<Signup | null>(null);
+  const [selectedSignupForResponse, setSelectedSignupForResponse] =
+    useState<Signup | null>(null);
   const [isResponseDialogOpen, setIsResponseDialogOpen] = useState(false);
 
   const toggleSort = (field: SortField) => {
-    setSort(current => ({
+    setSort((current) => ({
       field,
       direction:
-        current.field === field && current.direction === "asc"
-          ? "desc"
-          : "asc"
+        current.field === field && current.direction === "asc" ? "desc" : "asc",
     }));
   };
 
@@ -130,16 +164,18 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   // Print volunteers list - Updated to use new structure
   const printVolunteers = () => {
     // Create a hidden print-only container if it doesn't exist yet
-    let printContainer = document.getElementById('print-container');
+    let printContainer = document.getElementById("print-container");
     if (!printContainer) {
-      printContainer = document.createElement('div');
-      printContainer.id = 'print-container';
-      printContainer.className = 'hidden print:block';
+      printContainer = document.createElement("div");
+      printContainer.id = "print-container";
+      printContainer.className = "hidden print:block";
       document.body.appendChild(printContainer);
     }
 
-    const safeProjectTitle = escapeHtml(project?.title || 'Project');
-    const printedAt = escapeHtml(`${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`);
+    const safeProjectTitle = escapeHtml(project?.title || "Project");
+    const printedAt = escapeHtml(
+      `${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`,
+    );
 
     // Generate HTML content for printing - only approved volunteers
     const printContent = `
@@ -160,47 +196,64 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       </style>
       <h1>Approved Volunteers - ${safeProjectTitle}</h1>
       <div>Printed: ${printedAt}</div>
-      ${Object.entries(filteredSignupsBySlot).map(([slot, slotSignups]) => {
-      // Filter for approved or pending (if pending should be printed)
-      const approved = slotSignups.filter(s => s.status === "approved" || s.status === "pending");
-      const safeSlotLabel = project ? escapeHtml(formatScheduleSlot(project, slot)) : escapeHtml(slot);
-      return approved.length > 0 ? `
+      ${Object.entries(filteredSignupsBySlot)
+        .map(([slot, slotSignups]) => {
+          // Filter for approved or pending (if pending should be printed)
+          const approved = slotSignups.filter(
+            (s) => s.status === "approved" || s.status === "pending",
+          );
+          const safeSlotLabel = project
+            ? escapeHtml(formatScheduleSlot(project, slot))
+            : escapeHtml(slot);
+          return approved.length > 0
+            ? `
         <div class="schedule-slot">
           <h2>${safeSlotLabel}</h2>
           <table>
-          <thead><tr><th>Name</th><th>Type</th><th>Contact</th><th>Status</th>${project?.enable_volunteer_comments ? '<th>Comment</th>' : ''}</thead>
+          <thead><tr><th>Name</th><th>Type</th><th>Contact</th><th>Status</th>${project?.enable_volunteer_comments ? "<th>Comment</th>" : ""}</thead>
           <tbody>
-            ${approved.map(s => {
-        const isRegistered = !!s.user_id;
-        const name = isRegistered ? s.profile?.full_name : s.anonymous_signup?.name;
-        const email = isRegistered ? s.profile?.email : s.anonymous_signup?.email;
-        const phone = isRegistered ? s.profile?.phone : s.anonymous_signup?.phone_number;
-        const type = isRegistered ? 'Registered' : 'Anonymous';
-        const statusText = s.status === 'pending' ? 'Pending Confirmation' : 'Approved';
-        const comment = s.volunteer_comment || '—';
-        const safeName = escapeHtml(name || 'N/A');
-        const safeEmail = escapeHtml(email || 'N/A');
-        const safePhone = phone
-          ? `<br>${escapeHtml(phone.replace(/(\\d{3})(\\d{3})(\\d{4})/, "$1-$2-$3"))}`
-          : '';
-        const safeComment = escapeHtmlWithLineBreaks(comment);
+            ${approved
+              .map((s) => {
+                const isRegistered = !!s.user_id;
+                const name = isRegistered
+                  ? s.profile?.full_name
+                  : s.anonymous_signup?.name;
+                const email = isRegistered
+                  ? s.profile?.email
+                  : s.anonymous_signup?.email;
+                const phone = isRegistered
+                  ? s.profile?.phone
+                  : s.anonymous_signup?.phone_number;
+                const type = isRegistered ? "Registered" : "Anonymous";
+                const statusText =
+                  s.status === "pending" ? "Pending Confirmation" : "Approved";
+                const comment = s.volunteer_comment || "—";
+                const safeName = escapeHtml(name || "N/A");
+                const safeEmail = escapeHtml(email || "N/A");
+                const safePhone = phone
+                  ? `<br>${escapeHtml(phone.replace(/(\\d{3})(\\d{3})(\\d{4})/, "$1-$2-$3"))}`
+                  : "";
+                const safeComment = escapeHtmlWithLineBreaks(comment);
 
-        return `
+                return `
               <tr>
                 <td>${safeName}</td>
                 <td>${escapeHtml(type)}</td>
                 <td>${safeEmail}${safePhone}</td>
                 <td>${escapeHtml(statusText)}</td>
-                ${project?.enable_volunteer_comments ? `<td class="comment-cell">${safeComment}</td>` : ''} 
+                ${project?.enable_volunteer_comments ? `<td class="comment-cell">${safeComment}</td>` : ""}
               </tr>
               `;
-      }).join('')}
+              })
+              .join("")}
           </tbody>
           </table>
         </div>
-        ` : '';
-    }).join('')}
-      ${Object.entries(filteredSignupsBySlot).every(([_, slotSignups]) => slotSignups.filter(s => s.status === 'approved' || s.status === 'pending').length === 0) ? '<p>No approved or pending volunteers found.</p>' : ''}
+        `
+            : "";
+        })
+        .join("")}
+      ${Object.entries(filteredSignupsBySlot).every(([_, slotSignups]) => slotSignups.filter((s) => s.status === "approved" || s.status === "pending").length === 0) ? "<p>No approved or pending volunteers found.</p>" : ""}
       </div>
     `;
 
@@ -217,13 +270,16 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
   // Group signups by schedule slot
   const signupsBySlot = useMemo(() => {
-    return signups.reduce((acc, signup) => {
-      if (!acc[signup.schedule_id]) {
-        acc[signup.schedule_id] = [];
-      }
-      acc[signup.schedule_id].push(signup);
-      return acc;
-    }, {} as Record<string, Signup[]>);
+    return signups.reduce(
+      (acc, signup) => {
+        if (!acc[signup.schedule_id]) {
+          acc[signup.schedule_id] = [];
+        }
+        acc[signup.schedule_id].push(signup);
+        return acc;
+      },
+      {} as Record<string, Signup[]>,
+    );
   }, [signups]);
 
   // Filter and sort signups based on search term and sort state - Updated for new structure
@@ -236,13 +292,17 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     } else {
       const searchLower = searchTerm.toLowerCase();
       Object.entries(signupsBySlot).forEach(([slot, slotSignups]) => {
-        const matchingSignups = slotSignups.filter(signup => {
+        const matchingSignups = slotSignups.filter((signup) => {
           const nameMatch = signup.user_id
             ? signup.profile?.full_name.toLowerCase().includes(searchLower)
-            : signup.anonymous_signup?.name?.toLowerCase().includes(searchLower); // Check anonymous name
+            : signup.anonymous_signup?.name
+                ?.toLowerCase()
+                .includes(searchLower); // Check anonymous name
           const emailMatch = signup.user_id
             ? signup.profile?.email.toLowerCase().includes(searchLower)
-            : signup.anonymous_signup?.email?.toLowerCase().includes(searchLower); // Check anonymous email
+            : signup.anonymous_signup?.email
+                ?.toLowerCase()
+                .includes(searchLower); // Check anonymous email
           // Add phone search if needed
           return nameMatch || emailMatch;
         });
@@ -253,7 +313,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     }
 
     // Apply sorting to each slot's signups
-    Object.keys(filtered).forEach(slot => {
+    Object.keys(filtered).forEach((slot) => {
       filtered[slot].sort((a, b) => {
         const direction = sort.direction === "asc" ? 1 : -1;
 
@@ -308,7 +368,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     try {
       const result = await getOrganizerSignupsWithWaiverStatus(projectId);
 
-      if (result && 'error' in result && result.error) {
+      if (result && "error" in result && result.error) {
         toast.error(result.error);
       } else {
         setSignups((result as { signups: unknown[] }).signups as Signup[]);
@@ -327,7 +387,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
   const updateSignupStatus = async (signupId: string, status: "rejected") => {
     try {
-      setProcessingSignups(prev => ({ ...prev, [signupId]: true }));
+      setProcessingSignups((prev) => ({ ...prev, [signupId]: true }));
       const supabase = createClient();
 
       // Get the signup details first
@@ -362,14 +422,17 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
         if (projectData) {
           // Create notification directly using NotificationService
-          await NotificationService.createNotification({
-            title: "Project Status Update",
-            body: `Your signup to volunteer for "${projectData.title}" has been rejected`,
-            type: "project_updates",
-            severity: "warning",
-            actionUrl: `/projects/${projectId}`,
-            data: { projectId, signupId }
-          }, signup.user_id);
+          await NotificationService.createNotification(
+            {
+              title: "Project Status Update",
+              body: `Your signup to volunteer for "${projectData.title}" has been rejected`,
+              type: "project_updates",
+              severity: "warning",
+              actionUrl: `/projects/${projectId}`,
+              data: { projectId, signupId },
+            },
+            signup.user_id,
+          );
         }
       }
 
@@ -378,9 +441,11 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       toast.success("Signup rejected successfully");
     } catch (error) {
       console.error("Error updating signup:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to update signup");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update signup",
+      );
     } finally {
-      setProcessingSignups(prev => ({ ...prev, [signupId]: false }));
+      setProcessingSignups((prev) => ({ ...prev, [signupId]: false }));
     }
   };
 
@@ -401,7 +466,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
         const resolvedId = result?.signatureId || waiverSignature.id;
         if (!resolvedId) {
-          toast.error('Signature not found');
+          toast.error("Signature not found");
           return;
         }
 
@@ -411,8 +476,8 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         });
         setPreviewOpen(true);
       } catch (error) {
-        console.error('Error resolving waiver signature:', error);
-        toast.error('Failed to open waiver preview');
+        console.error("Error resolving waiver signature:", error);
+        toast.error("Failed to open waiver preview");
       }
     }
   };
@@ -438,30 +503,30 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
       if (result?.url) {
         // Legacy/offline upload signed URL.
-        window.open(result.url, '_blank', 'noopener,noreferrer');
+        window.open(result.url, "_blank", "noopener,noreferrer");
         return;
       }
 
-      toast.error('Signature not found');
+      toast.error("Signature not found");
     } catch (error) {
-      console.error('Error downloading waiver:', error);
-      toast.error('Failed to download waiver');
+      console.error("Error downloading waiver:", error);
+      toast.error("Failed to download waiver");
     }
   };
 
   const handleDownloadWaiver = async (signatureId: string) => {
     try {
-      setWaiverDownloads(prev => ({ ...prev, [signatureId]: true }));
+      setWaiverDownloads((prev) => ({ ...prev, [signatureId]: true }));
 
       const response = await fetch(`/api/waivers/${signatureId}/download`);
 
       if (!response.ok) {
-        throw new Error('Download failed');
+        throw new Error("Download failed");
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = `waiver-${signatureId}.pdf`;
       document.body.appendChild(a);
@@ -469,18 +534,18 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      toast.success('Waiver downloaded successfully');
+      toast.success("Waiver downloaded successfully");
     } catch (error) {
       console.error("Error downloading waiver:", error);
-      toast.error('Failed to download waiver');
+      toast.error("Failed to download waiver");
     } finally {
-      setWaiverDownloads(prev => ({ ...prev, [signatureId]: false }));
+      setWaiverDownloads((prev) => ({ ...prev, [signatureId]: false }));
     }
   };
 
   const handleUnreject = async (signupId: string) => {
     try {
-      setUnrejectingSignups(prev => ({ ...prev, [signupId]: true }));
+      setUnrejectingSignups((prev) => ({ ...prev, [signupId]: true }));
 
       const result = await unrejectSignup(signupId);
 
@@ -493,9 +558,11 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       toast.success("Signup approved successfully");
     } catch (error) {
       console.error("Error unrejecting signup:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to unreject signup");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to unreject signup",
+      );
     } finally {
-      setUnrejectingSignups(prev => ({ ...prev, [signupId]: false }));
+      setUnrejectingSignups((prev) => ({ ...prev, [signupId]: false }));
     }
   };
 
@@ -514,9 +581,11 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       }
 
       setPausedSignups(newPauseState);
-      toast.success(newPauseState
-        ? "Signups have been paused"
-        : "Signups have been resumed");
+      toast.success(
+        newPauseState
+          ? "Signups have been paused"
+          : "Signups have been resumed",
+      );
     } catch (error) {
       console.error("Error toggling pause state:", error);
       toast.error("Failed to update signup status");
@@ -528,7 +597,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   const formatScheduleSlot = (project: Project, slotId: string) => {
     if (!project) return slotId;
 
-    const projectTimezone = project.project_timezone || 'America/Los_Angeles'; // Default to ET if not set
+    const projectTimezone = project.project_timezone || "America/Los_Angeles"; // Default to ET if not set
 
     if (project.event_type === "oneTime") {
       // Handle oneTime events - the scheduleId is simply "oneTime"
@@ -536,11 +605,16 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         const scheduleTime: ProjectScheduleTime = {
           date: project.schedule.oneTime.date,
           startTime: project.schedule.oneTime.startTime,
-          endTime: project.schedule.oneTime.endTime
+          endTime: project.schedule.oneTime.endTime,
         };
 
         const dateDisplay = formatDateForDisplay(scheduleTime.date);
-        const timeDisplay = formatScheduleDisplay(scheduleTime, projectTimezone, undefined, true);
+        const timeDisplay = formatScheduleDisplay(
+          scheduleTime,
+          projectTimezone,
+          undefined,
+          true,
+        );
 
         return `${dateDisplay} from ${timeDisplay}`;
       }
@@ -557,7 +631,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         // Everything else is the date (in case the date has hyphens)
         const date = parts.join("-");
 
-        const day = project.schedule.multiDay?.find(d => d.date === date);
+        const day = project.schedule.multiDay?.find((d) => d.date === date);
 
         if (day && slotIndex !== undefined) {
           const slotIdx = parseInt(slotIndex, 10);
@@ -567,11 +641,16 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
             const scheduleTime: ProjectScheduleTime = {
               date: date,
               startTime: slot.startTime,
-              endTime: slot.endTime
+              endTime: slot.endTime,
             };
 
             const dateDisplay = formatDateForDisplay(scheduleTime.date);
-            const timeDisplay = formatScheduleDisplay(scheduleTime, projectTimezone, undefined, true);
+            const timeDisplay = formatScheduleDisplay(
+              scheduleTime,
+              projectTimezone,
+              undefined,
+              true,
+            );
             const slotLabel = getMultiDaySlotDisplayName(slot, slotIdx);
 
             return `${dateDisplay} - ${slotLabel} (${timeDisplay})`;
@@ -582,7 +661,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
     if (project.event_type === "sameDayMultiArea") {
       // For sameDayMultiArea, the scheduleId is the role name
-      const role = project.schedule.sameDayMultiArea?.roles.find(r => r.name === slotId);
+      const role = project.schedule.sameDayMultiArea?.roles.find(
+        (r) => r.name === slotId,
+      );
 
       if (role) {
         const eventDate = project.schedule.sameDayMultiArea?.date;
@@ -590,20 +671,30 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
           const scheduleTime: ProjectScheduleTime = {
             date: eventDate,
             startTime: role.startTime,
-            endTime: role.endTime
+            endTime: role.endTime,
           };
 
           const dateDisplay = formatDateForDisplay(scheduleTime.date);
-          const timeDisplay = formatScheduleDisplay(scheduleTime, projectTimezone, undefined, true);
+          const timeDisplay = formatScheduleDisplay(
+            scheduleTime,
+            projectTimezone,
+            undefined,
+            true,
+          );
 
           return `${dateDisplay} - Role: ${role.name} (${timeDisplay})`;
         } else {
           const scheduleTime: ProjectScheduleTime = {
-            date: new Date().toISOString().split('T')[0], // fallback date
+            date: new Date().toISOString().split("T")[0], // fallback date
             startTime: role.startTime,
-            endTime: role.endTime
+            endTime: role.endTime,
           };
-          const timeDisplay = formatScheduleDisplay(scheduleTime, projectTimezone, undefined, true);
+          const timeDisplay = formatScheduleDisplay(
+            scheduleTime,
+            projectTimezone,
+            undefined,
+            true,
+          );
           return `Role: ${role.name} (${timeDisplay})`;
         }
       }
@@ -613,7 +704,10 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   };
 
   // Update status badge logic
-  const getStatusBadge = (status: Signup['status'], _confirmed_at?: string | null) => {
+  const getStatusBadge = (
+    status: Signup["status"],
+    _confirmed_at?: string | null,
+  ) => {
     if (status === "rejected") {
       return (
         <Badge variant="destructive" className="gap-1">
@@ -639,16 +733,21 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     );
   };
 
-  const tableColumnCount = 5 + (project?.enable_volunteer_comments ? 1 : 0) + (project?.waiver_required ? 1 : 0);
+  const tableColumnCount =
+    5 +
+    (project?.enable_volunteer_comments ? 1 : 0) +
+    (project?.waiver_required ? 1 : 0);
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
-      <WaiverPreviewDialog 
+      <WaiverPreviewDialog
         open={previewOpen}
         onOpenChange={setPreviewOpen}
         signature={previewSignature}
         onDownload={handleDownloadWaiver}
-        isDownloading={previewSignature ? waiverDownloads[previewSignature.id] : false}
+        isDownloading={
+          previewSignature ? waiverDownloads[previewSignature.id] : false
+        }
       />
 
       <SignupResponsesDialog
@@ -662,25 +761,22 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
             : selectedSignupForResponse?.anonymous_signup?.name || "Anonymous"
         }
       />
-      
+
       <div className="mb-6">
-        <Button
-          variant="ghost"
-          className="gap-2"
-          onClick={() => router.back()}
-        >
+        <Button variant="ghost" className="gap-2" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
           Back to Project
         </Button>
       </div>
 
       <Card className="min-h-100 relative">
-
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
             <div className="flex flex-col items-center gap-2 mt-10">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Loading signups...</span>
+              <span className="text-sm text-muted-foreground">
+                Loading signups...
+              </span>
             </div>
           </div>
         )}
@@ -700,7 +796,10 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                   onCheckedChange={togglePause}
                   disabled={isPausingSignups}
                 />
-                <Label htmlFor="pause-signups" className="flex items-center gap-2 cursor-pointer">
+                <Label
+                  htmlFor="pause-signups"
+                  className="flex items-center gap-2 cursor-pointer"
+                >
                   {pausedSignups ? (
                     <>
                       <Pause className="h-4 w-4 text-warning" />
@@ -712,7 +811,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                       <span>Accepting Signups</span>
                     </>
                   )}
-                  {isPausingSignups && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                  {isPausingSignups && (
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  )}
                 </Label>
               </div>
             </div>
@@ -745,7 +846,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                 onClick={loadSignups}
                 disabled={refreshing}
               >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                />
                 Refresh
               </Button>
             </div>
@@ -758,7 +861,8 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                 Signups are currently paused
               </AlertTitle>
               <AlertDescription className="text-warning">
-                New volunteer signups are disabled. Toggle the switch above to resume accepting volunteers.
+                New volunteer signups are disabled. Toggle the switch above to
+                resume accepting volunteers.
               </AlertDescription>
             </Alert>
           )}
@@ -777,9 +881,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                     {project?.enable_volunteer_comments && (
                       <TableHead>Comment</TableHead>
                     )}
-                    {project?.waiver_required && (
-                      <TableHead>Waiver</TableHead>
-                    )}
+                    {project?.waiver_required && <TableHead>Waiver</TableHead>}
                     <TableHead
                       className="cursor-pointer hover:text-foreground transition-colors"
                       onClick={() => toggleSort("status")}
@@ -796,12 +898,22 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                   {slotSignups.map((signup) => {
                     // Determine user type and data source
                     const isRegistered = !!signup.user_id;
-                    const name = isRegistered ? signup.profile?.full_name : signup.anonymous_signup?.name;
-                    const email = isRegistered ? signup.profile?.email : signup.anonymous_signup?.email;
-                    const phone = isRegistered ? signup.profile?.phone : signup.anonymous_signup?.phone_number;
-                    const username = isRegistered ? signup.profile?.username : null;
+                    const name = isRegistered
+                      ? signup.profile?.full_name
+                      : signup.anonymous_signup?.name;
+                    const email = isRegistered
+                      ? signup.profile?.email
+                      : signup.anonymous_signup?.email;
+                    const phone = isRegistered
+                      ? signup.profile?.phone
+                      : signup.anonymous_signup?.phone_number;
+                    const username = isRegistered
+                      ? signup.profile?.username
+                      : null;
                     const confirmed_at = signup.anonymous_signup?.confirmed_at;
-                    const waiverSignature = Array.isArray(signup.waiver_signature)
+                    const waiverSignature = Array.isArray(
+                      signup.waiver_signature,
+                    )
                       ? signup.waiver_signature[0]
                       : signup.waiver_signature;
                     const multiSignerCount =
@@ -812,7 +924,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                     return (
                       <TableRow key={signup.id}>
                         <TableCell className="font-medium">
-                          {name || 'N/A'}
+                          {name || "N/A"}
                         </TableCell>
                         <TableCell>
                           {isRegistered ? (
@@ -823,7 +935,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                               Registered User
                             </Link>
                           ) : (
-                            <span className="text-muted-foreground">Anonymous</span>
+                            <span className="text-muted-foreground">
+                              Anonymous
+                            </span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -833,7 +947,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                               <div className="text-sm text-muted-foreground">
                                 {phone.replace(
                                   /(\d{3})(\d{3})(\d{4})/,
-                                  "$1-$2-$3"
+                                  "$1-$2-$3",
                                 ) || "No phone"}
                               </div>
                             )}
@@ -846,7 +960,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                                 {signup.volunteer_comment}
                               </div>
                             ) : (
-                              <span className="text-muted-foreground/60">—</span>
+                              <span className="text-muted-foreground/60">
+                                —
+                              </span>
                             )}
                           </TableCell>
                         )}
@@ -856,22 +972,40 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-xs">
                                   Signed
-                                  {multiSignerCount > 1 && ` (${multiSignerCount})`}
+                                  {multiSignerCount > 1 &&
+                                    ` (${multiSignerCount})`}
                                 </Badge>
                                 <DropdownMenu>
-                                  <DropdownMenuTrigger render={
-                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                      <span className="sr-only">Open menu</span>
-                                      <MoreVertical className="h-4 w-4" />
-                                    </Button>
-                                  } />
+                                  <DropdownMenuTrigger
+                                    render={
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0"
+                                      >
+                                        <span className="sr-only">
+                                          Open menu
+                                        </span>
+                                        <MoreVertical className="h-4 w-4" />
+                                      </Button>
+                                    }
+                                  />
                                   <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleOpenWaiverPreview(signup)}>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleOpenWaiverPreview(signup)
+                                      }
+                                    >
                                       <Eye className="mr-2 h-4 w-4" />
                                       View Waiver
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleDownloadWaiverForSignup(signup.id)}>
-                                      {waiverSignature?.id && waiverDownloads[waiverSignature.id] ? (
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleDownloadWaiverForSignup(signup.id)
+                                      }
+                                    >
+                                      {waiverSignature?.id &&
+                                      waiverDownloads[waiverSignature.id] ? (
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                       ) : (
                                         <Download className="mr-2 h-4 w-4" />
@@ -882,11 +1016,15 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                                 </DropdownMenu>
                               </div>
                             ) : (
-                              <Badge variant="secondary" className="text-xs">Missing</Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                Missing
+                              </Badge>
                             )}
                           </TableCell>
                         )}
-                        <TableCell>{getStatusBadge(signup.status, confirmed_at)}</TableCell>
+                        <TableCell>
+                          {getStatusBadge(signup.status, confirmed_at)}
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             {signup.response_data && (
@@ -911,12 +1049,16 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                                 {unrejectingSignups[signup.id] ? (
                                   <>
                                     <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                                    <span className="inline-block">Approving...</span>
+                                    <span className="inline-block">
+                                      Approving...
+                                    </span>
                                   </>
                                 ) : (
                                   <>
                                     <UserCheck className="h-3.5 w-3.5 mr-1.5" />
-                                    <span className="inline-block">Unreject</span>
+                                    <span className="inline-block">
+                                      Unreject
+                                    </span>
                                   </>
                                 )}
                               </Button>
@@ -924,13 +1066,17 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => updateSignupStatus(signup.id, "rejected")}
+                                onClick={() =>
+                                  updateSignupStatus(signup.id, "rejected")
+                                }
                                 disabled={processingSignups[signup.id]}
                               >
                                 {processingSignups[signup.id] ? (
                                   <>
                                     <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                                    <span className="inline-block">Rejecting...</span>
+                                    <span className="inline-block">
+                                      Rejecting...
+                                    </span>
                                   </>
                                 ) : (
                                   "Reject"
@@ -944,7 +1090,10 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                   })}
                   {!loading && slotSignups.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={tableColumnCount} className="text-center py-8">
+                      <TableCell
+                        colSpan={tableColumnCount}
+                        className="text-center py-8"
+                      >
                         <div className="text-muted-foreground">
                           No signups found for your search criteria.
                         </div>
@@ -960,7 +1109,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
             <div className="flex flex-col items-center text-muted-foreground space-y-2">
               <UserRoundSearch className="h-8 w-8 mt-10" />
               <p className="text-lg font-medium">No signups found</p>
-              <p className="text-sm">Try adjusting your search or check back later.</p>
+              <p className="text-sm">
+                Try adjusting your search or check back later.
+              </p>
             </div>
           )}
         </CardContent>

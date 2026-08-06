@@ -25,12 +25,14 @@ const profileClaimSecret = readFileSync(
   "utf8",
 ).trim();
 if (!/^[a-f0-9]{64}$/u.test(profileClaimSecret)) {
-  throw new Error("The isolated CSF profile-claim secret is missing or invalid.");
+  throw new Error(
+    "The isolated CSF profile-claim secret is missing or invalid.",
+  );
 }
 const ambientProfileClaimSecret = process.env.CSF_PROFILE_CLAIM_SECRET?.trim();
 if (
-  ambientProfileClaimSecret
-  && ambientProfileClaimSecret !== profileClaimSecret
+  ambientProfileClaimSecret &&
+  ambientProfileClaimSecret !== profileClaimSecret
 ) {
   throw new Error(
     "CSF_PROFILE_CLAIM_SECRET does not belong to the selected isolated stack.",
@@ -45,14 +47,14 @@ const port = CSF_ISOLATED_APP_PORT;
 const baseURL = `http://127.0.0.1:${port}`;
 const artifactRoot = path.join(
   process.cwd(),
-  "artifacts",
+  ".artifacts",
   "dvhs-csf-e2e",
   process.env.CSF_E2E_RUN_ID ?? "playwright-local",
   "playwright",
 );
 
 export default defineConfig({
-  testDir: "./tests/csf",
+  testDir: "./tests/e2e/csf",
   testMatch: "**/*.spec.ts",
   outputDir: path.join(artifactRoot, "test-results"),
   fullyParallel: false,

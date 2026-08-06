@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 import { ProjectStatus } from "@/types";
 import { formatStatusText } from "@/utils/project";
 
-type BadgeProps = React.ComponentProps<typeof Badge> & VariantProps<typeof badgeVariants>;
+type BadgeProps = React.ComponentProps<typeof Badge> &
+  VariantProps<typeof badgeVariants>;
 
 interface StatusBadgeProps extends Omit<BadgeProps, "variant"> {
   status: ProjectStatus;
@@ -66,7 +67,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         "font-medium",
         config.className,
         showIcon && "gap-1.5",
-        className
+        className,
       )}
       {...props}
     >
@@ -87,7 +88,7 @@ export const ProjectStatusBadge: React.FC<{
       className={cn(
         size === "sm" && "text-xs py-0",
         "capitalize whitespace-nowrap",
-        className
+        className,
       )}
     />
   );

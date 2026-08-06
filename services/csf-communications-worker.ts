@@ -38,7 +38,10 @@ export type CsfPluginRpc = {
   rpc: (
     fn: string,
     args: Record<string, unknown>,
-  ) => Promise<{ data: unknown; error: { message: string; code?: string } | null }>;
+  ) => Promise<{
+    data: unknown;
+    error: { message: string; code?: string } | null;
+  }>;
 };
 
 export type CsfWorkerClaim = {
@@ -120,7 +123,9 @@ export function boundedRpcFaultCode(
   code: string | undefined,
   fallback: string,
 ): string {
-  return typeof code === "string" && SQLSTATE_PATTERN.test(code) ? code : fallback;
+  return typeof code === "string" && SQLSTATE_PATTERN.test(code)
+    ? code
+    : fallback;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -144,22 +149,34 @@ function requireString(source: Record<string, unknown>, key: string): string {
  */
 export function parseClaimBatch(data: unknown): CsfWorkerClaim[] {
   if (!isRecord(data)) {
-    throw new CsfWorkerRpcError("claiming a dispatch batch", "malformed_rpc_response");
+    throw new CsfWorkerRpcError(
+      "claiming a dispatch batch",
+      "malformed_rpc_response",
+    );
   }
 
   const claims = data.claims;
   if (!Array.isArray(claims)) {
-    throw new CsfWorkerRpcError("claiming a dispatch batch", "malformed_rpc_response");
+    throw new CsfWorkerRpcError(
+      "claiming a dispatch batch",
+      "malformed_rpc_response",
+    );
   }
 
   return claims.map((claim) => {
     if (!isRecord(claim)) {
-      throw new CsfWorkerRpcError("claiming a dispatch batch", "malformed_rpc_response");
+      throw new CsfWorkerRpcError(
+        "claiming a dispatch batch",
+        "malformed_rpc_response",
+      );
     }
 
     const attemptNumber = claim.attemptNumber;
     if (typeof attemptNumber !== "number" || !Number.isInteger(attemptNumber)) {
-      throw new CsfWorkerRpcError("claiming a dispatch batch", "malformed_rpc_response");
+      throw new CsfWorkerRpcError(
+        "claiming a dispatch batch",
+        "malformed_rpc_response",
+      );
     }
 
     return {
@@ -198,13 +215,17 @@ export function parseAuthorization(
   claim: CsfWorkerClaim,
 ): ParsedAuthorization {
   if (!isRecord(data)) {
-    throw new CsfWorkerRpcError("authorizing a dispatch", "malformed_rpc_response");
+    throw new CsfWorkerRpcError(
+      "authorizing a dispatch",
+      "malformed_rpc_response",
+    );
   }
 
   if (data.authorized !== true) {
     return {
       authorized: false,
-      blockedBy: typeof data.blockedBy === "string" ? data.blockedBy : "unknown",
+      blockedBy:
+        typeof data.blockedBy === "string" ? data.blockedBy : "unknown",
       attemptState:
         typeof data.attemptState === "string" ? data.attemptState : "unknown",
     };
@@ -213,7 +234,10 @@ export function parseAuthorization(
   const payload = data.providerPayload;
   const coordinate = data.coordinate;
   if (!isRecord(payload) || !isRecord(coordinate)) {
-    throw new CsfWorkerRpcError("authorizing a dispatch", "malformed_rpc_response");
+    throw new CsfWorkerRpcError(
+      "authorizing a dispatch",
+      "malformed_rpc_response",
+    );
   }
 
   const requestPayloadHash = requireString(data, "requestPayloadHash");
@@ -222,16 +246,25 @@ export function parseAuthorization(
   if (requestPayloadHash !== claim.requestPayloadHash) {
     // The ledger changed its mind about what this attempt sends between the claim
     // and the authorization. Sending either version would be a guess.
-    throw new CsfWorkerRpcError("authorizing a dispatch", "payload_digest_mismatch");
+    throw new CsfWorkerRpcError(
+      "authorizing a dispatch",
+      "payload_digest_mismatch",
+    );
   }
 
   if (providerIdempotencyKey !== claim.providerIdempotencyKey) {
-    throw new CsfWorkerRpcError("authorizing a dispatch", "idempotency_key_mismatch");
+    throw new CsfWorkerRpcError(
+      "authorizing a dispatch",
+      "idempotency_key_mismatch",
+    );
   }
 
   if (payload.idempotencyKey !== providerIdempotencyKey) {
     // The key the ledger allocated must be the key that is actually transmitted.
-    throw new CsfWorkerRpcError("authorizing a dispatch", "idempotency_key_not_in_payload");
+    throw new CsfWorkerRpcError(
+      "authorizing a dispatch",
+      "idempotency_key_not_in_payload",
+    );
   }
 
   return {
@@ -243,7 +276,9 @@ export function parseAuthorization(
   };
 }
 
-function attemptStatusFor(settlement: CsfDispatchSettlement): CsfWorkerAttemptReport["status"] {
+function attemptStatusFor(
+  settlement: CsfDispatchSettlement,
+): CsfWorkerAttemptReport["status"] {
   switch (settlement.outcome) {
     case "accepted":
       return "sent";
@@ -362,7 +397,9 @@ export async function dispatchClaimedAttempt(
     status: attemptStatusFor(settlement),
     settlement,
     ledgerAttemptState:
-      typeof settled.attemptState === "string" ? settled.attemptState : undefined,
+      typeof settled.attemptState === "string"
+        ? settled.attemptState
+        : undefined,
     supersededByReconciliation: settled.supersededByReconciliation === true,
     workerConfirmedProviderSettlement:
       settled.workerConfirmedProviderSettlement === true,
@@ -387,13 +424,16 @@ export async function runCsfDispatchWorker(
     correlationId?: string;
   },
 ): Promise<CsfWorkerRunReport> {
-  const claimResponse = await plugin.rpc("csf_claim_communication_dispatch_batch", {
-    p_organization_id: input.organizationId,
-    p_campaign_id: input.campaignId ?? null,
-    p_worker_id: input.workerId,
-    p_batch_size: input.batchSize ?? 25,
-    p_lease_seconds: input.leaseSeconds ?? 120,
-  });
+  const claimResponse = await plugin.rpc(
+    "csf_claim_communication_dispatch_batch",
+    {
+      p_organization_id: input.organizationId,
+      p_campaign_id: input.campaignId ?? null,
+      p_worker_id: input.workerId,
+      p_batch_size: input.batchSize ?? 25,
+      p_lease_seconds: input.leaseSeconds ?? 120,
+    },
+  );
 
   if (claimResponse.error) {
     throw new CsfWorkerRpcError(

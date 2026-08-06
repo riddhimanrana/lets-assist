@@ -55,11 +55,7 @@ function operations(
 test("tracking insert failure compensates the new Google event and never records success", async () => {
   const harness = operations({ insertTrackingEvent: async () => false });
 
-  const result = await synchronizeCalendarEvents(
-    [desired],
-    [],
-    harness.value,
-  );
+  const result = await synchronizeCalendarEvents([desired], [], harness.value);
 
   assert.equal(result.success, false);
   assert.match(result.error, /tracking insert failed/u);
@@ -94,11 +90,7 @@ test("tracking delete failure never records a completed sync", async () => {
 test("completion marker failure cannot produce a false success", async () => {
   const harness = operations({ markSyncComplete: async () => false });
 
-  const result = await synchronizeCalendarEvents(
-    [desired],
-    [],
-    harness.value,
-  );
+  const result = await synchronizeCalendarEvents([desired], [], harness.value);
 
   assert.deepEqual(result, {
     success: false,

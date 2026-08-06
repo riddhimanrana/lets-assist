@@ -4,14 +4,18 @@ import { chromium } from "playwright";
 import { getLocalSupabaseEnv } from "./dv-local-env.mjs";
 
 const PORT = Number(process.env.PLUGIN_ISOLATION_TEST_PORT ?? 3110);
-const EXTERNAL_BASE_URL = process.env.PLUGIN_ISOLATION_TEST_BASE_URL?.trim().replace(/\/$/, "");
+const EXTERNAL_BASE_URL =
+  process.env.PLUGIN_ISOLATION_TEST_BASE_URL?.trim().replace(/\/$/, "");
 const BASE_URL = EXTERNAL_BASE_URL || `http://127.0.0.1:${PORT}`;
-const LOGIN_EMAIL = process.env.PLUGIN_ISOLATION_TEST_EMAIL ?? "dv.admin@local.test";
+const LOGIN_EMAIL =
+  process.env.PLUGIN_ISOLATION_TEST_EMAIL ?? "dv.admin@local.test";
 
 function requireRunPassword(value: string | undefined) {
   const password = value?.trim();
   if (!password) {
-    throw new Error("Set DV_LOCAL_TEST_PASSWORD to the run-scoped fixture password.");
+    throw new Error(
+      "Set DV_LOCAL_TEST_PASSWORD to the run-scoped fixture password.",
+    );
   }
   return password;
 }
@@ -56,16 +60,20 @@ async function stopServer(server: ReturnType<typeof spawn> | null) {
 
 async function startServer() {
   const localSupabase = getLocalSupabaseEnv();
-  const server = spawn("bunx", ["next", "dev", "--hostname", "127.0.0.1", "--port", String(PORT)], {
-    env: {
-      ...process.env,
-      NEXT_PUBLIC_SUPABASE_URL: localSupabase.url,
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: localSupabase.anonKey,
-      SUPABASE_SECRET_KEY: localSupabase.serviceRoleKey,
-      NEXT_PUBLIC_TURNSTILE_BYPASS: "true",
+  const server = spawn(
+    "bunx",
+    ["next", "dev", "--hostname", "127.0.0.1", "--port", String(PORT)],
+    {
+      env: {
+        ...process.env,
+        NEXT_PUBLIC_SUPABASE_URL: localSupabase.url,
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: localSupabase.anonKey,
+        SUPABASE_SECRET_KEY: localSupabase.serviceRoleKey,
+        NEXT_PUBLIC_TURNSTILE_BYPASS: "true",
+      },
+      stdio: "pipe",
     },
-    stdio: "pipe",
-  });
+  );
 
   server.stdout?.on("data", (data) => {
     const output = data.toString().trim();
@@ -83,25 +91,34 @@ async function startServer() {
   }
 
   await stopServer(server);
-  throw new Error(`Next.js dev server did not become reachable at ${BASE_URL}.`);
+  throw new Error(
+    `Next.js dev server did not become reachable at ${BASE_URL}.`,
+  );
 }
 
 async function assertAnonymousPluginDataBlocked() {
   const localSupabase = getLocalSupabaseEnv();
-  const response = await fetch(`${localSupabase.url}/rest/v1/dv_sd_tournaments?select=id&limit=1`, {
-    headers: {
-      apikey: localSupabase.anonKey,
-      Authorization: `Bearer ${localSupabase.anonKey}`,
-      "Accept-Profile": "plugin_data",
+  const response = await fetch(
+    `${localSupabase.url}/rest/v1/dv_sd_tournaments?select=id&limit=1`,
+    {
+      headers: {
+        apikey: localSupabase.anonKey,
+        Authorization: `Bearer ${localSupabase.anonKey}`,
+        "Accept-Profile": "plugin_data",
+      },
     },
-  });
+  );
 
   if (response.ok) {
     const body = await response.text();
-    throw new Error(`Expected anonymous plugin_data REST access to fail, got ${response.status}: ${body}`);
+    throw new Error(
+      `Expected anonymous plugin_data REST access to fail, got ${response.status}: ${body}`,
+    );
   }
 
-  console.log(`Anonymous plugin_data REST access blocked with status ${response.status}.`);
+  console.log(
+    `Anonymous plugin_data REST access blocked with status ${response.status}.`,
+  );
 }
 
 async function assertDvPluginIsolatedInBrowser() {
@@ -121,15 +138,23 @@ async function assertDvPluginIsolatedInBrowser() {
       .getByRole("button", { name: "Login", exact: true })
       .click();
 
-    await page.waitForURL(/\/organization\/dv-speech-debate\/plugins\/dv-speech-debate/, {
-      timeout: 30_000,
-    });
-    await page.getByRole("heading", { name: /DV Speech & Debate/i }).first().waitFor({
-      state: "visible",
-      timeout: 30_000,
-    });
+    await page.waitForURL(
+      /\/organization\/dv-speech-debate\/plugins\/dv-speech-debate/,
+      {
+        timeout: 30_000,
+      },
+    );
+    await page
+      .getByRole("heading", { name: /DV Speech & Debate/i })
+      .first()
+      .waitFor({
+        state: "visible",
+        timeout: 30_000,
+      });
 
-    console.log("DV plugin renders through its authenticated server-only workspace.");
+    console.log(
+      "DV plugin renders through its authenticated server-only workspace.",
+    );
   } finally {
     await browser.close();
   }
@@ -141,7 +166,9 @@ async function main() {
   try {
     if (EXTERNAL_BASE_URL) {
       if (!(await canReach(BASE_URL))) {
-        throw new Error(`Configured app server is not reachable at ${BASE_URL}.`);
+        throw new Error(
+          `Configured app server is not reachable at ${BASE_URL}.`,
+        );
       }
     } else {
       server = await startServer();

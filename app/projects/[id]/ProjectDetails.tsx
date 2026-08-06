@@ -11,8 +11,8 @@ import {
   WaiverDefinitionFull,
   WaiverSignatureInput,
 } from "@/types";
-import { AuthUser } from '@/lib/supabase/types';
-import type { ProjectCreatorProfileRecord } from '@/lib/profile/public';
+import { AuthUser } from "@/lib/supabase/types";
+import type { ProjectCreatorProfileRecord } from "@/lib/profile/public";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,8 +51,17 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { signUpForProject, resendAnonymousConfirmationEmail, getProjectWaiver } from "./actions";
-import { formatTimeTo12Hour, formatBytes, copyToClipboard, isMobileDevice } from "@/lib/utils";
+import {
+  signUpForProject,
+  resendAnonymousConfirmationEmail,
+  getProjectWaiver,
+} from "./actions";
+import {
+  formatTimeTo12Hour,
+  formatBytes,
+  copyToClipboard,
+  isMobileDevice,
+} from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import {
   getMultiDaySlotDisplayName,
@@ -60,7 +69,7 @@ import {
   isSlotAvailable,
   isMultiDaySlotPastByScheduleId,
   isSameDayMultiAreaSlotPast,
-  isOneTimeSlotPast
+  isOneTimeSlotPast,
 } from "@/utils/project";
 import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility and date utils
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -75,10 +84,17 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
-import { OrganizationHoverCard, ProfileHoverCard } from "@/components/shared/ProfileHoverCard";
+import {
+  OrganizationHoverCard,
+  ProfileHoverCard,
+} from "@/components/shared/ProfileHoverCard";
 import FilePreview from "@/app/projects/_components/FilePreview";
 import CreatorDashboard from "./CreatorDashboard";
 // Import the new UserDashboard
@@ -88,12 +104,18 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 // Import User type from supabase
 // import { User } from "@supabase/supabase-js";
 import ProjectInstructionsModal from "./ProjectInstructionsModalWrapper";
-import { SlotAttendeesDropdown, type SlotAttendee } from "@/components/projects/SlotAttendeesDropdown";
+import {
+  SlotAttendeesDropdown,
+  type SlotAttendee,
+} from "@/components/projects/SlotAttendeesDropdown";
 import { SignupConfirmationModal } from "@/app/projects/_components/SignupConfirmationModal";
 import { CancelSignupModal } from "@/app/projects/_components/CancelSignupModal";
 import CalendarOptionsModal from "@/app/projects/_components/CalendarOptionsModal";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
-import { TurnstileComponent, type TurnstileRef } from "@/components/ui/turnstile";
+import {
+  TurnstileComponent,
+  type TurnstileRef,
+} from "@/components/ui/turnstile";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -132,16 +154,18 @@ interface Props {
   initialUser: AuthUser | null;
   // Add prop for full signup data
   userSignupsData: Signup[];
-  allSignups?: Array<Pick<Signup, "id" | "schedule_id" | "status" | "check_in_time">>;
+  allSignups?: Array<
+    Pick<Signup, "id" | "schedule_id" | "status" | "check_in_time">
+  >;
   demoMode?: boolean;
   demoPublicAttendees?: SlotAttendee[];
 }
 
 const getFileIcon = (type: string) => {
-  if (type.includes('pdf')) return <FileText className="h-5 w-5" />;
-  if (type.includes('image')) return <FileImage className="h-5 w-5" />;
-  if (type.includes('text')) return <FileText className="h-5 w-5" />;
-  if (type.includes('word')) return <FileText className="h-5 w-5" />;
+  if (type.includes("pdf")) return <FileText className="h-5 w-5" />;
+  if (type.includes("image")) return <FileImage className="h-5 w-5" />;
+  if (type.includes("text")) return <FileText className="h-5 w-5" />;
+  if (type.includes("word")) return <FileText className="h-5 w-5" />;
   return <File className="h-5 w-5" />;
 };
 
@@ -150,7 +174,7 @@ const downloadFile = async (url: string, filename: string) => {
     const response = await fetch(url);
     const blob = await response.blob();
     const href = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = href;
     link.download = filename;
     document.body.appendChild(link);
@@ -158,7 +182,7 @@ const downloadFile = async (url: string, filename: string) => {
     document.body.removeChild(link);
     URL.revokeObjectURL(href);
   } catch (error) {
-    console.error('Download error:', error);
+    console.error("Download error:", error);
   }
 };
 
@@ -177,18 +201,26 @@ export default function ProjectDetails({
   demoPublicAttendees = EMPTY_DEMO_ATTENDEES,
 }: Props) {
   const router = useRouter();
-  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>(
+    {},
+  );
   const [isCreator] = useState(initialIsCreator);
   const [canManageProject] = useState(initialCanManageProject);
-  const [remainingSlots, setRemainingSlots] = useState<Record<string, number>>(initialSlotData.remainingSlots);
-  const [hasSignedUp, setHasSignedUp] = useState<Record<string, boolean>>(initialSlotData.userSignups);
+  const [remainingSlots, setRemainingSlots] = useState<Record<string, number>>(
+    initialSlotData.remainingSlots,
+  );
+  const [hasSignedUp, setHasSignedUp] = useState<Record<string, boolean>>(
+    initialSlotData.userSignups,
+  );
   // Use the specific AuthUser type
   const [user] = useState<AuthUser | null>(initialUser);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [anonymousDialogOpen, setAnonymousDialogOpen] = useState(false);
-  const [anonymousSlotSelectionOpen, setAnonymousSlotSelectionOpen] = useState(false);
+  const [anonymousSlotSelectionOpen, setAnonymousSlotSelectionOpen] =
+    useState(false);
   const [currentScheduleId, setCurrentScheduleId] = useState<string>("");
-  const [selectedAnonymousScheduleIds, setSelectedAnonymousScheduleIds] = useState<string[]>([]);
+  const [selectedAnonymousScheduleIds, setSelectedAnonymousScheduleIds] =
+    useState<string[]>([]);
   const [previewDoc, setPreviewDoc] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewDocName, setPreviewDocName] = useState<string>("Document");
@@ -196,11 +228,17 @@ export default function ProjectDetails({
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Initialize rejectedSlots from props instead of empty object
-  const [rejectedSlots, setRejectedSlots] = useState<Record<string, boolean>>(initialSlotData.rejectedSlots || {});
+  const [rejectedSlots, setRejectedSlots] = useState<Record<string, boolean>>(
+    initialSlotData.rejectedSlots || {},
+  );
 
   // Add state for attended slots
-  const [attendedSlots, setAttendedSlots] = useState<Record<string, boolean>>(initialSlotData.attendedSlots || {});
-  const [pendingSlots, setPendingSlots] = useState<Record<string, boolean>>(initialSlotData.pendingSlots || {});
+  const [attendedSlots, setAttendedSlots] = useState<Record<string, boolean>>(
+    initialSlotData.attendedSlots || {},
+  );
+  const [pendingSlots, setPendingSlots] = useState<Record<string, boolean>>(
+    initialSlotData.pendingSlots || {},
+  );
 
   // Add state for the confirmation alert
   const [showConfirmationAlert, setShowConfirmationAlert] = useState(false);
@@ -213,11 +251,14 @@ export default function ProjectDetails({
   const [publicAttendees, setPublicAttendees] = useState<SlotAttendee[]>(
     demoMode ? demoPublicAttendees : EMPTY_DEMO_ATTENDEES,
   );
-  const [waiverDefinition, setWaiverDefinition] = useState<WaiverDefinitionFull | null>(null);
+  const [waiverDefinition, setWaiverDefinition] =
+    useState<WaiverDefinitionFull | null>(null);
 
   // Add state to track calculated status
   // Initialize with project.status to avoid hydration mismatch, then update on client
-  const [calculatedStatus, setCalculatedStatus] = useState<ProjectStatus>(project.status);
+  const [calculatedStatus, setCalculatedStatus] = useState<ProjectStatus>(
+    project.status,
+  );
 
   useEffect(() => {
     setCalculatedStatus(getProjectStatus(project));
@@ -239,15 +280,23 @@ export default function ProjectDetails({
 
       // Fetch if public OR if user is a manager
       const shouldFetch = project.show_attendees_publicly || canManageProject;
-      
+
       if (!shouldFetch) {
-        setPublicAttendees((current) => current.length === 0 ? current : EMPTY_DEMO_ATTENDEES);
+        setPublicAttendees((current) =>
+          current.length === 0 ? current : EMPTY_DEMO_ATTENDEES,
+        );
         return;
       }
 
       // If not a manager, check visibility
-      if (!canManageProject && project.visibility !== "public" && project.visibility !== "unlisted") {
-        setPublicAttendees((current) => current.length === 0 ? current : EMPTY_DEMO_ATTENDEES);
+      if (
+        !canManageProject &&
+        project.visibility !== "public" &&
+        project.visibility !== "unlisted"
+      ) {
+        setPublicAttendees((current) =>
+          current.length === 0 ? current : EMPTY_DEMO_ATTENDEES,
+        );
         return;
       }
 
@@ -266,7 +315,14 @@ export default function ProjectDetails({
     };
 
     fetchPublicAttendees();
-  }, [project.id, project.show_attendees_publicly, project.visibility, canManageProject, demoMode, demoPublicAttendees]);
+  }, [
+    project.id,
+    project.show_attendees_publicly,
+    project.visibility,
+    canManageProject,
+    demoMode,
+    demoPublicAttendees,
+  ]);
 
   // Function to refetch attendees (called after signup/cancel)
   const refetchAttendees = async () => {
@@ -277,8 +333,13 @@ export default function ProjectDetails({
 
     const shouldFetch = project.show_attendees_publicly || canManageProject;
     if (!shouldFetch) return;
-    
-    if (!canManageProject && project.visibility !== "public" && project.visibility !== "unlisted") return;
+
+    if (
+      !canManageProject &&
+      project.visibility !== "public" &&
+      project.visibility !== "unlisted"
+    )
+      return;
 
     const supabase = createClient();
     const { data, error } = await supabase.rpc("get_public_attendees", {
@@ -302,10 +363,14 @@ export default function ProjectDetails({
 
   // State for resend confirmation email flow
   const [showResendDialog, setShowResendDialog] = useState(false);
-  const [resendAnonymousId, setResendAnonymousId] = useState<string | null>(null);
+  const [resendAnonymousId, setResendAnonymousId] = useState<string | null>(
+    null,
+  );
   const [isResending, setIsResending] = useState(false);
   const resendTurnstileRef = useRef<TurnstileRef>(null);
-  const [resendTurnstileToken, setResendTurnstileToken] = useState<string | null>(null);
+  const [resendTurnstileToken, setResendTurnstileToken] = useState<
+    string | null
+  >(null);
   const [resendTurnstileReady, setResendTurnstileReady] = useState(false);
 
   const showResendTurnstile = shouldRenderTurnstileWidget({
@@ -334,16 +399,16 @@ export default function ProjectDetails({
           .eq("project_id", project.id)
           .eq("user_id", user.id)
           .eq("status", "rejected")) as {
-            data: SignupStatusRow[] | null;
-            error: { message: string } | null;
-          };
+          data: SignupStatusRow[] | null;
+          error: { message: string } | null;
+        };
 
         if (rejectedError) {
           console.error("Error checking for rejections:", rejectedError);
         } else if (rejectedData && rejectedData.length > 0) {
           // Create a record of rejected slots
           const rejections: Record<string, boolean> = {};
-          rejectedData.forEach(rejection => {
+          rejectedData.forEach((rejection) => {
             rejections[rejection.schedule_id] = true;
           });
 
@@ -358,16 +423,16 @@ export default function ProjectDetails({
           .eq("project_id", project.id)
           .eq("user_id", user.id)
           .eq("status", "attended")) as {
-            data: SignupStatusRow[] | null;
-            error: { message: string } | null;
-          };
+          data: SignupStatusRow[] | null;
+          error: { message: string } | null;
+        };
 
         if (attendedError) {
           console.error("Error checking for attended status:", attendedError);
         } else if (attendedData && attendedData.length > 0) {
           // Create a record of attended slots
           const attended: Record<string, boolean> = {};
-          attendedData.forEach(slot => {
+          attendedData.forEach((slot) => {
             attended[slot.schedule_id] = true;
           });
 
@@ -412,7 +477,7 @@ export default function ProjectDetails({
             sessionStorage.setItem("calendarJustConnected", "true");
 
             // Clean URL
-            window.history.replaceState({}, '', `/projects/${project.id}`);
+            window.history.replaceState({}, "", `/projects/${project.id}`);
           }
 
           // Reopen the signup modal
@@ -426,7 +491,6 @@ export default function ProjectDetails({
     }
   }, [project.id, user]);
 
-
   useEffect(() => {
     if (!project.waiver_required) return;
     let isMounted = true;
@@ -437,12 +501,12 @@ export default function ProjectDetails({
         if (!isMounted) return;
 
         if (result.error) {
-             console.error("Error fetching waiver config:", result.error);
-             return;
+          console.error("Error fetching waiver config:", result.error);
+          return;
         }
 
         if (result.definition) {
-             setWaiverDefinition(result.definition as WaiverDefinitionFull);
+          setWaiverDefinition(result.definition as WaiverDefinitionFull);
         }
       } catch (error) {
         console.error("Error fetching waiver configuration:", error);
@@ -465,9 +529,9 @@ export default function ProjectDetails({
       const supabase = createClient();
 
       const { error } = await supabase
-        .from('projects')
+        .from("projects")
         .update({ status: newStatus })
-        .eq('id', project.id);
+        .eq("id", project.id);
 
       if (error) {
         console.error("Failed to update project status:", error);
@@ -485,7 +549,9 @@ export default function ProjectDetails({
   const getAttendeesForSlot = (scheduleId: string): SlotAttendee[] => {
     // Show to managers even if not public
     if (!project.show_attendees_publicly && !canManageProject) return [];
-    return publicAttendees.filter(attendee => attendee.schedule_id === scheduleId);
+    return publicAttendees.filter(
+      (attendee) => attendee.schedule_id === scheduleId,
+    );
   };
 
   // Modify status check effect to avoid unnecessary updates
@@ -495,7 +561,7 @@ export default function ProjectDetails({
   useEffect(() => {
     const newCalculatedStatus = getProjectStatus(project);
 
-    setCalculatedStatus(prevStatus => {
+    setCalculatedStatus((prevStatus) => {
       if (newCalculatedStatus !== prevStatus) {
         console.log(`Calculated status updated: ${newCalculatedStatus}`);
         return newCalculatedStatus;
@@ -510,7 +576,9 @@ export default function ProjectDetails({
       newCalculatedStatus !== project.status &&
       !statusMismatchHandled.current
     ) {
-      console.log(`Status mismatch detected: prop=${project.status}, calculated=${newCalculatedStatus}`);
+      console.log(
+        `Status mismatch detected: prop=${project.status}, calculated=${newCalculatedStatus}`,
+      );
       updateProjectStatusInDB(newCalculatedStatus);
       statusMismatchHandled.current = true; // Mark as handled
     }
@@ -521,7 +589,7 @@ export default function ProjectDetails({
     project.schedule,
     project.created_at,
     project.cancelled_at,
-    isUpdatingStatus
+    isUpdatingStatus,
   ]);
 
   // Modify interval effect to be more selective about updates
@@ -529,11 +597,15 @@ export default function ProjectDetails({
     const checkStatus = () => {
       const newStatus = getProjectStatus(project);
 
-      setCalculatedStatus(prevStatus => {
+      setCalculatedStatus((prevStatus) => {
         if (newStatus !== prevStatus) {
           console.log("Status updated via interval:", newStatus);
 
-          if (canManageProject && !isUpdatingStatus && newStatus !== project.status) {
+          if (
+            canManageProject &&
+            !isUpdatingStatus &&
+            newStatus !== project.status
+          ) {
             updateProjectStatusInDB(newStatus);
           }
           return newStatus;
@@ -551,24 +623,40 @@ export default function ProjectDetails({
     project.created_at,
     project.cancelled_at,
     canManageProject,
-    isUpdatingStatus
+    isUpdatingStatus,
   ]); // Remove function dependency
 
-  const isAnonymousSlotSelectable = useCallback((scheduleId: string) => {
-    if (isCreator || calculatedStatus === "cancelled") return false;
-    if (hasSignedUp[scheduleId] || rejectedSlots[scheduleId] || attendedSlots[scheduleId]) return false;
-    if ((remainingSlots[scheduleId] ?? 0) === 0) return false;
+  const isAnonymousSlotSelectable = useCallback(
+    (scheduleId: string) => {
+      if (isCreator || calculatedStatus === "cancelled") return false;
+      if (
+        hasSignedUp[scheduleId] ||
+        rejectedSlots[scheduleId] ||
+        attendedSlots[scheduleId]
+      )
+        return false;
+      if ((remainingSlots[scheduleId] ?? 0) === 0) return false;
 
-    if (project.event_type === "multiDay") {
-      return !isMultiDaySlotPastByScheduleId(project, scheduleId);
-    }
+      if (project.event_type === "multiDay") {
+        return !isMultiDaySlotPastByScheduleId(project, scheduleId);
+      }
 
-    if (project.event_type === "sameDayMultiArea") {
-      return !isSameDayMultiAreaSlotPast(project, scheduleId);
-    }
+      if (project.event_type === "sameDayMultiArea") {
+        return !isSameDayMultiAreaSlotPast(project, scheduleId);
+      }
 
-    return true;
-  }, [isCreator, calculatedStatus, hasSignedUp, rejectedSlots, attendedSlots, remainingSlots, project]);
+      return true;
+    },
+    [
+      isCreator,
+      calculatedStatus,
+      hasSignedUp,
+      rejectedSlots,
+      attendedSlots,
+      remainingSlots,
+      project,
+    ],
+  );
 
   const formatScheduleDateLabel = useCallback((dateStr: string) => {
     const [year, month, dayNum] = dateStr.split("-").map(Number);
@@ -590,9 +678,15 @@ export default function ProjectDetails({
             const scheduleId = `${day.date}-${dayIndex}-${idx}`;
             if (!isAnonymousSlotSelectable(scheduleId)) return null;
 
-            const startLabel = slot.startTime ? formatTimeTo12Hour(slot.startTime) : "TBD";
-            const endLabel = slot.endTime ? formatTimeTo12Hour(slot.endTime) : undefined;
-            const timeLabel = endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+            const startLabel = slot.startTime
+              ? formatTimeTo12Hour(slot.startTime)
+              : "TBD";
+            const endLabel = slot.endTime
+              ? formatTimeTo12Hour(slot.endTime)
+              : undefined;
+            const timeLabel = endLabel
+              ? `${startLabel} - ${endLabel}`
+              : startLabel;
 
             return {
               scheduleId,
@@ -600,19 +694,30 @@ export default function ProjectDetails({
               subtitle: `${timeLabel} • ${remainingSlots[scheduleId] ?? slot.volunteers} spot(s) left`,
             };
           })
-          .filter((slotOption): slotOption is AnonymousSlotOption => !!slotOption);
+          .filter(
+            (slotOption): slotOption is AnonymousSlotOption => !!slotOption,
+          );
       });
     }
 
-    if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+    if (
+      project.event_type === "sameDayMultiArea" &&
+      project.schedule.sameDayMultiArea
+    ) {
       return project.schedule.sameDayMultiArea.roles
         .map((role) => {
           const scheduleId = role.name;
           if (!isAnonymousSlotSelectable(scheduleId)) return null;
 
-          const startLabel = role.startTime ? formatTimeTo12Hour(role.startTime) : "TBD";
-          const endLabel = role.endTime ? formatTimeTo12Hour(role.endTime) : undefined;
-          const timeLabel = endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+          const startLabel = role.startTime
+            ? formatTimeTo12Hour(role.startTime)
+            : "TBD";
+          const endLabel = role.endTime
+            ? formatTimeTo12Hour(role.endTime)
+            : undefined;
+          const timeLabel = endLabel
+            ? `${startLabel} - ${endLabel}`
+            : startLabel;
 
           return {
             scheduleId,
@@ -620,7 +725,9 @@ export default function ProjectDetails({
             subtitle: `${timeLabel} • ${remainingSlots[scheduleId] ?? role.volunteers} spot(s) left`,
           };
         })
-        .filter((slotOption): slotOption is AnonymousSlotOption => !!slotOption);
+        .filter(
+          (slotOption): slotOption is AnonymousSlotOption => !!slotOption,
+        );
     }
 
     return [];
@@ -654,7 +761,10 @@ export default function ProjectDetails({
     setAnonymousDialogOpen(true);
   };
 
-  const toggleAnonymousSlotSelection = (scheduleId: string, checked: boolean) => {
+  const toggleAnonymousSlotSelection = (
+    scheduleId: string,
+    checked: boolean,
+  ) => {
     setSelectedAnonymousScheduleIds((prev) => {
       if (checked) {
         return prev.includes(scheduleId) ? prev : [...prev, scheduleId];
@@ -708,7 +818,9 @@ export default function ProjectDetails({
         projectId: project.id,
         scheduleId,
       });
-      toast.error("You have been rejected for this slot and cannot sign up again.");
+      toast.error(
+        "You have been rejected for this slot and cannot sign up again.",
+      );
       return;
     }
 
@@ -740,12 +852,16 @@ export default function ProjectDetails({
         projectId: project.id,
         scheduleId,
       });
-      toast.error("Signups for this project are temporarily paused by the organizer");
+      toast.error(
+        "Signups for this project are temporarily paused by the organizer",
+      );
       return;
     }
 
     // Use calculatedStatus instead of project.status
-    if (!isSlotAvailable(project, scheduleId, remainingSlots, calculatedStatus)) {
+    if (
+      !isSlotAvailable(project, scheduleId, remainingSlots, calculatedStatus)
+    ) {
       logSignupClientDebug({
         step: "slot_click_blocked_unavailable",
         projectId: project.id,
@@ -826,7 +942,11 @@ export default function ProjectDetails({
   };
 
   // Handle confirmation modal actions
-  const handleConfirmSignup = (comment?: string, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, unknown>) => {
+  const handleConfirmSignup = (
+    comment?: string,
+    waiverSignature?: WaiverSignatureInput | null,
+    formData?: Record<string, unknown>,
+  ) => {
     logSignupClientDebug({
       step: "confirmation_modal_submit",
       projectId: project.id,
@@ -836,7 +956,13 @@ export default function ProjectDetails({
       hasFormData: Boolean(formData && Object.keys(formData).length > 0),
     });
     setShowSignupConfirmation(false);
-    handleSignUp(pendingScheduleId, undefined, comment, waiverSignature, formData);
+    handleSignUp(
+      pendingScheduleId,
+      undefined,
+      comment,
+      waiverSignature,
+      formData,
+    );
     setPendingScheduleId("");
   };
 
@@ -854,7 +980,7 @@ export default function ProjectDetails({
     waiverSignature?: WaiverSignatureInput | null,
     formData?: Record<string, unknown>,
   ) => {
-    setLoadingStates(prev => ({ ...prev, [scheduleId]: true }));
+    setLoadingStates((prev) => ({ ...prev, [scheduleId]: true }));
     // Reset alert state on new signup attempt
     setShowConfirmationAlert(false);
 
@@ -862,7 +988,8 @@ export default function ProjectDetails({
       if (demoMode) {
         await new Promise((resolve) => window.setTimeout(resolve, 350));
         toast.info("This is just a demo.", {
-          description: "No signup was created. Real projects save this signup and update the roster.",
+          description:
+            "No signup was created. Real projects save this signup and update the roster.",
         });
         setAnonymousDialogOpen(false);
         setAnonymousSlotSelectionOpen(false);
@@ -880,7 +1007,14 @@ export default function ProjectDetails({
         hasFormData: Boolean(formData && Object.keys(formData).length > 0),
       });
 
-      const result = await signUpForProject(project.id, scheduleId, anonymousData, volunteerComment, waiverSignature, formData);
+      const result = await signUpForProject(
+        project.id,
+        scheduleId,
+        anonymousData,
+        volunteerComment,
+        waiverSignature,
+        formData,
+      );
 
       logSignupClientDebug({
         step: "action_result",
@@ -891,7 +1025,12 @@ export default function ProjectDetails({
 
       if (result.error) {
         // Check if this is a pending signup that can be resent
-        if ('canResend' in result && result.canResend && 'anonymousSignupId' in result && result.anonymousSignupId) {
+        if (
+          "canResend" in result &&
+          result.canResend &&
+          "anonymousSignupId" in result &&
+          result.anonymousSignupId
+        ) {
           setResendAnonymousId(result.anonymousSignupId as string);
           setShowResendDialog(true);
         } else {
@@ -912,7 +1051,9 @@ export default function ProjectDetails({
           let calendarSynced = false;
           if (result.signupId && result.projectId) {
             try {
-              const statusResponse = await fetch("/api/calendar/connection-status");
+              const statusResponse = await fetch(
+                "/api/calendar/connection-status",
+              );
               const statusData = await statusResponse.json();
 
               // API returns 'connected' not 'isConnected'
@@ -945,14 +1086,14 @@ export default function ProjectDetails({
               : "Successfully signed up!",
             {
               duration: 5000,
-            }
+            },
           );
 
           // Update local state to reflect the successful signup
-          setHasSignedUp(prev => ({ ...prev, [scheduleId]: true }));
-          setRemainingSlots(prev => ({
+          setHasSignedUp((prev) => ({ ...prev, [scheduleId]: true }));
+          setRemainingSlots((prev) => ({
             ...prev,
-            [scheduleId]: Math.max(0, (prev[scheduleId] || 0) - 1)
+            [scheduleId]: Math.max(0, (prev[scheduleId] || 0) - 1),
           }));
 
           // Refetch attendees to update the list in real-time
@@ -987,15 +1128,18 @@ export default function ProjectDetails({
         }
       }
     } catch (error) {
-      console.error("[signup-client-debug]", JSON.stringify({
-        step: "client_exception",
-        projectId: project.id,
-        scheduleId,
-        error,
-      }));
+      console.error(
+        "[signup-client-debug]",
+        JSON.stringify({
+          step: "client_exception",
+          projectId: project.id,
+          scheduleId,
+          error,
+        }),
+      );
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
-      setLoadingStates(prev => ({ ...prev, [scheduleId]: false }));
+      setLoadingStates((prev) => ({ ...prev, [scheduleId]: false }));
       if (anonymousData) {
         closeAnonymousFlows();
       } else {
@@ -1005,7 +1149,11 @@ export default function ProjectDetails({
   };
 
   // Handle anonymous form submit
-  const handleAnonymousSubmit = (values: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, unknown>) => {
+  const handleAnonymousSubmit = (
+    values: AnonymousSignupData,
+    waiverSignature?: WaiverSignatureInput | null,
+    formData?: Record<string, unknown>,
+  ) => {
     logSignupClientDebug({
       step: "anonymous_submit",
       projectId: project.id,
@@ -1018,9 +1166,11 @@ export default function ProjectDetails({
     });
     const scheduleIds = Array.from(
       new Set(
-        (selectedAnonymousScheduleIds.length > 0 ? selectedAnonymousScheduleIds : [currentScheduleId])
-          .filter(Boolean)
-      )
+        (selectedAnonymousScheduleIds.length > 0
+          ? selectedAnonymousScheduleIds
+          : [currentScheduleId]
+        ).filter(Boolean),
+      ),
     );
 
     if (scheduleIds.length <= 1) {
@@ -1034,7 +1184,13 @@ export default function ProjectDetails({
         ...values,
         selectedSlotCount: 1,
       };
-      handleSignUp(onlyScheduleId, payload, values.comment, waiverSignature, formData);
+      handleSignUp(
+        onlyScheduleId,
+        payload,
+        values.comment,
+        waiverSignature,
+        formData,
+      );
       return;
     }
 
@@ -1077,7 +1233,7 @@ export default function ProjectDetails({
             payload,
             values.comment,
             index === 0 ? waiverSignature : null,
-            formData
+            formData,
           );
 
           if (result.error) {
@@ -1131,7 +1287,7 @@ export default function ProjectDetails({
               {
                 description: "Please check your email to confirm your signup.",
                 duration: 5000,
-              }
+              },
             );
           } else {
             toast.success(
@@ -1140,7 +1296,7 @@ export default function ProjectDetails({
                 : "Successfully signed up!",
               {
                 duration: 5000,
-              }
+              },
             );
 
             await refetchAttendees();
@@ -1151,7 +1307,11 @@ export default function ProjectDetails({
         if (errorMessages.length > 0) {
           const firstError = errorMessages[0];
           const remaining = errorMessages.length - 1;
-          toast.error(remaining > 0 ? `${firstError} (+${remaining} more issue${remaining > 1 ? "s" : ""})` : firstError);
+          toast.error(
+            remaining > 0
+              ? `${firstError} (+${remaining} more issue${remaining > 1 ? "s" : ""})`
+              : firstError,
+          );
         }
       } catch (error) {
         console.error("Error processing multi-slot anonymous signup:", error);
@@ -1184,7 +1344,8 @@ export default function ProjectDetails({
         toast.error(result.error);
       } else if (result.success) {
         toast.success("Confirmation email sent!", {
-          description: "Please check your email inbox (and spam folder) for the confirmation link.",
+          description:
+            "Please check your email inbox (and spam folder) for the confirmation link.",
           duration: 6000,
         });
         setShowResendDialog(false);
@@ -1208,16 +1369,22 @@ export default function ProjectDetails({
   }, [showResendDialog]);
 
   // Redirect to auth pages
-  const redirectToAuth = (path: 'login' | 'signup') => {
-    sessionStorage.setItem('redirect_after_auth', window.location.href);
-    router.push(`/${path}?redirect=${encodeURIComponent(window.location.pathname)}`);
+  const redirectToAuth = (path: "login" | "signup") => {
+    sessionStorage.setItem("redirect_after_auth", window.location.href);
+    router.push(
+      `/${path}?redirect=${encodeURIComponent(window.location.pathname)}`,
+    );
   };
 
   // Share project
   const handleShare = async () => {
     const url = window.location.href;
 
-    if (isMobileDevice() && typeof navigator !== "undefined" && navigator.share) {
+    if (
+      isMobileDevice() &&
+      typeof navigator !== "undefined" &&
+      navigator.share
+    ) {
       try {
         await navigator.share({
           title: `${project.title} - Let's Assist`,
@@ -1245,7 +1412,11 @@ export default function ProjectDetails({
   };
 
   // Preview document
-  const openPreview = (url: string, fileName: string = "Document", fileType: string = "") => {
+  const openPreview = (
+    url: string,
+    fileName: string = "Document",
+    fileType: string = "",
+  ) => {
     setPreviewDoc(url);
     setPreviewDocName(fileName);
     setPreviewDocType(fileType);
@@ -1254,7 +1425,7 @@ export default function ProjectDetails({
 
   // Check if file is previewable
   const isPreviewable = (type: string) => {
-    return type.includes('pdf') || type.includes('image');
+    return type.includes("pdf") || type.includes("image");
   };
 
   const renderSignupButton = (scheduleId: string) => {
@@ -1266,16 +1437,18 @@ export default function ProjectDetails({
     if (rejectedSlots[scheduleId]) {
       return (
         <HoverCard>
-          <HoverCardTrigger render={
-            <span className="flex items-center gap-1.5">
-              <XCircle className="h-4 w-4" />
-              Rejected
-            </span>
-          } />
+          <HoverCardTrigger
+            render={
+              <span className="flex items-center gap-1.5">
+                <XCircle className="h-4 w-4" />
+                Rejected
+              </span>
+            }
+          />
           <HoverCardContent className="w-80 p-3">
             <p className="text-sm">
-              Your signup for this slot has been rejected by the project coordinator.
-              Please contact them directly if you have questions.
+              Your signup for this slot has been rejected by the project
+              coordinator. Please contact them directly if you have questions.
             </p>
             {creator?.email && (
               <Button
@@ -1299,15 +1472,18 @@ export default function ProjectDetails({
     if (attendedSlots[scheduleId]) {
       return (
         <HoverCard>
-          <HoverCardTrigger render={
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4" />
-              Attended
-            </span>
-          } />
+          <HoverCardTrigger
+            render={
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4" />
+                Attended
+              </span>
+            }
+          />
           <HoverCardContent className="w-80 p-3">
             <p className="text-sm">
-              You have been marked as attended for this slot. Attendance records cannot be changed.
+              You have been marked as attended for this slot. Attendance records
+              cannot be changed.
             </p>
           </HoverCardContent>
         </HoverCard>
@@ -1317,15 +1493,18 @@ export default function ProjectDetails({
     if (pendingSlots[scheduleId]) {
       return (
         <HoverCard>
-          <HoverCardTrigger render={
-            <span className="flex items-center gap-1.5">
-              <Clock className="h-4 w-4" />
-              Pending Approval
-            </span>
-          } />
+          <HoverCardTrigger
+            render={
+              <span className="flex items-center gap-1.5">
+                <Clock className="h-4 w-4" />
+                Pending Approval
+              </span>
+            }
+          />
           <HoverCardContent className="w-80 p-3">
             <p className="text-sm">
-              Your signup for this slot is pending coordinator approval. You can still cancel it if your plans change.
+              Your signup for this slot is pending coordinator approval. You can
+              still cancel it if your plans change.
             </p>
           </HoverCardContent>
         </HoverCard>
@@ -1373,9 +1552,11 @@ export default function ProjectDetails({
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Render project management dashboard for creators and organization admins */}
 
-
         {/* Confirmation Dialog */}
-        <Dialog open={showConfirmationAlert} onOpenChange={setShowConfirmationAlert}>
+        <Dialog
+          open={showConfirmationAlert}
+          onOpenChange={setShowConfirmationAlert}
+        >
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <div className="flex justify-center mb-4">
@@ -1387,7 +1568,8 @@ export default function ProjectDetails({
                 Check Your Email
               </DialogTitle>
               <DialogDescription className="text-center text-base pt-4">
-                We&apos;ve sent a confirmation link to your email address. Please click the link to finalize your signup for this project.
+                We&apos;ve sent a confirmation link to your email address.
+                Please click the link to finalize your signup for this project.
               </DialogDescription>
             </DialogHeader>
             <div className="bg-muted/50 rounded-lg p-4 my-4">
@@ -1437,27 +1619,34 @@ export default function ProjectDetails({
             </div>
             <div className="flex items-center gap-2 mb-1 sm:mb-0 shrink-0 order-0 sm:order-0 justify-between w-full sm:w-auto">
               {/* Use calculatedStatus instead of project.status */}
-              <ProjectStatusBadge status={calculatedStatus} className="capitalize" />
+              <ProjectStatusBadge
+                status={calculatedStatus}
+                className="capitalize"
+              />
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleShare}
-                >
+                <Button variant="outline" size="icon" onClick={handleShare}>
                   <Share2 className="h-4 w-4 shrink-0" />
                 </Button>
 
                 {/* Report button - only show for people who do not manage this project */}
                 {!canManageProject && (
                   <DropdownMenu>
-                    <DropdownMenuTrigger render={
-                      <Button variant="outline" size="icon" suppressHydrationWarning>
-                        <MoreVertical className="h-4 w-4" />
-                        <span className="sr-only">More options</span>
-                      </Button>
-                    } />
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          suppressHydrationWarning
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                          <span className="sr-only">More options</span>
+                        </Button>
+                      }
+                    />
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setIsReportDialogOpen(true)}>
+                      <DropdownMenuItem
+                        onClick={() => setIsReportDialogOpen(true)}
+                      >
                         <Flag className="mr-2 h-4 w-4" />
                         <span>Report Project</span>
                       </DropdownMenuItem>
@@ -1469,7 +1658,9 @@ export default function ProjectDetails({
                   contentType="project"
                   contentId={project.id}
                   contentTitle={project.title}
-                  contentCreator={creator?.full_name || creator?.username || undefined}
+                  contentCreator={
+                    creator?.full_name || creator?.username || undefined
+                  }
                   contentContext={organization?.name || undefined}
                   open={isReportDialogOpen}
                   onOpenChange={setIsReportDialogOpen}
@@ -1488,9 +1679,16 @@ export default function ProjectDetails({
           />
         )}
         {/* Render User Dashboard if user is logged in, NOT creator, and has signups */}
-        {user && !isCreator && userSignupsData && userSignupsData.length > 0 && (
-          <UserDashboard project={project} user={user} signups={userSignupsData} />
-        )}
+        {user &&
+          !isCreator &&
+          userSignupsData &&
+          userSignupsData.length > 0 && (
+            <UserDashboard
+              project={project}
+              user={user}
+              signups={userSignupsData}
+            />
+          )}
         {/* Project Content */}
         <div className="grid gap-6 lg:grid-cols-5">
           {/* Left Column */}
@@ -1507,7 +1705,6 @@ export default function ProjectDetails({
                 />
               </CardContent>
             </Card>
-
 
             {/* Volunteer Opportunities */}
             <Card>
@@ -1535,242 +1732,411 @@ export default function ProjectDetails({
                       Signups are currently paused
                     </AlertTitle>
                     <AlertDescription className="text-warning">
-                      The project organizer has temporarily paused new volunteer signups. Please check back later or contact the organizer.
+                      The project organizer has temporarily paused new volunteer
+                      signups. Please check back later or contact the organizer.
                     </AlertDescription>
                   </Alert>
                 )}
 
-                {project.event_type === "oneTime" && project.schedule.oneTime && (
-                  <div className="border rounded-lg p-3 sm:p-4 bg-card/50 hover:bg-card/80 transition-colors">
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm sm:text-base mb-2">
-                          {(() => {
-                            // Create date with no timezone offset issues
-                            const dateStr = project.schedule.oneTime.date;
-                            const [year, month, dayNum] = dateStr.split("-").map(Number);
-                            // Validate date components
-                            if (!year || !month || !dayNum || isNaN(year) || isNaN(month) || isNaN(dayNum)) {
-                              return "Invalid date";
+                {project.event_type === "oneTime" &&
+                  project.schedule.oneTime && (
+                    <div className="border rounded-lg p-3 sm:p-4 bg-card/50 hover:bg-card/80 transition-colors">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm sm:text-base mb-2">
+                            {(() => {
+                              // Create date with no timezone offset issues
+                              const dateStr = project.schedule.oneTime.date;
+                              const [year, month, dayNum] = dateStr
+                                .split("-")
+                                .map(Number);
+                              // Validate date components
+                              if (
+                                !year ||
+                                !month ||
+                                !dayNum ||
+                                isNaN(year) ||
+                                isNaN(month) ||
+                                isNaN(dayNum)
+                              ) {
+                                return "Invalid date";
+                              }
+                              // Use Date to correctly handle timezones
+                              const date = new Date(year, month - 1, dayNum);
+                              // Check if date is valid
+                              if (isNaN(date.getTime())) {
+                                return "Invalid date";
+                              }
+                              return format(date, "EEEE, MMMM d");
+                            })()}
+                          </h3>
+                          <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="h-3.5 w-3.5 shrink-0" />
+                              <span>
+                                {(() => {
+                                  const startLabel = project.schedule.oneTime
+                                    .startTime
+                                    ? formatTimeTo12Hour(
+                                        project.schedule.oneTime.startTime,
+                                      )
+                                    : "TBD";
+                                  const endLabel = project.schedule.oneTime
+                                    .endTime
+                                    ? formatTimeTo12Hour(
+                                        project.schedule.oneTime.endTime,
+                                      )
+                                    : undefined;
+                                  return endLabel
+                                    ? `${startLabel} - ${endLabel}`
+                                    : startLabel;
+                                })()}
+                              </span>
+                              {project.project_timezone && (
+                                <TimezoneBadge
+                                  timezone={project.project_timezone}
+                                />
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <Users className="h-3.5 w-3.5 shrink-0" />
+                              <span>
+                                <span className="font-medium text-foreground">
+                                  {remainingSlots["oneTime"] ??
+                                    formatSlotCapacity(
+                                      project.schedule.oneTime.volunteers,
+                                    )}
+                                </span>{" "}
+                                of{" "}
+                                {formatSlotCapacity(
+                                  project.schedule.oneTime.volunteers,
+                                )}{" "}
+                                spots
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
+                          <Button
+                            variant={
+                              pendingSlots["oneTime"]
+                                ? "outline"
+                                : hasSignedUp["oneTime"]
+                                  ? "secondary"
+                                  : rejectedSlots["oneTime"]
+                                    ? "destructive"
+                                    : "default"
                             }
+                            size="sm"
+                            onClick={() => handleSignUpClick("oneTime")}
+                            disabled={
+                              isCreator ||
+                              loadingStates["oneTime"] ||
+                              calculatedStatus === "cancelled" ||
+                              isOneTimeSlotPast(project) ||
+                              rejectedSlots["oneTime"] ||
+                              attendedSlots["oneTime"] ||
+                              (!hasSignedUp["oneTime"] &&
+                                remainingSlots["oneTime"] === 0)
+                            }
+                            className={`w-full sm:w-auto ${attendedSlots["oneTime"] || isOneTimeSlotPast(project) ? "opacity-50 cursor-not-allowed" : ""}`}
+                          >
+                            {isOneTimeSlotPast(project)
+                              ? "Time Passed"
+                              : renderSignupButton("oneTime")}
+                          </Button>
+                        </div>
+                      </div>
+                      {(project.show_attendees_publicly ||
+                        canManageProject) && (
+                        <SlotAttendeesDropdown
+                          attendees={getAttendeesForSlot("oneTime")}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                {project.event_type === "multiDay" &&
+                  project.schedule.multiDay && (
+                    <div className="space-y-3">
+                      {project.schedule.multiDay.map((day, dayIndex) => {
+                        const allSlotsInDayPast = day.slots.every(
+                          (slot, slotIndex) => {
+                            const scheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
+                            return isMultiDaySlotPastByScheduleId(
+                              project,
+                              scheduleId,
+                            );
+                          },
+                        );
+
+                        return (
+                          <div key={`${day.date}-${dayIndex}`} className="mb-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <h3 className="font-medium">
+                                {(() => {
+                                  const dateStr = day.date;
+                                  const [year, month, dayNum] = dateStr
+                                    .split("-")
+                                    .map(Number);
+                                  // Use Date to correctly handle timezones
+                                  const date = new Date(
+                                    year,
+                                    month - 1,
+                                    dayNum,
+                                  );
+                                  return format(date, "EEEE, MMMM d");
+                                })()}
+                              </h3>
+                              {allSlotsInDayPast && (
+                                <Badge variant="secondary" className="ml-2">
+                                  Passed
+                                </Badge>
+                              )}
+                            </div>
+                            <div
+                              className={`space-y-2 ${allSlotsInDayPast ? "opacity-50" : ""}`}
+                            >
+                              {day.slots.map((slot, slotIndex) => {
+                                const scheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
+                                return (
+                                  <div
+                                    key={scheduleId}
+                                    className="border rounded-lg p-3 bg-card/50 hover:bg-card/80 transition-colors"
+                                  >
+                                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="font-semibold text-sm mb-1.5 wrap-break-word">
+                                          {getMultiDaySlotDisplayName(
+                                            slot,
+                                            slotIndex,
+                                          )}
+                                        </h4>
+                                        <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
+                                          <div className="flex items-center gap-1.5">
+                                            <Clock className="h-3.5 w-3.5 shrink-0" />
+                                            <span>
+                                              {(() => {
+                                                const startLabel =
+                                                  slot.startTime
+                                                    ? formatTimeTo12Hour(
+                                                        slot.startTime,
+                                                      )
+                                                    : "TBD";
+                                                const endLabel = slot.endTime
+                                                  ? formatTimeTo12Hour(
+                                                      slot.endTime,
+                                                    )
+                                                  : undefined;
+                                                return endLabel
+                                                  ? `${startLabel} - ${endLabel}`
+                                                  : startLabel;
+                                              })()}
+                                            </span>
+                                            {project.project_timezone && (
+                                              <TimezoneBadge
+                                                timezone={
+                                                  project.project_timezone
+                                                }
+                                              />
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-1.5">
+                                            <Users className="h-3.5 w-3.5 shrink-0" />
+                                            <span>
+                                              <span className="font-medium text-foreground">
+                                                {remainingSlots[scheduleId] ??
+                                                  formatSlotCapacity(
+                                                    slot.volunteers,
+                                                  )}
+                                              </span>{" "}
+                                              of{" "}
+                                              {formatSlotCapacity(
+                                                slot.volunteers,
+                                              )}{" "}
+                                              spots
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
+                                        <Button
+                                          variant={
+                                            pendingSlots[scheduleId]
+                                              ? "outline"
+                                              : hasSignedUp[scheduleId]
+                                                ? "secondary"
+                                                : rejectedSlots[scheduleId]
+                                                  ? "destructive"
+                                                  : "default"
+                                          }
+                                          size="sm"
+                                          onClick={() =>
+                                            handleSignUpClick(scheduleId)
+                                          }
+                                          disabled={
+                                            isCreator ||
+                                            loadingStates[scheduleId] ||
+                                            calculatedStatus === "cancelled" ||
+                                            rejectedSlots[scheduleId] ||
+                                            attendedSlots[scheduleId] ||
+                                            isMultiDaySlotPastByScheduleId(
+                                              project,
+                                              scheduleId,
+                                            ) ||
+                                            (!hasSignedUp[scheduleId] &&
+                                              remainingSlots[scheduleId] === 0)
+                                          }
+                                          className={`w-full sm:w-auto ${attendedSlots[scheduleId] || isMultiDaySlotPastByScheduleId(project, scheduleId) ? "opacity-50 cursor-not-allowed" : ""}`}
+                                        >
+                                          {isMultiDaySlotPastByScheduleId(
+                                            project,
+                                            scheduleId,
+                                          )
+                                            ? "Time Passed"
+                                            : renderSignupButton(scheduleId)}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                    {(project.show_attendees_publicly ||
+                                      canManageProject) && (
+                                      <SlotAttendeesDropdown
+                                        attendees={getAttendeesForSlot(
+                                          scheduleId,
+                                        )}
+                                      />
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                {project.event_type === "sameDayMultiArea" &&
+                  project.schedule.sameDayMultiArea && (
+                    <div className="space-y-3">
+                      <div className="mb-4">
+                        <h3 className="font-medium mb-2">
+                          {(() => {
+                            const dateStr =
+                              project.schedule.sameDayMultiArea.date;
+                            const [year, month, dayNum] = dateStr
+                              .split("-")
+                              .map(Number);
                             // Use Date to correctly handle timezones
                             const date = new Date(year, month - 1, dayNum);
-                            // Check if date is valid
-                            if (isNaN(date.getTime())) {
-                              return "Invalid date";
-                            }
                             return format(date, "EEEE, MMMM d");
                           })()}
                         </h3>
-                        <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1.5">
-                            <Clock className="h-3.5 w-3.5 shrink-0" />
-                            <span>
-                              {(() => {
-                                const startLabel = project.schedule.oneTime.startTime ? formatTimeTo12Hour(project.schedule.oneTime.startTime) : "TBD";
-                                const endLabel = project.schedule.oneTime.endTime ? formatTimeTo12Hour(project.schedule.oneTime.endTime) : undefined;
-                                return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
-                              })()}
-                            </span>
-                            {project.project_timezone && (
-                              <TimezoneBadge timezone={project.project_timezone} />
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-1.5">
-                            <Users className="h-3.5 w-3.5 shrink-0" />
-                            <span>
-                              <span className="font-medium text-foreground">{remainingSlots["oneTime"] ?? formatSlotCapacity(project.schedule.oneTime.volunteers)}</span> of {formatSlotCapacity(project.schedule.oneTime.volunteers)} spots
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
-                        <Button
-                                  variant={pendingSlots["oneTime"] ? "outline" : hasSignedUp["oneTime"] ? "secondary" : rejectedSlots["oneTime"] ? "destructive" : "default"}
-                          size="sm"
-                          onClick={() => handleSignUpClick("oneTime")}
-                          disabled={
-                            isCreator ||
-                            loadingStates["oneTime"] ||
-                            calculatedStatus === "cancelled" ||
-                            isOneTimeSlotPast(project) ||
-                            rejectedSlots["oneTime"] ||
-                            attendedSlots["oneTime"] ||
-                            (!hasSignedUp["oneTime"] && (remainingSlots["oneTime"] === 0))
-                          }
-                          className={`w-full sm:w-auto ${attendedSlots["oneTime"] || isOneTimeSlotPast(project) ? "opacity-50 cursor-not-allowed" : ""}`}
-                        >
-                          {isOneTimeSlotPast(project) ? "Time Passed" : renderSignupButton("oneTime")}
-                        </Button>
-                      </div>
-                    </div>
-                    {(project.show_attendees_publicly || canManageProject) && (
-                      <SlotAttendeesDropdown attendees={getAttendeesForSlot("oneTime")} />
-                    )}
-                  </div>
-                )}
-
-                {project.event_type === "multiDay" && project.schedule.multiDay && (
-                  <div className="space-y-3">
-                    {project.schedule.multiDay.map((day, dayIndex) => {
-                      const allSlotsInDayPast = day.slots.every((slot, slotIndex) => {
-                        const scheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
-                        return isMultiDaySlotPastByScheduleId(project, scheduleId);
-                      });
-
-                      return (
-                        <div key={`${day.date}-${dayIndex}`} className="mb-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-medium">
-                              {(() => {
-                                const dateStr = day.date;
-                                const [year, month, dayNum] = dateStr.split("-").map(Number);
-                                // Use Date to correctly handle timezones
-                                const date = new Date(year, month - 1, dayNum);
-                                return format(date, "EEEE, MMMM d");
-                              })()}
-                            </h3>
-                            {allSlotsInDayPast && (
-                              <Badge variant="secondary" className="ml-2">
-                                Passed
-                              </Badge>
-                            )}
-                          </div>
-                          <div className={`space-y-2 ${allSlotsInDayPast ? "opacity-50" : ""}`}>
-                            {day.slots.map((slot, slotIndex) => {
-                              const scheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
-                              return (
-                                <div key={scheduleId} className="border rounded-lg p-3 bg-card/50 hover:bg-card/80 transition-colors">
-                                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                                    <div className="flex-1 min-w-0">
-                                      <h4 className="font-semibold text-sm mb-1.5 wrap-break-word">
-                                        {getMultiDaySlotDisplayName(slot, slotIndex)}
-                                      </h4>
-                                      <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
+                        <div className="space-y-2">
+                          {project.schedule.sameDayMultiArea.roles.map(
+                            (role) => (
+                              <div
+                                key={role.name}
+                                className="border rounded-lg p-3 bg-card/50 hover:bg-card/80 transition-colors"
+                              >
+                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-semibold text-sm mb-1.5 wrap-break-word">
+                                      {role.name}
+                                    </h4>
+                                    <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
                                       <div className="flex items-center gap-1.5">
                                         <Clock className="h-3.5 w-3.5 shrink-0" />
                                         <span>
                                           {(() => {
-                                            const startLabel = slot.startTime ? formatTimeTo12Hour(slot.startTime) : "TBD";
-                                            const endLabel = slot.endTime ? formatTimeTo12Hour(slot.endTime) : undefined;
-                                            return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+                                            const startLabel = role.startTime
+                                              ? formatTimeTo12Hour(
+                                                  role.startTime,
+                                                )
+                                              : "TBD";
+                                            const endLabel = role.endTime
+                                              ? formatTimeTo12Hour(role.endTime)
+                                              : undefined;
+                                            return endLabel
+                                              ? `${startLabel} - ${endLabel}`
+                                              : startLabel;
                                           })()}
                                         </span>
                                         {project.project_timezone && (
-                                          <TimezoneBadge timezone={project.project_timezone} />
+                                          <TimezoneBadge
+                                            timezone={project.project_timezone}
+                                          />
                                         )}
                                       </div>
                                       <div className="flex items-center gap-1.5">
                                         <Users className="h-3.5 w-3.5 shrink-0" />
                                         <span>
-                                          <span className="font-medium text-foreground">{remainingSlots[scheduleId] ?? formatSlotCapacity(slot.volunteers)}</span> of {formatSlotCapacity(slot.volunteers)} spots
+                                          <span className="font-medium text-foreground">
+                                            {remainingSlots[role.name] ??
+                                              formatSlotCapacity(
+                                                role.volunteers,
+                                              )}
+                                          </span>{" "}
+                                          of{" "}
+                                          {formatSlotCapacity(role.volunteers)}{" "}
+                                          spots
                                         </span>
                                       </div>
-                                      </div>
-                                    </div>
-                                    <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
-                                      <Button
-                                        variant={pendingSlots[scheduleId] ? "outline" : hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
-                                        size="sm"
-                                        onClick={() => handleSignUpClick(scheduleId)}
-                                        disabled={
-                                          isCreator ||
-                                          loadingStates[scheduleId] ||
-                                          calculatedStatus === "cancelled" ||
-                                          rejectedSlots[scheduleId] ||
-                                          attendedSlots[scheduleId] ||
-                                          isMultiDaySlotPastByScheduleId(project, scheduleId) ||
-                                          (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))
-                                        }
-                                        className={`w-full sm:w-auto ${attendedSlots[scheduleId] || isMultiDaySlotPastByScheduleId(project, scheduleId) ? "opacity-50 cursor-not-allowed" : ""}`}
-                                      >
-                                        {isMultiDaySlotPastByScheduleId(project, scheduleId) ? "Time Passed" : renderSignupButton(scheduleId)}
-                                      </Button>
                                     </div>
                                   </div>
-                                  {(project.show_attendees_publicly || canManageProject) && (
-                                    <SlotAttendeesDropdown attendees={getAttendeesForSlot(scheduleId)} />
-                                  )}
+                                  <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
+                                    <Button
+                                      variant={
+                                        pendingSlots[role.name]
+                                          ? "outline"
+                                          : hasSignedUp[role.name]
+                                            ? "secondary"
+                                            : rejectedSlots[role.name]
+                                              ? "destructive"
+                                              : "default"
+                                      }
+                                      size="sm"
+                                      onClick={() =>
+                                        handleSignUpClick(role.name)
+                                      }
+                                      disabled={
+                                        isCreator ||
+                                        loadingStates[role.name] ||
+                                        calculatedStatus === "cancelled" ||
+                                        isSameDayMultiAreaSlotPast(
+                                          project,
+                                          role.name,
+                                        ) ||
+                                        rejectedSlots[role.name] ||
+                                        attendedSlots[role.name] ||
+                                        (!hasSignedUp[role.name] &&
+                                          remainingSlots[role.name] === 0)
+                                      }
+                                      className={`w-full sm:w-auto ${attendedSlots[role.name] || isSameDayMultiAreaSlotPast(project, role.name) ? "opacity-50 cursor-not-allowed" : ""}`}
+                                    >
+                                      {isSameDayMultiAreaSlotPast(
+                                        project,
+                                        role.name,
+                                      )
+                                        ? "Time Passed"
+                                        : renderSignupButton(role.name)}
+                                    </Button>
+                                  </div>
                                 </div>
-                              );
-                            })}
-                          </div>
+                                {(project.show_attendees_publicly ||
+                                  canManageProject) && (
+                                  <SlotAttendeesDropdown
+                                    attendees={getAttendeesForSlot(role.name)}
+                                  />
+                                )}
+                              </div>
+                            ),
+                          )}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea && (
-                  <div className="space-y-3">
-                    <div className="mb-4">
-                      <h3 className="font-medium mb-2">
-                        {(() => {
-                          const dateStr = project.schedule.sameDayMultiArea.date
-                          const [year, month, dayNum] = dateStr.split("-").map(Number);
-                          // Use Date to correctly handle timezones
-                          const date = new Date(year, month - 1, dayNum);
-                          return format(date, "EEEE, MMMM d");
-                        })()}
-                      </h3>
-                      <div className="space-y-2">
-                        {project.schedule.sameDayMultiArea.roles.map((role) => (
-                          <div key={role.name} className="border rounded-lg p-3 bg-card/50 hover:bg-card/80 transition-colors">
-                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-sm mb-1.5 wrap-break-word">{role.name}</h4>
-                                <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
-                                  <div className="flex items-center gap-1.5">
-                                    <Clock className="h-3.5 w-3.5 shrink-0" />
-                                    <span>
-                                      {(() => {
-                                        const startLabel = role.startTime ? formatTimeTo12Hour(role.startTime) : "TBD";
-                                        const endLabel = role.endTime ? formatTimeTo12Hour(role.endTime) : undefined;
-                                        return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
-                                      })()}
-                                    </span>
-                                    {project.project_timezone && (
-                                      <TimezoneBadge timezone={project.project_timezone} />
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-1.5">
-                                    <Users className="h-3.5 w-3.5 shrink-0" />
-                                    <span>
-                                      <span className="font-medium text-foreground">{remainingSlots[role.name] ?? formatSlotCapacity(role.volunteers)}</span> of {formatSlotCapacity(role.volunteers)} spots
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
-                                <Button
-                                  variant={pendingSlots[role.name] ? "outline" : hasSignedUp[role.name] ? "secondary" : rejectedSlots[role.name] ? "destructive" : "default"}
-                                  size="sm"
-                                  onClick={() => handleSignUpClick(role.name)}
-                                  disabled={
-                                    isCreator ||
-                                    loadingStates[role.name] ||
-                                    calculatedStatus === "cancelled" ||
-                                    isSameDayMultiAreaSlotPast(project, role.name) ||
-                                    rejectedSlots[role.name] ||
-                                    attendedSlots[role.name] ||
-                                    (!hasSignedUp[role.name] && (remainingSlots[role.name] === 0))
-                                  }
-                                  className={`w-full sm:w-auto ${attendedSlots[role.name] || isSameDayMultiAreaSlotPast(project, role.name) ? "opacity-50 cursor-not-allowed" : ""}`}
-                                >
-                                  {isSameDayMultiAreaSlotPast(project, role.name) ? "Time Passed" : renderSignupButton(role.name)}
-                                </Button>
-                              </div>
-                            </div>
-                            {(project.show_attendees_publicly || canManageProject) && (
-                              <SlotAttendeesDropdown attendees={getAttendeesForSlot(role.name)} />
-                            )}
-                          </div>
-                        ))}
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Message for cancelled projects */}
                 {calculatedStatus === "cancelled" && (
@@ -1778,11 +2144,13 @@ export default function ProjectDetails({
                     <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                     <div className="text-sm text-muted-foreground">
                       <p>
-                        This project has been cancelled and is no longer accepting signups.
+                        This project has been cancelled and is no longer
+                        accepting signups.
                       </p>
                       {project.cancellation_reason && (
                         <p className="mt-1">
-                          <span className="font-medium">Reason:</span> {project.cancellation_reason}
+                          <span className="font-medium">Reason:</span>{" "}
+                          {project.cancellation_reason}
                         </p>
                       )}
                     </div>
@@ -1795,14 +2163,14 @@ export default function ProjectDetails({
                     <CheckCircle2 className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                     <div className="text-sm text-muted-foreground">
                       <p>
-                        This project has been completed and is no longer accepting signups.
+                        This project has been completed and is no longer
+                        accepting signups.
                       </p>
                     </div>
                   </div>
                 )}
               </CardContent>
             </Card>
-
           </div>
 
           {/* Right Column */}
@@ -1819,7 +2187,16 @@ export default function ProjectDetails({
                     <h3 className="text-sm font-medium text-muted-foreground mb-2">
                       Project Image
                     </h3>
-                    <div className="relative mb-4 cursor-pointer max-w-100" onClick={() => openPreview(project.cover_image_url!, project.title, "image/jpeg")}>
+                    <div
+                      className="relative mb-4 cursor-pointer max-w-100"
+                      onClick={() =>
+                        openPreview(
+                          project.cover_image_url!,
+                          project.title,
+                          "image/jpeg",
+                        )
+                      }
+                    >
                       <div className="overflow-hidden rounded-md border">
                         <Image
                           src={project.cover_image_url}
@@ -1836,7 +2213,11 @@ export default function ProjectDetails({
                         className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-xs"
                         onClick={(e) => {
                           e.stopPropagation();
-                          openPreview(project.cover_image_url!, project.title, "image/jpeg");
+                          openPreview(
+                            project.cover_image_url!,
+                            project.title,
+                            "image/jpeg",
+                          );
                         }}
                       >
                         <Eye className="h-4 w-4 mr-1" /> View
@@ -1856,7 +2237,10 @@ export default function ProjectDetails({
                       avatarUrl={creator?.avatar_url || undefined}
                       createdAt={creator?.created_at || undefined}
                     >
-                      <Link href={`/profile/${creator?.username || ""}`} className="flex items-center gap-3">
+                      <Link
+                        href={`/profile/${creator?.username || ""}`}
+                        className="flex items-center gap-3"
+                      >
                         <Avatar className="h-10 w-10">
                           {creator?.avatar_url ? (
                             <AvatarImage
@@ -1887,11 +2271,14 @@ export default function ProjectDetails({
                         <div className="flex items-center my-2">
                           <Separator className="shrink" />
                           <span className="px-2 text-xs text-muted-foreground flex items-center">
-                            <Building2 className="h-4 w-4 mr-1 shrink-0" /> Organization
+                            <Building2 className="h-4 w-4 mr-1 shrink-0" />{" "}
+                            Organization
                           </span>
                           <Separator className="shrink" />
                         </div>
-                        <OrganizationHoverCard organization={project.organization}>
+                        <OrganizationHoverCard
+                          organization={project.organization}
+                        >
                           <Link
                             href={`/organization/${project.organization.username}`}
                             className="flex items-center gap-3"
@@ -1904,7 +2291,9 @@ export default function ProjectDetails({
                                 />
                               ) : (
                                 <AvatarFallback className="bg-muted text-xs">
-                                  {project.organization.name.substring(0, 2).toUpperCase()}
+                                  {project.organization.name
+                                    .substring(0, 2)
+                                    .toUpperCase()}
                                 </AvatarFallback>
                               )}
                             </Avatar>
@@ -1914,9 +2303,7 @@ export default function ProjectDetails({
                                   {project.organization.name}
                                 </p>
                                 {project.organization.verified && (
-                                  <BadgeCheck
-                                    className="h-4 w-4 text-primary"
-                                  />
+                                  <BadgeCheck className="h-4 w-4 text-primary" />
                                 )}
                               </div>
                               <p className="text-xs text-muted-foreground truncate">
@@ -1994,17 +2381,17 @@ export default function ProjectDetails({
                       variant="outline"
                       className="text-xs flex items-center gap-1"
                     >
-                      {project.verification_method === 'qr-code' ? (
+                      {project.verification_method === "qr-code" ? (
                         <>
                           <QrCode className="h-3 w-3" />
                           QR Code Check-in
                         </>
-                      ) : project.verification_method === 'manual' ? (
+                      ) : project.verification_method === "manual" ? (
                         <>
                           <UserCheck className="h-3 w-3" />
                           Manual Check-in
                         </>
-                      ) : project.verification_method === 'auto' ? (
+                      ) : project.verification_method === "auto" ? (
                         <>
                           <Zap className="h-3 w-3" />
                           Automatic Check-in
@@ -2021,7 +2408,6 @@ export default function ProjectDetails({
               </CardContent>
             </Card>
 
-
             {/* Location Map */}
             <LocationMapCard
               location={project.location}
@@ -2036,42 +2422,50 @@ export default function ProjectDetails({
                 </CardHeader>
                 <CardContent className="">
                   <div className="space-y-3">
-                    {project.documents.map((doc: ProjectDocument, index: number) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-muted/20 transition-colors"
-                      >
-                        <div className="flex items-center gap-3 w-0 flex-1">
-                          <div className="bg-muted p-2 rounded-md shrink-0">
-                            {getFileIcon(doc.type)}
+                    {project.documents.map(
+                      (doc: ProjectDocument, index: number) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-muted/20 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 w-0 flex-1">
+                            <div className="bg-muted p-2 rounded-md shrink-0">
+                              {getFileIcon(doc.type)}
+                            </div>
+                            <div className="min-w-0 w-full overflow-hidden">
+                              <p className="font-medium text-sm truncate">
+                                {doc.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatBytes(doc.size)}
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-w-0 w-full overflow-hidden">
-                            <p className="font-medium text-sm truncate">{doc.name}</p>
-                            <p className="text-xs text-muted-foreground">{formatBytes(doc.size)}</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 shrink-0 ml-2">
-                          {isPreviewable(doc.type) && (
+                          <div className="flex gap-2 shrink-0 ml-2">
+                            {isPreviewable(doc.type) && (
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() =>
+                                  openPreview(doc.url, doc.name, doc.type)
+                                }
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => openPreview(doc.url, doc.name, doc.type)}
+                              onClick={() => downloadFile(doc.url, doc.name)}
                             >
-                              <Eye className="h-4 w-4" />
+                              <Download className="h-4 w-4" />
                             </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => downloadFile(doc.url, doc.name)}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ),
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -2092,14 +2486,14 @@ export default function ProjectDetails({
           <div className="grid gap-2 py-2">
             <div className="flex flex-col gap-4">
               <Button
-                onClick={() => redirectToAuth('login')}
+                onClick={() => redirectToAuth("login")}
                 className="flex items-center justify-center"
               >
                 <LogIn className="h-4 w-4" />
                 Login to Your Account
               </Button>
               <Button
-                onClick={() => redirectToAuth('signup')}
+                onClick={() => redirectToAuth("signup")}
                 variant="outline"
                 className="flex items-center justify-center"
               >
@@ -2125,16 +2519,21 @@ export default function ProjectDetails({
           <DialogHeader>
             <DialogTitle>Select your slots</DialogTitle>
             <DialogDescription>
-              Want to sign up for more than one slot? Select all that apply, then continue to quick signup.
+              Want to sign up for more than one slot? Select all that apply,
+              then continue to quick signup.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2 py-2">
             {anonymousSlotOptions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No additional slots are currently available.</p>
+              <p className="text-sm text-muted-foreground">
+                No additional slots are currently available.
+              </p>
             ) : (
               anonymousSlotOptions.map((slot) => {
-                const checked = selectedAnonymousScheduleIds.includes(slot.scheduleId);
+                const checked = selectedAnonymousScheduleIds.includes(
+                  slot.scheduleId,
+                );
 
                 return (
                   <label
@@ -2143,12 +2542,21 @@ export default function ProjectDetails({
                   >
                     <Checkbox
                       checked={checked}
-                      onCheckedChange={(value) => toggleAnonymousSlotSelection(slot.scheduleId, value === true)}
+                      onCheckedChange={(value) =>
+                        toggleAnonymousSlotSelection(
+                          slot.scheduleId,
+                          value === true,
+                        )
+                      }
                       className="mt-0.5"
                     />
                     <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">{slot.title}</p>
-                      <p className="text-xs text-muted-foreground">{slot.subtitle}</p>
+                      <p className="text-sm font-medium leading-none">
+                        {slot.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {slot.subtitle}
+                      </p>
                     </div>
                   </label>
                 );
@@ -2197,9 +2605,15 @@ export default function ProjectDetails({
             enableSavedInfoReuse={enableSavedAnonymousInfoReuse}
             projectId={project.id}
             waiverRequired={!!project.waiver_required}
-            waiverAllowUpload={project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true)}
+            waiverAllowUpload={
+              project.waiver_disable_esignature
+                ? true
+                : (project.waiver_allow_upload ?? true)
+            }
             waiverDisableEsignature={project.waiver_disable_esignature ?? false}
-            waiverPdfUrl={waiverDefinition?.pdf_public_url || project.waiver_pdf_url || null}
+            waiverPdfUrl={
+              waiverDefinition?.pdf_public_url || project.waiver_pdf_url || null
+            }
             waiverDefinition={waiverDefinition}
             signupFormSchema={project.signup_form_schema}
           />
@@ -2215,12 +2629,16 @@ export default function ProjectDetails({
               Email Confirmation Pending
             </DialogTitle>
             <DialogDescription className="pt-2">
-              You&apos;ve already signed up for this slot but haven&apos;t confirmed your email yet. Would you like us to resend the confirmation email?
+              You&apos;ve already signed up for this slot but haven&apos;t
+              confirmed your email yet. Would you like us to resend the
+              confirmation email?
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 pt-4">
             <p className="text-sm text-muted-foreground">
-              Please check your inbox (and spam folder) for the original confirmation email. If you can&apos;t find it, click below to receive a new one.
+              Please check your inbox (and spam folder) for the original
+              confirmation email. If you can&apos;t find it, click below to
+              receive a new one.
             </p>
             <div className="flex gap-2 justify-end">
               <Button
@@ -2232,7 +2650,9 @@ export default function ProjectDetails({
               </Button>
               <Button
                 onClick={handleResendConfirmation}
-                disabled={isResending || (showResendTurnstile && !resendTurnstileToken)}
+                disabled={
+                  isResending || (showResendTurnstile && !resendTurnstileToken)
+                }
                 className="gap-2"
               >
                 {isResending ? (
@@ -2254,9 +2674,12 @@ export default function ProjectDetails({
                 <div className="mb-3 flex items-start gap-2 text-sm text-muted-foreground">
                   <Shield className="mt-0.5 h-4 w-4 shrink-0" />
                   <div>
-                    <p className="font-medium text-foreground">Verify before resending</p>
+                    <p className="font-medium text-foreground">
+                      Verify before resending
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      Complete the security check so we can safely send a fresh confirmation link.
+                      Complete the security check so we can safely send a fresh
+                      confirmation link.
                     </p>
                   </div>
                 </div>
@@ -2278,7 +2701,9 @@ export default function ProjectDetails({
                       onVerify={(token) => setResendTurnstileToken(token)}
                       onError={() => {
                         setResendTurnstileToken(null);
-                        toast.error("Security verification failed. Please try again.");
+                        toast.error(
+                          "Security verification failed. Please try again.",
+                        );
                       }}
                       onExpire={() => setResendTurnstileToken(null)}
                     />
@@ -2307,9 +2732,15 @@ export default function ProjectDetails({
           onConfirm={handleConfirmSignup}
           enableVolunteerComments={!!project.enable_volunteer_comments}
           waiverRequired={!!project.waiver_required}
-          waiverAllowUpload={project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true)}
+          waiverAllowUpload={
+            project.waiver_disable_esignature
+              ? true
+              : (project.waiver_allow_upload ?? true)
+          }
           waiverDisableEsignature={project.waiver_disable_esignature ?? false}
-          waiverPdfUrl={waiverDefinition?.pdf_public_url || project.waiver_pdf_url || null}
+          waiverPdfUrl={
+            waiverDefinition?.pdf_public_url || project.waiver_pdf_url || null
+          }
           waiverDefinition={waiverDefinition}
           signupFormSchema={project.signup_form_schema}
           project={{
@@ -2317,39 +2748,81 @@ export default function ProjectDetails({
             title: project.title,
             date: (() => {
               // Get the appropriate date from the schedule
-              if (project.event_type === "oneTime" && project.schedule.oneTime) {
+              if (
+                project.event_type === "oneTime" &&
+                project.schedule.oneTime
+              ) {
                 return project.schedule.oneTime.date;
-              } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-                const slotData = getMultiDaySlotByScheduleId(project, pendingScheduleId);
-                return slotData?.day.date || project.schedule.multiDay[0]?.date || '';
-              } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+              } else if (
+                project.event_type === "multiDay" &&
+                project.schedule.multiDay
+              ) {
+                const slotData = getMultiDaySlotByScheduleId(
+                  project,
+                  pendingScheduleId,
+                );
+                return (
+                  slotData?.day.date || project.schedule.multiDay[0]?.date || ""
+                );
+              } else if (
+                project.event_type === "sameDayMultiArea" &&
+                project.schedule.sameDayMultiArea
+              ) {
                 return project.schedule.sameDayMultiArea.date;
               }
-              return '';
+              return "";
             })(),
             location: project.location,
             start_time: (() => {
               // Get the appropriate start time from the schedule
-              if (project.event_type === "oneTime" && project.schedule.oneTime) {
+              if (
+                project.event_type === "oneTime" &&
+                project.schedule.oneTime
+              ) {
                 return project.schedule.oneTime.startTime;
-              } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-                const slotData = getMultiDaySlotByScheduleId(project, pendingScheduleId);
+              } else if (
+                project.event_type === "multiDay" &&
+                project.schedule.multiDay
+              ) {
+                const slotData = getMultiDaySlotByScheduleId(
+                  project,
+                  pendingScheduleId,
+                );
                 return slotData?.slot.startTime;
-              } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
-                const role = project.schedule.sameDayMultiArea.roles.find((r: SameDayMultiAreaRole) => r.name === pendingScheduleId);
+              } else if (
+                project.event_type === "sameDayMultiArea" &&
+                project.schedule.sameDayMultiArea
+              ) {
+                const role = project.schedule.sameDayMultiArea.roles.find(
+                  (r: SameDayMultiAreaRole) => r.name === pendingScheduleId,
+                );
                 return role?.startTime;
               }
               return undefined;
             })(),
             end_time: (() => {
               // Get the appropriate end time from the schedule
-              if (project.event_type === "oneTime" && project.schedule.oneTime) {
+              if (
+                project.event_type === "oneTime" &&
+                project.schedule.oneTime
+              ) {
                 return project.schedule.oneTime.endTime;
-              } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-                const slotData = getMultiDaySlotByScheduleId(project, pendingScheduleId);
+              } else if (
+                project.event_type === "multiDay" &&
+                project.schedule.multiDay
+              ) {
+                const slotData = getMultiDaySlotByScheduleId(
+                  project,
+                  pendingScheduleId,
+                );
                 return slotData?.slot.endTime;
-              } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
-                const role = project.schedule.sameDayMultiArea.roles.find((r: SameDayMultiAreaRole) => r.name === pendingScheduleId);
+              } else if (
+                project.event_type === "sameDayMultiArea" &&
+                project.schedule.sameDayMultiArea
+              ) {
+                const role = project.schedule.sameDayMultiArea.roles.find(
+                  (r: SameDayMultiAreaRole) => r.name === pendingScheduleId,
+                );
                 return role?.endTime;
               }
               return undefined;
@@ -2368,10 +2841,10 @@ export default function ProjectDetails({
           onClose={handleCloseModals}
           onSuccess={(scheduleId) => {
             // Handle successful cancellation
-            setHasSignedUp(prev => ({ ...prev, [scheduleId]: false }));
-            setRemainingSlots(prev => ({
+            setHasSignedUp((prev) => ({ ...prev, [scheduleId]: false }));
+            setRemainingSlots((prev) => ({
               ...prev,
-              [scheduleId]: (prev[scheduleId] || 0) + 1
+              [scheduleId]: (prev[scheduleId] || 0) + 1,
             }));
             // Refetch attendees to update the list in real-time
             refetchAttendees();
@@ -2380,39 +2853,81 @@ export default function ProjectDetails({
             title: project.title,
             date: (() => {
               // Get the appropriate date from the schedule
-              if (project.event_type === "oneTime" && project.schedule.oneTime) {
+              if (
+                project.event_type === "oneTime" &&
+                project.schedule.oneTime
+              ) {
                 return project.schedule.oneTime.date;
-              } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-                const slotData = getMultiDaySlotByScheduleId(project, pendingScheduleId);
-                return slotData?.day.date || project.schedule.multiDay[0]?.date || '';
-              } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+              } else if (
+                project.event_type === "multiDay" &&
+                project.schedule.multiDay
+              ) {
+                const slotData = getMultiDaySlotByScheduleId(
+                  project,
+                  pendingScheduleId,
+                );
+                return (
+                  slotData?.day.date || project.schedule.multiDay[0]?.date || ""
+                );
+              } else if (
+                project.event_type === "sameDayMultiArea" &&
+                project.schedule.sameDayMultiArea
+              ) {
                 return project.schedule.sameDayMultiArea.date;
               }
-              return '';
+              return "";
             })(),
             location: project.location,
             start_time: (() => {
               // Get the appropriate start time from the schedule
-              if (project.event_type === "oneTime" && project.schedule.oneTime) {
+              if (
+                project.event_type === "oneTime" &&
+                project.schedule.oneTime
+              ) {
                 return project.schedule.oneTime.startTime;
-              } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-                const slotData = getMultiDaySlotByScheduleId(project, pendingScheduleId);
+              } else if (
+                project.event_type === "multiDay" &&
+                project.schedule.multiDay
+              ) {
+                const slotData = getMultiDaySlotByScheduleId(
+                  project,
+                  pendingScheduleId,
+                );
                 return slotData?.slot.startTime;
-              } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
-                const role = project.schedule.sameDayMultiArea.roles.find((r: SameDayMultiAreaRole) => r.name === pendingScheduleId);
+              } else if (
+                project.event_type === "sameDayMultiArea" &&
+                project.schedule.sameDayMultiArea
+              ) {
+                const role = project.schedule.sameDayMultiArea.roles.find(
+                  (r: SameDayMultiAreaRole) => r.name === pendingScheduleId,
+                );
                 return role?.startTime;
               }
               return undefined;
             })(),
             end_time: (() => {
               // Get the appropriate end time from the schedule
-              if (project.event_type === "oneTime" && project.schedule.oneTime) {
+              if (
+                project.event_type === "oneTime" &&
+                project.schedule.oneTime
+              ) {
                 return project.schedule.oneTime.endTime;
-              } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-                const slotData = getMultiDaySlotByScheduleId(project, pendingScheduleId);
+              } else if (
+                project.event_type === "multiDay" &&
+                project.schedule.multiDay
+              ) {
+                const slotData = getMultiDaySlotByScheduleId(
+                  project,
+                  pendingScheduleId,
+                );
                 return slotData?.slot.endTime;
-              } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
-                const role = project.schedule.sameDayMultiArea.roles.find((r: SameDayMultiAreaRole) => r.name === pendingScheduleId);
+              } else if (
+                project.event_type === "sameDayMultiArea" &&
+                project.schedule.sameDayMultiArea
+              ) {
+                const role = project.schedule.sameDayMultiArea.roles.find(
+                  (r: SameDayMultiAreaRole) => r.name === pendingScheduleId,
+                );
                 return role?.endTime;
               }
               return undefined;
@@ -2435,7 +2950,7 @@ export default function ProjectDetails({
             schedule_id: completedSignup.scheduleId,
             project_id: project.id,
             user_id: user?.id || null,
-            status: 'approved',
+            status: "approved",
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             check_in_time: null,

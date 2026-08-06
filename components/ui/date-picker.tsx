@@ -36,10 +36,10 @@ export function DatePicker({
   "data-testid": dataTestId,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
-  
+
   // Convert string date (YYYY-MM-DD) to Date object (local time, date-only)
   const selectedDate = value ? new Date(`${value}T00:00:00`) : undefined;
-  
+
   // Parse min/max dates
   const minDateObj = minDate ? new Date(`${minDate}T00:00:00`) : undefined;
   const maxDateObj = maxDate ? new Date(`${maxDate}T00:00:00`) : undefined;
@@ -48,14 +48,16 @@ export function DatePicker({
   const defaultMonth = selectedDate ?? minDateObj ?? maxDateObj;
 
   // Format date for display (stable formatting)
-  const displayValue = selectedDate ? format(selectedDate, "MMMM d, yyyy") : placeholder;
+  const displayValue = selectedDate
+    ? format(selectedDate, "MMMM d, yyyy")
+    : placeholder;
 
   const handleSelect = (date: Date | undefined) => {
     if (date && onChange) {
       // Convert Date to YYYY-MM-DD format
       const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
       const dateString = `${year}-${month}-${day}`;
       onChange(dateString);
     }
@@ -85,7 +87,7 @@ export function DatePicker({
               "w-full justify-start text-left font-normal",
               !value && "text-muted-foreground",
               error && "border-destructive focus-visible:ring-destructive",
-              className
+              className,
             )}
             disabled={disabled}
             data-testid={dataTestId}

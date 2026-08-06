@@ -30,13 +30,19 @@ export type OrganizationNavigationDestinationGroups = {
  * several grouped lists.
  */
 export function dedupeNavigationDestinations(
-  destinations: ReadonlyArray<OrganizationNavigationDestination | null | undefined>,
+  destinations: ReadonlyArray<
+    OrganizationNavigationDestination | null | undefined
+  >,
   seenValues: Set<string> = new Set<string>(),
 ): OrganizationNavigationDestination[] {
   const deduped: OrganizationNavigationDestination[] = [];
 
   for (const destination of destinations) {
-    if (!destination || !destination.value || seenValues.has(destination.value)) {
+    if (
+      !destination ||
+      !destination.value ||
+      seenValues.has(destination.value)
+    ) {
       continue;
     }
 
@@ -53,12 +59,22 @@ export function dedupeNavigationDestinations(
  * once — under its workspace group — instead of twice.
  */
 export function buildNavigationDestinationGroups(
-  workspaceCandidates: ReadonlyArray<OrganizationNavigationDestination | null | undefined>,
-  utilityCandidates: ReadonlyArray<OrganizationNavigationDestination | null | undefined>,
+  workspaceCandidates: ReadonlyArray<
+    OrganizationNavigationDestination | null | undefined
+  >,
+  utilityCandidates: ReadonlyArray<
+    OrganizationNavigationDestination | null | undefined
+  >,
 ): OrganizationNavigationDestinationGroups {
   const seenValues = new Set<string>();
-  const workspaceDestinations = dedupeNavigationDestinations(workspaceCandidates, seenValues);
-  const utilityDestinations = dedupeNavigationDestinations(utilityCandidates, seenValues);
+  const workspaceDestinations = dedupeNavigationDestinations(
+    workspaceCandidates,
+    seenValues,
+  );
+  const utilityDestinations = dedupeNavigationDestinations(
+    utilityCandidates,
+    seenValues,
+  );
 
   return {
     workspaceDestinations,
@@ -76,7 +92,10 @@ export function isNavigationValueActive(
   activeValue: string,
   activeParentValue?: string,
 ): boolean {
-  return value === activeValue || (Boolean(activeParentValue) && value === activeParentValue);
+  return (
+    value === activeValue ||
+    (Boolean(activeParentValue) && value === activeParentValue)
+  );
 }
 
 /**
@@ -92,7 +111,9 @@ export function findActiveNavigationDestination(
   return (
     destinations.find((destination) => destination.value === activeValue) ??
     (activeParentValue
-      ? destinations.find((destination) => destination.value === activeParentValue)
+      ? destinations.find(
+          (destination) => destination.value === activeParentValue,
+        )
       : undefined)
   );
 }

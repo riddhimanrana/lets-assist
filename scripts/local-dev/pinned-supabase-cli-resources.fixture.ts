@@ -71,14 +71,12 @@ export const PINNED_SUPABASE_CLI_UNSUPPORTED_PREFIXES = {
     "realtime-dev.supabase_realtime_",
     "storage_imgproxy_",
   ],
-  volume: [
-    "supabase_config_",
-    "supabase_inbucket_",
-  ],
+  volume: ["supabase_config_", "supabase_inbucket_"],
   network: [],
 } as const;
 
-export type PinnedResourceKind = keyof typeof PINNED_SUPABASE_CLI_RESOURCE_PREFIXES;
+export type PinnedResourceKind =
+  keyof typeof PINNED_SUPABASE_CLI_RESOURCE_PREFIXES;
 
 export const PINNED_RESOURCE_KINDS: PinnedResourceKind[] = [
   "container",
@@ -87,13 +85,19 @@ export const PINNED_RESOURCE_KINDS: PinnedResourceKind[] = [
 ];
 
 /** The exact resource names the pinned CLI creates for one isolated project. */
-export function pinnedResourceNames(projectId: string, kind: PinnedResourceKind) {
+export function pinnedResourceNames(
+  projectId: string,
+  kind: PinnedResourceKind,
+) {
   return PINNED_SUPABASE_CLI_RESOURCE_PREFIXES[kind].map(
     (prefix) => `${prefix}${projectId}`,
   );
 }
 
-export function pinnedUnsupportedNames(projectId: string, kind: PinnedResourceKind) {
+export function pinnedUnsupportedNames(
+  projectId: string,
+  kind: PinnedResourceKind,
+) {
   return PINNED_SUPABASE_CLI_UNSUPPORTED_PREFIXES[kind].map(
     (prefix) => `${prefix}${projectId}`,
   );

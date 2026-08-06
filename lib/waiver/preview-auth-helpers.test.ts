@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { checkWaiverAccess, type AuthCheckParams } from "./preview-auth-helpers";
+import {
+  checkWaiverAccess,
+  type AuthCheckParams,
+} from "./preview-auth-helpers";
 
 function params(overrides: Partial<AuthCheckParams> = {}): AuthCheckParams {
   return {
@@ -39,7 +42,9 @@ describe("checkWaiverAccess organization boundary", () => {
   });
 
   test("keeps organization admin access independent of the staff flag", () => {
-    expect(checkWaiverAccess(params({ orgMember: { role: "admin" } }))).toMatchObject({
+    expect(
+      checkWaiverAccess(params({ orgMember: { role: "admin" } })),
+    ).toMatchObject({
       hasPermission: true,
       reason: "organizer",
     });

@@ -3,7 +3,13 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { readOrganizationPluginContext } from "@/lib/plugins/organization-plugin-context";
 import {
   hasOrganizationPluginRoleAccess,
@@ -94,9 +100,7 @@ export async function renderOrganizationPluginPage(options: {
   const organization = await readOrganizationPluginContext<OrganizationRecord>(
     "organization",
     () => {
-      const query = supabase
-        .from("organizations")
-        .select("id, name, username");
+      const query = supabase.from("organizations").select("id, name, username");
       return isUUID
         ? query.eq("id", organizationIdentifier).maybeSingle()
         : query.eq("username", organizationIdentifier).maybeSingle();
@@ -127,15 +131,13 @@ export async function renderOrganizationPluginPage(options: {
   }
 
   const membership = user
-    ? await readOrganizationPluginContext<MembershipRow>(
-        "membership",
-        () =>
-          supabase
-            .from("organization_members")
-            .select("role")
-            .eq("organization_id", organization.id)
-            .eq("user_id", user.id)
-            .maybeSingle(),
+    ? await readOrganizationPluginContext<MembershipRow>("membership", () =>
+        supabase
+          .from("organization_members")
+          .select("role")
+          .eq("organization_id", organization.id)
+          .eq("user_id", user.id)
+          .maybeSingle(),
       )
     : null;
 
@@ -180,7 +182,9 @@ export async function renderOrganizationPluginPage(options: {
         orgRouteError.message?.toLowerCase().includes("schema cache");
 
       if (!isMissingRouteTable) {
-        throw new Error(`Failed to load organization plugin route: ${orgRouteError.message}`);
+        throw new Error(
+          `Failed to load organization plugin route: ${orgRouteError.message}`,
+        );
       }
     }
 
@@ -190,7 +194,10 @@ export async function renderOrganizationPluginPage(options: {
     }
   }
 
-  if (declaredRoute && !hasPluginRouteAccess(declaredRoute.minimumRole, effectiveUserRole)) {
+  if (
+    declaredRoute &&
+    !hasPluginRouteAccess(declaredRoute.minimumRole, effectiveUserRole)
+  ) {
     notFound();
   }
 
@@ -214,12 +221,21 @@ export async function renderOrganizationPluginPage(options: {
     });
   }
 
-  const routeTitle = declaredRoute?.title ?? declaredRoute?.label ?? resolvedPlugin.name;
-  const routeDescription = declaredRoute?.description ?? resolvedPlugin.description;
-  const useWorkspaceChrome = definition.manifest.organizationPageChrome === "workspace";
+  const routeTitle =
+    declaredRoute?.title ?? declaredRoute?.label ?? resolvedPlugin.name;
+  const routeDescription =
+    declaredRoute?.description ?? resolvedPlugin.description;
+  const useWorkspaceChrome =
+    definition.manifest.organizationPageChrome === "workspace";
 
   return (
-    <div className={useWorkspaceChrome ? "w-full" : "mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8"}>
+    <div
+      className={
+        useWorkspaceChrome
+          ? "w-full"
+          : "mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8"
+      }
+    >
       {!useWorkspaceChrome ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -250,8 +266,8 @@ export async function renderOrganizationPluginPage(options: {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Once you publish and register your private plugin package, its custom UI will
-            render here.
+            Once you publish and register your private plugin package, its
+            custom UI will render here.
           </CardContent>
         </Card>
       )}

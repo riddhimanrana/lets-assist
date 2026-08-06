@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import { Button as ButtonPrimitive } from "@base-ui/react/button"
-import { type VariantProps } from "class-variance-authority"
+import { Button as ButtonPrimitive } from "@base-ui/react/button";
+import { type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
-import { buttonVariants } from "./button-variants"
+import { buttonVariants } from "./button-variants";
 
 function Button({
   className,
@@ -13,9 +13,10 @@ function Button({
   size = "default",
   asChild = false,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & { asChild?: boolean }) {
+}: ButtonPrimitive.Props &
+  VariantProps<typeof buttonVariants> & { asChild?: boolean }) {
   if (asChild) {
-    const { children, ...rest } = props
+    const { children, ...rest } = props;
     return (
       <ButtonPrimitive
         data-slot="button"
@@ -24,7 +25,7 @@ function Button({
         nativeButton={false}
         {...rest}
       />
-    )
+    );
   }
 
   return (
@@ -34,7 +35,7 @@ function Button({
       nativeButton={props.render ? false : undefined}
       {...props}
     />
-  )
+  );
 }
 
-export { Button, buttonVariants }
+export { Button, buttonVariants };

@@ -43,7 +43,9 @@ describe("plugin contribution access wiring", () => {
       );
 
       expect(fileSource).toContain("loadAccessibleOrganizationPluginAccess");
-      expect(functionSource).toContain("loadAccessibleOrganizationPluginAccess({");
+      expect(functionSource).toContain(
+        "loadAccessibleOrganizationPluginAccess({",
+      );
       expect(functionSource).not.toContain(
         '.from("organization_plugin_installs")',
       );

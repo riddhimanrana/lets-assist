@@ -8,11 +8,24 @@ import type {
 import { logPluginAudit, withPluginExecution } from "./audit";
 
 // Re-export the types for convenience
-export type { OrganizationPluginLifecycleContext, OrganizationPluginLifecycleHooks };
+export type {
+  OrganizationPluginLifecycleContext,
+  OrganizationPluginLifecycleHooks,
+};
 
 function getLifecycleActionName(
   hookName: keyof OrganizationPluginLifecycleHooks,
-): "lifecycle.install" | "lifecycle.uninstall" | "lifecycle.enable" | "lifecycle.disable" | "lifecycle.config_update" | "lifecycle.version_update" | "lifecycle.data_delete" | "lifecycle.project_clone" | "lifecycle.project_create" | "lifecycle.signup" {
+):
+  | "lifecycle.install"
+  | "lifecycle.uninstall"
+  | "lifecycle.enable"
+  | "lifecycle.disable"
+  | "lifecycle.config_update"
+  | "lifecycle.version_update"
+  | "lifecycle.data_delete"
+  | "lifecycle.project_clone"
+  | "lifecycle.project_create"
+  | "lifecycle.signup" {
   switch (hookName) {
     case "onInstall":
       return "lifecycle.install";
@@ -40,7 +53,9 @@ function getLifecycleActionName(
 /**
  * Execute a lifecycle hook with proper error handling, logging, and metrics
  */
-export async function executeLifecycleHook<K extends keyof OrganizationPluginLifecycleHooks>(
+export async function executeLifecycleHook<
+  K extends keyof OrganizationPluginLifecycleHooks,
+>(
   plugin: OrganizationPluginDefinition,
   hookName: K,
   context: OrganizationPluginLifecycleContext,
@@ -65,7 +80,9 @@ export async function executeLifecycleHook<K extends keyof OrganizationPluginLif
     await logPluginAudit({
       organization_id: context.organization.id,
       plugin_key: context.pluginKey,
-      action: getLifecycleActionName(hookName as keyof OrganizationPluginLifecycleHooks),
+      action: getLifecycleActionName(
+        hookName as keyof OrganizationPluginLifecycleHooks,
+      ),
       actor_id: context.actor?.id,
       actor_type: context.actor?.type ?? "system",
       details: {
@@ -87,7 +104,9 @@ export async function executeLifecycleHook<K extends keyof OrganizationPluginLif
     await logPluginAudit({
       organization_id: context.organization.id,
       plugin_key: context.pluginKey,
-      action: getLifecycleActionName(hookName as keyof OrganizationPluginLifecycleHooks),
+      action: getLifecycleActionName(
+        hookName as keyof OrganizationPluginLifecycleHooks,
+      ),
       actor_id: context.actor?.id,
       actor_type: context.actor?.type ?? "system",
       details: {

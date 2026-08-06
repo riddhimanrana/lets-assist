@@ -1,8 +1,7 @@
 export type SpreadsheetReplaceStage = "write" | "clear";
 
 export type SpreadsheetReplaceResult =
-  | { success: true }
-  | { success: false; stage: SpreadsheetReplaceStage };
+  { success: true } | { success: false; stage: SpreadsheetReplaceStage };
 
 type SpreadsheetReplaceOperations = {
   write: () => Promise<boolean>;

@@ -21,7 +21,9 @@ type JoinOrganization = {
   logo_url: string | null;
 };
 
-export default async function JoinOrganizationPage({ searchParams }: Props): Promise<React.ReactElement> {
+export default async function JoinOrganizationPage({
+  searchParams,
+}: Props): Promise<React.ReactElement> {
   const search = await searchParams;
   const code = search.code;
   if (!code) {
@@ -29,7 +31,9 @@ export default async function JoinOrganizationPage({ searchParams }: Props): Pro
   }
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Find organization by join code
   const admin = getAdminClient();
@@ -50,17 +54,14 @@ export default async function JoinOrganizationPage({ searchParams }: Props): Pro
     <div className="flex min-h-[80vh] items-center justify-center">
       {user ? (
         // If user is logged in, show auto-join loader
-        <JoinLoader 
+        <JoinLoader
           organizationId={organization.id}
           code={code}
           userId={user.id}
         />
       ) : (
         // If user is not logged in, show auth dialog
-        <AuthDialog 
-          organization={organization}
-          joinCode={code}
-        />
+        <AuthDialog organization={organization} joinCode={code} />
       )}
     </div>
   );

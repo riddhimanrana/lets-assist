@@ -150,7 +150,8 @@ describe("the authorized payload reaches the transport unchanged", () => {
 
   test("a transactional authorization carries no topic", async () => {
     const transactional = authorized();
-    if (!transactional.authorized) throw new Error("fixture must be authorized");
+    if (!transactional.authorized)
+      throw new Error("fixture must be authorized");
     const { topicId, ...withoutTopic } = transactional.providerPayload;
     void topicId;
     transactional.providerPayload = withoutTopic as CsfProviderPayload;
@@ -273,7 +274,8 @@ describe("every transport outcome maps to exactly one settlement", () => {
       phase: "provider_response",
       code: "rate_limit_exceeded",
       status: 429,
-      error: "provider refused the request before acceptance (rate_limit_exceeded)",
+      error:
+        "provider refused the request before acceptance (rate_limit_exceeded)",
     });
 
     expect(settlement.outcome).toBe("retryable_failure");

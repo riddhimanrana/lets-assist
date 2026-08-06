@@ -32,7 +32,7 @@ describe("root theme bootstrap", () => {
     expect(layout).not.toContain('from "next/script"');
     expect(layout).not.toContain("<Script");
     expect(layout).not.toMatch(/<script\b/);
-    expect(instrumentation).toContain('import { applyInitialTheme }');
+    expect(instrumentation).toContain("import { applyInitialTheme }");
     expect(instrumentation).toContain("applyInitialTheme();");
 
     const themeIndex = instrumentation.indexOf("applyInitialTheme();");

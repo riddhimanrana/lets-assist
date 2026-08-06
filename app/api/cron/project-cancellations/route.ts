@@ -24,7 +24,10 @@ type SignupRow = {
   user_id: string | null;
   anonymous_id: string | null;
   user?: Array<{ email: string | null; full_name: string | null }> | null;
-  anonymous_signup?: Array<{ email: string | null; name: string | null }> | null;
+  anonymous_signup?: Array<{
+    email: string | null;
+    name: string | null;
+  }> | null;
 };
 
 type CancellationNotificationInsert = {
@@ -48,12 +51,14 @@ type NotificationSettingsRow = {
   project_updates: boolean | null;
 };
 
-function isAuthorized(request: NextRequest): { ok: true } | { ok: false; response: NextResponse } {
+function isAuthorized(
+  request: NextRequest,
+): { ok: true } | { ok: false; response: NextResponse } {
   const authHeader = request.headers.get("authorization");
   const expectedToken = process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
   const cronSecret = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
   const allowedTokens = [expectedToken, cronSecret].filter(
-    (value): value is string => Boolean(value)
+    (value): value is string => Boolean(value),
   );
 
   if (allowedTokens.length === 0) {
@@ -61,18 +66,24 @@ function isAuthorized(request: NextRequest): { ok: true } | { ok: false; respons
       ok: false,
       response: NextResponse.json(
         { error: "Cron auth not configured" },
-        { status: 500 }
+        { status: 500 },
       ),
     };
   }
 
   if (!authHeader) {
-    return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
   }
 
   const token = authHeader.replace("Bearer ", "");
   if (!allowedTokens.includes(token)) {
-    return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
   }
 
   return { ok: true };
@@ -85,7 +96,9 @@ function isWorkerEnabled(): boolean {
 async function processOneJob(job: CancellationJobRow) {
   const supabase = getAdminClient();
   const nowIso = new Date().toISOString();
-  const batchSize = Number(process.env.PROJECT_CANCELLATION_WORKER_BATCH_SIZE ?? "50");
+  const batchSize = Number(
+    process.env.PROJECT_CANCELLATION_WORKER_BATCH_SIZE ?? "50",
+  );
 
   // Mark as processing (best-effort)
   await supabase
@@ -133,7 +146,7 @@ async function processOneJob(job: CancellationJobRow) {
         anonymous_id,
         user:profiles!user_id(email, full_name),
         anonymous_signup:anonymous_signups!anonymous_id(email, name)
-      `
+      `,
     )
     .eq("project_id", job.project_id)
     .eq("status", "approved")
@@ -182,7 +195,9 @@ async function processOneJob(job: CancellationJobRow) {
   }
 
   const userIds = Array.from(
-    new Set(signupRows.map((s) => s.user_id).filter((id): id is string => !!id))
+    new Set(
+      signupRows.map((s) => s.user_id).filter((id): id is string => !!id),
+    ),
   );
 
   const settingsByUserId = new Map<string, NotificationSettingsRow>();
@@ -224,7 +239,9 @@ async function processOneJob(job: CancellationJobRow) {
     }
 
     // Respect settings for in-app notifications (emails are always sent for cancellations).
-    const prefs = signup.user_id ? settingsByUserId.get(signup.user_id) : undefined;
+    const prefs = signup.user_id
+      ? settingsByUserId.get(signup.user_id)
+      : undefined;
     const allowProjectUpdates = prefs?.project_updates !== false;
 
     // In-app notification data (registered users only)
@@ -248,47 +265,56 @@ async function processOneJob(job: CancellationJobRow) {
     // Email notification promise (cancellation is treated as transactional)
     const shouldSendEmail = !!email;
     if (shouldSendEmail && email) {
-      emailPromises.push((async () => {
-        try {
-          const subject = `Project Cancelled: ${project.title}`;
-          const { success, error: emailError } = await sendEmail({
-            to: email!,
-            subject,
-            react: React.createElement(ProjectCancellation, {
-              volunteerName: name,
-              projectName: project.title,
-              cancellationReason: job.cancellation_reason,
-            }),
-            type: "transactional",
-          });
+      emailPromises.push(
+        (async () => {
+          try {
+            const subject = `Project Cancelled: ${project.title}`;
+            const { success, error: emailError } = await sendEmail({
+              to: email!,
+              subject,
+              react: React.createElement(ProjectCancellation, {
+                volunteerName: name,
+                projectName: project.title,
+                cancellationReason: job.cancellation_reason,
+              }),
+              type: "transactional",
+            });
 
-          if (!success) {
-            errors.push(`Email send failed for ${email}: ${String(emailError)}`);
-          } else {
-            emailsSent++;
+            if (!success) {
+              errors.push(
+                `Email send failed for ${email}: ${String(emailError)}`,
+              );
+            } else {
+              emailsSent++;
+            }
+          } catch (e) {
+            const message =
+              e instanceof Error ? e.message : "Unknown email error";
+            errors.push(`Email send threw for ${email}: ${message}`);
           }
-        } catch (e) {
-          const message = e instanceof Error ? e.message : "Unknown email error";
-          errors.push(`Email send threw for ${email}: ${message}`);
-        }
-      })());
+        })(),
+      );
     }
   }
 
   // Execute email promises and batch insert notifications in parallel
   const dbPromises: Promise<void>[] = [];
   if (notificationsToInsert.length > 0) {
-    dbPromises.push((async () => {
-      const { error: notifError } = await supabase
-        .from("notifications")
-        .insert(notificationsToInsert);
+    dbPromises.push(
+      (async () => {
+        const { error: notifError } = await supabase
+          .from("notifications")
+          .insert(notificationsToInsert);
 
-      if (notifError) {
-        errors.push(`Batch notification insert failed: ${notifError.message}`);
-      } else {
-        notificationsCreated += notificationsToInsert.length;
-      }
-    })());
+        if (notifError) {
+          errors.push(
+            `Batch notification insert failed: ${notifError.message}`,
+          );
+        } else {
+          notificationsCreated += notificationsToInsert.length;
+        }
+      })(),
+    );
   }
 
   await Promise.all([...emailPromises, ...dbPromises]);
@@ -323,11 +349,15 @@ async function processOneJob(job: CancellationJobRow) {
 
 async function processPendingJobs() {
   const supabase = getAdminClient();
-  const maxJobs = Number(process.env.PROJECT_CANCELLATION_WORKER_MAX_JOBS ?? "3");
+  const maxJobs = Number(
+    process.env.PROJECT_CANCELLATION_WORKER_MAX_JOBS ?? "3",
+  );
 
   const { data: jobs, error } = await supabase
     .from("project_cancellation_jobs")
-    .select("id, project_id, cancelled_at, cancellation_reason, status, cursor, attempts, last_error, created_at")
+    .select(
+      "id, project_id, cancelled_at, cancellation_reason, status, cursor, attempts, last_error, created_at",
+    )
     .eq("status", "pending")
     .order("created_at", { ascending: true })
     .limit(maxJobs);
@@ -357,7 +387,7 @@ export async function POST(request: NextRequest) {
   if (!isWorkerEnabled()) {
     return NextResponse.json(
       { message: "Project cancellation worker is disabled" },
-      { status: 200 }
+      { status: 200 },
     );
   }
 
@@ -371,11 +401,14 @@ export async function POST(request: NextRequest) {
         executionTimeMs: Date.now() - start,
         ...result,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: "Internal server error", message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error", message },
+      { status: 500 },
+    );
   }
 }
 
@@ -393,7 +426,7 @@ export async function GET(request: NextRequest) {
         enabled: isWorkerEnabled(),
         timestamp: new Date().toISOString(),
       },
-      { status: 200 }
+      { status: 200 },
     );
   }
 

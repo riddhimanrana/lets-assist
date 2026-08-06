@@ -36,7 +36,7 @@ export interface WaiverSignatureInput {
   waiverPdfUrl?: string;
   formData?: Record<string, string | boolean | string[]>;
   // Phase 4: Multi-signer payload
-  payload?: SignaturePayload; 
+  payload?: SignaturePayload;
   definitionId?: string;
 }
 

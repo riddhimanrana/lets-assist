@@ -1,17 +1,18 @@
-import { generateText, Output } from 'ai';
-import { z } from 'zod';
-import { gatewayModel } from '@/lib/ai/gateway';
-import { createPostHogTelemetry } from '@/lib/ai/posthog-telemetry';
+import { generateText, Output } from "ai";
+import { z } from "zod";
+import { gatewayModel } from "@/lib/ai/gateway";
+import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
 
 export const MODERATION_MODELS = [
-  'google/gemini-2.5-flash-lite',
-  'google/gemini-2.5-flash',
-  'openai/gpt-oss-safeguard-20b',
+  "google/gemini-2.5-flash-lite",
+  "google/gemini-2.5-flash",
+  "openai/gpt-oss-safeguard-20b",
 ] as const;
 
 export function sanitizeModerationText(value: unknown, maxChars = 1200) {
-  const normalized = typeof value === 'string' ? value : value == null ? '' : String(value);
-  const collapsed = normalized.replace(/\s+/g, ' ').trim();
+  const normalized =
+    typeof value === "string" ? value : value == null ? "" : String(value);
+  const collapsed = normalized.replace(/\s+/g, " ").trim();
 
   if (collapsed.length <= maxChars) {
     return collapsed;
@@ -22,7 +23,7 @@ export function sanitizeModerationText(value: unknown, maxChars = 1200) {
 
 export function chunkModerationItems<T>(items: T[], size: number) {
   if (size <= 0) {
-    throw new Error('Chunk size must be greater than zero');
+    throw new Error("Chunk size must be greater than zero");
   }
 
   const chunks: T[][] = [];
@@ -52,11 +53,11 @@ export async function generateModerationObject<TSchema extends z.ZodTypeAny>({
   for (const model of models) {
     try {
       const { output } = await generateText({
-        model: gatewayModel('moderation', model),
+        model: gatewayModel("moderation", model),
         experimental_telemetry: createPostHogTelemetry({
           functionId: label,
           metadata: {
-            ai_feature: 'moderation',
+            ai_feature: "moderation",
           },
         }),
         output: Output.object({ schema }),
@@ -66,7 +67,10 @@ export async function generateModerationObject<TSchema extends z.ZodTypeAny>({
       return output as z.output<TSchema>;
     } catch (error) {
       lastError = error;
-      console.warn(`[${label}] moderation generation failed with ${model}:`, error);
+      console.warn(
+        `[${label}] moderation generation failed with ${model}:`,
+        error,
+      );
     }
   }
 

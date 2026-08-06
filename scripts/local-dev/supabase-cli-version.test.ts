@@ -20,9 +20,9 @@ const generatedDirectories: string[] = [];
 
 afterEach(async () => {
   await Promise.all(
-    generatedDirectories.splice(0).map((directory) =>
-      rm(directory, { recursive: true, force: true }),
-    ),
+    generatedDirectories
+      .splice(0)
+      .map((directory) => rm(directory, { recursive: true, force: true })),
   );
 });
 
@@ -67,14 +67,18 @@ describe("pinned Supabase CLI helper", () => {
         path.join(repositoryRoot, "scripts/local-dev", script),
         "utf8",
       );
-      expect(source).toContain('source "${SCRIPT_DIR}/require-supabase-cli-version.sh"');
+      expect(source).toContain(
+        'source "${SCRIPT_DIR}/require-supabase-cli-version.sh"',
+      );
       expect(source).toContain("require_supabase_cli_version");
       expect(source).not.toContain("bunx supabase");
     }
   });
 
   test("replay rejects path-like run IDs before creating or deleting anything", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "supabase-replay-safety-"));
+    const directory = await mkdtemp(
+      path.join(tmpdir(), "supabase-replay-safety-"),
+    );
     generatedDirectories.push(directory);
     const fakeBin = path.join(directory, "bin");
     await Bun.write(path.join(directory, "sentinel.txt"), "keep");
@@ -113,7 +117,9 @@ describe("pinned Supabase CLI helper", () => {
   });
 
   test("browser-stack startup rejects path-like run IDs before creating anything", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "supabase-start-safety-"));
+    const directory = await mkdtemp(
+      path.join(tmpdir(), "supabase-start-safety-"),
+    );
     generatedDirectories.push(directory);
     const fakeBin = path.join(directory, "bin");
     await mkdir(fakeBin);
@@ -150,7 +156,9 @@ describe("pinned Supabase CLI helper", () => {
   });
 
   test("generated Supabase project IDs cannot exceed the CLI's 40-character limit", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "supabase-project-id-safety-"));
+    const directory = await mkdtemp(
+      path.join(tmpdir(), "supabase-project-id-safety-"),
+    );
     generatedDirectories.push(directory);
     const fakeBin = path.join(directory, "bin");
     await mkdir(fakeBin);
@@ -181,7 +189,9 @@ describe("pinned Supabase CLI helper", () => {
   });
 
   test("replay rejects a temp-root symlink that resolves into the repository", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "supabase-replay-root-"));
+    const directory = await mkdtemp(
+      path.join(tmpdir(), "supabase-replay-root-"),
+    );
     generatedDirectories.push(directory);
     const fakeBin = path.join(directory, "bin");
     await mkdir(fakeBin);
@@ -213,7 +223,9 @@ describe("pinned Supabase CLI helper", () => {
     );
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr.toString()).toContain("Refusing unsafe CSF replay root");
+    expect(result.stderr.toString()).toContain(
+      "Refusing unsafe CSF replay root",
+    );
   });
 
   test("replay cleanup is restricted to a marker-owned direct child", async () => {
@@ -224,10 +236,12 @@ describe("pinned Supabase CLI helper", () => {
       ),
       "utf8",
     );
-    expect(source).toContain('OWNERSHIP_MARKER="${TMP_DIR}/.lets-assist-csf-replay-owned"');
+    expect(source).toContain(
+      'OWNERSHIP_MARKER="${TMP_DIR}/.lets-assist-csf-replay-owned"',
+    );
     expect(source).toContain('"${owned_parent}" != "${REPLAY_ROOT}"');
-    expect(source).toContain('docker volume ls -q --filter');
-    expect(source).toContain('docker network ls -q --filter');
+    expect(source).toContain("docker volume ls -q --filter");
+    expect(source).toContain("docker network ls -q --filter");
     expect(source).toContain("trap - EXIT");
     expect(source).toContain('rm -rf -- "${TMP_DIR}"');
   });
@@ -250,22 +264,34 @@ describe("pinned Supabase CLI helper", () => {
     // The shell builtin, not the word inside a comment.
     expect(source).not.toMatch(/(^|[;&|(\s])eval\s/mu);
     expect(source).not.toMatch(/source\s+"?\$\{?MARKER_FILE/u);
-    expect(source).toContain("Refusing an unexpected isolated stack handoff key");
-    expect(source).not.toContain("work directory name does not match project_id");
+    expect(source).toContain(
+      "Refusing an unexpected isolated stack handoff key",
+    );
+    expect(source).not.toContain(
+      "work directory name does not match project_id",
+    );
 
     // Validation precedes every stop, Docker call, and deletion.
     const validation = source.indexOf("--validate-stack-target");
     expect(validation).toBeGreaterThan(-1);
     expect(source.indexOf("supabase stop \\")).toBeGreaterThan(validation);
-    expect(source.indexOf("collect_project_resources()")).toBeGreaterThan(validation);
-    expect(source.indexOf('rm -rf -- "${WORK_DIR}"')).toBeGreaterThan(validation);
+    expect(source.indexOf("collect_project_resources()")).toBeGreaterThan(
+      validation,
+    );
+    expect(source.indexOf('rm -rf -- "${WORK_DIR}"')).toBeGreaterThan(
+      validation,
+    );
 
     // Residual checks enumerate containers, volumes, and networks by both the
     // exact project label and the pinned canonical names, so a resource whose
     // label was lost is still caught.
     expect(source).toContain('docker ps -a --filter "label=${PROJECT_LABEL}"');
-    expect(source).toContain('docker volume ls --filter "label=${PROJECT_LABEL}"');
-    expect(source).toContain('docker network ls --filter "label=${PROJECT_LABEL}"');
+    expect(source).toContain(
+      'docker volume ls --filter "label=${PROJECT_LABEL}"',
+    );
+    expect(source).toContain(
+      'docker network ls --filter "label=${PROJECT_LABEL}"',
+    );
     expect(source).toContain("docker ps -a --format '{{.Names}}'");
     expect(source).toContain("docker volume ls --format '{{.Name}}'");
     expect(source).toContain("docker network ls --format '{{.Name}}'");
@@ -299,13 +325,19 @@ describe("pinned Supabase CLI helper", () => {
     expect(source).not.toContain("--linked");
     expect(source).not.toContain("bun run supabase:start");
     expect(source).not.toContain("bun run supabase:reset");
-    expect(source).not.toContain('run_step "Local Supabase Replay + Fixtures" bun run supabase');
+    expect(source).not.toContain(
+      'run_step "Local Supabase Replay + Fixtures" bun run supabase',
+    );
     expect(source).not.toContain("stop-next-dev.mjs");
 
     // pgTAP runs against the same already-running work directory.
-    expect(source).toContain('supabase test db --workdir "${CSF_ISOLATED_WORK_DIR}"');
+    expect(source).toContain(
+      'supabase test db --workdir "${CSF_ISOLATED_WORK_DIR}"',
+    );
 
-    expect(source).toContain("node scripts/local-dev/dv-local-env.mjs --csf-health");
+    expect(source).toContain(
+      "node scripts/local-dev/dv-local-env.mjs --csf-health",
+    );
     // The cron harness owns its server and refuses to adopt one, so the verifier
     // must not hand it a base URL to point at.
     expect(source).not.toContain("CRON_TEST_BASE_URL");
@@ -322,16 +354,23 @@ describe("pinned Supabase CLI helper", () => {
 
   test("the verifier loads the app environment by exact bytes, never by sourcing a pathname", async () => {
     const source = await readFile(
-      path.join(repositoryRoot, "scripts/local-dev/verify-supabase-redesign.sh"),
+      path.join(
+        repositoryRoot,
+        "scripts/local-dev/verify-supabase-redesign.sh",
+      ),
       "utf8",
     );
 
-    expect(source).toContain("node scripts/local-dev/dv-local-env.mjs --print-app-env");
+    expect(source).toContain(
+      "node scripts/local-dev/dv-local-env.mjs --print-app-env",
+    );
     expect(source).not.toMatch(/source\s+.*lets-assist-browser\.sh/u);
     expect(source).not.toContain("set -a");
 
     // Validation and exact-byte loading precede every live command and the seeds.
-    const load = source.indexOf('run_step "${APP_ENV_STEP_LABEL}" load_validated_app_environment');
+    const load = source.indexOf(
+      'run_step "${APP_ENV_STEP_LABEL}" load_validated_app_environment',
+    );
     const liveIdentity = source.indexOf('run_step "${TARGET_STEP_LABEL}"');
     const pgTap = source.indexOf('run_step "${PGTAP_STEP_LABEL}"');
     // The isolated-mode seed script only: the shared-local one would select the
@@ -351,7 +390,10 @@ describe("pinned Supabase CLI helper", () => {
 
   test("verifier teardown failure is never swallowed", async () => {
     const source = await readFile(
-      path.join(repositoryRoot, "scripts/local-dev/verify-supabase-redesign.sh"),
+      path.join(
+        repositoryRoot,
+        "scripts/local-dev/verify-supabase-redesign.sh",
+      ),
       "utf8",
     );
 
@@ -361,21 +403,28 @@ describe("pinned Supabase CLI helper", () => {
     expect(source).toContain("local status=$?");
     expect(source).toContain("trap - EXIT HUP INT TERM");
     expect(source).toContain('if [[ "${CLEANUP_ATTEMPTED}" == true ]]; then');
-    expect(source).toContain('Preserving the original gate failure status ${status}.');
+    expect(source).toContain(
+      "Preserving the original gate failure status ${status}.",
+    );
     // A caller-owned prepared stack is never stopped or deleted.
-    expect(source).toContain('if [[ "${OWNED_ISOLATED_STACK}" != true ]]; then');
+    expect(source).toContain(
+      'if [[ "${OWNED_ISOLATED_STACK}" != true ]]; then',
+    );
   });
 
   test("the isolated launcher keeps its atomic claim and marker guards", async () => {
     const source = await readFile(
-      path.join(repositoryRoot, "scripts/local-dev/start-dvhs-csf-isolated-stack.sh"),
+      path.join(
+        repositoryRoot,
+        "scripts/local-dev/start-dvhs-csf-isolated-stack.sh",
+      ),
       "utf8",
     );
 
     expect(source).toContain('if ! mkdir "${PROJECT_CLAIM}" 2>/dev/null; then');
     expect(source).toContain('claim="${CLAIM_ROOT}/port-${port}"');
     expect(source).toContain("acquire_allocator_lock");
-    expect(source).toContain('CSF_ISOLATED_CLAIM_ROOT is a test-only override');
+    expect(source).toContain("CSF_ISOLATED_CLAIM_ROOT is a test-only override");
     expect(source).toContain("write_marker starting");
     expect(source).toContain("write_marker ready");
     expect(source).toContain('mv -f "${temp_marker}" "${MARKER_FILE}"');
@@ -388,7 +437,9 @@ describe("pinned Supabase CLI helper", () => {
       path.join(repositoryRoot, ".github/workflows/ci.yml"),
       "utf8",
     );
-    expect(source).toContain("Require DVHS CSF private plugin and browser suite");
+    expect(source).toContain(
+      "Require DVHS CSF private plugin and browser suite",
+    );
     expect(source).toContain("DVHS CSF browser specs are required");
     expect(source).toContain("Start one isolated Let’s Assist Supabase");
     expect(source).toContain("stop-dvhs-csf-isolated-stack.sh");
@@ -406,7 +457,10 @@ describe("pinned Supabase CLI helper", () => {
 
   test("the hermetic fake CLI cannot collude with the implementation's resource list", async () => {
     const harness = await readFile(
-      path.join(repositoryRoot, "scripts/local-dev/csf-browser-harness.test.ts"),
+      path.join(
+        repositoryRoot,
+        "scripts/local-dev/csf-browser-harness.fixture.ts",
+      ),
       "utf8",
     );
 
@@ -438,13 +492,18 @@ describe("pinned Supabase CLI helper", () => {
 
   test("the pinned resource oracle is a literal, provenance-anchored fixture", async () => {
     const fixture = await readFile(
-      path.join(repositoryRoot, "scripts/local-dev/pinned-supabase-cli-resources.fixture.ts"),
+      path.join(
+        repositoryRoot,
+        "scripts/local-dev/pinned-supabase-cli-resources.fixture.ts",
+      ),
       "utf8",
     );
 
     // It must not derive anything from the implementation. Provenance comments
     // may reference it; executable code may not.
-    const fixtureCode = fixture.replace(/\/\*\*?[\s\S]*?\*\//gu, "").replace(/^\s*\/\/.*$/gmu, "");
+    const fixtureCode = fixture
+      .replace(/\/\*\*?[\s\S]*?\*\//gu, "")
+      .replace(/^\s*\/\/.*$/gmu, "");
     expect(fixtureCode).not.toContain("dv-local-env");
     expect(fixtureCode).not.toContain("import ");
     expect(fixtureCode).not.toContain("require(");
@@ -468,13 +527,20 @@ describe("pinned Supabase CLI helper", () => {
 
   test("the workflow gate never ignores a probe cleanup result", async () => {
     const source = await readFile(
-      path.join(repositoryRoot, "scripts/local-dev/test-dvhs-csf-workflows.mjs"),
+      path.join(
+        repositoryRoot,
+        "scripts/local-dev/test-dvhs-csf-workflows.mjs",
+      ),
       "utf8",
     );
 
     expect(source).toContain("} finally {");
-    expect(source).toContain('await deleteProbeRows("csf_submission_files", proofProbeIds);');
-    expect(source).toContain('await deleteProbeRows("csf_credit_records", creditProbeIds);');
+    expect(source).toContain(
+      'await deleteProbeRows("csf_submission_files", proofProbeIds);',
+    );
+    expect(source).toContain(
+      'await deleteProbeRows("csf_credit_records", creditProbeIds);',
+    );
     expect(source).toContain('.delete().in("id", ids).select("id")');
     expect(source).toContain("cleanupFailures.push");
     expect(source).toContain("throw probeFailure;");
@@ -483,6 +549,8 @@ describe("pinned Supabase CLI helper", () => {
     );
     expect(source).not.toContain("getCsfIsolatedSupabaseEnv();");
     // A bare delete with no result inspection is exactly what this forbids.
-    expect(source).not.toMatch(/await plugin\.from\("csf_submission_files"\)\.delete\(\)\.eq\(/u);
+    expect(source).not.toMatch(
+      /await plugin\.from\("csf_submission_files"\)\.delete\(\)\.eq\(/u,
+    );
   });
 });

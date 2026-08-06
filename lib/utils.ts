@@ -29,11 +29,11 @@ export function formatTimeTo12Hour(time: string): string {
  * @returns Formatted string (e.g., "1.2 MB")
  */
 export function formatBytes(bytes: number, decimals: number = 1): string {
-  if (!+bytes) return '0 Bytes';
+  if (!+bytes) return "0 Bytes";
 
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
 
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
@@ -47,30 +47,30 @@ export function formatBytes(bytes: number, decimals: number = 1): string {
  * @returns Plain text with all HTML removed
  */
 export function stripHtml(html: string): string {
-  if (typeof html !== 'string') return '';
-  
+  if (typeof html !== "string") return "";
+
   // Replace common HTML entities first
   let text = html
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&');
-  
+    .replace(/&amp;/g, "&");
+
   // Remove all HTML tags - multiple passes to handle nested/malformed tags
-  let previousText = '';
+  let previousText = "";
   while (previousText !== text) {
     previousText = text;
-    text = text.replace(/<[^>]*>/g, '');
+    text = text.replace(/<[^>]*>/g, "");
   }
-  
+
   // Remove any remaining < or > characters that might be leftover
-  text = text.replace(/[<>]/g, '');
-  
+  text = text.replace(/[<>]/g, "");
+
   // Clean up whitespace
-  text = text.replace(/\s+/g, ' ').trim();
-  
+  text = text.replace(/\s+/g, " ").trim();
+
   return text;
 }
 
@@ -111,5 +111,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
  */
 export function isMobileDevice(): boolean {
   if (typeof navigator === "undefined") return false;
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent,
+  );
 }

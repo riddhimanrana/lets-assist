@@ -49,7 +49,12 @@ const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_DOCUMENTS_COUNT = 5;
 
 // Allowed file types
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/jpg",
+];
 const ALLOWED_DOCUMENT_TYPES = [
   "application/pdf",
   "application/msword",
@@ -58,7 +63,7 @@ const ALLOWED_DOCUMENT_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
-  "image/jpg"
+  "image/jpg",
 ];
 
 interface FinalizeProps {
@@ -81,7 +86,12 @@ interface FinalizeProps {
       };
       multiDay: {
         date: string;
-        slots: { name: string; startTime: string; endTime: string; volunteers: number }[];
+        slots: {
+          name: string;
+          startTime: string;
+          endTime: string;
+          volunteers: number;
+        }[];
       }[];
       sameDayMultiArea: {
         date: string;
@@ -99,8 +109,12 @@ interface FinalizeProps {
   setCoverImageAction: (file: File | null) => void;
   setDocumentsAction: (docs: File[]) => void;
   hasProfanity: boolean;
-  coverImageUploadState?: "idle" | "uploading" | "processing" | "error" | "done";
-  documentUploadStates?: Record<string, "idle" | "uploading" | "processing" | "error" | "done">;
+  coverImageUploadState?:
+    "idle" | "uploading" | "processing" | "error" | "done";
+  documentUploadStates?: Record<
+    string,
+    "idle" | "uploading" | "processing" | "error" | "done"
+  >;
   getUploadKey?: (file: File) => string;
 }
 
@@ -113,7 +127,9 @@ export default function Finalize({
   documentUploadStates = {},
   getUploadKey = (file) => `${file.name}-${file.size}-${file.lastModified}`,
 }: FinalizeProps) {
-  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
+  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(
+    null,
+  );
   const [localDocuments, setLocalDocuments] = useState<File[]>([]);
   const [dragActive, setDragActive] = useState<"cover" | "docs" | null>(null);
   const [totalDocumentsSize, setTotalDocumentsSize] = useState<number>(0);
@@ -199,7 +215,10 @@ export default function Finalize({
     return true;
   };
 
-  const validateDocument = (file: File, existingFiles: File[] = []): boolean => {
+  const validateDocument = (
+    file: File,
+    existingFiles: File[] = [],
+  ): boolean => {
     if (!ALLOWED_DOCUMENT_TYPES.includes(file.type)) {
       toast.error("Invalid file type.");
       return false;
@@ -211,7 +230,10 @@ export default function Finalize({
     }
 
     // Check if adding this file would exceed the total documents size limit
-    const currentTotalSize = existingFiles.reduce((sum, doc) => sum + doc.size, 0);
+    const currentTotalSize = existingFiles.reduce(
+      (sum, doc) => sum + doc.size,
+      0,
+    );
     if (currentTotalSize + file.size > MAX_DOCUMENT_SIZE) {
       toast.error("Total documents size must not exceed 10MB");
       return false;
@@ -219,7 +241,9 @@ export default function Finalize({
 
     // Check if adding this file would exceed the max count
     if (existingFiles.length >= MAX_DOCUMENTS_COUNT) {
-      toast.error("Maximum files reached. You can upload a maximum of 5 documents");
+      toast.error(
+        "Maximum files reached. You can upload a maximum of 5 documents",
+      );
       return false;
     }
 
@@ -283,11 +307,14 @@ export default function Finalize({
   };
 
   // Drag and drop handlers
-  const handleDragOver = useCallback((e: React.DragEvent, dropZone: "cover" | "docs") => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(dropZone);
-  }, []);
+  const handleDragOver = useCallback(
+    (e: React.DragEvent, dropZone: "cover" | "docs") => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragActive(dropZone);
+    },
+    [],
+  );
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -295,57 +322,63 @@ export default function Finalize({
     setDragActive(null);
   }, []);
 
-  const handleCoverImageDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(null);
+  const handleCoverImageDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragActive(null);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        const file = e.dataTransfer.files[0];
 
-      if (validateImage(file)) {
-        setCoverImageAction(file);
-        const fileReader = new FileReader();
-        fileReader.onload = (e) => {
-          if (e.target?.result) {
-            setCoverImagePreview(e.target.result as string);
-          }
-        };
-        fileReader.readAsDataURL(file);
-      }
-    }
-  }, [setCoverImageAction]);
-
-  const handleDocumentsDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(null);
-
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const newFiles = Array.from(e.dataTransfer.files);
-
-      // Check if adding these files would exceed the max count
-      if (localDocuments.length + newFiles.length > MAX_DOCUMENTS_COUNT) {
-        toast.error("Maximum files reached");
-        return;
-      }
-
-      // Validate each file individually
-      const validFiles: File[] = [];
-
-      for (const file of newFiles) {
-        if (validateDocument(file, [...localDocuments, ...validFiles])) {
-          validFiles.push(file);
+        if (validateImage(file)) {
+          setCoverImageAction(file);
+          const fileReader = new FileReader();
+          fileReader.onload = (e) => {
+            if (e.target?.result) {
+              setCoverImagePreview(e.target.result as string);
+            }
+          };
+          fileReader.readAsDataURL(file);
         }
       }
+    },
+    [setCoverImageAction],
+  );
 
-      if (validFiles.length > 0) {
-        const updatedDocs = [...localDocuments, ...validFiles];
-        setLocalDocuments(updatedDocs);
-        setDocumentsAction(updatedDocs);
+  const handleDocumentsDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragActive(null);
+
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const newFiles = Array.from(e.dataTransfer.files);
+
+        // Check if adding these files would exceed the max count
+        if (localDocuments.length + newFiles.length > MAX_DOCUMENTS_COUNT) {
+          toast.error("Maximum files reached");
+          return;
+        }
+
+        // Validate each file individually
+        const validFiles: File[] = [];
+
+        for (const file of newFiles) {
+          if (validateDocument(file, [...localDocuments, ...validFiles])) {
+            validFiles.push(file);
+          }
+        }
+
+        if (validFiles.length > 0) {
+          const updatedDocs = [...localDocuments, ...validFiles];
+          setLocalDocuments(updatedDocs);
+          setDocumentsAction(updatedDocs);
+        }
       }
-    }
-  }, [localDocuments, setDocumentsAction]);
+    },
+    [localDocuments, setDocumentsAction],
+  );
 
   // Get file icon based on type
   const getFileIcon = (fileType: string) => {
@@ -372,7 +405,7 @@ export default function Finalize({
 
   const getAttachmentDescription = (
     file: File,
-    state: "idle" | "uploading" | "processing" | "error" | "done"
+    state: "idle" | "uploading" | "processing" | "error" | "done",
   ) => {
     if (state === "uploading") return "Uploading...";
     if (state === "processing") return "Saving to project...";
@@ -383,7 +416,8 @@ export default function Finalize({
 
   // Helper function for determining upload area styling
   const getUploadAreaClassName = (type: "cover" | "docs") => {
-    const baseClass = "border-2 border-dashed rounded-lg relative flex flex-col items-center justify-center p-6 transition-colors";
+    const baseClass =
+      "border-2 border-dashed rounded-lg relative flex flex-col items-center justify-center p-6 transition-colors";
 
     if (dragActive === type) {
       return `${baseClass} border-primary bg-primary/5`;
@@ -403,8 +437,9 @@ export default function Finalize({
           <div>
             <h4 className="font-semibold">Content warning</h4>
             <p className="text-sm text-muted-foreground">
-              We detected potentially inappropriate content when you clicked create.
-              Please revise your title, location, or description and try again.
+              We detected potentially inappropriate content when you clicked
+              create. Please revise your title, location, or description and try
+              again.
             </p>
             <p className="text-xs text-muted-foreground mt-2">
               We only run this check during submission.
@@ -420,8 +455,9 @@ export default function Finalize({
         <div>
           <h4 className="font-semibold">Ready to create your project</h4>
           <p className="text-sm text-muted-foreground">
-            Click the &quot;Create&quot; button below to publish this project and start accepting volunteers.
-            We&apos;ll run one profanity check right before submission.
+            Click the &quot;Create&quot; button below to publish this project
+            and start accepting volunteers. We&apos;ll run one profanity check
+            right before submission.
           </p>
         </div>
       </>
@@ -442,7 +478,10 @@ export default function Finalize({
           {/* Cover Image Upload */}
           <div className="space-y-2">
             <h4 className="font-medium">Cover Image</h4>
-            <p className="text-xs text-muted-foreground">Upload a cover image for your project (JPEG, JPG, PNG, WebP, max 5MB)</p>
+            <p className="text-xs text-muted-foreground">
+              Upload a cover image for your project (JPEG, JPG, PNG, WebP, max
+              5MB)
+            </p>
             <div
               className={getUploadAreaClassName("cover")}
               onDragOver={(e) => handleDragOver(e, "cover")}
@@ -453,7 +492,10 @@ export default function Finalize({
             >
               {coverImagePreview ? (
                 <div className="w-full max-w-md mx-auto">
-                  <AspectRatio ratio={4 / 3} className="bg-muted overflow-hidden rounded-md">
+                  <AspectRatio
+                    ratio={4 / 3}
+                    className="bg-muted overflow-hidden rounded-md"
+                  >
                     <div className="relative w-full h-full">
                       <Image
                         src={coverImagePreview}
@@ -480,8 +522,12 @@ export default function Finalize({
                       <ImageIcon className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <div className="text-center space-y-1">
-                      <p className="text-sm font-medium">Drag & drop your cover image here</p>
-                      <p className="text-xs text-muted-foreground">or click to browse</p>
+                      <p className="text-sm font-medium">
+                        Drag & drop your cover image here
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        or click to browse
+                      </p>
                     </div>
                   </div>
                   <input
@@ -493,10 +539,12 @@ export default function Finalize({
                   />
                 </>
               )}
-
             </div>
             {coverImagePreview && (
-              <Attachment state={coverImageUploadState} className="mt-3 w-full sm:w-fit">
+              <Attachment
+                state={coverImageUploadState}
+                className="mt-3 w-full sm:w-fit"
+              >
                 <AttachmentMedia variant="image">
                   <Image
                     src={coverImagePreview}
@@ -510,10 +558,12 @@ export default function Finalize({
                   <AttachmentTitle>Cover image ready</AttachmentTitle>
                   <AttachmentDescription>
                     {coverImageUploadState === "uploading" && "Uploading..."}
-                    {coverImageUploadState === "processing" && "Saving to project..."}
+                    {coverImageUploadState === "processing" &&
+                      "Saving to project..."}
                     {coverImageUploadState === "error" && "Upload failed"}
                     {coverImageUploadState === "done" && "Uploaded"}
-                    {coverImageUploadState === "idle" && "Will be uploaded after project creation"}
+                    {coverImageUploadState === "idle" &&
+                      "Will be uploaded after project creation"}
                   </AttachmentDescription>
                 </AttachmentContent>
                 <AttachmentActions>
@@ -522,7 +572,10 @@ export default function Finalize({
                     variant="ghost"
                     aria-label="Remove cover image"
                     title="Remove cover image"
-                    disabled={coverImageUploadState === "uploading" || coverImageUploadState === "processing"}
+                    disabled={
+                      coverImageUploadState === "uploading" ||
+                      coverImageUploadState === "processing"
+                    }
                     onClick={removeCoverImage}
                   >
                     <X className="h-4 w-4" />
@@ -532,7 +585,10 @@ export default function Finalize({
             )}
             <div className="flex items-center mt-2 text-xs text-muted-foreground">
               <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
-              <span>Cover images are optional, but if you have an image feel free to show it!</span>
+              <span>
+                Cover images are optional, but if you have an image feel free to
+                show it!
+              </span>
             </div>
           </div>
 
@@ -541,12 +597,17 @@ export default function Finalize({
             <div className="flex justify-between items-center">
               <h4 className="font-medium">Supporting Documents</h4>
               <div className="text-xs text-muted-foreground">
-                {localDocuments.length}/{MAX_DOCUMENTS_COUNT} files • {formatFileSize(totalDocumentsSize)}/{formatFileSize(MAX_DOCUMENT_SIZE)}
+                {localDocuments.length}/{MAX_DOCUMENTS_COUNT} files •{" "}
+                {formatFileSize(totalDocumentsSize)}/
+                {formatFileSize(MAX_DOCUMENT_SIZE)}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Upload permission slips, waivers, instructions or images (PDF, Word, Text, Images, max 10MB total)</p>
+            <p className="text-xs text-muted-foreground">
+              Upload permission slips, waivers, instructions or images (PDF,
+              Word, Text, Images, max 10MB total)
+            </p>
             <div
-              className={`${getUploadAreaClassName("docs")} min-h-[180px] ${localDocuments.length >= MAX_DOCUMENTS_COUNT ? 'opacity-50 pointer-events-none' : ''}`}
+              className={`${getUploadAreaClassName("docs")} min-h-[180px] ${localDocuments.length >= MAX_DOCUMENTS_COUNT ? "opacity-50 pointer-events-none" : ""}`}
               onDragOver={(e) => handleDragOver(e, "docs")}
               onDragLeave={handleDragLeave}
               onDrop={handleDocumentsDrop}
@@ -559,7 +620,9 @@ export default function Finalize({
                 </div>
                 <div className="text-center space-y-1">
                   <p className="text-sm font-medium">Drag & drop files here</p>
-                  <p className="text-xs text-muted-foreground">or click to browse</p>
+                  <p className="text-xs text-muted-foreground">
+                    or click to browse
+                  </p>
                 </div>
                 {localDocuments.length < MAX_DOCUMENTS_COUNT && (
                   <input
@@ -584,7 +647,8 @@ export default function Finalize({
                   className="grid gap-2 overflow-visible py-0 sm:grid-cols-2 lg:grid-cols-3"
                 >
                   {localDocuments.map((doc, index) => {
-                    const uploadState = documentUploadStates[getUploadKey(doc)] ?? "idle";
+                    const uploadState =
+                      documentUploadStates[getUploadKey(doc)] ?? "idle";
 
                     return (
                       <Attachment
@@ -607,7 +671,10 @@ export default function Finalize({
                             variant="ghost"
                             aria-label={`Remove ${doc.name}`}
                             title={`Remove ${doc.name}`}
-                            disabled={uploadState === "uploading" || uploadState === "processing"}
+                            disabled={
+                              uploadState === "uploading" ||
+                              uploadState === "processing"
+                            }
                             onClick={() => removeDocument(index)}
                           >
                             <X className="h-4 w-4" />
@@ -623,7 +690,10 @@ export default function Finalize({
             {!localDocuments.length && (
               <div className="flex items-center mt-2 text-xs text-muted-foreground">
                 <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
-                <span>Documents are optional but recommended for projects requiring additional information</span>
+                <span>
+                  Documents are optional but recommended for projects requiring
+                  additional information
+                </span>
               </div>
             )}
           </div>
@@ -642,14 +712,19 @@ export default function Finalize({
               <User className="h-4 w-4 shrink-0" />
             )}
             <span className="text-sm">
-              {state.basicInfo.organizationId ? "Published as an organization account" : "Published as a personal project"}
+              {state.basicInfo.organizationId
+                ? "Published as an organization account"
+                : "Published as a personal project"}
             </span>
           </div>
           <div className="flex items-start gap-2 text-muted-foreground mb-4">
             <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
             <span className="text-sm">{state.basicInfo.location}</span>
           </div>
-          <RichTextContent content={state.basicInfo.description} className="text-sm" />
+          <RichTextContent
+            content={state.basicInfo.description}
+            className="text-sm"
+          />
         </div>
 
         <div className="bg-muted/50 p-4 rounded-lg space-y-4">
@@ -742,7 +817,8 @@ export default function Finalize({
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm">
-                          {convertTo12HourFormat(slot.startTime)} - {convertTo12HourFormat(slot.endTime)}
+                          {convertTo12HourFormat(slot.startTime)} -{" "}
+                          {convertTo12HourFormat(slot.endTime)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -770,8 +846,14 @@ export default function Finalize({
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">
-                  Overall hours: {convertTo12HourFormat(state.schedule.sameDayMultiArea.overallStart)}{" "}
-                  - {convertTo12HourFormat(state.schedule.sameDayMultiArea.overallEnd)}
+                  Overall hours:{" "}
+                  {convertTo12HourFormat(
+                    state.schedule.sameDayMultiArea.overallStart,
+                  )}{" "}
+                  -{" "}
+                  {convertTo12HourFormat(
+                    state.schedule.sameDayMultiArea.overallEnd,
+                  )}
                 </span>
               </div>
               <Separator className="my-2" />
@@ -786,7 +868,8 @@ export default function Finalize({
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm">
-                          {convertTo12HourFormat(role.startTime)} - {convertTo12HourFormat(role.endTime)}
+                          {convertTo12HourFormat(role.startTime)} -{" "}
+                          {convertTo12HourFormat(role.endTime)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -812,9 +895,13 @@ export default function Finalize({
         {/* AI Moderation Alert (using Shadcn Alert) */}
         <Alert variant="default" className="border-warning bg-warning/10">
           <AlertTriangle className="h-4 w-4 text-warning dark:text-warning" />
-          <AlertTitle className="text-warning">Content Moderation Notice</AlertTitle>
+          <AlertTitle className="text-warning">
+            Content Moderation Notice
+          </AlertTitle>
           <AlertDescription className="text-xs text-warning">
-            All projects are reviewed by our AI moderation system. Projects identified as spam or potentially malicious may be automatically flagged or removed to maintain platform safety.
+            All projects are reviewed by our AI moderation system. Projects
+            identified as spam or potentially malicious may be automatically
+            flagged or removed to maintain platform safety.
           </AlertDescription>
         </Alert>
       </CardContent>

@@ -8,7 +8,11 @@ import { siInstagram, siX } from "simple-icons";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { SimpleIcon } from "@/components/ui/simple-icon";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type FooterSystemStatus = "operational" | "degraded" | "outage" | "unknown";
 
@@ -44,7 +48,8 @@ const FOOTER_STATUS_META: Record<
 
 export function Footer() {
   const { user } = useAuth();
-  const [systemStatus, setSystemStatus] = useState<FooterSystemStatus>("unknown");
+  const [systemStatus, setSystemStatus] =
+    useState<FooterSystemStatus>("unknown");
 
   useEffect(() => {
     let isMounted = true;
@@ -67,7 +72,11 @@ export function Footer() {
 
         if (!isMounted) return;
 
-        if (next === "operational" || next === "degraded" || next === "outage") {
+        if (
+          next === "operational" ||
+          next === "degraded" ||
+          next === "outage"
+        ) {
           setSystemStatus(next);
           return;
         }
@@ -100,7 +109,7 @@ export function Footer() {
       { href: "/contact", label: "Contact" },
       { href: "/acknowledgements", label: "Acknowledgements" },
     ],
-    [primaryLink]
+    [primaryLink],
   );
 
   const statusMeta = FOOTER_STATUS_META[systemStatus];
@@ -114,11 +123,14 @@ export function Footer() {
           rel="noopener noreferrer"
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium leading-none align-middle transition-colors hover:opacity-90",
-            statusMeta.badgeClassName
+            statusMeta.badgeClassName,
           )}
           aria-label={`System status: ${statusMeta.label}`}
         >
-          <span className={cn("size-2 rounded-full", statusMeta.dotClassName)} aria-hidden="true" />
+          <span
+            className={cn("size-2 rounded-full", statusMeta.dotClassName)}
+            aria-hidden="true"
+          />
           <span className="leading-none">{statusMeta.label}</span>
         </Link>
       </TooltipTrigger>
@@ -198,7 +210,12 @@ export function Footer() {
         {/* Desktop layout */}
         <div className="hidden md:flex md:items-center md:justify-between md:gap-6">
           <div className="flex min-w-0 items-center gap-3">
-            <Image src="/logo.png" alt="letsassist Logo" width={32} height={32} />
+            <Image
+              src="/logo.png"
+              alt="letsassist Logo"
+              width={32}
+              height={32}
+            />
             <p className="text-sm text-muted-foreground whitespace-nowrap">
               © {currentYear} Tulip Coaching LLC
               <span className="hidden xl:inline">. All rights reserved.</span>

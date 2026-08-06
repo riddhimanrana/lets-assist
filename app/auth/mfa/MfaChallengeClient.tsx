@@ -1,12 +1,7 @@
 "use client";
 
 import { REGEXP_ONLY_DIGITS } from "input-otp";
-import {
-  AlertTriangle,
-  LogOut,
-  ShieldCheck,
-  Smartphone,
-} from "lucide-react";
+import { AlertTriangle, LogOut, ShieldCheck, Smartphone } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -94,12 +89,17 @@ export default function MfaChallengeClient({
       }
 
       if (claimsError) {
-        console.error("Failed to load auth claims for MFA challenge:", claimsError);
+        console.error(
+          "Failed to load auth claims for MFA challenge:",
+          claimsError,
+        );
       }
 
       const factorData = factorsData as MfaListFactorsLike | null;
       const assuranceData = deriveAuthenticatorAssurance(
-        typeof claimsData?.claims?.aal === "string" ? claimsData.claims.aal : null,
+        typeof claimsData?.claims?.aal === "string"
+          ? claimsData.claims.aal
+          : null,
         factorData,
       );
       const verifiedFactors = getVerifiedTotpFactors(factorData);
@@ -123,7 +123,9 @@ export default function MfaChallengeClient({
       setSelectedFactorId((currentSelectedFactorId) => {
         if (
           currentSelectedFactorId &&
-          verifiedFactors.some((factor) => factor.id === currentSelectedFactorId)
+          verifiedFactors.some(
+            (factor) => factor.id === currentSelectedFactorId,
+          )
         ) {
           return currentSelectedFactorId;
         }
@@ -250,7 +252,9 @@ export default function MfaChallengeClient({
                 <div className="space-y-4">
                   {factors.length > 1 ? (
                     <div className="space-y-2">
-                      <p className="text-sm font-medium">Choose an authenticator</p>
+                      <p className="text-sm font-medium">
+                        Choose an authenticator
+                      </p>
                       <div className="grid gap-2">
                         {factors.map((factor, index) => {
                           const isSelected = factor.id === selectedFactorId;
@@ -275,7 +279,8 @@ export default function MfaChallengeClient({
                                     {getMfaFactorLabel(factor, index)}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
-                                    Enter the latest 6-digit code from this device.
+                                    Enter the latest 6-digit code from this
+                                    device.
                                   </p>
                                 </div>
                               </div>
@@ -297,7 +302,9 @@ export default function MfaChallengeClient({
                   )}
 
                   <div className="space-y-2">
-                    <p className="text-sm font-medium">6-digit authenticator code</p>
+                    <p className="text-sm font-medium">
+                      6-digit authenticator code
+                    </p>
                     <InputOTP
                       value={verificationCode}
                       onChange={setVerificationCode}
@@ -325,7 +332,9 @@ export default function MfaChallengeClient({
                 <Button
                   onClick={handleVerify}
                   disabled={
-                    isVerifying || !selectedFactorId || verificationCode.length !== 6
+                    isVerifying ||
+                    !selectedFactorId ||
+                    verificationCode.length !== 6
                   }
                   className="sm:w-auto"
                 >

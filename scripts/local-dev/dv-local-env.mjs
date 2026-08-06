@@ -221,11 +221,15 @@ function parseSingleConfigValue(source, key) {
   // local runtime identity.
   const firstSection = source.search(/^\s*\[/mu);
   const root = firstSection === -1 ? source : source.slice(0, firstSection);
-  const matches = [...root.matchAll(
-    new RegExp(`^\\s*${key}\\s*=\\s*(?:"([^"]+)"|(\\d+))\\s*$`, "gmu"),
-  )];
+  const matches = [
+    ...root.matchAll(
+      new RegExp(`^\\s*${key}\\s*=\\s*(?:"([^"]+)"|(\\d+))\\s*$`, "gmu"),
+    ),
+  ];
   if (matches.length !== 1) {
-    throw new Error(`Expected exactly one ${key} in the isolated Supabase config.`);
+    throw new Error(
+      `Expected exactly one ${key} in the isolated Supabase config.`,
+    );
   }
   return matches[0][1] ?? matches[0][2];
 }
@@ -263,7 +267,9 @@ const CSF_MARKER_LINE_PATTERN = /^([a-z][a-z0-9_]*)=(.*)$/u;
  */
 export function parseCsfIsolatedMarker(markerSource, { requireState } = {}) {
   if (!markerSource.endsWith("\n")) {
-    throw new Error("CSF isolated stack marker is truncated; it must end with a newline.");
+    throw new Error(
+      "CSF isolated stack marker is truncated; it must end with a newline.",
+    );
   }
 
   const values = {};
@@ -298,7 +304,9 @@ export function parseCsfIsolatedMarker(markerSource, { requireState } = {}) {
   }
 
   const expected =
-    state === "ready" ? CSF_MARKER_READY_FIELDS : CSF_MARKER_TRANSITIONAL_FIELDS;
+    state === "ready"
+      ? CSF_MARKER_READY_FIELDS
+      : CSF_MARKER_TRANSITIONAL_FIELDS;
   const present = new Set(Object.keys(values));
   for (const field of expected) {
     if (!present.has(field)) {
@@ -319,7 +327,9 @@ export function parseCsfIsolatedMarker(markerSource, { requireState } = {}) {
   }
   const runId = projectId.slice(CSF_ISOLATED_PROJECT_PREFIX.length);
   if (`${CSF_ISOLATED_PROJECT_PREFIX}${runId}` !== projectId) {
-    throw new Error("CSF isolated stack marker project_id does not carry one run ID.");
+    throw new Error(
+      "CSF isolated stack marker project_id does not carry one run ID.",
+    );
   }
   if (!/^[0-9]+$/u.test(values.base_port)) {
     throw new Error("CSF isolated stack marker has an invalid base_port.");
@@ -380,7 +390,12 @@ const CSF_CONFIG_PORT_MAPPING = [
   { section: "db.pooler", key: "port", offset: 9 },
 ];
 
-const CSF_CONFIG_PORT_KEYS = new Set(["port", "shadow_port", "smtp_port", "inspector_port"]);
+const CSF_CONFIG_PORT_KEYS = new Set([
+  "port",
+  "shadow_port",
+  "smtp_port",
+  "inspector_port",
+]);
 
 function parseConfigPortAssignments(config) {
   const assignments = new Map();
@@ -466,7 +481,10 @@ function assertProviderDisabledGoogleAuth(config) {
   const remainder = config.slice(header.index + header[0].length);
   const nextSection = /^[ \t]*\[/mu.exec(remainder);
   const body = nextSection ? remainder.slice(0, nextSection.index) : remainder;
-  const lines = body.split("\n").map((line) => line.trim()).filter(Boolean);
+  const lines = body
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
 
   if (
     lines.length !== CSF_DISABLED_GOOGLE_AUTH_KEYS.length ||
@@ -519,7 +537,9 @@ function openOwnerOnlyFile(filePath, label) {
     const opened = fstatSync(fd);
     assertPrivateRegularFile(filePath, opened);
     if (opened.dev !== pathPosture.dev || opened.ino !== pathPosture.ino) {
-      throw new Error(`${label} changed identity between posture check and open.`);
+      throw new Error(
+        `${label} changed identity between posture check and open.`,
+      );
     }
     const source = readExactBytes(fd, opened.size);
     return {
@@ -539,7 +559,11 @@ function openOwnerOnlyFile(filePath, label) {
 function commitOwnerOnlyFile(handle) {
   const current = fstatSync(handle.fd);
   assertPrivateRegularFile(handle.filePath, current);
-  assertUnchangedPosture(`${handle.label} descriptor`, handle.posture, capturePosture(current));
+  assertUnchangedPosture(
+    `${handle.label} descriptor`,
+    handle.posture,
+    capturePosture(current),
+  );
 
   const source = readExactBytes(handle.fd, handle.posture.size);
   if (createHash("sha256").update(source).digest("hex") !== handle.digest) {
@@ -550,7 +574,11 @@ function commitOwnerOnlyFile(handle) {
 
   const swapped = lstatSync(handle.filePath);
   assertPrivateRegularFile(handle.filePath, swapped);
-  assertUnchangedPosture(`${handle.label} pathname`, handle.posture, capturePosture(swapped));
+  assertUnchangedPosture(
+    `${handle.label} pathname`,
+    handle.posture,
+    capturePosture(swapped),
+  );
   return source;
 }
 
@@ -570,7 +598,9 @@ export function inspectCsfIsolatedStack(workDirValue, { requireState } = {}) {
     );
   }
   if (!existsSync(requestedWorkDir)) {
-    throw new Error(`CSF isolated work directory does not exist: ${requestedWorkDir}`);
+    throw new Error(
+      `CSF isolated work directory does not exist: ${requestedWorkDir}`,
+    );
   }
   // Reject the supplied pathname itself before resolving it: a symlink would let
   // a validated marker describe a directory the caller never named.
@@ -611,12 +641,19 @@ export function inspectCsfIsolatedStack(workDirValue, { requireState } = {}) {
   }
 }
 
-function validateCsfIsolatedStackSources(workDir, markerSource, configSource, { requireState }) {
+function validateCsfIsolatedStackSources(
+  workDir,
+  markerSource,
+  configSource,
+  { requireState },
+) {
   const marker = parseCsfIsolatedMarker(markerSource, { requireState });
 
   const configProjectId = parseSingleConfigValue(configSource, "project_id");
   if (configProjectId !== marker.projectId) {
-    throw new Error("CSF isolated stack marker does not match the Supabase project_id.");
+    throw new Error(
+      "CSF isolated stack marker does not match the Supabase project_id.",
+    );
   }
   // Every configured port mapping, not only the API and database ones.
   assertConfiguredPortBundle(configSource, marker.basePort);
@@ -625,7 +662,9 @@ function validateCsfIsolatedStackSources(workDir, markerSource, configSource, { 
 
   // A marker copied next to another stack's config cannot describe this one.
   if (!existsSync(marker.workDir)) {
-    throw new Error("CSF isolated stack marker records a work_dir that does not exist.");
+    throw new Error(
+      "CSF isolated stack marker records a work_dir that does not exist.",
+    );
   }
   if (realpathSync(marker.workDir) !== workDir) {
     throw new Error(
@@ -636,7 +675,10 @@ function validateCsfIsolatedStackSources(workDir, markerSource, configSource, { 
   if (marker.state === "ready") {
     const expectedVolume = csfCanonicalDatabaseVolumeName(marker.projectId);
     const volumes = csfCanonicalDockerResourceNames(marker.projectId, "volume");
-    if (!volumes.includes(expectedVolume) || marker.databaseVolume !== expectedVolume) {
+    if (
+      !volumes.includes(expectedVolume) ||
+      marker.databaseVolume !== expectedVolume
+    ) {
       throw new Error(
         "CSF isolated stack marker does not record the canonical database volume for the volume kind.",
       );
@@ -696,7 +738,9 @@ export function validateCsfIsolatedStack(workDirValue, options) {
 }
 
 export function inspectCsfIsolatedWorkDir(workDirValue) {
-  const validated = validateCsfIsolatedStack(workDirValue, { requireState: "ready" });
+  const validated = validateCsfIsolatedStack(workDirValue, {
+    requireState: "ready",
+  });
   const basePort = Number(validated.base_port);
 
   return {
@@ -731,7 +775,9 @@ function assertPrivateRegularFile(target, stats, { exactMode } = {}) {
     );
   }
   if (typeof process.getuid === "function" && stats.uid !== process.getuid()) {
-    throw new Error(`Refusing a CSF isolated file owned by another user: ${target}`);
+    throw new Error(
+      `Refusing a CSF isolated file owned by another user: ${target}`,
+    );
   }
 }
 
@@ -753,10 +799,14 @@ function parseCsfAppEnvironment(source, isolated) {
     }
     const [, key, value] = match;
     if (!CSF_APP_ENV_KEYS.includes(key)) {
-      throw new Error(`CSF isolated app environment exports an unknown key: ${key}`);
+      throw new Error(
+        `CSF isolated app environment exports an unknown key: ${key}`,
+      );
     }
     if (Object.hasOwn(values, key)) {
-      throw new Error(`CSF isolated app environment exports ${key} more than once.`);
+      throw new Error(
+        `CSF isolated app environment exports ${key} more than once.`,
+      );
     }
     values[key] = value;
   }
@@ -789,7 +839,10 @@ function assertCsfAppEnvironmentAgrees(values, isolated) {
     ["API_URL", "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"],
     "API endpoints",
   );
-  const databaseUrl = sameValue(["DB_URL", "SUPABASE_DB_URL"], "database endpoints");
+  const databaseUrl = sameValue(
+    ["DB_URL", "SUPABASE_DB_URL"],
+    "database endpoints",
+  );
   sameValue(
     ["ANON_KEY", "SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY"],
     "anonymous keys",
@@ -857,7 +910,9 @@ export function inspectCsfIsolatedAppEnvironment(workDirValue) {
   const isolated = inspectCsfIsolatedWorkDir(workDirValue);
   const appEnvPath = path.join(isolated.workDir, CSF_ISOLATED_APP_ENV_FILE);
   if (!existsSync(appEnvPath)) {
-    throw new Error(`Missing generated isolated app environment: ${appEnvPath}`);
+    throw new Error(
+      `Missing generated isolated app environment: ${appEnvPath}`,
+    );
   }
   const pathPosture = lstatSync(appEnvPath);
   assertPrivateRegularFile(appEnvPath, pathPosture, { exactMode: 0o600 });
@@ -929,7 +984,9 @@ function readExactBytes(fd, size) {
     read += chunk;
   }
   if (read !== size) {
-    throw new Error("CSF isolated app environment shrank while it was being read.");
+    throw new Error(
+      "CSF isolated app environment shrank while it was being read.",
+    );
   }
   return buffer.toString("utf8");
 }
@@ -944,11 +1001,19 @@ function readExactBytes(fd, size) {
 export function commitCsfIsolatedAppEnvironment(inspection) {
   try {
     const current = fstatSync(inspection.fd);
-    assertPrivateRegularFile(inspection.appEnvPath, current, { exactMode: 0o600 });
-    assertUnchangedPosture("descriptor", inspection.posture, capturePosture(current));
+    assertPrivateRegularFile(inspection.appEnvPath, current, {
+      exactMode: 0o600,
+    });
+    assertUnchangedPosture(
+      "descriptor",
+      inspection.posture,
+      capturePosture(current),
+    );
 
     const source = readExactBytes(inspection.fd, inspection.posture.size);
-    if (createHash("sha256").update(source).digest("hex") !== inspection.digest) {
+    if (
+      createHash("sha256").update(source).digest("hex") !== inspection.digest
+    ) {
       throw new Error(
         "CSF isolated app environment bytes changed between validation and handoff.",
       );
@@ -959,8 +1024,14 @@ export function commitCsfIsolatedAppEnvironment(inspection) {
     // posture — not just dev/ino — is what catches a hardlink replacement that
     // reuses the same inode.
     const swapped = lstatSync(inspection.appEnvPath);
-    assertPrivateRegularFile(inspection.appEnvPath, swapped, { exactMode: 0o600 });
-    assertUnchangedPosture("pathname", inspection.posture, capturePosture(swapped));
+    assertPrivateRegularFile(inspection.appEnvPath, swapped, {
+      exactMode: 0o600,
+    });
+    assertUnchangedPosture(
+      "pathname",
+      inspection.posture,
+      capturePosture(swapped),
+    );
 
     const reloaded = parseCsfAppEnvironment(source, inspection.isolated);
     for (const key of CSF_APP_ENV_KEYS) {
@@ -988,7 +1059,9 @@ export function loadCsfIsolatedAppEnvironment(workDirValue) {
 export function assertLocalSupabaseUrl(value) {
   const url = new URL(value);
   if (!LOCAL_HOSTS.has(url.hostname)) {
-    throw new Error(`DV local tooling refuses non-local Supabase URL: ${url.origin}`);
+    throw new Error(
+      `DV local tooling refuses non-local Supabase URL: ${url.origin}`,
+    );
   }
   return url.origin;
 }
@@ -996,10 +1069,14 @@ export function assertLocalSupabaseUrl(value) {
 export function assertLocalPostgresUrl(value) {
   const url = new URL(value);
   if (!["postgres:", "postgresql:"].includes(url.protocol)) {
-    throw new Error(`Local Supabase tooling requires a Postgres URL, received: ${url.protocol}`);
+    throw new Error(
+      `Local Supabase tooling requires a Postgres URL, received: ${url.protocol}`,
+    );
   }
   if (!LOCAL_HOSTS.has(url.hostname)) {
-    throw new Error(`Local Supabase tooling refuses non-local Postgres URL: ${url.hostname}`);
+    throw new Error(
+      `Local Supabase tooling refuses non-local Postgres URL: ${url.hostname}`,
+    );
   }
   return value;
 }
@@ -1068,7 +1145,9 @@ function normalizedLoopbackEndpoint(value) {
 function assertBundleMatchesStatus(provided, statusValues, label) {
   const status = resolveProvidedLocalSupabaseEnv(statusValues);
   if (!status) {
-    throw new Error(`${label} Supabase status did not return a complete environment bundle.`);
+    throw new Error(
+      `${label} Supabase status did not return a complete environment bundle.`,
+    );
   }
 
   if (
@@ -1105,7 +1184,9 @@ export function assertProvidedLocalSupabaseEnvMatchesStatus(
 ) {
   const provided = resolveProvidedLocalSupabaseEnv(providedEnvironment);
   if (!provided) {
-    throw new Error(`${label} environment did not provide a complete Supabase bundle.`);
+    throw new Error(
+      `${label} environment did not provide a complete Supabase bundle.`,
+    );
   }
   assertBundleMatchesStatus(provided, statusValues, label);
   return provided;
@@ -1126,7 +1207,10 @@ function readLocalSupabaseStatus(workDir) {
   return parseEnvOutput(output);
 }
 
-function getValidatedLocalSupabaseEnv(env, { requireCsfIsolated = false } = {}) {
+function getValidatedLocalSupabaseEnv(
+  env,
+  { requireCsfIsolated = false } = {},
+) {
   const isolated = env.CSF_ISOLATED_WORK_DIR
     ? inspectCsfIsolatedWorkDir(env.CSF_ISOLATED_WORK_DIR)
     : null;
@@ -1139,14 +1223,18 @@ function getValidatedLocalSupabaseEnv(env, { requireCsfIsolated = false } = {}) 
   const statusValues = readLocalSupabaseStatus(isolated?.workDir);
   const status = resolveProvidedLocalSupabaseEnv(statusValues);
   if (!status) {
-    throw new Error("Local Supabase status did not return a complete environment bundle.");
+    throw new Error(
+      "Local Supabase status did not return a complete environment bundle.",
+    );
   }
   const provided = resolveProvidedLocalSupabaseEnv(env);
   if (provided) {
     return assertProvidedLocalSupabaseEnvMatchesStatus(
       env,
       statusValues,
-      isolated ? `CSF isolated project ${isolated.projectId}` : "Let’s Assist local",
+      isolated
+        ? `CSF isolated project ${isolated.projectId}`
+        : "Let’s Assist local",
     );
   }
   return status;
@@ -1246,9 +1334,9 @@ function isSamePath(left, right) {
 const isEntrypoint = process.argv[1]
   ? isSamePath(fileURLToPath(import.meta.url), process.argv[1])
   : false;
-const requestedModes = process.argv.slice(2).filter((argument) =>
-  CLI_MODES.includes(argument),
-);
+const requestedModes = process.argv
+  .slice(2)
+  .filter((argument) => CLI_MODES.includes(argument));
 
 // Fail closed rather than silently succeeding: a mode flag that reaches an
 // imported copy of this module would otherwise look like a passing gate.
@@ -1273,7 +1361,9 @@ if (isEntrypoint) {
     case "--csf-health": {
       // Live status/credential validation bound to the exact generated target,
       // asserted against the launcher's marker, project, base port, and volume.
-      const isolated = inspectCsfIsolatedWorkDir(process.env.CSF_ISOLATED_WORK_DIR);
+      const isolated = inspectCsfIsolatedWorkDir(
+        process.env.CSF_ISOLATED_WORK_DIR,
+      );
       const env = getCsfIsolatedSupabaseEnv();
       console.log(
         JSON.stringify({

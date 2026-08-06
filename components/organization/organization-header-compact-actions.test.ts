@@ -43,13 +43,17 @@ describe("compact organization header actions", () => {
     expect(source).toContain(
       'compact ? "truncate text-lg md:text-xl" : "text-2xl md:text-3xl"',
     );
-    expect(source).toContain('cn("flex items-center gap-2", compact && "min-w-0")');
+    expect(source).toContain(
+      'cn("flex items-center gap-2", compact && "min-w-0")',
+    );
   });
 
   test("truncates compact metadata rows so long values cannot widen the header", () => {
     // Both metadata rows are width-constrained in compact mode.
     expect(
-      source.match(/compact \? "min-w-0 max-w-full" : "justify-center md:justify-start"/g),
+      source.match(
+        /compact \? "min-w-0 max-w-full" : "justify-center md:justify-start"/g,
+      ),
     ).toHaveLength(2);
     // Username and website are the unbounded values, so both truncate.
     expect(source).toContain(
@@ -72,7 +76,10 @@ describe("compact organization header actions", () => {
       '<UsersIcon className="mr-2 h-4 w-4" aria-hidden="true" />',
       '<Plus className="mr-2 h-4 w-4" aria-hidden="true" />',
     ]) {
-      expect(source, `${icon} should be hidden from assistive technology`).toContain(icon);
+      expect(
+        source,
+        `${icon} should be hidden from assistive technology`,
+      ).toContain(icon);
     }
     expect(source).toContain(
       '<BadgeCheck\n                  className="hidden md:block h-6 w-6 text-primary"\n                  aria-hidden="true"\n                />',
@@ -81,11 +88,15 @@ describe("compact organization header actions", () => {
 
   test("leaves no header icon exposed to assistive technology", () => {
     const iconElements =
-      source.match(/<(BadgeCheck|GlobeIcon|UsersIcon|Share2|Plus)\b[^>]*?\/>/g) ?? [];
+      source.match(
+        /<(BadgeCheck|GlobeIcon|UsersIcon|Share2|Plus)\b[^>]*?\/>/g,
+      ) ?? [];
     // Two BadgeCheck marks, two UsersIcon, two Plus, one GlobeIcon, one Share2.
     expect(iconElements).toHaveLength(8);
     for (const element of iconElements) {
-      expect(element, `${element} is missing aria-hidden`).toContain('aria-hidden="true"');
+      expect(element, `${element} is missing aria-hidden`).toContain(
+        'aria-hidden="true"',
+      );
     }
   });
 

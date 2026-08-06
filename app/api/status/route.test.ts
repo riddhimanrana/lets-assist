@@ -12,7 +12,9 @@ describe("status endpoint local Supabase detection", () => {
 
   test("rejects hosted, malformed, and localhost-lookalike endpoints", () => {
     expect(isLocalSupabaseEndpoint("https://example.supabase.co")).toBe(false);
-    expect(isLocalSupabaseEndpoint("https://localhost.example.com:54321")).toBe(false);
+    expect(isLocalSupabaseEndpoint("https://localhost.example.com:54321")).toBe(
+      false,
+    );
     expect(isLocalSupabaseEndpoint("not a URL")).toBe(false);
   });
 });

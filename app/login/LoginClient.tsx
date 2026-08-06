@@ -90,7 +90,9 @@ export default function LoginClient({
 
   useEffect(() => {
     if (authError === "network-timeout") {
-      toast.error("Connection issue while finishing sign-in. Please try again.");
+      toast.error(
+        "Connection issue while finishing sign-in. Please try again.",
+      );
       return;
     }
 
@@ -121,7 +123,10 @@ export default function LoginClient({
       const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
-        options: (turnstileToken && !isBypassToken) ? { captchaToken: turnstileToken } : undefined,
+        options:
+          turnstileToken && !isBypassToken
+            ? { captchaToken: turnstileToken }
+            : undefined,
       });
 
       if (error) {
@@ -174,7 +179,10 @@ export default function LoginClient({
         return;
       }
 
-      console.log("[LoginClient] Login successful, user:", authData.user?.email);
+      console.log(
+        "[LoginClient] Login successful, user:",
+        authData.user?.email,
+      );
 
       const defaultRedirectUrl = isVerified
         ? "/home?confirmed=true"
@@ -209,7 +217,10 @@ export default function LoginClient({
     } catch (error) {
       console.error("[LoginClient] Login error:", error);
 
-      if (error instanceof TypeError && error.message.includes("Failed to fetch")) {
+      if (
+        error instanceof TypeError &&
+        error.message.includes("Failed to fetch")
+      ) {
         toast.error("Cannot reach authentication service.", {
           description:
             "Supabase appears unreachable from the browser. If you are using local development, start the stack with `bun run supabase` or `bun run supabase:start` and make sure Docker is running.",
@@ -228,9 +239,8 @@ export default function LoginClient({
     try {
       setIsGoogleLoading(true);
 
-      const inviteContext = staffToken || orgUsername
-        ? { staffToken, orgUsername }
-        : null;
+      const inviteContext =
+        staffToken || orgUsername ? { staffToken, orgUsername } : null;
 
       const result = await signInWithGoogle(
         redirectPath ? resolvePostAuthRedirectPath(redirectPath) : null,
@@ -260,7 +270,6 @@ export default function LoginClient({
 
   return (
     <section className="relative isolate flex min-h-[calc(100svh-4.5rem)] items-center justify-center overflow-hidden bg-background px-4 py-14 shadow-[inset_0_1px_0_hsl(var(--border))] sm:px-6 lg:px-8">
-
       <Card className="relative mx-auto w-full max-w-[410px] gap-0 overflow-hidden rounded-2xl border border-border/70 bg-card/95 py-0 shadow-[0_16px_44px_rgba(0,0,0,0.12),0_1px_6px_rgba(0,0,0,0.04)] ring-0 backdrop-blur-xl">
         <CardHeader className="space-y-2 px-6 pt-7 pb-0 sm:px-7">
           <CardTitle className="text-2xl font-semibold tracking-tight">
@@ -283,7 +292,15 @@ export default function LoginClient({
               <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
                 <p className="font-semibold">Local CSF test account</p>
                 <p className="mt-1 text-muted-foreground">
-                  Use <span className="font-medium text-foreground">csf.officer@local.test</span> and the password printed by <span className="font-medium text-foreground">bun run dev</span>.
+                  Use{" "}
+                  <span className="font-medium text-foreground">
+                    csf.officer@local.test
+                  </span>{" "}
+                  and the password printed by{" "}
+                  <span className="font-medium text-foreground">
+                    bun run dev
+                  </span>
+                  .
                 </p>
               </div>
             ) : (
@@ -330,7 +347,10 @@ export default function LoginClient({
                 name="email"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor={field.name} className="text-[13px] font-semibold">
+                    <FieldLabel
+                      htmlFor={field.name}
+                      className="text-[13px] font-semibold"
+                    >
                       Email
                     </FieldLabel>
                     <Input
@@ -351,7 +371,10 @@ export default function LoginClient({
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <div className="flex items-center justify-between">
-                      <FieldLabel htmlFor={field.name} className="text-[13px] font-semibold">
+                      <FieldLabel
+                        htmlFor={field.name}
+                        className="text-[13px] font-semibold"
+                      >
                         Password
                       </FieldLabel>
                       <Link

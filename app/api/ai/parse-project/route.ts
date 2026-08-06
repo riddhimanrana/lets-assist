@@ -1,15 +1,15 @@
-import { generateText } from 'ai';
-import { NextRequest } from 'next/server';
-import { gatewayModel } from '@/lib/ai/gateway';
-import { createPostHogTelemetry } from '@/lib/ai/posthog-telemetry';
-import { getAuthUser } from '@/lib/supabase/auth-helpers';
-import { consumeParseProjectQuota } from '@/lib/ai/parse-project-rate-limit';
-import { getRequestIp } from '@/lib/ai/parse-project-rate-limit-config';
+import { generateText } from "ai";
+import { NextRequest } from "next/server";
+import { gatewayModel } from "@/lib/ai/gateway";
+import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { consumeParseProjectQuota } from "@/lib/ai/parse-project-rate-limit";
+import { getRequestIp } from "@/lib/ai/parse-project-rate-limit-config";
 import {
   normalizeParseProjectCandidate,
   parseProjectOutputSchema,
-} from '@/lib/ai/parse-project-schema';
-import { z } from 'zod';
+} from "@/lib/ai/parse-project-schema";
+import { z } from "zod";
 
 // export const runtime = 'edge'; - incompatible with cacheComponents
 
@@ -22,9 +22,9 @@ const parseProjectRequestSchema = z
 const getCurrentDateInfo = () => {
   const now = new Date();
   return {
-    date: now.toISOString().split('T')[0], // YYYY-MM-DD
-    time: `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`,
-    dayOfWeek: now.toLocaleDateString('en-US', { weekday: 'long' }),
+    date: now.toISOString().split("T")[0], // YYYY-MM-DD
+    time: `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`,
+    dayOfWeek: now.toLocaleDateString("en-US", { weekday: "long" }),
   };
 };
 
@@ -133,14 +133,19 @@ export async function POST(req: NextRequest) {
   try {
     const { user, error: authError } = await getAuthUser({ sensitive: true });
     if (authError || !user) {
-      return Response.json({ error: 'Authentication required' }, { status: 401 });
+      return Response.json(
+        { error: "Authentication required" },
+        { status: 401 },
+      );
     }
 
     const requestBody = await req.json().catch(() => null);
     const parsedRequest = parseProjectRequestSchema.safeParse(requestBody);
     if (!parsedRequest.success) {
       return Response.json(
-        { error: 'Project description must be between 10 and 4,000 characters.' },
+        {
+          error: "Project description must be between 10 and 4,000 characters.",
+        },
         { status: 400 },
       );
     }
@@ -148,11 +153,17 @@ export async function POST(req: NextRequest) {
     const { prompt } = parsedRequest.data;
     let quota: Awaited<ReturnType<typeof consumeParseProjectQuota>>;
     try {
-      quota = await consumeParseProjectQuota(user.id, getRequestIp(req.headers));
+      quota = await consumeParseProjectQuota(
+        user.id,
+        getRequestIp(req.headers),
+      );
     } catch (rateLimitError) {
-      console.error('Project parser rate-limit check failed:', rateLimitError);
+      console.error("Project parser rate-limit check failed:", rateLimitError);
       return Response.json(
-        { error: 'Project assistant is temporarily unavailable. Please try again.' },
+        {
+          error:
+            "Project assistant is temporarily unavailable. Please try again.",
+        },
         { status: 503 },
       );
     }
@@ -163,21 +174,24 @@ export async function POST(req: NextRequest) {
         1,
       );
       return Response.json(
-        { error: 'Too many project-assistant requests. Please try again shortly.' },
+        {
+          error:
+            "Too many project-assistant requests. Please try again shortly.",
+        },
         {
           status: 429,
-          headers: { 'Retry-After': retryAfterSeconds.toString() },
+          headers: { "Retry-After": retryAfterSeconds.toString() },
         },
       );
     }
 
     const { text } = await generateText({
-      model: gatewayModel('platform', 'google/gemini-2.5-flash-lite'),
+      model: gatewayModel("platform", "google/gemini-2.5-flash-lite"),
       experimental_telemetry: createPostHogTelemetry({
-        functionId: 'parse-project',
+        functionId: "parse-project",
         distinctId: user.id,
         metadata: {
-          ai_feature: 'project-form-parser',
+          ai_feature: "project-form-parser",
           prompt_length: prompt.length,
           rate_limit_remaining: quota.remaining,
         },
@@ -191,43 +205,54 @@ export async function POST(req: NextRequest) {
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        console.error('Project parser response did not contain JSON');
+        console.error("Project parser response did not contain JSON");
         return Response.json(
-          { error: 'AI did not return valid JSON. Please try rephrasing your description.' },
-          { status: 502 }
+          {
+            error:
+              "AI did not return valid JSON. Please try rephrasing your description.",
+          },
+          { status: 502 },
         );
       }
-      
-      const candidate = normalizeParseProjectCandidate(JSON.parse(jsonMatch[0]));
+
+      const candidate = normalizeParseProjectCandidate(
+        JSON.parse(jsonMatch[0]),
+      );
       const parsedData = parseProjectOutputSchema.safeParse(candidate);
 
       if (!parsedData.success) {
         console.error(
-          'Project parser returned an invalid shape:',
+          "Project parser returned an invalid shape:",
           parsedData.error.issues.map((issue) => ({
             code: issue.code,
-            path: issue.path.join('.'),
+            path: issue.path.join("."),
           })),
         );
         return Response.json(
-          { error: 'AI response was incomplete. Please try rephrasing your description.' },
+          {
+            error:
+              "AI response was incomplete. Please try rephrasing your description.",
+          },
           { status: 502 },
         );
       }
 
       return Response.json(parsedData.data);
     } catch (parseError) {
-      console.error('Project parser returned invalid JSON:', parseError);
+      console.error("Project parser returned invalid JSON:", parseError);
       return Response.json(
-        { error: 'Failed to parse AI response. Please try again or rephrase your description.' },
-        { status: 502 }
+        {
+          error:
+            "Failed to parse AI response. Please try again or rephrase your description.",
+        },
+        { status: 502 },
       );
     }
   } catch (error) {
-    console.error('AI parsing error:', error);
+    console.error("AI parsing error:", error);
     return Response.json(
-      { error: 'Failed to process your request. Please try again.' },
-      { status: 500 }
+      { error: "Failed to process your request. Please try again." },
+      { status: 500 },
     );
   }
 }

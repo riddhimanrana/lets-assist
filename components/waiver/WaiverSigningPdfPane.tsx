@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
-import * as pdfjsLib from 'pdfjs-dist/webpack.mjs';
+import { useEffect, useRef, useState } from "react";
+import * as pdfjsLib from "pdfjs-dist/webpack.mjs";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, Download, Printer } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  ZoomOut,
+  Loader2,
+  Download,
+  Printer,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface WaiverSigningPdfPaneProps {
@@ -17,7 +25,7 @@ export function WaiverSigningPdfPane({
   pdfUrl,
   onDownload,
   onPrint,
-  className
+  className,
 }: WaiverSigningPdfPaneProps) {
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [pageCount, setPageCount] = useState<number>(0);
@@ -34,7 +42,7 @@ export function WaiverSigningPdfPane({
 
     const loadPdf = async () => {
       if (!pdfUrl) return;
-      
+
       try {
         setLoading(true);
         setError(null);
@@ -66,61 +74,118 @@ export function WaiverSigningPdfPane({
   }, []);
 
   return (
-    <div className={cn("flex flex-col h-full bg-muted overflow-hidden border rounded-md", className)}>
+    <div
+      className={cn(
+        "flex flex-col h-full bg-muted overflow-hidden border rounded-md",
+        className,
+      )}
+    >
       {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-2 bg-background border-b shrink-0 flex-wrap gap-2">
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prevPage} disabled={currentPage <= 1 || loading} aria-label="Previous Page">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={prevPage}
+            disabled={currentPage <= 1 || loading}
+            aria-label="Previous Page"
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-xs md:text-sm font-medium px-2 whitespace-nowrap">
-             {loading ? "-" : `${currentPage} / ${pageCount}`}
+            {loading ? "-" : `${currentPage} / ${pageCount}`}
           </span>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={nextPage} disabled={currentPage >= pageCount || loading} aria-label="Next Page">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={nextPage}
+            disabled={currentPage >= pageCount || loading}
+            aria-label="Next Page"
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        
+
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={zoomOut} disabled={scale <= 0.5 || loading} aria-label="Zoom Out">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={zoomOut}
+            disabled={scale <= 0.5 || loading}
+            aria-label="Zoom Out"
+          >
             <ZoomOut className="h-4 w-4" />
           </Button>
-          <span className="text-xs md:text-sm font-medium min-w-[3ch] text-center">{Math.round(scale * 100)}%</span>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={zoomIn} disabled={scale >= 3.0 || loading} aria-label="Zoom In">
+          <span className="text-xs md:text-sm font-medium min-w-[3ch] text-center">
+            {Math.round(scale * 100)}%
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={zoomIn}
+            disabled={scale >= 3.0 || loading}
+            aria-label="Zoom In"
+          >
             <ZoomIn className="h-4 w-4" />
           </Button>
         </div>
 
         <div className="flex items-center gap-1 ml-auto">
           {onDownload && (
-            <Button variant="outline" size="sm" className="h-8 px-2" onClick={onDownload} title="Download PDF" aria-label="Download PDF">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2"
+              onClick={onDownload}
+              title="Download PDF"
+              aria-label="Download PDF"
+            >
               <Download className="h-4 w-4" />
-              <span className="sr-only sm:not-sr-only sm:ml-2 text-xs">Download</span>
+              <span className="sr-only sm:not-sr-only sm:ml-2 text-xs">
+                Download
+              </span>
             </Button>
           )}
           {onPrint && (
-            <Button variant="outline" size="sm" className="h-8 px-2" onClick={onPrint} title="Print PDF" aria-label="Print PDF">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2"
+              onClick={onPrint}
+              title="Print PDF"
+              aria-label="Print PDF"
+            >
               <Printer className="h-4 w-4" />
-              <span className="sr-only sm:not-sr-only sm:ml-2 text-xs">Print</span>
+              <span className="sr-only sm:not-sr-only sm:ml-2 text-xs">
+                Print
+              </span>
             </Button>
           )}
         </div>
       </div>
 
       {/* PDF Viewport */}
-      <div 
+      <div
         ref={containerRef}
         className="flex-1 overflow-auto p-4 flex justify-center relative bg-muted/50"
       >
-        {loading && <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
-        {error && <div className="flex items-center justify-center h-full text-destructive text-sm p-4 text-center">{error}</div>}
-        
+        {loading && (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )}
+        {error && (
+          <div className="flex items-center justify-center h-full text-destructive text-sm p-4 text-center">
+            {error}
+          </div>
+        )}
+
         {pdfDoc && !loading && (
-          <PdfPage
-            pdfDoc={pdfDoc}
-            pageNumber={currentPage}
-            scale={scale}
-          />
+          <PdfPage pdfDoc={pdfDoc} pageNumber={currentPage} scale={scale} />
         )}
       </div>
     </div>
@@ -133,11 +198,7 @@ interface PdfPageProps {
   scale: number;
 }
 
-function PdfPage({
-  pdfDoc,
-  pageNumber,
-  scale,
-}: PdfPageProps) {
+function PdfPage({ pdfDoc, pageNumber, scale }: PdfPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [viewport, setViewport] = useState<pdfjsLib.PageViewport | null>(null);
 
@@ -154,7 +215,7 @@ function PdfPage({
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const context = canvas.getContext('2d');
+        const context = canvas.getContext("2d");
         if (!context) return;
 
         canvas.height = vp.height;
@@ -165,14 +226,19 @@ function PdfPage({
           viewport: vp,
           canvas,
         };
-        
+
         renderTask = page.render(renderContext);
         await renderTask.promise;
       } catch (err: unknown) {
-        if (err && typeof err === 'object' && 'name' in err && err.name !== 'RenderingCancelledException') {
+        if (
+          err &&
+          typeof err === "object" &&
+          "name" in err &&
+          err.name !== "RenderingCancelledException"
+        ) {
           console.error("Page render error:", err);
         } else if (err) {
-             console.error("Page render error:", err);
+          console.error("Page render error:", err);
         }
       }
     };
@@ -186,11 +252,18 @@ function PdfPage({
     };
   }, [pdfDoc, pageNumber, scale]);
 
-  if (!viewport) return <div className="w-[300px] h-[400px] bg-background animate-pulse rounded shadow" />;
+  if (!viewport)
+    return (
+      <div className="w-[300px] h-[400px] bg-background animate-pulse rounded shadow" />
+    );
 
   return (
     <div className="relative shadow-lg h-fit bg-white">
-      <canvas ref={canvasRef} className="block" style={{ width: viewport.width, height: viewport.height }} />
+      <canvas
+        ref={canvasRef}
+        className="block"
+        style={{ width: viewport.width, height: viewport.height }}
+      />
     </div>
   );
 }

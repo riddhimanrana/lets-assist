@@ -12,7 +12,9 @@ const STORAGE_PATH = `project_waivers/${PROJECT_ID}/source.pdf`;
 const LEGACY_URL = `${SUPABASE_URL}/storage/v1/object/public/waiver-uploads/${STORAGE_PATH}`;
 const PDF_BYTES = new TextEncoder().encode("%PDF-1.7\n%%EOF");
 
-function makeAdminClient(download: ReturnType<typeof mock>): WaiverSourceAdminClient {
+function makeAdminClient(
+  download: ReturnType<typeof mock>,
+): WaiverSourceAdminClient {
   return {
     storage: {
       from: mock((bucket: string) => {
@@ -39,7 +41,11 @@ describe("loadWaiverSourcePdf", () => {
     const fetchImpl = mock(async () => new Response("unexpected"));
 
     const result = await loadWaiverSourcePdf(
-      { projectId: PROJECT_ID, storagePath: STORAGE_PATH, legacyUrl: LEGACY_URL },
+      {
+        projectId: PROJECT_ID,
+        storagePath: STORAGE_PATH,
+        legacyUrl: LEGACY_URL,
+      },
       {
         adminClient: makeAdminClient(download),
         configuredSupabaseUrl: SUPABASE_URL,
@@ -57,12 +63,20 @@ describe("loadWaiverSourcePdf", () => {
       data: null,
       error: { message: "missing" },
     }));
-    const fetchImpl = mock(async () =>
-      new Response(PDF_BYTES, { headers: { "content-type": "application/pdf" } }));
+    const fetchImpl = mock(
+      async () =>
+        new Response(PDF_BYTES, {
+          headers: { "content-type": "application/pdf" },
+        }),
+    );
 
     await expect(
       loadWaiverSourcePdf(
-        { projectId: PROJECT_ID, storagePath: STORAGE_PATH, legacyUrl: LEGACY_URL },
+        {
+          projectId: PROJECT_ID,
+          storagePath: STORAGE_PATH,
+          legacyUrl: LEGACY_URL,
+        },
         {
           adminClient: makeAdminClient(download),
           configuredSupabaseUrl: SUPABASE_URL,
@@ -80,7 +94,8 @@ describe("loadWaiverSourcePdf", () => {
       loadWaiverSourcePdf(
         {
           projectId: PROJECT_ID,
-          storagePath: "project_waivers/22222222-2222-4222-8222-222222222222/source.pdf",
+          storagePath:
+            "project_waivers/22222222-2222-4222-8222-222222222222/source.pdf",
         },
         { adminClient: makeAdminClient(download) },
       ),
@@ -89,9 +104,18 @@ describe("loadWaiverSourcePdf", () => {
   });
 
   for (const [label, url] of [
-    ["localhost", "https://localhost/storage/v1/object/public/waiver-uploads/source.pdf"],
-    ["private address", "https://169.254.169.254/storage/v1/object/public/waiver-uploads/source.pdf"],
-    ["external origin", "https://example.com/storage/v1/object/public/waiver-uploads/source.pdf"],
+    [
+      "localhost",
+      "https://localhost/storage/v1/object/public/waiver-uploads/source.pdf",
+    ],
+    [
+      "private address",
+      "https://169.254.169.254/storage/v1/object/public/waiver-uploads/source.pdf",
+    ],
+    [
+      "external origin",
+      "https://example.com/storage/v1/object/public/waiver-uploads/source.pdf",
+    ],
   ] as const) {
     test(`rejects a ${label} legacy URL before fetch`, async () => {
       const fetchImpl = mock(async () => new Response(PDF_BYTES));
@@ -111,15 +135,17 @@ describe("loadWaiverSourcePdf", () => {
   }
 
   test("rejects redirects and requests legacy URLs with redirect following disabled", async () => {
-    const fetchImpl = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      expect(init?.redirect).toBe("manual");
-      expect(init?.cache).toBe("no-store");
-      expect(init?.signal).toBeInstanceOf(AbortSignal);
-      return new Response(null, {
-        status: 302,
-        headers: { location: "https://169.254.169.254/latest/meta-data" },
-      });
-    });
+    const fetchImpl = mock(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        expect(init?.redirect).toBe("manual");
+        expect(init?.cache).toBe("no-store");
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
+        return new Response(null, {
+          status: 302,
+          headers: { location: "https://169.254.169.254/latest/meta-data" },
+        });
+      },
+    );
 
     await expect(
       loadWaiverSourcePdf(
@@ -134,13 +160,15 @@ describe("loadWaiverSourcePdf", () => {
   });
 
   test("rejects a legacy response that exceeds the strict byte cap", async () => {
-    const fetchImpl = mock(async () =>
-      new Response(PDF_BYTES, {
-        headers: {
-          "content-type": "application/pdf",
-          "content-length": String(PDF_BYTES.byteLength),
-        },
-      }));
+    const fetchImpl = mock(
+      async () =>
+        new Response(PDF_BYTES, {
+          headers: {
+            "content-type": "application/pdf",
+            "content-length": String(PDF_BYTES.byteLength),
+          },
+        }),
+    );
 
     await expect(
       loadWaiverSourcePdf(
@@ -156,10 +184,12 @@ describe("loadWaiverSourcePdf", () => {
   });
 
   test("rejects non-PDF legacy responses", async () => {
-    const fetchImpl = mock(async () =>
-      new Response("<html>not a pdf</html>", {
-        headers: { "content-type": "text/html" },
-      }));
+    const fetchImpl = mock(
+      async () =>
+        new Response("<html>not a pdf</html>", {
+          headers: { "content-type": "text/html" },
+        }),
+    );
 
     await expect(
       loadWaiverSourcePdf(
@@ -174,12 +204,14 @@ describe("loadWaiverSourcePdf", () => {
   });
 
   test("aborts a legacy fetch at the configured timeout", async () => {
-    const fetchImpl = mock(async (_input: RequestInfo | URL, init?: RequestInit) =>
-      await new Promise<Response>((_resolve, reject) => {
-        init?.signal?.addEventListener("abort", () => {
-          reject(new DOMException("aborted", "AbortError"));
-        });
-      }));
+    const fetchImpl = mock(
+      async (_input: RequestInfo | URL, init?: RequestInit) =>
+        await new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("aborted", "AbortError"));
+          });
+        }),
+    );
 
     await expect(
       loadWaiverSourcePdf(
@@ -195,11 +227,13 @@ describe("loadWaiverSourcePdf", () => {
   });
 
   test("accepts a bounded PDF from the exact configured legacy Storage URL", async () => {
-    const fetchImpl = mock(async () =>
-      new Response(PDF_BYTES, {
-        status: 200,
-        headers: { "content-type": "application/pdf" },
-      }));
+    const fetchImpl = mock(
+      async () =>
+        new Response(PDF_BYTES, {
+          status: 200,
+          headers: { "content-type": "application/pdf" },
+        }),
+    );
 
     const result = await loadWaiverSourcePdf(
       { projectId: PROJECT_ID, legacyUrl: LEGACY_URL },

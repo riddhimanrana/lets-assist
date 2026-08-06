@@ -1,18 +1,47 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { VolunteerGoals } from "./_components/VolunteerGoals";
 import { Badge } from "@/components/ui/badge";
 import { ProgressCircle } from "./_components/ProgressCircle";
-import { format, subMonths, parseISO, differenceInMinutes, isBefore, isAfter } from "date-fns";
+import {
+  format,
+  subMonths,
+  parseISO,
+  differenceInMinutes,
+  isBefore,
+  isAfter,
+} from "date-fns";
 import { TZDate, tz } from "@date-fns/tz";
-import { Award, Calendar, Users, Target, ChevronRight, Download, CalendarDays, BarChart3, CircleCheck, UserCheck } from "lucide-react";
+import {
+  Award,
+  Calendar,
+  Users,
+  Target,
+  ChevronRight,
+  Download,
+  CalendarDays,
+  BarChart3,
+  CircleCheck,
+  UserCheck,
+} from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ActivityChart } from "./_components/ActivityChart";
 import { ExportSection } from "./_components/ExportSection";
 import { AllHoursSection } from "./_components/AllHoursSection";
@@ -95,7 +124,7 @@ interface UpcomingSession {
   scheduleId: string;
   sessionDisplayName: string;
   sessionStartTime: Date;
-  status: 'approved' | 'pending';
+  status: "approved" | "pending";
   project_timezone: string;
 }
 
@@ -110,7 +139,7 @@ function calculateHours(startTime: string, endTime: string): number {
     const start = parseISO(startTime);
     const end = parseISO(endTime);
     if (isBefore(end, start)) return 0;
-    return Math.round(differenceInMinutes(end, start) / 60 * 10) / 10; // Round to 1 decimal place
+    return Math.round((differenceInMinutes(end, start) / 60) * 10) / 10; // Round to 1 decimal place
   } catch (e) {
     console.error("Error calculating hours:", e);
     return 0;
@@ -118,14 +147,18 @@ function calculateHours(startTime: string, endTime: string): number {
 }
 
 // Helper function to get combined DateTime from date and time strings
-function getCombinedDateTime(dateStr: string, timeStr: string, timezone?: string): Date | null {
+function getCombinedDateTime(
+  dateStr: string,
+  timeStr: string,
+  timezone?: string,
+): Date | null {
   if (!dateStr || !timeStr) return null;
   try {
     const isoString = `${dateStr}T${timeStr}`;
     if (timezone) {
       // Parse to use TZDate constructor safely (Year, MonthIndex, Day, Hour, Minute)
-      const [year, month, day] = dateStr.split('-').map(Number);
-      const [hours, minutes] = timeStr.split(':').map(Number);
+      const [year, month, day] = dateStr.split("-").map(Number);
+      const [hours, minutes] = timeStr.split(":").map(Number);
       return new TZDate(year, month - 1, day, hours, minutes, 0, timezone);
     }
     const dateTime = parseISO(isoString);
@@ -147,7 +180,7 @@ function getSessionDisplayName(
   startTime: Date | null,
   details: SlotDetails,
   projectTimezone?: string,
-  slotDate?: string
+  slotDate?: string,
 ): string {
   const timezone = projectTimezone || project.project_timezone || "UTC";
 
@@ -160,11 +193,16 @@ function getSessionDisplayName(
   }
 
   if (startTime) {
-    const formattedDate = format(startTime, "MMM d, yyyy", { in: tz(timezone) });
-    const formattedStartTime = format(startTime, "h:mm a", { in: tz(timezone) });
-    const endDateTime = slotDate && details.endTime
-      ? getCombinedDateTime(slotDate, details.endTime, timezone)
-      : null;
+    const formattedDate = format(startTime, "MMM d, yyyy", {
+      in: tz(timezone),
+    });
+    const formattedStartTime = format(startTime, "h:mm a", {
+      in: tz(timezone),
+    });
+    const endDateTime =
+      slotDate && details.endTime
+        ? getCombinedDateTime(slotDate, details.endTime, timezone)
+        : null;
     const formattedEndTime = endDateTime
       ? format(endDateTime, "h:mm a", { in: tz(timezone) })
       : null;
@@ -217,13 +255,13 @@ export default async function VolunteerDashboard() {
   }
 
   // Fetch user's profile
-  const profileResult = await withRetryableSupabaseQuery(() => supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle());
+  const profileResult = await withRetryableSupabaseQuery(() =>
+    supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+  );
 
-  const { error: profileError } = profileResult as { error: { message?: string } | null };
+  const { error: profileError } = profileResult as {
+    error: { message?: string } | null;
+  };
 
   if (profileError) {
     console.error("Error fetching profile:", profileError);
@@ -247,19 +285,23 @@ export default async function VolunteerDashboard() {
     project_location: string | null;
   };
 
-  const certificatesResult = await withRetryableSupabaseQuery(() => supabase
-    .from("certificates")
-    .select(`
+  const certificatesResult = await withRetryableSupabaseQuery(() =>
+    supabase
+      .from("certificates")
+      .select(
+        `
       *
-    `)
-    .eq("user_id", user.id)
-    .order("issued_at", { ascending: false }));
+    `,
+      )
+      .eq("user_id", user.id)
+      .order("issued_at", { ascending: false }),
+  );
 
-  const { data: certificates, error: certificatesError } = certificatesResult as {
-    data: CertificateRow[] | null;
-    error: { message?: string } | null;
-  };
-
+  const { data: certificates, error: certificatesError } =
+    certificatesResult as {
+      data: CertificateRow[] | null;
+      error: { message?: string } | null;
+    };
 
   if (certificatesError) {
     console.error("Error fetching certificates:", certificatesError);
@@ -272,14 +314,16 @@ export default async function VolunteerDashboard() {
     schedule_id: string;
     status: string;
     projects:
-    | Pick<Project, "id" | "title" | "schedule" | "event_type">
-    | Pick<Project, "id" | "title" | "schedule" | "event_type">[]
-    | null;
+      | Pick<Project, "id" | "title" | "schedule" | "event_type">
+      | Pick<Project, "id" | "title" | "schedule" | "event_type">[]
+      | null;
   };
 
-  const signupsResult = await withRetryableSupabaseQuery(() => supabase
-    .from("project_signups")
-    .select(`
+  const signupsResult = await withRetryableSupabaseQuery(() =>
+    supabase
+      .from("project_signups")
+      .select(
+        `
       id,
       project_id,
       schedule_id,
@@ -290,9 +334,11 @@ export default async function VolunteerDashboard() {
         schedule,
         event_type
       )
-    `)
-    .eq("user_id", user.id)
-    .in("status", ["approved", "pending"]));
+    `,
+      )
+      .eq("user_id", user.id)
+      .in("status", ["approved", "pending"]),
+  );
 
   const { data: signupData, error: signupsError } = signupsResult as {
     data: SignupRow[] | null;
@@ -305,16 +351,20 @@ export default async function VolunteerDashboard() {
   }
 
   // Fetch certificates for the dashboard (modified)
-  const certificatesFetchResult = await withRetryableSupabaseQuery(() => supabase
-    .from("certificates")
-    .select(`
+  const certificatesFetchResult = await withRetryableSupabaseQuery(() =>
+    supabase
+      .from("certificates")
+      .select(
+        `
       *,
       projects!inner(
         project_timezone
       )
-    `)
-    .eq("volunteer_email", user.email) // Assuming you fetch by email
-    .order("issued_at", { ascending: false }));
+    `,
+      )
+      .eq("volunteer_email", user.email) // Assuming you fetch by email
+      .order("issued_at", { ascending: false }),
+  );
 
   const { error: certificatesErrorFetch } = certificatesFetchResult as {
     error: { message?: string } | null;
@@ -332,52 +382,60 @@ export default async function VolunteerDashboard() {
     totalCertificates: 0,
     recentActivity: [],
     organizations: [],
-    hoursByMonth: {}
+    hoursByMonth: {},
   };
 
   // Process certificate data (typed as BackendCertificate from the DB)
-  const processedCertificates = (certificates || []).map((cert: BackendCertificate) => {
-    // Calculate hours for this certificate
-    const hours = calculateHours(cert.event_start, cert.event_end);
+  const processedCertificates = (certificates || []).map(
+    (cert: BackendCertificate) => {
+      // Calculate hours for this certificate
+      const hours = calculateHours(cert.event_start, cert.event_end);
 
-    // Default to 'verified' for existing certificates that don't have the type field
-    const certType = cert.type || 'verified';
+      // Default to 'verified' for existing certificates that don't have the type field
+      const certType = cert.type || "verified";
 
-    // Only count verified hours for main statistics
-    if (certType === 'verified') {
-      statistics.totalHours += hours;
-      statistics.totalCertificates++;
+      // Only count verified hours for main statistics
+      if (certType === "verified") {
+        statistics.totalHours += hours;
+        statistics.totalCertificates++;
 
-      // Only track organizations with actual names, exclude "Independent Projects"
-      if (cert.organization_name) {
-        // Track unique organizations with valid names
-        if (!statistics.organizations.some(org => org.name === cert.organization_name)) {
-          statistics.organizations.push({
-            name: cert.organization_name,
-            hours: hours,
-            projects: 1
-          });
-        } else {
-          const orgIndex = statistics.organizations.findIndex(org => org.name === cert.organization_name);
-          statistics.organizations[orgIndex].hours += hours;
-          statistics.organizations[orgIndex].projects += 1;
+        // Only track organizations with actual names, exclude "Independent Projects"
+        if (cert.organization_name) {
+          // Track unique organizations with valid names
+          if (
+            !statistics.organizations.some(
+              (org) => org.name === cert.organization_name,
+            )
+          ) {
+            statistics.organizations.push({
+              name: cert.organization_name,
+              hours: hours,
+              projects: 1,
+            });
+          } else {
+            const orgIndex = statistics.organizations.findIndex(
+              (org) => org.name === cert.organization_name,
+            );
+            statistics.organizations[orgIndex].hours += hours;
+            statistics.organizations[orgIndex].projects += 1;
+          }
         }
+
+        // Track hours by month for verified certificates
+        const monthYear = format(parseISO(cert.issued_at), "MMM yyyy");
+        if (!statistics.hoursByMonth[monthYear]) {
+          statistics.hoursByMonth[monthYear] = 0;
+        }
+        statistics.hoursByMonth[monthYear] += hours;
       }
 
-      // Track hours by month for verified certificates
-      const monthYear = format(parseISO(cert.issued_at), "MMM yyyy");
-      if (!statistics.hoursByMonth[monthYear]) {
-        statistics.hoursByMonth[monthYear] = 0;
-      }
-      statistics.hoursByMonth[monthYear] += hours;
-    }
-
-    return {
-      ...cert,
-      type: certType as "verified" | "self-reported",
-      hours
-    };
-  });
+      return {
+        ...cert,
+        type: certType as "verified" | "self-reported",
+        hours,
+      };
+    },
+  );
 
   // Map backend certificate types to the UI Certificate type expected by components:
   // backend 'verified' -> UI 'platform', 'self-reported' stays 'self-reported'
@@ -388,14 +446,22 @@ export default async function VolunteerDashboard() {
   }));
 
   // Get unique project count from verified certificates only
-  statistics.totalProjects = [...new Set(processedCertificates
-    .filter((c: BackendCertificate & { hours: number }) => (c.type || 'verified') === 'verified')
-    .map((c: BackendCertificate & { hours: number }) => c.project_id)
-  )].filter(Boolean).length;
+  statistics.totalProjects = [
+    ...new Set(
+      processedCertificates
+        .filter(
+          (c: BackendCertificate & { hours: number }) =>
+            (c.type || "verified") === "verified",
+        )
+        .map((c: BackendCertificate & { hours: number }) => c.project_id),
+    ),
+  ].filter(Boolean).length;
 
   // Calculate self-reported hours
   const selfReportedHours = processedCertificates
-    .filter((c: BackendCertificate & { hours: number }) => c.type === 'self-reported')
+    .filter(
+      (c: BackendCertificate & { hours: number }) => c.type === "self-reported",
+    )
     .reduce((total, cert) => total + cert.hours, 0);
 
   // Format hours by month for chart data - last 6 months
@@ -406,7 +472,7 @@ export default async function VolunteerDashboard() {
     const monthStr = format(month, "MMM yyyy");
     monthsData.push({
       month: format(month, "MMM"),
-      hours: statistics.hoursByMonth[monthStr] || 0
+      hours: statistics.hoursByMonth[monthStr] || 0,
     });
   }
   statistics.recentActivity = monthsData;
@@ -417,7 +483,9 @@ export default async function VolunteerDashboard() {
   if (signupData) {
     for (const signup of signupData) {
       // Ensure project data is available and is not an array (should be single object)
-      const project = Array.isArray(signup.projects) ? signup.projects[0] as Project : signup.projects as Project | null;
+      const project = Array.isArray(signup.projects)
+        ? (signup.projects[0] as Project)
+        : (signup.projects as Project | null);
       if (!project || !project.schedule || !signup.schedule_id) {
         continue; // Skip if project data or schedule_id is missing
       }
@@ -429,22 +497,32 @@ export default async function VolunteerDashboard() {
       let slotDate: string | undefined;
       if (project.event_type === "oneTime" && project.schedule.oneTime) {
         slotDate = project.schedule.oneTime.date;
-      } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+      } else if (
+        project.event_type === "multiDay" &&
+        project.schedule.multiDay
+      ) {
         for (const day of project.schedule.multiDay) {
           // Check if the slot belongs to this day
-          if (day.slots.some(slot => slot === details)) {
+          if (day.slots.some((slot) => slot === details)) {
             slotDate = day.date;
             break;
           }
         }
-      } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+      } else if (
+        project.event_type === "sameDayMultiArea" &&
+        project.schedule.sameDayMultiArea
+      ) {
         slotDate = project.schedule.sameDayMultiArea.date;
       }
 
       if (!slotDate || !details.startTime) continue; // Skip if date or start time missing
 
       const projectTimezone = project.project_timezone || "America/Los_Angeles"; // Default timezone if not set
-      const sessionStartTime = getCombinedDateTime(slotDate, details.startTime, projectTimezone);
+      const sessionStartTime = getCombinedDateTime(
+        slotDate,
+        details.startTime,
+        projectTimezone,
+      );
 
       // Check if the session start time is valid and in the future
       if (sessionStartTime && isAfter(sessionStartTime, now)) {
@@ -453,9 +531,15 @@ export default async function VolunteerDashboard() {
           projectId: project.id,
           projectTitle: project.title,
           scheduleId: signup.schedule_id,
-          sessionDisplayName: getSessionDisplayName(project, sessionStartTime, details, projectTimezone, slotDate),
+          sessionDisplayName: getSessionDisplayName(
+            project,
+            sessionStartTime,
+            details,
+            projectTimezone,
+            slotDate,
+          ),
           sessionStartTime: sessionStartTime,
-          status: signup.status as 'approved' | 'pending',
+          status: signup.status as "approved" | "pending",
           project_timezone: projectTimezone,
         });
       }
@@ -463,14 +547,18 @@ export default async function VolunteerDashboard() {
   }
 
   // Sort upcoming sessions by start time (soonest first)
-  upcomingSessions.sort((a, b) => a.sessionStartTime.getTime() - b.sessionStartTime.getTime());
+  upcomingSessions.sort(
+    (a, b) => a.sessionStartTime.getTime() - b.sessionStartTime.getTime(),
+  );
   // --- END NEW PROCESSING ---
 
   return (
     <div className="mx-auto px-4 sm:px-8 lg:px-12 py-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Volunteer Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Volunteer Dashboard
+          </h1>
           <p className="text-muted-foreground">
             Track your volunteering progress and achievements
           </p>
@@ -514,9 +602,15 @@ export default async function VolunteerDashboard() {
                     <CircleCheck className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Verified Hours</p>
-                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">{formatTotalDuration(statistics.totalHours)}</h2>
-                    <p className="text-xs text-muted-foreground hidden sm:block">Let&apos;s Assist verified</p>
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
+                      Verified Hours
+                    </p>
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
+                      {formatTotalDuration(statistics.totalHours)}
+                    </h2>
+                    <p className="text-xs text-muted-foreground hidden sm:block">
+                      Let&apos;s Assist verified
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -530,9 +624,15 @@ export default async function VolunteerDashboard() {
                     <UserCheck className="h-4 w-4 sm:h-6 sm:w-6 text-warning dark:text-warning" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Self-Reported</p>
-                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">{selfReportedHours}h</h2>
-                    <p className="text-xs text-muted-foreground hidden sm:block">Unverified hours</p>
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
+                      Self-Reported
+                    </p>
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
+                      {selfReportedHours}h
+                    </h2>
+                    <p className="text-xs text-muted-foreground hidden sm:block">
+                      Unverified hours
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -546,9 +646,15 @@ export default async function VolunteerDashboard() {
                     <Users className="h-4 w-4 sm:h-6 sm:w-6 text-info" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Projects</p>
-                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">{statistics.totalProjects}</h2>
-                    <p className="text-xs text-muted-foreground hidden sm:block">Completed</p>
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
+                      Projects
+                    </p>
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
+                      {statistics.totalProjects}
+                    </h2>
+                    <p className="text-xs text-muted-foreground hidden sm:block">
+                      Completed
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -562,14 +668,23 @@ export default async function VolunteerDashboard() {
                     <Calendar className="h-4 w-4 sm:h-6 sm:w-6 text-success" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Upcoming</p>
-                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">{upcomingSessions.length}</h2>
-                    <p className="text-xs text-muted-foreground hidden sm:block">Sessions</p>
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
+                      Upcoming
+                    </p>
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
+                      {upcomingSessions.length}
+                    </h2>
+                    <p className="text-xs text-muted-foreground hidden sm:block">
+                      Sessions
+                    </p>
                   </div>
                   <Link
                     href="/projects"
                     aria-label="See all upcoming projects"
-                    className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "ml-auto hidden lg:flex")}
+                    className={cn(
+                      buttonVariants({ variant: "ghost", size: "icon" }),
+                      "ml-auto hidden lg:flex",
+                    )}
                   >
                     <ChevronRight className="h-5 w-5" />
                   </Link>
@@ -596,11 +711,16 @@ export default async function VolunteerDashboard() {
                   {statistics.organizations.length > 0 ? (
                     <div className="space-y-4 sm:space-y-6">
                       {statistics.organizations.map((org, index) => (
-                        <div key={index} className="flex items-center justify-between gap-4">
+                        <div
+                          key={index}
+                          className="flex items-center justify-between gap-4"
+                        >
                           <div className="flex-1 min-w-0">
                             <h4 className="font-medium truncate">{org.name}</h4>
                             <p className="text-sm text-muted-foreground">
-                              {org.projects} {org.projects === 1 ? 'project' : 'projects'} • {org.hours.toFixed(1)} hours
+                              {org.projects}{" "}
+                              {org.projects === 1 ? "project" : "projects"} •{" "}
+                              {org.hours.toFixed(1)} hours
                             </p>
                           </div>
                           <div className="w-12 h-12 sm:w-16 sm:h-16 shrink-0">
@@ -617,9 +737,12 @@ export default async function VolunteerDashboard() {
                   ) : (
                     <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-center">
                       <Users className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
-                      <h3 className="font-medium text-base sm:text-lg">No Organizations Yet</h3>
+                      <h3 className="font-medium text-base sm:text-lg">
+                        No Organizations Yet
+                      </h3>
                       <p className="text-muted-foreground max-w-md mt-1 text-sm sm:text-base">
-                        When you volunteer with formal organizations, they&apos;ll appear here.
+                        When you volunteer with formal organizations,
+                        they&apos;ll appear here.
                       </p>
                     </div>
                   )}
@@ -635,7 +758,9 @@ export default async function VolunteerDashboard() {
                   <CardTitle className="flex items-center gap-2">
                     <Target className="h-5 w-5" /> Volunteering Goals
                   </CardTitle>
-                  <CardDescription>Set and track your volunteering targets</CardDescription>
+                  <CardDescription>
+                    Set and track your volunteering targets
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <VolunteerGoals
@@ -650,7 +775,9 @@ export default async function VolunteerDashboard() {
               <Card data-tour-id="dashboard-upcoming">
                 <CardHeader className="pb-2">
                   <CardTitle>Upcoming Sessions</CardTitle>
-                  <CardDescription>Your scheduled volunteer commitments</CardDescription>
+                  <CardDescription>
+                    Your scheduled volunteer commitments
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {upcomingSessions.length > 0 ? (
@@ -659,8 +786,14 @@ export default async function VolunteerDashboard() {
                         <div className="max-h-[300px] sm:max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
                           <div className="space-y-3 sm:space-y-4">
                             {upcomingSessions.map((session) => (
-                              <div key={session.signupId} className="border rounded-lg p-3 sm:p-4 space-y-2">
-                                <Link href={`/projects/${session.projectId}`} className="font-medium hover:text-primary transition-colors block text-sm sm:text-base">
+                              <div
+                                key={session.signupId}
+                                className="border rounded-lg p-3 sm:p-4 space-y-2"
+                              >
+                                <Link
+                                  href={`/projects/${session.projectId}`}
+                                  className="font-medium hover:text-primary transition-colors block text-sm sm:text-base"
+                                >
                                   {session.projectTitle}
                                 </Link>
                                 <p className="text-xs sm:text-sm text-muted-foreground">
@@ -668,20 +801,39 @@ export default async function VolunteerDashboard() {
                                 </p>
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <p className="text-xs sm:text-sm text-muted-foreground">
-                                    Starts: {format(session.sessionStartTime, "MMM d, yyyy 'at' h:mm a", { in: tz(session.project_timezone) })}
+                                    Starts:{" "}
+                                    {format(
+                                      session.sessionStartTime,
+                                      "MMM d, yyyy 'at' h:mm a",
+                                      { in: tz(session.project_timezone) },
+                                    )}
                                   </p>
                                   <Tooltip>
                                     <TooltipTrigger className="cursor-default">
-                                      <TimezoneBadge timezone={session.project_timezone} />
+                                      <TimezoneBadge
+                                        timezone={session.project_timezone}
+                                      />
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                      <p className="text-xs">Times shown in this project&apos;s timezone.</p>
+                                      <p className="text-xs">
+                                        Times shown in this project&apos;s
+                                        timezone.
+                                      </p>
                                     </TooltipContent>
                                   </Tooltip>
                                 </div>
                                 <div className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
-                                  Status: <Badge variant={session.status === 'approved' ? 'default' : 'outline'}>
-                                    {session.status === "approved" ? "Confirmed" : "Pending"}
+                                  Status:{" "}
+                                  <Badge
+                                    variant={
+                                      session.status === "approved"
+                                        ? "default"
+                                        : "outline"
+                                    }
+                                  >
+                                    {session.status === "approved"
+                                      ? "Confirmed"
+                                      : "Pending"}
                                   </Badge>
                                 </div>
                               </div>
@@ -693,11 +845,19 @@ export default async function VolunteerDashboard() {
                   ) : (
                     <div className="flex flex-col items-center justify-center py-6 sm:py-8 text-center">
                       <Calendar className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/30 mb-3" />
-                      <h3 className="font-medium text-sm sm:text-base">No Upcoming Sessions</h3>
+                      <h3 className="font-medium text-sm sm:text-base">
+                        No Upcoming Sessions
+                      </h3>
                       <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xs">
                         You don&apos;t have any upcoming volunteer commitments
                       </p>
-                      <Link href="/home" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-3 sm:mt-4")}>
+                      <Link
+                        href="/home"
+                        className={cn(
+                          buttonVariants({ variant: "outline", size: "sm" }),
+                          "mt-3 sm:mt-4",
+                        )}
+                      >
                         Browse Opportunities
                       </Link>
                     </div>
@@ -712,7 +872,9 @@ export default async function VolunteerDashboard() {
         <TabsContent value="hours" className="space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h2 className="text-xl sm:text-2xl font-bold">All Volunteer Hours</h2>
+              <h2 className="text-xl sm:text-2xl font-bold">
+                All Volunteer Hours
+              </h2>
               <p className="text-muted-foreground text-sm sm:text-base">
                 Both verified and self-reported volunteer hours
               </p>
@@ -735,8 +897,13 @@ export default async function VolunteerDashboard() {
             <ExportSection
               userEmail={user.email}
               // For the export UI, use uiCertificates where 'platform' == previously 'verified'
-              verifiedCount={uiCertificates.filter(cert => cert.type === 'platform').length}
-              unverifiedCount={uiCertificates.filter(cert => cert.type === 'self-reported').length}
+              verifiedCount={
+                uiCertificates.filter((cert) => cert.type === "platform").length
+              }
+              unverifiedCount={
+                uiCertificates.filter((cert) => cert.type === "self-reported")
+                  .length
+              }
               totalCertificates={uiCertificates.length}
               certificatesData={uiCertificates}
             />

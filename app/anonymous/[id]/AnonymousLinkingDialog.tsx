@@ -195,7 +195,9 @@ export function AnonymousLinkingDialog({
         return;
       }
 
-      finishLinkedSession("Account linked successfully! Your volunteer dashboard is ready.");
+      finishLinkedSession(
+        "Account linked successfully! Your volunteer dashboard is ready.",
+      );
     } catch (error) {
       console.error("Error linking current account:", error);
       toast.error("Failed to link your current account. Please try again.");
@@ -231,7 +233,9 @@ export function AnonymousLinkingDialog({
           email: values.email,
           password: "",
         });
-        finishLinkedSession("Account linked successfully! Redirecting to your dashboard...");
+        finishLinkedSession(
+          "Account linked successfully! Redirecting to your dashboard...",
+        );
       } catch (error) {
         console.error("Error linking existing account:", error);
         toast.error("Failed to link your account. Please try again.");
@@ -242,64 +246,75 @@ export function AnonymousLinkingDialog({
     },
   );
 
-  const handleCreateAccountLink = createAccountForm.handleSubmit(async (values) => {
-    if (!requireCaptchaToken()) {
-      return;
-    }
+  const handleCreateAccountLink = createAccountForm.handleSubmit(
+    async (values) => {
+      if (!requireCaptchaToken()) {
+        return;
+      }
 
-    setIsCreatingAccount(true);
+      setIsCreatingAccount(true);
 
-    try {
-      const result = await linkAnonymousToNewAccount(
-        anonymousId,
-        anonymousToken,
-        values.email,
-        values.password,
-        values.fullName,
-        verification.token ?? undefined,
-      );
+      try {
+        const result = await linkAnonymousToNewAccount(
+          anonymousId,
+          anonymousToken,
+          values.email,
+          values.password,
+          values.fullName,
+          verification.token ?? undefined,
+        );
 
-      if (result.error) {
-        toast.error(result.error);
+        if (result.error) {
+          toast.error(result.error);
+          verification.reset();
+          return;
+        }
+
+        createAccountForm.reset({
+          fullName: values.fullName,
+          email: values.email,
+          password: "",
+        });
+
         verification.reset();
-        return;
+        setOpen(false);
+
+        if (result.requiresEmailVerification) {
+          onLinkedPendingVerification(values.email);
+          setVerificationEmail(values.email);
+          setVerificationDialogOpen(true);
+          toast.success(
+            "Account created! Check your email to finish accessing your dashboard.",
+          );
+          return;
+        }
+
+        finishLinkedSession(
+          "Account created and linked successfully! Redirecting to your dashboard...",
+        );
+      } catch (error) {
+        console.error("Error creating linked account:", error);
+        toast.error("Failed to create your account. Please try again.");
+        verification.reset();
+      } finally {
+        setIsCreatingAccount(false);
       }
-
-      createAccountForm.reset({
-        fullName: values.fullName,
-        email: values.email,
-        password: "",
-      });
-
-      verification.reset();
-      setOpen(false);
-
-      if (result.requiresEmailVerification) {
-        onLinkedPendingVerification(values.email);
-        setVerificationEmail(values.email);
-        setVerificationDialogOpen(true);
-        toast.success("Account created! Check your email to finish accessing your dashboard.");
-        return;
-      }
-
-      finishLinkedSession("Account created and linked successfully! Redirecting to your dashboard...");
-    } catch (error) {
-      console.error("Error creating linked account:", error);
-      toast.error("Failed to create your account. Please try again.");
-      verification.reset();
-    } finally {
-      setIsCreatingAccount(false);
-    }
-  });
+    },
+  );
 
   const handleGoogleLink = async () => {
     setIsGoogleLoading(true);
 
     try {
-      const result = await startAnonymousGoogleLink(anonymousId, anonymousToken);
+      const result = await startAnonymousGoogleLink(
+        anonymousId,
+        anonymousToken,
+      );
 
       if (!result.url || result.error) {
-        toast.error(result.error ?? "Failed to start Google linking. Please try again.");
+        toast.error(
+          result.error ?? "Failed to start Google linking. Please try again.",
+        );
         return;
       }
 
@@ -337,7 +352,11 @@ export function AnonymousLinkingDialog({
     <>
       <div className="space-y-2">
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button onClick={() => setOpen(true)} className="flex items-center gap-2" disabled={isBusy}>
+          <Button
+            onClick={() => setOpen(true)}
+            className="flex items-center gap-2"
+            disabled={isBusy}
+          >
             <Link2 className="h-4 w-4" />
             Link or Create Account
           </Button>
@@ -345,7 +364,11 @@ export function AnonymousLinkingDialog({
 
         {currentUser?.email && (
           <p className="text-xs text-muted-foreground">
-            You&apos;re already signed in as <span className="font-medium text-foreground">{currentUser.email}</span>. Open the linker to attach this volunteer profile directly.
+            You&apos;re already signed in as{" "}
+            <span className="font-medium text-foreground">
+              {currentUser.email}
+            </span>
+            . Open the linker to attach this volunteer profile directly.
           </p>
         )}
       </div>
@@ -355,7 +378,9 @@ export function AnonymousLinkingDialog({
           <DialogHeader>
             <DialogTitle>Link this volunteer profile</DialogTitle>
             <DialogDescription>
-              Move these anonymous volunteer signups into a Let&apos;s Assist account so you can track approvals, attendance, hours, and certificates in one place.
+              Move these anonymous volunteer signups into a Let&apos;s Assist
+              account so you can track approvals, attendance, hours, and
+              certificates in one place.
             </DialogDescription>
           </DialogHeader>
 
@@ -366,7 +391,12 @@ export function AnonymousLinkingDialog({
                 <AlertTitle>Already signed in</AlertTitle>
                 <AlertDescription className="space-y-3">
                   <p>
-                    You&apos;re currently signed in as <span className="font-medium text-foreground">{currentUser.email}</span>. You can attach this volunteer profile to that account immediately.
+                    You&apos;re currently signed in as{" "}
+                    <span className="font-medium text-foreground">
+                      {currentUser.email}
+                    </span>
+                    . You can attach this volunteer profile to that account
+                    immediately.
                   </p>
                   <Button
                     type="button"
@@ -386,21 +416,35 @@ export function AnonymousLinkingDialog({
               </Alert>
             )}
 
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "existing" | "create")}> 
+            <Tabs
+              value={activeTab}
+              onValueChange={(value) =>
+                setActiveTab(value as "existing" | "create")
+              }
+            >
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="existing">Existing account</TabsTrigger>
                 <TabsTrigger value="create">Create account</TabsTrigger>
               </TabsList>
 
               <TabsContent value="existing" className="pt-4">
-                <form onSubmit={handleExistingAccountLink} className="space-y-4">
+                <form
+                  onSubmit={handleExistingAccountLink}
+                  className="space-y-4"
+                >
                   <Controller
                     control={existingAccountForm.control}
                     name="email"
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
                         <FieldLabel htmlFor={field.name}>Email</FieldLabel>
-                        <Input id={field.name} type="email" placeholder="you@example.com" {...field} aria-invalid={fieldState.invalid} />
+                        <Input
+                          id={field.name}
+                          type="email"
+                          placeholder="you@example.com"
+                          {...field}
+                          aria-invalid={fieldState.invalid}
+                        />
                         <FieldError errors={[fieldState.error]} />
                       </Field>
                     )}
@@ -412,13 +456,25 @@ export function AnonymousLinkingDialog({
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
                         <FieldLabel htmlFor={field.name}>Password</FieldLabel>
-                        <Input id={field.name} type="password" placeholder="Enter your password" {...field} aria-invalid={fieldState.invalid} />
+                        <Input
+                          id={field.name}
+                          type="password"
+                          placeholder="Enter your password"
+                          {...field}
+                          aria-invalid={fieldState.invalid}
+                        />
                         <FieldError errors={[fieldState.error]} />
                       </Field>
                     )}
                   />
 
-                  <Button type="submit" className="w-full sm:w-auto" disabled={isBusy || (showTurnstileWidget && !verification.token)}>
+                  <Button
+                    type="submit"
+                    className="w-full sm:w-auto"
+                    disabled={
+                      isBusy || (showTurnstileWidget && !verification.token)
+                    }
+                  >
                     {isLinkingExisting ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -437,7 +493,12 @@ export function AnonymousLinkingDialog({
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
                         <FieldLabel htmlFor={field.name}>Full name</FieldLabel>
-                        <Input id={field.name} placeholder="Your full name" {...field} aria-invalid={fieldState.invalid} />
+                        <Input
+                          id={field.name}
+                          placeholder="Your full name"
+                          {...field}
+                          aria-invalid={fieldState.invalid}
+                        />
                         <FieldError errors={[fieldState.error]} />
                       </Field>
                     )}
@@ -449,7 +510,13 @@ export function AnonymousLinkingDialog({
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
                         <FieldLabel htmlFor={field.name}>Email</FieldLabel>
-                        <Input id={field.name} type="email" placeholder="you@example.com" {...field} aria-invalid={fieldState.invalid} />
+                        <Input
+                          id={field.name}
+                          type="email"
+                          placeholder="you@example.com"
+                          {...field}
+                          aria-invalid={fieldState.invalid}
+                        />
                         <FieldError errors={[fieldState.error]} />
                       </Field>
                     )}
@@ -461,13 +528,25 @@ export function AnonymousLinkingDialog({
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
                         <FieldLabel htmlFor={field.name}>Password</FieldLabel>
-                        <Input id={field.name} type="password" placeholder="Create a password" {...field} aria-invalid={fieldState.invalid} />
+                        <Input
+                          id={field.name}
+                          type="password"
+                          placeholder="Create a password"
+                          {...field}
+                          aria-invalid={fieldState.invalid}
+                        />
                         <FieldError errors={[fieldState.error]} />
                       </Field>
                     )}
                   />
 
-                  <Button type="submit" className="w-full sm:w-auto" disabled={isBusy || (showTurnstileWidget && !verification.token)}>
+                  <Button
+                    type="submit"
+                    className="w-full sm:w-auto"
+                    disabled={
+                      isBusy || (showTurnstileWidget && !verification.token)
+                    }
+                  >
                     {isCreatingAccount ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -484,9 +563,12 @@ export function AnonymousLinkingDialog({
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                   <Shield className="mt-0.5 h-4 w-4 shrink-0" />
                   <div>
-                    <p className="font-medium text-foreground">Security check</p>
+                    <p className="font-medium text-foreground">
+                      Security check
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      Complete bot verification before using email/password linking.
+                      Complete bot verification before using email/password
+                      linking.
                     </p>
                   </div>
                 </div>
@@ -512,18 +594,30 @@ export function AnonymousLinkingDialog({
                   </div>
                 </div>
 
-                {verification.error && <FieldError>{verification.error}</FieldError>}
+                {verification.error && (
+                  <FieldError>{verification.error}</FieldError>
+                )}
               </div>
             )}
 
             <div className="space-y-3 rounded-lg border border-border/60 p-4">
               <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground">Prefer Google?</p>
+                <p className="text-sm font-medium text-foreground">
+                  Prefer Google?
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  Supabase recommends redirect-based OAuth linking for Google. We&apos;ll bring you back here and finish attaching this profile automatically.
+                  Supabase recommends redirect-based OAuth linking for Google.
+                  We&apos;ll bring you back here and finish attaching this
+                  profile automatically.
                 </p>
               </div>
-              <Button type="button" variant="outline" onClick={handleGoogleLink} disabled={isBusy} className="w-full sm:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGoogleLink}
+                disabled={isBusy}
+                className="w-full sm:w-auto"
+              >
                 {isGoogleLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -541,19 +635,31 @@ export function AnonymousLinkingDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isBusy}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setOpen(false)}
+              disabled={isBusy}
+            >
               Close
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={verificationDialogOpen} onOpenChange={setVerificationDialogOpen}>
+      <Dialog
+        open={verificationDialogOpen}
+        onOpenChange={setVerificationDialogOpen}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Check your email to finish account access</DialogTitle>
             <DialogDescription>
-              We created your account and linked this volunteer profile. Verify <span className="font-medium text-foreground">{verificationEmail}</span>, then sign in to access your dashboard.
+              We created your account and linked this volunteer profile. Verify{" "}
+              <span className="font-medium text-foreground">
+                {verificationEmail}
+              </span>
+              , then sign in to access your dashboard.
             </DialogDescription>
           </DialogHeader>
 
@@ -561,13 +667,23 @@ export function AnonymousLinkingDialog({
             <Mail className="h-4 w-4" />
             <AlertTitle>What happens next</AlertTitle>
             <AlertDescription className="space-y-1 text-sm">
-              <p>Your volunteer signups are already attached to the new account.</p>
-              <p>Once you verify the email address, you&apos;ll be able to sign in and manage hours, attendance, and certificates from your dashboard.</p>
+              <p>
+                Your volunteer signups are already attached to the new account.
+              </p>
+              <p>
+                Once you verify the email address, you&apos;ll be able to sign
+                in and manage hours, attendance, and certificates from your
+                dashboard.
+              </p>
             </AlertDescription>
           </Alert>
 
           <DialogFooter className="gap-2 sm:flex-row">
-            <Button type="button" variant="outline" onClick={() => setVerificationDialogOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setVerificationDialogOpen(false)}
+            >
               Close
             </Button>
             <Button asChild>

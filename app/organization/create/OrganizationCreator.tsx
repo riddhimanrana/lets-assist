@@ -6,12 +6,34 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Building2, Globe, Upload, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Building2,
+  Globe,
+  Upload,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel } from "@/components/ui/select";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  SelectGroup,
+  SelectLabel,
+} from "@/components/ui/select";
 import {
   Field,
   FieldLabel,
@@ -54,41 +76,73 @@ const ORG_TYPE_LABELS: Record<OrganizationFormValues["type"], string> = {
 
 // Form schema with enhanced validation
 const orgCreationSchema = z.object({
-  name: z.string()
-    .min(CONSTANTS.NAME.MIN, `Name must be at least ${CONSTANTS.NAME.MIN} characters`)
-    .max(CONSTANTS.NAME.MAX, `Name cannot exceed ${CONSTANTS.NAME.MAX} characters`)
-    .refine(value => value.trim().length >= CONSTANTS.NAME.MIN, {
-      message: "Name cannot be only whitespace"
+  name: z
+    .string()
+    .min(
+      CONSTANTS.NAME.MIN,
+      `Name must be at least ${CONSTANTS.NAME.MIN} characters`,
+    )
+    .max(
+      CONSTANTS.NAME.MAX,
+      `Name cannot exceed ${CONSTANTS.NAME.MAX} characters`,
+    )
+    .refine((value) => value.trim().length >= CONSTANTS.NAME.MIN, {
+      message: "Name cannot be only whitespace",
     }),
 
-  username: z.string()
-    .min(CONSTANTS.USERNAME.MIN, `Username must be at least ${CONSTANTS.USERNAME.MIN} characters`)
-    .max(CONSTANTS.USERNAME.MAX, `Username cannot exceed ${CONSTANTS.USERNAME.MAX} characters`)
+  username: z
+    .string()
+    .min(
+      CONSTANTS.USERNAME.MIN,
+      `Username must be at least ${CONSTANTS.USERNAME.MIN} characters`,
+    )
+    .max(
+      CONSTANTS.USERNAME.MAX,
+      `Username cannot exceed ${CONSTANTS.USERNAME.MAX} characters`,
+    )
     .regex(CONSTANTS.USERNAME.REGEX, {
-      message: "Username can only contain letters, numbers, underscores, dots and hyphens"
+      message:
+        "Username can only contain letters, numbers, underscores, dots and hyphens",
     })
-    .refine(value => !value.includes(".."), {
-      message: "Username cannot contain consecutive dots"
+    .refine((value) => !value.includes(".."), {
+      message: "Username cannot contain consecutive dots",
     })
-    .refine(value => !value.startsWith(".") && !value.endsWith("."), {
-      message: "Username cannot start or end with a dot"
+    .refine((value) => !value.startsWith(".") && !value.endsWith("."), {
+      message: "Username cannot start or end with a dot",
     }),
 
-  description: z.string()
-    .min(CONSTANTS.DESCRIPTION.MIN, `Description must be at least ${CONSTANTS.DESCRIPTION.MIN} characters`)
-    .max(CONSTANTS.DESCRIPTION.MAX, `Description cannot exceed ${CONSTANTS.DESCRIPTION.MAX} characters`)
-    .refine(value => value.trim().length >= CONSTANTS.DESCRIPTION.MIN, {
-      message: "Description cannot be only whitespace"
+  description: z
+    .string()
+    .min(
+      CONSTANTS.DESCRIPTION.MIN,
+      `Description must be at least ${CONSTANTS.DESCRIPTION.MIN} characters`,
+    )
+    .max(
+      CONSTANTS.DESCRIPTION.MAX,
+      `Description cannot exceed ${CONSTANTS.DESCRIPTION.MAX} characters`,
+    )
+    .refine((value) => value.trim().length >= CONSTANTS.DESCRIPTION.MIN, {
+      message: "Description cannot be only whitespace",
     }),
 
-  website: z.string()
-    .max(CONSTANTS.WEBSITE.MAX, `Website URL cannot exceed ${CONSTANTS.WEBSITE.MAX} characters`)
+  website: z
+    .string()
+    .max(
+      CONSTANTS.WEBSITE.MAX,
+      `Website URL cannot exceed ${CONSTANTS.WEBSITE.MAX} characters`,
+    )
     .url("Please enter a valid URL")
     .optional()
 
     .or(z.literal("")),
 
-  type: z.enum(["nonprofit", "school", "company", "government", "other"] as const),
+  type: z.enum([
+    "nonprofit",
+    "school",
+    "company",
+    "government",
+    "other",
+  ] as const),
 
   logoUrl: z.string().nullable().optional(),
 });
@@ -98,7 +152,9 @@ type OrganizationFormValues = z.infer<typeof orgCreationSchema>;
 export default function OrganizationCreator({ userId }: { userId: string }) {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
-  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
+    null,
+  );
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string>("");
   const [showCropper, setShowCropper] = useState(false);
@@ -205,7 +261,10 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
           <CardContent className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 mb-6">
               <Avatar className="w-24 h-24">
-                <AvatarImage src={form.watch("logoUrl") || undefined} alt="Organization logo" />
+                <AvatarImage
+                  src={form.watch("logoUrl") || undefined}
+                  alt="Organization logo"
+                />
                 <AvatarFallback className="bg-muted">
                   <Building2 className="h-8 w-8 text-muted-foreground" />
                 </AvatarFallback>
@@ -214,7 +273,9 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => document.getElementById("logo-upload")?.click()}
+                  onClick={() =>
+                    document.getElementById("logo-upload")?.click()
+                  }
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   Upload Logo
@@ -227,7 +288,8 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                   onChange={handleImageUpload}
                 />
                 <p className="text-sm text-muted-foreground mt-2">
-                  Optional, but highly recommended. Upload a square logo for your organization.
+                  Optional, but highly recommended. Upload a square logo for
+                  your organization.
                 </p>
               </div>
             </div>
@@ -237,14 +299,20 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
               name="name"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Organization Name *</FieldLabel>
+                  <FieldLabel htmlFor={field.name}>
+                    Organization Name *
+                  </FieldLabel>
                   <div className="relative">
                     <Input
                       id={field.name}
                       {...field}
                       placeholder="Enter organization name"
                       maxLength={CONSTANTS.NAME.MAX}
-                      className={field.value && field.value.length < CONSTANTS.NAME.MIN ? "border-destructive" : ""}
+                      className={
+                        field.value && field.value.length < CONSTANTS.NAME.MIN
+                          ? "border-destructive"
+                          : ""
+                      }
                       aria-invalid={fieldState.invalid}
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
@@ -252,9 +320,12 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                     </span>
                   </div>
                   <FieldDescription>
-                    This will be your organization&apos;s display name (minimum {CONSTANTS.NAME.MIN} characters)
+                    This will be your organization&apos;s display name (minimum{" "}
+                    {CONSTANTS.NAME.MIN} characters)
                   </FieldDescription>
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -306,9 +377,15 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                     )}
                   </div>
                   <FieldDescription>
-                    Used in your organization&apos;s URL (minimum 3 characters): lets-assist.com/organization/<span className="font-mono">{field.value || "username"}</span>
+                    Used in your organization&apos;s URL (minimum 3 characters):
+                    lets-assist.com/organization/
+                    <span className="font-mono">
+                      {field.value || "username"}
+                    </span>
                   </FieldDescription>
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -324,8 +401,12 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                       id={field.name}
                       {...field}
                       placeholder="Describe your organization"
-                      className={`resize-none ${field.value && field.value.length < CONSTANTS.DESCRIPTION.MIN ? "border-destructive" : ""
-                        }`}
+                      className={`resize-none ${
+                        field.value &&
+                        field.value.length < CONSTANTS.DESCRIPTION.MIN
+                          ? "border-destructive"
+                          : ""
+                      }`}
                       rows={4}
                       maxLength={CONSTANTS.DESCRIPTION.MAX}
                       aria-invalid={fieldState.invalid}
@@ -335,9 +416,12 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                     </span>
                   </div>
                   <FieldDescription>
-                    Provide a short description of your organization (minimum {CONSTANTS.DESCRIPTION.MIN} characters)
+                    Provide a short description of your organization (minimum{" "}
+                    {CONSTANTS.DESCRIPTION.MIN} characters)
                   </FieldDescription>
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -360,9 +444,12 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                     />
                   </div>
                   <FieldDescription>
-                    Optional. Include your organization&apos;s website. Must start with https:// or http://
+                    Optional. Include your organization&apos;s website. Must
+                    start with https:// or http://
                   </FieldDescription>
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -372,11 +459,10 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
               name="type"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Organization Type *</FieldLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
+                  <FieldLabel htmlFor={field.name}>
+                    Organization Type *
+                  </FieldLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger
                       id={field.name}
                       aria-invalid={fieldState.invalid}
@@ -388,10 +474,18 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                     <SelectContent>
                       <SelectGroup>
                         <SelectLabel>Type</SelectLabel>
-                        <SelectItem value="nonprofit">Nonprofit Organization</SelectItem>
-                        <SelectItem value="school">Educational Institution</SelectItem>
-                        <SelectItem value="company">Company/Business</SelectItem>
-                        <SelectItem value="government">Government Agency</SelectItem>
+                        <SelectItem value="nonprofit">
+                          Nonprofit Organization
+                        </SelectItem>
+                        <SelectItem value="school">
+                          Educational Institution
+                        </SelectItem>
+                        <SelectItem value="company">
+                          Company/Business
+                        </SelectItem>
+                        <SelectItem value="government">
+                          Government Agency
+                        </SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectGroup>
                     </SelectContent>
@@ -399,7 +493,9 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                   <FieldDescription>
                     Choose the type that best describes your organization
                   </FieldDescription>
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -407,10 +503,11 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
             <div className="rounded-lg border bg-muted/30 p-4">
               <p className="text-sm font-medium">Automatic domain membership</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Organization-owned email domains can be enabled after Let&apos;s Assist verifies the organization. Create the organization first, then use its settings page to contact support.
+                Organization-owned email domains can be enabled after Let&apos;s
+                Assist verifies the organization. Create the organization first,
+                then use its settings page to contact support.
               </p>
             </div>
-
           </CardContent>
           <CardFooter>
             <Button

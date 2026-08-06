@@ -37,7 +37,10 @@ test("anonymous public responses retain route-owned cache policy", () => {
   );
 
   assert.doesNotMatch(responseInitialization, /applyPrivateNoStore/u);
-  assert.match(source, /shouldDisableSharedCaching = shouldApplyPrivateNoStore/u);
+  assert.match(
+    source,
+    /shouldDisableSharedCaching = shouldApplyPrivateNoStore/u,
+  );
 });
 
 test("auth context, mutation, redirects, errors, and sensitive routes disable shared caching", () => {
@@ -51,7 +54,10 @@ test("auth context, mutation, redirects, errors, and sensitive routes disable sh
   };
 
   assert.equal(
-    shouldApplyPrivateNoStore({ ...anonymousPublic, hasIncomingAuthContext: true }),
+    shouldApplyPrivateNoStore({
+      ...anonymousPublic,
+      hasIncomingAuthContext: true,
+    }),
     true,
   );
   assert.equal(
@@ -63,11 +69,18 @@ test("auth context, mutation, redirects, errors, and sensitive routes disable sh
     true,
   );
   assert.equal(
-    shouldApplyPrivateNoStore({ ...anonymousPublic, authSensitiveRequest: true }),
+    shouldApplyPrivateNoStore({
+      ...anonymousPublic,
+      authSensitiveRequest: true,
+    }),
     true,
   );
   assert.equal(
-    shouldApplyPrivateNoStore({ ...anonymousPublic, isRedirect: true, responseStatus: 307 }),
+    shouldApplyPrivateNoStore({
+      ...anonymousPublic,
+      isRedirect: true,
+      responseStatus: 307,
+    }),
     true,
   );
   assert.equal(
@@ -91,10 +104,22 @@ test("proxy recognizes Supabase cookies and capability-bearing auth requests", (
   assert.equal(isAuthSensitiveProxyPath("/organization/acme"), false);
   assert.equal(isAuthSensitiveProxyPath("/api/status"), false);
 
-  assert.equal(hasSensitiveAuthQuery(new URLSearchParams("token=secret")), true);
-  assert.equal(hasSensitiveAuthQuery(new URLSearchParams("staff_token=invite")), true);
-  assert.equal(hasSensitiveAuthQuery(new URLSearchParams("email=user%40example.com")), true);
-  assert.equal(hasSensitiveAuthQuery(new URLSearchParams("page=2&sort=recent")), false);
+  assert.equal(
+    hasSensitiveAuthQuery(new URLSearchParams("token=secret")),
+    true,
+  );
+  assert.equal(
+    hasSensitiveAuthQuery(new URLSearchParams("staff_token=invite")),
+    true,
+  );
+  assert.equal(
+    hasSensitiveAuthQuery(new URLSearchParams("email=user%40example.com")),
+    true,
+  );
+  assert.equal(
+    hasSensitiveAuthQuery(new URLSearchParams("page=2&sort=recent")),
+    false,
+  );
 });
 
 test("authenticated auth-page redirects do not intercept Server Action posts", () => {
@@ -143,7 +168,10 @@ test("project management routes match creator and organization permissions", () 
   const common = { creatorId: "creator", userId: "viewer" };
 
   assert.equal(canManageProjectRoute({ ...common, userId: "creator" }), true);
-  assert.equal(canManageProjectRoute({ ...common, organizationRole: "admin" }), true);
+  assert.equal(
+    canManageProjectRoute({ ...common, organizationRole: "admin" }),
+    true,
+  );
   assert.equal(
     canManageProjectRoute({
       ...common,
@@ -160,14 +188,23 @@ test("project management routes match creator and organization permissions", () 
     }),
     false,
   );
-  assert.equal(canManageProjectRoute({ ...common, organizationRole: "member" }), false);
+  assert.equal(
+    canManageProjectRoute({ ...common, organizationRole: "member" }),
+    false,
+  );
 });
 
 test("proxy refreshes authoritative auth state before trusting account-access metadata", () => {
   const source = readFileSync(`${process.cwd()}/lib/supabase/proxy.ts`, "utf8");
   const claimsIndex = source.indexOf("await supabase.auth.getClaims()");
-  const freshUserIndex = source.indexOf("await supabase.auth.getUser()", claimsIndex);
-  const accessIndex = source.indexOf("readAccountAccessFromMetadata(user.app_metadata", freshUserIndex);
+  const freshUserIndex = source.indexOf(
+    "await supabase.auth.getUser()",
+    claimsIndex,
+  );
+  const accessIndex = source.indexOf(
+    "readAccountAccessFromMetadata(user.app_metadata",
+    freshUserIndex,
+  );
 
   assert.ok(claimsIndex >= 0);
   assert.ok(freshUserIndex > claimsIndex);
@@ -194,7 +231,11 @@ test("fresh-user validation only clears authoritative invalid sessions", () => {
   );
   assert.equal(
     classifyFreshUserValidation({
-      error: { code: "request_timeout", message: "Upstream timeout", status: 503 },
+      error: {
+        code: "request_timeout",
+        message: "Upstream timeout",
+        status: 503,
+      },
       expectedUserId: "user-1",
     }),
     "retry",

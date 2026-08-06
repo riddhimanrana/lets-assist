@@ -18,10 +18,7 @@ export async function GET(_request: Request) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const connection = await getCalendarConnection(user.id);
@@ -44,7 +41,7 @@ export async function GET(_request: Request) {
     console.error("Error getting calendar connection status:", error);
     return NextResponse.json(
       { error: "Failed to get connection status" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

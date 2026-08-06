@@ -5,11 +5,7 @@ import { Play, HeartHandshake } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { AnimatedText } from "./AnimatedText";
 
 export const CallToAction = () => {

@@ -62,14 +62,14 @@ remains the raw, non-bootstrapping Next.js command.
 Never use these on the CSF recovery path. Each one either selects or destroys a
 stack this path does not own:
 
-| Command | Why it is prohibited |
-| --- | --- |
-| `bun run supabase` | Shared bootstrap: starts, resets, and reseeds the shared local `54321` stack. |
-| `bun run supabase:reset` / `supabase db reset` | Destroys the shared local database. Recovery replays through a *new volume*, never a reset. |
-| `supabase ... --linked` / `supabase link` | Reaches a hosted project. Production and the preview project are out of scope. |
-| `bun run csf:test:db:isolated` | Superseded second-stack replay script; it is not part of this recovery path. |
-| `bun run supabase:seed:local-dev` | Shared local, non-CSF only. It refuses an isolated work directory by design and seeds no DVHS CSF data at all — use `bun run csf:seed:platform:isolated`. |
-| `bun run dev:next` | Ambient Next launch: it runs in the operator's own environment and does not bootstrap or seed Supabase. Use `bun run dev` for normal local work. |
+| Command                                        | Why it is prohibited                                                                                                                                      |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun run supabase`                             | Shared bootstrap: starts, resets, and reseeds the shared local `54321` stack.                                                                             |
+| `bun run supabase:reset` / `supabase db reset` | Destroys the shared local database. Recovery replays through a _new volume_, never a reset.                                                               |
+| `supabase ... --linked` / `supabase link`      | Reaches a hosted project. Production and the preview project are out of scope.                                                                            |
+| `bun run csf:test:db:isolated`                 | Superseded second-stack replay script; it is not part of this recovery path.                                                                              |
+| `bun run supabase:seed:local-dev`              | Shared local, non-CSF only. It refuses an isolated work directory by design and seeds no DVHS CSF data at all — use `bun run csf:seed:platform:isolated`. |
+| `bun run dev:next`                             | Ambient Next launch: it runs in the operator's own environment and does not bootstrap or seed Supabase. Use `bun run dev` for normal local work.          |
 
 The one-command bootstrap delegates to
 `scripts/local-dev/start-dvhs-csf-isolated-stack.sh` and the low-level isolated
@@ -111,6 +111,7 @@ app runner; those remain the only permitted live stack and app launchers.
    digest before emitting anything, and the allowlist above is exactly the 17
    keys it may emit. `supabase-browser.env` is only the raw `supabase status`
    snapshot; it is not sufficient for app or seed validation.
+
 4. Run `bun run csf:seed:platform:isolated` and, if needed, `bun run dv:fixtures`
    to create the fictional JavaScript-managed platform and DV records. The
    isolated seed script carries `PLATFORM_SEED_MODE=csf-isolated-v1` and refuses

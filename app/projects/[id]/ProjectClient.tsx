@@ -1,10 +1,10 @@
 "use client";
 
-import ProjectDetails from './ProjectDetails';
+import ProjectDetails from "./ProjectDetails";
 // Import Signup type along with others if needed
-import { Project, Organization, Signup } from '@/types'; 
-import { AuthUser } from '@/lib/supabase/types';
-import type { ProjectCreatorProfileRecord } from '@/lib/profile/public';
+import { Project, Organization, Signup } from "@/types";
+import { AuthUser } from "@/lib/supabase/types";
+import type { ProjectCreatorProfileRecord } from "@/lib/profile/public";
 
 type CreatorDashboardSignupSummary = Pick<
   Signup,
@@ -15,7 +15,7 @@ type CreatorDashboardSignupSummary = Pick<
 interface Props {
   project: Project;
   // Use specific types if available
-  creator: ProjectCreatorProfileRecord | null; 
+  creator: ProjectCreatorProfileRecord | null;
   organization: Organization | null;
   initialSlotData: {
     remainingSlots: Record<string, number>;
@@ -28,7 +28,7 @@ interface Props {
   initialCanManageProject: boolean;
   initialUser: AuthUser | null;
   // Add prop for full signup data
-  userSignupsData: Signup[]; 
+  userSignupsData: Signup[];
   allSignups?: CreatorDashboardSignupSummary[];
 }
 
@@ -41,7 +41,7 @@ export default function ProjectClient({
   initialCanManageProject,
   initialUser,
   // Destructure the new prop
-  userSignupsData, 
+  userSignupsData,
   allSignups = [],
 }: Props) {
   return (
@@ -54,7 +54,7 @@ export default function ProjectClient({
       initialCanManageProject={initialCanManageProject}
       initialUser={initialUser}
       // Pass the signup data down
-      userSignupsData={userSignupsData} 
+      userSignupsData={userSignupsData}
       allSignups={allSignups}
     />
   );

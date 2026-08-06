@@ -23,7 +23,7 @@ const TimelineItem = React.forwardRef<HTMLLIElement, TimelineItemProps>(
       data-status={status}
       {...props}
     />
-  )
+  ),
 );
 TimelineItem.displayName = "TimelineItem";
 
@@ -37,7 +37,7 @@ const TimelineConnector = React.forwardRef<
     className={cn(
       "absolute left-[18px] top-[44px] h-full w-0.5", // Positioned relative to the icon center
       "bg-muted group-data-[status=passed]:bg-primary group-data-[status=current]:bg-primary", // Color based on parent status
-      className
+      className,
     )}
     {...props}
   />
@@ -69,15 +69,16 @@ const TimelineIcon = React.forwardRef<HTMLDivElement, TimelineIconProps>(
       className={cn(
         "relative z-10 flex h-9 w-9 items-center justify-center rounded-full border-4",
         "border-muted bg-background text-muted-foreground", // Default (future)
-        status === "passed" && "border-primary bg-primary text-primary-foreground", // Passed
+        status === "passed" &&
+          "border-primary bg-primary text-primary-foreground", // Passed
         status === "current" && "border-primary bg-primary/20 text-primary", // Current
-        className
+        className,
       )}
       {...props}
     >
       {children}
     </div>
-  )
+  ),
 );
 TimelineIcon.displayName = "TimelineIcon";
 
@@ -91,7 +92,7 @@ const TimelineTitle = React.forwardRef<
     className={cn(
       "text-lg font-semibold",
       "group-data-[status=passed]:text-primary group-data-[status=current]:text-primary", // Color based on parent status
-      className
+      className,
     )}
     {...props}
   >
@@ -127,7 +128,7 @@ const TimelineContent = React.forwardRef<
       "border-muted", // Default border
       "group-data-[status=passed]:border-primary/30", // Passed border
       "group-data-[status=current]:border-primary border-2", // Current border
-      className
+      className,
     )}
     {...props}
   >

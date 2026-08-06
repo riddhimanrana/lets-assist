@@ -2,14 +2,34 @@
 
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users2, BadgeCheck, Shield, UserRoundCog, UserRound } from "lucide-react";
+import {
+  Users2,
+  BadgeCheck,
+  Shield,
+  UserRoundCog,
+  UserRound,
+} from "lucide-react";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import type { Organization } from "@/types";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-type OrganizationCardOrg = Omit<Organization, "description" | "website" | "logo_url" | "type"> & {
+type OrganizationCardOrg = Omit<
+  Organization,
+  "description" | "website" | "logo_url" | "type"
+> & {
   description?: string | null;
   website?: string | null;
   logo_url?: string | null;
@@ -21,13 +41,20 @@ interface OrganizationCardProps {
   org: OrganizationCardOrg;
   memberCount: number;
   isUserMember?: boolean;
-  userRole?: 'admin' | 'staff' | 'member';
+  userRole?: "admin" | "staff" | "member";
 }
 
-export default function OrganizationCard({ org, memberCount, isUserMember = false, userRole }: OrganizationCardProps) {
+export default function OrganizationCard({
+  org,
+  memberCount,
+  isUserMember = false,
+  userRole,
+}: OrganizationCardProps) {
   return (
     <Link href={`/organization/${org.username}`} className="block h-full group">
-      <Card className={`h-full flex flex-col hover:shadow-lg transition-all duration-300  ${isUserMember ? 'border-primary/30 bg-primary/5' : 'hover:border-primary/20'}`}>
+      <Card
+        className={`h-full flex flex-col hover:shadow-lg transition-all duration-300  ${isUserMember ? "border-primary/30 bg-primary/5" : "hover:border-primary/20"}`}
+      >
         <CardHeader className="flex flex-row items-start gap-4 space-y-0 px-4 pt-2">
           <Avatar className="h-12 w-12 border border-border shrink-0">
             <AvatarImage src={org.logo_url || undefined} alt={org.name} />
@@ -51,20 +78,28 @@ export default function OrganizationCard({ org, memberCount, isUserMember = fals
                 </Tooltip>
               )}
             </div>
-            <CardDescription className="text-xs truncate">@{org.username}</CardDescription>
+            <CardDescription className="text-xs truncate">
+              @{org.username}
+            </CardDescription>
           </div>
         </CardHeader>
 
         <CardContent className="px-5">
           <div className="flex flex-wrap gap-2 mb-2">
-            <Badge variant="outline" className="text-[10px] h-5 px-1.5 capitalize">
+            <Badge
+              variant="outline"
+              className="text-[10px] h-5 px-1.5 capitalize"
+            >
               {org.type}
             </Badge>
             {isUserMember && userRole && (
               <Badge
                 variant={
-                  userRole === "admin" ? "default" :
-                    userRole === "staff" ? "info" : "outline"
+                  userRole === "admin"
+                    ? "default"
+                    : userRole === "staff"
+                      ? "info"
+                      : "outline"
                 }
                 className="text-[10px] h-5 px-1.5 flex items-center gap-1"
               >
@@ -84,7 +119,9 @@ export default function OrganizationCard({ org, memberCount, isUserMember = fals
         <CardFooter className="px-5 py-0 h-10 text-[11px] font-medium text-muted-foreground flex items-center justify-start border-t bg-muted/10">
           <div className="flex items-center gap-1.5">
             <Users2 className="h-3.5 w-3.5" />
-            <span>{memberCount} member{memberCount !== 1 ? 's' : ''}</span>
+            <span>
+              {memberCount} member{memberCount !== 1 ? "s" : ""}
+            </span>
           </div>
         </CardFooter>
       </Card>

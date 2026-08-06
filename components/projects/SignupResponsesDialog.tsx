@@ -34,7 +34,9 @@ export function SignupResponsesDialog({
     <div className="space-y-4">
       {Object.entries(responseData).map(([key, value]) => (
         <div key={key} className="border-b pb-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase">{key.replace(/_/g, ' ')}</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase">
+            {key.replace(/_/g, " ")}
+          </p>
           <p className="text-sm">{String(value)}</p>
         </div>
       ))}
@@ -49,7 +51,9 @@ export function SignupResponsesDialog({
       <div className="space-y-6">
         {formSchema.sections.map((section, sIdx) => (
           <div key={sIdx} className="space-y-4">
-            <h3 className="text-sm font-bold border-b pb-1 text-primary">{section.title}</h3>
+            <h3 className="text-sm font-bold border-b pb-1 text-primary">
+              {section.title}
+            </h3>
             <div className="grid gap-4">
               {section.fields.map((field) => {
                 const value = responseData[field.key];
@@ -57,9 +61,11 @@ export function SignupResponsesDialog({
 
                 return (
                   <div key={field.key} className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground">{field.label}</p>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {field.label}
+                    </p>
                     <div className="text-sm bg-muted/30 p-2 rounded-md">
-                      {field.type === 'checkbox' ? (
+                      {field.type === "checkbox" ? (
                         <Badge variant={value ? "default" : "outline"}>
                           {value ? "Yes" : "No"}
                         </Badge>

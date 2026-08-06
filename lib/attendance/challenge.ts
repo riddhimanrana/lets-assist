@@ -1,8 +1,4 @@
-import {
-  createHmac,
-  randomBytes,
-  timingSafeEqual,
-} from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { TZDate } from "@date-fns/tz";
 
 import type { Project } from "@/types";
@@ -97,9 +93,7 @@ function safelyEqual(left: string, right: string): boolean {
 
 function encodeToken(
   payload:
-    | AttendanceQrChallenge
-    | AttendancePresence
-    | AttendanceCheckoutCapability,
+    AttendanceQrChallenge | AttendancePresence | AttendanceCheckoutCapability,
   secret: string,
 ): string {
   const encodedPayload = Buffer.from(JSON.stringify(payload)).toString(
@@ -171,7 +165,10 @@ function decodeAndVerifyToken(
 
     if (parsed.kind === "presence") {
       const presence = parsed as Partial<AttendancePresence>;
-      if (typeof presence.qrNonce !== "string" || presence.qrNonce.length < 32) {
+      if (
+        typeof presence.qrNonce !== "string" ||
+        presence.qrNonce.length < 32
+      ) {
         return { ok: false, reason: "invalid_token" };
       }
     }
@@ -238,11 +235,7 @@ function buildProjectDateTime(
 ): number | null {
   const [year, month, day] = date.split("-").map(Number);
   const [hours, minutes] = time.split(":").map(Number);
-  if (
-    [year, month, day, hours, minutes].some((value) =>
-      Number.isNaN(value),
-    )
-  ) {
+  if ([year, month, day, hours, minutes].some((value) => Number.isNaN(value))) {
     return null;
   }
 
@@ -268,9 +261,7 @@ export function listAttendanceScheduleIds(project: Project): string[] {
 
   if (project.event_type === "multiDay" && project.schedule.multiDay) {
     return project.schedule.multiDay.flatMap((day, dayIndex) =>
-      day.slots.map(
-        (_, slotIndex) => `${day.date}-${dayIndex}-${slotIndex}`,
-      ),
+      day.slots.map((_, slotIndex) => `${day.date}-${dayIndex}-${slotIndex}`),
     );
   }
 
@@ -383,10 +374,7 @@ export function verifyAttendanceQrChallenge(
   }
   const payload = decoded.payload as AttendanceQrChallenge;
 
-  const windowError = verifyActiveWindow(
-    payload,
-    options.now ?? Date.now(),
-  );
+  const windowError = verifyActiveWindow(payload, options.now ?? Date.now());
   if (windowError) return windowError;
   if (!verifyBinding(payload, expected)) {
     return { ok: false, reason: "binding_mismatch" };
@@ -438,10 +426,7 @@ export function verifyAttendancePresence(
   }
   const payload = decoded.payload as AttendancePresence;
 
-  const windowError = verifyActiveWindow(
-    payload,
-    options.now ?? Date.now(),
-  );
+  const windowError = verifyActiveWindow(payload, options.now ?? Date.now());
   if (windowError) return windowError;
   if (!verifyBinding(payload, expected)) {
     return { ok: false, reason: "binding_mismatch" };
@@ -474,10 +459,7 @@ export function createAttendanceCheckoutCapability(
     nonce: options.nonce ?? randomBytes(32).toString("base64url"),
     issuedAt: now,
     notBefore: now,
-    expiresAt: Math.min(
-      input.expiresAt,
-      now + CHECKOUT_CAPABILITY_MAX_TTL_MS,
-    ),
+    expiresAt: Math.min(input.expiresAt, now + CHECKOUT_CAPABILITY_MAX_TTL_MS),
   };
 
   if (payload.expiresAt <= now) {
@@ -506,15 +488,11 @@ export function verifyAttendanceCheckoutCapability(
   }
   const payload = decoded.payload as AttendanceCheckoutCapability;
 
-  const windowError = verifyActiveWindow(
-    payload,
-    options.now ?? Date.now(),
-  );
+  const windowError = verifyActiveWindow(payload, options.now ?? Date.now());
   if (windowError) return windowError;
   if (
     !verifyBinding(payload, expected) ||
-    (expected.signupId &&
-      !safelyEqual(payload.signupId, expected.signupId)) ||
+    (expected.signupId && !safelyEqual(payload.signupId, expected.signupId)) ||
     (expected.anonymousSignupId &&
       !safelyEqual(payload.anonymousSignupId, expected.anonymousSignupId))
   ) {

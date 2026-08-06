@@ -1,11 +1,4 @@
-import {
-  afterAll,
-  beforeEach,
-  describe,
-  expect,
-  mock,
-  test,
-} from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 type MockResendResponse = {
   data: { id: string } | null;
@@ -35,7 +28,9 @@ class MockResend {
 }
 
 const createClient = mock(async () => {
-  throw new Error("notification settings should not be queried in transactional tests");
+  throw new Error(
+    "notification settings should not be queried in transactional tests",
+  );
 });
 const render = mock(async () => "<p>rendered React email</p>");
 const logError = mock(() => undefined);

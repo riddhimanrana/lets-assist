@@ -5,10 +5,7 @@ import test from "node:test";
 
 function readActionsSource() {
   return readFileSync(
-    join(
-      process.cwd(),
-      "app/organization/[id]/calendar/actions.ts",
-    ),
+    join(process.cwd(), "app/organization/[id]/calendar/actions.ts"),
     "utf8",
   );
 }

@@ -1,13 +1,19 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import { Progress } from '@/components/ui/progress';
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
 import {
   ShieldAlert,
   CheckCircle,
@@ -20,14 +26,14 @@ import {
   Sparkles,
   Loader2,
   CheckCheck,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Sheet,
   SheetContent,
@@ -35,13 +41,13 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-} from '@/components/ui/sheet';
+} from "@/components/ui/sheet";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+} from "@/components/ui/collapsible";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   getFlaggedContent,
   updateFlaggedContentStatus,
@@ -50,12 +56,12 @@ import {
   runAiReviewForProject,
   takeFlaggedContentAction,
   takeModeratorAction,
-} from './actions';
-import { format } from 'date-fns';
-import { toast } from 'sonner';
-import Link from 'next/link';
-import { DataTable } from './data-table';
-import { getReportColumns, getFlaggedColumns } from './columns';
+} from "./actions";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import Link from "next/link";
+import { DataTable } from "./data-table";
+import { getReportColumns, getFlaggedColumns } from "./columns";
 
 // Types
 type AiReasoningStep = {
@@ -144,8 +150,8 @@ type FlaggedContent = {
   created_at?: string | null;
 };
 
-type FlaggedFilter = 'pending' | 'blocked' | 'confirmed' | 'dismissed';
-type ReportsFilter = 'pending' | 'under_review' | 'resolved' | 'dismissed';
+type FlaggedFilter = "pending" | "blocked" | "confirmed" | "dismissed";
+type ReportsFilter = "pending" | "under_review" | "resolved" | "dismissed";
 
 type ModerationStats = {
   total: number;
@@ -173,7 +179,7 @@ type ReportsStats = {
 
 // SSE Event Types
 type ScanEvent = {
-  type: 'start' | 'progress' | 'analyzing' | 'result' | 'complete' | 'error';
+  type: "start" | "progress" | "analyzing" | "result" | "complete" | "error";
   data: {
     totalReports?: number;
     totalProjects?: number;
@@ -181,7 +187,7 @@ type ScanEvent = {
     processed?: number;
     total?: number;
     percentComplete?: number;
-    itemType?: 'report' | 'project';
+    itemType?: "report" | "project";
     itemId?: string;
     itemTitle?: string;
     reporterName?: string;
@@ -196,8 +202,8 @@ type ScanEvent = {
   };
 };
 
-const REPORT_RESOLVE_NOTE = 'Resolved via moderation dashboard';
-const REPORT_DISMISS_NOTE = 'Dismissed via moderation dashboard';
+const REPORT_RESOLVE_NOTE = "Resolved via moderation dashboard";
+const REPORT_DISMISS_NOTE = "Dismissed via moderation dashboard";
 
 export default function ModerationDashboard({
   initialStats,
@@ -214,15 +220,17 @@ export default function ModerationDashboard({
   const reportsStats = initialReportsStats;
   const [flaggedContent, setFlaggedContent] = useState(initialFlagged);
   const [contentReports, setContentReports] = useState(initialReports);
-  const [flaggedFilter, setFlaggedFilter] = useState<FlaggedFilter>('pending');
-  const [reportFilter, setReportFilter] = useState<ReportsFilter>('pending');
+  const [flaggedFilter, setFlaggedFilter] = useState<FlaggedFilter>("pending");
+  const [reportFilter, setReportFilter] = useState<ReportsFilter>("pending");
 
   const [isFlaggedLoading, setIsFlaggedLoading] = useState(false);
   const [isReportsLoading, setIsReportsLoading] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
 
   const [selectedFlag, setSelectedFlag] = useState<FlaggedContent | null>(null);
-  const [selectedReport, setSelectedReport] = useState<ContentReport | null>(null);
+  const [selectedReport, setSelectedReport] = useState<ContentReport | null>(
+    null,
+  );
 
   // AI Scan streaming state
   const [isScanActive, setIsScanActive] = useState(false);
@@ -235,19 +243,21 @@ export default function ModerationDashboard({
     reportsProcessed: number;
     projectsProcessed: number;
   } | null>(null);
-  const [scanResults, setScanResults] = useState<Array<{
-    itemType: string;
-    itemId: string;
-    success: boolean;
-    flagged?: boolean;
-    result?: AiMetadata | Record<string, unknown>;
-    error?: string;
-  }>>([]);
+  const [scanResults, setScanResults] = useState<
+    Array<{
+      itemType: string;
+      itemId: string;
+      success: boolean;
+      flagged?: boolean;
+      result?: AiMetadata | Record<string, unknown>;
+      error?: string;
+    }>
+  >([]);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const automationLastRunLabel = stats.lastAutomationAt
-    ? formatSafeDate(stats.lastAutomationAt, 'PPP p')
-    : 'No automation run recorded yet';
+    ? formatSafeDate(stats.lastAutomationAt, "PPP p")
+    : "No automation run recorded yet";
 
   // Cleanup on unmount
   useEffect(() => {
@@ -282,15 +292,19 @@ export default function ModerationDashboard({
     }
   };
 
-  const handleFlagStatusUpdate = async (id: string, status: FlaggedFilter, notes?: string) => {
+  const handleFlagStatusUpdate = async (
+    id: string,
+    status: FlaggedFilter,
+    notes?: string,
+  ) => {
     setIsActionLoading(true);
     try {
       const result = await updateFlaggedContentStatus(id, status, notes);
       if (result.error) {
-        toast.error('Failed to update status');
+        toast.error("Failed to update status");
         return;
       }
-      toast.success('Status updated successfully');
+      toast.success("Status updated successfully");
       await loadFlaggedContent(flaggedFilter);
       setSelectedFlag(null);
     } finally {
@@ -301,7 +315,7 @@ export default function ModerationDashboard({
   const handleReportStatusChange = async (
     id: string,
     status: ReportsFilter,
-    notes?: string
+    notes?: string,
   ) => {
     setIsActionLoading(true);
     try {
@@ -310,7 +324,7 @@ export default function ModerationDashboard({
         toast.error(`Failed to update report: ${result.error}`);
         return;
       }
-      toast.success(result.message || 'Report updated');
+      toast.success(result.message || "Report updated");
       await loadContentReports(reportFilter);
       setSelectedReport(null);
     } finally {
@@ -319,8 +333,8 @@ export default function ModerationDashboard({
   };
 
   const handleRunAiReviewForFlag = async (flag: FlaggedContent) => {
-    if (!flag.content_id || flag.content_type !== 'project') {
-      toast.error('AI review is only available for projects');
+    if (!flag.content_id || flag.content_type !== "project") {
+      toast.error("AI review is only available for projects");
       return;
     }
 
@@ -332,9 +346,9 @@ export default function ModerationDashboard({
         return;
       }
       if (result.data?.flagged) {
-        toast.success('AI review flagged the project');
+        toast.success("AI review flagged the project");
       } else {
-        toast.info('AI review found no violations');
+        toast.info("AI review found no violations");
       }
       await loadFlaggedContent(flaggedFilter);
       setSelectedFlag(null);
@@ -345,8 +359,8 @@ export default function ModerationDashboard({
 
   const handleManualReportAction = async (
     reportId: string,
-    action: 'warn_user' | 'remove_content' | 'block_content',
-    reason?: string
+    action: "warn_user" | "remove_content" | "block_content",
+    reason?: string,
   ) => {
     setIsActionLoading(true);
     try {
@@ -355,7 +369,7 @@ export default function ModerationDashboard({
         toast.error(`Failed to apply action: ${result.error}`);
         return;
       }
-      toast.success('Moderation action applied');
+      toast.success("Moderation action applied");
       await loadContentReports(reportFilter);
       setSelectedReport(null);
     } finally {
@@ -371,7 +385,7 @@ export default function ModerationDashboard({
     setScanProgress(null);
     setScanResults([]);
 
-    const eventSource = new EventSource('/api/admin/moderation/scan-stream');
+    const eventSource = new EventSource("/api/admin/moderation/scan-stream");
     eventSourceRef.current = eventSource;
 
     eventSource.onmessage = (event) => {
@@ -379,7 +393,7 @@ export default function ModerationDashboard({
         const parsed: ScanEvent = JSON.parse(event.data);
 
         switch (parsed.type) {
-          case 'start':
+          case "start":
             setScanProgress({
               current: 0,
               total: parsed.data.totalItems || 0,
@@ -387,44 +401,66 @@ export default function ModerationDashboard({
               reportsProcessed: 0,
               projectsProcessed: 0,
             });
-            toast.info(`Starting AI scan: ${parsed.data.totalReports} reports, ${parsed.data.totalProjects} projects`);
+            toast.info(
+              `Starting AI scan: ${parsed.data.totalReports} reports, ${parsed.data.totalProjects} projects`,
+            );
             break;
 
-          case 'analyzing':
-            setScanProgress(prev => prev ? {
+          case "analyzing":
+            setScanProgress((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    currentItem: parsed.data.itemTitle,
+                    currentItemType: parsed.data.itemType,
+                    current: parsed.data.current || prev.current,
+                  }
+                : null,
+            );
+            break;
+
+          case "progress":
+            setScanProgress((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    current: parsed.data.processed || 0,
+                    percentComplete: parsed.data.percentComplete || 0,
+                  }
+                : null,
+            );
+            break;
+
+          case "result":
+            setScanResults((prev) => [
               ...prev,
-              currentItem: parsed.data.itemTitle,
-              currentItemType: parsed.data.itemType,
-              current: parsed.data.current || prev.current,
-            } : null);
-            break;
-
-          case 'progress':
-            setScanProgress(prev => prev ? {
-              ...prev,
-              current: parsed.data.processed || 0,
-              percentComplete: parsed.data.percentComplete || 0,
-            } : null);
-            break;
-
-          case 'result':
-            setScanResults(prev => [...prev, {
-              itemType: parsed.data.itemType || 'unknown',
-              itemId: parsed.data.itemId || '',
-              success: parsed.data.success || false,
-              flagged: parsed.data.flagged,
-              result: parsed.data.result as AiMetadata | Record<string, unknown>,
-              error: parsed.data.error,
-            }]);
-            if (parsed.data.itemType === 'report') {
-              setScanProgress(prev => prev ? { ...prev, reportsProcessed: prev.reportsProcessed + 1 } : null);
+              {
+                itemType: parsed.data.itemType || "unknown",
+                itemId: parsed.data.itemId || "",
+                success: parsed.data.success || false,
+                flagged: parsed.data.flagged,
+                result: parsed.data.result as
+                  AiMetadata | Record<string, unknown>,
+                error: parsed.data.error,
+              },
+            ]);
+            if (parsed.data.itemType === "report") {
+              setScanProgress((prev) =>
+                prev
+                  ? { ...prev, reportsProcessed: prev.reportsProcessed + 1 }
+                  : null,
+              );
             } else {
-              setScanProgress(prev => prev ? { ...prev, projectsProcessed: prev.projectsProcessed + 1 } : null);
+              setScanProgress((prev) =>
+                prev
+                  ? { ...prev, projectsProcessed: prev.projectsProcessed + 1 }
+                  : null,
+              );
             }
             break;
 
-          case 'complete':
-            toast.success(parsed.data.message || 'AI scan completed');
+          case "complete":
+            toast.success(parsed.data.message || "AI scan completed");
             eventSource.close();
             eventSourceRef.current = null;
             // Refresh data
@@ -437,20 +473,20 @@ export default function ModerationDashboard({
             }, 2000);
             break;
 
-          case 'error':
-            toast.error(parsed.data.message || 'AI scan failed');
+          case "error":
+            toast.error(parsed.data.message || "AI scan failed");
             eventSource.close();
             eventSourceRef.current = null;
             setIsScanActive(false);
             break;
         }
       } catch (e) {
-        console.error('Failed to parse SSE event:', e);
+        console.error("Failed to parse SSE event:", e);
       }
     };
 
     eventSource.onerror = () => {
-      toast.error('Connection to AI scan lost');
+      toast.error("Connection to AI scan lost");
       eventSource.close();
       eventSourceRef.current = null;
       setIsScanActive(false);
@@ -459,70 +495,87 @@ export default function ModerationDashboard({
 
   const handleReportAiApproval = async (report: ContentReport) => {
     if (!report.ai_metadata) {
-      toast.error('No AI recommendation available');
+      toast.error("No AI recommendation available");
       return;
     }
     const suggestedStatus = report.ai_metadata.suggestedStatus;
-    const validStatuses: ReportsFilter[] = ['pending', 'under_review', 'resolved', 'dismissed'];
+    const validStatuses: ReportsFilter[] = [
+      "pending",
+      "under_review",
+      "resolved",
+      "dismissed",
+    ];
     const action = validStatuses.includes(suggestedStatus as ReportsFilter)
       ? (suggestedStatus as ReportsFilter)
-      : 'under_review';
-    await handleReportStatusChange(report.id, action, 'Approved AI recommendation');
+      : "under_review";
+    await handleReportStatusChange(
+      report.id,
+      action,
+      "Approved AI recommendation",
+    );
   };
 
-  const reportColumns = useMemo(() => getReportColumns(
-    setSelectedReport
-  ), [setSelectedReport]);
+  const reportColumns = useMemo(
+    () => getReportColumns(setSelectedReport),
+    [setSelectedReport],
+  );
 
-  const flaggedColumns = useMemo(() => getFlaggedColumns(
-    setSelectedFlag
-  ), [setSelectedFlag]);
+  const flaggedColumns = useMemo(
+    () => getFlaggedColumns(setSelectedFlag),
+    [setSelectedFlag],
+  );
 
-  const getSeverityColor = (severity?: string): 'secondary' | 'destructive' | 'default' => {
-    switch ((severity || '').toLowerCase()) {
-      case 'critical':
-      case 'high':
-        return 'destructive';
-      case 'medium':
-        return 'default';
+  const getSeverityColor = (
+    severity?: string,
+  ): "secondary" | "destructive" | "default" => {
+    switch ((severity || "").toLowerCase()) {
+      case "critical":
+      case "high":
+        return "destructive";
+      case "medium":
+        return "default";
       default:
-        return 'secondary';
+        return "secondary";
     }
   };
 
-  const getPriorityVariant = (priority?: string | null): 'outline' | 'secondary' | 'destructive' => {
-    switch ((priority || '').toLowerCase()) {
-      case 'high':
-      case 'critical':
-        return 'destructive';
-      case 'medium':
-        return 'secondary';
+  const getPriorityVariant = (
+    priority?: string | null,
+  ): "outline" | "secondary" | "destructive" => {
+    switch ((priority || "").toLowerCase()) {
+      case "high":
+      case "critical":
+        return "destructive";
+      case "medium":
+        return "secondary";
       default:
-        return 'outline';
+        return "outline";
     }
   };
 
-  const getStatusVariant = (status?: string | null): 'default' | 'outline' | 'secondary' => {
-    switch ((status || '').toLowerCase()) {
-      case 'resolved':
-        return 'default';
-      case 'dismissed':
-        return 'outline';
+  const getStatusVariant = (
+    status?: string | null,
+  ): "default" | "outline" | "secondary" => {
+    switch ((status || "").toLowerCase()) {
+      case "resolved":
+        return "default";
+      case "dismissed":
+        return "outline";
       default:
-        return 'secondary';
+        return "secondary";
     }
   };
 
   const getFlagContentUrl = (flag: FlaggedContent) => {
     if (!flag.content_id) return null;
-    if (flag.content_type === 'project') {
+    if (flag.content_type === "project") {
       return `/projects/${flag.content_id}`;
     }
-    if (flag.content_type === 'profile') {
+    if (flag.content_type === "profile") {
       const profileSlug = flag.content_details?.username || flag.content_id;
       return `/profile/${profileSlug}`;
     }
-    if (flag.content_type === 'organization') {
+    if (flag.content_type === "organization") {
       const orgSlug = flag.content_details?.username || flag.content_id;
       return `/organization/${orgSlug}`;
     }
@@ -531,22 +584,25 @@ export default function ModerationDashboard({
 
   const parsedReportDescription = useMemo(
     () => parseReportDescription(selectedReport?.description),
-    [selectedReport?.description]
+    [selectedReport?.description],
   );
 
-  const getReportContentUrl = (report: ContentReport, fallbackUrl?: string | null) => {
+  const getReportContentUrl = (
+    report: ContentReport,
+    fallbackUrl?: string | null,
+  ) => {
     if (fallbackUrl) return fallbackUrl;
 
-    if (report.content_type === 'project' && report.content_id) {
+    if (report.content_type === "project" && report.content_id) {
       return `/projects/${report.content_id}`;
     }
 
-    if (report.content_type === 'profile' && report.content_id) {
+    if (report.content_type === "profile" && report.content_id) {
       const profileSlug = report.creator_details?.username || report.content_id;
       return `/profile/${profileSlug}`;
     }
 
-    if (report.content_type === 'organization' && report.content_id) {
+    if (report.content_type === "organization" && report.content_id) {
       const orgSlug = report.content_details?.username || report.content_id;
       return `/organization/${orgSlug}`;
     }
@@ -555,7 +611,10 @@ export default function ModerationDashboard({
   };
 
   const reportContentUrl = selectedReport
-    ? getReportContentUrl(selectedReport, parsedReportDescription.metadata.contentUrl)
+    ? getReportContentUrl(
+        selectedReport,
+        parsedReportDescription.metadata.contentUrl,
+      )
     : null;
 
   return (
@@ -565,9 +624,12 @@ export default function ModerationDashboard({
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Content Moderation</h1>
+              <h1 className="text-3xl font-bold tracking-tight">
+                Content Moderation
+              </h1>
               <p className="text-muted-foreground mt-1">
-                Clear review workflow for queue triage, AI approvals, and automated moderation runs.
+                Clear review workflow for queue triage, AI approvals, and
+                automated moderation runs.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -581,7 +643,7 @@ export default function ModerationDashboard({
                 ) : (
                   <Sparkles className="mr-2 h-4 w-4" />
                 )}
-                {isScanActive ? 'Scanning...' : 'Run AI Scan Now'}
+                {isScanActive ? "Scanning..." : "Run AI Scan Now"}
               </Button>
             </div>
           </div>
@@ -589,7 +651,10 @@ export default function ModerationDashboard({
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">Auto-run: every 24 hours</Badge>
-              <span className="text-muted-foreground">Continuous AI moderation is enabled. Last run: {automationLastRunLabel}</span>
+              <span className="text-muted-foreground">
+                Continuous AI moderation is enabled. Last run:{" "}
+                {automationLastRunLabel}
+              </span>
             </div>
           </div>
 
@@ -597,7 +662,9 @@ export default function ModerationDashboard({
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <Card className="shadow-sm border-l-4 border-l-amber-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Human Filed Reports</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Human Filed Reports
+                </CardTitle>
                 <User className="h-4 w-4 text-amber-500" />
               </CardHeader>
               <CardContent>
@@ -609,49 +676,71 @@ export default function ModerationDashboard({
             </Card>
             <Card className="shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ongoing AI Moderation</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Ongoing AI Moderation
+                </CardTitle>
                 <Sparkles className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.pendingFlags}</div>
-                <p className="text-xs text-muted-foreground">AI project flags awaiting review (manual run available)</p>
+                <p className="text-xs text-muted-foreground">
+                  AI project flags awaiting review (manual run available)
+                </p>
               </CardContent>
             </Card>
             <Card className="shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Resolved Cases</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Resolved Cases
+                </CardTitle>
                 <CheckCircle className="h-4 w-4 text-emerald-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.resolved}</div>
-                <p className="text-xs text-muted-foreground">Reports and flags closed by moderation decisions</p>
+                <p className="text-xs text-muted-foreground">
+                  Reports and flags closed by moderation decisions
+                </p>
               </CardContent>
             </Card>
             <Card className="shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">AI Approved Actions</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  AI Approved Actions
+                </CardTitle>
                 <CheckCheck className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.aiApproved}</div>
-                <p className="text-xs text-muted-foreground">Times moderators accepted AI recommendations</p>
+                <p className="text-xs text-muted-foreground">
+                  Times moderators accepted AI recommendations
+                </p>
               </CardContent>
             </Card>
             <Card className="shadow-sm border-l-4 border-l-destructive">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Critical / Recent</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Critical / Recent
+                </CardTitle>
                 <Calendar className="h-4 w-4 text-destructive" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.critical}</div>
-                <p className="text-xs text-muted-foreground">{stats.automationLast24h} AI outputs in 24h · {stats.recentWeek} new this week</p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.automationLast24h} AI outputs in 24h ·{" "}
+                  {stats.recentWeek} new this week
+                </p>
               </CardContent>
             </Card>
           </div>
         </div>
 
         {/* AI Scan Progress Dialog */}
-        <Dialog open={isScanActive} onOpenChange={(open) => !open && !scanProgress && setIsScanActive(false)}>
+        <Dialog
+          open={isScanActive}
+          onOpenChange={(open) =>
+            !open && !scanProgress && setIsScanActive(false)
+          }
+        >
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -668,19 +757,28 @@ export default function ModerationDashboard({
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>Progress</span>
-                    <span className="font-medium">{scanProgress.percentComplete}%</span>
+                    <span className="font-medium">
+                      {scanProgress.percentComplete}%
+                    </span>
                   </div>
-                  <Progress value={scanProgress.percentComplete} className="h-2" />
+                  <Progress
+                    value={scanProgress.percentComplete}
+                    className="h-2"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="rounded-lg border bg-muted/30 p-3">
                     <p className="text-muted-foreground">Reports Processed</p>
-                    <p className="text-lg font-semibold">{scanProgress.reportsProcessed}</p>
+                    <p className="text-lg font-semibold">
+                      {scanProgress.reportsProcessed}
+                    </p>
                   </div>
                   <div className="rounded-lg border bg-muted/30 p-3">
                     <p className="text-muted-foreground">Projects Scanned</p>
-                    <p className="text-lg font-semibold">{scanProgress.projectsProcessed}</p>
+                    <p className="text-lg font-semibold">
+                      {scanProgress.projectsProcessed}
+                    </p>
                   </div>
                 </div>
 
@@ -692,29 +790,36 @@ export default function ModerationDashboard({
                         Analyzing {scanProgress.currentItemType}
                       </span>
                     </div>
-                    <p className="text-sm font-medium truncate">{scanProgress.currentItem}</p>
+                    <p className="text-sm font-medium truncate">
+                      {scanProgress.currentItem}
+                    </p>
                   </div>
                 )}
 
                 {scanResults.length > 0 && (
                   <div className="max-h-40 overflow-y-auto space-y-1">
                     {scanResults.slice(-5).map((result, i) => {
-                      const verdict = (result.result as { verdict?: string })?.verdict;
-                      const isProject = result.itemType === 'project';
+                      const verdict = (result.result as { verdict?: string })
+                        ?.verdict;
+                      const isProject = result.itemType === "project";
                       const statusLabel = isProject
                         ? result.flagged
-                          ? 'Flagged'
-                          : 'Clean'
-                        : 'Triaged';
-                      const statusVariant = isProject && result.flagged ? 'destructive' : 'secondary';
+                          ? "Flagged"
+                          : "Clean"
+                        : "Triaged";
+                      const statusVariant =
+                        isProject && result.flagged
+                          ? "destructive"
+                          : "secondary";
 
                       return (
                         <div
                           key={`${result.itemId}-${i}`}
-                          className={`text-xs p-2 rounded flex items-center gap-2 ${result.success
-                            ? 'bg-primary/10 text-primary'
-                            : 'bg-destructive/10 text-destructive'
-                            }`}
+                          className={`text-xs p-2 rounded flex items-center gap-2 ${
+                            result.success
+                              ? "bg-primary/10 text-primary"
+                              : "bg-destructive/10 text-destructive"
+                          }`}
                         >
                           {result.success ? (
                             <CheckCircle className="h-3 w-3" />
@@ -722,11 +827,16 @@ export default function ModerationDashboard({
                             <XCircle className="h-3 w-3" />
                           )}
                           <span className="capitalize">{result.itemType}</span>
-                          <Badge variant={statusVariant} className="text-[10px] capitalize">
+                          <Badge
+                            variant={statusVariant}
+                            className="text-[10px] capitalize"
+                          >
                             {statusLabel}
                           </Badge>
                           {verdict && (
-                            <span className="ml-auto max-w-37.5 truncate">{verdict}</span>
+                            <span className="ml-auto max-w-37.5 truncate">
+                              {verdict}
+                            </span>
                           )}
                         </div>
                       );
@@ -759,7 +869,8 @@ export default function ModerationDashboard({
                   <div>
                     <CardTitle className="text-lg">User Reports</CardTitle>
                     <CardDescription>
-                      Manual reports with AI analysis. {reportsStats.resolved} reports resolved so far.
+                      Manual reports with AI analysis. {reportsStats.resolved}{" "}
+                      reports resolved so far.
                     </CardDescription>
                   </div>
                 </div>
@@ -774,7 +885,9 @@ export default function ModerationDashboard({
                   }}
                 >
                   <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-2">
-                    <TabsTrigger value="pending">Pending ({stats.pendingReports})</TabsTrigger>
+                    <TabsTrigger value="pending">
+                      Pending ({stats.pendingReports})
+                    </TabsTrigger>
                     <TabsTrigger value="under_review">In Review</TabsTrigger>
                     <TabsTrigger value="resolved">Resolved</TabsTrigger>
                     <TabsTrigger value="dismissed">Dismissed</TabsTrigger>
@@ -788,9 +901,15 @@ export default function ModerationDashboard({
                     ) : contentReports.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-lg bg-muted/20">
                         <CheckCircle className="mb-4 h-12 w-12 text-muted-foreground/50" />
-                        <h3 className="text-xl font-semibold">All caught up!</h3>
+                        <h3 className="text-xl font-semibold">
+                          All caught up!
+                        </h3>
                         <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
-                          There are no reports in the <span className="font-medium text-foreground">{reportFilter}</span> queue right now.
+                          There are no reports in the{" "}
+                          <span className="font-medium text-foreground">
+                            {reportFilter}
+                          </span>{" "}
+                          queue right now.
                         </p>
                       </div>
                     ) : (
@@ -814,7 +933,9 @@ export default function ModerationDashboard({
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">AI Flagged Content</CardTitle>
-                <CardDescription>Automatically detected policy violations</CardDescription>
+                <CardDescription>
+                  Automatically detected policy violations
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Tabs
@@ -826,7 +947,9 @@ export default function ModerationDashboard({
                   }}
                 >
                   <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-2">
-                    <TabsTrigger value="pending">Pending ({stats.pendingFlags})</TabsTrigger>
+                    <TabsTrigger value="pending">
+                      Pending ({stats.pendingFlags})
+                    </TabsTrigger>
                     <TabsTrigger value="blocked">Blocked</TabsTrigger>
                     <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
                     <TabsTrigger value="dismissed">Dismissed</TabsTrigger>
@@ -842,7 +965,11 @@ export default function ModerationDashboard({
                         <CheckCircle className="mb-4 h-12 w-12 text-muted-foreground/50" />
                         <h3 className="text-xl font-semibold">Clean Slate!</h3>
                         <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
-                          No flagged content found in the <span className="font-medium text-foreground">{flaggedFilter}</span> queue.
+                          No flagged content found in the{" "}
+                          <span className="font-medium text-foreground">
+                            {flaggedFilter}
+                          </span>{" "}
+                          queue.
                         </p>
                       </div>
                     ) : (
@@ -863,7 +990,10 @@ export default function ModerationDashboard({
         </Tabs>
 
         {/* Flagged Content Detail Dialog */}
-        <Dialog open={Boolean(selectedFlag)} onOpenChange={(open) => !open && setSelectedFlag(null)}>
+        <Dialog
+          open={Boolean(selectedFlag)}
+          onOpenChange={(open) => !open && setSelectedFlag(null)}
+        >
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Flag Details</DialogTitle>
@@ -878,36 +1008,50 @@ export default function ModerationDashboard({
                     {formatFlagStatus(selectedFlag.status)}
                   </Badge>
                   <Badge variant={getSeverityColor(selectedFlag.severity)}>
-                    {selectedFlag.severity?.toUpperCase() || 'UNKNOWN'}
+                    {selectedFlag.severity?.toUpperCase() || "UNKNOWN"}
                   </Badge>
                   {selectedFlag.flag_type && (
-                    <Badge variant="secondary" className="uppercase text-[10px]">
-                      {selectedFlag.flag_type.replace(/_/g, ' ')}
+                    <Badge
+                      variant="secondary"
+                      className="uppercase text-[10px]"
+                    >
+                      {selectedFlag.flag_type.replace(/_/g, " ")}
                     </Badge>
                   )}
-                  {selectedFlag.confidence_score !== undefined && selectedFlag.confidence_score !== null && (
-                    <Badge variant="outline" className="text-[10px]">
-                      {formatConfidencePercent(Number(selectedFlag.confidence_score))} confidence
-                    </Badge>
-                  )}
+                  {selectedFlag.confidence_score !== undefined &&
+                    selectedFlag.confidence_score !== null && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {formatConfidencePercent(
+                          Number(selectedFlag.confidence_score),
+                        )}{" "}
+                        confidence
+                      </Badge>
+                    )}
                   <span className="text-sm text-muted-foreground ml-auto">
-                    {formatSafeDate(selectedFlag.created_at, 'PPP p')}
+                    {formatSafeDate(selectedFlag.created_at, "PPP p")}
                   </span>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-md border bg-muted/30 p-4">
-                    <p className="text-sm font-semibold mb-1">Reason for Flag</p>
+                    <p className="text-sm font-semibold mb-1">
+                      Reason for Flag
+                    </p>
                     <p className="text-sm text-muted-foreground">
-                      {selectedFlag.flag_details?.shortSummary || selectedFlag.reason || 'No reason provided'}
+                      {selectedFlag.flag_details?.shortSummary ||
+                        selectedFlag.reason ||
+                        "No reason provided"}
                     </p>
                   </div>
 
                   {selectedFlag.flag_details?.reasoning && (
                     <div className="rounded-md border bg-background p-4">
-                      <p className="text-xs uppercase text-muted-foreground mb-1">AI Verdict</p>
+                      <p className="text-xs uppercase text-muted-foreground mb-1">
+                        AI Verdict
+                      </p>
                       <p className="text-sm font-medium text-foreground">
-                        {selectedFlag.flag_details.verdict || selectedFlag.flag_details.reasoning}
+                        {selectedFlag.flag_details.verdict ||
+                          selectedFlag.flag_details.reasoning}
                       </p>
                     </div>
                   )}
@@ -916,23 +1060,45 @@ export default function ModerationDashboard({
                 {selectedFlag.flag_details?.reasoningSteps &&
                   selectedFlag.flag_details.reasoningSteps.length > 0 && (
                     <Collapsible>
-                      <CollapsibleTrigger className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-between")}>
+                      <CollapsibleTrigger
+                        className={cn(
+                          buttonVariants({ variant: "ghost", size: "sm" }),
+                          "w-full justify-between",
+                        )}
+                      >
                         <span className="flex items-center gap-2">
                           <ChevronRight className="h-4 w-4 transition-transform in-data-[state=open]:rotate-90" />
-                          Reasoning Steps ({selectedFlag.flag_details.reasoningSteps.length})
+                          Reasoning Steps (
+                          {selectedFlag.flag_details.reasoningSteps.length})
                         </span>
                       </CollapsibleTrigger>
                       <CollapsibleContent className="pt-2 space-y-2">
-                        {selectedFlag.flag_details.reasoningSteps.map((step, idx) => (
-                          <div key={idx} className="rounded-lg bg-muted/20 p-3 border-l-2 border-primary/30 text-sm">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline" className="text-[10px] h-5">Step {step.step}</Badge>
-                              <span className="font-medium">{step.title}</span>
+                        {selectedFlag.flag_details.reasoningSteps.map(
+                          (step, idx) => (
+                            <div
+                              key={idx}
+                              className="rounded-lg bg-muted/20 p-3 border-l-2 border-primary/30 text-sm"
+                            >
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] h-5"
+                                >
+                                  Step {step.step}
+                                </Badge>
+                                <span className="font-medium">
+                                  {step.title}
+                                </span>
+                              </div>
+                              <p className="text-muted-foreground mb-1.5">
+                                {step.analysis}
+                              </p>
+                              <p className="font-medium text-primary text-xs">
+                                → {step.conclusion}
+                              </p>
                             </div>
-                            <p className="text-muted-foreground mb-1.5">{step.analysis}</p>
-                            <p className="font-medium text-primary text-xs">→ {step.conclusion}</p>
-                          </div>
-                        ))}
+                          ),
+                        )}
                       </CollapsibleContent>
                     </Collapsible>
                   )}
@@ -942,29 +1108,38 @@ export default function ModerationDashboard({
                     <Link
                       href={getFlagContentUrl(selectedFlag)!}
                       target="_blank"
-                      className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      className={cn(
+                        buttonVariants({ variant: "outline", size: "sm" }),
+                      )}
                     >
                       <ExternalLink className="mr-2 h-4 w-4" />
                       View Content
                     </Link>
                   )}
 
-                  {selectedFlag.content_type === 'project' && selectedFlag.content_id && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleRunAiReviewForFlag(selectedFlag)}
-                      disabled={isActionLoading}
-                    >
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Re-run AI
-                    </Button>
-                  )}
+                  {selectedFlag.content_type === "project" &&
+                    selectedFlag.content_id && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleRunAiReviewForFlag(selectedFlag)}
+                        disabled={isActionLoading}
+                      >
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Re-run AI
+                      </Button>
+                    )}
 
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => handleFlagStatusUpdate(selectedFlag.id, 'dismissed', 'Dismissed as false positive')}
+                    onClick={() =>
+                      handleFlagStatusUpdate(
+                        selectedFlag.id,
+                        "dismissed",
+                        "Dismissed as false positive",
+                      )
+                    }
                     disabled={isActionLoading}
                   >
                     Dismiss
@@ -976,8 +1151,8 @@ export default function ModerationDashboard({
                     onClick={() =>
                       takeFlaggedContentAction(
                         selectedFlag.id,
-                        'block_content',
-                        'Blocked via moderation review'
+                        "block_content",
+                        "Blocked via moderation review",
                       )
                     }
                     disabled={isActionLoading}
@@ -991,8 +1166,14 @@ export default function ModerationDashboard({
         </Dialog>
 
         {/* Report Detail Sheet */}
-        <Sheet open={Boolean(selectedReport)} onOpenChange={(open) => !open && setSelectedReport(null)}>
-          <SheetContent side="right" className="w-full p-0 sm:max-w-2xl lg:max-w-4xl">
+        <Sheet
+          open={Boolean(selectedReport)}
+          onOpenChange={(open) => !open && setSelectedReport(null)}
+        >
+          <SheetContent
+            side="right"
+            className="w-full p-0 sm:max-w-2xl lg:max-w-4xl"
+          >
             {selectedReport && (
               <div className="flex h-full flex-col">
                 <SheetHeader className="border-b bg-muted/20">
@@ -1006,49 +1187,78 @@ export default function ModerationDashboard({
                     )}
                   </SheetTitle>
                   <SheetDescription>
-                    {selectedReport.reason || 'Review report and take action'} • ID: {selectedReport.id}
+                    {selectedReport.reason || "Review report and take action"} •
+                    ID: {selectedReport.id}
                   </SheetDescription>
                 </SheetHeader>
 
                 <div className="flex-1 space-y-6 overflow-y-auto p-5 md:p-6">
                   <div className="grid gap-3 md:grid-cols-3">
                     <div className="rounded-lg border bg-card p-3">
-                      <p className="text-xs uppercase text-muted-foreground">Status</p>
-                      <Badge variant={getStatusVariant(selectedReport.status)} className="mt-2 capitalize">
-                        {selectedReport.status?.replace('_', ' ') || 'pending'}
+                      <p className="text-xs uppercase text-muted-foreground">
+                        Status
+                      </p>
+                      <Badge
+                        variant={getStatusVariant(selectedReport.status)}
+                        className="mt-2 capitalize"
+                      >
+                        {selectedReport.status?.replace("_", " ") || "pending"}
                       </Badge>
                     </div>
                     <div className="rounded-lg border bg-card p-3">
-                      <p className="text-xs uppercase text-muted-foreground">Priority</p>
-                      <Badge variant={getPriorityVariant(selectedReport.priority)} className="mt-2 capitalize">
-                        {selectedReport.priority || 'normal'}
+                      <p className="text-xs uppercase text-muted-foreground">
+                        Priority
+                      </p>
+                      <Badge
+                        variant={getPriorityVariant(selectedReport.priority)}
+                        className="mt-2 capitalize"
+                      >
+                        {selectedReport.priority || "normal"}
                       </Badge>
                     </div>
                     <div className="rounded-lg border bg-card p-3">
-                      <p className="text-xs uppercase text-muted-foreground">Submitted</p>
-                      <p className="mt-2 text-sm font-medium">{formatSafeDate(selectedReport.created_at, 'PPP p')}</p>
+                      <p className="text-xs uppercase text-muted-foreground">
+                        Submitted
+                      </p>
+                      <p className="mt-2 text-sm font-medium">
+                        {formatSafeDate(selectedReport.created_at, "PPP p")}
+                      </p>
                     </div>
                   </div>
 
                   {selectedReport.reporter && (
                     <div className="rounded-lg border bg-card p-4">
-                      <p className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Reported By</p>
+                      <p className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                        Reported By
+                      </p>
                       <Link
                         href={`/profile/${selectedReport.reporter.username || selectedReport.reporter.id}`}
                         className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/40"
                       >
                         <Avatar className="h-11 w-11">
-                          <AvatarImage src={selectedReport.reporter.avatar_url || undefined} />
+                          <AvatarImage
+                            src={
+                              selectedReport.reporter.avatar_url || undefined
+                            }
+                          />
                           <AvatarFallback>
-                            {(selectedReport.reporter.full_name?.[0] || selectedReport.reporter.username?.[0] || 'U').toUpperCase()}
+                            {(
+                              selectedReport.reporter.full_name?.[0] ||
+                              selectedReport.reporter.username?.[0] ||
+                              "U"
+                            ).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold">
-                            {selectedReport.reporter.full_name || selectedReport.reporter.username || 'Unknown'}
+                            {selectedReport.reporter.full_name ||
+                              selectedReport.reporter.username ||
+                              "Unknown"}
                           </p>
                           {selectedReport.reporter.username && (
-                            <p className="text-xs text-muted-foreground">@{selectedReport.reporter.username}</p>
+                            <p className="text-xs text-muted-foreground">
+                              @{selectedReport.reporter.username}
+                            </p>
                           )}
                         </div>
                         <ExternalLink className="h-4 w-4 text-muted-foreground" />
@@ -1057,23 +1267,37 @@ export default function ModerationDashboard({
                   )}
 
                   <div className="rounded-lg border bg-card p-4">
-                    <p className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Reported Content</p>
+                    <p className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                      Reported Content
+                    </p>
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center gap-2">
-                        <Badge variant={selectedReport.content_type === 'project' ? 'default' : 'secondary'} className="capitalize">
-                          {selectedReport.content_type || 'content'}
+                        <Badge
+                          variant={
+                            selectedReport.content_type === "project"
+                              ? "default"
+                              : "secondary"
+                          }
+                          className="capitalize"
+                        >
+                          {selectedReport.content_type || "content"}
                         </Badge>
                         <span className="font-medium">
                           {parsedReportDescription.metadata.contentTitle ||
-                            (selectedReport.content_type === 'project'
-                              ? (selectedReport.content_details?.title || 'Untitled Project')
-                              : (selectedReport.creator_details?.full_name || 'Unknown User'))}
+                            (selectedReport.content_type === "project"
+                              ? selectedReport.content_details?.title ||
+                                "Untitled Project"
+                              : selectedReport.creator_details?.full_name ||
+                                "Unknown User")}
                         </span>
                       </div>
 
                       {parsedReportDescription.metadata.contentCreator && (
                         <p className="text-muted-foreground">
-                          Creator: <span className="font-medium text-foreground">{parsedReportDescription.metadata.contentCreator}</span>
+                          Creator:{" "}
+                          <span className="font-medium text-foreground">
+                            {parsedReportDescription.metadata.contentCreator}
+                          </span>
                         </p>
                       )}
 
@@ -1093,27 +1317,43 @@ export default function ModerationDashboard({
                   <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
                     <div>
                       <p className="text-sm font-semibold">Reason</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{selectedReport.reason || 'No reason provided'}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {selectedReport.reason || "No reason provided"}
+                      </p>
                     </div>
 
                     <div>
                       <p className="text-sm font-semibold">Reporter Notes</p>
                       <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
-                        {parsedReportDescription.notes || 'No additional notes provided.'}
+                        {parsedReportDescription.notes ||
+                          "No additional notes provided."}
                       </p>
                     </div>
 
-                    {(parsedReportDescription.metadata.context || parsedReportDescription.metadata.reportedAt) && (
+                    {(parsedReportDescription.metadata.context ||
+                      parsedReportDescription.metadata.reportedAt) && (
                       <div className="rounded-md border bg-background p-3">
-                        <p className="mb-2 text-xs uppercase text-muted-foreground">Captured Context</p>
+                        <p className="mb-2 text-xs uppercase text-muted-foreground">
+                          Captured Context
+                        </p>
                         <div className="space-y-1.5 text-sm">
                           {parsedReportDescription.metadata.context && (
-                            <p><span className="text-muted-foreground">Context:</span> {parsedReportDescription.metadata.context}</p>
+                            <p>
+                              <span className="text-muted-foreground">
+                                Context:
+                              </span>{" "}
+                              {parsedReportDescription.metadata.context}
+                            </p>
                           )}
                           {parsedReportDescription.metadata.reportedAt && (
                             <p>
-                              <span className="text-muted-foreground">Reported at:</span>{' '}
-                              {formatSafeDate(parsedReportDescription.metadata.reportedAt, 'PPP p')}
+                              <span className="text-muted-foreground">
+                                Reported at:
+                              </span>{" "}
+                              {formatSafeDate(
+                                parsedReportDescription.metadata.reportedAt,
+                                "PPP p",
+                              )}
                             </p>
                           )}
                         </div>
@@ -1127,36 +1367,56 @@ export default function ModerationDashboard({
                         <Bot className="h-5 w-5 text-primary" />
                         <span className="font-semibold">AI Analysis</span>
                         <Badge variant="outline" className="ml-auto text-xs">
-                          {formatConfidencePercent(selectedReport.ai_metadata.confidence)} confident
+                          {formatConfidencePercent(
+                            selectedReport.ai_metadata.confidence,
+                          )}{" "}
+                          confident
                         </Badge>
                       </div>
 
                       <div className="rounded-md bg-background p-3">
-                        <p className="text-xs uppercase text-muted-foreground mb-1">Verdict</p>
-                        <p className="font-medium">{selectedReport.ai_metadata.verdict}</p>
+                        <p className="text-xs uppercase text-muted-foreground mb-1">
+                          Verdict
+                        </p>
+                        <p className="font-medium">
+                          {selectedReport.ai_metadata.verdict}
+                        </p>
                       </div>
 
                       {selectedReport.ai_metadata.shortSummary && (
                         <div className="rounded-md bg-background p-3">
-                          <p className="text-xs uppercase text-muted-foreground mb-1">Summary</p>
-                          <p className="text-sm text-muted-foreground">{selectedReport.ai_metadata.shortSummary}</p>
+                          <p className="text-xs uppercase text-muted-foreground mb-1">
+                            Summary
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {selectedReport.ai_metadata.shortSummary}
+                          </p>
                         </div>
                       )}
 
                       <div className="grid grid-cols-2 gap-2">
                         <div className="rounded-md bg-background p-3">
-                          <p className="text-xs uppercase text-muted-foreground mb-1">Recommended Action</p>
+                          <p className="text-xs uppercase text-muted-foreground mb-1">
+                            Recommended Action
+                          </p>
                           <Badge variant="secondary" className="capitalize">
                             {formatAiRecommendation(
                               selectedReport.ai_metadata.recommendedAction,
-                              selectedReport.ai_metadata.suggestedStatus
+                              selectedReport.ai_metadata.suggestedStatus,
                             )}
                           </Badge>
                         </div>
                         <div className="rounded-md bg-background p-3">
-                          <p className="text-xs uppercase text-muted-foreground mb-1">Priority</p>
-                          <Badge variant={getPriorityVariant(selectedReport.ai_metadata.priority)} className="capitalize">
-                            {selectedReport.ai_metadata.priority || 'Normal'}
+                          <p className="text-xs uppercase text-muted-foreground mb-1">
+                            Priority
+                          </p>
+                          <Badge
+                            variant={getPriorityVariant(
+                              selectedReport.ai_metadata.priority,
+                            )}
+                            className="capitalize"
+                          >
+                            {selectedReport.ai_metadata.priority || "Normal"}
                           </Badge>
                         </div>
                       </div>
@@ -1181,7 +1441,13 @@ export default function ModerationDashboard({
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleReportStatusChange(selectedReport.id, 'dismissed', REPORT_DISMISS_NOTE)}
+                      onClick={() =>
+                        handleReportStatusChange(
+                          selectedReport.id,
+                          "dismissed",
+                          REPORT_DISMISS_NOTE,
+                        )
+                      }
                       disabled={isActionLoading}
                     >
                       Dismiss
@@ -1193,8 +1459,8 @@ export default function ModerationDashboard({
                       onClick={() =>
                         handleManualReportAction(
                           selectedReport.id,
-                          'block_content',
-                          'Blocked via moderation review'
+                          "block_content",
+                          "Blocked via moderation review",
                         )
                       }
                       disabled={isActionLoading}
@@ -1204,7 +1470,13 @@ export default function ModerationDashboard({
 
                     <Button
                       size="sm"
-                      onClick={() => handleReportStatusChange(selectedReport.id, 'resolved', REPORT_RESOLVE_NOTE)}
+                      onClick={() =>
+                        handleReportStatusChange(
+                          selectedReport.id,
+                          "resolved",
+                          REPORT_RESOLVE_NOTE,
+                        )
+                      }
                       disabled={isActionLoading}
                     >
                       <CheckCircle className="mr-2 h-4 w-4" />
@@ -1234,23 +1506,27 @@ type ParsedReportDescription = {
 };
 
 const REPORT_METADATA_KEYS = [
-  { key: 'contentUrl', label: 'Content URL:' },
-  { key: 'contentTitle', label: 'Content Title:' },
-  { key: 'contentCreator', label: 'Content Creator:' },
-  { key: 'context', label: 'Context:' },
-  { key: 'reportedAt', label: 'Reported at:' },
+  { key: "contentUrl", label: "Content URL:" },
+  { key: "contentTitle", label: "Content Title:" },
+  { key: "contentCreator", label: "Content Creator:" },
+  { key: "context", label: "Context:" },
+  { key: "reportedAt", label: "Reported at:" },
 ] as const;
 
-function parseReportDescription(description?: string | null): ParsedReportDescription {
-  const raw = (description || '').trim();
-  const metadata: ParsedReportDescription['metadata'] = {};
+function parseReportDescription(
+  description?: string | null,
+): ParsedReportDescription {
+  const raw = (description || "").trim();
+  const metadata: ParsedReportDescription["metadata"] = {};
 
   if (!raw) {
-    return { notes: '', metadata };
+    return { notes: "", metadata };
   }
 
-  const indexes = REPORT_METADATA_KEYS
-    .map((entry) => ({ ...entry, index: raw.indexOf(entry.label) }))
+  const indexes = REPORT_METADATA_KEYS.map((entry) => ({
+    ...entry,
+    index: raw.indexOf(entry.label),
+  }))
     .filter((entry) => entry.index >= 0)
     .sort((a, b) => a.index - b.index);
 
@@ -1260,78 +1536,83 @@ function parseReportDescription(description?: string | null): ParsedReportDescri
   indexes.forEach((entry, idx) => {
     const start = entry.index + entry.label.length;
     const end = idx < indexes.length - 1 ? indexes[idx + 1].index : raw.length;
-    const value = raw.slice(start, end).replace(/\s+/g, ' ').trim();
+    const value = raw.slice(start, end).replace(/\s+/g, " ").trim();
     if (value) {
       metadata[entry.key] = value;
     }
   });
 
   return {
-    notes: notes || (indexes.length === 0 ? raw : ''),
+    notes: notes || (indexes.length === 0 ? raw : ""),
     metadata,
   };
 }
 
-function formatSafeDate(value?: string | null, pattern = 'PPp') {
-  if (!value) return 'Unknown';
+function formatSafeDate(value?: string | null, pattern = "PPp") {
+  if (!value) return "Unknown";
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return 'Unknown';
+  if (Number.isNaN(parsed.getTime())) return "Unknown";
   return format(parsed, pattern);
 }
 
 function formatConfidencePercent(value?: number) {
-  if (value === undefined || value === null) return '—';
+  if (value === undefined || value === null) return "—";
   const normalized = value > 1 ? value : value * 100;
   return `${Math.round(Math.max(0, Math.min(100, normalized)))}%`;
 }
 
-function formatAiRecommendation(recommendedAction?: string | null, suggestedStatus?: string | null) {
+function formatAiRecommendation(
+  recommendedAction?: string | null,
+  suggestedStatus?: string | null,
+) {
   if (recommendedAction) {
     switch (recommendedAction) {
-      case 'remove_content':
-        return 'Remove content + notify owner';
-      case 'block_content':
-        return 'Block content + notify owner';
-      case 'warn_user':
-        return 'Warn owner';
-      case 'escalate_to_legal':
-        return 'Escalate to legal';
-      case 'none':
-        return 'Manual review';
+      case "remove_content":
+        return "Remove content + notify owner";
+      case "block_content":
+        return "Block content + notify owner";
+      case "warn_user":
+        return "Warn owner";
+      case "escalate_to_legal":
+        return "Escalate to legal";
+      case "none":
+        return "Manual review";
       default:
-        return recommendedAction.replace(/_/g, ' ');
+        return recommendedAction.replace(/_/g, " ");
     }
   }
 
   if (suggestedStatus) {
-    return suggestedStatus.replace(/_/g, ' ');
+    return suggestedStatus.replace(/_/g, " ");
   }
 
-  return 'Manual review';
+  return "Manual review";
 }
 
 function formatFlagStatus(status?: string | null) {
-  switch ((status || 'pending').toLowerCase()) {
-    case 'blocked':
-      return 'Blocked';
-    case 'confirmed':
-      return 'Confirmed';
-    case 'dismissed':
-      return 'Dismissed';
+  switch ((status || "pending").toLowerCase()) {
+    case "blocked":
+      return "Blocked";
+    case "confirmed":
+      return "Confirmed";
+    case "dismissed":
+      return "Dismissed";
     default:
-      return 'Pending review';
+      return "Pending review";
   }
 }
 
-function getFlagStatusVariant(status?: string | null): 'default' | 'secondary' | 'outline' | 'destructive' {
-  switch ((status || 'pending').toLowerCase()) {
-    case 'blocked':
-      return 'destructive';
-    case 'confirmed':
-      return 'default';
-    case 'dismissed':
-      return 'outline';
+function getFlagStatusVariant(
+  status?: string | null,
+): "default" | "secondary" | "outline" | "destructive" {
+  switch ((status || "pending").toLowerCase()) {
+    case "blocked":
+      return "destructive";
+    case "confirmed":
+      return "default";
+    case "dismissed":
+      return "outline";
     default:
-      return 'secondary';
+      return "secondary";
   }
 }

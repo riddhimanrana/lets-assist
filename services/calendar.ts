@@ -19,10 +19,7 @@ import {
   type GoogleOAuthRemoteRevocationState,
 } from "@/lib/auth/google-oauth-disconnect";
 import { encrypt, decrypt } from "@/lib/encryption";
-import {
-  Project,
-  CalendarConnection,
-} from "@/types";
+import { Project, CalendarConnection } from "@/types";
 import {
   classifyGoogleCalendarLookupError,
   classifyGoogleCalendarLookupResponse,
@@ -80,7 +77,7 @@ const normalizeGoogleScopes = (scopes: ScopeInput): string[] => {
 
 const hasRequiredScopes = (
   grantedScopes: ScopeInput,
-  requiredScopes: string[]
+  requiredScopes: string[],
 ): boolean => {
   if (!requiredScopes.length) return true;
   const granted = new Set(normalizeGoogleScopes(grantedScopes));
@@ -119,7 +116,7 @@ interface GoogleCalendarEvent {
  * Get user's active calendar connection (for calendar sync)
  */
 export async function getCalendarConnection(
-  userId: string
+  userId: string,
 ): Promise<CalendarConnection | null> {
   const connection = await getGoogleOAuthConnectionForBinding(
     userId,
@@ -172,7 +169,7 @@ function isTokenExpired(expiresAt: string): boolean {
  * Refresh the access token using the refresh token
  */
 async function refreshAccessToken(
-  refreshToken: string
+  refreshToken: string,
 ): Promise<{ accessToken: string; expiresIn: number } | null> {
   try {
     const response = await fetch(GOOGLE_TOKEN_URL, {
@@ -211,9 +208,7 @@ async function refreshAccessToken(
 /**
  * Get a valid access token, refreshing if necessary
  */
-async function getValidAccessToken(
-  userId: string
-): Promise<string | null> {
+async function getValidAccessToken(userId: string): Promise<string | null> {
   const supabase = await createClient();
   const connection = await getCalendarConnection(userId);
 
@@ -259,11 +254,15 @@ async function getValidAccessToken(
  * Parse date and time into ISO 8601 format for a specific timezone
  * Creates a properly formatted datetime for Google Calendar API
  */
-function parseDateTime(dateStr: string, timeStr: string, _timezone: string): string {
+function parseDateTime(
+  dateStr: string,
+  timeStr: string,
+  _timezone: string,
+): string {
   // Create date string in format that will be interpreted as the specified timezone
-  // e.g., "2025-10-04T14:30:00" 
+  // e.g., "2025-10-04T14:30:00"
   const dateTimeStr = `${dateStr}T${timeStr}:00`;
-  
+
   // Return the ISO string which Google Calendar API expects
   // Google Calendar will interpret this as the timezone specified in the event
   return dateTimeStr;
@@ -274,9 +273,9 @@ function parseDateTime(dateStr: string, timeStr: string, _timezone: string): str
  */
 function formatProjectToCalendarEvent(
   project: Project,
-  scheduleId?: string
+  scheduleId?: string,
 ): GoogleCalendarEvent | GoogleCalendarEvent[] | null {
-  const projectTimezone = project.project_timezone || 'America/Los_Angeles';
+  const projectTimezone = project.project_timezone || "America/Los_Angeles";
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com";
   const projectUrl = `${siteUrl}/projects/${project.id}`;
 
@@ -300,11 +299,19 @@ function formatProjectToCalendarEvent(
     return {
       ...baseEvent,
       start: {
-        dateTime: parseDateTime(schedule.date, schedule.startTime, projectTimezone),
+        dateTime: parseDateTime(
+          schedule.date,
+          schedule.startTime,
+          projectTimezone,
+        ),
         timeZone: projectTimezone,
       },
       end: {
-        dateTime: parseDateTime(schedule.date, schedule.endTime, projectTimezone),
+        dateTime: parseDateTime(
+          schedule.date,
+          schedule.endTime,
+          projectTimezone,
+        ),
         timeZone: projectTimezone,
       },
     };
@@ -318,16 +325,22 @@ function formatProjectToCalendarEvent(
         const currentScheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
         const legacyScheduleId = `${day.date}-${slotIndex}`;
         const slotName = slot.name?.trim();
-        
+
         // If scheduleId is provided, only create event for that specific slot
         // Match either the new unique format or the legacy format
-        if (scheduleId && scheduleId !== currentScheduleId && scheduleId !== legacyScheduleId) {
+        if (
+          scheduleId &&
+          scheduleId !== currentScheduleId &&
+          scheduleId !== legacyScheduleId
+        ) {
           return;
         }
 
         events.push({
           ...baseEvent,
-          summary: slotName ? `${project.title} - ${slotName}` : baseEvent.summary,
+          summary: slotName
+            ? `${project.title} - ${slotName}`
+            : baseEvent.summary,
           start: {
             dateTime: parseDateTime(day.date, slot.startTime, projectTimezone),
             timeZone: projectTimezone,
@@ -360,7 +373,11 @@ function formatProjectToCalendarEvent(
         ...baseEvent,
         summary: `${project.title} - ${role.name}`,
         start: {
-          dateTime: parseDateTime(schedule.date, role.startTime, projectTimezone),
+          dateTime: parseDateTime(
+            schedule.date,
+            role.startTime,
+            projectTimezone,
+          ),
           timeZone: projectTimezone,
         },
         end: {
@@ -382,10 +399,10 @@ function formatProjectToCalendarEvent(
  */
 async function getOrCreateVolunteeringCalendar(
   accessToken: string,
-  userId: string
+  userId: string,
 ): Promise<string | null> {
   const supabase = await createClient();
-  
+
   // Check if we have a stored calendar ID
   const connection = await getCalendarConnection(userId);
   if (connection?.preferences?.volunteering_calendar_id) {
@@ -441,7 +458,7 @@ async function getOrCreateVolunteeringCalendar(
           body: JSON.stringify({
             colorId: "3", // Sage green in Google Calendar (one index higher than Basil)
           }),
-        }
+        },
       );
     } catch {
       console.error("Failed to set personal volunteering calendar color");
@@ -481,7 +498,7 @@ async function getGoogleCalendarAccessState(
           Authorization: `Bearer ${accessToken}`,
         },
         signal: AbortSignal.timeout(GOOGLE_CALENDAR_LOOKUP_TIMEOUT_MS),
-      }
+      },
     );
 
     return classifyGoogleCalendarLookupResponse(response);
@@ -500,7 +517,12 @@ export type CsfPersonalCalendarProviderContext =
   | { status: "destination_missing" }
   | {
       status: "connection_required";
-      reason: "not_connected" | "inactive" | "missing_scope" | "refresh_failed" | "provider_forbidden";
+      reason:
+        | "not_connected"
+        | "inactive"
+        | "missing_scope"
+        | "refresh_failed"
+        | "provider_forbidden";
     }
   | {
       status: "unknown_outcome";
@@ -547,8 +569,16 @@ function parseCsfPersonalCalendarDestinationClaim(
   const row = value as Record<string, unknown>;
   if (
     !(row.operationId === null || typeof row.operationId === "string") ||
-    !["started", "confirmed", "unknown_outcome", "rejected"].includes(String(row.operationState)) ||
-    !["provisioning", "ready", "unknown_outcome", "rejected", "missing"].includes(String(row.destinationState)) ||
+    !["started", "confirmed", "unknown_outcome", "rejected"].includes(
+      String(row.operationState),
+    ) ||
+    ![
+      "provisioning",
+      "ready",
+      "unknown_outcome",
+      "rejected",
+      "missing",
+    ].includes(String(row.destinationState)) ||
     !(row.calendarId === null || typeof row.calendarId === "string") ||
     !(row.outcomeCode === null || typeof row.outcomeCode === "string") ||
     typeof row.shouldCallProvider !== "boolean" ||
@@ -645,19 +675,24 @@ export async function getCsfPersonalCalendarProviderContext(
     .eq("user_id", userId)
     .maybeSingle();
   if (destinationError) {
-    return { status: "unknown_outcome", reason: "destination_state_unavailable" };
+    return {
+      status: "unknown_outcome",
+      reason: "destination_state_unavailable",
+    };
   }
 
-  const destination = destinationData as CsfPersonalCalendarDestinationRow | null;
+  const destination =
+    destinationData as CsfPersonalCalendarDestinationRow | null;
   if (destination?.state === "unknown_outcome") {
     return { status: "unknown_outcome", reason: "calendar_provision_unknown" };
   }
 
-  const storedCalendarId = destination?.state === "ready"
-    && typeof destination.calendar_id === "string"
-    && destination.calendar_id.trim().length > 0
-    ? destination.calendar_id
-    : null;
+  const storedCalendarId =
+    destination?.state === "ready" &&
+    typeof destination.calendar_id === "string" &&
+    destination.calendar_id.trim().length > 0
+      ? destination.calendar_id
+      : null;
   let replaceCalendarId: string | null = null;
 
   if (storedCalendarId) {
@@ -676,7 +711,9 @@ export async function getCsfPersonalCalendarProviderContext(
       return {
         status: "unknown_outcome",
         reason: accessState.reason,
-        ...(accessState.httpStatus ? { httpStatus: accessState.httpStatus } : {}),
+        ...(accessState.httpStatus
+          ? { httpStatus: accessState.httpStatus }
+          : {}),
       };
     }
     replaceCalendarId = storedCalendarId;
@@ -690,7 +727,10 @@ export async function getCsfPersonalCalendarProviderContext(
     allowCreate: options.allowCreate,
   });
   if (!claim) {
-    return { status: "unknown_outcome", reason: "destination_state_unavailable" };
+    return {
+      status: "unknown_outcome",
+      reason: "destination_state_unavailable",
+    };
   }
   if (claim.destinationState === "ready" && claim.calendarId) {
     return { status: "ready", accessToken, calendarId: claim.calendarId };
@@ -704,9 +744,10 @@ export async function getCsfPersonalCalendarProviderContext(
     }
     return {
       status: "unknown_outcome",
-      reason: claim.destinationState === "provisioning"
-        ? "calendar_provision_in_progress"
-        : "calendar_provision_unknown",
+      reason:
+        claim.destinationState === "provisioning"
+          ? "calendar_provision_in_progress"
+          : "calendar_provision_unknown",
     };
   }
 
@@ -734,7 +775,10 @@ export async function getCsfPersonalCalendarProviderContext(
         outcomeCode: `provider_forbidden_${response.status}`,
       });
       if (!recorded) {
-        return { status: "unknown_outcome", reason: "destination_state_unavailable" };
+        return {
+          status: "unknown_outcome",
+          reason: "destination_state_unavailable",
+        };
       }
       return { status: "connection_required", reason: "provider_forbidden" };
     }
@@ -748,7 +792,10 @@ export async function getCsfPersonalCalendarProviderContext(
         outcomeCode: reason,
       });
       if (!recorded) {
-        return { status: "unknown_outcome", reason: "destination_state_unavailable" };
+        return {
+          status: "unknown_outcome",
+          reason: "destination_state_unavailable",
+        };
       }
       return {
         status: "unknown_outcome",
@@ -765,7 +812,10 @@ export async function getCsfPersonalCalendarProviderContext(
         outcomeCode: "server_error",
       });
       if (!recorded) {
-        return { status: "unknown_outcome", reason: "destination_state_unavailable" };
+        return {
+          status: "unknown_outcome",
+          reason: "destination_state_unavailable",
+        };
       }
       return {
         status: "unknown_outcome",
@@ -782,16 +832,23 @@ export async function getCsfPersonalCalendarProviderContext(
         outcomeCode: `provider_rejected_${response.status}`,
       });
       if (!recorded) {
-        return { status: "unknown_outcome", reason: "destination_state_unavailable" };
+        return {
+          status: "unknown_outcome",
+          reason: "destination_state_unavailable",
+        };
       }
       return { status: "rejected", httpStatus: response.status };
     }
 
     const payload: unknown = await response.json().catch(() => null);
-    const calendarId = payload && typeof payload === "object" && "id" in payload
-      && typeof payload.id === "string" && payload.id.trim().length > 0
-      ? payload.id
-      : null;
+    const calendarId =
+      payload &&
+      typeof payload === "object" &&
+      "id" in payload &&
+      typeof payload.id === "string" &&
+      payload.id.trim().length > 0
+        ? payload.id
+        : null;
     if (!calendarId) {
       const recorded = await completeCsfPersonalCalendarDestinationClaim({
         operationId: claim.operationId,
@@ -801,7 +858,10 @@ export async function getCsfPersonalCalendarProviderContext(
         outcomeCode: "malformed_response",
       });
       if (!recorded) {
-        return { status: "unknown_outcome", reason: "destination_state_unavailable" };
+        return {
+          status: "unknown_outcome",
+          reason: "destination_state_unavailable",
+        };
       }
       return { status: "unknown_outcome", reason: "malformed_response" };
     }
@@ -814,13 +874,17 @@ export async function getCsfPersonalCalendarProviderContext(
       outcomeCode: null,
     });
     if (!recorded) {
-      return { status: "unknown_outcome", reason: "destination_state_unavailable" };
+      return {
+        status: "unknown_outcome",
+        reason: "destination_state_unavailable",
+      };
     }
 
     return { status: "ready", accessToken, calendarId };
   } catch (error) {
     const state = classifyGoogleCalendarLookupError(error);
-    const reason = state.status === "retryable_error" ? state.reason : "network_error";
+    const reason =
+      state.status === "retryable_error" ? state.reason : "network_error";
     const recorded = await completeCsfPersonalCalendarDestinationClaim({
       operationId: claim.operationId,
       userId,
@@ -829,7 +893,10 @@ export async function getCsfPersonalCalendarProviderContext(
       outcomeCode: reason,
     });
     if (!recorded) {
-      return { status: "unknown_outcome", reason: "destination_state_unavailable" };
+      return {
+        status: "unknown_outcome",
+        reason: "destination_state_unavailable",
+      };
     }
     return {
       status: "unknown_outcome",
@@ -844,7 +911,7 @@ export async function getCsfPersonalCalendarProviderContext(
 export async function ensureOrganizationCalendar(
   accessToken: string,
   calendarId: string | null | undefined,
-  calendarName: string
+  calendarName: string,
 ): Promise<{ calendarId: string; created: boolean } | null> {
   if (calendarId) {
     const accessState = await getGoogleCalendarAccessState(
@@ -907,7 +974,7 @@ export async function ensureOrganizationCalendar(
           body: JSON.stringify({
             colorId: "3",
           }),
-        }
+        },
       );
     } catch (error) {
       console.error("Failed to set organization calendar color:", error);
@@ -924,7 +991,7 @@ export async function createGoogleCalendarEventForCalendar(
   accessToken: string,
   calendarId: string,
   project: Project,
-  scheduleId?: string
+  scheduleId?: string,
 ): Promise<string | null> {
   const eventData = formatProjectToCalendarEvent(project, scheduleId);
   if (!eventData) {
@@ -942,7 +1009,7 @@ export async function createGoogleCalendarEventForCalendar(
             "Content-Type": "application/json",
           },
           body: JSON.stringify(eventData),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -971,7 +1038,7 @@ export async function createGoogleCalendarEventForCalendar(
             "Content-Type": "application/json",
           },
           body: JSON.stringify(event),
-        }
+        },
       );
 
       if (response.ok) {
@@ -991,7 +1058,7 @@ export async function updateGoogleCalendarEventForCalendar(
   calendarId: string,
   eventId: string,
   project: Project,
-  scheduleId?: string
+  scheduleId?: string,
 ): Promise<boolean> {
   const eventData = formatProjectToCalendarEvent(project, scheduleId);
   if (!eventData || Array.isArray(eventData)) {
@@ -1001,7 +1068,7 @@ export async function updateGoogleCalendarEventForCalendar(
   try {
     const response = await fetch(
       `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
-        calendarId
+        calendarId,
       )}/events/${eventId}`,
       {
         method: "PUT",
@@ -1010,7 +1077,7 @@ export async function updateGoogleCalendarEventForCalendar(
           "Content-Type": "application/json",
         },
         body: JSON.stringify(eventData),
-      }
+      },
     );
 
     return response.ok;
@@ -1023,19 +1090,19 @@ export async function updateGoogleCalendarEventForCalendar(
 export async function deleteGoogleCalendarEventForCalendar(
   accessToken: string,
   calendarId: string,
-  eventId: string
+  eventId: string,
 ): Promise<boolean> {
   try {
     const response = await fetch(
       `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
-        calendarId
+        calendarId,
       )}/events/${eventId}`,
       {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-      }
+      },
     );
 
     return response.ok || response.status === 404;
@@ -1052,7 +1119,7 @@ export async function deleteGoogleCalendarEventForCalendar(
 export async function createGoogleCalendarEvent(
   userId: string,
   project: Project,
-  scheduleId?: string
+  scheduleId?: string,
 ): Promise<string | null> {
   const accessToken = await getValidAccessToken(userId);
   if (!accessToken) {
@@ -1076,7 +1143,7 @@ export async function createGoogleCalendarEvent(
     try {
       const response = await fetch(
         `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
-          calendarId
+          calendarId,
         )}/events`,
         {
           method: "POST",
@@ -1085,7 +1152,7 @@ export async function createGoogleCalendarEvent(
             "Content-Type": "application/json",
           },
           body: JSON.stringify(eventData),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -1108,7 +1175,7 @@ export async function createGoogleCalendarEvent(
     try {
       const response = await fetch(
         `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
-          calendarId
+          calendarId,
         )}/events`,
         {
           method: "POST",
@@ -1117,7 +1184,7 @@ export async function createGoogleCalendarEvent(
             "Content-Type": "application/json",
           },
           body: JSON.stringify(event),
-        }
+        },
       );
 
       if (response.ok) {
@@ -1140,7 +1207,7 @@ export async function updateGoogleCalendarEvent(
   userId: string,
   eventId: string,
   project: Project,
-  scheduleId?: string
+  scheduleId?: string,
 ): Promise<boolean> {
   const accessToken = await getValidAccessToken(userId);
   if (!accessToken) {
@@ -1162,7 +1229,7 @@ export async function updateGoogleCalendarEvent(
   try {
     const response = await fetch(
       `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
-        calendarId
+        calendarId,
       )}/events/${eventId}`,
       {
         method: "PUT",
@@ -1171,7 +1238,7 @@ export async function updateGoogleCalendarEvent(
           "Content-Type": "application/json",
         },
         body: JSON.stringify(eventData),
-      }
+      },
     );
 
     return response.ok;
@@ -1187,7 +1254,7 @@ export async function updateGoogleCalendarEvent(
  */
 export async function deleteGoogleCalendarEvent(
   userId: string,
-  eventId: string
+  eventId: string,
 ): Promise<boolean> {
   const accessToken = await getValidAccessToken(userId);
   if (!accessToken) {
@@ -1204,14 +1271,14 @@ export async function deleteGoogleCalendarEvent(
   try {
     const response = await fetch(
       `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
-        calendarId
+        calendarId,
       )}/events/${eventId}`,
       {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-      }
+      },
     );
 
     return response.ok || response.status === 404; // 404 means already deleted
@@ -1225,12 +1292,12 @@ export async function deleteGoogleCalendarEvent(
  * Revoke Google Calendar access
  */
 export async function revokeGoogleCalendarAccess(
-  refreshToken: string
+  refreshToken: string,
 ): Promise<boolean> {
   try {
     const response = await fetch(
       `${GOOGLE_REVOKE_URL}?token=${encodeURIComponent(refreshToken)}`,
-      { method: "POST" }
+      { method: "POST" },
     );
 
     return response.ok;
@@ -1288,7 +1355,9 @@ export async function deactivateGoogleConnection(
   if (shouldRevoke && connection.refresh_token) {
     try {
       const decryptedRefreshToken = decrypt(connection.refresh_token);
-      remoteRevocation = (await revokeGoogleCalendarAccess(decryptedRefreshToken))
+      remoteRevocation = (await revokeGoogleCalendarAccess(
+        decryptedRefreshToken,
+      ))
         ? "revoked"
         : "failed";
     } catch (error) {
@@ -1330,7 +1399,7 @@ export async function getCalendarEmail(userId: string): Promise<string | null> {
  * Check if user has an active calendar connection
  */
 export async function hasActiveCalendarConnection(
-  userId: string
+  userId: string,
 ): Promise<boolean> {
   const connection = await getCalendarConnection(userId);
   return connection !== null && connection.is_active;
@@ -1354,7 +1423,7 @@ export async function markPersonalCalendarConnectionSynced(
  * Get a valid Google access token for external integrations (e.g., Sheets)
  */
 export async function getGoogleAccessToken(
-  userId: string
+  userId: string,
 ): Promise<string | null> {
   return getGoogleAccessTokenForUser(userId, false, {
     connectionType: "calendar",
@@ -1407,7 +1476,7 @@ export async function getGoogleAccessTokenForUser(
     connectionType?: "calendar" | "sheets" | "both";
     expectedBinding: GoogleOAuthConnectionBindingExpectation;
     requestedCapability?: GoogleOAuthCsfImportCapability;
-  }
+  },
 ): Promise<string | null> {
   if (options.expectedBinding.organizationId) {
     if (
@@ -1436,13 +1505,14 @@ export async function getGoogleAccessTokenForUser(
   if (!connection) return null;
 
   const requiredScopes = options?.requiredScopes?.filter(Boolean) ?? [];
-  const allowedTypes = options.connectionType === "calendar"
-    ? ["calendar", "both"]
-    : options.connectionType === "sheets"
-      ? ["sheets", "both"]
-      : options.connectionType === "both"
-        ? ["both"]
-        : ["calendar", "sheets", "both"];
+  const allowedTypes =
+    options.connectionType === "calendar"
+      ? ["calendar", "both"]
+      : options.connectionType === "sheets"
+        ? ["sheets", "both"]
+        : options.connectionType === "both"
+          ? ["both"]
+          : ["calendar", "sheets", "both"];
   if (
     !allowedTypes.includes(connection.connection_type ?? "") ||
     !hasRequiredScopes(connection.granted_scopes, requiredScopes) ||
@@ -1472,13 +1542,14 @@ export async function getGoogleAccessTokenForUser(
   // authorization immediately before any refreshed credential is persisted or
   // returned to the caller.
   if (options.expectedBinding.organizationId) {
-    const refreshedAuthorization = await authorizeGoogleOAuthOrganizationRequest({
-      userId,
-      organizationId: options.expectedBinding.organizationId,
-      pluginKey: options.expectedBinding.pluginKey as "dvhs-csf" | null,
-      purpose: options.expectedBinding.purpose,
-      requestedCapability: options.requestedCapability ?? null,
-    });
+    const refreshedAuthorization =
+      await authorizeGoogleOAuthOrganizationRequest({
+        userId,
+        organizationId: options.expectedBinding.organizationId,
+        pluginKey: options.expectedBinding.pluginKey as "dvhs-csf" | null,
+        purpose: options.expectedBinding.purpose,
+        requestedCapability: options.requestedCapability ?? null,
+      });
     if (!refreshedAuthorization.allowed) return null;
   }
 

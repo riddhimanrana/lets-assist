@@ -71,7 +71,7 @@ test("CSF compatibility export appends malicious-looking cells as RAW", async ()
   try {
     const rows = [
       ["Name", "Activity"],
-      ["=IMPORTXML(\"https://attacker.invalid\")", "+cmd|' /C calc'!A0"],
+      ['=IMPORTXML("https://attacker.invalid")', "+cmd|' /C calc'!A0"],
       ["-2+3", "@SUM(1,1)"],
     ];
     const result = await appendSpreadsheetValues(

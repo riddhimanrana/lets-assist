@@ -15,9 +15,11 @@ type MembershipRow = {
  */
 export async function joinOrganization(joinCode: string) {
   const supabase = await createClient();
-  
+
   // Verify the user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     return { error: "You must be logged in to join an organization" };
   }
@@ -34,7 +36,7 @@ export async function joinOrganization(joinCode: string) {
   }
 
   if (joinResult.join_status === "already_member") {
-    return { 
+    return {
       error: "You are already a member of this organization",
       organizationUsername: joinResult.organization_username,
     };
@@ -42,10 +44,10 @@ export async function joinOrganization(joinCode: string) {
 
   // Revalidate the organization page
   revalidatePath(`/organization/${joinResult.organization_username}`);
-  revalidatePath('/organization');
+  revalidatePath("/organization");
 
-  return { 
-    success: true, 
+  return {
+    success: true,
     organizationUsername: joinResult.organization_username,
   };
 }
@@ -55,13 +57,15 @@ export async function joinOrganization(joinCode: string) {
  */
 export async function leaveOrganization(organizationId: string) {
   const supabase = await createClient();
-  
+
   // Verify the user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     return { error: "You must be logged in to leave an organization" };
   }
-  
+
   // Check if user is a member of the organization
   const { data: membership, error: memberError } = (await supabase
     .from("organization_members")
@@ -76,7 +80,7 @@ export async function leaveOrganization(organizationId: string) {
   if (memberError || !membership) {
     return { error: "You are not a member of this organization" };
   }
-  
+
   // Don't allow the last admin to leave
   if (membership.role === "admin") {
     // Count other admins
@@ -86,18 +90,19 @@ export async function leaveOrganization(organizationId: string) {
       .eq("organization_id", organizationId)
       .eq("role", "admin")
       .neq("user_id", user.id);
-      
+
     if (countError) {
       return { error: "Failed to verify admin status" };
     }
-    
+
     if (count === 0) {
-      return { 
-        error: "You are the only admin. Please promote another member to admin before leaving."
+      return {
+        error:
+          "You are the only admin. Please promote another member to admin before leaving.",
       };
     }
   }
-  
+
   // Remove through the same transactional suppression boundary used by admin
   // removals so a verified-domain login cannot silently re-add the member.
   const admin = getAdminClient();
@@ -123,7 +128,7 @@ export async function leaveOrganization(organizationId: string) {
   if (orgUsername) {
     revalidatePath(`/organization/${orgUsername}`);
   }
-  revalidatePath('/organization');
+  revalidatePath("/organization");
 
   return { success: true };
 }

@@ -31,11 +31,17 @@ export async function GET(request: NextRequest) {
   const typeParam = (searchParams.get("type") as EmailOtpType | null) ?? null;
   const type: EmailOtpType = typeParam ?? "signup";
   const code = searchParams.get("code");
-  const redirectAfterAuth = normalizeRedirectPath(searchParams.get("redirectAfterAuth"));
+  const redirectAfterAuth = normalizeRedirectPath(
+    searchParams.get("redirectAfterAuth"),
+  );
 
   const isExpiredLinkError = (message: string) => {
     const lowered = message.toLowerCase();
-    return lowered.includes("expired") || lowered.includes("otp") || lowered.includes("token");
+    return (
+      lowered.includes("expired") ||
+      lowered.includes("otp") ||
+      lowered.includes("token")
+    );
   };
 
   const redirectToExpiredLink = () => {
@@ -46,9 +52,15 @@ export async function GET(request: NextRequest) {
     redirect(url.toString());
   };
 
-  const isPkceVerifierMissingError = (message?: string, code?: string | null) => {
+  const isPkceVerifierMissingError = (
+    message?: string,
+    code?: string | null,
+  ) => {
     const lowered = (message ?? "").toLowerCase();
-    return code === "pkce_code_verifier_not_found" || lowered.includes("pkce code verifier not found");
+    return (
+      code === "pkce_code_verifier_not_found" ||
+      lowered.includes("pkce code verifier not found")
+    );
   };
 
   const getTrustedUser = async () => {
@@ -72,7 +84,10 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Code exchange error:", error);
-      if (type === "signup" && isPkceVerifierMissingError(error.message, error.code)) {
+      if (
+        type === "signup" &&
+        isPkceVerifierMissingError(error.message, error.code)
+      ) {
         return redirectToExpiredLink();
       }
       if (type === "signup" && isExpiredLinkError(error.message ?? "")) {
@@ -88,8 +103,13 @@ export async function GET(request: NextRequest) {
 
     const primarySync = await syncPrimaryUserEmail(trustedUser.id);
     if (!primarySync.success) {
-      console.error("Primary email synchronization failed after code exchange:", primarySync.status);
-      return redirect("/error?message=Unable%20to%20synchronize%20verified%20email");
+      console.error(
+        "Primary email synchronization failed after code exchange:",
+        primarySync.status,
+      );
+      return redirect(
+        "/error?message=Unable%20to%20synchronize%20verified%20email",
+      );
     }
 
     const userEmail = trustedUser.email;
@@ -135,8 +155,13 @@ export async function GET(request: NextRequest) {
 
   const primarySync = await syncPrimaryUserEmail(trustedUser.id);
   if (!primarySync.success) {
-    console.error("Primary email synchronization failed after confirmation:", primarySync.status);
-    return redirect("/error?message=Unable%20to%20synchronize%20verified%20email");
+    console.error(
+      "Primary email synchronization failed after confirmation:",
+      primarySync.status,
+    );
+    return redirect(
+      "/error?message=Unable%20to%20synchronize%20verified%20email",
+    );
   }
 
   if (type === "email_change") {

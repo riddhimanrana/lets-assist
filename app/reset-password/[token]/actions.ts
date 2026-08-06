@@ -21,34 +21,39 @@ export async function updatePassword(formData: FormData) {
   });
 
   if (!validatedFields.success) {
-    return { error: validatedFields.error.flatten().fieldErrors as ErrorResponse };
+    return {
+      error: validatedFields.error.flatten().fieldErrors as ErrorResponse,
+    };
   }
 
   const supabase = await createClient();
 
   try {
     // First exchange the code for a session
-    const { error: sessionError } = await supabase.auth
-      .exchangeCodeForSession(validatedFields.data.token);
+    const { error: sessionError } = await supabase.auth.exchangeCodeForSession(
+      validatedFields.data.token,
+    );
 
     if (sessionError) {
       return {
         error: {
-          server: ["Invalid or expired reset link. Please request a new password reset."]
-        } as ErrorResponse
+          server: [
+            "Invalid or expired reset link. Please request a new password reset.",
+          ],
+        } as ErrorResponse,
       };
     }
 
     // Use the session to update the password
     const { error: updateError } = await supabase.auth.updateUser({
-      password: validatedFields.data.password
+      password: validatedFields.data.password,
     });
 
     if (updateError) {
       return {
         error: {
-          server: [updateError.message]
-        } as ErrorResponse
+          server: [updateError.message],
+        } as ErrorResponse,
       };
     }
 
@@ -59,8 +64,8 @@ export async function updatePassword(formData: FormData) {
   } catch (error) {
     return {
       error: {
-        server: [(error as Error).message]
-      } as ErrorResponse
+        server: [(error as Error).message],
+      } as ErrorResponse,
     };
   }
 }

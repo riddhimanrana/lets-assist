@@ -3,10 +3,7 @@
  * Generates .ics files compatible with Apple Calendar, Google Calendar, Outlook, etc.
  */
 
-import {
-  Project,
-  OneTimeSchedule,
-} from "@/types";
+import { Project, OneTimeSchedule } from "@/types";
 
 interface ICalEventData {
   title: string;
@@ -97,17 +94,19 @@ function createICalEvent(eventData: ICalEventData): string {
   lines.push(`DTSTART:${formatICalDate(eventData.startTime)}`);
   lines.push(`DTEND:${formatICalDate(eventData.endTime)}`);
   lines.push(`SUMMARY:${escapeICalText(eventData.title)}`);
-  
+
   if (eventData.description) {
     lines.push(`DESCRIPTION:${escapeICalText(eventData.description)}`);
   }
-  
+
   if (eventData.location) {
     lines.push(`LOCATION:${escapeICalText(eventData.location)}`);
   }
 
   if (eventData.organizerName && eventData.organizerEmail) {
-    lines.push(`ORGANIZER;CN=${escapeICalText(eventData.organizerName)}:mailto:${eventData.organizerEmail}`);
+    lines.push(
+      `ORGANIZER;CN=${escapeICalText(eventData.organizerName)}:mailto:${eventData.organizerEmail}`,
+    );
   }
 
   if (eventData.url) {
@@ -160,7 +159,7 @@ function createICalFile(events: string[]): string {
 function parseDateTime(dateStr: string, timeStr: string): Date {
   const [year, month, day] = dateStr.split("-").map(Number);
   const [hours, minutes] = timeStr.split(":").map(Number);
-  
+
   return new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
 }
 
@@ -171,7 +170,7 @@ function generateOneTimeEventICal(
   project: Project,
   schedule: OneTimeSchedule,
   organizerName?: string,
-  organizerEmail?: string
+  organizerEmail?: string,
 ): string {
   const startTime = parseDateTime(schedule.date, schedule.startTime);
   const endTime = parseDateTime(schedule.date, schedule.endTime);
@@ -199,7 +198,7 @@ function generateMultiDayEventICal(
   project: Project,
   scheduleId: string,
   organizerName?: string,
-  organizerEmail?: string
+  organizerEmail?: string,
 ): string {
   if (!project.schedule.multiDay) {
     throw new Error("Multi-day schedule not found");
@@ -207,7 +206,7 @@ function generateMultiDayEventICal(
 
   // Find the specific day and slot
   const events: string[] = [];
-  
+
   project.schedule.multiDay.forEach((day, dayIndex) => {
     day.slots.forEach((slot, slotIndex) => {
       const scheduleIdentifier = `${day.date}-${dayIndex}-${slotIndex}`;
@@ -215,7 +214,11 @@ function generateMultiDayEventICal(
       const slotName = slot.name?.trim();
 
       // Only create event for the requested schedule ID or create all if no specific ID
-      if (!scheduleId || scheduleId === scheduleIdentifier || scheduleId === legacyScheduleIdentifier) {
+      if (
+        !scheduleId ||
+        scheduleId === scheduleIdentifier ||
+        scheduleId === legacyScheduleIdentifier
+      ) {
         const startTime = parseDateTime(day.date, slot.startTime);
         const endTime = parseDateTime(day.date, slot.endTime);
 
@@ -245,7 +248,7 @@ function generateSameDayMultiAreaEventICal(
   project: Project,
   roleScheduleId: string,
   organizerName?: string,
-  organizerEmail?: string
+  organizerEmail?: string,
 ): string {
   if (!project.schedule.sameDayMultiArea) {
     throw new Error("Same-day multi-area schedule not found");
@@ -281,7 +284,7 @@ function generateSameDayMultiAreaEventICal(
 
 /**
  * Main function to generate iCal file for a project
- * 
+ *
  * @param project - The project object
  * @param scheduleId - The specific schedule/slot ID (optional, generates all if not provided)
  * @param organizerName - Name of the event organizer
@@ -292,7 +295,7 @@ export function generateProjectICalFile(
   project: Project,
   scheduleId?: string,
   organizerName?: string,
-  organizerEmail?: string
+  organizerEmail?: string,
 ): string {
   switch (project.event_type) {
     case "oneTime":
@@ -303,7 +306,7 @@ export function generateProjectICalFile(
         project,
         project.schedule.oneTime,
         organizerName,
-        organizerEmail
+        organizerEmail,
       );
 
     case "multiDay":
@@ -311,7 +314,7 @@ export function generateProjectICalFile(
         project,
         scheduleId || "",
         organizerName,
-        organizerEmail
+        organizerEmail,
       );
 
     case "sameDayMultiArea":
@@ -319,7 +322,7 @@ export function generateProjectICalFile(
         project,
         scheduleId || "",
         organizerName,
-        organizerEmail
+        organizerEmail,
       );
 
     default:
@@ -339,7 +342,7 @@ export function createICalBlob(icalContent: string): Blob {
  */
 export function downloadICalFile(
   icalContent: string,
-  filename: string = "event.ics"
+  filename: string = "event.ics",
 ): void {
   const blob = createICalBlob(icalContent);
   const url = URL.createObjectURL(blob);
@@ -355,13 +358,16 @@ export function downloadICalFile(
 /**
  * Generates a suggested filename for the iCal file
  */
-export function generateICalFilename(project: Project, scheduleId?: string): string {
+export function generateICalFilename(
+  project: Project,
+  scheduleId?: string,
+): string {
   const sanitizedTitle = project.title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  
+
   const schedulePrefix = scheduleId ? `-${scheduleId}` : "";
-  
+
   return `${sanitizedTitle}${schedulePrefix}.ics`;
 }

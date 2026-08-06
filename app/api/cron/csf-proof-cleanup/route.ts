@@ -12,7 +12,10 @@ const STALE_AFTER_MS = 60 * 60 * 1000;
 function authorizeCronRequest(request: NextRequest) {
   const secret = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
   if (!secret) {
-    return NextResponse.json({ error: "Cron secret not configured" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Cron secret not configured" },
+      { status: 500 },
+    );
   }
   if (request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

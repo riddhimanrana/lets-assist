@@ -1,11 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Card,
   CardContent,
@@ -49,14 +45,21 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
               <CardTitle className="text-lg">Support Let's Assist</CardTitle>
             </div>
             <CardDescription>
-              I'm on a mission to connect volunteers with impactful organizations. Your support helps keep our platform free and our community servers running.
+              I'm on a mission to connect volunteers with impactful
+              organizations. Your support helps keep our platform free and our
+              community servers running.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-6">
             <div className="text-sm text-foreground/80 leading-relaxed bg-muted/50 p-3 rounded-lg border border-border/50">
-              Scaling a platform for thousands of users comes with significant monthly costs. Your contribution, regardless of size, directly supports our infrastructure.
+              Scaling a platform for thousands of users comes with significant
+              monthly costs. Your contribution, regardless of size, directly
+              supports our infrastructure.
             </div>
-            <label htmlFor="email" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            <label
+              htmlFor="email"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
               Contact for donations
             </label>
             <div className="flex items-center gap-2 p-2 rounded-lg border bg-background shadow-xs">
@@ -95,6 +98,6 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
           </CardFooter>
         </Card>
       </DialogContent>
-    </Dialog >
+    </Dialog>
   );
 }

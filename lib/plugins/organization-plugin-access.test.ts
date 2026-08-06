@@ -58,11 +58,9 @@ function queryClient(
         },
         then<TResult1 = QueryResponse, TResult2 = never>(
           onfulfilled?:
-            | ((value: QueryResponse) => TResult1 | PromiseLike<TResult1>)
-            | null,
+            ((value: QueryResponse) => TResult1 | PromiseLike<TResult1>) | null,
           onrejected?:
-            | ((reason: unknown) => TResult2 | PromiseLike<TResult2>)
-            | null,
+            ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
         ) {
           const result =
             response instanceof Error
@@ -101,13 +99,15 @@ describe("organization plugin access resolution", () => {
       ["update-required", "global", true, "2.0.0", "2.0.0"],
       ["inactive", "global", false, "1.0.0", null],
       ["forced", "private", true, "1.0.0", null],
-    ].map(([key, visibility, is_active, latest_version, force_update_version]) => ({
-      key: key as string,
-      visibility: visibility as "global" | "private",
-      is_active: is_active as boolean,
-      latest_version: latest_version as string,
-      force_update_version: force_update_version as string | null,
-    }));
+    ].map(
+      ([key, visibility, is_active, latest_version, force_update_version]) => ({
+        key: key as string,
+        visibility: visibility as "global" | "private",
+        is_active: is_active as boolean,
+        latest_version: latest_version as string,
+        force_update_version: force_update_version as string | null,
+      }),
+    );
     const installs = [
       ["free", "1.0.0"],
       ["private-active", "1.0.0"],
@@ -161,7 +161,9 @@ describe("organization plugin access resolution", () => {
       "free",
       "private-active",
     ]);
-    expect(rows.find((row) => row.plugin_key === "forced")?.installed_at).toBeNull();
+    expect(
+      rows.find((row) => row.plugin_key === "forced")?.installed_at,
+    ).toBeNull();
   });
 
   test("a missing consolidated view uses all three legacy control-plane tables", async () => {
@@ -324,8 +326,7 @@ describe("organization plugin access resolution", () => {
               | ((value: QueryResponse) => TResult1 | PromiseLike<TResult1>)
               | null,
             onrejected?:
-              | ((reason: unknown) => TResult2 | PromiseLike<TResult2>)
-              | null,
+              ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
           ) {
             return Promise.resolve(response).then(onfulfilled, onrejected);
           },

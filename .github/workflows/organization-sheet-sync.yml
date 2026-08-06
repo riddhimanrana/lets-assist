@@ -2,7 +2,7 @@ name: Organization Sheet Sync
 
 on:
   schedule:
-    - cron: '27 */2 * * *' # Every 2 hours
+    - cron: "27 */2 * * *" # Every 2 hours
   workflow_dispatch:
 
 permissions:

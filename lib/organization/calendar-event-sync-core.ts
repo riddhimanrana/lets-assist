@@ -84,7 +84,10 @@ export async function synchronizeCalendarEvents<TProject>(
         operations.updateRemoteEvent(tracked, desired),
       );
       if (!remoteUpdated) {
-        return { success: false, error: "Failed to update a Google calendar event" };
+        return {
+          success: false,
+          error: "Failed to update a Google calendar event",
+        };
       }
 
       const trackingUpdated = await runBooleanOperation(() =>
@@ -93,7 +96,8 @@ export async function synchronizeCalendarEvents<TProject>(
       if (!trackingUpdated) {
         return {
           success: false,
-          error: "Google calendar event updated, but its tracking row could not be updated",
+          error:
+            "Google calendar event updated, but its tracking row could not be updated",
         };
       }
 
@@ -105,7 +109,10 @@ export async function synchronizeCalendarEvents<TProject>(
       operations.createRemoteEvent(desired),
     );
     if (!eventId) {
-      return { success: false, error: "Failed to create a Google calendar event" };
+      return {
+        success: false,
+        error: "Failed to create a Google calendar event",
+      };
     }
 
     const trackingInserted = await runBooleanOperation(() =>
@@ -133,7 +140,10 @@ export async function synchronizeCalendarEvents<TProject>(
       operations.deleteRemoteEvent(tracked.eventId),
     );
     if (!remoteDeleted) {
-      return { success: false, error: "Failed to remove a stale Google calendar event" };
+      return {
+        success: false,
+        error: "Failed to remove a stale Google calendar event",
+      };
     }
 
     const trackingDeleted = await runBooleanOperation(() =>
@@ -142,7 +152,8 @@ export async function synchronizeCalendarEvents<TProject>(
     if (!trackingDeleted) {
       return {
         success: false,
-        error: "Google calendar event removed, but its tracking row could not be deleted",
+        error:
+          "Google calendar event removed, but its tracking row could not be deleted",
       };
     }
 

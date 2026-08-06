@@ -29,10 +29,16 @@ function GlobalNotificationProviderInner({
   const [homeRouteReady, setHomeRouteReady] = useState(false);
   const [introTourStarted, setIntroTourStarted] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
-  const [pendingOnboardingAfterTour, setPendingOnboardingAfterTour] = useState(false);
-  const [currentUserFullName, setCurrentUserFullName] = useState<string | null>(null);
+  const [pendingOnboardingAfterTour, setPendingOnboardingAfterTour] =
+    useState(false);
+  const [currentUserFullName, setCurrentUserFullName] = useState<string | null>(
+    null,
+  );
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
-  const [autoJoinedOrg, setAutoJoinedOrg] = useState<{ id: string; name: string } | null>(null);
+  const [autoJoinedOrg, setAutoJoinedOrg] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const onboardingCompletedRef = useRef(false);
   const introCompletedRef = useRef(false);
 
@@ -48,9 +54,12 @@ function GlobalNotificationProviderInner({
 
   const noRedirect = searchParams.get("noRedirect") === "1";
   const onboardingCompleteParam = searchParams.get("onboarding") === "complete";
-  const [suppressOnboardingAfterReturn, setSuppressOnboardingAfterReturn] = useState(false);
-  const isRestrictedPath = !!pathname && restrictedPathsForLoggedInUsers.includes(pathname);
-  const shouldRedirectHome = !!user && !isLoading && isRestrictedPath && !noRedirect;
+  const [suppressOnboardingAfterReturn, setSuppressOnboardingAfterReturn] =
+    useState(false);
+  const isRestrictedPath =
+    !!pathname && restrictedPathsForLoggedInUsers.includes(pathname);
+  const shouldRedirectHome =
+    !!user && !isLoading && isRestrictedPath && !noRedirect;
 
   const suppressOnboardingModal = !!(
     pathname?.startsWith("/projects/create") ||
@@ -118,7 +127,8 @@ function GlobalNotificationProviderInner({
 
     const justFinishedOnboarding =
       onboardingCompleteParam ||
-      window.sessionStorage.getItem("lets-assist:onboarding-complete") === "true";
+      window.sessionStorage.getItem("lets-assist:onboarding-complete") ===
+        "true";
 
     if (!justFinishedOnboarding) {
       return;
@@ -130,7 +140,11 @@ function GlobalNotificationProviderInner({
     if (onboardingCompleteParam) {
       const url = new URL(window.location.href);
       url.searchParams.delete("onboarding");
-      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      window.history.replaceState(
+        {},
+        "",
+        `${url.pathname}${url.search}${url.hash}`,
+      );
     }
 
     const timeoutId = window.setTimeout(() => {
@@ -142,24 +156,34 @@ function GlobalNotificationProviderInner({
 
   const markIntroTourComplete = useCallback(async () => {
     try {
-      const { markIntroTourAsComplete } = await import("@/components/onboarding/onboarding-actions");
+      const { markIntroTourAsComplete } =
+        await import("@/components/onboarding/onboarding-actions");
       const result = await markIntroTourAsComplete();
 
       if (result.error) {
-        console.error("Failed to mark intro tour complete via server action:", result.error);
+        console.error(
+          "Failed to mark intro tour complete via server action:",
+          result.error,
+        );
         return;
       }
 
       const supabase = createClient();
-      const { data: { user: updatedUser }, error } = await supabase.auth.getUser();
+      const {
+        data: { user: updatedUser },
+        error,
+      } = await supabase.auth.getUser();
 
       if (error) {
         console.warn("Error fetching updated user after tour complete:", error);
       }
 
       // Auth state is managed by useAuth hook automatically via onAuthStateChange
-      if (updatedUser && process.env.NODE_ENV === 'development') {
-        console.log('[GlobalNotificationProvider] User updated after tour complete:', updatedUser.email);
+      if (updatedUser && process.env.NODE_ENV === "development") {
+        console.log(
+          "[GlobalNotificationProvider] User updated after tour complete:",
+          updatedUser.email,
+        );
       }
     } catch (error) {
       console.error("Unexpected error updating intro tour status:", error);
@@ -169,7 +193,7 @@ function GlobalNotificationProviderInner({
   const prepareOnboardingModal = useCallback(() => {
     if (!user) return;
     setCurrentUserFullName(
-      user.user_metadata?.full_name || user.email?.split("@")[0] || "User"
+      user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
     );
     setCurrentUserEmail(user.email || null);
 
@@ -209,7 +233,14 @@ function GlobalNotificationProviderInner({
       setShowOnboardingModal(true);
       setPendingOnboardingAfterTour(false);
     }
-  }, [isHomeRoute, markIntroTourComplete, prepareOnboardingModal, router, suppressOnboardingModal, user]);
+  }, [
+    isHomeRoute,
+    markIntroTourComplete,
+    prepareOnboardingModal,
+    router,
+    suppressOnboardingModal,
+    user,
+  ]);
 
   useEffect(() => {
     if (shouldRedirectHome) {
@@ -230,8 +261,10 @@ function GlobalNotificationProviderInner({
       return;
     }
 
-    const onboardingCompleted = user.user_metadata?.has_completed_onboarding === true;
-    const introCompleted = user.user_metadata?.has_completed_intro_tour === true;
+    const onboardingCompleted =
+      user.user_metadata?.has_completed_onboarding === true;
+    const introCompleted =
+      user.user_metadata?.has_completed_intro_tour === true;
 
     // Only update refs if server says true, otherwise keep local optimistic state
     if (onboardingCompleted) onboardingCompletedRef.current = true;
@@ -261,7 +294,8 @@ function GlobalNotificationProviderInner({
     // 1. It's not effectively complete
     // 2. We're not in a suppressed route
     // 3. AND we are on the Home page
-    const canShowTourOnThisRoute = !isIntroEffectiveComplete && !suppressOnboardingModal && isHomeRoute;
+    const canShowTourOnThisRoute =
+      !isIntroEffectiveComplete && !suppressOnboardingModal && isHomeRoute;
 
     if (canShowTourOnThisRoute) {
       // Condition A: Tour is already active -> allow it to continue
@@ -324,23 +358,26 @@ function GlobalNotificationProviderInner({
           onSkip={handleIntroComplete}
         />
       )}
-      {showOnboardingModal && user?.id && !isLoading && !suppressOnboardingModal && (
-        <InitialOnboardingModal
-          isOpen={showOnboardingModal}
-          onClose={() => {
-            setShowOnboardingModal(false);
-            onboardingCompletedRef.current = true;
-            console.log("Onboarding modal closed by user.");
-            setTimeout(() => {
-              // Trigger any higher-level refreshes if needed
-            }, 500);
-          }}
-          userId={user.id}
-          currentFullName={currentUserFullName}
-          currentEmail={currentUserEmail}
-          autoJoinedOrg={autoJoinedOrg}
-        />
-      )}
+      {showOnboardingModal &&
+        user?.id &&
+        !isLoading &&
+        !suppressOnboardingModal && (
+          <InitialOnboardingModal
+            isOpen={showOnboardingModal}
+            onClose={() => {
+              setShowOnboardingModal(false);
+              onboardingCompletedRef.current = true;
+              console.log("Onboarding modal closed by user.");
+              setTimeout(() => {
+                // Trigger any higher-level refreshes if needed
+              }, 500);
+            }}
+            userId={user.id}
+            currentFullName={currentUserFullName}
+            currentEmail={currentUserEmail}
+            autoJoinedOrg={autoJoinedOrg}
+          />
+        )}
       {children}
     </NotificationProvider>
   );
@@ -353,7 +390,9 @@ export default function GlobalNotificationProvider({
 }) {
   return (
     <Suspense fallback={children}>
-      <GlobalNotificationProviderInner>{children}</GlobalNotificationProviderInner>
+      <GlobalNotificationProviderInner>
+        {children}
+      </GlobalNotificationProviderInner>
     </Suspense>
   );
 }

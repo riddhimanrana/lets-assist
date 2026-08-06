@@ -30,12 +30,10 @@ type MockResendResponse = {
   error: { name: string; message: string; statusCode?: number | null } | null;
 };
 
-const resendSend = mock(
-  async (): Promise<MockResendResponse> => ({
-    data: { id: "provider-message-id" },
-    error: null,
-  }),
-);
+const resendSend = mock(async (): Promise<MockResendResponse> => ({
+  data: { id: "provider-message-id" },
+  error: null,
+}));
 
 mock.module("resend", () => ({
   Resend: class {
@@ -47,7 +45,9 @@ mock.module("@/lib/supabase/server", () => ({
     throw new Error("notification settings must not be queried in these tests");
   },
 }));
-mock.module("@react-email/components", () => ({ render: async () => "<p>x</p>" }));
+mock.module("@react-email/components", () => ({
+  render: async () => "<p>x</p>",
+}));
 mock.module("@/lib/logger", () => ({
   logError: () => undefined,
   logInfo: () => undefined,
@@ -77,10 +77,7 @@ beforeEach(() => {
  * runtime cannot drift apart silently.
  */
 function providerErrorClassificationTable(): Map<string, string> {
-  const source = readFileSync(
-    new URL("./email.ts", import.meta.url),
-    "utf8",
-  );
+  const source = readFileSync(new URL("./email.ts", import.meta.url), "utf8");
   const block = source.match(
     /const PROVIDER_ERROR_CLASSIFICATION[^=]*=\s*\{([\s\S]*?)\n\};/,
   );

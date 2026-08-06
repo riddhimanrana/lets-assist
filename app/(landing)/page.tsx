@@ -4,7 +4,13 @@ import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 

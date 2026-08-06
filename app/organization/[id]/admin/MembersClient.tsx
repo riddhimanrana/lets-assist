@@ -51,7 +51,8 @@ export default function MembersClient({
       (member.email || "").toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesRole = roleFilter === "all" || member.role === roleFilter;
-    const matchesStatus = statusFilter === "all" || member.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all" || member.status === statusFilter;
 
     return matchesSearch && matchesRole && matchesStatus;
   });
@@ -101,7 +102,10 @@ export default function MembersClient({
 
             <div className="w-full md:w-48">
               <label className="text-sm font-medium mb-2 block">Role</label>
-              <Select value={roleFilter} onValueChange={(val) => val && setRoleFilter(val)}>
+              <Select
+                value={roleFilter}
+                onValueChange={(val) => val && setRoleFilter(val)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -116,7 +120,10 @@ export default function MembersClient({
 
             <div className="w-full md:w-48">
               <label className="text-sm font-medium mb-2 block">Status</label>
-              <Select value={statusFilter} onValueChange={(val) => val && setStatusFilter(val)}>
+              <Select
+                value={statusFilter}
+                onValueChange={(val) => val && setStatusFilter(val)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -184,9 +191,7 @@ export default function MembersClient({
                       <td className="py-3 px-4">
                         <Badge
                           variant={
-                            member.role === "admin"
-                              ? "default"
-                              : "secondary"
+                            member.role === "admin" ? "default" : "secondary"
                           }
                           className="capitalize"
                         >
@@ -196,14 +201,12 @@ export default function MembersClient({
                       <td className="py-3 px-4">
                         <Badge
                           variant={
-                            member.status === "active"
-                              ? "secondary"
-                              : "outline"
+                            member.status === "active" ? "secondary" : "outline"
                           }
                           className={cn(
                             "capitalize",
                             member.status === "inactive" &&
-                            "text-muted-foreground"
+                              "text-muted-foreground",
                           )}
                         >
                           {member.status}

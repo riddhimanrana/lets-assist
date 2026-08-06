@@ -8,11 +8,19 @@ const source = readFileSync(
 );
 
 test("anonymous confirmation resend is CAPTCHA-first, rate-limited, and token-bound", () => {
-  const start = source.indexOf("export async function resendAnonymousConfirmationEmail");
-  const end = source.indexOf("export async function getWaiverDefinition", start);
+  const start = source.indexOf(
+    "export async function resendAnonymousConfirmationEmail",
+  );
+  const end = source.indexOf(
+    "export async function getWaiverDefinition",
+    start,
+  );
   const action = source.slice(start, end);
 
-  assert.ok(action.indexOf("validateAnonymousSignupCaptcha") < action.indexOf('.from("anonymous_signups")'));
+  assert.ok(
+    action.indexOf("validateAnonymousSignupCaptcha") <
+      action.indexOf('.from("anonymous_signups")'),
+  );
   assert.match(action, /consume_api_rate_limit/u);
   assert.match(action, /p_window_seconds: 60/u);
   assert.match(action, /\?token=\$\{newToken\}/u);

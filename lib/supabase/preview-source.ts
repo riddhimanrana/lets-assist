@@ -1,4 +1,7 @@
-import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js";
+import {
+  createClient as createSupabaseClient,
+  type SupabaseClient,
+} from "@supabase/supabase-js";
 
 export const DEV_PREVIEW_SOURCE_COOKIE = "la_dev_preview_source";
 export const DEV_PREVIEW_SOURCE_STORAGE_KEY = "la-dev-preview-source";
@@ -33,7 +36,9 @@ export function createRemoteReadonlyClient(): SupabaseClient | null {
  * Maps a local developer's email address to their remote user ID
  * to ensure roles and permissions align correctly in Remote Preview Mode.
  */
-export function getRemoteUserIdForLocalUser(email: string | null | undefined): string | null {
+export function getRemoteUserIdForLocalUser(
+  email: string | null | undefined,
+): string | null {
   if (!email) return null;
 
   const envMap = process.env.REMOTE_PREVIEW_USER_ID_MAP;

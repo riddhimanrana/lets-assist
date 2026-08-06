@@ -49,9 +49,9 @@ const temporaryDirectories: string[] = [];
 
 afterEach(async () => {
   await Promise.all(
-    temporaryDirectories.splice(0).map((directory) =>
-      rm(directory, { recursive: true, force: true }),
-    ),
+    temporaryDirectories
+      .splice(0)
+      .map((directory) => rm(directory, { recursive: true, force: true })),
   );
 });
 
@@ -100,7 +100,17 @@ function configBody(
   ports: number[],
   googleAuthLines: string[] = DISABLED_GOOGLE_AUTH_LINES,
 ) {
-  const [shadow, api, database, studio, inbucket, smtp, inspector, analytics, pooler] = ports;
+  const [
+    shadow,
+    api,
+    database,
+    studio,
+    inbucket,
+    smtp,
+    inspector,
+    analytics,
+    pooler,
+  ] = ports;
   return [
     `project_id = "${projectId}"`,
     "[api]",
@@ -141,7 +151,8 @@ async function createIsolatedWorkDir(options?: {
   await mkdir(path.join(directory, "supabase"));
   const projectId = options?.projectId ?? "lets-assist-csf-browser-test-run";
   const basePort = options?.basePort ?? 56350;
-  const ports = options?.ports ?? PORT_OFFSETS.map((offset) => basePort + offset);
+  const ports =
+    options?.ports ?? PORT_OFFSETS.map((offset) => basePort + offset);
 
   const markerPath = path.join(directory, ".lets-assist-csf-isolated-stack");
   await writeFile(
@@ -171,7 +182,8 @@ const APP_ENV_VALUES: Record<string, string> = {
   DB_URL: "postgresql://postgres:fake-password@127.0.0.1:56352/postgres",
   SUPABASE_URL: "http://127.0.0.1:56351",
   SUPABASE_ANON_KEY: "fake-anon-token",
-  SUPABASE_DB_URL: "postgresql://postgres:fake-password@127.0.0.1:56352/postgres",
+  SUPABASE_DB_URL:
+    "postgresql://postgres:fake-password@127.0.0.1:56352/postgres",
   NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:56351",
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_fake-generated-key",
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "fake-anon-token",
@@ -184,9 +196,19 @@ const APP_ENV_VALUES: Record<string, string> = {
   CSF_ISOLATED_WORK_DIR: "",
 };
 
-function appEnvBody(workDir: string, overrides: Record<string, string> = {}, extraLines: string[] = []) {
-  const values = { ...APP_ENV_VALUES, CSF_ISOLATED_WORK_DIR: workDir, ...overrides };
-  const lines = Object.entries(values).map(([key, value]) => `export ${key}='${value}'`);
+function appEnvBody(
+  workDir: string,
+  overrides: Record<string, string> = {},
+  extraLines: string[] = [],
+) {
+  const values = {
+    ...APP_ENV_VALUES,
+    CSF_ISOLATED_WORK_DIR: workDir,
+    ...overrides,
+  };
+  const lines = Object.entries(values).map(
+    ([key, value]) => `export ${key}='${value}'`,
+  );
   return `${[...lines, ...extraLines].join("\n")}\n`;
 }
 
@@ -266,8 +288,7 @@ describe("local Supabase environment resolution", () => {
         NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "lets-assist-anon",
         SUPABASE_SECRET_KEY: "lets-assist-service-role",
-        SUPABASE_DB_URL:
-          "postgresql://vela-user@127.0.0.1:56352/postgres",
+        SUPABASE_DB_URL: "postgresql://vela-user@127.0.0.1:56352/postgres",
       }),
     ).toThrow("database port must be exactly one greater than the API port");
   });
@@ -278,8 +299,7 @@ describe("local Supabase environment resolution", () => {
         NEXT_PUBLIC_SUPABASE_URL: "http://localhost:54321",
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "lets-assist-anon",
         SUPABASE_SECRET_KEY: "lets-assist-service-role",
-        SUPABASE_DB_URL:
-          "postgresql://local-user@127.0.0.1:54322/postgres",
+        SUPABASE_DB_URL: "postgresql://local-user@127.0.0.1:54322/postgres",
       }),
     ).toMatchObject({
       url: "http://localhost:54321",
@@ -325,14 +345,16 @@ describe("local Supabase environment resolution", () => {
 
   test("accepts only loopback Postgres URLs for database tooling", () => {
     expect(
-      assertLocalPostgresUrl("postgresql://local-user@127.0.0.1:56552/postgres"),
+      assertLocalPostgresUrl(
+        "postgresql://local-user@127.0.0.1:56552/postgres",
+      ),
     ).toBe("postgresql://local-user@127.0.0.1:56552/postgres");
     expect(() =>
       assertLocalPostgresUrl("postgresql://local-user@example.test/postgres"),
     ).toThrow("refuses non-local Postgres URL");
-    expect(() => assertLocalPostgresUrl("https://127.0.0.1:56552/postgres")).toThrow(
-      "requires a Postgres URL",
-    );
+    expect(() =>
+      assertLocalPostgresUrl("https://127.0.0.1:56552/postgres"),
+    ).toThrow("requires a Postgres URL");
   });
 
   test("rejects a coherent ambient Vela bundle when it does not match Let’s Assist status", () => {
@@ -366,8 +388,7 @@ describe("local Supabase environment resolution", () => {
         NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:55321",
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "vela-anon",
         SUPABASE_SECRET_KEY: "vela-service-role",
-        SUPABASE_DB_URL:
-          "postgresql://postgres@127.0.0.1:55322/postgres",
+        SUPABASE_DB_URL: "postgresql://postgres@127.0.0.1:55322/postgres",
       }),
     ).toThrow("requires an explicit generated CSF isolated stack");
   });
@@ -383,7 +404,9 @@ describe("local Supabase environment resolution", () => {
       databasePort: 56352,
     });
 
-    const wrongProject = await createIsolatedWorkDir({ projectId: "vela-dashboard" });
+    const wrongProject = await createIsolatedWorkDir({
+      projectId: "vela-dashboard",
+    });
     expect(() => inspectCsfIsolatedWorkDir(wrongProject)).toThrow(
       "invalid project_id",
     );
@@ -417,7 +440,12 @@ describe("CSF isolated marker schema", () => {
 
     expect(
       parseCsfIsolatedMarker(
-        markerBody({ projectId, basePort: 56350, workDir: "/tmp/generated", state: "starting" }),
+        markerBody({
+          projectId,
+          basePort: 56350,
+          workDir: "/tmp/generated",
+          state: "starting",
+        }),
       ),
     ).toMatchObject({ state: "starting", databaseVolume: undefined });
   });
@@ -446,15 +474,19 @@ describe("CSF isolated marker schema", () => {
     ).toThrow("unknown field: adopted");
 
     expect(() =>
-      parseCsfIsolatedMarker(`state=ready\nproject_id=${projectId}\nbase_port=56350\n`),
+      parseCsfIsolatedMarker(
+        `state=ready\nproject_id=${projectId}\nbase_port=56350\n`,
+      ),
     ).toThrow("missing work_dir");
 
-    expect(() =>
-      parseCsfIsolatedMarker(`state=ready\nnot a field\n`),
-    ).toThrow("line 2 is malformed");
+    expect(() => parseCsfIsolatedMarker(`state=ready\nnot a field\n`)).toThrow(
+      "line 2 is malformed",
+    );
 
     expect(() =>
-      parseCsfIsolatedMarker(`state=ready\nproject_id=${projectId}\nbase_port=56350`),
+      parseCsfIsolatedMarker(
+        `state=ready\nproject_id=${projectId}\nbase_port=56350`,
+      ),
     ).toThrow("truncated");
   });
 
@@ -467,10 +499,11 @@ describe("CSF isolated marker schema", () => {
 
     expect(() =>
       parseCsfIsolatedMarker(
-        markerBody({ projectId, basePort: 56350, workDir: "/tmp/generated" }).replace(
-          "state=ready",
-          "state=starting",
-        ),
+        markerBody({
+          projectId,
+          basePort: 56350,
+          workDir: "/tmp/generated",
+        }).replace("state=ready", "state=starting"),
       ),
     ).toThrow("starting marker must not record db_volume");
   });
@@ -644,7 +677,9 @@ describe("generated isolated config is provider-disabled", () => {
 
     for (const [label, googleAuthLines, expected] of cases) {
       const directory = await createIsolatedWorkDir({ googleAuthLines });
-      expect(() => inspectCsfIsolatedWorkDir(directory), label).toThrow(expected);
+      expect(() => inspectCsfIsolatedWorkDir(directory), label).toThrow(
+        expected,
+      );
     }
   });
 
@@ -670,7 +705,8 @@ describe("generated isolated config is provider-disabled", () => {
       SUPABASE_AUTH_EXTERNAL_GOOGLE_REDIRECT_URI: "https://planted.invalid/cb",
       GOOGLE_CLIENT_SECRET: "planted-google-secret",
     };
-    for (const [key, value] of Object.entries(planted)) process.env[key] = value;
+    for (const [key, value] of Object.entries(planted))
+      process.env[key] = value;
     try {
       const disabled = await createIsolatedWorkDir();
       expect(inspectCsfIsolatedWorkDir(disabled).projectId).toBe(
@@ -704,9 +740,13 @@ describe("CSF isolated work directory posture", () => {
         state: "starting",
       }),
     });
-    expect(() => inspectCsfIsolatedWorkDir(transitional)).toThrow("is not ready");
+    expect(() => inspectCsfIsolatedWorkDir(transitional)).toThrow(
+      "is not ready",
+    );
 
-    const wrongWorkDir = await createIsolatedWorkDir({ workDirOverride: tmpdir() });
+    const wrongWorkDir = await createIsolatedWorkDir({
+      workDirOverride: tmpdir(),
+    });
     expect(() => inspectCsfIsolatedWorkDir(wrongWorkDir)).toThrow(
       "work_dir does not match the directory it was found in",
     );
@@ -755,7 +795,9 @@ describe("CSF isolated work directory posture", () => {
 
   test("rejects marker or config bytes changed between validation and handoff", async () => {
     const markerCase = await createIsolatedWorkDir();
-    let inspection = inspectCsfIsolatedStack(markerCase, { requireState: "ready" });
+    let inspection = inspectCsfIsolatedStack(markerCase, {
+      requireState: "ready",
+    });
     await writeFile(
       path.join(markerCase, ".lets-assist-csf-isolated-stack"),
       markerBody({
@@ -787,9 +829,13 @@ describe("CSF isolated work directory posture", () => {
 
   test("emits only the bounded exact-key handoff record", async () => {
     const directory = await createIsolatedWorkDir();
-    const validated = validateCsfIsolatedStack(directory, { requireState: "ready" });
+    const validated = validateCsfIsolatedStack(directory, {
+      requireState: "ready",
+    });
 
-    expect(Object.keys(validated).sort()).toEqual([...CSF_STACK_HANDOFF_KEYS].sort());
+    expect(Object.keys(validated).sort()).toEqual(
+      [...CSF_STACK_HANDOFF_KEYS].sort(),
+    );
     expect(validated.state).toBe("ready");
     expect(validated.project_id).toBe("lets-assist-csf-browser-test-run");
     expect(validated.run_id).toBe("test-run");
@@ -857,7 +903,10 @@ describe("CSF isolated work directory posture", () => {
     );
 
     const symlinkedMarker = await createIsolatedWorkDir();
-    const markerPath = path.join(symlinkedMarker, ".lets-assist-csf-isolated-stack");
+    const markerPath = path.join(
+      symlinkedMarker,
+      ".lets-assist-csf-isolated-stack",
+    );
     const realMarker = path.join(symlinkedMarker, "real-marker");
     await rename(markerPath, realMarker);
     await symlink(realMarker, markerPath);
@@ -875,7 +924,10 @@ describe("CSF isolated app environment exact-byte loading", () => {
       // An empty PATH makes any subprocess spawn fail, so a passing load proves
       // no live command ran before the verified handoff.
       process.env.PATH = "";
-      const values = loadCsfIsolatedAppEnvironment(directory) as Record<string, string>;
+      const values = loadCsfIsolatedAppEnvironment(directory) as Record<
+        string,
+        string
+      >;
       expect(values.API_URL).toBe("http://127.0.0.1:56351");
       expect(values.CSF_ISOLATED_WORK_DIR).toBe(directory);
     } finally {
@@ -884,17 +936,23 @@ describe("CSF isolated app environment exact-byte loading", () => {
   });
 
   test("rejects duplicate, unknown, non-export, and command-bearing lines", async () => {
-    const duplicate = await createAppEnvironment({}, ["export API_URL='http://127.0.0.1:56351'"]);
+    const duplicate = await createAppEnvironment({}, [
+      "export API_URL='http://127.0.0.1:56351'",
+    ]);
     expect(() => loadCsfIsolatedAppEnvironment(duplicate.directory)).toThrow(
       "exports API_URL more than once",
     );
 
-    const unknown = await createAppEnvironment({}, ["export ADOPTED_KEY='yes'"]);
+    const unknown = await createAppEnvironment({}, [
+      "export ADOPTED_KEY='yes'",
+    ]);
     expect(() => loadCsfIsolatedAppEnvironment(unknown.directory)).toThrow(
       "unknown key: ADOPTED_KEY",
     );
 
-    const nonExport = await createAppEnvironment({}, ["API_URL=http://127.0.0.1:56351"]);
+    const nonExport = await createAppEnvironment({}, [
+      "API_URL=http://127.0.0.1:56351",
+    ]);
     expect(() => loadCsfIsolatedAppEnvironment(nonExport.directory)).toThrow(
       "is not an allowlisted single-quoted export",
     );
@@ -930,9 +988,9 @@ describe("CSF isolated app environment exact-byte loading", () => {
     const wrongVercelUrl = await createAppEnvironment({
       NEXT_PUBLIC_VERCEL_URL: "localhost:3002",
     });
-    expect(() => loadCsfIsolatedAppEnvironment(wrongVercelUrl.directory)).toThrow(
-      "NEXT_PUBLIC_VERCEL_URL must be exactly localhost:3000",
-    );
+    expect(() =>
+      loadCsfIsolatedAppEnvironment(wrongVercelUrl.directory),
+    ).toThrow("NEXT_PUBLIC_VERCEL_URL must be exactly localhost:3000");
   });
 
   test("rejects endpoints, secrets, and work directories that disagree with the marker", async () => {
@@ -941,9 +999,9 @@ describe("CSF isolated app environment exact-byte loading", () => {
       SUPABASE_URL: "http://127.0.0.1:59999",
       NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:59999",
     });
-    expect(() => loadCsfIsolatedAppEnvironment(mismatchedPort.directory)).toThrow(
-      "API port 59999 does not match",
-    );
+    expect(() =>
+      loadCsfIsolatedAppEnvironment(mismatchedPort.directory),
+    ).toThrow("API port 59999 does not match");
 
     const disagreeing = await createAppEnvironment({
       SUPABASE_URL: "http://127.0.0.1:56351/",
@@ -952,21 +1010,27 @@ describe("CSF isolated app environment exact-byte loading", () => {
       "API endpoints disagree between API_URL and SUPABASE_URL",
     );
 
-    const badSecret = await createAppEnvironment({ CSF_PROFILE_CLAIM_SECRET: "not-hex" });
+    const badSecret = await createAppEnvironment({
+      CSF_PROFILE_CLAIM_SECRET: "not-hex",
+    });
     expect(() => loadCsfIsolatedAppEnvironment(badSecret.directory)).toThrow(
       "profile-claim secret is not a generated 32-byte hex value",
     );
 
-    const foreignWorkDir = await createAppEnvironment({ CSF_ISOLATED_WORK_DIR: tmpdir() });
-    expect(() => loadCsfIsolatedAppEnvironment(foreignWorkDir.directory)).toThrow(
-      "work directory does not match the validated marker",
-    );
+    const foreignWorkDir = await createAppEnvironment({
+      CSF_ISOLATED_WORK_DIR: tmpdir(),
+    });
+    expect(() =>
+      loadCsfIsolatedAppEnvironment(foreignWorkDir.directory),
+    ).toThrow("work directory does not match the validated marker");
   });
 
   test("rejects a loose mode and a pre-existing hard link", async () => {
     const loose = await createAppEnvironment();
     await chmod(loose.appEnvPath, 0o644);
-    expect(() => loadCsfIsolatedAppEnvironment(loose.directory)).toThrow("must be mode 600");
+    expect(() => loadCsfIsolatedAppEnvironment(loose.directory)).toThrow(
+      "must be mode 600",
+    );
 
     const linked = await createAppEnvironment();
     await link(linked.appEnvPath, path.join(linked.directory, "second-name"));
@@ -982,7 +1046,10 @@ describe("CSF isolated app environment exact-byte loading", () => {
     const renamed = await createAppEnvironment();
     let inspection = inspectCsfIsolatedAppEnvironment(renamed.directory);
     const replacement = path.join(renamed.directory, "replacement");
-    await writeFile(replacement, appEnvBody(renamed.directory, { ANON_KEY: "attacker-token" }));
+    await writeFile(
+      replacement,
+      appEnvBody(renamed.directory, { ANON_KEY: "attacker-token" }),
+    );
     await chmod(replacement, 0o600);
     await rename(replacement, renamed.appEnvPath);
     expect(() => commitCsfIsolatedAppEnvironment(inspection)).toThrow(
@@ -1016,7 +1083,10 @@ describe("CSF isolated app environment exact-byte loading", () => {
     // Append and truncate.
     const appended = await createAppEnvironment();
     inspection = inspectCsfIsolatedAppEnvironment(appended.directory);
-    await writeFile(appended.appEnvPath, `${await readFile(appended.appEnvPath, "utf8")}export SITE_URL='http://localhost:3000'\n`);
+    await writeFile(
+      appended.appEnvPath,
+      `${await readFile(appended.appEnvPath, "utf8")}export SITE_URL='http://localhost:3000'\n`,
+    );
     expect(() => commitCsfIsolatedAppEnvironment(inspection)).toThrow(
       "changed (size) between validation and handoff",
     );
@@ -1031,7 +1101,10 @@ describe("CSF isolated app environment exact-byte loading", () => {
     // Hardlink replacement keeps the inode but changes the link count.
     const hardlinked = await createAppEnvironment();
     inspection = inspectCsfIsolatedAppEnvironment(hardlinked.directory);
-    await link(hardlinked.appEnvPath, path.join(hardlinked.directory, "attacker-link"));
+    await link(
+      hardlinked.appEnvPath,
+      path.join(hardlinked.directory, "attacker-link"),
+    );
     expect(() => commitCsfIsolatedAppEnvironment(inspection)).toThrow(
       "changed (nlink) between validation and handoff",
     );
@@ -1077,7 +1150,11 @@ describe("pinned canonical Docker identity", () => {
     expect(contract.container.length).toBe(14);
     expect(contract.volume.length).toBe(3);
     expect(contract.network.length).toBe(1);
-    expect(Object.keys(contract).sort()).toEqual(["container", "network", "volume"]);
+    expect(Object.keys(contract).sort()).toEqual([
+      "container",
+      "network",
+      "volume",
+    ]);
 
     for (const kind of PINNED_RESOURCE_KINDS) {
       for (const name of contract[kind]) {
@@ -1122,8 +1199,12 @@ describe("pinned canonical Docker identity", () => {
 
     // The database volume is a volume; the equally-named container is a
     // different Docker namespace and must not be reachable through it.
-    expect(contract.volume).toContain(csfCanonicalDatabaseVolumeName(projectId));
-    expect(contract.network).not.toContain(csfCanonicalDatabaseVolumeName(projectId));
+    expect(contract.volume).toContain(
+      csfCanonicalDatabaseVolumeName(projectId),
+    );
+    expect(contract.network).not.toContain(
+      csfCanonicalDatabaseVolumeName(projectId),
+    );
 
     // Kong, realtime, and imgproxy are containers only; a volume by any of those
     // names is foreign.
@@ -1168,15 +1249,18 @@ describe("pinned canonical Docker identity", () => {
 
   test("rejects an unknown Docker resource kind", () => {
     expect(() =>
-      // @ts-expect-error - deliberately outside the typed contract
-      csfCanonicalDockerResourceNames("lets-assist-csf-browser-test-run", "service"),
+      csfCanonicalDockerResourceNames(
+        "lets-assist-csf-browser-test-run",
+        // @ts-expect-error - deliberately outside the typed contract
+        "service",
+      ),
     ).toThrow("Unknown canonical Docker resource kind: service");
   });
 
   test("refuses to derive names for a project outside the isolated contract", () => {
-    expect(() => csfCanonicalDockerResourceNames("vela-dashboard", "volume")).toThrow(
-      "Refusing canonical Docker names for a non-isolated project",
-    );
+    expect(() =>
+      csfCanonicalDockerResourceNames("vela-dashboard", "volume"),
+    ).toThrow("Refusing canonical Docker names for a non-isolated project");
   });
 
   test("both isolated shell scripts select on the exact same project label key", async () => {
@@ -1186,10 +1270,7 @@ describe("pinned canonical Docker identity", () => {
       "start-dvhs-csf-isolated-stack.sh",
       "stop-dvhs-csf-isolated-stack.sh",
     ]) {
-      const source = await readFile(
-        path.join(import.meta.dir, script),
-        "utf8",
-      );
+      const source = await readFile(path.join(import.meta.dir, script), "utf8");
       expect(source).toContain(CSF_PROJECT_LABEL_KEY);
       expect(source).toMatch(
         /PROJECT_LABEL="(\$\{PROJECT_LABEL_KEY\}|com\.supabase\.cli\.project)=\$\{PROJECT_ID\}"/u,

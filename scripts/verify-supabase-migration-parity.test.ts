@@ -13,9 +13,9 @@ const temporaryDirectories: string[] = [];
 
 afterEach(async () => {
   await Promise.all(
-    temporaryDirectories.splice(0).map((directory) =>
-      rm(directory, { recursive: true, force: true }),
-    ),
+    temporaryDirectories
+      .splice(0)
+      .map((directory) => rm(directory, { recursive: true, force: true })),
   );
 });
 
@@ -70,9 +70,7 @@ describe("Supabase migration parity", () => {
 
   test("rejects local or remote sets that differ from tracked filenames", () => {
     const payload = {
-      migrations: [
-        { local: "20260721071359", remote: "20260721071359" },
-      ],
+      migrations: [{ local: "20260721071359", remote: "20260721071359" }],
     };
 
     expect(() =>
@@ -85,9 +83,7 @@ describe("Supabase migration parity", () => {
 
   test("rejects duplicate timestamps in the tracked migration set", () => {
     const payload = {
-      migrations: [
-        { local: "20260721071359", remote: "20260721071359" },
-      ],
+      migrations: [{ local: "20260721071359", remote: "20260721071359" }],
     };
 
     expect(() =>
@@ -99,10 +95,18 @@ describe("Supabase migration parity", () => {
   });
 
   test("derives the expected set from strictly named tracked files", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "supabase-migrations-"));
+    const directory = await mkdtemp(
+      path.join(tmpdir(), "supabase-migrations-"),
+    );
     temporaryDirectories.push(directory);
-    await writeFile(path.join(directory, "20260721071359_first.sql"), "-- first\n");
-    await writeFile(path.join(directory, "20260721071854_second.sql"), "-- second\n");
+    await writeFile(
+      path.join(directory, "20260721071359_first.sql"),
+      "-- first\n",
+    );
+    await writeFile(
+      path.join(directory, "20260721071854_second.sql"),
+      "-- second\n",
+    );
 
     expect(readTrackedMigrationVersions(directory)).toEqual([
       "20260721071359",

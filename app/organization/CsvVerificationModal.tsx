@@ -1,18 +1,53 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FileCheck, Upload, AlertCircle, CheckCircle, XCircle, FileText, ChevronRight, Clock, CircleCheck, UserCheck, BadgeCheck } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  FileCheck,
+  Upload,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  FileText,
+  ChevronRight,
+  Clock,
+  CircleCheck,
+  UserCheck,
+  BadgeCheck,
+} from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface VerificationResult {
   valid: boolean;
@@ -25,7 +60,7 @@ interface VerificationResult {
     recipient: {
       name: string;
       email: string;
-    }
+    };
   };
   event?: {
     startDate: string;
@@ -74,7 +109,7 @@ interface CertificateRow {
   volunteerEmail?: string;
   valid: boolean;
   issues: string[];
-  verificationStatus?: 'pending' | 'verified' | 'failed';
+  verificationStatus?: "pending" | "verified" | "failed";
   verificationResult?: VerificationResult;
   isVerified?: boolean;
 }
@@ -85,7 +120,7 @@ interface CsvVerificationModalProps {
 
 // Helper function to format hours from decimal to "Xh Ym" format
 const formatHours = (decimalHours: number): string => {
-  if (decimalHours === 0) return '0h';
+  if (decimalHours === 0) return "0h";
 
   const hours = Math.floor(decimalHours);
   const minutes = Math.round((decimalHours - hours) * 60);
@@ -103,10 +138,13 @@ const formatHours = (decimalHours: number): string => {
 const getCertificateTypeBadge = (row: CertificateRow) => {
   if (!row.isVerified || !row.verificationResult?.certificate) {
     // Default based on CSV type
-    const csvType = row.certificateType || 'platform';
-    if (csvType === 'self-reported') {
+    const csvType = row.certificateType || "platform";
+    if (csvType === "self-reported") {
       return (
-        <Badge variant="secondary" className="text-xs text-warning bg-warning/10">
+        <Badge
+          variant="secondary"
+          className="text-xs text-warning bg-warning/10"
+        >
           Self-Reported
         </Badge>
       );
@@ -119,16 +157,16 @@ const getCertificateTypeBadge = (row: CertificateRow) => {
   }
 
   const cert = row.verificationResult.certificate;
-  const certType = cert.type || 'platform';
+  const certType = cert.type || "platform";
 
-  if (cert.certified && (certType === 'platform' || certType === 'verified')) {
+  if (cert.certified && (certType === "platform" || certType === "verified")) {
     // Official: verified org
     return (
       <Badge variant="default" className="text-xs text-primary bg-primary/10">
         Official
       </Badge>
     );
-  } else if (certType === 'platform' || certType === 'verified') {
+  } else if (certType === "platform" || certType === "verified") {
     // Platform: Let's Assist project
     return (
       <Badge variant="default" className="text-xs text-success bg-success/10">
@@ -153,7 +191,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
   const [summary, setSummary] = useState<{
     total: number;
     certifiedHours: number; // Let's Assist OFFICIAL (from verified orgs)
-    verifiedHours: number; // Let's Assist PLATFORM (from Let's Assist projects)  
+    verifiedHours: number; // Let's Assist PLATFORM (from Let's Assist projects)
     selfReportedHours: number; // Self-Reported
     totalHours: number; // Total verified hours
     invalidFormat: number;
@@ -163,7 +201,6 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
   const [_currentVerifyIndex, setCurrentVerifyIndex] = useState<number>(-1);
   const [verificationProgress, setVerificationProgress] = useState<number>(0);
 
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
 
@@ -172,13 +209,13 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
     setResults([]);
     setSummary(null);
 
-    if (selectedFile && selectedFile.type === 'text/csv') {
+    if (selectedFile && selectedFile.type === "text/csv") {
       setFile(selectedFile);
     } else if (selectedFile) {
-      setError('Please select a valid CSV file');
+      setError("Please select a valid CSV file");
       setFile(null);
       // Clear the input
-      event.target.value = '';
+      event.target.value = "";
     } else {
       setFile(null);
     }
@@ -186,7 +223,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
 
   const parseCsvLine = (line: string): string[] => {
     const result: string[] = [];
-    let current = '';
+    let current = "";
     let inQuotes = false;
 
     for (let i = 0; i < line.length; i++) {
@@ -194,9 +231,9 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
 
       if (char === '"') {
         inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
+      } else if (char === "," && !inQuotes) {
         result.push(current.trim());
-        current = '';
+        current = "";
       } else {
         current += char;
       }
@@ -206,79 +243,92 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
     return result;
   };
 
-  const validateCertificateRow = (row: string[], _headers: string[]): CertificateRow => {
+  const validateCertificateRow = (
+    row: string[],
+    _headers: string[],
+  ): CertificateRow => {
     const issues: string[] = [];
-    const certificateId = row[0]?.trim() || '';
-    const projectTitle = row[1]?.trim() || '';
-    const organizationName = row[2]?.trim() || '';
-    const organizerName = row[3]?.trim() || '';
-    const certificationStatus = row[4]?.trim() || '';
-    const certificateType = row[5]?.trim() || ''; // New: 'platform' or 'self-reported'
-    const eventStartDate = row[6]?.trim() || '';
-    const eventEndDate = row[7]?.trim() || '';
-    const duration = row[8]?.trim() || '';
-    const location = row[9]?.trim() || '';
-    const checkInMethod = row[10]?.trim() || '';
-    const volunteerName = row[11]?.trim() || '';
-    const volunteerEmail = row[12]?.trim() || '';
-    const issuedDate = row[13]?.trim() || '';
+    const certificateId = row[0]?.trim() || "";
+    const projectTitle = row[1]?.trim() || "";
+    const organizationName = row[2]?.trim() || "";
+    const organizerName = row[3]?.trim() || "";
+    const certificationStatus = row[4]?.trim() || "";
+    const certificateType = row[5]?.trim() || ""; // New: 'platform' or 'self-reported'
+    const eventStartDate = row[6]?.trim() || "";
+    const eventEndDate = row[7]?.trim() || "";
+    const duration = row[8]?.trim() || "";
+    const location = row[9]?.trim() || "";
+    const checkInMethod = row[10]?.trim() || "";
+    const volunteerName = row[11]?.trim() || "";
+    const volunteerEmail = row[12]?.trim() || "";
+    const issuedDate = row[13]?.trim() || "";
 
     // Validation rules
-    if (!certificateId) issues.push('Missing certificate ID');
-    if (!projectTitle) issues.push('Missing project title');
-    if (!organizerName) issues.push('Missing organizer name');
-    if (!certificationStatus) issues.push('Missing certification status');
+    if (!certificateId) issues.push("Missing certificate ID");
+    if (!projectTitle) issues.push("Missing project title");
+    if (!organizerName) issues.push("Missing organizer name");
+    if (!certificationStatus) issues.push("Missing certification status");
 
     // Check for valid ID format (UUID or similar)
     if (certificateId && !/^[A-Za-z0-9\-_]+$/.test(certificateId)) {
-      issues.push('Invalid certificate ID format');
+      issues.push("Invalid certificate ID format");
     }
 
     // Check for minimum title length
     if (projectTitle && projectTitle.length < 3) {
-      issues.push('Project title too short');
+      issues.push("Project title too short");
     }
 
     // Check for valid organizer name
     if (organizerName && organizerName.length < 2) {
-      issues.push('Invalid organizer name');
+      issues.push("Invalid organizer name");
     }
 
     // Check certification status
-    if (certificationStatus && !['Certified', 'Participated'].includes(certificationStatus)) {
-      issues.push('Invalid certification status (must be "Certified" or "Participated")');
+    if (
+      certificationStatus &&
+      !["Certified", "Participated"].includes(certificationStatus)
+    ) {
+      issues.push(
+        'Invalid certification status (must be "Certified" or "Participated")',
+      );
     }
 
     // Check certificate type (allow both old and new terminology for backward compatibility)
-    if (certificateType && !['platform', 'verified', 'self-reported'].includes(certificateType)) {
-      issues.push('Invalid certificate type (must be "platform", "verified", or "self-reported")');
+    if (
+      certificateType &&
+      !["platform", "verified", "self-reported"].includes(certificateType)
+    ) {
+      issues.push(
+        'Invalid certificate type (must be "platform", "verified", or "self-reported")',
+      );
     }
 
     // Date validation if provided
     if (eventStartDate) {
       const date = new Date(eventStartDate);
       if (isNaN(date.getTime())) {
-        issues.push('Invalid event start date format');
+        issues.push("Invalid event start date format");
       }
     }
 
     if (eventEndDate) {
       const date = new Date(eventEndDate);
       if (isNaN(date.getTime())) {
-        issues.push('Invalid event end date format');
+        issues.push("Invalid event end date format");
       }
     }
 
     if (issuedDate) {
       const date = new Date(issuedDate);
       if (isNaN(date.getTime())) {
-        issues.push('Invalid issued date format');
+        issues.push("Invalid issued date format");
       }
     }
 
     // Duration validation
     if (duration && isNaN(parseFloat(duration))) {
-      issues.push('Invalid duration format');
+      issues.push("Invalid duration format");
     }
 
     return {
@@ -297,7 +347,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
       volunteerEmail,
       issuedDate,
       valid: issues.length === 0,
-      issues
+      issues,
     };
   };
 
@@ -311,38 +361,42 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
 
     try {
       const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim());
+      const lines = text.split("\n").filter((line) => line.trim());
 
       if (lines.length < 2) {
-        setError('CSV file must contain at least a header row and one data row');
+        setError(
+          "CSV file must contain at least a header row and one data row",
+        );
         return;
       }
 
       const headers = parseCsvLine(lines[0]);
       const expectedHeaders = [
-        'certificate id',
-        'project title',
-        'organization name',
-        'project organizer name',
-        'certification status',
-        'certificate type',
-        'event start date',
-        'event end date',
-        'duration',
-        'location',
-        'check in method',
-        'volunteer name',
-        'volunteer email',
-        'issued date'
+        "certificate id",
+        "project title",
+        "organization name",
+        "project organizer name",
+        "certification status",
+        "certificate type",
+        "event start date",
+        "event end date",
+        "duration",
+        "location",
+        "check in method",
+        "volunteer name",
+        "volunteer email",
+        "issued date",
       ];
 
       // Check if required headers are present (case insensitive)
-      const hasRequiredHeaders = expectedHeaders.every(expected =>
-        headers.some(header => header.toLowerCase().includes(expected))
+      const hasRequiredHeaders = expectedHeaders.every((expected) =>
+        headers.some((header) => header.toLowerCase().includes(expected)),
       );
 
       if (!hasRequiredHeaders) {
-        setError('CSV must contain the expected certificate columns: Certificate ID, Project Title, Organization Name, Project Organizer Name, Certification Status, Certificate Type, Event Start Date, Event End Date, Duration, Location, Check In Method, Volunteer Name, Volunteer Email, Issued Date');
+        setError(
+          "CSV must contain the expected certificate columns: Certificate ID, Project Title, Organization Name, Project Organizer Name, Certification Status, Certificate Type, Event Start Date, Event End Date, Duration, Location, Check In Method, Volunteer Name, Volunteer Email, Issued Date",
+        );
         return;
       }
 
@@ -355,12 +409,16 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
         const line = lines[i].trim();
 
         // Stop processing when we hit the summary section
-        if (line.includes('=== SUMMARY ===') || line.includes('===SUMMARY===')) {
+        if (
+          line.includes("=== SUMMARY ===") ||
+          line.includes("===SUMMARY===")
+        ) {
           break;
         }
 
         const row = parseCsvLine(line);
-        if (row.some(cell => cell.trim())) { // Skip empty rows
+        if (row.some((cell) => cell.trim())) {
+          // Skip empty rows
           const result = validateCertificateRow(row, headers);
 
           // Check for duplicates based on certificate ID
@@ -370,7 +428,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
               duplicateIds.add(certificateId);
               // Mark this row as invalid due to duplicate
               result.valid = false;
-              result.issues.push('Duplicate certificate ID found in CSV');
+              result.issues.push("Duplicate certificate ID found in CSV");
             } else {
               seenCertificateIds.add(certificateId);
             }
@@ -383,23 +441,28 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
       // Check if duplicates were found and handle them
       if (duplicateIds.size > 0) {
         // Mark all rows with duplicate IDs as invalid
-        processedResults.forEach(row => {
-          if (row.certificateId && duplicateIds.has(row.certificateId.toLowerCase().trim())) {
+        processedResults.forEach((row) => {
+          if (
+            row.certificateId &&
+            duplicateIds.has(row.certificateId.toLowerCase().trim())
+          ) {
             row.valid = false;
-            if (!row.issues.includes('Duplicate certificate ID found in CSV')) {
-              row.issues.push('Duplicate certificate ID found in CSV');
+            if (!row.issues.includes("Duplicate certificate ID found in CSV")) {
+              row.issues.push("Duplicate certificate ID found in CSV");
             }
           }
         });
 
-        const duplicateCount = processedResults.filter(row =>
-          row.certificateId && duplicateIds.has(row.certificateId.toLowerCase().trim())
+        const duplicateCount = processedResults.filter(
+          (row) =>
+            row.certificateId &&
+            duplicateIds.has(row.certificateId.toLowerCase().trim()),
         ).length;
 
         setError(
-          `Found ${duplicateIds.size} duplicate certificate ID${duplicateIds.size > 1 ? 's' : ''} affecting ${duplicateCount} row${duplicateCount > 1 ? 's' : ''}. ` +
-          `Please remove duplicate entries before proceeding with verification. ` +
-          `Duplicate ID${duplicateIds.size > 1 ? 's' : ''}: ${Array.from(duplicateIds).join(', ')}`
+          `Found ${duplicateIds.size} duplicate certificate ID${duplicateIds.size > 1 ? "s" : ""} affecting ${duplicateCount} row${duplicateCount > 1 ? "s" : ""}. ` +
+            `Please remove duplicate entries before proceeding with verification. ` +
+            `Duplicate ID${duplicateIds.size > 1 ? "s" : ""}: ${Array.from(duplicateIds).join(", ")}`,
         );
 
         // Still show the results but don't proceed with verification
@@ -410,7 +473,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
           verifiedHours: 0,
           selfReportedHours: 0,
           totalHours: 0,
-          invalidFormat: processedResults.filter(r => !r.valid).length
+          invalidFormat: processedResults.filter((r) => !r.valid).length,
         });
         return;
       }
@@ -418,7 +481,9 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
       setResults(processedResults);
 
       // Now verify certificates
-      const validRows = processedResults.filter(row => row.valid && row.certificateId);
+      const validRows = processedResults.filter(
+        (row) => row.valid && row.certificateId,
+      );
       let certifiedHours = 0; // Let's Assist OFFICIAL (from verified orgs)
       let verifiedHours = 0; // Let's Assist PLATFORM (from Let's Assist projects)
       let selfReportedHours = 0; // Self-Reported
@@ -430,18 +495,23 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
         for (let i = 0; i < validRows.length; i++) {
           setCurrentVerifyIndex(i);
           const row = validRows[i];
-          const index = processedResults.findIndex(r => r.certificateId === row.certificateId);
+          const index = processedResults.findIndex(
+            (r) => r.certificateId === row.certificateId,
+          );
 
           if (index !== -1) {
             // Update the row status to indicate verification is in progress
             updatedResults[index] = {
               ...updatedResults[index],
-              verificationStatus: 'pending'
+              verificationStatus: "pending",
             };
             setResults([...updatedResults]);
 
             // Verify the certificate
-            const verifiedRow = await verifyCertificateId(row.certificateId, row);
+            const verifiedRow = await verifyCertificateId(
+              row.certificateId,
+              row,
+            );
 
             if (verifiedRow) {
               updatedResults[index] = verifiedRow;
@@ -449,19 +519,26 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
 
               // Update verification stats and categorize hours
               if (verifiedRow.isVerified) {
-                const hours = verifiedRow.duration ? parseFloat(verifiedRow.duration) : 0;
+                const hours = verifiedRow.duration
+                  ? parseFloat(verifiedRow.duration)
+                  : 0;
                 if (!isNaN(hours)) {
                   // Categorize based on certificate type and certified status
                   // Handle backward compatibility: treat "verified" as equivalent to "platform"
-                  const rawCertType = verifiedRow.verificationResult?.certificate?.type || 'platform';
-                  const certType = rawCertType === 'verified' ? 'platform' : rawCertType;
-                  const isCertified = verifiedRow.verificationResult?.certificate?.certified || false;
+                  const rawCertType =
+                    verifiedRow.verificationResult?.certificate?.type ||
+                    "platform";
+                  const certType =
+                    rawCertType === "verified" ? "platform" : rawCertType;
+                  const isCertified =
+                    verifiedRow.verificationResult?.certificate?.certified ||
+                    false;
 
-                  if (certType === 'platform' && isCertified) {
+                  if (certType === "platform" && isCertified) {
                     certifiedHours += hours; // Let's Assist OFFICIAL (from verified orgs)
-                  } else if (certType === 'platform') {
+                  } else if (certType === "platform") {
                     verifiedHours += hours; // Let's Assist PLATFORM (from Let's Assist projects)
-                  } else if (certType === 'self-reported') {
+                  } else if (certType === "self-reported") {
                     selfReportedHours += hours; // Self-Reported
                   }
 
@@ -472,7 +549,9 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
           }
 
           // Update progress
-          setVerificationProgress(Math.round(((i + 1) / validRows.length) * 100));
+          setVerificationProgress(
+            Math.round(((i + 1) / validRows.length) * 100),
+          );
         }
 
         setResults(updatedResults);
@@ -484,21 +563,20 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
         verifiedHours: verifiedHours,
         selfReportedHours: selfReportedHours,
         totalHours: totalHours,
-        invalidFormat: processedResults.filter(r => !r.valid).length
+        invalidFormat: processedResults.filter((r) => !r.valid).length,
       });
 
-      if (processedResults.filter(r => !r.valid).length > 0) {
+      if (processedResults.filter((r) => !r.valid).length > 0) {
         toast.error("Format Issues Found", {
-          description: `${processedResults.filter(r => !r.valid).length} records have format issues. Check the details below.`,
+          description: `${processedResults.filter((r) => !r.valid).length} records have format issues. Check the details below.`,
         });
       } else {
         toast.success("Verification Complete", {
           description: `Processed ${processedResults.length} records, verified ${formatHours(totalHours)} total hours`,
         });
       }
-
     } catch {
-      setError('Failed to process CSV file. Please check the file format.');
+      setError("Failed to process CSV file. Please check the file format.");
     } finally {
       setIsProcessing(false);
       setVerifying(false);
@@ -518,9 +596,9 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
     setVerificationProgress(0);
 
     // Also reset the file input
-    const fileInput = document.getElementById('csv-file') as HTMLInputElement;
+    const fileInput = document.getElementById("csv-file") as HTMLInputElement;
     if (fileInput) {
-      fileInput.value = '';
+      fileInput.value = "";
     }
   };
 
@@ -531,12 +609,17 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
     setIsOpen(false);
   };
 
-  const verifyCertificateId = async (certificateId: string, row: CertificateRow): Promise<CertificateRow | null> => {
+  const verifyCertificateId = async (
+    certificateId: string,
+    row: CertificateRow,
+  ): Promise<CertificateRow | null> => {
     if (!certificateId) return null;
 
     try {
       // First do a basic verification to check if certificate exists
-      const response = await fetch(`/api/certificates/verify/${encodeURIComponent(certificateId)}`);
+      const response = await fetch(
+        `/api/certificates/verify/${encodeURIComponent(certificateId)}`,
+      );
       const result: VerificationResult = await response.json();
 
       if (response.ok && result.valid && result.exists) {
@@ -545,25 +628,40 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
         if (result.event?.startDate && result.event?.endDate) {
           const start = new Date(result.event.startDate);
           const end = new Date(result.event.endDate);
-          calculatedHours = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60) * 10) / 10; // Round to 1 decimal
+          calculatedHours =
+            Math.round(
+              ((end.getTime() - start.getTime()) / (1000 * 60 * 60)) * 10,
+            ) / 10; // Round to 1 decimal
         }
 
         // Compare with CSV data
         const csvHours = row.duration ? parseFloat(row.duration) : 0;
         const hoursMatch = Math.abs(calculatedHours - csvHours) <= 0.1; // Allow 0.1h difference
 
-        const titleMatch = result.project?.title?.toLowerCase() === row.projectTitle?.toLowerCase();
-        const organizerMatch = result.organizer?.name?.toLowerCase() === row.organizerName?.toLowerCase();
-        const statusMatch = result.certificate?.certified === (row.certificationStatus === 'Certified');
+        const titleMatch =
+          result.project?.title?.toLowerCase() ===
+          row.projectTitle?.toLowerCase();
+        const organizerMatch =
+          result.organizer?.name?.toLowerCase() ===
+          row.organizerName?.toLowerCase();
+        const statusMatch =
+          result.certificate?.certified ===
+          (row.certificationStatus === "Certified");
         // Handle backward compatibility: treat "verified" as equivalent to "platform"
-        const resultType = (result.certificate?.type || 'platform') === 'verified' ? 'platform' : (result.certificate?.type || 'platform');
-        const csvType = (row.certificateType || 'platform') === 'verified' ? 'platform' : (row.certificateType || 'platform');
+        const resultType =
+          (result.certificate?.type || "platform") === "verified"
+            ? "platform"
+            : result.certificate?.type || "platform";
+        const csvType =
+          (row.certificateType || "platform") === "verified"
+            ? "platform"
+            : row.certificateType || "platform";
         const typeMatch = resultType === csvType;
 
         // Update the row with verification result
         const updatedRow: CertificateRow = {
           ...row,
-          verificationStatus: 'verified',
+          verificationStatus: "verified",
           verificationResult: {
             ...result,
             verification: {
@@ -574,37 +672,42 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                 organizer: organizerMatch,
                 hours: hoursMatch,
                 status: statusMatch,
-                type: typeMatch
-              }
-            }
+                type: typeMatch,
+              },
+            },
           },
-          isVerified: titleMatch && organizerMatch && hoursMatch && statusMatch && typeMatch
+          isVerified:
+            titleMatch &&
+            organizerMatch &&
+            hoursMatch &&
+            statusMatch &&
+            typeMatch,
         };
 
         return updatedRow;
       } else {
         return {
           ...row,
-          verificationStatus: 'failed',
+          verificationStatus: "failed",
           verificationResult: {
             valid: false,
             exists: false,
-            error: result.error || 'Certificate not found'
+            error: result.error || "Certificate not found",
           },
-          isVerified: false
+          isVerified: false,
         };
       }
     } catch (error) {
-      console.error('Error verifying certificate:', error);
+      console.error("Error verifying certificate:", error);
       return {
         ...row,
-        verificationStatus: 'failed',
+        verificationStatus: "failed",
         verificationResult: {
           valid: false,
           exists: false,
-          error: 'Network error during verification'
+          error: "Network error during verification",
         },
-        isVerified: false
+        isVerified: false,
       };
     }
   };
@@ -612,27 +715,42 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
   // Remove the old separate verification function since it's now combined
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      setIsOpen(open);
-      if (!open) {
-        resetModal(); // Reset immediately when closing
-      }
-    }}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        setIsOpen(open);
+        if (!open) {
+          resetModal(); // Reset immediately when closing
+        }
+      }}
+    >
       <TooltipProvider>
         <Tooltip>
-          <TooltipTrigger render={
-            <DialogTrigger render={
-              children || (
-                <Button variant="outline" size="sm" className="text-xs sm:text-sm">
-                  <FileCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                  <span className="hidden sm:inline">Verify Certificates</span>
-                  <span className="sm:hidden">Verify</span>
-                </Button>
-              )
-            } />
-          } />
+          <TooltipTrigger
+            render={
+              <DialogTrigger
+                render={
+                  children || (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs sm:text-sm"
+                    >
+                      <FileCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">
+                        Verify Certificates
+                      </span>
+                      <span className="sm:hidden">Verify</span>
+                    </Button>
+                  )
+                }
+              />
+            }
+          />
           <TooltipContent>
-            <p>Upload a CSV file to verify certificate data format and validity</p>
+            <p>
+              Upload a CSV file to verify certificate data format and validity
+            </p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -644,7 +762,8 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
             Certificate CSV Verification
           </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
-            Upload a CSV file, verify its format, and check certificates against our database.
+            Upload a CSV file, verify its format, and check certificates against
+            our database.
           </DialogDescription>
         </DialogHeader>
 
@@ -653,33 +772,46 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
           <div className="space-y-3 sm:space-y-4">
             <div className="grid gap-3 lg:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="csv-file" className="text-sm font-medium">1. Select Certificate CSV File</Label>
+                <Label htmlFor="csv-file" className="text-sm font-medium">
+                  1. Select Certificate CSV File
+                </Label>
                 <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-3 sm:p-4 flex flex-col items-center justify-center hover:bg-muted/50 transition-colors cursor-pointer bg-muted/20">
                   <Input
                     id="csv-file"
-                    key={file ? file.name : 'no-file'} // Force re-render when file changes
+                    key={file ? file.name : "no-file"} // Force re-render when file changes
                     type="file"
                     accept=".csv"
                     onChange={handleFileChange}
                     className="hidden"
                     disabled={isProcessing || verifying}
                   />
-                  <label htmlFor="csv-file" className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                  <label
+                    htmlFor="csv-file"
+                    className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
+                  >
                     <FileText className="w-6 h-6 sm:w-8 sm:h-8 mb-2 text-muted-foreground/70" />
-                    <p className="text-xs sm:text-sm font-medium text-center">Click to select CSV file</p>
-                    <p className="text-xs text-muted-foreground text-center">or drag and drop here</p>
+                    <p className="text-xs sm:text-sm font-medium text-center">
+                      Click to select CSV file
+                    </p>
+                    <p className="text-xs text-muted-foreground text-center">
+                      or drag and drop here
+                    </p>
                   </label>
                 </div>
                 {file && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5 bg-muted/30 p-1.5 px-2 rounded-md">
                     <FileText className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{file.name}</span>
-                    <span className="shrink-0">({Math.round(file.size / 1024)} KB)</span>
+                    <span className="shrink-0">
+                      ({Math.round(file.size / 1024)} KB)
+                    </span>
                   </p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-medium">2. Process & Verify Certificates</Label>
+                <Label className="text-sm font-medium">
+                  2. Process & Verify Certificates
+                </Label>
                 <div className="flex flex-col gap-2">
                   <Button
                     onClick={processAndVerifyCsv}
@@ -692,8 +824,12 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                         <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
                         {verifying ? (
                           <>
-                            <span className="hidden sm:inline">Verifying Certificates ({verificationProgress}%)</span>
-                            <span className="sm:hidden">Verifying ({verificationProgress}%)</span>
+                            <span className="hidden sm:inline">
+                              Verifying Certificates ({verificationProgress}%)
+                            </span>
+                            <span className="sm:hidden">
+                              Verifying ({verificationProgress}%)
+                            </span>
                           </>
                         ) : (
                           "Processing Format..."
@@ -728,7 +864,6 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
           </div>
         </div>
 
-
         {/* Scrollable Content Area */}
         <div className="flex-1 max-h-[60vh] overflow-auto">
           <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
@@ -736,97 +871,147 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-xs sm:text-sm">{error}</AlertDescription>
+                <AlertDescription className="text-xs sm:text-sm">
+                  {error}
+                </AlertDescription>
               </Alert>
             )}
 
             {/* Summary */}
             {summary && (
               <div>
-                <h3 className="text-sm sm:text-base font-semibold mb-3 wrap-break-word">Certificate Summary</h3>
+                <h3 className="text-sm sm:text-base font-semibold mb-3 wrap-break-word">
+                  Certificate Summary
+                </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 overflow-x-auto">
                   <Card className="min-w-0">
                     <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
                       <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm sm:text-lg font-bold truncate">{summary.total}</div>
-                        <div className="text-xs text-muted-foreground truncate">Total Records</div>
+                        <div className="text-sm sm:text-lg font-bold truncate">
+                          {summary.total}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          Total Records
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
 
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger render={
-                        <Card className={`min-w-0 ${summary.certifiedHours > 0 ? "" : "opacity-60"}`}>
-                          <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
-                            <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-secondary shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm sm:text-lg font-bold text-secondary truncate">{formatHours(summary.certifiedHours)}</div>
-                              <div className="text-xs text-secondary truncate">Official</div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      } />
+                      <TooltipTrigger
+                        render={
+                          <Card
+                            className={`min-w-0 ${summary.certifiedHours > 0 ? "" : "opacity-60"}`}
+                          >
+                            <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
+                              <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-secondary shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm sm:text-lg font-bold text-secondary truncate">
+                                  {formatHours(summary.certifiedHours)}
+                                </div>
+                                <div className="text-xs text-secondary truncate">
+                                  Official
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        }
+                      />
                       <TooltipContent>
-                        <p>Hours from verified organizations that have been audited by Let&apos;s Assist</p>
+                        <p>
+                          Hours from verified organizations that have been
+                          audited by Let&apos;s Assist
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
 
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger render={
-                        <Card className={`min-w-0 ${summary.verifiedHours > 0 ? "" : "opacity-60"}`}>
-                          <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
-                            <CircleCheck className="w-4 h-4 sm:w-5 sm:h-5 text-success shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm sm:text-lg font-bold text-success truncate">{formatHours(summary.verifiedHours)}</div>
-                              <div className="text-xs text-muted-foreground truncate">Platform</div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      } />
+                      <TooltipTrigger
+                        render={
+                          <Card
+                            className={`min-w-0 ${summary.verifiedHours > 0 ? "" : "opacity-60"}`}
+                          >
+                            <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
+                              <CircleCheck className="w-4 h-4 sm:w-5 sm:h-5 text-success shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm sm:text-lg font-bold text-success truncate">
+                                  {formatHours(summary.verifiedHours)}
+                                </div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  Platform
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        }
+                      />
                       <TooltipContent>
-                        <p>Hours from projects that were hosted directly on the Let&apos;s Assist platform</p>
+                        <p>
+                          Hours from projects that were hosted directly on the
+                          Let&apos;s Assist platform
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
 
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger render={
-                        <Card className={`min-w-0 ${summary.selfReportedHours > 0 ? "" : "opacity-60"}`}>
-                          <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
-                            <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-warning shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm sm:text-lg font-bold text-warning truncate">{formatHours(summary.selfReportedHours)}</div>
-                              <div className="text-xs text-muted-foreground truncate">Self-reported</div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      } />
+                      <TooltipTrigger
+                        render={
+                          <Card
+                            className={`min-w-0 ${summary.selfReportedHours > 0 ? "" : "opacity-60"}`}
+                          >
+                            <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
+                              <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-warning shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm sm:text-lg font-bold text-warning truncate">
+                                  {formatHours(summary.selfReportedHours)}
+                                </div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  Self-reported
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        }
+                      />
                       <TooltipContent>
-                        <p>Self-reported volunteer hours from outside Let&apos;s Assist</p>
+                        <p>
+                          Self-reported volunteer hours from outside Let&apos;s
+                          Assist
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
 
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger render={
-                        <Card className="min-w-0">
-                          <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
-                            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-info shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm sm:text-lg font-bold text-info truncate">{formatHours(summary.totalHours)}</div>
-                              <div className="text-xs text-muted-foreground truncate">Total Hours</div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      } />
+                      <TooltipTrigger
+                        render={
+                          <Card className="min-w-0">
+                            <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
+                              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-info shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm sm:text-lg font-bold text-info truncate">
+                                  {formatHours(summary.totalHours)}
+                                </div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  Total Hours
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        }
+                      />
                       <TooltipContent>
-                        <p>Total hours from all verified certificates (Official + Platform + Self-Reported)</p>
+                        <p>
+                          Total hours from all verified certificates (Official +
+                          Platform + Self-Reported)
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -835,8 +1020,12 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                     <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
                       <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-destructive shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm sm:text-lg font-bold text-destructive truncate">{summary.invalidFormat}</div>
-                        <div className="text-xs text-muted-foreground truncate">Invalid/Not Found</div>
+                        <div className="text-sm sm:text-lg font-bold text-destructive truncate">
+                          {summary.invalidFormat}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          Invalid/Not Found
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -849,7 +1038,8 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
               <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm sm:text-base font-semibold wrap-break-word flex-1 min-w-0">
-                    Record Details ({results.length} record{results.length === 1 ? '' : 's'})
+                    Record Details ({results.length} record
+                    {results.length === 1 ? "" : "s"})
                   </h3>
                 </div>
 
@@ -857,127 +1047,225 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                 <div className="block lg:hidden space-y-3">
                   <div className="space-y-3">
                     {results.map((row, index) => (
-                      <Card key={index} className={
-                        !row.valid ? "border-destructive/50 bg-destructive/5" :
-                          row.isVerified ? "border-success/50 bg-success/10" :
-                            row.verificationStatus === 'verified' && !row.isVerified ? "border-warning/50 bg-warning/10" :
-                              row.verificationStatus === 'failed' ? "border-destructive/50 bg-destructive/10" : ""
-                      }>
+                      <Card
+                        key={index}
+                        className={
+                          !row.valid
+                            ? "border-destructive/50 bg-destructive/5"
+                            : row.isVerified
+                              ? "border-success/50 bg-success/10"
+                              : row.verificationStatus === "verified" &&
+                                  !row.isVerified
+                                ? "border-warning/50 bg-warning/10"
+                                : row.verificationStatus === "failed"
+                                  ? "border-destructive/50 bg-destructive/10"
+                                  : ""
+                        }
+                      >
                         <Collapsible>
-                          <CollapsibleTrigger render={
-                            <div className="p-3 cursor-pointer hover:bg-muted/50 rounded-t-lg max-w-full">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                  {!row.valid ? (
-                                    <Badge variant="destructive" className="text-xs h-5 px-1.5 shrink-0">
-                                      <XCircle className="w-3 h-3 shrink-0" />
-                                      <span className="ml-1">Invalid Format</span>
-                                    </Badge>
-                                  ) : !row.verificationStatus ? (
-                                    <Badge variant="secondary" className="text-xs h-5 px-1.5 shrink-0">
-                                      <CheckCircle className="w-3 h-3" />
-                                      <span className="ml-1">Valid Format</span>
-                                    </Badge>
-                                  ) : row.verificationStatus === 'pending' ? (
-                                    <Badge variant="outline" className="text-xs h-5 px-1.5 flex items-center shrink-0">
-                                      <div className="w-3 h-3 mr-1 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                      <span className="ml-1">Checking...</span>
-                                    </Badge>
-                                  ) : row.isVerified ? (
-                                    // Determine the type of verification based on certificate data
-                                    // Handle backward compatibility: treat "verified" as equivalent to "platform"
-                                    row.verificationResult?.certificate?.certified &&
-                                      ((row.verificationResult?.certificate?.type || 'platform') === 'platform' ||
-                                        (row.verificationResult?.certificate?.type || 'platform') === 'verified') ? (
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger render={
-                                            <Badge variant="default" className="text-xs h-5 px-1.5 bg-primary/10 text-primary shrink-0">
-                                              <CircleCheck className="w-3 h-3" />
-                                              <span className="ml-1">Official</span>
-                                            </Badge>
-                                          } />
-                                          <TooltipContent>
-                                            <p>Hours from verified organizations audited by Let&apos;s Assist</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    ) : ((row.verificationResult?.certificate?.type || 'platform') === 'platform' ||
-                                      (row.verificationResult?.certificate?.type || 'platform') === 'verified') ? (
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger render={
-                                            <Badge variant="default" className="text-xs h-5 px-1.5 bg-success/10 text-success shrink-0">
-                                              <CheckCircle className="w-3 h-3" />
-                                              <span className="ml-1">Platform</span>
-                                            </Badge>
-                                          } />
-                                          <TooltipContent>
-                                            <p>Hours from projects hosted on the Let&apos;s Assist platform</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
+                          <CollapsibleTrigger
+                            render={
+                              <div className="p-3 cursor-pointer hover:bg-muted/50 rounded-t-lg max-w-full">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    {!row.valid ? (
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-xs h-5 px-1.5 shrink-0"
+                                      >
+                                        <XCircle className="w-3 h-3 shrink-0" />
+                                        <span className="ml-1">
+                                          Invalid Format
+                                        </span>
+                                      </Badge>
+                                    ) : !row.verificationStatus ? (
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-xs h-5 px-1.5 shrink-0"
+                                      >
+                                        <CheckCircle className="w-3 h-3" />
+                                        <span className="ml-1">
+                                          Valid Format
+                                        </span>
+                                      </Badge>
+                                    ) : row.verificationStatus === "pending" ? (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs h-5 px-1.5 flex items-center shrink-0"
+                                      >
+                                        <div className="w-3 h-3 mr-1 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                        <span className="ml-1">
+                                          Checking...
+                                        </span>
+                                      </Badge>
+                                    ) : row.isVerified ? (
+                                      // Determine the type of verification based on certificate data
+                                      // Handle backward compatibility: treat "verified" as equivalent to "platform"
+                                      row.verificationResult?.certificate
+                                        ?.certified &&
+                                      ((row.verificationResult?.certificate
+                                        ?.type || "platform") === "platform" ||
+                                        (row.verificationResult?.certificate
+                                          ?.type || "platform") ===
+                                          "verified") ? (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger
+                                              render={
+                                                <Badge
+                                                  variant="default"
+                                                  className="text-xs h-5 px-1.5 bg-primary/10 text-primary shrink-0"
+                                                >
+                                                  <CircleCheck className="w-3 h-3" />
+                                                  <span className="ml-1">
+                                                    Official
+                                                  </span>
+                                                </Badge>
+                                              }
+                                            />
+                                            <TooltipContent>
+                                              <p>
+                                                Hours from verified
+                                                organizations audited by
+                                                Let&apos;s Assist
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      ) : (row.verificationResult?.certificate
+                                          ?.type || "platform") ===
+                                          "platform" ||
+                                        (row.verificationResult?.certificate
+                                          ?.type || "platform") ===
+                                          "verified" ? (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger
+                                              render={
+                                                <Badge
+                                                  variant="default"
+                                                  className="text-xs h-5 px-1.5 bg-success/10 text-success shrink-0"
+                                                >
+                                                  <CheckCircle className="w-3 h-3" />
+                                                  <span className="ml-1">
+                                                    Platform
+                                                  </span>
+                                                </Badge>
+                                              }
+                                            />
+                                            <TooltipContent>
+                                              <p>
+                                                Hours from projects hosted on
+                                                the Let&apos;s Assist platform
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      ) : (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger
+                                              render={
+                                                <Badge
+                                                  variant="secondary"
+                                                  className="text-xs h-5 px-1.5 bg-info/10 text-info shrink-0"
+                                                >
+                                                  <UserCheck className="w-3 h-3" />
+                                                  <span className="ml-1">
+                                                    Self-reported
+                                                  </span>
+                                                </Badge>
+                                              }
+                                            />
+                                            <TooltipContent>
+                                              <p>
+                                                Self-reported volunteer hours
+                                                from outside Let&apos;s Assist
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )
+                                    ) : row.verificationStatus === "verified" &&
+                                      !row.isVerified ? (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs h-5 px-1.5 border-warning text-warning shrink-0"
+                                      >
+                                        <XCircle className="w-3 h-3" />
+                                        <span className="ml-1">
+                                          Data Mismatch
+                                        </span>
+                                      </Badge>
+                                    ) : row.verificationStatus === "failed" ? (
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-xs h-5 px-1.5 shrink-0"
+                                      >
+                                        <XCircle className="w-3 h-3" />
+                                        <span className="ml-1">Not Found</span>
+                                      </Badge>
                                     ) : (
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger render={
-                                            <Badge variant="secondary" className="text-xs h-5 px-1.5 bg-info/10 text-info shrink-0">
-                                              <UserCheck className="w-3 h-3" />
-                                              <span className="ml-1">Self-reported</span>
-                                            </Badge>
-                                          } />
-                                          <TooltipContent>
-                                            <p>Self-reported volunteer hours from outside Let&apos;s Assist</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    )
-                                  ) : row.verificationStatus === 'verified' && !row.isVerified ? (
-                                    <Badge variant="outline" className="text-xs h-5 px-1.5 border-warning text-warning shrink-0">
-                                      <XCircle className="w-3 h-3" />
-                                      <span className="ml-1">Data Mismatch</span>
-                                    </Badge>
-                                  ) : row.verificationStatus === 'failed' ? (
-                                    <Badge variant="destructive" className="text-xs h-5 px-1.5 shrink-0">
-                                      <XCircle className="w-3 h-3" />
-                                      <span className="ml-1">Not Found</span>
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="secondary" className="text-xs h-5 px-1.5 shrink-0">
-                                      <CheckCircle className="w-3 h-3" />
-                                      <span className="ml-1">Unknown</span>
-                                    </Badge>
-                                  )}
-                                  <p className="text-sm font-medium truncate" title={row.projectTitle}>
-                                    {row.projectTitle || 'Untitled Project'}
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-xs h-5 px-1.5 shrink-0"
+                                      >
+                                        <CheckCircle className="w-3 h-3" />
+                                        <span className="ml-1">Unknown</span>
+                                      </Badge>
+                                    )}
+                                    <p
+                                      className="text-sm font-medium truncate"
+                                      title={row.projectTitle}
+                                    >
+                                      {row.projectTitle || "Untitled Project"}
+                                    </p>
+                                  </div>
+                                  <ChevronRight className="w-4 h-4 text-muted-foreground transform transition-transform ui-open:rotate-90 shrink-0" />
+                                </div>
+                                <div className="flex items-center justify-between mt-1">
+                                  <p
+                                    className="text-xs text-muted-foreground font-mono truncate"
+                                    title={row.certificateId}
+                                  >
+                                    ID: {row.certificateId || "-"}
                                   </p>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-muted-foreground transform transition-transform ui-open:rotate-90 shrink-0" />
                               </div>
-                              <div className="flex items-center justify-between mt-1">
-                                <p className="text-xs text-muted-foreground font-mono truncate" title={row.certificateId}>
-                                  ID: {row.certificateId || '-'}
-                                </p>
-                              </div>
-                            </div>
-                          } />
+                            }
+                          />
                           <CollapsibleContent>
                             <div className="px-3 pb-3 pt-2 space-y-3 border-t bg-background">
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2 text-xs">
                                 <div>
-                                  <span className="font-medium text-muted-foreground">Organization:</span>
-                                  <p className="mt-0.5">{row.organizationName || 'N/A'}</p>
+                                  <span className="font-medium text-muted-foreground">
+                                    Organization:
+                                  </span>
+                                  <p className="mt-0.5">
+                                    {row.organizationName || "N/A"}
+                                  </p>
                                 </div>
                                 <div>
-                                  <span className="font-medium text-muted-foreground">Organizer:</span>
-                                  <p className="mt-0.5">{row.organizerName || '-'}</p>
+                                  <span className="font-medium text-muted-foreground">
+                                    Organizer:
+                                  </span>
+                                  <p className="mt-0.5">
+                                    {row.organizerName || "-"}
+                                  </p>
                                 </div>
                                 {row.certificationStatus && (
                                   <div>
-                                    <span className="font-medium text-muted-foreground">Status:</span>
+                                    <span className="font-medium text-muted-foreground">
+                                      Status:
+                                    </span>
                                     <div className="mt-0.5">
                                       <Badge
-                                        variant={row.certificationStatus === 'Certified' ? 'default' : 'secondary'}
+                                        variant={
+                                          row.certificationStatus ===
+                                          "Certified"
+                                            ? "default"
+                                            : "secondary"
+                                        }
                                         className="text-xs"
                                       >
                                         {row.certificationStatus}
@@ -987,65 +1275,102 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 )}
                                 {row.certificateType && (
                                   <div>
-                                    <span className="font-medium text-muted-foreground">Type:</span>
-                                    <div className="mt-0.5"> {/* keep badge compact on details card, no forced width */}
+                                    <span className="font-medium text-muted-foreground">
+                                      Type:
+                                    </span>
+                                    <div className="mt-0.5">
+                                      {" "}
+                                      {/* keep badge compact on details card, no forced width */}
                                       <Badge
-                                        variant={row.certificateType === 'verified' ? 'default' : 'secondary'}
-                                        className={`text-xs ${row.certificateType === 'self-reported' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400' : ''}`}
+                                        variant={
+                                          row.certificateType === "verified"
+                                            ? "default"
+                                            : "secondary"
+                                        }
+                                        className={`text-xs ${row.certificateType === "self-reported" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400" : ""}`}
                                       >
-                                        {row.certificateType === 'verified' ? 'Verified' : 'Self-Reported'}
+                                        {row.certificateType === "verified"
+                                          ? "Verified"
+                                          : "Self-Reported"}
                                       </Badge>
                                     </div>
                                   </div>
                                 )}
                                 {row.duration && (
                                   <div>
-                                    <span className="font-medium text-muted-foreground">Duration:</span>
-                                    <p className="mt-0.5">{formatHours(parseFloat(row.duration))}</p>
+                                    <span className="font-medium text-muted-foreground">
+                                      Duration:
+                                    </span>
+                                    <p className="mt-0.5">
+                                      {formatHours(parseFloat(row.duration))}
+                                    </p>
                                   </div>
                                 )}
                               </div>
 
-                              {row.verificationResult?.valid && row.verificationResult?.verification?.matches && (
-                                <div className="mt-3">
-                                  <h4 className="text-xs font-medium mb-2">Field Verification Results:</h4>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                                    {Object.entries(row.verificationResult.verification.matches).map(([key, value]) => (
-                                      <div key={key} className="flex items-center">
-                                        {value ? (
-                                          <CheckCircle className="w-3 h-3 text-success mr-1.5 shrink-0" />
-                                        ) : (
-                                          <XCircle className="w-3 h-3 text-warning mr-1.5 shrink-0" />
-                                        )}
-                                        <span className="capitalize">
-                                          {key === 'certificateId' ? 'Certificate ID' :
-                                            key === 'title' ? 'Project Title' :
-                                              key === 'organizer' ? 'Organizer Name' :
-                                                key === 'hours' ? 'Duration/Hours' :
-                                                  key === 'status' ? 'Certification Status' :
-                                                    key === 'type' ? 'Certificate Type' :
-                                                      key.replace(/([A-Z])/g, ' $1').trim()}
-                                        </span>
+                              {row.verificationResult?.valid &&
+                                row.verificationResult?.verification
+                                  ?.matches && (
+                                  <div className="mt-3">
+                                    <h4 className="text-xs font-medium mb-2">
+                                      Field Verification Results:
+                                    </h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                      {Object.entries(
+                                        row.verificationResult.verification
+                                          .matches,
+                                      ).map(([key, value]) => (
+                                        <div
+                                          key={key}
+                                          className="flex items-center"
+                                        >
+                                          {value ? (
+                                            <CheckCircle className="w-3 h-3 text-success mr-1.5 shrink-0" />
+                                          ) : (
+                                            <XCircle className="w-3 h-3 text-warning mr-1.5 shrink-0" />
+                                          )}
+                                          <span className="capitalize">
+                                            {key === "certificateId"
+                                              ? "Certificate ID"
+                                              : key === "title"
+                                                ? "Project Title"
+                                                : key === "organizer"
+                                                  ? "Organizer Name"
+                                                  : key === "hours"
+                                                    ? "Duration/Hours"
+                                                    : key === "status"
+                                                      ? "Certification Status"
+                                                      : key === "type"
+                                                        ? "Certificate Type"
+                                                        : key
+                                                            .replace(
+                                                              /([A-Z])/g,
+                                                              " $1",
+                                                            )
+                                                            .trim()}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    {row.isVerified ? (
+                                      <div className="mt-2 p-2 bg-success/10 border border-success/20 rounded-md">
+                                        <p className="text-xs text-success font-medium">
+                                          Perfect Match: All data verified
+                                          successfully
+                                        </p>
                                       </div>
-                                    ))}
+                                    ) : (
+                                      <div className="mt-2 p-2 bg-warning/10 border border-warning/20 rounded-md">
+                                        <p className="text-xs text-warning font-medium">
+                                          Data Mismatch: Some fields don&apos;t
+                                          match our database records
+                                        </p>
+                                      </div>
+                                    )}
                                   </div>
-                                  {row.isVerified ? (
-                                    <div className="mt-2 p-2 bg-success/10 border border-success/20 rounded-md">
-                                      <p className="text-xs text-success font-medium">
-                                        Perfect Match: All data verified successfully
-                                      </p>
-                                    </div>
-                                  ) : (
-                                    <div className="mt-2 p-2 bg-warning/10 border border-warning/20 rounded-md">
-                                      <p className="text-xs text-warning font-medium">
-                                        Data Mismatch: Some fields don&apos;t match our database records
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                                )}
 
-                              {row.verificationStatus === 'failed' && (
+                              {row.verificationStatus === "failed" && (
                                 <div className="mt-3">
                                   <div className="p-2 bg-destructive/10 border border-destructive/20 rounded-md">
                                     <p className="text-xs text-destructive font-medium">
@@ -1062,10 +1387,16 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
 
                               {row.issues.length > 0 && (
                                 <div>
-                                  <span className="font-medium text-destructive text-xs">Format Issues:</span>
+                                  <span className="font-medium text-destructive text-xs">
+                                    Format Issues:
+                                  </span>
                                   <div className="flex flex-wrap gap-1 mt-1">
                                     {row.issues.map((issue, i) => (
-                                      <Badge key={i} variant="destructive" className="text-xs font-normal">
+                                      <Badge
+                                        key={i}
+                                        variant="destructive"
+                                        className="text-xs font-normal"
+                                      >
                                         {issue}
                                       </Badge>
                                     ))}
@@ -1084,13 +1415,17 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                 <div className="hidden lg:block">
                   <Card>
                     <div className="overflow-x-auto">
-                      <Table className="min-w-225"> {/* reverted to smaller min width */}
+                      <Table className="min-w-225">
+                        {" "}
+                        {/* reverted to smaller min width */}
                         <TableHeader className="sticky top-0 z-10">
                           <TableRow>
                             <TableHead className="w-10">
                               <span className="text-xs sm:text-sm"></span>
                             </TableHead>
-                            <TableHead className="w-30"> {/* smaller fixed width so row doesn't expand */}
+                            <TableHead className="w-30">
+                              {" "}
+                              {/* smaller fixed width so row doesn't expand */}
                               <span
                                 className="cursor-help text-xs sm:text-sm whitespace-nowrap"
                                 title="Certificate type: Official (verified orgs), Platform (Let's Assist projects), or Self-Reported"
@@ -1099,20 +1434,30 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                               </span>
                             </TableHead>
                             <TableHead className="min-w-50 flex-1">
-                              <span className="text-xs sm:text-sm">Project Title</span>
+                              <span className="text-xs sm:text-sm">
+                                Project Title
+                              </span>
                             </TableHead>
                             <TableHead className="w-32.5">
-                              <span className="text-xs sm:text-sm">Organization</span>
+                              <span className="text-xs sm:text-sm">
+                                Organization
+                              </span>
                             </TableHead>
                             <TableHead className="w-32.5">
-                              <span className="text-xs sm:text-sm">Organizer</span>
+                              <span className="text-xs sm:text-sm">
+                                Organizer
+                              </span>
                             </TableHead>
                             <TableHead className="w-20">
                               <TooltipProvider>
                                 <Tooltip>
-                                  <TooltipTrigger render={
-                                    <span className="cursor-help text-xs sm:text-sm">Hours</span>
-                                  } />
+                                  <TooltipTrigger
+                                    render={
+                                      <span className="cursor-help text-xs sm:text-sm">
+                                        Hours
+                                      </span>
+                                    }
+                                  />
                                   <TooltipContent>
                                     <p>Volunteer hours spent on this project</p>
                                   </TooltipContent>
@@ -1122,9 +1467,13 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                             <TableHead className="w-25">
                               <TooltipProvider>
                                 <Tooltip>
-                                  <TooltipTrigger render={
-                                    <span className="cursor-help text-xs sm:text-sm">Certificate</span>
-                                  } />
+                                  <TooltipTrigger
+                                    render={
+                                      <span className="cursor-help text-xs sm:text-sm">
+                                        Certificate
+                                      </span>
+                                    }
+                                  />
                                   <TooltipContent>
                                     <p>Link to view the actual certificate</p>
                                   </TooltipContent>
@@ -1138,10 +1487,13 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                             <TableRow
                               key={index}
                               className={
-                                !row.valid ? "bg-destructive/5 hover:bg-destructive/10" :
-                                  row.isVerified ? "bg-success/10 hover:bg-success/20" :
-                                    row.verificationStatus === 'failed' ? "bg-destructive/10 hover:bg-destructive/20" :
-                                      "hover:bg-muted/50"
+                                !row.valid
+                                  ? "bg-destructive/5 hover:bg-destructive/10"
+                                  : row.isVerified
+                                    ? "bg-success/10 hover:bg-success/20"
+                                    : row.verificationStatus === "failed"
+                                      ? "bg-destructive/10 hover:bg-destructive/20"
+                                      : "hover:bg-muted/50"
                               }
                             >
                               {/* Status Indicator Column */}
@@ -1149,58 +1501,83 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 {!row.valid ? (
                                   <TooltipProvider delay={100}>
                                     <Tooltip>
-                                      <TooltipTrigger render={
-                                        <XCircle className="w-4 h-4 text-destructive cursor-help" />
-                                      } />
+                                      <TooltipTrigger
+                                        render={
+                                          <XCircle className="w-4 h-4 text-destructive cursor-help" />
+                                        }
+                                      />
                                       <TooltipContent>
                                         <div>
-                                          <div className="font-medium mb-1">Format Issues:</div>
+                                          <div className="font-medium mb-1">
+                                            Format Issues:
+                                          </div>
                                           <ul className="list-disc pl-4 space-y-0.5">
-                                            {row.issues.map((issue, i) => <li key={i} className="text-xs">{issue}</li>)}
+                                            {row.issues.map((issue, i) => (
+                                              <li key={i} className="text-xs">
+                                                {issue}
+                                              </li>
+                                            ))}
                                           </ul>
                                         </div>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
-                                ) : row.verificationStatus === 'pending' ? (
+                                ) : row.verificationStatus === "pending" ? (
                                   <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent opacity-60" />
                                 ) : row.isVerified ? (
                                   <TooltipProvider delay={100}>
                                     <Tooltip>
-                                      <TooltipTrigger render={
-                                        <CheckCircle className="w-4 h-4 text-success cursor-help" />
-                                      } />
+                                      <TooltipTrigger
+                                        render={
+                                          <CheckCircle className="w-4 h-4 text-success cursor-help" />
+                                        }
+                                      />
                                       <TooltipContent>
                                         <div>
-                                          <div className="font-medium mb-1">Data Verified</div>
-                                          <p className="text-xs">All data matches our records</p>
+                                          <div className="font-medium mb-1">
+                                            Data Verified
+                                          </div>
+                                          <p className="text-xs">
+                                            All data matches our records
+                                          </p>
                                         </div>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
-
-                                ) : row.verificationStatus === 'verified' ? (
+                                ) : row.verificationStatus === "verified" ? (
                                   <TooltipProvider delay={100}>
                                     <Tooltip>
-                                      <TooltipTrigger render={
-                                        <AlertCircle className="w-4 h-4 text-destructive cursor-help" />
-                                      } />
+                                      <TooltipTrigger
+                                        render={
+                                          <AlertCircle className="w-4 h-4 text-destructive cursor-help" />
+                                        }
+                                      />
                                       <TooltipContent>
                                         <div>
-                                          <div className="font-medium mb-1">Data Comparison Issues</div>
-                                          <p className="text-xs">Some data doesn&apos;t match our records</p>
+                                          <div className="font-medium mb-1">
+                                            Data Comparison Issues
+                                          </div>
+                                          <p className="text-xs">
+                                            Some data doesn&apos;t match our
+                                            records
+                                          </p>
                                         </div>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
-                                ) : row.verificationStatus === 'failed' ? (
+                                ) : row.verificationStatus === "failed" ? (
                                   <TooltipProvider delay={100}>
                                     <Tooltip>
-                                      <TooltipTrigger render={
-                                        <XCircle className="w-4 h-4 text-destructive cursor-help" />
-                                      } />
+                                      <TooltipTrigger
+                                        render={
+                                          <XCircle className="w-4 h-4 text-destructive cursor-help" />
+                                        }
+                                      />
                                       <TooltipContent>
-                                        <p>Certificate ID not found in our database</p>
+                                        <p>
+                                          Certificate ID not found in our
+                                          database
+                                        </p>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
@@ -1210,7 +1587,9 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                               </TableCell>
 
                               {/* Certificate Type Column */}
-                              <TableCell className="whitespace-nowrap"> {/* don't force column width, just prevent badge wrapping */}
+                              <TableCell className="whitespace-nowrap">
+                                {" "}
+                                {/* don't force column width, just prevent badge wrapping */}
                                 <div className="flex items-center justify-start whitespace-nowrap">
                                   {getCertificateTypeBadge(row)}
                                 </div>
@@ -1220,32 +1599,49 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                               <TableCell>
                                 <TooltipProvider delay={100}>
                                   <Tooltip>
-                                    <TooltipTrigger render={
-                                      <div className="truncate cursor-default text-xs sm:text-sm" title={row.projectTitle}>
-                                        {row.projectTitle || '-'}
-                                      </div>
-                                    } />
+                                    <TooltipTrigger
+                                      render={
+                                        <div
+                                          className="truncate cursor-default text-xs sm:text-sm"
+                                          title={row.projectTitle}
+                                        >
+                                          {row.projectTitle || "-"}
+                                        </div>
+                                      }
+                                    />
                                     <TooltipContent>
-                                      <p className="max-w-xs">{row.projectTitle}</p>
+                                      <p className="max-w-xs">
+                                        {row.projectTitle}
+                                      </p>
                                       {row.certificateId && (
-                                        <p className="text-xs text-muted-foreground mt-1 font-mono">ID: {row.certificateId}</p>
+                                        <p className="text-xs text-muted-foreground mt-1 font-mono">
+                                          ID: {row.certificateId}
+                                        </p>
                                       )}
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
                               </TableCell>
                               <TableCell>
-                                <div className="truncate text-xs sm:text-sm" title={row.organizationName}>
-                                  {row.organizationName || 'N/A'}
+                                <div
+                                  className="truncate text-xs sm:text-sm"
+                                  title={row.organizationName}
+                                >
+                                  {row.organizationName || "N/A"}
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <div className="truncate text-xs sm:text-sm" title={row.organizerName}>
-                                  {row.organizerName || '-'}
+                                <div
+                                  className="truncate text-xs sm:text-sm"
+                                  title={row.organizerName}
+                                >
+                                  {row.organizerName || "-"}
                                 </div>
                               </TableCell>
                               <TableCell className="text-xs sm:text-sm font-medium">
-                                {row.duration ? formatHours(parseFloat(row.duration)) : '-'}
+                                {row.duration
+                                  ? formatHours(parseFloat(row.duration))
+                                  : "-"}
                               </TableCell>
                               <TableCell>
                                 {row.certificateId && row.isVerified ? (
@@ -1253,7 +1649,12 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                     variant="outline"
                                     size="sm"
                                     className="text-xs h-7 px-2"
-                                    onClick={() => window.open(`/certificates/${row.certificateId}`, '_blank')}
+                                    onClick={() =>
+                                      window.open(
+                                        `/certificates/${row.certificateId}`,
+                                        "_blank",
+                                      )
+                                    }
                                   >
                                     <FileCheck className="w-3 h-3 mr-1" />
                                     View
@@ -1261,24 +1662,30 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 ) : row.certificateId ? (
                                   <TooltipProvider delay={100}>
                                     <Tooltip>
-                                      <TooltipTrigger render={
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="text-xs h-7 px-2 opacity-50 cursor-not-allowed"
-                                          disabled
-                                        >
-                                          <FileCheck className="w-3 h-3 mr-1" />
-                                          View
-                                        </Button>
-                                      } />
+                                      <TooltipTrigger
+                                        render={
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-xs h-7 px-2 opacity-50 cursor-not-allowed"
+                                            disabled
+                                          >
+                                            <FileCheck className="w-3 h-3 mr-1" />
+                                            View
+                                          </Button>
+                                        }
+                                      />
                                       <TooltipContent>
-                                        <p>Certificate not verified or not found</p>
+                                        <p>
+                                          Certificate not verified or not found
+                                        </p>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
                                 ) : (
-                                  <span className="text-xs text-muted-foreground">-</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    -
+                                  </span>
                                 )}
                               </TableCell>
                             </TableRow>
@@ -1296,15 +1703,28 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                 <div className="bg-muted/30 w-16 h-16 sm:w-24 sm:h-24 rounded-full flex items-center justify-center mx-auto mb-4">
                   <FileText size={24} className="sm:w-9 sm:h-9 opacity-60" />
                 </div>
-                <p className="text-sm sm:text-lg font-medium">Upload a CSV file to begin verification</p>
+                <p className="text-sm sm:text-lg font-medium">
+                  Upload a CSV file to begin verification
+                </p>
                 <p className="text-xs sm:text-sm max-w-md mx-auto mt-2">
-                  The CSV should contain columns for Certificate ID, Project Title, Organization Name,
-                  Project Organizer Name, Certification Status, Certificate Type (verified/self-reported),
-                  and other certificate details
+                  The CSV should contain columns for Certificate ID, Project
+                  Title, Organization Name, Project Organizer Name,
+                  Certification Status, Certificate Type
+                  (verified/self-reported), and other certificate details
                 </p>
                 <div className="mt-4 sm:mt-6">
                   <div className="inline-flex items-center justify-center gap-1 px-3 py-1 rounded-md bg-muted/30 text-xs text-muted-foreground">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <rect width="18" height="18" x="3" y="3" rx="2" />
                       <path d="M3 9h18" />
                       <path d="M3 15h18" />
@@ -1317,17 +1737,27 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
               </div>
             )}
 
-            {file && !isProcessing && results.length === 0 && !error && !summary && (
-              <div className="text-center text-muted-foreground py-8 sm:py-10">
-                <div className="bg-muted/20 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-primary/30">
-                  <Upload size={20} className="sm:w-8 sm:h-8 opacity-60 text-primary" />
+            {file &&
+              !isProcessing &&
+              results.length === 0 &&
+              !error &&
+              !summary && (
+                <div className="text-center text-muted-foreground py-8 sm:py-10">
+                  <div className="bg-muted/20 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-primary/30">
+                    <Upload
+                      size={20}
+                      className="sm:w-8 sm:h-8 opacity-60 text-primary"
+                    />
+                  </div>
+                  <p className="text-sm sm:text-lg font-medium">
+                    File selected and ready for verification
+                  </p>
+                  <p className="text-xs sm:text-sm max-w-md mx-auto mt-2">
+                    Click &quot;Verify Certificates&quot; to validate the file
+                    format and check certificates against our database
+                  </p>
                 </div>
-                <p className="text-sm sm:text-lg font-medium">File selected and ready for verification</p>
-                <p className="text-xs sm:text-sm max-w-md mx-auto mt-2">
-                  Click &quot;Verify Certificates&quot; to validate the file format and check certificates against our database
-                </p>
-              </div>
-            )}
+              )}
 
             {/* Display verification in progress */}
             {/* {verifying && (
@@ -1370,8 +1800,11 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
             <div className="text-xs text-muted-foreground text-center sm:text-left">
               {results.length > 0 && (
                 <span>
-                  {results.length} certificate{results.length !== 1 ? 's' : ''} processed
-                  {summary?.totalHours ? `, ${summary.totalHours} total hours` : ''}
+                  {results.length} certificate{results.length !== 1 ? "s" : ""}{" "}
+                  processed
+                  {summary?.totalHours
+                    ? `, ${summary.totalHours} total hours`
+                    : ""}
                 </span>
               )}
             </div>
@@ -1381,7 +1814,8 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                 onClick={() => {
                   resetModal();
                   toast.success("Reset Complete", {
-                    description: "Form has been reset. You can now upload a new CSV file.",
+                    description:
+                      "Form has been reset. You can now upload a new CSV file.",
                   });
                 }}
                 disabled={isProcessing || verifying}
@@ -1394,7 +1828,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                 onClick={() => setIsOpen(false)}
                 className="w-full sm:w-auto text-xs sm:text-sm"
               >
-                {results.length > 0 && summary?.totalHours ? 'Done' : 'Close'}
+                {results.length > 0 && summary?.totalHours ? "Done" : "Close"}
               </Button>
             </div>
           </div>

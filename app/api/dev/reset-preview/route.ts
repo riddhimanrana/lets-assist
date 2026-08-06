@@ -12,7 +12,10 @@ import { DEV_PREVIEW_SOURCE_COOKIE } from "@/lib/supabase/preview-source";
  */
 export async function GET() {
   if (process.env.NODE_ENV !== "development") {
-    return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Not available in production" },
+      { status: 403 },
+    );
   }
 
   const response = NextResponse.redirect(

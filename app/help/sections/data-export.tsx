@@ -1,11 +1,29 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { FileSpreadsheet, Download, Calendar, Filter, BarChart3, TrendingUp } from "lucide-react";
+import {
+  FileSpreadsheet,
+  Download,
+  Calendar,
+  Filter,
+  BarChart3,
+  TrendingUp,
+} from "lucide-react";
 import Link from "next/link";
 
 export function DataExportSection() {
@@ -42,9 +60,15 @@ export function DataExportSection() {
             <div className="space-y-2">
               <h4 className="font-semibold text-sm">Export Formats</h4>
               <div className="flex flex-wrap gap-1">
-                <Badge variant="outline" className="text-xs">CSV</Badge>
-                <Badge variant="outline" className="text-xs">PDF</Badge>
-                <Badge variant="outline" className="text-xs">Print</Badge>
+                <Badge variant="outline" className="text-xs">
+                  CSV
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  PDF
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  Print
+                </Badge>
               </div>
             </div>
           </div>
@@ -52,7 +76,10 @@ export function DataExportSection() {
       </Card>
 
       <Accordion className="w-full space-y-4">
-        <AccordionItem value="personal-exports" className="border rounded-lg px-4">
+        <AccordionItem
+          value="personal-exports"
+          className="border rounded-lg px-4"
+        >
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2">
               <Download className="h-4 w-4" />
@@ -74,7 +101,8 @@ export function DataExportSection() {
                   <li>Download comprehensive data file</li>
                 </ol>
                 <div className="mt-2 text-xs text-muted-foreground">
-                  <strong>Includes:</strong> All certificate details, hours, organizations, verification status, and summary statistics
+                  <strong>Includes:</strong> All certificate details, hours,
+                  organizations, verification status, and summary statistics
                 </div>
               </div>
               <div>
@@ -121,7 +149,10 @@ export function DataExportSection() {
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="organization-exports" className="border rounded-lg px-4">
+        <AccordionItem
+          value="organization-exports"
+          className="border rounded-lg px-4"
+        >
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -140,7 +171,8 @@ export function DataExportSection() {
                   <li>Download CSV with all member data</li>
                 </ol>
                 <div className="mt-2 p-2 bg-muted/50 rounded text-xs">
-                  <strong>Permissions:</strong> Only available to organization admins and staff members
+                  <strong>Permissions:</strong> Only available to organization
+                  admins and staff members
                 </div>
               </div>
               <div>
@@ -153,13 +185,16 @@ export function DataExportSection() {
                   <li>Access detailed event logs</li>
                 </ol>
                 <div className="mt-2 p-2 bg-muted/50 rounded text-xs">
-                  <strong>Use Case:</strong> Perfect for verification requests and individual member reports
+                  <strong>Use Case:</strong> Perfect for verification requests
+                  and individual member reports
                 </div>
               </div>
             </div>
 
             <div className="bg-primary/10 p-4 rounded-lg">
-              <h6 className="font-medium text-sm mb-2">Organization Export Features:</h6>
+              <h6 className="font-medium text-sm mb-2">
+                Organization Export Features:
+              </h6>
               <div className="grid md:grid-cols-2 gap-3 text-xs">
                 <div>
                   <strong>Member Data Includes:</strong>
@@ -186,7 +221,10 @@ export function DataExportSection() {
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="analytics-insights" className="border rounded-lg px-4">
+        <AccordionItem
+          value="analytics-insights"
+          className="border rounded-lg px-4"
+        >
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
@@ -196,7 +234,9 @@ export function DataExportSection() {
           <AccordionContent className="space-y-4 pt-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <h6 className="font-medium mb-2">Personal Dashboard Analytics</h6>
+                <h6 className="font-medium mb-2">
+                  Personal Dashboard Analytics
+                </h6>
                 <ul className="list-disc list-inside space-y-1 text-sm">
                   <li>Total volunteer hours tracked</li>
                   <li>Number of projects completed</li>
@@ -204,10 +244,23 @@ export function DataExportSection() {
                   <li>Monthly hour tracking trends</li>
                   <li>Certificate achievement milestones</li>
                 </ul>
-                <Link href="/dashboard" className={cn(buttonVariants({ size: "sm", variant: "outline", className: "mt-2" }))}>View My Analytics</Link>
+                <Link
+                  href="/dashboard"
+                  className={cn(
+                    buttonVariants({
+                      size: "sm",
+                      variant: "outline",
+                      className: "mt-2",
+                    }),
+                  )}
+                >
+                  View My Analytics
+                </Link>
               </div>
               <div>
-                <h6 className="font-medium mb-2">Organization Analytics (Admin)</h6>
+                <h6 className="font-medium mb-2">
+                  Organization Analytics (Admin)
+                </h6>
                 <ul className="list-disc list-inside space-y-1 text-sm">
                   <li>Member engagement statistics</li>
                   <li>Project participation rates</li>
@@ -215,12 +268,25 @@ export function DataExportSection() {
                   <li>Member growth and retention</li>
                   <li>Verification and completion rates</li>
                 </ul>
-                <Link href="/organization" className={cn(buttonVariants({ size: "sm", variant: "outline", className: "mt-2" }))}>View Organizations</Link>
+                <Link
+                  href="/organization"
+                  className={cn(
+                    buttonVariants({
+                      size: "sm",
+                      variant: "outline",
+                      className: "mt-2",
+                    }),
+                  )}
+                >
+                  View Organizations
+                </Link>
               </div>
             </div>
 
             <div className="bg-muted/50 p-4 rounded-lg">
-              <h6 className="font-medium text-sm mb-2">Using Data for Impact:</h6>
+              <h6 className="font-medium text-sm mb-2">
+                Using Data for Impact:
+              </h6>
               <div className="grid md:grid-cols-3 gap-3 text-xs">
                 <div>
                   <strong>For Students:</strong>

@@ -8,12 +8,12 @@
 
 ## 🧑‍💻 Default platform administrator
 
-| Field    | Value                       |
-| -------- | --------------------------- |
-| Email    | `platform.admin@local.test` |
+| Field    | Value                                                          |
+| -------- | -------------------------------------------------------------- |
+| Email    | `platform.admin@local.test`                                    |
 | Password | Value of `CSF_LOCAL_TEST_PASSWORD` or `DV_LOCAL_TEST_PASSWORD` |
-| Role     | **Admin** in all 4 default platform orgs |
-| Status   | Verified + Trusted Member   |
+| Role     | **Admin** in all 4 default platform orgs                       |
+| Status   | Verified + Trusted Member                                      |
 
 ---
 
@@ -60,55 +60,55 @@ across the three organizations in groups of five.
 
 ### DV Speech & Debate (members 1–5)
 
-| Email                   | Name     | Role   |
-| ----------------------- | -------- | ------ |
-| `member.1@local.test`   | Member 1 | Admin  |
-| `member.2@local.test`   | Member 2 | Staff  |
-| `member.3@local.test`   | Member 3 | Member |
-| `member.4@local.test`   | Member 4 | Member |
-| `member.5@local.test`   | Member 5 | Member |
+| Email                 | Name     | Role   |
+| --------------------- | -------- | ------ |
+| `member.1@local.test` | Member 1 | Admin  |
+| `member.2@local.test` | Member 2 | Staff  |
+| `member.3@local.test` | Member 3 | Member |
+| `member.4@local.test` | Member 4 | Member |
+| `member.5@local.test` | Member 5 | Member |
 
 ### Acts of Hearts (members 6–10)
 
-| Email                   | Name      | Role   |
-| ----------------------- | --------- | ------ |
-| `member.6@local.test`   | Member 6  | Admin  |
-| `member.7@local.test`   | Member 7  | Staff  |
-| `member.8@local.test`   | Member 8  | Member |
-| `member.9@local.test`   | Member 9  | Member |
-| `member.10@local.test`  | Member 10 | Member |
+| Email                  | Name      | Role   |
+| ---------------------- | --------- | ------ |
+| `member.6@local.test`  | Member 6  | Admin  |
+| `member.7@local.test`  | Member 7  | Staff  |
+| `member.8@local.test`  | Member 8  | Member |
+| `member.9@local.test`  | Member 9  | Member |
+| `member.10@local.test` | Member 10 | Member |
 
 ### WRMS Speech & Debate (members 11–15)
 
-| Email                   | Name      | Role   |
-| ----------------------- | --------- | ------ |
-| `member.11@local.test`  | Member 11 | Admin  |
-| `member.12@local.test`  | Member 12 | Staff  |
-| `member.13@local.test`  | Member 13 | Member |
-| `member.14@local.test`  | Member 14 | Member |
-| `member.15@local.test`  | Member 15 | Member |
+| Email                  | Name      | Role   |
+| ---------------------- | --------- | ------ |
+| `member.11@local.test` | Member 11 | Admin  |
+| `member.12@local.test` | Member 12 | Staff  |
+| `member.13@local.test` | Member 13 | Member |
+| `member.14@local.test` | Member 14 | Member |
+| `member.15@local.test` | Member 15 | Member |
 
 ---
 
 ## 📁 Seeded Projects
 
-| Org                   | Title                  | Location                    | Status   | Visibility          |
-| --------------------- | ---------------------- | --------------------------- | -------- | ------------------- |
-| DV Speech & Debate    | Local Invitational     | DVHS                        | Upcoming | Organization Only   |
-| Acts of Hearts        | Heart Charity Drive    | San Ramon Community Center  | Upcoming | Organization Only   |
-| WRMS Speech & Debate  | WRMS Novice Tournament | WRMS                        | Upcoming | Organization Only   |
+| Org                  | Title                  | Location                   | Status   | Visibility        |
+| -------------------- | ---------------------- | -------------------------- | -------- | ----------------- |
+| DV Speech & Debate   | Local Invitational     | DVHS                       | Upcoming | Organization Only |
+| Acts of Hearts       | Heart Charity Drive    | San Ramon Community Center | Upcoming | Organization Only |
+| WRMS Speech & Debate | WRMS Novice Tournament | WRMS                       | Upcoming | Organization Only |
 
 ---
 
 ## 🗓️ DVSD Plugin Fixtures
 
-| Item           | Detail                                        |
-| -------------- | --------------------------------------------- |
-| Current Season | 2026-2027 (Aug 2026 – Jun 2027)               |
-| Prior Season   | 2025-2026 (expired)                           |
-| Tournament     | Local Invitational (registration open)        |
+| Item           | Detail                                                   |
+| -------------- | -------------------------------------------------------- |
+| Current Season | 2026-2027 (Aug 2026 – Jun 2027)                          |
+| Prior Season   | 2025-2026 (expired)                                      |
+| Tournament     | Local Invitational (registration open)                   |
 | Students       | Alex (approved), Blair (submitted), Casey (needs action) |
-| Guardians      | Shared Guardian, Casey Guardian               |
+| Guardians      | Shared Guardian, Casey Guardian                          |
 
 ---
 
@@ -119,26 +119,26 @@ account uses the run-scoped `CSF_LOCAL_TEST_PASSWORD`; the repository stores no
 fixture password. The titles mirror the DVHS CSF office structure, while every
 identity and email address is fictional.
 
-| Email | Host role | CSF responsibility |
-| --- | --- | --- |
-| `csf.admin@local.test` | Admin | Full organization and plugin administration |
-| `csf.adviser@local.test` | Staff | Adviser and academic override review |
-| `csf.co-president-one@local.test` | Staff | Co-President seat 1 |
-| `csf.co-president-two@local.test` | Staff | Co-President seat 2 |
-| `csf.vp-membership@local.test` | Staff | Vice President — Membership |
-| `csf.vp-publicity@local.test` | Staff | Vice President — Publicity |
-| `csf.vp-clubs@local.test` | Staff | Vice President — Clubs |
-| `csf.treasurer@local.test` | Staff | Treasurer |
-| `csf.secretary@local.test` | Staff | Secretary |
-| `csf.web-master@local.test` | Staff | Web Master |
-| `csf.officer@local.test` | Staff | Activity Coordinator seat 1 |
-| `csf.activity-two@local.test` | Staff | Activity Coordinator seat 2 |
-| `csf.activity-three@local.test` | Staff | Activity Coordinator seat 3 |
-| `csf.activity-four@local.test` | Staff | Activity Coordinator seat 4 |
-| `csf.activity-five@local.test` | Staff | Activity Coordinator seat 5 |
-| `csf.data-management@local.test` | Staff | Data Management |
-| `student.2028@local.test` | Member | Linked Class of 2028 member |
-| `csf.applicant@local.test` | Member | Applicant and account-link workflow |
+| Email                             | Host role | CSF responsibility                          |
+| --------------------------------- | --------- | ------------------------------------------- |
+| `csf.admin@local.test`            | Admin     | Full organization and plugin administration |
+| `csf.adviser@local.test`          | Staff     | Adviser and academic override review        |
+| `csf.co-president-one@local.test` | Staff     | Co-President seat 1                         |
+| `csf.co-president-two@local.test` | Staff     | Co-President seat 2                         |
+| `csf.vp-membership@local.test`    | Staff     | Vice President — Membership                 |
+| `csf.vp-publicity@local.test`     | Staff     | Vice President — Publicity                  |
+| `csf.vp-clubs@local.test`         | Staff     | Vice President — Clubs                      |
+| `csf.treasurer@local.test`        | Staff     | Treasurer                                   |
+| `csf.secretary@local.test`        | Staff     | Secretary                                   |
+| `csf.web-master@local.test`       | Staff     | Web Master                                  |
+| `csf.officer@local.test`          | Staff     | Activity Coordinator seat 1                 |
+| `csf.activity-two@local.test`     | Staff     | Activity Coordinator seat 2                 |
+| `csf.activity-three@local.test`   | Staff     | Activity Coordinator seat 3                 |
+| `csf.activity-four@local.test`    | Staff     | Activity Coordinator seat 4                 |
+| `csf.activity-five@local.test`    | Staff     | Activity Coordinator seat 5                 |
+| `csf.data-management@local.test`  | Staff     | Data Management                             |
+| `student.2028@local.test`         | Member    | Linked Class of 2028 member                 |
+| `csf.applicant@local.test`        | Member    | Applicant and account-link workflow         |
 
 The dataset includes Classes of 2027, 2028, and 2029; Fall 2025 and Spring 2026
 terms; accepted, needs-review, and needs-action applications; active and

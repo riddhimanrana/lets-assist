@@ -27,7 +27,9 @@ export async function applyStaffInviteForUser(
   try {
     const { data: org, error: orgError } = await adminClient
       .from("organizations")
-      .select("id, name, username, staff_join_token, staff_join_token_expires_at")
+      .select(
+        "id, name, username, staff_join_token, staff_join_token_expires_at",
+      )
       .eq("username", orgUsername)
       .single();
 
@@ -87,7 +89,10 @@ export async function applyStaffInviteForUser(
       .single();
 
     if (queryError || !existingMembership) {
-      console.error(`Error querying existing membership for org ${org.id}:`, queryError);
+      console.error(
+        `Error querying existing membership for org ${org.id}:`,
+        queryError,
+      );
       return {
         status: "error",
         orgUsername: org.username,
@@ -103,7 +108,10 @@ export async function applyStaffInviteForUser(
         .eq("user_id", userId);
 
       if (updateError) {
-        console.error(`Error updating membership role to staff for org ${org.id}:`, updateError);
+        console.error(
+          `Error updating membership role to staff for org ${org.id}:`,
+          updateError,
+        );
         return {
           status: "error",
           orgUsername: org.username,

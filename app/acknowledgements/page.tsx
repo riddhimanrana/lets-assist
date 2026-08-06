@@ -14,8 +14,7 @@ import { SimpleIcon } from "@/components/ui/simple-icon";
 
 export const metadata: Metadata = {
   title: "Acknowledgements",
-  description:
-    "Acknowledgements for Let's Assist - creator and source code.",
+  description: "Acknowledgements for Let's Assist - creator and source code.",
 };
 
 export default function AcknowledgementsPage() {
@@ -52,7 +51,10 @@ export default function AcknowledgementsPage() {
               className="text-primary font-semibold hover:text-primary/80 transition-colors duration-200 flex items-center gap-1 group"
             >
               Riddhiman Rana
-              <ExternalLink size={16} className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              <ExternalLink
+                size={16}
+                className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              />
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
               You can read more about the creation of Let&apos;s Assist on my{" "}
@@ -61,7 +63,8 @@ export default function AcknowledgementsPage() {
                 className="text-primary font-medium hover:text-primary/80 transition-all duration-200"
               >
                 blog post
-              </Link>.
+              </Link>
+              .
             </p>
           </CardContent>
         </Card>
@@ -72,9 +75,7 @@ export default function AcknowledgementsPage() {
               <SimpleIcon icon={siGithub} className="h-6 w-6" />
               Source Code
             </CardTitle>
-            <CardDescription>
-              View on GitHub
-            </CardDescription>
+            <CardDescription>View on GitHub</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Link
@@ -82,10 +83,15 @@ export default function AcknowledgementsPage() {
               className="text-primary font-semibold hover:text-primary/80 transition-colors duration-200 flex items-center gap-1 group"
             >
               lets-assist
-              <ExternalLink size={16} className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              <ExternalLink
+                size={16}
+                className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              />
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              This is a solo project and I&apos;m currently not accepting contributions, however the code is still openly available for transparency.
+              This is a solo project and I&apos;m currently not accepting
+              contributions, however the code is still openly available for
+              transparency.
             </p>
           </CardContent>
         </Card>

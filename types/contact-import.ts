@@ -5,13 +5,10 @@ export type ContactImportRole = "staff" | "member";
 export type ContactImportFileType = "csv" | "xlsx" | "xls";
 
 export type ContactImportJobStatus =
-  | "pending"
-  | "processing"
-  | "completed"
-  | "failed"
-  | "cancelled";
+  "pending" | "processing" | "completed" | "failed" | "cancelled";
 
-export type ContactImportRowStatus = "pending" | "invited" | "skipped" | "failed";
+export type ContactImportRowStatus =
+  "pending" | "invited" | "skipped" | "failed";
 export type ContactImportMode = "job" | "direct";
 
 export interface ContactImportParsedRow {
@@ -103,6 +100,11 @@ export interface ContactImportProcessResponse {
     skipped: number;
     failed: number;
   };
-  failedRowsPreview?: Array<Pick<OrganizationContactImportRow, "row_number" | "email" | "error" | "status">>;
+  failedRowsPreview?: Array<
+    Pick<
+      OrganizationContactImportRow,
+      "row_number" | "email" | "error" | "status"
+    >
+  >;
   error?: string;
 }

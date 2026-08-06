@@ -2,7 +2,7 @@ import { expect, type Page, type Response } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { inspectCsfIsolatedWorkDir } from "../../scripts/local-dev/dv-local-env.mjs";
+import { inspectCsfIsolatedWorkDir } from "../../../scripts/local-dev/dv-local-env.mjs";
 
 export const CSF_ORGANIZATION_SLUG = "dvhs-csf";
 export const CSF_ORGANIZATION_PATH = `/organization/${CSF_ORGANIZATION_SLUG}`;
@@ -105,7 +105,9 @@ export async function loginAs(
   // the form's explicit readiness marker before interacting with controlled
   // inputs so a fast production render cannot reset early values.
   await expect(main.locator('form[data-hydrated="true"]')).toBeVisible();
-  await expect(main.getByText("Secure check ready", { exact: true })).toBeVisible();
+  await expect(
+    main.getByText("Secure check ready", { exact: true }),
+  ).toBeVisible();
   const email = main.getByRole("textbox", { name: "Email" });
   const password = main.getByLabel("Password");
   await email.fill(account.email);
@@ -113,12 +115,15 @@ export async function loginAs(
   await expect(email).toHaveValue(account.email);
   const expectedUrl = new URL(redirectPath, page.url());
   await main.getByRole("button", { name: "Login", exact: true }).click();
-  await page.waitForURL((url) => (
-    url.pathname === expectedUrl.pathname && url.search === expectedUrl.search
-  ), {
-    waitUntil: "domcontentloaded",
-    timeout: 60_000,
-  });
+  await page.waitForURL(
+    (url) =>
+      url.pathname === expectedUrl.pathname &&
+      url.search === expectedUrl.search,
+    {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    },
+  );
 }
 
 export function watchBrowserFailures(page: Page) {
@@ -138,9 +143,7 @@ export function watchBrowserFailures(page: Page) {
   page.on("pageerror", (error) => failures.push(`pageerror: ${error.message}`));
   page.on("console", (message) => {
     if (message.type() === "error") {
-      const diagnostic = message
-        .text()
-        .includes("Error loading project feed:")
+      const diagnostic = message.text().includes("Error loading project feed:")
         ? ` [page=${new URL(page.url()).pathname} project-feed=${projectFeedState}]`
         : "";
       failures.push(`console: ${message.text()}${diagnostic}`);

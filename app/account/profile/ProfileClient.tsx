@@ -12,7 +12,18 @@ import {
   AvatarImage,
   AvatarFallback,
 } from "@/components/ui/avatar";
-import { Upload, CircleCheck, XCircle, Shield, AlertCircle, MoreHorizontal, Loader2, ShieldCheck, Trash, Trash2 } from "lucide-react";
+import {
+  Upload,
+  CircleCheck,
+  XCircle,
+  Shield,
+  AlertCircle,
+  MoreHorizontal,
+  Loader2,
+  ShieldCheck,
+  Trash,
+  Trash2,
+} from "lucide-react";
 import {
   Card,
   CardContent,
@@ -29,7 +40,12 @@ import {
 } from "@/components/ui/field";
 import { Controller } from "react-hook-form";
 import { toast } from "sonner";
-import { completeOnboarding, removeProfilePicture, updateNameAndUsername, updateProfileVisibility } from "./actions";
+import {
+  completeOnboarding,
+  removeProfilePicture,
+  updateNameAndUsername,
+  updateProfileVisibility,
+} from "./actions";
 import type { OnboardingValues } from "./actions";
 import { z } from "zod";
 import ImageCropper from "@/components/shared/ImageCropper";
@@ -92,7 +108,7 @@ const onboardingSchema = z.object({
       USERNAME_REGEX,
       "Username can only contain letters, numbers, underscores, dots and hyphens",
     )
-    .transform((val) => val.toLowerCase())  // <-- force lowercase
+    .transform((val) => val.toLowerCase()) // <-- force lowercase
     .optional()
     .or(z.literal("").transform(() => undefined)),
   avatarUrl: z.string().nullable().optional(),
@@ -100,7 +116,7 @@ const onboardingSchema = z.object({
     .string()
     .refine(
       (val) => !val || val === "" || PHONE_REGEX.test(val),
-      "Phone number must be in format XXX-XXX-XXXX"
+      "Phone number must be in format XXX-XXX-XXXX",
     )
     .transform((val) => {
       if (!val || val === "") return undefined;
@@ -240,10 +256,13 @@ export default function ProfileClient() {
   const [phoneNumberLength, setPhoneNumberLength] = useState(0);
 
   // Privacy & Safety state
-  const [profileVisibility, setProfileVisibility] = useState<ProfileVisibility>('private');
+  const [profileVisibility, setProfileVisibility] =
+    useState<ProfileVisibility>("private");
   const [isVisibilityLoading, setIsVisibilityLoading] = useState(false);
   const [canChangeVisibility, setCanChangeVisibility] = useState(true);
-  const [pendingPrimaryEmail, setPendingPrimaryEmail] = useState<string | null>(null);
+  const [pendingPrimaryEmail, setPendingPrimaryEmail] = useState<string | null>(
+    null,
+  );
 
   // Email management state
   const [emails, setEmails] = useState<UserEmail[]>([]);
@@ -412,7 +431,9 @@ export default function ProfileClient() {
       const result = await setPrimaryEmail(email);
       if (result.needsConfirmation) {
         setPendingPrimaryEmail(result.pendingEmail || email);
-        toast.info("Email change pending confirmation. Check your inbox to finish the update.");
+        toast.info(
+          "Email change pending confirmation. Check your inbox to finish the update.",
+        );
         return;
       }
       toast.success("Primary email updated");
@@ -457,7 +478,6 @@ export default function ProfileClient() {
     return `${phoneNumber.slice(0, 3)}-${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
   };
 
-
   async function onSubmit(data: OnboardingValues) {
     setIsLoading(true);
 
@@ -466,7 +486,7 @@ export default function ProfileClient() {
       const result = await updateNameAndUsername(
         data.fullName,
         data.username,
-        data.phoneNumber // Pass the transformed (digits only) phone number
+        data.phoneNumber, // Pass the transformed (digits only) phone number
       );
 
       if (!result) {
@@ -480,9 +500,16 @@ export default function ProfileClient() {
         type FormErrorKey = keyof OnboardingValues | "root.serverError";
         Object.keys(errors).forEach((key) => {
           // Map server error keys back to form field names if necessary
-          const formKey = key === 'server' ? 'root.serverError' : (key as keyof OnboardingValues);
+          const formKey =
+            key === "server"
+              ? "root.serverError"
+              : (key as keyof OnboardingValues);
           // Check if the key exists in the form before setting error
-          if (formKey in form.getValues() || formKey === 'root.serverError' || formKey === 'phoneNumber') {
+          if (
+            formKey in form.getValues() ||
+            formKey === "root.serverError" ||
+            formKey === "phoneNumber"
+          ) {
             form.setError(formKey as FormErrorKey, {
               type: "server",
               message: errors[key as keyof typeof errors]?.[0],
@@ -490,9 +517,9 @@ export default function ProfileClient() {
           } else {
             // Handle unexpected error keys, maybe log them or show a generic error
             console.warn(`Unexpected error key from server: ${key}`);
-            form.setError('root.serverError', {
+            form.setError("root.serverError", {
               type: "server",
-              message: "An unexpected validation error occurred."
+              message: "An unexpected validation error occurred.",
             });
           }
         });
@@ -500,7 +527,7 @@ export default function ProfileClient() {
       } else {
         toast.success("Profile updated successfully!");
         // Optionally reset form dirty state if needed
-        // form.reset({}, { keepValues: true }); 
+        // form.reset({}, { keepValues: true });
         setTimeout(() => {
           window.location.href = "/account/profile";
         }, 1000);
@@ -515,7 +542,7 @@ export default function ProfileClient() {
 
   // Handler for profile visibility toggle
   async function handleVisibilityChange(checked: boolean) {
-    const newVisibility: ProfileVisibility = checked ? 'public' : 'private';
+    const newVisibility: ProfileVisibility = checked ? "public" : "private";
     setIsVisibilityLoading(true);
 
     try {
@@ -523,7 +550,10 @@ export default function ProfileClient() {
 
       if (result.error) {
         // Extract error message from error object
-        const errorMsg = result.error.visibility?.[0] || result.error.server?.[0] || 'Failed to update visibility';
+        const errorMsg =
+          result.error.visibility?.[0] ||
+          result.error.server?.[0] ||
+          "Failed to update visibility";
         toast.error(errorMsg);
         return;
       }
@@ -613,7 +643,8 @@ export default function ProfileClient() {
                 <div className="space-y-6">
                   <Skeleton className="h-10 w-full" />
                   <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" /> {/* Skeleton for Phone */}
+                  <Skeleton className="h-10 w-full" />{" "}
+                  {/* Skeleton for Phone */}
                 </div>
               ) : (
                 <form
@@ -627,7 +658,9 @@ export default function ProfileClient() {
                       render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
                           <div className="flex justify-between items-center">
-                            <FieldLabel htmlFor={field.name}>Full Name</FieldLabel>
+                            <FieldLabel htmlFor={field.name}>
+                              Full Name
+                            </FieldLabel>
                             <span
                               className={`text-xs ${nameLength > NAME_MAX_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
                             >
@@ -648,7 +681,9 @@ export default function ProfileClient() {
                           <FieldDescription>
                             Your full name as you&apos;d like others to see it
                           </FieldDescription>
-                          {fieldState.invalid && <FieldMessage errors={[fieldState.error]} />}
+                          {fieldState.invalid && (
+                            <FieldMessage errors={[fieldState.error]} />
+                          )}
                         </Field>
                       )}
                     />
@@ -658,7 +693,9 @@ export default function ProfileClient() {
                       render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
                           <div className="flex justify-between items-center">
-                            <FieldLabel htmlFor={field.name}>Username</FieldLabel>
+                            <FieldLabel htmlFor={field.name}>
+                              Username
+                            </FieldLabel>
                             <span
                               className={`text-xs ${usernameLength > USERNAME_MAX_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
                             >
@@ -691,7 +728,7 @@ export default function ProfileClient() {
                               }}
                               className={
                                 !checkUsernameValid(field.value || "") &&
-                                  field.value
+                                field.value
                                   ? "border-destructive"
                                   : ""
                               }
@@ -717,7 +754,9 @@ export default function ProfileClient() {
                             Only letters, numbers, underscores, dots, and
                             hyphens allowed
                           </FieldDescription>
-                          {fieldState.invalid && <FieldMessage errors={[fieldState.error]} />}
+                          {fieldState.invalid && (
+                            <FieldMessage errors={[fieldState.error]} />
+                          )}
                         </Field>
                       )}
                     />
@@ -727,7 +766,9 @@ export default function ProfileClient() {
                       render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
                           <div className="flex justify-between items-center">
-                            <FieldLabel htmlFor={field.name}>Phone Number (Optional)</FieldLabel>
+                            <FieldLabel htmlFor={field.name}>
+                              Phone Number (Optional)
+                            </FieldLabel>
                             <span
                               className={`text-xs ${phoneNumberLength > PHONE_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
                             >
@@ -741,17 +782,24 @@ export default function ProfileClient() {
                             {...field}
                             value={field.value || ""} // Ensure value is controlled
                             onChange={(e) => {
-                              const formatted = formatPhoneNumber(e.target.value);
+                              const formatted = formatPhoneNumber(
+                                e.target.value,
+                              );
                               field.onChange(formatted); // Update form with formatted value
-                              setPhoneNumberLength(formatted.replace(/-/g, "").length); // Update length count (digits only)
+                              setPhoneNumberLength(
+                                formatted.replace(/-/g, "").length,
+                              ); // Update length count (digits only)
                             }}
                             maxLength={12} // Max length for XXX-XXX-XXXX format
                             aria-invalid={fieldState.invalid}
                           />
                           <FieldDescription>
-                            Enter your 10-digit phone number. This will be used for contact when signing up/creating projects.
+                            Enter your 10-digit phone number. This will be used
+                            for contact when signing up/creating projects.
                           </FieldDescription>
-                          {fieldState.invalid && <FieldMessage errors={[fieldState.error]} />}
+                          {fieldState.invalid && (
+                            <FieldMessage errors={[fieldState.error]} />
+                          )}
                         </Field>
                       )}
                     />
@@ -787,14 +835,26 @@ export default function ProfileClient() {
                 <CardHeader>
                   <div className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                      <svg className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      <svg
+                        className="h-4 w-4 text-primary"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                        />
                       </svg>
                     </div>
                     <div>
                       <CardTitle className="text-xl">Email Aliases</CardTitle>
                       <CardDescription>
-                        Manage secondary email addresses for account recovery. To change your primary login email, visit the Security page.
+                        Manage secondary email addresses for account recovery.
+                        To change your primary login email, visit the Security
+                        page.
                       </CardDescription>
                     </div>
                   </div>
@@ -812,7 +872,9 @@ export default function ProfileClient() {
                           className="group flex items-center justify-between gap-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors px-4 py-3"
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${isVerified ? 'bg-primary/10' : 'bg-destructive/10'}`}>
+                            <div
+                              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${isVerified ? "bg-primary/10" : "bg-destructive/10"}`}
+                            >
                               {isVerified ? (
                                 <CircleCheck className="h-4 w-4 text-primary" />
                               ) : (
@@ -825,26 +887,43 @@ export default function ProfileClient() {
                               </span>
                               <div className="flex items-center gap-2 mt-0.5">
                                 {email.is_primary && (
-                                  <Badge variant="secondary" className="text-[0.6rem] font-semibold px-1.5 py-0">
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-[0.6rem] font-semibold px-1.5 py-0"
+                                  >
                                     Primary
                                   </Badge>
                                 )}
                                 {!isVerified && (
-                                  <span className="text-xs text-destructive">Unverified</span>
+                                  <span className="text-xs text-destructive">
+                                    Unverified
+                                  </span>
                                 )}
                                 {pendingPrimaryEmail === email.email && (
-                                  <span className="text-xs text-muted-foreground">Pending confirmation</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Pending confirmation
+                                  </span>
                                 )}
                               </div>
                             </div>
                           </div>
                           <DropdownMenu>
-                            <DropdownMenuTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity")}>
+                            <DropdownMenuTrigger
+                              className={cn(
+                                buttonVariants({
+                                  variant: "ghost",
+                                  size: "icon",
+                                }),
+                                "h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity",
+                              )}
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem
-                                onSelect={() => handleSetPrimary(email.email, isVerified)}
+                                onSelect={() =>
+                                  handleSetPrimary(email.email, isVerified)
+                                }
                                 disabled={!isVerified || email.is_primary}
                                 className="gap-2"
                               >
@@ -870,7 +949,9 @@ export default function ProfileClient() {
                   {!verificationStep ? (
                     <form onSubmit={handleAddEmail} className="pt-2">
                       <div className="space-y-2">
-                        <Label htmlFor="email" className="text-sm font-medium">Add new email</Label>
+                        <Label htmlFor="email" className="text-sm font-medium">
+                          Add new email
+                        </Label>
                         <div className="flex gap-2">
                           <Input
                             id="email"
@@ -881,8 +962,14 @@ export default function ProfileClient() {
                             required
                             className="flex-1"
                           />
-                          <Button type="submit" disabled={adding} className="shrink-0">
-                            {adding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          <Button
+                            type="submit"
+                            disabled={adding}
+                            className="shrink-0"
+                          >
+                            {adding && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
                             Add Email
                           </Button>
                         </div>
@@ -897,30 +984,53 @@ export default function ProfileClient() {
                     >
                       <div className="flex items-center gap-2 text-sm">
                         <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10">
-                          <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          <svg
+                            className="h-3 w-3 text-primary"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                            />
                           </svg>
                         </div>
                         <span>
-                          Verification code sent to <strong className="text-foreground">{pendingEmail}</strong>
+                          Verification code sent to{" "}
+                          <strong className="text-foreground">
+                            {pendingEmail}
+                          </strong>
                         </span>
                       </div>
                       <form onSubmit={handleVerifyEmail}>
                         <div className="space-y-2">
-                          <Label htmlFor="code" className="text-sm font-medium">Enter 6-digit code</Label>
+                          <Label htmlFor="code" className="text-sm font-medium">
+                            Enter 6-digit code
+                          </Label>
                           <div className="flex gap-2">
                             <Input
                               id="code"
                               type="text"
                               placeholder="123456"
                               value={verificationCode}
-                              onChange={(e) => setVerificationCode(e.target.value)}
+                              onChange={(e) =>
+                                setVerificationCode(e.target.value)
+                              }
                               required
                               maxLength={6}
                               className="flex-1 font-mono tracking-widest"
                             />
-                            <Button type="submit" disabled={verifying} className="shrink-0">
-                              {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            <Button
+                              type="submit"
+                              disabled={verifying}
+                              className="shrink-0"
+                            >
+                              {verifying && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              )}
                               Verify
                             </Button>
                             <Button
@@ -971,31 +1081,58 @@ export default function ProfileClient() {
                 ) : (
                   <div className="flex items-center justify-between gap-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors p-4">
                     <div className="flex items-center gap-3">
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${profileVisibility === 'public' ? 'bg-primary/10' : 'bg-muted'}`}>
-                        {profileVisibility === 'public' ? (
-                          <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${profileVisibility === "public" ? "bg-primary/10" : "bg-muted"}`}
+                      >
+                        {profileVisibility === "public" ? (
+                          <svg
+                            className="h-5 w-5 text-primary"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
                           </svg>
                         ) : (
-                          <svg className="h-5 w-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          <svg
+                            className="h-5 w-5 text-muted-foreground"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                            />
                           </svg>
                         )}
                       </div>
                       <div className="space-y-0.5">
-                        <Label htmlFor="profile-visibility" className="text-sm font-medium cursor-pointer">
-                          {profileVisibility === 'public' ? 'Public Profile' : 'Private Profile'}
+                        <Label
+                          htmlFor="profile-visibility"
+                          className="text-sm font-medium cursor-pointer"
+                        >
+                          {profileVisibility === "public"
+                            ? "Public Profile"
+                            : "Private Profile"}
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          {profileVisibility === 'public'
-                            ? 'Anyone can view your profile and volunteer history'
-                            : 'Only you and organization admins can see your profile'}
+                          {profileVisibility === "public"
+                            ? "Anyone can view your profile and volunteer history"
+                            : "Only you and organization admins can see your profile"}
                         </p>
                       </div>
                     </div>
                     <Switch
                       id="profile-visibility"
-                      checked={profileVisibility === 'public'}
+                      checked={profileVisibility === "public"}
                       onCheckedChange={handleVisibilityChange}
                       disabled={isVisibilityLoading || !canChangeVisibility}
                     />

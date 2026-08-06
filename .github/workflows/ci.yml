@@ -57,7 +57,8 @@ jobs:
               - 'scripts/verify-*'
               - 'scripts/local-dev/**'
               - 'playwright.*.config.ts'
-              - 'tests/csf/**'
+              - 'tests/e2e/csf/**'
+              - 'tests/e2e/dv/**'
               - 'package.json'
               - 'bun.lock'
               - 'app/**/auth/**'
@@ -108,8 +109,6 @@ jobs:
 
       - name: Validate exact private plugin gitlink
         run: bun run plugin:submodules:check:strict
-        env:
-          PRIVATE_SUBMODULE_ALLOW_DETACHED_GITLINK: '1'
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -125,53 +124,11 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
-      - name: Authentication and deployment safety tests
-        run: |
-          bun test \
-            app/api/calendar/google/callback/connection-selection.test.ts \
-            lib/auth/google-oauth-connection-store.test.ts \
-            lib/auth/google-oauth-state.test.ts \
-            lib/auth/google-oauth-authorization.test.ts \
-            scripts/check-supabase-seed-safety.test.ts \
-            scripts/local-dev/dv-local-env.test.ts \
-            scripts/local-dev/supabase-cli-version.test.ts \
-            scripts/verify-supabase-migration-parity.test.ts \
-            scripts/verify-deployment-environment.test.ts \
-            scripts/verify-production-schema-deployment.test.ts
-
-      - name: CSF root acquisition and harness safety tests
-        run: |
-          bun test --preload ./scripts/local-dev/server-only-test-preload.ts \
-            components/projects/project-feed-lifecycle.test.ts \
-            lib/auth/theme-script-boundary.test.ts \
-            lib/supabase/retry-query.test.ts \
-            scripts/local-dev/csf-browser-harness.test.ts \
-            services/google-drive-metadata.test.ts \
-            services/google-sheets-report-safety.test.ts \
-            services/google-sheets-source-snapshot.test.ts
-
-      # Each of these runs in its own Bun process on purpose. They install global
-      # module mocks (`mock.module` for @supabase/supabase-js, server-only, the
-      # cron danger boundaries) and Bun's module registry is per-process, so a
-      # combined `bun test` invocation lets one file's mocks decide another
-      # file's result. Splitting them is the difference between four real gates
-      # and one gate that happens to pass.
-      - name: Seed mode execution-plan tests
-        run: bun test scripts/local-dev/seed-platform.test.ts
-
-      - name: Cron auth/shape probe tests
-        run: |
-          bun test --preload ./scripts/local-dev/server-only-test-preload.ts \
-            scripts/local-dev/cron-auth-shape-probe.test.ts
-
-      - name: Cron harness contract tests
-        run: bun test scripts/local-dev/test-cron-endpoints.test.ts
-
-      - name: Isolated app runner tests
-        run: bun test scripts/local-dev/run-dvhs-csf-isolated-app.test.ts
-
-      - name: Plugin unit and security tests
-        run: bun run plugin:test:unit
+      # The orchestrator preserves a separate Bun process for each group that
+      # installs global module mocks because Bun's module registry is per-process.
+      # This is the same interface developers run.
+      - name: Root and plugin tests
+        run: bun run test
 
       - name: Production build
         run: bun run build
@@ -190,7 +147,7 @@ jobs:
     timeout-minutes: 40
     if: needs.changes.outputs.db == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     env:
-      CSF_ISOLATED_BASE_PORT: '55320'
+      CSF_ISOLATED_BASE_PORT: "55320"
       CSF_E2E_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Require private submodule access
@@ -234,8 +191,6 @@ jobs:
 
       - name: Validate exact private plugin gitlink
         run: bun run plugin:submodules:check:strict
-        env:
-          PRIVATE_SUBMODULE_ALLOW_DETACHED_GITLINK: '1'
 
       - name: Require DVHS CSF private plugin and browser suite
         run: |
@@ -243,7 +198,7 @@ jobs:
             echo "DVHS CSF private plugin is required for database and browser validation."
             exit 1
           fi
-          if ! find tests/csf -type f -name '*.spec.ts' -print -quit | grep -q .; then
+          if ! find tests/e2e/csf -type f -name '*.spec.ts' -print -quit | grep -q .; then
             echo "DVHS CSF browser specs are required for lifecycle validation."
             exit 1
           fi
@@ -393,7 +348,7 @@ jobs:
       - name: Validate retained CSF browser traces
         if: ${{ always() }}
         run: |
-          artifact_dir="artifacts/dvhs-csf-e2e/${CSF_E2E_RUN_ID}/playwright"
+          artifact_dir=".artifacts/dvhs-csf-e2e/${CSF_E2E_RUN_ID}/playwright"
           if [[ ! -d "${artifact_dir}" ]]; then
             exit 0
           fi
@@ -412,11 +367,11 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: csf-browser-${{ github.run_id }}-${{ github.run_attempt }}
-          path: artifacts/dvhs-csf-e2e/${{ env.CSF_E2E_RUN_ID }}/playwright/
+          path: .artifacts/dvhs-csf-e2e/${{ env.CSF_E2E_RUN_ID }}/playwright/
           if-no-files-found: warn
           retention-days: 7
           compression-level: 6
-          include-hidden-files: false
+          include-hidden-files: true
 
       - name: Stop isolated Let’s Assist Supabase
         if: always()

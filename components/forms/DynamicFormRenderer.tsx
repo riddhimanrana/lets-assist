@@ -27,7 +27,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type {
   FormSchema,
@@ -68,7 +74,8 @@ export function DynamicFormRenderer({
   isSubmitting = false,
   className,
 }: DynamicFormRendererProps) {
-  const [formData, setFormData] = useState<Record<string, unknown>>(initialData);
+  const [formData, setFormData] =
+    useState<Record<string, unknown>>(initialData);
   const [errors, setErrors] = useState<FormValidationError[]>([]);
   const [currentSection, setCurrentSection] = useState(0);
 
@@ -189,10 +196,7 @@ export function DynamicFormRenderer({
           </Button>
         )}
         {isMultiSection && canGoNext && (
-          <Button
-            type="button"
-            onClick={() => setCurrentSection((s) => s + 1)}
-          >
+          <Button type="button" onClick={() => setCurrentSection((s) => s + 1)}>
             Next
           </Button>
         )}
@@ -232,9 +236,7 @@ function FieldRenderer({ field, value, onChange, error }: FieldRendererProps) {
   }
 
   if (field.type === "paragraph") {
-    return (
-      <p className="text-sm text-muted-foreground">{field.label}</p>
-    );
+    return <p className="text-sm text-muted-foreground">{field.label}</p>;
   }
 
   // Checkbox is special — label goes inline
@@ -249,7 +251,9 @@ function FieldRenderer({ field, value, onChange, error }: FieldRendererProps) {
           />
           <Label htmlFor={`input-${field.key}`} className="font-normal">
             {field.label}
-            {field.required && <span className="text-destructive ml-0.5">*</span>}
+            {field.required && (
+              <span className="text-destructive ml-0.5">*</span>
+            )}
           </Label>
         </div>
         {field.helpText && (
@@ -283,7 +287,11 @@ function FieldRenderer({ field, value, onChange, error }: FieldRendererProps) {
 // Field Input (the actual input element)
 // ---------------------------------------------------------------------------
 
-function FieldInput({ field, value, onChange }: Omit<FieldRendererProps, "error">) {
+function FieldInput({
+  field,
+  value,
+  onChange,
+}: Omit<FieldRendererProps, "error">) {
   switch (field.type) {
     case "text":
     case "email":

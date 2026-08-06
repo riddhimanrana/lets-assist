@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -9,6 +9,94 @@ export const SOURCE_ORGANIZATION_RULES = Object.freeze({
   GENERATED_ARTIFACT: "generated-artifact",
   SCRATCH_SOURCE: "scratch-source",
   BACKUP_SOURCE: "backup-source",
+  HIDDEN_DOCUMENTATION: "hidden-documentation",
+  ROOT_BINARY: "root-binary",
+  AGENT_WORKTREE: "agent-worktree",
+  MAINTAINABILITY_LIMIT: "maintainability-limit",
+});
+
+const GENERATED_DIRECTORIES = new Set([
+  ".artifacts",
+  ".next",
+  ".next-csf-isolated",
+  "artifacts",
+  "coverage",
+  "playwright-report",
+  "test-results",
+]);
+const BINARY_EXTENSIONS = new Set([
+  ".7z",
+  ".doc",
+  ".docx",
+  ".gif",
+  ".jpeg",
+  ".jpg",
+  ".mov",
+  ".mp4",
+  ".otf",
+  ".pdf",
+  ".png",
+  ".ppt",
+  ".pptx",
+  ".tar",
+  ".ttf",
+  ".webp",
+  ".xls",
+  ".xlsx",
+  ".zip",
+]);
+
+// Temporary ratchet for files that predate this gate. New oversized files and
+// growth beyond these reviewed line counts fail immediately; cleanup PRs remove
+// entries as modules are split below their category limit.
+const OVERSIZED_BASELINE = Object.freeze({
+  "lets-assist": Object.freeze({
+    "app/projects/[id]/actions.ts": 4080,
+    "app/admin/moderation/actions.ts": 2133,
+    "app/api/resend/webhook/route.test.ts": 2067,
+    "services/google-sheets.ts": 1851,
+    "components/projects/ProjectsInfiniteScroll.tsx": 1759,
+    "services/calendar.ts": 1582,
+    "services/csf-import-contract.ts": 1493,
+    "app/organization/[id]/settings/actions.ts": 1377,
+    "app/admin/plugins/actions.ts": 1335,
+    "components/organization/OrganizationTabs.tsx": 1340,
+    "app/projects/create/actions.ts": 1323,
+    "components/waiver/WaiverSigningDialog.tsx": 1321,
+    "scripts/local-dev/dv-local-env.test.ts": 1283,
+    "app/organization/[id]/reports/sheets-actions.ts": 1075,
+    "components/waiver/WaiverBuilderDialog.tsx": 1220,
+    "app/admin/actions.ts": 1130,
+    "components/waiver/PdfViewerWithOverlay.tsx": 1010,
+    "app/organization/[id]/admin/actions.ts": 994,
+    "app/dashboard/page.tsx": 915,
+    "components/layout/Navbar.tsx": 880,
+    "services/email.ts": 887,
+    "app/attend/[projectId]/actions.ts": 880,
+    "components/projects/ProjectViewToggle.tsx": 752,
+    "components/ui/sidebar.tsx": 723,
+    "components/projects/ProjectsMapView.tsx": 675,
+    "app/profile/[username]/page.tsx": 663,
+  }),
+  private: Object.freeze({
+    "plugins/dvhs-csf/actions.ts": 11145,
+    "plugins/dvhs-csf/services/import-integrity.test.ts": 10065,
+    "plugins/dvhs-csf/services/dashboard.ts": 3218,
+    "plugins/dv-speech-debate/actions.ts": 2101,
+    "plugins/dvhs-csf/services/import-actor-authorization.test.ts": 2022,
+    "plugins/dvhs-csf/services/import-upload-source-preflight.test.ts": 1919,
+    "plugins/dvhs-csf/services/import-preview-readiness.test.ts": 1835,
+    "plugins/dvhs-csf/services/import-contract-parity.test.ts": 1619,
+    "plugins/dvhs-csf/services/sheet-import.ts": 1453,
+    "plugins/dvhs-csf/services/csf-cleanup-orchestration.test.ts": 1343,
+    "plugins/dvhs-csf/services/import-upload-attachment-lifecycle.test.ts": 1243,
+    "plugins/dvhs-csf/services/import-preview-readiness.ts": 1225,
+    "plugins/dvhs-csf/services/import-preview-readiness-boundary.test.ts": 1205,
+    "plugins/dvhs-csf/services/personal-calendar.ts": 1152,
+    "plugins/dvhs-csf/services/normalized-import-adapters.ts": 1053,
+    "plugins/dvhs-csf/services/communications-workspace.ts": 1022,
+    "plugins/dvhs-csf/services/import-upload-source-preflight.ts": 860,
+  }),
 });
 
 const SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".mjs", ".ts", ".tsx"]);
@@ -37,6 +125,41 @@ export function findSourceOrganizationIssues(files) {
     const extension = path.posix.extname(file).toLowerCase();
     const root = file.split("/", 1)[0];
 
+    if (GENERATED_DIRECTORIES.has(root)) {
+      issues.push({
+        file,
+        rule: SOURCE_ORGANIZATION_RULES.GENERATED_ARTIFACT,
+        message:
+          "Generated output belongs in ignored local artifact directories.",
+      });
+    }
+
+    if (file.startsWith(".claude/worktrees/")) {
+      issues.push({
+        file,
+        rule: SOURCE_ORGANIZATION_RULES.AGENT_WORKTREE,
+        message: "Agent worktrees must remain outside the tracked repository.",
+      });
+    }
+
+    if (root === file && BINARY_EXTENSIONS.has(extension)) {
+      issues.push({
+        file,
+        rule: SOURCE_ORGANIZATION_RULES.ROOT_BINARY,
+        message:
+          "Binary fixtures and assets require a named docs, public, or application directory.",
+      });
+    }
+
+    if (/^\.[^/]+\.(?:md|mdx)$/iu.test(file)) {
+      issues.push({
+        file,
+        rule: SOURCE_ORGANIZATION_RULES.HIDDEN_DOCUMENTATION,
+        message:
+          "Documentation must be discoverable through AGENTS.md or docs/.",
+      });
+    }
+
     if (
       basename === ".DS_Store" ||
       basename.endsWith(".tsbuildinfo") ||
@@ -45,7 +168,8 @@ export function findSourceOrganizationIssues(files) {
       issues.push({
         file,
         rule: SOURCE_ORGANIZATION_RULES.GENERATED_ARTIFACT,
-        message: "Generated editor, compiler, and log artifacts must not be tracked.",
+        message:
+          "Generated editor, compiler, and log artifacts must not be tracked.",
       });
     }
 
@@ -58,26 +182,62 @@ export function findSourceOrganizationIssues(files) {
       issues.push({
         file,
         rule: SOURCE_ORGANIZATION_RULES.SCRATCH_SOURCE,
-        message: "Ad-hoc source belongs in a named script, fixture, or test directory.",
+        message:
+          "Ad-hoc source belongs in a named script, fixture, or test directory.",
       });
     }
 
     if (
       SOURCE_ROOTS.has(root) &&
-      /(?:^|[._-])(?:backup|bak|copy|old|orig|rej|tmp)(?:[._-]|$)/iu.test(basename)
+      /(?:^|[._-])(?:backup|bak|copy|old|orig|rej|tmp)(?:[._-]|$)/iu.test(
+        basename,
+      )
     ) {
       issues.push({
         file,
         rule: SOURCE_ORGANIZATION_RULES.BACKUP_SOURCE,
-        message: "Source-control history replaces backup or copy files in production roots.",
+        message:
+          "Source-control history replaces backup or copy files in production roots.",
       });
     }
   }
 
   return issues.sort(
     (left, right) =>
-      left.file.localeCompare(right.file) || left.rule.localeCompare(right.rule),
+      left.file.localeCompare(right.file) ||
+      left.rule.localeCompare(right.rule),
   );
+}
+
+function maintainabilityLimit(file) {
+  if (/(?:^|\/)(?:supabase\/migrations|generated)(?:\/|$)/u.test(file))
+    return null;
+  if (/\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(file)) return 1200;
+  if (/(?:^|\/)(?:actions?|services?)(?:\/|\.|$)/u.test(file)) return 800;
+  if (
+    file.endsWith(".tsx") &&
+    (file.includes("/page.tsx") || file.startsWith("components/"))
+  )
+    return 600;
+  return null;
+}
+
+export function findMaintainabilityIssues(entries, repositoryName) {
+  const baseline = OVERSIZED_BASELINE[repositoryName] ?? {};
+  return entries.flatMap(({ file: input, lines }) => {
+    const file = normalizeRepoPath(input);
+    const limit = maintainabilityLimit(file);
+    if (limit === null || lines <= limit) return [];
+    const reviewedMaximum = baseline[file];
+    if (reviewedMaximum !== undefined && lines <= reviewedMaximum) return [];
+    return [
+      {
+        file,
+        rule: SOURCE_ORGANIZATION_RULES.MAINTAINABILITY_LIMIT,
+        message: `${lines} lines exceeds the ${limit}-line limit${reviewedMaximum ? ` and reviewed baseline ${reviewedMaximum}` : ""}.`,
+      },
+    ];
+  });
 }
 
 export function getTrackedFiles(repoRoot = process.cwd()) {
@@ -98,7 +258,27 @@ export function getTrackedFiles(repoRoot = process.cwd()) {
 
 function main() {
   const repoRoot = process.cwd();
-  const issues = findSourceOrganizationIssues(getTrackedFiles(repoRoot));
+  const trackedFiles = getTrackedFiles(repoRoot);
+  const lineEntries = trackedFiles
+    .filter((file) => SOURCE_EXTENSIONS.has(path.extname(file).toLowerCase()))
+    .map((file) => {
+      const contents = readFileSync(path.join(repoRoot, file), "utf8");
+      return {
+        file,
+        lines:
+          contents === ""
+            ? 0
+            : contents.split("\n").length - (contents.endsWith("\n") ? 1 : 0),
+      };
+    });
+  const issues = [
+    ...findSourceOrganizationIssues(trackedFiles),
+    ...findMaintainabilityIssues(lineEntries, path.basename(repoRoot)),
+  ].sort(
+    (left, right) =>
+      left.file.localeCompare(right.file) ||
+      left.rule.localeCompare(right.rule),
+  );
 
   if (issues.length === 0) {
     console.log(

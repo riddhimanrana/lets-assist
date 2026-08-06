@@ -68,14 +68,14 @@ An adviser may change future-semester policy. Historical evaluations always reta
 
 ### 2.4 What the platform owns—and what it does not
 
-| System | Operational responsibility | Authority after import | Write behavior |
-|---|---|---|---|
-| Google Forms | Original application, attendance, and club-audit submissions | Immutable source evidence only | Let’s Assist does not edit responses |
-| Google Sheets | Raw response grids, historical class tabs, officer compatibility exports | Raw source before reconciliation; not authoritative for reviewed platform fields afterward | Read for preview/import; exports create a new timestamped tab and never overwrite an officer-maintained tab |
-| Google Drive | Transcripts, receipts, proofs, spreadsheets, and chapter source files | Authoritative file bytes and access controls | Store provider IDs and links; do not duplicate public copies |
-| Let’s Assist | Normalized students, reviews, eligibility, dues verification, decisions, term membership, attendance, point awards, club approvals, reports, and history | Operational source of truth after officer commit | All consequential changes are permission-checked and audited |
-| Google Classroom | External member broadcast channel | No platform state | Officers post manually; no API or internal tracker |
-| DVHS CSF website and Instagram | Public chapter information and outreach | Public-information source | The plugin does not attempt to become a competing CMS |
+| System                         | Operational responsibility                                                                                                                               | Authority after import                                                                     | Write behavior                                                                                              |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| Google Forms                   | Original application, attendance, and club-audit submissions                                                                                             | Immutable source evidence only                                                             | Let’s Assist does not edit responses                                                                        |
+| Google Sheets                  | Raw response grids, historical class tabs, officer compatibility exports                                                                                 | Raw source before reconciliation; not authoritative for reviewed platform fields afterward | Read for preview/import; exports create a new timestamped tab and never overwrite an officer-maintained tab |
+| Google Drive                   | Transcripts, receipts, proofs, spreadsheets, and chapter source files                                                                                    | Authoritative file bytes and access controls                                               | Store provider IDs and links; do not duplicate public copies                                                |
+| Let’s Assist                   | Normalized students, reviews, eligibility, dues verification, decisions, term membership, attendance, point awards, club approvals, reports, and history | Operational source of truth after officer commit                                           | All consequential changes are permission-checked and audited                                                |
+| Google Classroom               | External member broadcast channel                                                                                                                        | No platform state                                                                          | Officers post manually; no API or internal tracker                                                          |
+| DVHS CSF website and Instagram | Public chapter information and outreach                                                                                                                  | Public-information source                                                                  | The plugin does not attempt to become a competing CMS                                                       |
 
 ---
 
@@ -131,27 +131,27 @@ The adult chapter authority or explicitly delegated administrator. This role can
 
 ### 4.2 Permission matrix
 
-| Capability | Applicant | Member | Officer with capability | Adviser/admin |
-|---|:---:|:---:|:---:|:---:|
-| View own student record and application | Yes | Yes | When assigned or permitted | Yes |
-| Supply permitted missing information | Yes | Yes | Yes | Yes |
-| View published activities | No until authenticated application/member access is established | Yes | Yes | Yes |
-| Submit own point evidence and appeal | No | Yes | Yes for own record | Yes for own record |
-| View other students | No | No | `manage_profiles` or workflow-specific permission | Yes |
-| Review applications | No | No | `review_applications` | Yes |
-| Verify dues | No | No | `manage_payment_review` | Yes |
-| Apply academic override | No | No | No unless explicitly delegated | Yes |
-| Manage activities | No | No | `manage_opportunities` | Yes |
-| Review point submissions | No | No | `verify_submissions` | Yes |
-| Process final point records | No | No | `process_points` | Yes |
-| Manage meetings and attendance | No | No | `manage_cohorts_terms` or delegated meeting permission | Yes |
-| Manage partner clubs | No | No | `manage_partner_clubs` | Yes |
-| Run imports | No | No | `manage_sheet_sync` | Yes |
-| Export ordinary reports | No | Own downloadable status only if added later | `export_reports` | Yes |
-| Export sensitive reports | No | No | Explicit `export_sensitive_reports` only | Yes |
-| Manage staff access and policy | No | No | Explicit administrative capability | Yes |
-| Close/reopen a semester | No | No | Close only if explicitly delegated; no reopen | Yes |
-| View change history | Own status history only | Own status history only | `view_audit_history` | Yes |
+| Capability                              |                            Applicant                            |                   Member                    |                Officer with capability                 |   Adviser/admin    |
+| --------------------------------------- | :-------------------------------------------------------------: | :-----------------------------------------: | :----------------------------------------------------: | :----------------: |
+| View own student record and application |                               Yes                               |                     Yes                     |               When assigned or permitted               |        Yes         |
+| Supply permitted missing information    |                               Yes                               |                     Yes                     |                          Yes                           |        Yes         |
+| View published activities               | No until authenticated application/member access is established |                     Yes                     |                          Yes                           |        Yes         |
+| Submit own point evidence and appeal    |                               No                                |                     Yes                     |                   Yes for own record                   | Yes for own record |
+| View other students                     |                               No                                |                     No                      |   `manage_profiles` or workflow-specific permission    |        Yes         |
+| Review applications                     |                               No                                |                     No                      |                 `review_applications`                  |        Yes         |
+| Verify dues                             |                               No                                |                     No                      |                `manage_payment_review`                 |        Yes         |
+| Apply academic override                 |                               No                                |                     No                      |             No unless explicitly delegated             |        Yes         |
+| Manage activities                       |                               No                                |                     No                      |                 `manage_opportunities`                 |        Yes         |
+| Review point submissions                |                               No                                |                     No                      |                  `verify_submissions`                  |        Yes         |
+| Process final point records             |                               No                                |                     No                      |                    `process_points`                    |        Yes         |
+| Manage meetings and attendance          |                               No                                |                     No                      | `manage_cohorts_terms` or delegated meeting permission |        Yes         |
+| Manage partner clubs                    |                               No                                |                     No                      |                 `manage_partner_clubs`                 |        Yes         |
+| Run imports                             |                               No                                |                     No                      |                  `manage_sheet_sync`                   |        Yes         |
+| Export ordinary reports                 |                               No                                | Own downloadable status only if added later |                    `export_reports`                    |        Yes         |
+| Export sensitive reports                |                               No                                |                     No                      |        Explicit `export_sensitive_reports` only        |        Yes         |
+| Manage staff access and policy          |                               No                                |                     No                      |           Explicit administrative capability           |        Yes         |
+| Close/reopen a semester                 |                               No                                |                     No                      |     Close only if explicitly delegated; no reopen      |        Yes         |
+| View change history                     |                     Own status history only                     |           Own status history only           |                  `view_audit_history`                  |        Yes         |
 
 ### 4.3 Default officer templates
 
@@ -190,33 +190,33 @@ The current implementation contains important work that should be retained and r
 
 ### 5.2 Problems that require rebuilding
 
-| Current surface or concept | Finding | Required disposition |
-|---|---|---|
-| Officer home hero | Large, generic framing consumes space before the actual work | Replace with compact term context and explicit queues/deadlines |
-| “Review inbox” | Combines unrelated decisions into an abstract number | Remove; show named queues such as “Applications awaiting decision” and “Point submissions awaiting review” |
-| “Semester readiness” | Invented scorecard language; setup is not a health metric | Remove; put concrete missing setup on Semester pages |
-| “At risk” | Conflates points, meetings, and review state before the term is complete | Remove globally; display the exact unmet requirement only where useful |
-| “Prepare Spring 2026” | Vague and promotional | Replace with “Spring 2026” plus explicit setup actions |
-| “F25 focus” | Internal shorthand presented as product language | Replace with a full semester selector, such as “Fall 2025” |
-| “CSF member ledger” | Finance-like and unfamiliar | Replace with “Members” or “Member directory” |
-| Generic “Onboarding” | Mixes invitations, account matching, and student creation | Remove as navigation; place “Connect student record” in Members |
-| Communications/Updates | Duplicates the external Classroom/website workflow and implies platform delivery | Remove from active IA; keep old announcement rows as migration history only |
-| Applications dialog | Shows aggregate point totals but not the course lines, document checks, dues state, provenance, or decision history needed to review accurately | Rebuild as an addressable review workspace |
-| Member table | Shows many empty future-term chips and generic “needs attention” state | Show current application/membership columns and historical data on detail only |
-| Classes & Terms | Exposes implementation structure instead of semester operations | Rebuild as Semester with Schedule, Policy, and Previous semesters |
-| Activities | Useful domain, but current posts mix member content and officer settings inconsistently | Retain and rebuild with explicit lifecycle and member preview |
-| Points workbook | Useful for officers familiar with Sheets, but encourages free-form slot semantics | Retain density while using normalized submissions and awarded quantities |
-| Meetings | Useful, but needs clear logical meeting/session distinction and reconciliation | Retain and rebuild around sessions, attendance imports, and unmatched rows |
-| Partner Clubs | Legitimate DVHS workflow, but current metrics and term state are inconsistent | Retain under Service with term approval and proof history |
-| Data & imports | Existing one-range workflow is too technical and incomplete | Rebuild as a guided source/map/preview/reconcile/commit/history wizard |
-| Reports | Generic totals and “at risk” counts do not correspond to chapter decisions | Rebuild as term-scoped operational exports |
-| Audit History | Technically correct but sounds punitive | Rename visible UI to “Change history”; retain immutable audit model |
-| Restrictions | Separate route exposes a low-frequency implementation concept | Move to student detail or Settings according to target |
-| Staff/Roles | Duplicate routes and technical role language | Merge into “Staff access” with position assignments and capabilities |
-| Settings | Mixes policy and product settings | Keep product settings only; move semester rules to Semester → Policy |
-| Public page | Must not compete with the official chapter site | Keep minimal: identity, safe activities, sign-in, official links |
-| Direct plugin and embedded routes | Duplicate navigation and aliases create inconsistent wayfinding | Make the organization tab surface canonical and redirect legacy aliases |
-| Hidden accessibility tabs/duplicate aliases | Invisible or repeated navigation creates confusing focus and route state | Remove from DOM or convert to one labeled, keyboard-operable navigation model |
+| Current surface or concept                  | Finding                                                                                                                                         | Required disposition                                                                                       |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Officer home hero                           | Large, generic framing consumes space before the actual work                                                                                    | Replace with compact term context and explicit queues/deadlines                                            |
+| “Review inbox”                              | Combines unrelated decisions into an abstract number                                                                                            | Remove; show named queues such as “Applications awaiting decision” and “Point submissions awaiting review” |
+| “Semester readiness”                        | Invented scorecard language; setup is not a health metric                                                                                       | Remove; put concrete missing setup on Semester pages                                                       |
+| “At risk”                                   | Conflates points, meetings, and review state before the term is complete                                                                        | Remove globally; display the exact unmet requirement only where useful                                     |
+| “Prepare Spring 2026”                       | Vague and promotional                                                                                                                           | Replace with “Spring 2026” plus explicit setup actions                                                     |
+| “F25 focus”                                 | Internal shorthand presented as product language                                                                                                | Replace with a full semester selector, such as “Fall 2025”                                                 |
+| “CSF member ledger”                         | Finance-like and unfamiliar                                                                                                                     | Replace with “Members” or “Member directory”                                                               |
+| Generic “Onboarding”                        | Mixes invitations, account matching, and student creation                                                                                       | Remove as navigation; place “Connect student record” in Members                                            |
+| Communications/Updates                      | Duplicates the external Classroom/website workflow and implies platform delivery                                                                | Remove from active IA; keep old announcement rows as migration history only                                |
+| Applications dialog                         | Shows aggregate point totals but not the course lines, document checks, dues state, provenance, or decision history needed to review accurately | Rebuild as an addressable review workspace                                                                 |
+| Member table                                | Shows many empty future-term chips and generic “needs attention” state                                                                          | Show current application/membership columns and historical data on detail only                             |
+| Classes & Terms                             | Exposes implementation structure instead of semester operations                                                                                 | Rebuild as Semester with Schedule, Policy, and Previous semesters                                          |
+| Activities                                  | Useful domain, but current posts mix member content and officer settings inconsistently                                                         | Retain and rebuild with explicit lifecycle and member preview                                              |
+| Points workbook                             | Useful for officers familiar with Sheets, but encourages free-form slot semantics                                                               | Retain density while using normalized submissions and awarded quantities                                   |
+| Meetings                                    | Useful, but needs clear logical meeting/session distinction and reconciliation                                                                  | Retain and rebuild around sessions, attendance imports, and unmatched rows                                 |
+| Partner Clubs                               | Legitimate DVHS workflow, but current metrics and term state are inconsistent                                                                   | Retain under Service with term approval and proof history                                                  |
+| Data & imports                              | Existing one-range workflow is too technical and incomplete                                                                                     | Rebuild as a guided source/map/preview/reconcile/commit/history wizard                                     |
+| Reports                                     | Generic totals and “at risk” counts do not correspond to chapter decisions                                                                      | Rebuild as term-scoped operational exports                                                                 |
+| Audit History                               | Technically correct but sounds punitive                                                                                                         | Rename visible UI to “Change history”; retain immutable audit model                                        |
+| Restrictions                                | Separate route exposes a low-frequency implementation concept                                                                                   | Move to student detail or Settings according to target                                                     |
+| Staff/Roles                                 | Duplicate routes and technical role language                                                                                                    | Merge into “Staff access” with position assignments and capabilities                                       |
+| Settings                                    | Mixes policy and product settings                                                                                                               | Keep product settings only; move semester rules to Semester → Policy                                       |
+| Public page                                 | Must not compete with the official chapter site                                                                                                 | Keep minimal: identity, safe activities, sign-in, official links                                           |
+| Direct plugin and embedded routes           | Duplicate navigation and aliases create inconsistent wayfinding                                                                                 | Make the organization tab surface canonical and redirect legacy aliases                                    |
+| Hidden accessibility tabs/duplicate aliases | Invisible or repeated navigation creates confusing focus and route state                                                                        | Remove from DOM or convert to one labeled, keyboard-operable navigation model                              |
 
 ### 5.3 Component-level rules
 
@@ -230,25 +230,25 @@ The current implementation contains important work that should be retained and r
 
 ### 5.4 Current interaction and state audit
 
-| Current interaction | Finding | Required change |
-|---|---|---|
-| Application review dialog | A modal is too small for course rows, documents, provenance, checks, notes, and decision history | Replace with the addressable split/full-page review workspace in Section 8 |
-| Member row action menu | Large icons and loosely grouped actions make routine tasks feel visually heavy | Use 16 px icons, concise labels, separators only between meaningful groups, and move multi-step work to its destination page |
-| Add/edit member dialogs | Permanent identity and semester membership are edited together, risking accidental historical changes | Keep identity editing short; create or correct term membership through the selected semester workflow with reason/history |
-| Class/term action dialogs | Delete and status actions expose implementation objects without enough dependency context | Move to Semester, show affected applications/members/meetings/imports, and prefer archive over destructive deletion |
-| Close-term dialog | A short selector cannot communicate unresolved records or final outcomes | Replace with full term-close preflight and explicit exception resolution |
-| Create activity dialog | Useful starting form, but publication prerequisites and member preview are not central | Use a draft editor with validation, member preview, publish confirmation, and post-publication change rules |
-| Point submission dialog | Allows free selection without consistently grounding the claim in an approved activity/club and current policy | Require a valid source, show point/evidence rules, and separate claimed from awarded quantity |
-| Submission review dialog | Decision is isolated from member history, caps, prior awards, and appeal state | Add contextual policy/member totals and atomic approve-adjust-request-reject actions |
-| Drive Picker controls | Useful integration, but spread across Meetings, Clubs, and Sheets without one import language | Reuse one source-selection pattern and route each source into the same preview/reconciliation semantics |
-| Partner club add/edit/link dialogs | Separate dialogs obscure canonical club identity versus term approval and evidence | Use one club record with a term-review workflow and aliases |
-| Staff/position dialogs | Position, platform account, display title, and permissions are difficult to reason about separately | Consolidate into Staff access with effective dates and a capability preview |
-| Confirmation dialogs | Some current actions confirm deletion but do not consistently require an operational reason | Apply the sensitive-action rules in Section 14.3 and show the exact consequence |
-| Generic toast success/error | A toast alone does not tell an officer which record changed or whether related records committed | Keep a concise toast, plus inline result state, record link, and correlation ID on failure |
-| Empty states | Some states use large cards or generic “nothing here” text without distinguishing setup from no matches | Apply the three empty-state categories in Section 7.4 |
-| Loading states | Route-level loading can leave the product shape unclear | Preserve headers, filters, and realistic table/detail skeletons |
-| Responsive navigation | Wide tab rows wrap or compress, and administration becomes a second visual navigation layer | Use the single canonical navigation plus a mobile sheet/menu |
-| Public activity layout | Marketing-style cards and repeated explanatory privacy copy compete with the official site | Keep a concise identity header, safe activity list, sign-in, and official links |
+| Current interaction                | Finding                                                                                                        | Required change                                                                                                              |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Application review dialog          | A modal is too small for course rows, documents, provenance, checks, notes, and decision history               | Replace with the addressable split/full-page review workspace in Section 8                                                   |
+| Member row action menu             | Large icons and loosely grouped actions make routine tasks feel visually heavy                                 | Use 16 px icons, concise labels, separators only between meaningful groups, and move multi-step work to its destination page |
+| Add/edit member dialogs            | Permanent identity and semester membership are edited together, risking accidental historical changes          | Keep identity editing short; create or correct term membership through the selected semester workflow with reason/history    |
+| Class/term action dialogs          | Delete and status actions expose implementation objects without enough dependency context                      | Move to Semester, show affected applications/members/meetings/imports, and prefer archive over destructive deletion          |
+| Close-term dialog                  | A short selector cannot communicate unresolved records or final outcomes                                       | Replace with full term-close preflight and explicit exception resolution                                                     |
+| Create activity dialog             | Useful starting form, but publication prerequisites and member preview are not central                         | Use a draft editor with validation, member preview, publish confirmation, and post-publication change rules                  |
+| Point submission dialog            | Allows free selection without consistently grounding the claim in an approved activity/club and current policy | Require a valid source, show point/evidence rules, and separate claimed from awarded quantity                                |
+| Submission review dialog           | Decision is isolated from member history, caps, prior awards, and appeal state                                 | Add contextual policy/member totals and atomic approve-adjust-request-reject actions                                         |
+| Drive Picker controls              | Useful integration, but spread across Meetings, Clubs, and Sheets without one import language                  | Reuse one source-selection pattern and route each source into the same preview/reconciliation semantics                      |
+| Partner club add/edit/link dialogs | Separate dialogs obscure canonical club identity versus term approval and evidence                             | Use one club record with a term-review workflow and aliases                                                                  |
+| Staff/position dialogs             | Position, platform account, display title, and permissions are difficult to reason about separately            | Consolidate into Staff access with effective dates and a capability preview                                                  |
+| Confirmation dialogs               | Some current actions confirm deletion but do not consistently require an operational reason                    | Apply the sensitive-action rules in Section 14.3 and show the exact consequence                                              |
+| Generic toast success/error        | A toast alone does not tell an officer which record changed or whether related records committed               | Keep a concise toast, plus inline result state, record link, and correlation ID on failure                                   |
+| Empty states                       | Some states use large cards or generic “nothing here” text without distinguishing setup from no matches        | Apply the three empty-state categories in Section 7.4                                                                        |
+| Loading states                     | Route-level loading can leave the product shape unclear                                                        | Preserve headers, filters, and realistic table/detail skeletons                                                              |
+| Responsive navigation              | Wide tab rows wrap or compress, and administration becomes a second visual navigation layer                    | Use the single canonical navigation plus a mobile sheet/menu                                                                 |
+| Public activity layout             | Marketing-style cards and repeated explanatory privacy copy compete with the official site                     | Keep a concise identity header, safe activity list, sign-in, and official links                                              |
 
 ---
 
@@ -286,46 +286,46 @@ Applicants who are not yet approved can see My CSF. Activities and Point submiss
 
 The host organization route is canonical. Visible state must be addressable and recoverable after refresh.
 
-| Surface | Canonical pattern |
-|---|---|
-| Home | `/organization/:slug?tab=csf-overview` |
-| Applications | `/organization/:slug?tab=csf-applications&view=review|all` |
-| Selected application | Same route with `application=:id` |
-| Members | `/organization/:slug?tab=csf-members&view=directory|current|seniors` |
-| Selected member | Same route with `member=:id` |
-| Service | `/organization/:slug?tab=csf-service&view=activities|submissions|meetings|clubs` |
-| Selected service record | Same route with the relevant stable record ID |
-| Semester | `/organization/:slug?tab=csf-semester&view=schedule|policy|history` |
-| Imports | `/organization/:slug?tab=csf-imports` with optional `job=:id` |
-| Reports | `/organization/:slug?tab=csf-reports` |
-| Staff access | `/organization/:slug?tab=csf-access` |
-| Change history | `/organization/:slug?tab=csf-history` |
-| Settings | `/organization/:slug?tab=csf-settings` |
+| Surface                 | Canonical pattern                                             |
+| ----------------------- | ------------------------------------------------------------- |
+| Home                    | `/organization/:slug?tab=csf-overview`                        |
+| Applications            | `/organization/:slug?tab=csf-applications&view=review         | all`        |
+| Selected application    | Same route with `application=:id`                             |
+| Members                 | `/organization/:slug?tab=csf-members&view=directory           | current     | seniors` |
+| Selected member         | Same route with `member=:id`                                  |
+| Service                 | `/organization/:slug?tab=csf-service&view=activities          | submissions | meetings | clubs` |
+| Selected service record | Same route with the relevant stable record ID                 |
+| Semester                | `/organization/:slug?tab=csf-semester&view=schedule           | policy      | history` |
+| Imports                 | `/organization/:slug?tab=csf-imports` with optional `job=:id` |
+| Reports                 | `/organization/:slug?tab=csf-reports`                         |
+| Staff access            | `/organization/:slug?tab=csf-access`                          |
+| Change history          | `/organization/:slug?tab=csf-history`                         |
+| Settings                | `/organization/:slug?tab=csf-settings`                        |
 
 Existing direct plugin routes remain temporary compatibility aliases. They redirect inward to the equivalent host route. They must never redirect in both directions.
 
 ### 6.4 Legacy route mapping
 
-| Existing route | Destination |
-|---|---|
-| `overview` | Home |
-| `profiles` | Members → Directory |
-| `applications` | Applications → Review queue |
-| `onboarding`, `connect` | Members → Connect student record, preserving invitation code when present |
-| `cohorts`, `terms` | Semester → Schedule & deadlines or Previous semesters |
-| `opportunities` | Service → Activities |
-| `submissions`, member `points` | Point submissions |
-| staff `points` | Service → Point submissions/processing |
-| `meetings` | Service → Meetings |
-| `partner-clubs` | Service → Partner clubs |
-| `sheets` | Imports |
-| `staff`, `roles` | Staff access |
-| `audit` | Change history |
-| `restrictions` | Member detail or Settings |
-| `calendar` | Removed; historical announcement records are read-only migration data |
-| `reports` | Reports |
-| `settings` | Settings or Semester → Policy, depending on field |
-| `my-profile`, `application-status` | My CSF |
+| Existing route                     | Destination                                                               |
+| ---------------------------------- | ------------------------------------------------------------------------- |
+| `overview`                         | Home                                                                      |
+| `profiles`                         | Members → Directory                                                       |
+| `applications`                     | Applications → Review queue                                               |
+| `onboarding`, `connect`            | Members → Connect student record, preserving invitation code when present |
+| `cohorts`, `terms`                 | Semester → Schedule & deadlines or Previous semesters                     |
+| `opportunities`                    | Service → Activities                                                      |
+| `submissions`, member `points`     | Point submissions                                                         |
+| staff `points`                     | Service → Point submissions/processing                                    |
+| `meetings`                         | Service → Meetings                                                        |
+| `partner-clubs`                    | Service → Partner clubs                                                   |
+| `sheets`                           | Imports                                                                   |
+| `staff`, `roles`                   | Staff access                                                              |
+| `audit`                            | Change history                                                            |
+| `restrictions`                     | Member detail or Settings                                                 |
+| `calendar`                         | Removed; historical announcement records are read-only migration data     |
+| `reports`                          | Reports                                                                   |
+| `settings`                         | Settings or Semester → Policy, depending on field                         |
+| `my-profile`, `application-status` | My CSF                                                                    |
 
 ---
 
@@ -803,21 +803,21 @@ Prior-term closure and next-term setup may overlap.
 
 ### 10.1 Required product terminology
 
-| Do not use | Use instead |
-|---|---|
-| Review inbox | Applications awaiting decision, Point submissions awaiting review, Imported rows to resolve |
-| Semester readiness | Semester setup, or the exact missing item |
-| At risk | The exact condition: 2 points remaining, Missing March meeting, Awaiting dues verification |
-| Prepare Spring 2026 | Spring 2026; Configure Spring 2026 only on setup action |
-| F25/S26 in visible headings | Fall 2025/Spring 2026; codes may remain in imports and compact metadata |
-| CSF member ledger | Members or Member directory |
-| Onboarding | Connect student record or Class invitation |
-| Audit | Change history in UI; audit remains an internal technical term |
-| Sync | Import for inbound data; Export for outbound data; reserve sync for provider health logs |
-| Point claim | Point submission in general UI; “claim” may appear in explanatory copy |
-| Failed member | Incomplete semester, with explicit reasons |
-| Health/risk score | No replacement |
-| Communications/Updates | Remove from product navigation |
+| Do not use                  | Use instead                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------- |
+| Review inbox                | Applications awaiting decision, Point submissions awaiting review, Imported rows to resolve |
+| Semester readiness          | Semester setup, or the exact missing item                                                   |
+| At risk                     | The exact condition: 2 points remaining, Missing March meeting, Awaiting dues verification  |
+| Prepare Spring 2026         | Spring 2026; Configure Spring 2026 only on setup action                                     |
+| F25/S26 in visible headings | Fall 2025/Spring 2026; codes may remain in imports and compact metadata                     |
+| CSF member ledger           | Members or Member directory                                                                 |
+| Onboarding                  | Connect student record or Class invitation                                                  |
+| Audit                       | Change history in UI; audit remains an internal technical term                              |
+| Sync                        | Import for inbound data; Export for outbound data; reserve sync for provider health logs    |
+| Point claim                 | Point submission in general UI; “claim” may appear in explanatory copy                      |
+| Failed member               | Incomplete semester, with explicit reasons                                                  |
+| Health/risk score           | No replacement                                                                              |
+| Communications/Updates      | Remove from product navigation                                                              |
 
 ### 10.2 Independent state dimensions
 
@@ -887,30 +887,30 @@ The rebuild extends the existing `plugin_data.csf_*` foundation. It does not cre
 
 ### 11.1 Identity and access
 
-| Concept | Physical model | Required behavior |
-|---|---|---|
-| Permanent student | `csf_profiles` | One durable student record per organization; normalized identity fields; fictional test ID support; no semester status stored here |
-| Platform account connection | `csf_profile_accounts` | Verified account link with actor/source/time; one active unambiguous connection per user/org |
-| Link request | `csf_profile_link_requests` | Candidate list and resolution history; exact unique verified email may auto-link; name-only never does |
-| Graduating class | `csf_cohorts`, `csf_profile_cohort_memberships` | Historical membership and class changes remain traceable |
-| Duplicate merge | `csf_profile_merge_reviews` | Preview and two-person/adviser review when configured; move references atomically; source becomes merged tombstone rather than disappearing |
-| Staff access | `csf_roles`, `csf_role_permissions`, `csf_staff_positions`, history | Capability-based, effective-dated assignments |
+| Concept                     | Physical model                                                      | Required behavior                                                                                                                           |
+| --------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Permanent student           | `csf_profiles`                                                      | One durable student record per organization; normalized identity fields; fictional test ID support; no semester status stored here          |
+| Platform account connection | `csf_profile_accounts`                                              | Verified account link with actor/source/time; one active unambiguous connection per user/org                                                |
+| Link request                | `csf_profile_link_requests`                                         | Candidate list and resolution history; exact unique verified email may auto-link; name-only never does                                      |
+| Graduating class            | `csf_cohorts`, `csf_profile_cohort_memberships`                     | Historical membership and class changes remain traceable                                                                                    |
+| Duplicate merge             | `csf_profile_merge_reviews`                                         | Preview and two-person/adviser review when configured; move references atomically; source becomes merged tombstone rather than disappearing |
+| Staff access                | `csf_roles`, `csf_role_permissions`, `csf_staff_positions`, history | Capability-based, effective-dated assignments                                                                                               |
 
 ### 11.2 Semester, application, and eligibility
 
-| Concept | Physical model | Required behavior |
-|---|---|---|
-| Semester | `csf_terms` | `planned/open/closed/archived`; one current operational term per org unless explicit overlap rules allow planned next term |
-| Policy | `csf_term_policies` | Immutable published versions; store academic, dues, service, meeting, and recognition rules |
-| Deadlines | new `csf_deadlines` | Term, type, label, due time, owner position/user, status, optional related record; no generic task score |
-| Application | `csf_term_applications` | One active application per student/term; independent submission, eligibility, dues, and decision fields; assignee and source provenance |
-| Course line | `csf_application_course_entries` | Raw source text plus normalized course, list, grade, base/bonus/counted points, validation, and display order |
-| Supporting file | `csf_application_files` | File type, provider/source ID, safe metadata, private storage reference if uploaded, and scoped access |
-| Typed check | new `csf_application_checks` | One current result per application/check type plus history: `required_information`, `identity`, `academic`, `transcript`, `dues`; status, reason code, details, policy version, actor/time |
-| Private note | new `csf_application_review_notes` | Author, visibility=`staff`, body, created/edited timestamps; editing preserves revision history or appends replacement |
-| Status/decision history | extend `csf_application_status_events` | Immutable event type, previous/next dimension state, reason code/text, actor, correlation ID |
-| Dues verification | new `csf_dues_records` | Application/term/profile, amount expected if configured, evidence file, state, verifier, waiver actor/reason; no payment credentials |
-| Term membership | `csf_term_memberships` | Exactly one per profile/term; linked application; outcome separate from decision; evaluation snapshot and override data |
+| Concept                 | Physical model                         | Required behavior                                                                                                                                                                          |
+| ----------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Semester                | `csf_terms`                            | `planned/open/closed/archived`; one current operational term per org unless explicit overlap rules allow planned next term                                                                 |
+| Policy                  | `csf_term_policies`                    | Immutable published versions; store academic, dues, service, meeting, and recognition rules                                                                                                |
+| Deadlines               | new `csf_deadlines`                    | Term, type, label, due time, owner position/user, status, optional related record; no generic task score                                                                                   |
+| Application             | `csf_term_applications`                | One active application per student/term; independent submission, eligibility, dues, and decision fields; assignee and source provenance                                                    |
+| Course line             | `csf_application_course_entries`       | Raw source text plus normalized course, list, grade, base/bonus/counted points, validation, and display order                                                                              |
+| Supporting file         | `csf_application_files`                | File type, provider/source ID, safe metadata, private storage reference if uploaded, and scoped access                                                                                     |
+| Typed check             | new `csf_application_checks`           | One current result per application/check type plus history: `required_information`, `identity`, `academic`, `transcript`, `dues`; status, reason code, details, policy version, actor/time |
+| Private note            | new `csf_application_review_notes`     | Author, visibility=`staff`, body, created/edited timestamps; editing preserves revision history or appends replacement                                                                     |
+| Status/decision history | extend `csf_application_status_events` | Immutable event type, previous/next dimension state, reason code/text, actor, correlation ID                                                                                               |
+| Dues verification       | new `csf_dues_records`                 | Application/term/profile, amount expected if configured, evidence file, state, verifier, waiver actor/reason; no payment credentials                                                       |
+| Term membership         | `csf_term_memberships`                 | Exactly one per profile/term; linked application; outcome separate from decision; evaluation snapshot and override data                                                                    |
 
 `csf_term_applications` gains or standardizes:
 
@@ -928,33 +928,33 @@ Existing aggregate academic columns may remain as cached/source values but are n
 
 ### 11.3 Service and participation
 
-| Concept | Physical model | Required behavior |
-|---|---|---|
-| Activity | `csf_opportunities` | Structured term record with lifecycle, audience, point rule, signup, evidence, and immutable award-sensitive versioning |
-| Signup | `csf_opportunity_signups` | External/linked-project verification state; never equated automatically with attendance or awarded points |
-| Point submission | `csf_point_submissions` | Claimed quantity, source, activity/club relation, state, and student-facing/private review fields separated |
-| Evidence | `csf_submission_files` | At most policy-supported active proof set; private and lifecycle-managed. `pending` requires an upload token and null terminal timestamps; `finalized` requires `finalized_at` and null `failed_at`. Direct fixture inserts declare the complete lifecycle tuple instead of relying on schema defaults. |
-| Awarded credit | `csf_credit_records` | Numeric quantity, type, status, source submission/import/manual adjustment; totals are derived |
-| Review | `csf_submission_reviews` | Immutable review actions and changes |
-| Appeal | `csf_point_appeals` | Separate member request and resolution history |
-| Meeting | `csf_meetings` | Logical requirement for a term |
-| Session | `csf_meeting_sessions` | Dated attendance opportunity for one logical meeting |
-| Attendance | `csf_meeting_attendance` | One result per profile/session with match/source/reconciliation state |
-| Partner club | `csf_partner_clubs`, aliases | Durable canonical club identity |
-| Club term approval | `csf_partner_club_terms` | Term-specific review, allowed point rules, evidence, reviewer, and standing |
-| Club import | partner batches/rows | Raw evidence, member match, claimed value, generated submission/award link |
+| Concept            | Physical model               | Required behavior                                                                                                                                                                                                                                                                                       |
+| ------------------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Activity           | `csf_opportunities`          | Structured term record with lifecycle, audience, point rule, signup, evidence, and immutable award-sensitive versioning                                                                                                                                                                                 |
+| Signup             | `csf_opportunity_signups`    | External/linked-project verification state; never equated automatically with attendance or awarded points                                                                                                                                                                                               |
+| Point submission   | `csf_point_submissions`      | Claimed quantity, source, activity/club relation, state, and student-facing/private review fields separated                                                                                                                                                                                             |
+| Evidence           | `csf_submission_files`       | At most policy-supported active proof set; private and lifecycle-managed. `pending` requires an upload token and null terminal timestamps; `finalized` requires `finalized_at` and null `failed_at`. Direct fixture inserts declare the complete lifecycle tuple instead of relying on schema defaults. |
+| Awarded credit     | `csf_credit_records`         | Numeric quantity, type, status, source submission/import/manual adjustment; totals are derived                                                                                                                                                                                                          |
+| Review             | `csf_submission_reviews`     | Immutable review actions and changes                                                                                                                                                                                                                                                                    |
+| Appeal             | `csf_point_appeals`          | Separate member request and resolution history                                                                                                                                                                                                                                                          |
+| Meeting            | `csf_meetings`               | Logical requirement for a term                                                                                                                                                                                                                                                                          |
+| Session            | `csf_meeting_sessions`       | Dated attendance opportunity for one logical meeting                                                                                                                                                                                                                                                    |
+| Attendance         | `csf_meeting_attendance`     | One result per profile/session with match/source/reconciliation state                                                                                                                                                                                                                                   |
+| Partner club       | `csf_partner_clubs`, aliases | Durable canonical club identity                                                                                                                                                                                                                                                                         |
+| Club term approval | `csf_partner_club_terms`     | Term-specific review, allowed point rules, evidence, reviewer, and standing                                                                                                                                                                                                                             |
+| Club import        | partner batches/rows         | Raw evidence, member match, claimed value, generated submission/award link                                                                                                                                                                                                                              |
 
 Free-form “Activity 1–7” columns are import evidence only. Current operational data always uses normalized activities/submissions/awards.
 
 ### 11.4 Imports and provenance
 
-| Concept | Physical model | Required behavior |
-|---|---|---|
-| Source | extend `csf_sheet_sources` | Provider, Drive file ID/name/url, modified time, source type, tab/range, owner, current mapping version |
-| Mapping | source mapping JSON plus version/hash | Header signature, field destinations, transforms, defaults, author/time; historical jobs retain snapshot |
-| Job | extend `csf_sheet_import_jobs` | Source snapshot, type, term/cohort, status, counts, operator, parent retry job, correlation ID, start/end |
-| Row | extend `csf_sheet_import_rows` | Raw/normalized data, tab/range/row, row hash, validation, match candidates, resolution, commit target, retry lineage |
-| Sync/provider log | `csf_sheet_sync_logs` | Technical read/write health only; not a second business-state log |
+| Concept           | Physical model                        | Required behavior                                                                                                    |
+| ----------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Source            | extend `csf_sheet_sources`            | Provider, Drive file ID/name/url, modified time, source type, tab/range, owner, current mapping version              |
+| Mapping           | source mapping JSON plus version/hash | Header signature, field destinations, transforms, defaults, author/time; historical jobs retain snapshot             |
+| Job               | extend `csf_sheet_import_jobs`        | Source snapshot, type, term/cohort, status, counts, operator, parent retry job, correlation ID, start/end            |
+| Row               | extend `csf_sheet_import_rows`        | Raw/normalized data, tab/range/row, row hash, validation, match candidates, resolution, commit target, retry lineage |
+| Sync/provider log | `csf_sheet_sync_logs`                 | Technical read/write health only; not a second business-state log                                                    |
 
 ### 11.5 History and correlation
 

@@ -20,9 +20,7 @@ interface EmailExpiredClientProps {
   email: string;
 }
 
-export default function EmailExpiredClient({
-  email,
-}: EmailExpiredClientProps) {
+export default function EmailExpiredClient({ email }: EmailExpiredClientProps) {
   const [isResending, setIsResending] = useState(false);
   const [hasResent, setHasResent] = useState(false);
   const [isCaptchaOpen, setIsCaptchaOpen] = useState(false);
@@ -77,8 +75,8 @@ export default function EmailExpiredClient({
           </CardTitle>
           <CardDescription className="text-center">
             Your email verification link has expired. The confirmation token is
-            valid for only 15 minutes (900 seconds), so please request a new link
-            if it times out.
+            valid for only 15 minutes (900 seconds), so please request a new
+            link if it times out.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -111,7 +109,10 @@ export default function EmailExpiredClient({
                   color: "var(--primary-foreground)",
                 }}
               >
-                <Mail className="h-5 w-5" style={{ color: "var(--primary-foreground)" }} />
+                <Mail
+                  className="h-5 w-5"
+                  style={{ color: "var(--primary-foreground)" }}
+                />
                 <p className="text-sm">
                   Email resent! Check your inbox and junk folder.
                 </p>
@@ -172,7 +173,8 @@ export default function EmailExpiredClient({
           </div>
 
           <p className="text-xs text-center text-muted-foreground">
-            Having trouble? <Link href="/help" className="text-primary underline">
+            Having trouble?{" "}
+            <Link href="/help" className="text-primary underline">
               Contact Support
             </Link>
           </p>

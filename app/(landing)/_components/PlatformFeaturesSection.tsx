@@ -72,7 +72,10 @@ export default function PlatformFeaturesSection() {
           className="text-center mx-auto max-w-2xl mb-10"
         >
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            <AnimatedText text="Everything you need, nothing you don't" mode="words" />
+            <AnimatedText
+              text="Everything you need, nothing you don't"
+              mode="words"
+            />
           </h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground">
             Core features built for high schoolers, families, and organizations.

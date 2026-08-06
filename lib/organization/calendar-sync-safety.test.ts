@@ -86,9 +86,7 @@ test("calendar sync loads and validates both sources before calling Google", () 
   const ownerAuthorization = functionSource.indexOf(
     "authorizeGoogleOAuthOrganizationRequest({",
   );
-  const disableAutoSync = functionSource.indexOf(
-    ".update({ auto_sync: false",
-  );
+  const disableAutoSync = functionSource.indexOf(".update({ auto_sync: false");
 
   assert.ok(ownerAuthorization >= 0);
   assert.ok(disableAutoSync > ownerAuthorization);
@@ -214,9 +212,7 @@ test("no CSF source kind can reach synchronizeCalendarEvents", () => {
     "project key behavior must remain project_id:schedule_id",
   );
 
-  const reconcilerStart = functionSource.indexOf(
-    "synchronizeCalendarEvents(",
-  );
+  const reconcilerStart = functionSource.indexOf("synchronizeCalendarEvents(");
   const reconcilerArgs = functionSource.slice(
     reconcilerStart,
     functionSource.indexOf("{", reconcilerStart),

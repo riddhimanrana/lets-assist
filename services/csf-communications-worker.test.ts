@@ -26,7 +26,10 @@ let resendImpl: () => Promise<ResendResponse> = async () => ({
 mock.module("resend", () => ({
   Resend: class {
     emails = {
-      send: async (payload: SendCall, options?: { idempotencyKey?: string }) => {
+      send: async (
+        payload: SendCall,
+        options?: { idempotencyKey?: string },
+      ) => {
         sendCalls.push(payload);
         sendOptions.push(options);
         return resendImpl();
@@ -37,10 +40,14 @@ mock.module("resend", () => ({
 
 mock.module("@/lib/supabase/server", () => ({
   createClient: async () => {
-    throw new Error("notification settings must not be queried for CSF dispatch");
+    throw new Error(
+      "notification settings must not be queried for CSF dispatch",
+    );
   },
 }));
-mock.module("@react-email/components", () => ({ render: async () => "<p>x</p>" }));
+mock.module("@react-email/components", () => ({
+  render: async () => "<p>x</p>",
+}));
 mock.module("@/lib/logger", () => ({
   logError: () => undefined,
   logInfo: () => undefined,
@@ -186,7 +193,10 @@ describe("the claim -> authorize -> send -> settle path", () => {
     });
 
     expect(report.claimed).toBe(1);
-    expect(report.attempts[0]).toMatchObject({ attemptId: ATTEMPT, status: "sent" });
+    expect(report.attempts[0]).toMatchObject({
+      attemptId: ATTEMPT,
+      status: "sent",
+    });
 
     // Exactly one send, and the order is claim -> authorize -> settle.
     expect(sendCalls).toHaveLength(1);
@@ -404,7 +414,7 @@ describe("the claim -> authorize -> send -> settle path", () => {
         csf_settle_communication_dispatch_attempt: () => ({
           data: null,
           error: {
-            message: 'delivery for rep.one@local.test violates constraint',
+            message: "delivery for rep.one@local.test violates constraint",
             code: "23514",
           },
         }),
@@ -484,13 +494,15 @@ describe("fencing and restart safety", () => {
   });
 
   test("a restarted worker reuses the ledger's key and does not mint a new one", async () => {
-    const { calls: firstCalls, plugin: firstPlugin } = pluginHarness(defaultHandlers());
+    const { calls: firstCalls, plugin: firstPlugin } =
+      pluginHarness(defaultHandlers());
     await worker.runCsfDispatchWorker(firstPlugin, {
       organizationId: ORG,
       workerId: "worker-before-restart",
     });
 
-    const { calls: secondCalls, plugin: secondPlugin } = pluginHarness(defaultHandlers());
+    const { calls: secondCalls, plugin: secondPlugin } =
+      pluginHarness(defaultHandlers());
     await worker.runCsfDispatchWorker(secondPlugin, {
       organizationId: ORG,
       workerId: "worker-after-restart",
@@ -704,7 +716,8 @@ describe("cancellation, fencing, and reconciliation are the ledger's call, not t
           data: null,
           error: {
             code: "23514",
-            message: "leased to another worker while mailing rep.one@local.test",
+            message:
+              "leased to another worker while mailing rep.one@local.test",
           },
         }),
       }),
@@ -786,16 +799,25 @@ describe("cancellation, fencing, and reconciliation are the ledger's call, not t
 
 describe("bounded fault codes", () => {
   test("only a real SQLSTATE travels; anything else becomes the fallback", () => {
-    expect(worker.boundedRpcFaultCode("23514", "settlement_failed")).toBe("23514");
-    expect(worker.boundedRpcFaultCode("P0001", "settlement_failed")).toBe("P0001");
+    expect(worker.boundedRpcFaultCode("23514", "settlement_failed")).toBe(
+      "23514",
+    );
+    expect(worker.boundedRpcFaultCode("P0001", "settlement_failed")).toBe(
+      "P0001",
+    );
     // A loosely typed client field is one more place unbounded text can arrive, and
     // this one is surfaced to callers as `detail`.
     expect(
-      worker.boundedRpcFaultCode("PGRST116 rep.one@local.test", "settlement_failed"),
+      worker.boundedRpcFaultCode(
+        "PGRST116 rep.one@local.test",
+        "settlement_failed",
+      ),
     ).toBe("settlement_failed");
     expect(worker.boundedRpcFaultCode("23514;DROP", "claim_failed")).toBe(
       "claim_failed",
     );
-    expect(worker.boundedRpcFaultCode(undefined, "claim_failed")).toBe("claim_failed");
+    expect(worker.boundedRpcFaultCode(undefined, "claim_failed")).toBe(
+      "claim_failed",
+    );
   });
 });

@@ -1,5 +1,5 @@
-import { PDFDocument, rgb } from 'pdf-lib';
-import type { SignaturePayload } from '@/types/waiver-definitions';
+import { PDFDocument, rgb } from "pdf-lib";
+import type { SignaturePayload } from "@/types/waiver-definitions";
 
 export interface PdfGenerationOptions {
   sourcePdfBytes: Uint8Array | ArrayBuffer;
@@ -21,19 +21,20 @@ export interface PdfGenerationOptions {
 /**
  * Generates a signed waiver PDF on-demand by stamping signatures onto the original PDF.
  * Returns a Buffer containing the flattened PDF.
- * 
+ *
  * Phase 2: Now supports both data URLs and storage paths for signatures.
  * If signature data is a storage path, storageResolver must be provided.
- * 
+ *
  * Phase 4 Coordinate System:
  * - Input field coordinates are in PDF coordinate space (bottom-left origin, PDF points)
  * - pdf-lib drawing APIs use the same bottom-left origin
  * - Therefore coordinates are used directly without y-axis flipping
  */
 export async function generateSignedWaiverPdf(
-  options: PdfGenerationOptions
+  options: PdfGenerationOptions,
 ): Promise<Buffer> {
-  const { sourcePdfBytes, definition, signaturePayload, storageResolver } = options;
+  const { sourcePdfBytes, definition, signaturePayload, storageResolver } =
+    options;
 
   // The source is loaded through the bounded, Storage-aware server loader.
   // Keeping network access out of this renderer prevents callers from turning
@@ -41,7 +42,8 @@ export async function generateSignedWaiverPdf(
   const pdfDoc = await PDFDocument.load(sourcePdfBytes);
 
   // 2. Get signature placements from definition
-  const signatureFields = definition.fields?.filter(f => f.field_type === 'signature') || [];
+  const signatureFields =
+    definition.fields?.filter((f) => f.field_type === "signature") || [];
 
   // 3. For each signature in payload, find corresponding placement and stamp
   for (const signerSignature of signaturePayload.signers) {
@@ -51,7 +53,7 @@ export async function generateSignedWaiverPdf(
 
     // Find fields for this signer role
     const signerFields = signatureFields.filter(
-      f => f.signer_role_key === signerSignature.role_key
+      (f) => f.signer_role_key === signerSignature.role_key,
     );
 
     for (const field of signerFields) {
@@ -60,7 +62,7 @@ export async function generateSignedWaiverPdf(
       if (!page) continue;
 
       // Handle typed signatures (draw text instead of image)
-      if (signerSignature.method === 'typed') {
+      if (signerSignature.method === "typed") {
         const { x, y, height } = field.rect;
         const yPosition = y;
 
@@ -68,7 +70,7 @@ export async function generateSignedWaiverPdf(
         const fontSize = Math.min(height * 0.6, 24); // Scale font to fit
         page.drawText(signerSignature.data, {
           x: x + 5,
-          y: yPosition + (height / 2) - (fontSize / 3),
+          y: yPosition + height / 2 - fontSize / 3,
           size: fontSize,
           color: rgb(0, 0, 0),
         });
@@ -87,32 +89,36 @@ export async function generateSignedWaiverPdf(
       }
 
       // Handle drawn signatures (embed as image)
-      
+
       // Phase 2: Detect if data is a data URL or storage path
-      const isDataUrl = signerSignature.data.startsWith('data:');
+      const isDataUrl = signerSignature.data.startsWith("data:");
       let imageBytes: Buffer | ArrayBuffer;
-      
+
       if (isDataUrl) {
         // Existing logic: extract from data URL
-        const base64Data = signerSignature.data.split(',')[1];
-        imageBytes = Buffer.from(base64Data, 'base64');
+        const base64Data = signerSignature.data.split(",")[1];
+        imageBytes = Buffer.from(base64Data, "base64");
       } else {
         // New logic: treat as storage path, use resolver
         if (!storageResolver) {
-          throw new Error('Storage resolver required for storage-path signatures');
+          throw new Error(
+            "Storage resolver required for storage-path signatures",
+          );
         }
         const resolvedBytes = await storageResolver(signerSignature.data);
         imageBytes = Buffer.from(resolvedBytes);
       }
-      
+
       let signatureImage;
       try {
         // Determine image type from data or try both formats
         if (isDataUrl) {
-          if (signerSignature.data.startsWith('data:image/png')) {
+          if (signerSignature.data.startsWith("data:image/png")) {
             signatureImage = await pdfDoc.embedPng(imageBytes);
-          } else if (signerSignature.data.startsWith('data:image/jpeg') || 
-                     signerSignature.data.startsWith('data:image/jpg')) {
+          } else if (
+            signerSignature.data.startsWith("data:image/jpeg") ||
+            signerSignature.data.startsWith("data:image/jpg")
+          ) {
             signatureImage = await pdfDoc.embedJpg(imageBytes);
           }
         } else {
@@ -125,7 +131,10 @@ export async function generateSignedWaiverPdf(
           }
         }
       } catch (error) {
-        console.error(`Failed to embed signature for ${signerSignature.role_key}:`, error);
+        console.error(
+          `Failed to embed signature for ${signerSignature.role_key}:`,
+          error,
+        );
         continue;
       }
 
@@ -147,7 +156,10 @@ export async function generateSignedWaiverPdf(
       const desiredHeight = Math.max(height, minSigHeight);
 
       const finalWidth = Math.min(desiredWidth, Math.max(1, pageWidth - x));
-      const finalHeight = Math.min(desiredHeight, Math.max(1, pageHeight - yPosition));
+      const finalHeight = Math.min(
+        desiredHeight,
+        Math.max(1, pageHeight - yPosition),
+      );
 
       // Draw the signature
       page.drawImage(signatureImage, {
@@ -170,31 +182,33 @@ export async function generateSignedWaiverPdf(
   }
 
   // Phase 3: Stamp non-signature fields (text-like fields, date, checkbox, legacy radio/dropdown)
-  const nonSignatureFields = definition.fields?.filter(f => f.field_type !== 'signature') || [];
-  
+  const nonSignatureFields =
+    definition.fields?.filter((f) => f.field_type !== "signature") || [];
+
   for (const field of nonSignatureFields) {
     const value = signaturePayload.fields?.[field.field_key];
-    
+
     // Skip if no value provided (optional fields)
     if (value === undefined || value === null) continue;
-    
+
     const page = pdfDoc.getPage(field.page_index || 0);
     if (!page) continue;
-    
+
     const rect = field.rect || { x: 0, y: 0, width: 100, height: 20 };
     const verticalPadding = Math.max(0, Math.min(2, rect.height * 0.08));
     const textPaddingX = Math.max(1, Math.min(4, rect.width * 0.06));
     const textFontSize = Math.max(8, Math.min(12, rect.height * 0.72));
-    const textY = rect.y + Math.max(0, (rect.height - textFontSize) / 2) + verticalPadding;
+    const textY =
+      rect.y + Math.max(0, (rect.height - textFontSize) / 2) + verticalPadding;
     const textX = rect.x + textPaddingX;
     const textMaxWidth = Math.max(1, rect.width - textPaddingX * 2);
-    
+
     switch (field.field_type) {
-      case 'text':
-      case 'name':
-      case 'email':
-      case 'phone':
-      case 'date':
+      case "text":
+      case "name":
+      case "email":
+      case "phone":
+      case "date":
         // Draw text value
         page.drawText(String(value), {
           x: textX,
@@ -205,16 +219,23 @@ export async function generateSignedWaiverPdf(
           color: rgb(0, 0, 0),
         });
         break;
-        
-      case 'checkbox':
+
+      case "checkbox":
         // Draw check marker if checked.
         // NOTE: Avoid unicode glyphs like '✓' because default PDF WinAnsi fonts cannot encode them.
-        if (value === true || value === 'true' || value === 'yes') {
-          const checkboxFontSize = Math.max(8, Math.min(16, Math.min(rect.width, rect.height) * 0.85));
-          const checkboxX = rect.x + Math.max(0, (rect.width - checkboxFontSize * 0.55) / 2);
-          const checkboxY = rect.y + Math.max(0, (rect.height - checkboxFontSize) / 2) + verticalPadding;
+        if (value === true || value === "true" || value === "yes") {
+          const checkboxFontSize = Math.max(
+            8,
+            Math.min(16, Math.min(rect.width, rect.height) * 0.85),
+          );
+          const checkboxX =
+            rect.x + Math.max(0, (rect.width - checkboxFontSize * 0.55) / 2);
+          const checkboxY =
+            rect.y +
+            Math.max(0, (rect.height - checkboxFontSize) / 2) +
+            verticalPadding;
 
-          page.drawText('X', {
+          page.drawText("X", {
             x: checkboxX,
             y: checkboxY,
             size: checkboxFontSize,
@@ -222,9 +243,9 @@ export async function generateSignedWaiverPdf(
           });
         }
         break;
-        
-      case 'radio':
-      case 'dropdown':
+
+      case "radio":
+      case "dropdown":
         // Draw selected option
         page.drawText(String(value), {
           x: textX,

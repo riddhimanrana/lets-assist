@@ -85,11 +85,7 @@ export async function withRetryableAuthOperation<T>(
   operation: () => Promise<T>,
   options: AuthRetryOptions = {},
 ): Promise<T> {
-  const {
-    maxAttempts = 3,
-    initialDelayMs = 300,
-    maxDelayMs = 2000,
-  } = options;
+  const { maxAttempts = 3, initialDelayMs = 300, maxDelayMs = 2000 } = options;
 
   let currentAttempt = 0;
   let lastError: unknown;
@@ -102,12 +98,16 @@ export async function withRetryableAuthOperation<T>(
     } catch (error) {
       lastError = error;
 
-      const shouldRetry = isRetryableAuthError(error) && currentAttempt < maxAttempts;
+      const shouldRetry =
+        isRetryableAuthError(error) && currentAttempt < maxAttempts;
       if (!shouldRetry) {
         throw error;
       }
 
-      const backoff = Math.min(maxDelayMs, initialDelayMs * 2 ** (currentAttempt - 1));
+      const backoff = Math.min(
+        maxDelayMs,
+        initialDelayMs * 2 ** (currentAttempt - 1),
+      );
       await sleep(backoff);
     }
   }

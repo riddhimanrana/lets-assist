@@ -23,8 +23,7 @@ const testimonials = [
     src: "/logos/dvhs.png",
   },
   {
-    quote:
-      "Let's Assist looks like a very promising system!",
+    quote: "Let's Assist looks like a very promising system!",
     name: "Jill Nonn",
     role: "DV Vice Principal",
     src: "/logos/dvhs.png",
@@ -51,8 +50,7 @@ const testimonials = [
     src: "/logos/dvhs.png",
   },
   {
-    quote:
-      "I have heard positive remarks regarding your system.",
+    quote: "I have heard positive remarks regarding your system.",
     name: "Tim Jorgenson",
     role: "Grand Knight, Knights of Columbus Council 6043",
     src: "/logos/kofc-6043.jpg",
@@ -122,7 +120,10 @@ export default function TestimonialsSection() {
             Testimonials from demos
           </p>
           <h2 className="mt-3 text-4xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
-            <AnimatedText text="Trusted by the people leading service." mode="words" />
+            <AnimatedText
+              text="Trusted by the people leading service."
+              mode="words"
+            />
           </h2>
           <p className="mx-auto mt-4 max-w-2xl font-sans text-base leading-8 text-muted-foreground">
             Feedback from DVHS educators, SRVUSD community demos, and local
@@ -136,7 +137,9 @@ export default function TestimonialsSection() {
 
           <motion.div
             className="flex w-max gap-4 py-1"
-            animate={shouldReduceMotion ? undefined : { x: ["0%", "-42%", "0%"] }}
+            animate={
+              shouldReduceMotion ? undefined : { x: ["0%", "-42%", "0%"] }
+            }
             transition={{
               duration: 58,
               ease: "linear",

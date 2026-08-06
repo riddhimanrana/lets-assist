@@ -5,19 +5,16 @@ import { writeThenClearStaleSpreadsheetValues } from "./spreadsheet-replace-core
 
 test("writes the replacement before clearing only stale ranges", async () => {
   const calls: string[] = [];
-  const result = await writeThenClearStaleSpreadsheetValues(
-    ["tail", "right"],
-    {
-      write: async () => {
-        calls.push("write");
-        return true;
-      },
-      clear: async (range) => {
-        calls.push(`clear:${range}`);
-        return true;
-      },
+  const result = await writeThenClearStaleSpreadsheetValues(["tail", "right"], {
+    write: async () => {
+      calls.push("write");
+      return true;
     },
-  );
+    clear: async (range) => {
+      calls.push(`clear:${range}`);
+      return true;
+    },
+  });
 
   assert.deepEqual(result, { success: true });
   assert.deepEqual(calls, ["write", "clear:tail", "clear:right"]);

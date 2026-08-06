@@ -14,8 +14,12 @@ const tournament = await tabroom.dev.gmitch215.tabroom.api.getTournament(
   Number(tournamentId),
 );
 
-console.log(JSON.stringify({
-  id: tournamentId,
-  name: tournament?.name ?? null,
-  eventCount: Array.isArray(tournament?.events) ? tournament.events.length : 0,
-}));
+console.log(
+  JSON.stringify({
+    id: tournamentId,
+    name: tournament?.name ?? null,
+    eventCount: Array.isArray(tournament?.events)
+      ? tournament.events.length
+      : 0,
+  }),
+);

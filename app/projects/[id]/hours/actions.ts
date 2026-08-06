@@ -3,10 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { Project } from "@/types"; // Import Project type
 // Import React Email template and React
-import CertificatePublished from '@/emails/certificate-published';
-import * as React from 'react';
-import { sendEmail } from '@/services/email';
-import { canManageProjectAccess } from '@/lib/projects/management-access';
+import CertificatePublished from "@/emails/certificate-published";
+import * as React from "react";
+import { sendEmail } from "@/services/email";
+import { canManageProjectAccess } from "@/lib/projects/management-access";
 
 // Define the structure for session data passed from the client
 type SessionVolunteerData = {
@@ -84,10 +84,10 @@ const sendCertificatePublishedEmails = async (
     event_start?: string;
     event_end?: string;
   }>,
-  projectTimezone?: string
+  projectTimezone?: string,
 ): Promise<{ success: boolean; emailsSent: number; errors: string[] }> => {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-  
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
   let emailsSent = 0;
   const errors: string[] = [];
 
@@ -99,7 +99,7 @@ const sendCertificatePublishedEmails = async (
 
     try {
       const certificateUrl = `${siteUrl}/certificates/${cert.id}`;
-      
+
       const { error: emailError } = await sendEmail({
         to: cert.volunteer_email,
         subject: `Your volunteer certificate for ${cert.project_title} is ready!`,
@@ -111,9 +111,9 @@ const sendCertificatePublishedEmails = async (
           isAutoPublished: false,
           eventStart: cert.event_start,
           eventEnd: cert.event_end,
-          timezone: projectTimezone
+          timezone: projectTimezone,
         }),
-        type: 'transactional'
+        type: "transactional",
       });
 
       if (emailError) {
@@ -123,30 +123,41 @@ const sendCertificatePublishedEmails = async (
         emailsSent++;
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       console.error(`Unexpected error sending certificate ${cert.id}:`, error);
-      errors.push(`Unexpected error for certificate ${cert.id}: ${errorMessage}`);
+      errors.push(
+        `Unexpected error for certificate ${cert.id}: ${errorMessage}`,
+      );
     }
   }
 
   return {
     success: emailsSent > 0,
     emailsSent,
-    errors
+    errors,
   };
 };
-
 
 export async function publishVolunteerHours(
   projectId: string,
   sessionId: string,
-  sessionData: SessionVolunteerData[]
-): Promise<{ success: boolean; error?: string; certificatesCreated?: number; emailsSent?: number; emailErrors?: string[] }> {
+  sessionData: SessionVolunteerData[],
+): Promise<{
+  success: boolean;
+  error?: string;
+  certificatesCreated?: number;
+  emailsSent?: number;
+  emailErrors?: string[];
+}> {
   const supabase = await createClient();
 
   try {
     // 1. Verify user authentication
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
     if (userError || !user) {
       return { success: false, error: "Authentication required." };
     }
@@ -154,17 +165,22 @@ export async function publishVolunteerHours(
     // 2. Fetch Project, Organization, and Creator data
     const { data: projectData, error: projectError } = await supabase
       .from("projects")
-      .select(`
+      .select(
+        `
         *,
         profiles!projects_creator_id_fkey1 (full_name),
         organization:organizations (name, verified) 
-      `)
+      `,
+      )
       .eq("id", projectId)
       .single();
 
     if (projectError || !projectData) {
       console.error("Error fetching project data:", projectError);
-      return { success: false, error: "Project not found or error fetching data." };
+      return {
+        success: false,
+        error: "Project not found or error fetching data.",
+      };
     }
 
     // Type assertion after successful fetch
@@ -181,13 +197,18 @@ export async function publishVolunteerHours(
     const isOrganizationVerified = project.organization?.verified || false;
 
     // 3. Filter out invalid entries (though client should prevent this)
-    const validVolunteers = sessionData.filter(v => v.isValid && v.checkIn && v.checkOut);
+    const validVolunteers = sessionData.filter(
+      (v) => v.isValid && v.checkIn && v.checkOut,
+    );
     if (validVolunteers.length === 0) {
-      return { success: false, error: "No valid volunteer hours data to publish." };
+      return {
+        success: false,
+        error: "No valid volunteer hours data to publish.",
+      };
     }
 
     // 4. Prepare certificate data
-    const certificatesToInsert = validVolunteers.map(volunteer => ({
+    const certificatesToInsert = validVolunteers.map((volunteer) => ({
       project_id: projectId, // check
       user_id: volunteer.userId, // Can be null for anonymous // check
       signup_id: volunteer.signupId,
@@ -202,7 +223,7 @@ export async function publishVolunteerHours(
       creator_name: creatorName, // Use fetched creator name
       is_certified: isOrganizationVerified, // Use org verified status
       creator_id: user.id, // Added creator_id
-      type: 'verified' as const,
+      type: "verified" as const,
       // --- END UPDATED FIELDS ---
       check_in_method: project.verification_method,
       schedule_id: sessionId, // Store the session identifier, sessionId renamed to scheduleId
@@ -212,28 +233,34 @@ export async function publishVolunteerHours(
     const { data: insertedCerts, error: insertError } = (await supabase
       .from("certificates")
       .insert(certificatesToInsert)
-      .select("id, volunteer_name, volunteer_email, project_title, event_start, event_end")) as {
-      data:
-        | Array<{
-            id: string;
-            volunteer_name: string | null;
-            volunteer_email: string | null;
-            project_title: string;
-            event_start?: string | null;
-            event_end?: string | null;
-          }>
-        | null;
+      .select(
+        "id, volunteer_name, volunteer_email, project_title, event_start, event_end",
+      )) as {
+      data: Array<{
+        id: string;
+        volunteer_name: string | null;
+        volunteer_email: string | null;
+        project_title: string;
+        event_start?: string | null;
+        event_end?: string | null;
+      }> | null;
       error: { message: string } | null;
     };
 
     if (insertError) {
       console.error("Error inserting certificates:", insertError);
-      return { success: false, error: `Database error inserting certificates: ${insertError.message}` };
+      return {
+        success: false,
+        error: `Database error inserting certificates: ${insertError.message}`,
+      };
     }
 
     // 6. Update the project's 'published' status
     const publishKey = getPublishStateKey(project, sessionId);
-    const currentPublishedState = (project.published || {}) as Record<string, boolean>;
+    const currentPublishedState = (project.published || {}) as Record<
+      string,
+      boolean
+    >;
     const updatedPublishedState = {
       ...currentPublishedState,
       [publishKey]: true,
@@ -245,33 +272,39 @@ export async function publishVolunteerHours(
       .eq("id", projectId);
 
     if (updateProjectError) {
-      console.error("Error updating project published status:", updateProjectError);
+      console.error(
+        "Error updating project published status:",
+        updateProjectError,
+      );
       // Even if this fails, certificates were created, so maybe return success but log error?
       // For now, let's return an error to be safe.
-      return { success: false, error: `Failed to update project status: ${updateProjectError.message}` };
+      return {
+        success: false,
+        error: `Failed to update project status: ${updateProjectError.message}`,
+      };
     }
 
     // 6.5. Send in-app notifications to volunteers about their published certificates
     if (insertedCerts && insertedCerts.length > 0) {
       const notificationPromises = validVolunteers
-        .filter(v => v.userId) // Only send to registered users
+        .filter((v) => v.userId) // Only send to registered users
         .map(async (volunteer) => {
           try {
-            const certificateData = insertedCerts.find(cert => cert.volunteer_name === volunteer.name);
+            const certificateData = insertedCerts.find(
+              (cert) => cert.volunteer_name === volunteer.name,
+            );
             if (!certificateData) return;
 
-            await supabase
-              .from('notifications')
-              .insert({
-                user_id: volunteer.userId,
-                title: "Your Volunteer Hours Have Been Published! 🎉",
-                body: `Your volunteer certificate for "${project.title}" is now available. You volunteered for ${Math.floor(volunteer.durationMinutes / 60)} hours and ${volunteer.durationMinutes % 60} minutes.`,
-                type: 'project_updates',
-                severity: 'success',
-                action_url: `/certificates/${certificateData.id}`,
-                displayed: false,
-                read: false
-              });
+            await supabase.from("notifications").insert({
+              user_id: volunteer.userId,
+              title: "Your Volunteer Hours Have Been Published! 🎉",
+              body: `Your volunteer certificate for "${project.title}" is now available. You volunteered for ${Math.floor(volunteer.durationMinutes / 60)} hours and ${volunteer.durationMinutes % 60} minutes.`,
+              type: "project_updates",
+              severity: "success",
+              action_url: `/certificates/${certificateData.id}`,
+              displayed: false,
+              read: false,
+            });
           } catch (error) {
             console.error("Failed to send certificate notification:", error);
           }
@@ -287,18 +320,23 @@ export async function publishVolunteerHours(
       event_end: cert.event_end ?? undefined,
     }));
 
-    const emailResult = await sendCertificatePublishedEmails(emailCertificates, project.project_timezone);
-    
+    const emailResult = await sendCertificatePublishedEmails(
+      emailCertificates,
+      project.project_timezone,
+    );
+
     return {
       success: true,
       certificatesCreated: certificatesToInsert.length,
       emailsSent: emailResult.emailsSent,
-      emailErrors: emailResult.errors
+      emailErrors: emailResult.errors,
     };
-
   } catch (error) {
     console.error("Unexpected error in publishVolunteerHours:", error);
-    const message = error instanceof Error ? error.message : "An unexpected server error occurred.";
+    const message =
+      error instanceof Error
+        ? error.message
+        : "An unexpected server error occurred.";
     return { success: false, error: message };
   }
 }
@@ -310,7 +348,12 @@ export async function publishVolunteerHours(
 export async function resendCertificateEmails(
   projectId: string,
   sessionId: string,
-): Promise<{ success: boolean; error?: string; emailsSent?: number; emailErrors?: string[] }> {
+): Promise<{
+  success: boolean;
+  error?: string;
+  emailsSent?: number;
+  emailErrors?: string[];
+}> {
   const supabase = await createClient();
 
   try {
@@ -319,7 +362,10 @@ export async function resendCertificateEmails(
     }
 
     // 1. Verify user authentication and permissions
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
     if (userError || !user) {
       return { success: false, error: "Authentication required." };
     }
@@ -327,7 +373,9 @@ export async function resendCertificateEmails(
     // 2. Verify user has permission on this project
     const { data: project, error: projectError } = await supabase
       .from("projects")
-      .select("id, creator_id, organization_id, can_be_managed_by_staff, project_timezone")
+      .select(
+        "id, creator_id, organization_id, can_be_managed_by_staff, project_timezone",
+      )
       .eq("id", projectId)
       .single();
 
@@ -345,7 +393,9 @@ export async function resendCertificateEmails(
     // 3. Fetch the certificates to resend
     const { data: certificates, error: certError } = await supabase
       .from("certificates")
-      .select("id, volunteer_name, volunteer_email, project_title, event_start, event_end")
+      .select(
+        "id, volunteer_name, volunteer_email, project_title, event_start, event_end",
+      )
       .eq("project_id", projectId)
       .eq("schedule_id", sessionId);
 
@@ -354,24 +404,34 @@ export async function resendCertificateEmails(
     }
 
     // 4. Filter out certificates without email addresses
-    const certificatesToEmail = certificates.filter(cert => cert.volunteer_email && cert.volunteer_name);
+    const certificatesToEmail = certificates.filter(
+      (cert) => cert.volunteer_email && cert.volunteer_name,
+    );
 
     if (certificatesToEmail.length === 0) {
-      return { success: false, error: "No valid certificates with email addresses found to resend." };
+      return {
+        success: false,
+        error: "No valid certificates with email addresses found to resend.",
+      };
     }
 
     // 5. Send emails
-    const emailResult = await sendCertificatePublishedEmails(certificatesToEmail, project.project_timezone);
+    const emailResult = await sendCertificatePublishedEmails(
+      certificatesToEmail,
+      project.project_timezone,
+    );
 
     return {
       success: true,
       emailsSent: emailResult.emailsSent,
-      emailErrors: emailResult.errors
+      emailErrors: emailResult.errors,
     };
-
   } catch (error) {
     console.error("Unexpected error in resendCertificateEmails:", error);
-    const message = error instanceof Error ? error.message : "An unexpected server error occurred.";
+    const message =
+      error instanceof Error
+        ? error.message
+        : "An unexpected server error occurred.";
     return { success: false, error: message };
   }
 }

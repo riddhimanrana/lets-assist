@@ -31,39 +31,79 @@ describe("personal CSF Google Calendar mutations", () => {
     const first = deterministicCsfGoogleEventId(input);
     expect(first).toBe(deterministicCsfGoogleEventId(input));
     expect(first).toMatch(/^[0-9a-v]{5,1024}$/u);
-    expect(first).not.toBe(deterministicCsfGoogleEventId({ ...input, sourceId: "44444444-4444-4444-8444-444444444444" }));
+    expect(first).not.toBe(
+      deterministicCsfGoogleEventId({
+        ...input,
+        sourceId: "44444444-4444-4444-8444-444444444444",
+      }),
+    );
   });
 
   test("treats a duplicate deterministic create as confirmed only after lookup", async () => {
     const calls: string[] = [];
-    const fetchImpl = mock(async (_input: string | URL | Request, init?: RequestInit) => {
-      calls.push(init?.method ?? "GET");
-      return calls.length === 1 ? response(409) : response(200);
-    }) as unknown as typeof fetch;
-    await expect(createGoogleCalendarOwnedEvent("token", "calendar", "csf12345", event, fetchImpl))
-      .resolves.toEqual({ status: "confirmed", eventId: "csf12345" });
+    const fetchImpl = mock(
+      async (_input: string | URL | Request, init?: RequestInit) => {
+        calls.push(init?.method ?? "GET");
+        return calls.length === 1 ? response(409) : response(200);
+      },
+    ) as unknown as typeof fetch;
+    await expect(
+      createGoogleCalendarOwnedEvent(
+        "token",
+        "calendar",
+        "csf12345",
+        event,
+        fetchImpl,
+      ),
+    ).resolves.toEqual({ status: "confirmed", eventId: "csf12345" });
     expect(calls).toEqual(["POST", "GET"]);
   });
 
   test("never calls a retryable create failure confirmed", async () => {
-    const fetchImpl = mock(async () => response(503)) as unknown as typeof fetch;
-    await expect(createGoogleCalendarOwnedEvent("token", "calendar", "csf12345", event, fetchImpl))
-      .resolves.toEqual({ status: "unknown_outcome", reason: "server_error", httpStatus: 503 });
+    const fetchImpl = mock(async () =>
+      response(503),
+    ) as unknown as typeof fetch;
+    await expect(
+      createGoogleCalendarOwnedEvent(
+        "token",
+        "calendar",
+        "csf12345",
+        event,
+        fetchImpl,
+      ),
+    ).resolves.toEqual({
+      status: "unknown_outcome",
+      reason: "server_error",
+      httpStatus: 503,
+    });
   });
 
   test("recreates only from a separately confirmed missing update", async () => {
-    const fetchImpl = mock(async () => response(404)) as unknown as typeof fetch;
-    await expect(updateGoogleCalendarOwnedEvent("token", "calendar", "csf12345", event, fetchImpl))
-      .resolves.toEqual({ status: "confirmed_missing" });
+    const fetchImpl = mock(async () =>
+      response(404),
+    ) as unknown as typeof fetch;
+    await expect(
+      updateGoogleCalendarOwnedEvent(
+        "token",
+        "calendar",
+        "csf12345",
+        event,
+        fetchImpl,
+      ),
+    ).resolves.toEqual({ status: "confirmed_missing" });
   });
 
   test("treats delete 404 as confirmed and preserves ambiguous failures", async () => {
     const missing = mock(async () => response(404)) as unknown as typeof fetch;
-    await expect(deleteGoogleCalendarOwnedEvent("token", "calendar", "csf12345", missing))
-      .resolves.toEqual({ status: "confirmed_deleted" });
+    await expect(
+      deleteGoogleCalendarOwnedEvent("token", "calendar", "csf12345", missing),
+    ).resolves.toEqual({ status: "confirmed_deleted" });
 
-    const network = mock(async () => { throw new Error("network unavailable"); }) as unknown as typeof fetch;
-    await expect(deleteGoogleCalendarOwnedEvent("token", "calendar", "csf12345", network))
-      .resolves.toEqual({ status: "unknown_outcome", reason: "network_error" });
+    const network = mock(async () => {
+      throw new Error("network unavailable");
+    }) as unknown as typeof fetch;
+    await expect(
+      deleteGoogleCalendarOwnedEvent("token", "calendar", "csf12345", network),
+    ).resolves.toEqual({ status: "unknown_outcome", reason: "network_error" });
   });
 });

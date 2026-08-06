@@ -1,4 +1,6 @@
-export function normalizeRedirectPath(value: string | null | undefined): string | null {
+export function normalizeRedirectPath(
+  value: string | null | undefined,
+): string | null {
   if (!value) {
     return null;
   }
@@ -37,7 +39,10 @@ export function normalizeRedirectPath(value: string | null | undefined): string 
   }
 }
 
-export function buildAuthConfirmRedirectUrl(origin: string, redirectPath?: string | null): string {
+export function buildAuthConfirmRedirectUrl(
+  origin: string,
+  redirectPath?: string | null,
+): string {
   const url = new URL("/auth/confirm", origin);
   const normalizedRedirect = normalizeRedirectPath(redirectPath);
 

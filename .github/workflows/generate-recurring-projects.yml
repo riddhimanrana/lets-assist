@@ -2,8 +2,8 @@ name: Generate Recurring Projects
 
 on:
   schedule:
-    - cron: '10 1 * * *'   # 01:10 UTC (primary)
-    - cron: '10 13 * * *'  # 13:10 UTC (second pass)
+    - cron: "10 1 * * *" # 01:10 UTC (primary)
+    - cron: "10 13 * * *" # 13:10 UTC (second pass)
   workflow_dispatch:
 
 permissions:

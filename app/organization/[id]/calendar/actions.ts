@@ -60,14 +60,18 @@ async function assertOrgAccess(
   }
 
   if (requireAdmin && membership.role !== "admin") {
-    return { userId: user.id, role: membership.role, error: "Admin access required" };
+    return {
+      userId: user.id,
+      role: membership.role,
+      error: "Admin access required",
+    };
   }
 
   return { userId: user.id, role: membership.role };
 }
 
 export async function getOrganizationCalendarStatus(
-  organizationId: string
+  organizationId: string,
 ): Promise<OrgCalendarStatus> {
   const access = await assertOrgAccess(organizationId);
   if (access.error) {
@@ -82,7 +86,7 @@ export async function getOrganizationCalendarStatus(
   const { data: syncConfig, error: syncError } = await serviceSupabase
     .from("organization_calendar_syncs")
     .select(
-      "calendar_id, calendar_email, created_by, auto_sync, last_synced_at"
+      "calendar_id, calendar_email, created_by, auto_sync, last_synced_at",
     )
     .eq("organization_id", organizationId)
     .maybeSingle();
@@ -142,7 +146,7 @@ export async function getOrganizationCalendarStatus(
 }
 
 export async function disconnectOrganizationCalendarConnection(
-  organizationId: string
+  organizationId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId, true);
   if (access.error) {
@@ -157,7 +161,10 @@ export async function disconnectOrganizationCalendarConnection(
     .maybeSingle();
 
   if (syncError) {
-    console.error("Failed to load org calendar sync before disconnect:", syncError);
+    console.error(
+      "Failed to load org calendar sync before disconnect:",
+      syncError,
+    );
     return { success: false, error: "Failed to verify calendar owner" };
   }
 
@@ -168,7 +175,8 @@ export async function disconnectOrganizationCalendarConnection(
   if (syncConfig.created_by !== access.userId) {
     return {
       success: false,
-      error: "Only the connected Google account owner can remove this connection.",
+      error:
+        "Only the connected Google account owner can remove this connection.",
     };
   }
 
@@ -198,7 +206,10 @@ export async function disconnectOrganizationCalendarConnection(
     revokeAccess: false,
   });
   if (!deactivateResult.success) {
-    return { success: false, error: deactivateResult.error || "Failed to disconnect Google account" };
+    return {
+      success: false,
+      error: deactivateResult.error || "Failed to disconnect Google account",
+    };
   }
 
   revalidatePath(`/organization/${organizationId}/settings`);
@@ -207,7 +218,7 @@ export async function disconnectOrganizationCalendarConnection(
 
 export async function updateOrganizationCalendarSettings(
   organizationId: string,
-  updates: { autoSync?: boolean }
+  updates: { autoSync?: boolean },
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId, true);
   if (access.error) {
@@ -233,7 +244,7 @@ export async function updateOrganizationCalendarSettings(
 }
 
 export async function disconnectOrganizationCalendar(
-  organizationId: string
+  organizationId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId, true);
   if (access.error) {

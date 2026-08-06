@@ -16,7 +16,7 @@ export type RecurrenceFormState = {
 };
 
 export function buildRecurrenceRuleFromState(
-  recurrenceState: RecurrenceFormState
+  recurrenceState: RecurrenceFormState,
 ): Project["recurrence_rule"] {
   if (!recurrenceState.enabled) {
     return null;

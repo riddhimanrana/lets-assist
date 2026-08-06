@@ -1,11 +1,22 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Project } from "@/types";
 import { QRCode } from "react-qrcode-logo";
 import { Button } from "@/components/ui/button";
-import { differenceInHours, parseISO, format, isBefore, subHours } from "date-fns";
+import {
+  differenceInHours,
+  parseISO,
+  format,
+  isBefore,
+  subHours,
+} from "date-fns";
 import { Printer, Clock, Lock, QrCode as QrIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatTimeTo12Hour } from "@/lib/utils";
@@ -34,12 +45,20 @@ interface SessionInfo {
   qrUrl: string;
 }
 
-export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCodeModalProps) {
+export function ProjectQRCodeModal({
+  project,
+  open,
+  onOpenChange,
+}: ProjectQRCodeModalProps) {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
-  const [attendanceChallenges, setAttendanceChallenges] = useState<Record<string, string>>({});
+  const [attendanceChallenges, setAttendanceChallenges] = useState<
+    Record<string, string>
+  >({});
   const printRef = useRef<HTMLDivElement>(null);
-  const [selectedQRCode, setSelectedQRCode] = useState<SessionInfo | null>(null);
-  
+  const [selectedQRCode, setSelectedQRCode] = useState<SessionInfo | null>(
+    null,
+  );
+
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `QR Code – ${project.title}`,
@@ -57,7 +76,10 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
       if (result.success) {
         setAttendanceChallenges(result.challenges);
       } else {
-        console.error("Failed to create secure attendance QR codes:", result.error);
+        console.error(
+          "Failed to create secure attendance QR codes:",
+          result.error,
+        );
         setAttendanceChallenges({});
       }
     });
@@ -73,18 +95,23 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
       const now = new Date();
       const processedSessions: SessionInfo[] = [];
 
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lets-assist.com';
+      const siteUrl =
+        process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com";
       const buildQrUrl = (scheduleId: string) => {
         const challenge = attendanceChallenges[scheduleId];
         if (!challenge) return "";
         return `${siteUrl}/attend/${project.id}/prepare?challenge=${encodeURIComponent(challenge)}`;
       };
 
-      const calculateAvailability = (date: string, startTime: string, endTime: string) => {
+      const calculateAvailability = (
+        date: string,
+        startTime: string,
+        endTime: string,
+      ) => {
         const startDate = parseISO(`${date}T${startTime}`);
         const endDate = parseISO(`${date}T${endTime}`); // Parse end time
         const hoursUntilStart = differenceInHours(startDate, now);
-        
+
         // QR code shows 1 week before, but only functional 2 hours before
         // isVisible: true when within 7 days before start
         // isAvailable (functional): true when within 2 hours before start AND before end time
@@ -95,14 +122,14 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
         return {
           isAvailable: isFunctional && isNotEnded, // Only functional within 2 hours
           isVisible: isVisible && isNotEnded, // Visible within 7 days
-          hoursUntilStart
+          hoursUntilStart,
         };
       };
 
       if (project.event_type === "oneTime" && project.schedule.oneTime) {
         const { date, startTime, endTime } = project.schedule.oneTime;
         const availability = calculateAvailability(date, startTime, endTime);
-        
+
         processedSessions.push({
           id: "oneTime",
           name: "Main Event",
@@ -112,15 +139,21 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
           isAvailable: availability.isAvailable,
           isVisible: availability.isVisible,
           hoursUntilStart: availability.hoursUntilStart,
-          qrUrl: buildQrUrl("oneTime")
+          qrUrl: buildQrUrl("oneTime"),
         });
-      } 
-      else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+      } else if (
+        project.event_type === "multiDay" &&
+        project.schedule.multiDay
+      ) {
         project.schedule.multiDay.forEach((day, dayIndex) => {
           day.slots.forEach((slot, slotIndex) => {
             const scheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
-            const availability = calculateAvailability(day.date, slot.startTime, slot.endTime);
-            
+            const availability = calculateAvailability(
+              day.date,
+              slot.startTime,
+              slot.endTime,
+            );
+
             processedSessions.push({
               id: scheduleId,
               name: getMultiDaySlotDisplayName(slot, slotIndex),
@@ -130,17 +163,23 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
               isAvailable: availability.isAvailable,
               isVisible: availability.isVisible,
               hoursUntilStart: availability.hoursUntilStart,
-              qrUrl: buildQrUrl(scheduleId)
+              qrUrl: buildQrUrl(scheduleId),
             });
           });
         });
-      }
-      else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+      } else if (
+        project.event_type === "sameDayMultiArea" &&
+        project.schedule.sameDayMultiArea
+      ) {
         const { date, roles } = project.schedule.sameDayMultiArea;
-        
+
         roles.forEach((role) => {
-          const availability = calculateAvailability(date, role.startTime, role.endTime);
-          
+          const availability = calculateAvailability(
+            date,
+            role.startTime,
+            role.endTime,
+          );
+
           processedSessions.push({
             id: role.name,
             name: role.name,
@@ -150,21 +189,21 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
             isAvailable: availability.isAvailable,
             isVisible: availability.isVisible,
             hoursUntilStart: availability.hoursUntilStart,
-            qrUrl: buildQrUrl(role.name)
+            qrUrl: buildQrUrl(role.name),
           });
         });
       }
 
       setSessions(processedSessions);
-      
+
       // Set active tab to first visible session if any
-      const visibleSessions = processedSessions.filter(s => s.isVisible);
+      const visibleSessions = processedSessions.filter((s) => s.isVisible);
       setSelectedQRCode((current) =>
         current
-          ? processedSessions.find((session) => session.id === current.id) ??
+          ? (processedSessions.find((session) => session.id === current.id) ??
             visibleSessions[0] ??
-            null
-          : visibleSessions[0] ?? null,
+            null)
+          : (visibleSessions[0] ?? null),
       );
     }
   }, [project, open, attendanceChallenges]);
@@ -184,25 +223,36 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
       return <Badge variant="default">Scannable Now</Badge>;
     } else if (session.isVisible && !session.isAvailable) {
       // QR is visible but not yet scannable - within 7 days but more than 2 hours before
-      const hoursUntilScannable = differenceInHours(subHours(startDate, 2), now);
+      const hoursUntilScannable = differenceInHours(
+        subHours(startDate, 2),
+        now,
+      );
       const days = Math.floor(hoursUntilScannable / 24);
       const hours = hoursUntilScannable % 24;
       let scannableIn = "Scannable in ";
-      if (days > 0) scannableIn += `${days} day${days > 1 ? 's' : ''} `;
-      if (hours > 0) scannableIn += `${hours} hour${hours > 1 ? 's' : ''}`;
+      if (days > 0) scannableIn += `${days} day${days > 1 ? "s" : ""} `;
+      if (hours > 0) scannableIn += `${hours} hour${hours > 1 ? "s" : ""}`;
       if (days === 0 && hours === 0) scannableIn = "Scannable soon";
       return <Badge variant="secondary">{scannableIn.trim()}</Badge>;
     } else if (!session.isVisible && isBefore(now, startDate)) {
       // Not yet visible - more than 7 days before start
-      const hoursUntilVisible = differenceInHours(subHours(startDate, 168), now);
+      const hoursUntilVisible = differenceInHours(
+        subHours(startDate, 168),
+        now,
+      );
       const days = Math.floor(hoursUntilVisible / 24);
       const hours = hoursUntilVisible % 24;
       let visibleIn = "Visible in ";
-      if (days > 0) visibleIn += `${days} day${days > 1 ? 's' : ''} `;
-      if (hours > 0) visibleIn += `${hours} hour${hours > 1 ? 's' : ''}`;
+      if (days > 0) visibleIn += `${days} day${days > 1 ? "s" : ""} `;
+      if (hours > 0) visibleIn += `${hours} hour${hours > 1 ? "s" : ""}`;
       if (days === 0 && hours === 0) visibleIn = "Visible soon";
-      return <Badge variant="outline" className="text-muted-foreground">{visibleIn.trim()}</Badge>;
-    } else { // After end time
+      return (
+        <Badge variant="outline" className="text-muted-foreground">
+          {visibleIn.trim()}
+        </Badge>
+      );
+    } else {
+      // After end time
       return <Badge variant="destructive">Session Ended</Badge>;
     }
   };
@@ -212,10 +262,13 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
       <DialogContent className="sm:max-w-2xl p-0">
         <div className="flex max-h-[90vh] flex-col">
           <DialogHeader className="border-b px-5 py-4">
-            <DialogTitle className="text-lg sm:text-xl">QR Code Check-In</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">
+              QR Code Check-In
+            </DialogTitle>
             <p className="text-sm text-muted-foreground">
-              QR codes become visible 1 week before each session starts. They can be scanned 2 hours before for check-in,
-              and expire when the session ends.
+              QR codes become visible 1 week before each session starts. They
+              can be scanned 2 hours before for check-in, and expire when the
+              session ends.
             </p>
           </DialogHeader>
 
@@ -230,12 +283,16 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
                     onClick={() => setSelectedQRCode(session)}
                     className={cn(
                       "w-full rounded-lg border p-3 text-left transition hover:bg-muted/40",
-                      selectedQRCode?.id === session.id ? "border-primary bg-primary/5" : "bg-background"
+                      selectedQRCode?.id === session.id
+                        ? "border-primary bg-primary/5"
+                        : "bg-background",
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="text-sm font-medium text-foreground">{session.name}</p>
+                        <p className="text-sm font-medium text-foreground">
+                          {session.name}
+                        </p>
                         <p className="text-xs text-muted-foreground">
                           {format(parseISO(session.date), "EEEE, MMM d")}
                         </p>
@@ -246,7 +303,8 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
                     </div>
                     <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock className="h-3.5 w-3.5" />
-                      {formatTimeTo12Hour(session.startTime)} - {formatTimeTo12Hour(session.endTime)}
+                      {formatTimeTo12Hour(session.startTime)} -{" "}
+                      {formatTimeTo12Hour(session.endTime)}
                     </div>
                   </button>
                 ))}
@@ -264,7 +322,7 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
               {selectedQRCode ? (
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="w-full max-w-70 rounded-3xl border bg-muted/20 p-4 sm:p-6 flex flex-col items-center">
-                    <div 
+                    <div
                       ref={printRef}
                       className="rounded-xl border-4 border-muted/30 bg-white p-3 shadow-inner"
                     >
@@ -288,10 +346,11 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
                             {selectedQRCode.isAvailable && !selectedQRCode.qrUrl
                               ? "Securing QR code..."
                               : !selectedQRCode.isVisible
-                              ? "Will be visible 1 week before"
-                              : selectedQRCode.isVisible && !selectedQRCode.isAvailable
-                              ? "Visible but scannable 2 hours before"
-                              : "Session Ended"}
+                                ? "Will be visible 1 week before"
+                                : selectedQRCode.isVisible &&
+                                    !selectedQRCode.isAvailable
+                                  ? "Visible but scannable 2 hours before"
+                                  : "Session Ended"}
                           </p>
                         </div>
                       )}
@@ -299,8 +358,12 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
 
                     <Button
                       type="button"
-                      onClick={() => { void handlePrint(); }}
-                      disabled={!selectedQRCode.isAvailable || !selectedQRCode.qrUrl}
+                      onClick={() => {
+                        void handlePrint();
+                      }}
+                      disabled={
+                        !selectedQRCode.isAvailable || !selectedQRCode.qrUrl
+                      }
                       className="mt-6 w-full gap-2"
                       size="lg"
                     >

@@ -38,29 +38,34 @@ export default function OrganizationHeader({
   const [showJoinCode, setShowJoinCode] = useState(false);
   const isAdmin = userRole === "admin";
   const router = useRouter();
-  
+
   const getInitials = (name: string) => {
     return name
-      ? name.split(' ').map(part => part[0]).join('').toUpperCase().substring(0, 2)
+      ? name
+          .split(" ")
+          .map((part) => part[0])
+          .join("")
+          .toUpperCase()
+          .substring(0, 2)
       : "ORG";
   };
 
   const getMonogramFallback = (name: string) => {
-    return (
-      <span className="text-xl font-semibold">
-        {getInitials(name)}
-      </span>
-    );
+    return <span className="text-xl font-semibold">{getInitials(name)}</span>;
   };
 
   const handleShare = async () => {
     const url = window.location.href;
-    if (isMobileDevice() && typeof navigator !== "undefined" && navigator.share) {
+    if (
+      isMobileDevice() &&
+      typeof navigator !== "undefined" &&
+      navigator.share
+    ) {
       try {
         await navigator.share({
           title: `${organization.name} - Let's Assist`,
           text: `Check out ${organization.name} on Let's Assist!`,
-          url
+          url,
         });
         return;
       } catch (err) {
@@ -96,30 +101,67 @@ export default function OrganizationHeader({
         natural width so a long organization name can never push Share (or the
         identity itself) outside a 390px viewport.
       */}
-      <div className={cn(
-        "flex",
-        compact
-          ? "w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2"
-          : "flex-col gap-6 md:flex-row md:items-start md:justify-between",
-      )}>
-        <div className={cn(compact ? "flex min-w-0 grow basis-48 flex-row items-center gap-2.5" : "flex flex-col items-center gap-4 md:flex-row md:items-start")}>
+      <div
+        className={cn(
+          "flex",
+          compact
+            ? "w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2"
+            : "flex-col gap-6 md:flex-row md:items-start md:justify-between",
+        )}
+      >
+        <div
+          className={cn(
+            compact
+              ? "flex min-w-0 grow basis-48 flex-row items-center gap-2.5"
+              : "flex flex-col items-center gap-4 md:flex-row md:items-start",
+          )}
+        >
           <div className="relative shrink-0">
-            <Avatar className={cn("rounded-full border-background shadow-sm", compact ? "size-10 border-2 md:size-12" : "size-20 border-4 md:size-24")}>
-              <AvatarImage src={organization.logo_url || undefined} alt={organization.name} />
+            <Avatar
+              className={cn(
+                "rounded-full border-background shadow-sm",
+                compact
+                  ? "size-10 border-2 md:size-12"
+                  : "size-20 border-4 md:size-24",
+              )}
+            >
+              <AvatarImage
+                src={organization.logo_url || undefined}
+                alt={organization.name}
+              />
               <AvatarFallback className="bg-primary/10 text-xl rounded-full">
                 {getMonogramFallback(organization.name)}
               </AvatarFallback>
             </Avatar>
             {organization.verified && (
               <div className="absolute -bottom-0.5 -right-0.5 bg-background rounded-full shadow-sm border flex items-center justify-center p-0.5 md:hidden">
-                <BadgeCheck className="h-4 w-4 text-primary fill-background" aria-hidden="true" />
+                <BadgeCheck
+                  className="h-4 w-4 text-primary fill-background"
+                  aria-hidden="true"
+                />
               </div>
             )}
           </div>
 
-          <div className={cn("flex flex-col", compact ? "min-w-0 items-start gap-1 overflow-hidden text-left" : "items-center gap-2 text-center md:items-start md:text-left")}>
-            <div className={cn("flex items-center gap-2", compact && "min-w-0")}>
-              <h1 className={cn("font-bold tracking-tight", compact ? "truncate text-lg md:text-xl" : "text-2xl md:text-3xl")}>
+          <div
+            className={cn(
+              "flex flex-col",
+              compact
+                ? "min-w-0 items-start gap-1 overflow-hidden text-left"
+                : "items-center gap-2 text-center md:items-start md:text-left",
+            )}
+          >
+            <div
+              className={cn("flex items-center gap-2", compact && "min-w-0")}
+            >
+              <h1
+                className={cn(
+                  "font-bold tracking-tight",
+                  compact
+                    ? "truncate text-lg md:text-xl"
+                    : "text-2xl md:text-3xl",
+                )}
+              >
                 {organization.name}
               </h1>
               {organization.verified && (
@@ -130,23 +172,27 @@ export default function OrganizationHeader({
               )}
             </div>
 
-            <div className={cn(
-              "flex flex-wrap items-center gap-2",
-              compact ? "min-w-0 max-w-full" : "justify-center md:justify-start",
-            )}>
+            <div
+              className={cn(
+                "flex flex-wrap items-center gap-2",
+                compact
+                  ? "min-w-0 max-w-full"
+                  : "justify-center md:justify-start",
+              )}
+            >
               <Badge variant="secondary" className="capitalize">
                 {(() => {
                   switch (organization.type) {
-                    case 'nonprofit':
-                      return 'Nonprofit';
-                    case 'school':
-                      return 'Educational';
-                    case 'company':
-                      return 'Company';
-                    case 'government':
-                      return 'Government';
-                    case 'other':
-                      return 'Other';
+                    case "nonprofit":
+                      return "Nonprofit";
+                    case "school":
+                      return "Educational";
+                    case "company":
+                      return "Company";
+                    case "government":
+                      return "Government";
+                    case "other":
+                      return "Other";
                     default:
                       return organization.type;
                   }
@@ -154,19 +200,32 @@ export default function OrganizationHeader({
               </Badge>
 
               {organization.username && (
-                <span className={cn("text-sm text-muted-foreground font-mono", compact && "truncate")}>
+                <span
+                  className={cn(
+                    "text-sm text-muted-foreground font-mono",
+                    compact && "truncate",
+                  )}
+                >
                   @{organization.username}
                 </span>
               )}
             </div>
 
-            <div className={cn(
-              "flex flex-wrap items-center gap-4 text-sm text-muted-foreground",
-              compact ? "min-w-0 max-w-full" : "justify-center md:justify-start",
-            )}>
+            <div
+              className={cn(
+                "flex flex-wrap items-center gap-4 text-sm text-muted-foreground",
+                compact
+                  ? "min-w-0 max-w-full"
+                  : "justify-center md:justify-start",
+              )}
+            >
               {organization.website && (
                 <a
-                  href={organization.website.startsWith('http') ? organization.website : `https://${organization.website}`}
+                  href={
+                    organization.website.startsWith("http")
+                      ? organization.website
+                      : `https://${organization.website}`
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(
@@ -174,7 +233,10 @@ export default function OrganizationHeader({
                     compact && "min-w-0",
                   )}
                 >
-                  <GlobeIcon className={cn("h-3.5 w-3.5", compact && "shrink-0")} aria-hidden="true" />
+                  <GlobeIcon
+                    className={cn("h-3.5 w-3.5", compact && "shrink-0")}
+                    aria-hidden="true"
+                  />
                   <span className={cn(compact && "truncate")}>
                     {formatOrganizationWebsiteDisplay(organization.website)}
                   </span>
@@ -182,21 +244,30 @@ export default function OrganizationHeader({
               )}
 
               {showMemberCount ? (
-                <div className={cn("flex items-center gap-1", compact && "shrink-0 whitespace-nowrap")}>
+                <div
+                  className={cn(
+                    "flex items-center gap-1",
+                    compact && "shrink-0 whitespace-nowrap",
+                  )}
+                >
                   <UsersIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>{memberCount} {memberCount === 1 ? 'Member' : 'Members'}</span>
+                  <span>
+                    {memberCount} {memberCount === 1 ? "Member" : "Members"}
+                  </span>
                 </div>
               ) : null}
             </div>
           </div>
         </div>
 
-        <div className={cn(
-          "flex",
-          compact
-            ? "w-auto shrink-0 flex-row items-center justify-end gap-2"
-            : "w-full flex-col gap-2 sm:flex-row md:w-auto md:items-center",
-        )}>
+        <div
+          className={cn(
+            "flex",
+            compact
+              ? "w-auto shrink-0 flex-row items-center justify-end gap-2"
+              : "w-full flex-col gap-2 sm:flex-row md:w-auto md:items-center",
+          )}
+        >
           <Button
             variant="outline"
             size="sm"
@@ -224,12 +295,17 @@ export default function OrganizationHeader({
               variant="default"
               size="sm"
               className={cn(compact ? "w-auto shrink-0" : "w-full sm:w-auto")}
-              onClick={() => toast.info("Get the join code from an admin and join from the organizations page", {
-                action: {
-                  label: "Go to Organizations",
-                  onClick: () => window.location.href = "/organization"
-                }
-              })}
+              onClick={() =>
+                toast.info(
+                  "Get the join code from an admin and join from the organizations page",
+                  {
+                    action: {
+                      label: "Go to Organizations",
+                      onClick: () => (window.location.href = "/organization"),
+                    },
+                  },
+                )
+              }
             >
               <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
               Join

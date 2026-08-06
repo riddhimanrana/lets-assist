@@ -29,7 +29,9 @@ export function getRole(metadata: MetadataRecord): string | null {
   return normalizedRole.length > 0 ? normalizedRole : null;
 }
 
-export function hasSuperAdminMetadata(user: SuperAdminUserLike | null | undefined): boolean {
+export function hasSuperAdminMetadata(
+  user: SuperAdminUserLike | null | undefined,
+): boolean {
   if (!user) {
     return false;
   }
@@ -43,11 +45,15 @@ export function hasSuperAdminMetadata(user: SuperAdminUserLike | null | undefine
   );
 }
 
-export function isSuperAdminUser(user: SuperAdminUserLike | null | undefined): boolean {
+export function isSuperAdminUser(
+  user: SuperAdminUserLike | null | undefined,
+): boolean {
   return hasSuperAdminMetadata(user);
 }
 
-export function buildSuperAdminMetadataPatch(user: SuperAdminUserLike | null | undefined): {
+export function buildSuperAdminMetadataPatch(
+  user: SuperAdminUserLike | null | undefined,
+): {
   app_metadata: Record<string, unknown>;
 } {
   const appMetadata = isRecord(user?.app_metadata)

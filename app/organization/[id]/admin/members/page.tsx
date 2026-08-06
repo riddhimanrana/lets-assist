@@ -16,7 +16,9 @@ export default async function MembersPage({ params }: Props) {
   const supabase = await createClient();
 
   // Get current user
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     return redirect("/login");
   }
@@ -29,7 +31,10 @@ export default async function MembersPage({ params }: Props) {
     .eq("user_id", user.id)
     .single();
 
-  if (!memberData || (memberData.role !== "admin" && memberData.role !== "staff")) {
+  if (
+    !memberData ||
+    (memberData.role !== "admin" && memberData.role !== "staff")
+  ) {
     return notFound();
   }
 

@@ -20,19 +20,21 @@ interface ProfileActionsProps {
 export function ProfileActions({
   profileId,
   profileName,
-  profileUsername
+  profileUsername,
 }: ProfileActionsProps) {
   const [reportOpen, setReportOpen] = useState(false);
 
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger render={
-          <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2">
-            <MoreVertical className="h-4 w-4" />
-            <span className="sr-only">Open menu</span>
-          </Button>
-        } />
+        <DropdownMenuTrigger
+          render={
+            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2">
+              <MoreVertical className="h-4 w-4" />
+              <span className="sr-only">Open menu</span>
+            </Button>
+          }
+        />
         <DropdownMenuContent>
           <DropdownMenuItem onClick={() => setReportOpen(true)}>
             <Flag className="mr-2 h-4 w-4" />

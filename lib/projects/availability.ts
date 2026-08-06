@@ -1,10 +1,17 @@
 import type { Project, Signup } from "@/types";
 
-export const ACTIVE_PROJECT_SIGNUP_STATUSES = ["pending", "approved", "attended"] as const;
+export const ACTIVE_PROJECT_SIGNUP_STATUSES = [
+  "pending",
+  "approved",
+  "attended",
+] as const;
 
-const ACTIVE_PROJECT_SIGNUP_STATUS_SET = new Set<string>(ACTIVE_PROJECT_SIGNUP_STATUSES);
+const ACTIVE_PROJECT_SIGNUP_STATUS_SET = new Set<string>(
+  ACTIVE_PROJECT_SIGNUP_STATUSES,
+);
 
-export type ActiveProjectSignupStatus = (typeof ACTIVE_PROJECT_SIGNUP_STATUSES)[number];
+export type ActiveProjectSignupStatus =
+  (typeof ACTIVE_PROJECT_SIGNUP_STATUSES)[number];
 
 export type ProjectSignupStatusLike = {
   status?: Signup["status"] | string | null;
@@ -62,27 +69,30 @@ export function summarizeProjectOccupancy(
 export function buildProjectOccupancyByProject(
   signups: readonly ProjectSignupOccupancyRow[],
 ): Record<string, ProjectOccupancySummary> {
-  return signups.reduce<Record<string, ProjectOccupancySummary>>((acc, signup) => {
-    if (!isActiveProjectSignupStatus(signup.status)) {
+  return signups.reduce<Record<string, ProjectOccupancySummary>>(
+    (acc, signup) => {
+      if (!isActiveProjectSignupStatus(signup.status)) {
+        return acc;
+      }
+
+      const summary =
+        acc[signup.project_id] ??
+        (acc[signup.project_id] = {
+          slotsFilled: 0,
+          slotsFilledBySchedule: {},
+        });
+
+      summary.slotsFilled += 1;
+
+      if (signup.schedule_id) {
+        summary.slotsFilledBySchedule[signup.schedule_id] =
+          (summary.slotsFilledBySchedule[signup.schedule_id] || 0) + 1;
+      }
+
       return acc;
-    }
-
-    const summary =
-      acc[signup.project_id] ??
-      (acc[signup.project_id] = {
-        slotsFilled: 0,
-        slotsFilledBySchedule: {},
-      });
-
-    summary.slotsFilled += 1;
-
-    if (signup.schedule_id) {
-      summary.slotsFilledBySchedule[signup.schedule_id] =
-        (summary.slotsFilledBySchedule[signup.schedule_id] || 0) + 1;
-    }
-
-    return acc;
-  }, {});
+    },
+    {},
+  );
 }
 
 export function getProjectVolunteerCapacity(
@@ -147,5 +157,8 @@ export function getProjectFilledSpots(project: ProjectAvailability): number {
 }
 
 export function getProjectRemainingSpots(project: ProjectAvailability): number {
-  return Math.max(0, getProjectVolunteerCapacity(project) - getProjectFilledSpots(project));
+  return Math.max(
+    0,
+    getProjectVolunteerCapacity(project) - getProjectFilledSpots(project),
+  );
 }

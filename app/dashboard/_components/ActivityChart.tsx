@@ -31,7 +31,9 @@ export function ActivityChart({ data }: ActivityChartProps) {
     <Card className="w-full">
       <CardHeader>
         <CardTitle>Activity Chart</CardTitle>
-        <CardDescription>Your volunteering hours over the past 6 months.</CardDescription>
+        <CardDescription>
+          Your volunteering hours over the past 6 months.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
@@ -44,7 +46,13 @@ export function ActivityChart({ data }: ActivityChartProps) {
               axisLine={false}
               tickFormatter={(value) => value.slice(0, 3)}
             />
-            <YAxis width={48} tickFormatter={(value) => `${value}`} tickLine={false} tickMargin={10} axisLine={false} />
+            <YAxis
+              width={48}
+              tickFormatter={(value) => `${value}`}
+              tickLine={false}
+              tickMargin={10}
+              axisLine={false}
+            />
             <ChartTooltip
               cursor={false}
               content={<ChartTooltipContent hideLabel />}

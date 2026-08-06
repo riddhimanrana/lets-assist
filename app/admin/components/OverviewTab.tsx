@@ -2,12 +2,32 @@
 
 import Link from "next/link";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
-import { Users, MessageSquare, ShieldAlert, Activity, Bot, ArrowUpRight, AlertTriangle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import {
+  Users,
+  MessageSquare,
+  ShieldAlert,
+  Activity,
+  Bot,
+  ArrowUpRight,
+  AlertTriangle,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 
 interface OverviewTabProps {
   stats: {
@@ -63,7 +83,12 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats }: OverviewTabProps) {
+export function OverviewTab({
+  stats,
+  flaggedContent,
+  reportPreview,
+  reportsStats,
+}: OverviewTabProps) {
   const data = [
     {
       name: "Feedback",
@@ -96,11 +121,15 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
         <Link href="/admin/trusted-members">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Trusted Applications</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Trusted Applications
+              </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.trustedPendingCount}</div>
+              <div className="text-2xl font-bold">
+                {stats.trustedPendingCount}
+              </div>
               <p className="text-xs text-muted-foreground">Pending review</p>
             </CardContent>
           </Card>
@@ -108,7 +137,9 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
         <Link href="/admin/feedback">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">User Feedback</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                User Feedback
+              </CardTitle>
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -120,11 +151,15 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
         <Link href="/admin/moderation">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Flagged Content</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Flagged Content
+              </CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.flaggedPendingCount}</div>
+              <div className="text-2xl font-bold">
+                {stats.flaggedPendingCount}
+              </div>
               <p className="text-xs text-muted-foreground">AI & System flags</p>
             </CardContent>
           </Card>
@@ -132,12 +167,18 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
         <Link href="/admin/moderation">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">User Reports</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                User Reports
+              </CardTitle>
               <ShieldAlert className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.reportsPendingCount}</div>
-              <p className="text-xs text-muted-foreground">User submitted reports</p>
+              <div className="text-2xl font-bold">
+                {stats.reportsPendingCount}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                User submitted reports
+              </p>
             </CardContent>
           </Card>
         </Link>
@@ -152,7 +193,10 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
             </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
+            <ChartContainer
+              config={chartConfig}
+              className="min-h-[200px] w-full"
+            >
               <BarChart accessibilityLayer data={data}>
                 <CartesianGrid vertical={false} />
                 <XAxis
@@ -180,22 +224,36 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
               <div className="rounded-lg border bg-muted/40 p-3">
                 <dt className="text-xs text-muted-foreground">Total reports</dt>
                 <dd className="text-2xl font-semibold">{reportsStats.total}</dd>
-                <p className="text-xs text-muted-foreground">+{reportsStats.recentWeek} this week</p>
+                <p className="text-xs text-muted-foreground">
+                  +{reportsStats.recentWeek} this week
+                </p>
               </div>
               <div className="rounded-lg border bg-muted/40 p-3">
                 <dt className="text-xs text-muted-foreground">High priority</dt>
-                <dd className="text-2xl font-semibold">{reportsStats.highPriority}</dd>
-                <p className="text-xs text-muted-foreground">Needs quick triage</p>
+                <dd className="text-2xl font-semibold">
+                  {reportsStats.highPriority}
+                </dd>
+                <p className="text-xs text-muted-foreground">
+                  Needs quick triage
+                </p>
               </div>
               <div className="rounded-lg border bg-muted/40 p-3">
                 <dt className="text-xs text-muted-foreground">Pending</dt>
-                <dd className="text-2xl font-semibold">{reportsStats.pending}</dd>
-                <p className="text-xs text-muted-foreground">Awaiting reviewer</p>
+                <dd className="text-2xl font-semibold">
+                  {reportsStats.pending}
+                </dd>
+                <p className="text-xs text-muted-foreground">
+                  Awaiting reviewer
+                </p>
               </div>
               <div className="rounded-lg border bg-muted/40 p-3">
                 <dt className="text-xs text-muted-foreground">Resolved</dt>
-                <dd className="text-2xl font-semibold">{reportsStats.resolved}</dd>
-                <p className="text-xs text-muted-foreground">Closed this cycle</p>
+                <dd className="text-2xl font-semibold">
+                  {reportsStats.resolved}
+                </dd>
+                <p className="text-xs text-muted-foreground">
+                  Closed this cycle
+                </p>
               </div>
             </dl>
           </CardContent>
@@ -207,7 +265,9 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
           <CardHeader className="flex flex-row items-start justify-between space-y-0">
             <div>
               <CardTitle>AI Flag Queue</CardTitle>
-              <CardDescription>Latest items surfaced by automated scans.</CardDescription>
+              <CardDescription>
+                Latest items surfaced by automated scans.
+              </CardDescription>
             </div>
             <Badge variant="outline" className="gap-1 text-xs">
               <Bot className="h-3 w-3" />
@@ -216,13 +276,21 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
           </CardHeader>
           <CardContent className="space-y-4">
             {topFlags.length === 0 ? (
-              <p className="text-sm text-muted-foreground">All caught up—no AI flags awaiting review.</p>
+              <p className="text-sm text-muted-foreground">
+                All caught up—no AI flags awaiting review.
+              </p>
             ) : (
               topFlags.map((flag) => (
-                <div key={flag.id} className="rounded-lg border bg-muted/30 p-3">
+                <div
+                  key={flag.id}
+                  className="rounded-lg border bg-muted/30 p-3"
+                >
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center gap-2">
-                      <Badge variant={getSeverityVariant(flag.severity)} className="uppercase">
+                      <Badge
+                        variant={getSeverityVariant(flag.severity)}
+                        className="uppercase"
+                      >
                         {flag.flag_type || flag.severity || "Flag"}
                       </Badge>
                       <span>Confidence {formatConfidence(flag)}%</span>
@@ -232,7 +300,9 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
                     )}
                   </div>
                   <p className="mt-2 text-sm font-medium">
-                    {flag.flag_reason || flag.reason || "Content requires attention"}
+                    {flag.flag_reason ||
+                      flag.reason ||
+                      "Content requires attention"}
                   </p>
                   {flag.flagged_text_snippet && (
                     <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
@@ -244,7 +314,13 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
             )}
           </CardContent>
           <CardFooter>
-            <Link href="/admin/moderation" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1 text-xs")}>
+            <Link
+              href="/admin/moderation"
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                "gap-1 text-xs",
+              )}
+            >
               View all
               <ArrowUpRight className="h-3 w-3" />
             </Link>
@@ -255,7 +331,9 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
           <CardHeader className="flex flex-row items-start justify-between space-y-0">
             <div>
               <CardTitle>Report Inbox</CardTitle>
-              <CardDescription>Highest-signal community reports.</CardDescription>
+              <CardDescription>
+                Highest-signal community reports.
+              </CardDescription>
             </div>
             <Badge variant="secondary" className="gap-1 text-xs">
               <AlertTriangle className="h-3 w-3" />
@@ -264,17 +342,26 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
           </CardHeader>
           <CardContent className="space-y-4">
             {topReports.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No user reports in the queue right now.</p>
+              <p className="text-sm text-muted-foreground">
+                No user reports in the queue right now.
+              </p>
             ) : (
               topReports.map((report) => (
-                <div key={report.id} className="rounded-lg border bg-muted/30 p-3">
+                <div
+                  key={report.id}
+                  className="rounded-lg border bg-muted/30 p-3"
+                >
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     <Badge variant={getPriorityVariant(report.priority)}>
                       {formatPriority(report.priority)}
                     </Badge>
-                    <span className="text-muted-foreground">{report.reason}</span>
+                    <span className="text-muted-foreground">
+                      {report.reason}
+                    </span>
                     {report.created_at && (
-                      <span className="ml-auto text-muted-foreground">{formatShortDate(report.created_at)}</span>
+                      <span className="ml-auto text-muted-foreground">
+                        {formatShortDate(report.created_at)}
+                      </span>
                     )}
                   </div>
                   {report.description && (
@@ -284,7 +371,10 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
                   )}
                   {report.ai_metadata?.verdict && (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      AI verdict: <span className="font-medium text-foreground">{report.ai_metadata.verdict}</span>
+                      AI verdict:{" "}
+                      <span className="font-medium text-foreground">
+                        {report.ai_metadata.verdict}
+                      </span>
                     </p>
                   )}
                 </div>
@@ -292,7 +382,13 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
             )}
           </CardContent>
           <CardFooter>
-            <Link href="/admin/moderation" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1 text-xs")}>
+            <Link
+              href="/admin/moderation"
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                "gap-1 text-xs",
+              )}
+            >
               Go to reports
               <ArrowUpRight className="h-3 w-3" />
             </Link>
@@ -314,13 +410,17 @@ function formatPriority(priority?: string | null) {
   return priority.charAt(0).toUpperCase() + priority.slice(1);
 }
 
-function getPriorityVariant(priority?: string | null): "destructive" | "secondary" | "outline" {
+function getPriorityVariant(
+  priority?: string | null,
+): "destructive" | "secondary" | "outline" {
   if (priority === "high" || priority === "critical") return "destructive";
   if (priority === "low") return "outline";
   return "secondary";
 }
 
-function getSeverityVariant(severity?: string): "destructive" | "secondary" | "outline" {
+function getSeverityVariant(
+  severity?: string,
+): "destructive" | "secondary" | "outline" {
   if (!severity) return "outline";
   if (severity === "critical" || severity === "high") return "destructive";
   return "secondary";
@@ -329,7 +429,10 @@ function getSeverityVariant(severity?: string): "destructive" | "secondary" | "o
 function formatShortDate(value?: string) {
   if (!value) return "";
   try {
-    return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(value));
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+    }).format(new Date(value));
   } catch {
     return "";
   }

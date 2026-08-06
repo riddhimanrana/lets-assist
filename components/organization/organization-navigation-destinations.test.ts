@@ -74,7 +74,10 @@ describe("dedupeNavigationDestinations", () => {
 
   test("shares a seen set across successive calls", () => {
     const seenValues = new Set<string>();
-    const first = dedupeNavigationDestinations([destination("overview")], seenValues);
+    const first = dedupeNavigationDestinations(
+      [destination("overview")],
+      seenValues,
+    );
     const second = dedupeNavigationDestinations(
       [destination("overview"), destination("hours")],
       seenValues,
@@ -88,9 +91,17 @@ describe("dedupeNavigationDestinations", () => {
 describe("buildNavigationDestinationGroups", () => {
   test("workspace wins over a utility entry with the same value", () => {
     const groups = buildNavigationDestinationGroups(
-      [destination("hours", { label: "Service Hours", icon: "workspace-icon" })],
       [
-        destination("hours", { label: "Hours (utility)", icon: "utility-icon" }),
+        destination("hours", {
+          label: "Service Hours",
+          icon: "workspace-icon",
+        }),
+      ],
+      [
+        destination("hours", {
+          label: "Hours (utility)",
+          icon: "utility-icon",
+        }),
         destination("audit", { label: "Audit Log" }),
       ],
     );
@@ -98,7 +109,9 @@ describe("buildNavigationDestinationGroups", () => {
     expect(groups.workspaceDestinations.map((entry) => entry.label)).toEqual([
       "Service Hours",
     ]);
-    expect(groups.utilityDestinations.map((entry) => entry.value)).toEqual(["audit"]);
+    expect(groups.utilityDestinations.map((entry) => entry.value)).toEqual([
+      "audit",
+    ]);
     expect(groups.switcherDestinations.map((entry) => entry.value)).toEqual([
       "hours",
       "audit",
@@ -142,21 +155,31 @@ describe("findActiveNavigationDestination", () => {
   ];
 
   test("prefers the directly active destination", () => {
-    expect(findActiveNavigationDestination(destinations, "overview", "admin")?.value).toBe(
-      "overview",
-    );
+    expect(
+      findActiveNavigationDestination(destinations, "overview", "admin")?.value,
+    ).toBe("overview");
   });
 
   test("falls back to the parent that owns the active child tab", () => {
     expect(
-      findActiveNavigationDestination(destinations, "admin-recovery-queue", "admin")?.label,
+      findActiveNavigationDestination(
+        destinations,
+        "admin-recovery-queue",
+        "admin",
+      )?.label,
     ).toBe("Administration");
   });
 
   test("returns undefined when neither the value nor the parent is reachable", () => {
-    expect(findActiveNavigationDestination(destinations, "hidden-tab")).toBeUndefined();
     expect(
-      findActiveNavigationDestination(destinations, "hidden-tab", "not-permitted"),
+      findActiveNavigationDestination(destinations, "hidden-tab"),
+    ).toBeUndefined();
+    expect(
+      findActiveNavigationDestination(
+        destinations,
+        "hidden-tab",
+        "not-permitted",
+      ),
     ).toBeUndefined();
   });
 });
@@ -164,7 +187,9 @@ describe("findActiveNavigationDestination", () => {
 describe("isNavigationValueActive", () => {
   test("marks the direct match and the active child's parent as active", () => {
     expect(isNavigationValueActive("admin", "admin")).toBe(true);
-    expect(isNavigationValueActive("admin", "admin-recovery-queue", "admin")).toBe(true);
+    expect(
+      isNavigationValueActive("admin", "admin-recovery-queue", "admin"),
+    ).toBe(true);
   });
 
   test("leaves unrelated values inactive", () => {
@@ -173,6 +198,8 @@ describe("isNavigationValueActive", () => {
   });
 
   test("does not treat a missing parent as a match", () => {
-    expect(isNavigationValueActive("", "admin-recovery-queue", undefined)).toBe(false);
+    expect(isNavigationValueActive("", "admin-recovery-queue", undefined)).toBe(
+      false,
+    );
   });
 });

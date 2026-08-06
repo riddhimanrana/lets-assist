@@ -32,12 +32,12 @@ export type ConnectOnboardingStatus =
  * Plugins can define their own context types.
  */
 export type PaymentContextType =
-  | "membership"         // Membership dues (e.g. DVSD annual dues)
-  | "signup"             // Event registration fee (e.g. paid signups plugin)
-  | "tournament"         // Tournament entry fee
-  | "form_submission"    // Payment attached to a form submission
-  | "donation"           // Fundraiser donations
-  | "custom";            // Plugin-defined custom context
+  | "membership" // Membership dues (e.g. DVSD annual dues)
+  | "signup" // Event registration fee (e.g. paid signups plugin)
+  | "tournament" // Tournament entry fee
+  | "form_submission" // Payment attached to a form submission
+  | "donation" // Fundraiser donations
+  | "custom"; // Plugin-defined custom context
 
 // ---------------------------------------------------------------------------
 // Database row types

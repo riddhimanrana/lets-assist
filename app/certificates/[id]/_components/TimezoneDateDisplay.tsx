@@ -31,24 +31,26 @@ export function TimezoneDateDisplay({
       const formatted = formatDate(
         parseISO(dateString),
         format, // Prop name
-        { in: tz(userTimezone) }
+        { in: tz(userTimezone) },
       );
 
       // Add timezone abbreviation if the format includes time
       let finalFormatted = formatted;
-      if (format.includes('h') || format.includes('H')) {
+      if (format.includes("h") || format.includes("H")) {
         try {
-          const tzAbbr = new Intl.DateTimeFormat('en-US', {
-            timeZone: userTimezone,
-            timeZoneName: 'short',
-          }).formatToParts(parseISO(dateString))
-            .find(part => part.type === 'timeZoneName')?.value || '';
+          const tzAbbr =
+            new Intl.DateTimeFormat("en-US", {
+              timeZone: userTimezone,
+              timeZoneName: "short",
+            })
+              .formatToParts(parseISO(dateString))
+              .find((part) => part.type === "timeZoneName")?.value || "";
 
           if (tzAbbr) {
             finalFormatted = `${formatted} ${tzAbbr}`;
           }
         } catch (tzError) {
-          console.warn('Error adding timezone abbreviation:', tzError);
+          console.warn("Error adding timezone abbreviation:", tzError);
         }
       }
 
@@ -97,14 +99,17 @@ export function TimezoneEventDateRange({
       // Get timezone abbreviation
       const getTzAbbr = () => {
         try {
-          return new Intl.DateTimeFormat('en-US', {
-            timeZone: userTimezone,
-            timeZoneName: 'short',
-          }).formatToParts(parseISO(startDate))
-            .find(part => part.type === 'timeZoneName')?.value || '';
+          return (
+            new Intl.DateTimeFormat("en-US", {
+              timeZone: userTimezone,
+              timeZoneName: "short",
+            })
+              .formatToParts(parseISO(startDate))
+              .find((part) => part.type === "timeZoneName")?.value || ""
+          );
         } catch (tzError) {
-          console.warn('Error getting timezone abbreviation:', tzError);
-          return '';
+          console.warn("Error getting timezone abbreviation:", tzError);
+          return "";
         }
       };
 
@@ -114,13 +119,13 @@ export function TimezoneEventDateRange({
       const formattedStart = formatDate(
         parseISO(startDate),
         "MMM d, yyyy • h:mm a",
-        { in: tz(userTimezone) }
+        { in: tz(userTimezone) },
       );
 
       const formattedEnd = formatDate(
         parseISO(endDate),
         "MMM d, yyyy • h:mm a",
-        { in: tz(userTimezone) }
+        { in: tz(userTimezone) },
       );
 
       setFormattedDates({
@@ -173,11 +178,9 @@ export function TimezonePrintEventDate({
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
       // Format the date in user's timezone
-      const formatted = formatDate(
-        parseISO(startDate),
-        "MMMM d, yyyy",
-        { in: tz(userTimezone) }
-      );
+      const formatted = formatDate(parseISO(startDate), "MMMM d, yyyy", {
+        in: tz(userTimezone),
+      });
 
       setFormattedDate(formatted);
     } catch (error) {

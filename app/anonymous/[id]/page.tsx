@@ -14,7 +14,7 @@ import {
 import { resolveOrganizationPluginSurfaces } from "@/lib/plugins/resolve-plugin-surfaces";
 
 interface PageProps {
-  params: Promise<{ id: string}>;
+  params: Promise<{ id: string }>;
   searchParams: Promise<{ token?: string }>;
 }
 
@@ -31,11 +31,11 @@ export default async function AnonymousSignupPage({
   const resolvedSearchParams = await searchParams;
   const signupId = param.id;
   const accessToken = normalizeAnonymousSignupToken(resolvedSearchParams.token);
-  
+
   if (!signupId || !accessToken) {
     notFound();
   }
-  
+
   const supabase = await createClient();
   const admin = getAdminClient();
 
@@ -52,14 +52,16 @@ export default async function AnonymousSignupPage({
   // Fetch ALL project_signups linked to this anonymous profile (1:many)
   const { data: projectSignups, error: signupsError } = await admin
     .from("project_signups")
-    .select(`
+    .select(
+      `
       id,
       status,
       schedule_id,
       check_in_time,
       check_out_time,
       volunteer_comment
-    `)
+    `,
+    )
     .eq("anonymous_id", signupId)
     .order("created_at", { ascending: true });
 
@@ -88,14 +90,22 @@ export default async function AnonymousSignupPage({
     notFound();
   }
 
-  const isProjectCancelled = project.status === 'cancelled';
+  const isProjectCancelled = project.status === "cancelled";
 
-  const { name, email, phone_number, confirmed_at, created_at, linked_user_id } = signupData;
+  const {
+    name,
+    email,
+    phone_number,
+    confirmed_at,
+    created_at,
+    linked_user_id,
+  } = signupData;
 
   let linkedAccountSnapshot: LinkedAccountSnapshot | null = null;
 
   if (linked_user_id) {
-    const { data: linkedUserData, error: linkedUserError } = await admin.auth.admin.getUserById(linked_user_id);
+    const { data: linkedUserData, error: linkedUserError } =
+      await admin.auth.admin.getUserById(linked_user_id);
 
     if (linkedUserError) {
       console.error("Error fetching linked account details:", linkedUserError);
@@ -103,19 +113,30 @@ export default async function AnonymousSignupPage({
       const linkedUser = linkedUserData.user;
       linkedAccountSnapshot = {
         email: linkedUser.email ?? null,
-        isVerified: Boolean(linkedUser.email_confirmed_at || linkedUser.phone_confirmed_at),
+        isVerified: Boolean(
+          linkedUser.email_confirmed_at || linkedUser.phone_confirmed_at,
+        ),
       };
     }
   }
 
   // Map signup data for the client component
-  const slots = projectSignups.map((ps: { id: string; status: string; schedule_id: string; check_in_time: string | null; check_out_time: string | null; volunteer_comment: string | null }) => ({
-    project_signup_id: ps.id,
-    status: ps.status,
-    schedule_id: ps.schedule_id,
-    check_in_time: ps.check_in_time,
-    check_out_time: ps.check_out_time,
-  }));
+  const slots = projectSignups.map(
+    (ps: {
+      id: string;
+      status: string;
+      schedule_id: string;
+      check_in_time: string | null;
+      check_out_time: string | null;
+      volunteer_comment: string | null;
+    }) => ({
+      project_signup_id: ps.id,
+      status: ps.status,
+      schedule_id: ps.schedule_id,
+      check_in_time: ps.check_in_time,
+      check_out_time: ps.check_out_time,
+    }),
+  );
 
   let certificateIds: Record<string, string> = {};
   const signupIds = slots.map((slot) => slot.project_signup_id);
@@ -126,14 +147,20 @@ export default async function AnonymousSignupPage({
       .in("signup_id", signupIds);
 
     if (certificatesError) {
-      console.error("Error fetching anonymous certificates:", certificatesError);
+      console.error(
+        "Error fetching anonymous certificates:",
+        certificatesError,
+      );
     } else if (certificates) {
-      certificateIds = certificates.reduce<Record<string, string>>((acc, cert) => {
-        if (cert.signup_id) {
-          acc[cert.signup_id] = cert.id;
-        }
-        return acc;
-      }, {});
+      certificateIds = certificates.reduce<Record<string, string>>(
+        (acc, cert) => {
+          if (cert.signup_id) {
+            acc[cert.signup_id] = cert.id;
+          }
+          return acc;
+        },
+        {},
+      );
     }
   }
 

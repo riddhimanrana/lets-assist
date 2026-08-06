@@ -13,7 +13,12 @@ import { getAdminClient } from "@/lib/supabase/admin";
 
 // File size and type validation constants
 const MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/jpg",
+];
 const ALLOWED_DOCUMENT_TYPES = [
   "application/pdf",
   "application/msword",
@@ -22,7 +27,7 @@ const ALLOWED_DOCUMENT_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
-  "image/jpg"
+  "image/jpg",
 ];
 
 type UploadedProjectDocument = {
@@ -33,7 +38,9 @@ type UploadedProjectDocument = {
   url: string;
 };
 
-function sanitizeDraftData(projectData: Partial<EventFormState>): Partial<EventFormState> {
+function sanitizeDraftData(
+  projectData: Partial<EventFormState>,
+): Partial<EventFormState> {
   const sanitizedDescription =
     typeof projectData.basicInfo?.description === "string"
       ? sanitizeRichTextHtml(projectData.basicInfo.description)
@@ -57,7 +64,10 @@ function sanitizeDraftData(projectData: Partial<EventFormState>): Partial<EventF
   };
 }
 
-function isMissingProjectColumnError(error: unknown, columnName: string): boolean {
+function isMissingProjectColumnError(
+  error: unknown,
+  columnName: string,
+): boolean {
   if (!error || typeof error !== "object") return false;
 
   const pgError = error as {
@@ -67,7 +77,8 @@ function isMissingProjectColumnError(error: unknown, columnName: string): boolea
     hint?: string;
   };
 
-  const combined = `${pgError.message ?? ""} ${pgError.details ?? ""} ${pgError.hint ?? ""}`.toLowerCase();
+  const combined =
+    `${pgError.message ?? ""} ${pgError.details ?? ""} ${pgError.hint ?? ""}`.toLowerCase();
   const referencesColumn = combined.includes(columnName.toLowerCase());
   const schemaCacheLike =
     combined.includes("schema cache") ||
@@ -88,7 +99,7 @@ function isMissingSignupFormSchemaColumnError(error: unknown): boolean {
 
 function omitProjectColumns(
   payload: Record<string, unknown>,
-  columns: string[]
+  columns: string[],
 ): Record<string, unknown> {
   const next = { ...payload };
 
@@ -101,15 +112,19 @@ function omitProjectColumns(
 
 function normalizeRequireLoginForVerificationMethod(
   verificationMethod: EventFormState["verificationMethod"] | undefined,
-  requireLogin: boolean
+  requireLogin: boolean,
 ) {
   return verificationMethod === "signup-only" ? false : requireLogin;
 }
 
 // Helper function to check if date/time is in the past, using user's local time
-const _isDateTimeInPast = (date: string, time: string, userNow: Date): boolean => {
-  const [hours, minutes] = time.split(':').map(Number);
-  const [year, month, day] = date.split('-').map(Number);
+const _isDateTimeInPast = (
+  date: string,
+  time: string,
+  userNow: Date,
+): boolean => {
+  const [hours, minutes] = time.split(":").map(Number);
+  const [year, month, day] = date.split("-").map(Number);
 
   const datetime = new Date(year, month - 1, day);
   datetime.setHours(hours, minutes, 0, 0);
@@ -120,9 +135,8 @@ const _isDateTimeInPast = (date: string, time: string, userNow: Date): boolean =
 // Create project without files first
 export async function createBasicProject(
   projectData: EventFormState & { userNow?: string },
-  isDraft: boolean = false
+  isDraft: boolean = false,
 ) {
-
   // Validate that all dates and times are in the future (using user's local time)
   // if (projectData.eventType === "oneTime") {
   //   if (isDateTimeInPast(projectData.schedule.oneTime.date, projectData.schedule.oneTime.startTime, userNow) ||
@@ -191,7 +205,9 @@ export async function createBasicProject(
   }
 
   // Rate limiting: Check projects created in the last 24 hours
-  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const twentyFourHoursAgo = new Date(
+    Date.now() - 24 * 60 * 60 * 1000,
+  ).toISOString();
   const { count: projectsCount, error: countError } = await supabase
     .from("projects")
     .select("id", { count: "exact", head: true })
@@ -204,7 +220,10 @@ export async function createBasicProject(
   }
 
   if (projectsCount !== null && projectsCount >= 50) {
-    return { error: "You have created too many projects recently. Please try again in 24 hours." };
+    return {
+      error:
+        "You have created too many projects recently. Please try again in 24 hours.",
+    };
   }
 
   // Get organization_id from the project data
@@ -220,11 +239,16 @@ export async function createBasicProject(
       .single();
 
     if (orgError || !orgMember) {
-      return { error: "You don't have permission to create projects for this organization" };
+      return {
+        error:
+          "You don't have permission to create projects for this organization",
+      };
     }
 
     if (orgMember.role !== "admin" && orgMember.role !== "staff") {
-      return { error: "Only organization admins and staff can create projects" };
+      return {
+        error: "Only organization admins and staff can create projects",
+      };
     }
   }
 
@@ -240,34 +264,55 @@ export async function createBasicProject(
     if (projectData.eventType === "oneTime") {
       // For one-time events, simple oneTime key
       publishedState = { oneTime: false };
-    }
-    else if (projectData.eventType === "multiDay" && projectData.schedule.multiDay) {
+    } else if (
+      projectData.eventType === "multiDay" &&
+      projectData.schedule.multiDay
+    ) {
       // For multi-day events, create keys for each day and slot combination
-      projectData.schedule.multiDay.forEach((day: { date: string; slots: { startTime: string; endTime: string; }[] }, dayIndex: number) => {
-        day.slots.forEach((slot: { startTime: string; endTime: string }, slotIndex: number) => {
-          // Format: "YYYY-MM-DD-dayIndex-slotIndex" (unique even if dates are duplicate)
-          const sessionKey = `${day.date}-${dayIndex}-${slotIndex}`;
-          publishedState[sessionKey] = false;
-        });
-      });
-    }
-    else if (projectData.eventType === "sameDayMultiArea" && projectData.schedule.sameDayMultiArea) {
+      projectData.schedule.multiDay.forEach(
+        (
+          day: {
+            date: string;
+            slots: { startTime: string; endTime: string }[];
+          },
+          dayIndex: number,
+        ) => {
+          day.slots.forEach(
+            (
+              slot: { startTime: string; endTime: string },
+              slotIndex: number,
+            ) => {
+              // Format: "YYYY-MM-DD-dayIndex-slotIndex" (unique even if dates are duplicate)
+              const sessionKey = `${day.date}-${dayIndex}-${slotIndex}`;
+              publishedState[sessionKey] = false;
+            },
+          );
+        },
+      );
+    } else if (
+      projectData.eventType === "sameDayMultiArea" &&
+      projectData.schedule.sameDayMultiArea
+    ) {
       // For multi-area events, use role names as keys
-      projectData.schedule.sameDayMultiArea.roles.forEach((role: { name: string; startTime: string; endTime: string }) => {
-        // Use role name as the key
-        publishedState[role.name] = false;
-      });
+      projectData.schedule.sameDayMultiArea.roles.forEach(
+        (role: { name: string; startTime: string; endTime: string }) => {
+          // Use role name as the key
+          publishedState[role.name] = false;
+        },
+      );
     }
 
     // Build recurrence rule if enabled
-    const recurrenceRule = projectData.recurrence?.enabled ? {
-      frequency: projectData.recurrence.frequency,
-      interval: projectData.recurrence.interval || 1,
-      end_type: projectData.recurrence.endType,
-      end_date: projectData.recurrence.endDate || null,
-      end_occurrences: projectData.recurrence.endOccurrences || null,
-      weekdays: projectData.recurrence.weekdays || [],
-    } : null;
+    const recurrenceRule = projectData.recurrence?.enabled
+      ? {
+          frequency: projectData.recurrence.frequency,
+          interval: projectData.recurrence.interval || 1,
+          end_type: projectData.recurrence.endType,
+          end_date: projectData.recurrence.endDate || null,
+          end_occurrences: projectData.recurrence.endOccurrences || null,
+          weekdays: projectData.recurrence.weekdays || [],
+        }
+      : null;
 
     const baseProjectPayload = {
       creator_id: user.id,
@@ -277,11 +322,11 @@ export async function createBasicProject(
       description: sanitizeRichTextHtml(projectData.basicInfo.description),
       event_type: projectData.eventType,
       schedule: projectData.schedule,
-      status: 'upcoming',
+      status: "upcoming",
       verification_method: projectData.verificationMethod,
       require_login: normalizeRequireLoginForVerificationMethod(
         projectData.verificationMethod,
-        projectData.requireLogin
+        projectData.requireLogin,
       ),
       enable_volunteer_comments: projectData.enableVolunteerComments || false,
       show_attendees_publicly: projectData.showAttendeesPublicly || false,
@@ -290,9 +335,10 @@ export async function createBasicProject(
       organization_id: organizationId || null, // Save organization_id if provided
       visibility: requestedVisibility, // Public requires Trusted Member. Unlisted / org-only do not.
       published: publishedState, // Add the published state tracking
-      project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles', // Save project timezone with fallback
+      project_timezone:
+        projectData.basicInfo.projectTimezone || "America/Los_Angeles", // Save project timezone with fallback
       restrict_to_org_domains: projectData.restrictToOrgDomains || false, // Add domain restriction flag
-      workflow_status: isDraft ? 'draft' : 'published', // Support draft saving
+      workflow_status: isDraft ? "draft" : "published", // Support draft saving
       recurrence_rule: recurrenceRule, // Support recurring projects
       signup_form_schema: projectData.signupFormSchema || null,
     };
@@ -306,7 +352,10 @@ export async function createBasicProject(
       projectInsertPayload,
       omitProjectColumns(projectInsertPayload, ["signup_form_schema"]),
       omitProjectColumns(projectInsertPayload, ["waiver_disable_esignature"]),
-      omitProjectColumns(projectInsertPayload, ["signup_form_schema", "waiver_disable_esignature"]),
+      omitProjectColumns(projectInsertPayload, [
+        "signup_form_schema",
+        "waiver_disable_esignature",
+      ]),
     ];
 
     let project: { id: string } | null = null;
@@ -327,8 +376,10 @@ export async function createBasicProject(
 
       projectError = error;
 
-      const missingSignupFormSchema = isMissingSignupFormSchemaColumnError(error);
-      const missingWaiverDisableEsignature = isMissingWaiverDisableEsignatureColumnError(error);
+      const missingSignupFormSchema =
+        isMissingSignupFormSchemaColumnError(error);
+      const missingWaiverDisableEsignature =
+        isMissingWaiverDisableEsignatureColumnError(error);
       if (!missingSignupFormSchema && !missingWaiverDisableEsignature) {
         break;
       }
@@ -344,10 +395,12 @@ export async function createBasicProject(
       const admin = getAdminClient();
       const { data: organization } = await admin
         .from("organizations")
-        .select("id, name, username, description, logo_url, type, verified, allowed_email_domains, show_members_publicly")
+        .select(
+          "id, name, username, description, logo_url, type, verified, allowed_email_domains, show_members_publicly",
+        )
         .eq("id", projectData.basicInfo.organizationId)
         .single();
-      
+
       if (organization) {
         const { data: member } = await supabase
           .from("organization_members")
@@ -360,19 +413,24 @@ export async function createBasicProject(
 
         const plugins = await resolveOrganizationPlugins({
           organizationId: projectData.basicInfo.organizationId,
-          userRole
+          userRole,
         });
 
         for (const resolved of plugins) {
           if (!resolved.enabled) continue;
-          const plugin = (await import("@/lib/plugins/registry")).getRegisteredPlugin(resolved.key);
+          const plugin = (
+            await import("@/lib/plugins/registry")
+          ).getRegisteredPlugin(resolved.key);
           if (plugin && plugin.lifecycle?.onProjectCreate) {
-             await runProjectCreate(plugin, {
-               organization: { ...organization, role: userRole } as OrganizationWithRole,
-               projectId: project.id,
-               pluginData: projectData.pluginData,
-               actor: { id: user.id, type: "user" }
-             });
+            await runProjectCreate(plugin, {
+              organization: {
+                ...organization,
+                role: userRole,
+              } as OrganizationWithRole,
+              projectId: project.id,
+              pluginData: projectData.pluginData,
+              actor: { id: user.id, type: "user" },
+            });
           }
         }
       }
@@ -392,7 +450,7 @@ export async function uploadCoverImage(projectId: string, imageBase64: string) {
 
   try {
     // Skip if no image data - cover images are optional
-    if (!imageBase64 || !imageBase64.includes('base64')) {
+    if (!imageBase64 || !imageBase64.includes("base64")) {
       return { success: true };
     }
 
@@ -403,7 +461,9 @@ export async function uploadCoverImage(projectId: string, imageBase64: string) {
 
     // Validate content type
     if (!ALLOWED_IMAGE_TYPES.includes(contentType)) {
-      return { error: "Invalid cover image type. Please use JPEG, JPG, PNG or WebP." };
+      return {
+        error: "Invalid cover image type. Please use JPEG, JPG, PNG or WebP.",
+      };
     }
 
     // Validate size (approximate from base64)
@@ -414,15 +474,15 @@ export async function uploadCoverImage(projectId: string, imageBase64: string) {
 
     // Create unique filename - now directly in the bucket root
     const timestamp = Date.now();
-    const fileName = `project_${projectId}_cover_${timestamp}.${contentType.split('/')[1]}`;
+    const fileName = `project_${projectId}_cover_${timestamp}.${contentType.split("/")[1]}`;
 
     // Upload to Supabase Storage - no subfolder
     const { error: uploadError } = await supabase.storage
-      .from('project-images')
+      .from("project-images")
       .upload(fileName, buffer, {
         contentType: contentType,
-        cacheControl: '3600',
-        upsert: false
+        cacheControl: "3600",
+        upsert: false,
       });
 
     if (uploadError) {
@@ -432,14 +492,14 @@ export async function uploadCoverImage(projectId: string, imageBase64: string) {
 
     // Get public URL
     const { data: publicUrlData } = supabase.storage
-      .from('project-images')
+      .from("project-images")
       .getPublicUrl(fileName);
 
     // Update project with cover image URL
     const { error: updateError } = await supabase
       .from("projects")
       .update({
-        cover_image_url: publicUrlData.publicUrl
+        cover_image_url: publicUrlData.publicUrl,
       })
       .eq("id", projectId);
 
@@ -456,12 +516,17 @@ export async function uploadCoverImage(projectId: string, imageBase64: string) {
 }
 
 // Improved document upload function with stricter size validation
-export async function uploadProjectDocument(projectId: string, documentBase64: string, fileName: string, fileType: string) {
+export async function uploadProjectDocument(
+  projectId: string,
+  documentBase64: string,
+  fileName: string,
+  fileType: string,
+) {
   const supabase = await createClient();
 
   try {
     // Skip if no document data
-    if (!documentBase64 || !documentBase64.includes('base64')) {
+    if (!documentBase64 || !documentBase64.includes("base64")) {
       return { success: true };
     }
 
@@ -485,26 +550,30 @@ export async function uploadProjectDocument(projectId: string, documentBase64: s
     // Create unique filename with a smaller random ID
     const timestamp = Date.now();
     const documentId = uuidv4().substring(0, 8);
-    const fileExt = fileName.split('.').pop() || contentType.split('/')[1] || 'file';
+    const fileExt =
+      fileName.split(".").pop() || contentType.split("/")[1] || "file";
     const safeFileName = `project_${projectId}_${documentId}_${timestamp}.${fileExt}`;
 
     // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
-      .from('project-documents')
+      .from("project-documents")
       .upload(safeFileName, buffer, {
         contentType: contentType,
-        cacheControl: '3600',
-        upsert: false
+        cacheControl: "3600",
+        upsert: false,
       });
 
     if (uploadError) {
-      console.error('Error uploading document:', { fileName, error: uploadError });
+      console.error("Error uploading document:", {
+        fileName,
+        error: uploadError,
+      });
       return { error: "Failed to upload document." };
     }
 
     // Get public URL
     const { data: publicUrlData } = supabase.storage
-      .from('project-documents')
+      .from("project-documents")
       .getPublicUrl(safeFileName);
 
     // Get current documents and append new one
@@ -522,14 +591,14 @@ export async function uploadProjectDocument(projectId: string, documentBase64: s
       originalName: fileName,
       type: contentType,
       size: sizeInBytes,
-      url: publicUrlData.publicUrl
+      url: publicUrlData.publicUrl,
     };
 
     // Update project with document URLs
     const { error: updateError } = await supabase
       .from("projects")
       .update({
-        documents: [...currentDocs, newDoc]
+        documents: [...currentDocs, newDoc],
       })
       .eq("id", projectId);
 
@@ -550,7 +619,7 @@ export async function linkProjectUploadedAssets(
   assets: {
     coverImageUrl?: string;
     documents?: UploadedProjectDocument[];
-  }
+  },
 ) {
   const supabase = await createClient();
 
@@ -570,7 +639,10 @@ export async function linkProjectUploadedAssets(
     .single();
 
   if (projectError || !project) {
-    console.error("Error loading project for uploaded file linking:", projectError);
+    console.error(
+      "Error loading project for uploaded file linking:",
+      projectError,
+    );
     return { error: "Project not found." };
   }
 
@@ -584,7 +656,8 @@ export async function linkProjectUploadedAssets(
       .eq("user_id", user.id)
       .maybeSingle();
 
-    hasPermission = membership?.role === "admin" || membership?.role === "staff";
+    hasPermission =
+      membership?.role === "admin" || membership?.role === "staff";
   }
 
   if (!hasPermission) {
@@ -610,7 +683,9 @@ export async function linkProjectUploadedAssets(
   }
 
   if (safeDocuments.length > 0) {
-    const currentDocuments = Array.isArray(project.documents) ? project.documents : [];
+    const currentDocuments = Array.isArray(project.documents)
+      ? project.documents
+      : [];
     updatePayload.documents = [...currentDocuments, ...safeDocuments];
   }
 
@@ -632,12 +707,16 @@ export async function linkProjectUploadedAssets(
 }
 
 // Handle waiver PDF upload for a project
-export async function uploadWaiverPdf(projectId: string, pdfBase64: string, fileName: string) {
+export async function uploadWaiverPdf(
+  projectId: string,
+  pdfBase64: string,
+  fileName: string,
+) {
   const supabase = await createClient();
 
   try {
     // Skip if no PDF data
-    if (!pdfBase64 || !pdfBase64.includes('base64')) {
+    if (!pdfBase64 || !pdfBase64.includes("base64")) {
       return { success: true };
     }
 
@@ -654,16 +733,16 @@ export async function uploadWaiverPdf(projectId: string, pdfBase64: string, file
 
     // Create unique filename
     const timestamp = Date.now();
-    const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
     const storagePath = `project_waivers/${projectId}/${timestamp}_${safeFileName}`;
 
     // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
-      .from('waiver-uploads')
+      .from("waiver-uploads")
       .upload(storagePath, buffer, {
         contentType,
-        cacheControl: '3600',
-        upsert: false
+        cacheControl: "3600",
+        upsert: false,
       });
 
     if (uploadError) {
@@ -673,7 +752,7 @@ export async function uploadWaiverPdf(projectId: string, pdfBase64: string, file
 
     // Get public URL
     const { data: publicUrlData } = supabase.storage
-      .from('waiver-uploads')
+      .from("waiver-uploads")
       .getPublicUrl(storagePath);
 
     // Update project with waiver PDF URL
@@ -681,14 +760,14 @@ export async function uploadWaiverPdf(projectId: string, pdfBase64: string, file
       .from("projects")
       .update({
         waiver_pdf_url: publicUrlData.publicUrl,
-        waiver_pdf_storage_path: storagePath
+        waiver_pdf_storage_path: storagePath,
       })
       .eq("id", projectId);
 
     if (updateError) {
       console.error("Error linking waiver PDF to project:", updateError);
       // Clean up uploaded file
-      await supabase.storage.from('waiver-uploads').remove([storagePath]);
+      await supabase.storage.from("waiver-uploads").remove([storagePath]);
       return { error: "Failed to link waiver PDF to project." };
     }
 
@@ -734,15 +813,24 @@ export async function createProject(formData: FormData) {
 // Save project as draft - with relaxed validation
 // Auto-save draft to database (creates or updates existing autosave draft)
 // Always updates the same "autosave" draft for continuous work
-export async function autoSaveDraft(projectData: Partial<EventFormState>, autosaveDraftId?: string) {
+export async function autoSaveDraft(
+  projectData: Partial<EventFormState>,
+  autosaveDraftId?: string,
+) {
   try {
     const supabase = await createClient();
     const sanitizedProjectData = sanitizeDraftData(projectData);
 
     // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
     if (userError || !user) {
-      return { error: "You must be logged in to autosave a draft", autosaved: false };
+      return {
+        error: "You must be logged in to autosave a draft",
+        autosaved: false,
+      };
     }
 
     const waiverPdfError = getWaiverPdfRequirementError(sanitizedProjectData);
@@ -761,7 +849,7 @@ export async function autoSaveDraft(projectData: Partial<EventFormState>, autosa
         .update({
           title: title,
           draft_data: sanitizedProjectData,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq("id", autosaveDraftId)
         .eq("user_id", user.id)
@@ -770,7 +858,11 @@ export async function autoSaveDraft(projectData: Partial<EventFormState>, autosa
 
       if (updateError) {
         console.error("Error updating autosave draft:", updateError);
-        return { error: "Failed to autosave draft", autosaved: false, id: autosaveDraftId };
+        return {
+          error: "Failed to autosave draft",
+          autosaved: false,
+          id: autosaveDraftId,
+        };
       }
 
       return { success: true, id: draft.id, autosaved: true };
@@ -781,7 +873,7 @@ export async function autoSaveDraft(projectData: Partial<EventFormState>, autosa
         .insert({
           user_id: user.id,
           title: title,
-          draft_data: sanitizedProjectData
+          draft_data: sanitizedProjectData,
         })
         .select()
         .single();
@@ -803,14 +895,17 @@ export async function autoSaveDraft(projectData: Partial<EventFormState>, autosa
 export async function saveProjectAsNewDraft(formData: FormData) {
   try {
     const supabase = await createClient();
-    
+
     const projectDataStr = formData.get("projectData") as string;
     if (!projectDataStr) return { error: "Missing project data" };
     const projectData = JSON.parse(projectDataStr);
     const sanitizedProjectData = sanitizeDraftData(projectData);
 
     // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
     if (userError || !user) {
       return { error: "You must be logged in to save a draft" };
     }
@@ -829,7 +924,7 @@ export async function saveProjectAsNewDraft(formData: FormData) {
       .insert({
         user_id: user.id,
         title: title,
-        draft_data: sanitizedProjectData
+        draft_data: sanitizedProjectData,
       })
       .select()
       .single();
@@ -851,14 +946,17 @@ export async function saveProjectAsNewDraft(formData: FormData) {
 export async function saveProjectAsDraft(formData: FormData) {
   try {
     const supabase = await createClient();
-    
+
     const projectDataStr = formData.get("projectData") as string;
     if (!projectDataStr) return { error: "Missing project data" };
     const projectData = JSON.parse(projectDataStr);
     const sanitizedProjectData = sanitizeDraftData(projectData);
 
     // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
     if (userError || !user) {
       return { error: "You must be logged in to save a draft" };
     }
@@ -877,7 +975,7 @@ export async function saveProjectAsDraft(formData: FormData) {
       .insert({
         user_id: user.id,
         title: title,
-        draft_data: sanitizedProjectData
+        draft_data: sanitizedProjectData,
       })
       .select()
       .single();
@@ -900,7 +998,10 @@ export async function saveProjectAsDraft(formData: FormData) {
 export async function publishDraft(draftId: string) {
   const supabase = await createClient();
 
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
   if (userError || !user) {
     return { error: "You must be logged in to publish a project" };
   }
@@ -924,16 +1025,13 @@ export async function publishDraft(draftId: string) {
     return { error: waiverPdfError };
   }
   const basicResult = await createBasicProject(projectData, false);
-  
+
   if (basicResult.error) {
     return basicResult;
   }
 
   // Delete the draft after successful project creation
-  await supabase
-    .from("project_drafts")
-    .delete()
-    .eq("id", draftId);
+  await supabase.from("project_drafts").delete().eq("id", draftId);
 
   revalidatePath("/projects");
   revalidatePath("/projects/drafts");
@@ -944,7 +1042,10 @@ export async function publishDraft(draftId: string) {
 }
 
 // Update an existing draft project
-export async function updateDraft(projectId: string, projectData: Partial<EventFormState>) {
+export async function updateDraft(
+  projectId: string,
+  projectData: Partial<EventFormState>,
+) {
   const supabase = await createClient();
 
   const {
@@ -975,7 +1076,11 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
     return { error: "This project is not a draft" };
   }
 
-  if (!projectData.basicInfo || !projectData.eventType || !projectData.schedule?.[projectData.eventType]) {
+  if (
+    !projectData.basicInfo ||
+    !projectData.eventType ||
+    !projectData.schedule?.[projectData.eventType]
+  ) {
     return { error: "Incomplete project data for draft update" };
   }
 
@@ -984,7 +1089,8 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
     return { error: waiverPdfError };
   }
 
-  const targetVisibility = projectData.visibility || project.visibility || "unlisted";
+  const targetVisibility =
+    projectData.visibility || project.visibility || "unlisted";
 
   if (targetVisibility === "public") {
     const { data: tmProfile } = await supabase
@@ -1010,14 +1116,16 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
   }
 
   // Build recurrence rule if enabled
-  const recurrenceRule = projectData.recurrence?.enabled ? {
-    frequency: projectData.recurrence.frequency,
-    interval: projectData.recurrence.interval || 1,
-    end_type: projectData.recurrence.endType,
-    end_date: projectData.recurrence.endDate || null,
-    end_occurrences: projectData.recurrence.endOccurrences || null,
-    weekdays: projectData.recurrence.weekdays || [],
-  } : null;
+  const recurrenceRule = projectData.recurrence?.enabled
+    ? {
+        frequency: projectData.recurrence.frequency,
+        interval: projectData.recurrence.interval || 1,
+        end_type: projectData.recurrence.endType,
+        end_date: projectData.recurrence.endDate || null,
+        end_occurrences: projectData.recurrence.endOccurrences || null,
+        weekdays: projectData.recurrence.weekdays || [],
+      }
+    : null;
 
   // Update the draft
   const baseUpdatePayload = {
@@ -1030,14 +1138,15 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
     verification_method: projectData.verificationMethod,
     require_login: normalizeRequireLoginForVerificationMethod(
       projectData.verificationMethod,
-      projectData.requireLogin ?? true
+      projectData.requireLogin ?? true,
     ),
     enable_volunteer_comments: projectData.enableVolunteerComments || false,
     show_attendees_publicly: projectData.showAttendeesPublicly || false,
     waiver_required: projectData.waiverRequired || false,
     waiver_allow_upload: projectData.waiverAllowUpload ?? true,
     visibility: targetVisibility,
-    project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles',
+    project_timezone:
+      projectData.basicInfo.projectTimezone || "America/Los_Angeles",
     restrict_to_org_domains: projectData.restrictToOrgDomains || false,
     recurrence_rule: recurrenceRule,
   };
@@ -1130,15 +1239,15 @@ export async function checkProfanity(content: { [key: string]: string }) {
 
     // Check each field separately
     for (const [field, text] of Object.entries(content)) {
-      if (!text || text.trim() === '') {
+      if (!text || text.trim() === "") {
         results[field] = { isProfanity: false };
         continue; // Skip empty fields
       }
 
       try {
-        const response = await fetch('https://vector.profanity.dev', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("https://vector.profanity.dev", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: text }),
         });
 
@@ -1153,7 +1262,7 @@ export async function checkProfanity(content: { [key: string]: string }) {
         results[field] = {
           isProfanity: !!result.isProfanity,
           score: result.score,
-          flaggedFor: result.flaggedFor
+          flaggedFor: result.flaggedFor,
         };
 
         // If any field has profanity, mark the overall result as having profanity
@@ -1170,10 +1279,10 @@ export async function checkProfanity(content: { [key: string]: string }) {
     return {
       success: true,
       hasProfanity,
-      fieldResults: results
+      fieldResults: results,
     };
   } catch (error) {
-    console.error('Error in profanity check function:', error);
+    console.error("Error in profanity check function:", error);
     // If overall check fails, default to allowing content
     return { success: true, hasProfanity: false };
   }
@@ -1188,14 +1297,16 @@ export async function getProjectById(projectId: string) {
 
     const { data: project, error } = await supabase
       .from("projects")
-      .select(`
+      .select(
+        `
         *,
         profiles:creator_id (
           id,
           full_name,
           email
         )
-      `)
+      `,
+      )
       .eq("id", projectId)
       .single();
 

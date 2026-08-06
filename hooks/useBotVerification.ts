@@ -46,15 +46,15 @@ export function useBotVerification(options?: UseBotVerificationOptions) {
     token: getToken(),
     isReady,
     error,
-    
+
     // Ref for TurnstileComponent
     ref,
-    
+
     // Handlers for TurnstileComponent
     onVerify: handleVerify,
     onError: handleError,
     onLoad: handleLoad,
-    
+
     // Helper methods
     reset,
     isVerified: () => !!getToken(),

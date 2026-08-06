@@ -11,13 +11,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
 import { shouldRenderTurnstileWidget } from "@/lib/anonymous-signup-security";
-import { Loader2, PenTool, Check, Clock, Settings2, Shield } from "lucide-react";
+import {
+  Loader2,
+  PenTool,
+  Check,
+  Clock,
+  Settings2,
+  Shield,
+} from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DialogFooter } from "@/components/ui/dialog";
 import { useEffect, useState, useCallback, useRef } from "react";
-import type { AnonymousSignupData, WaiverSignatureInput, WaiverDefinitionFull } from "@/types";
-import { WaiverSigningDialog } from '@/components/waiver/WaiverSigningDialog';
+import type {
+  AnonymousSignupData,
+  WaiverSignatureInput,
+  WaiverDefinitionFull,
+} from "@/types";
+import { WaiverSigningDialog } from "@/components/waiver/WaiverSigningDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -29,7 +40,9 @@ import { ArrowLeft } from "lucide-react";
 const PHONE_LENGTH = 10; // For raw digits
 const PHONE_REGEX = /^\d{3}-\d{3}-\d{4}$/; // Format XXX-XXX-XXXX
 const ANON_PROFILE_STORAGE_KEY = "letsassist.anonymous-signup-profile.v2";
-const LEGACY_ANON_PROFILE_STORAGE_KEYS = ["letsassist.anonymous-signup-profile.v1"] as const;
+const LEGACY_ANON_PROFILE_STORAGE_KEYS = [
+  "letsassist.anonymous-signup-profile.v1",
+] as const;
 const ANON_PROFILE_AUTO_APPLY_KEY = "letsassist.anonymous-signup-auto-apply.v1";
 const ANON_WAIVER_CACHE_KEY = "letsassist.anonymous-signup-waiver-cache.v1";
 
@@ -67,12 +80,17 @@ type LegacySavedAnonymousProfile = SavedAnonymousProfile & {
   phone?: string;
 };
 
-const sanitizeSavedAnonymousProfile = (value: unknown): SavedAnonymousProfile | null => {
+const sanitizeSavedAnonymousProfile = (
+  value: unknown,
+): SavedAnonymousProfile | null => {
   if (!value || typeof value !== "object") return null;
 
   const candidate = value as Partial<LegacySavedAnonymousProfile>;
   const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
-  const email = typeof candidate.email === "string" ? candidate.email.trim().toLowerCase() : "";
+  const email =
+    typeof candidate.email === "string"
+      ? candidate.email.trim().toLowerCase()
+      : "";
   const updatedAt =
     typeof candidate.updatedAt === "string" && candidate.updatedAt.length > 0
       ? candidate.updatedAt
@@ -92,7 +110,10 @@ const sanitizeSavedAnonymousProfile = (value: unknown): SavedAnonymousProfile | 
 const loadSavedAnonymousProfile = (): SavedAnonymousProfile | null => {
   if (typeof window === "undefined") return null;
 
-  const storageKeys = [ANON_PROFILE_STORAGE_KEY, ...LEGACY_ANON_PROFILE_STORAGE_KEYS];
+  const storageKeys = [
+    ANON_PROFILE_STORAGE_KEY,
+    ...LEGACY_ANON_PROFILE_STORAGE_KEYS,
+  ];
 
   for (const storageKey of storageKeys) {
     const raw = window.localStorage.getItem(storageKey);
@@ -106,8 +127,14 @@ const loadSavedAnonymousProfile = (): SavedAnonymousProfile | null => {
       }
 
       const serializedProfile = JSON.stringify(sanitizedProfile);
-      if (storageKey !== ANON_PROFILE_STORAGE_KEY || raw !== serializedProfile) {
-        window.localStorage.setItem(ANON_PROFILE_STORAGE_KEY, serializedProfile);
+      if (
+        storageKey !== ANON_PROFILE_STORAGE_KEY ||
+        raw !== serializedProfile
+      ) {
+        window.localStorage.setItem(
+          ANON_PROFILE_STORAGE_KEY,
+          serializedProfile,
+        );
       }
 
       if (storageKey !== ANON_PROFILE_STORAGE_KEY) {
@@ -131,7 +158,7 @@ const formSchema = z.object({
     .refine(
       // Validate against the XXX-XXX-XXXX format if a value exists
       (val) => !val || val === "" || PHONE_REGEX.test(val),
-      "Phone number must be in format XXX-XXX-XXXX"
+      "Phone number must be in format XXX-XXX-XXXX",
     )
     .transform((val) => {
       // Store only digits if validation passes
@@ -141,7 +168,7 @@ const formSchema = z.object({
     .refine(
       // Ensure exactly 10 digits if a value exists
       (val) => !val || val.length === PHONE_LENGTH,
-      `Phone number must contain exactly ${PHONE_LENGTH} digits.`
+      `Phone number must contain exactly ${PHONE_LENGTH} digits.`,
     )
     .optional() // Make the entire refined/transformed field optional
     .or(z.literal("").transform(() => undefined)),
@@ -155,7 +182,11 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface ProjectFormProps {
-  onSubmit: (data: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, unknown>) => void;
+  onSubmit: (
+    data: AnonymousSignupData,
+    waiverSignature?: WaiverSignatureInput | null,
+    formData?: Record<string, unknown>,
+  ) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
   showCommentField?: boolean;
@@ -185,13 +216,18 @@ export function ProjectSignupForm({
   waiverDefinition = null,
   signupFormSchema = null,
 }: ProjectFormProps) {
-  const [step, setStep] = useState<"anonymous-info" | "custom-form">("anonymous-info");
-  const [pendingAnonData, setPendingAnonData] = useState<AnonymousSignupData | null>(null);
-  const [pendingWaiverSignature, setPendingWaiverSignature] = useState<WaiverSignatureInput | null>(null);
+  const [step, setStep] = useState<"anonymous-info" | "custom-form">(
+    "anonymous-info",
+  );
+  const [pendingAnonData, setPendingAnonData] =
+    useState<AnonymousSignupData | null>(null);
+  const [pendingWaiverSignature, setPendingWaiverSignature] =
+    useState<WaiverSignatureInput | null>(null);
   // Mobile check for responsive layout if needed
   // Using simple responsive classes instead of hook
   const [phoneNumberLength, setPhoneNumberLength] = useState(0); // State for phone number length
-  const [waiverSignature, setWaiverSignature] = useState<WaiverSignatureInput | null>(null);
+  const [waiverSignature, setWaiverSignature] =
+    useState<WaiverSignatureInput | null>(null);
   const [isWaiverDialogOpen, setIsWaiverDialogOpen] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
@@ -213,7 +249,8 @@ export function ProjectSignupForm({
     },
   });
 
-  const [savedProfile, setSavedProfile] = useState<SavedAnonymousProfile | null>(null);
+  const [savedProfile, setSavedProfile] =
+    useState<SavedAnonymousProfile | null>(null);
   const [usedSavedProfile, setUsedSavedProfile] = useState(false);
   const [autoApplyEnabled, setAutoApplyEnabled] = useState(false);
   const [lastUpdatedDisplay, setLastUpdatedDisplay] = useState<string>("");
@@ -221,44 +258,62 @@ export function ProjectSignupForm({
 
   const watchedEmail = form.watch("email");
   const normalizedWatchedEmail = watchedEmail?.trim().toLowerCase() || "";
-  const waiverCacheEntryKey = projectId && normalizedWatchedEmail
-    ? `${projectId}:${normalizedWatchedEmail}`
-    : "";
+  const waiverCacheEntryKey =
+    projectId && normalizedWatchedEmail
+      ? `${projectId}:${normalizedWatchedEmail}`
+      : "";
 
-  const markWaiverCachedLocally = useCallback((email: string) => {
-    if (typeof window === "undefined" || !projectId) return;
+  const markWaiverCachedLocally = useCallback(
+    (email: string) => {
+      if (typeof window === "undefined" || !projectId) return;
 
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail || !normalizedEmail.includes("@")) return;
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!normalizedEmail || !normalizedEmail.includes("@")) return;
 
-    const key = `${projectId}:${normalizedEmail}`;
+      const key = `${projectId}:${normalizedEmail}`;
 
-    try {
-      const raw = window.localStorage.getItem(ANON_WAIVER_CACHE_KEY);
-      const parsed = raw ? (JSON.parse(raw) as Record<string, string>) : {};
-      parsed[key] = new Date().toISOString();
-      window.localStorage.setItem(ANON_WAIVER_CACHE_KEY, JSON.stringify(parsed));
+      try {
+        const raw = window.localStorage.getItem(ANON_WAIVER_CACHE_KEY);
+        const parsed = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+        parsed[key] = new Date().toISOString();
+        window.localStorage.setItem(
+          ANON_WAIVER_CACHE_KEY,
+          JSON.stringify(parsed),
+        );
 
-      if (key === waiverCacheEntryKey) {
-        setHasLocallyCachedWaiver(true);
+        if (key === waiverCacheEntryKey) {
+          setHasLocallyCachedWaiver(true);
+        }
+      } catch {
+        // Ignore storage errors silently.
       }
-    } catch {
-      // Ignore storage errors silently.
-    }
-  }, [projectId, waiverCacheEntryKey]);
+    },
+    [projectId, waiverCacheEntryKey],
+  );
 
-  const applySavedProfile = useCallback((profile: SavedAnonymousProfile) => {
-    form.setValue("name", profile.name, { shouldValidate: true, shouldDirty: true });
-    form.setValue("email", profile.email, { shouldValidate: true, shouldDirty: true });
-    setUsedSavedProfile(true);
-  }, [form]);
+  const applySavedProfile = useCallback(
+    (profile: SavedAnonymousProfile) => {
+      form.setValue("name", profile.name, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+      form.setValue("email", profile.email, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+      setUsedSavedProfile(true);
+    },
+    [form],
+  );
 
   useEffect(() => {
     if (!enableSavedInfoReuse || typeof window === "undefined") return;
 
     try {
       // Load auto-apply preference
-      const autoApplyStr = window.localStorage.getItem(ANON_PROFILE_AUTO_APPLY_KEY);
+      const autoApplyStr = window.localStorage.getItem(
+        ANON_PROFILE_AUTO_APPLY_KEY,
+      );
       const isAutoApply = autoApplyStr === "true";
       setAutoApplyEnabled(isAutoApply);
 
@@ -289,7 +344,11 @@ export function ProjectSignupForm({
   }, [savedProfile]);
 
   useEffect(() => {
-    if (!waiverRequired || !waiverCacheEntryKey || typeof window === "undefined") {
+    if (
+      !waiverRequired ||
+      !waiverCacheEntryKey ||
+      typeof window === "undefined"
+    ) {
       setHasLocallyCachedWaiver(false);
       return;
     }
@@ -337,7 +396,10 @@ export function ProjectSignupForm({
     };
 
     try {
-      window.localStorage.setItem(ANON_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+      window.localStorage.setItem(
+        ANON_PROFILE_STORAGE_KEY,
+        JSON.stringify(profile),
+      );
       setSavedProfile(profile);
     } catch {
       // Ignore storage quota/private mode issues silently.
@@ -381,18 +443,24 @@ export function ProjectSignupForm({
 
   const handleWaiverComplete = async (input: WaiverSignatureInput) => {
     setWaiverSignature(input);
-    const signerEmail = (input.signerEmail || normalizedWatchedEmail || "").trim().toLowerCase();
+    const signerEmail = (input.signerEmail || normalizedWatchedEmail || "")
+      .trim()
+      .toLowerCase();
     if (signerEmail) {
       markWaiverCachedLocally(signerEmail);
     }
     setIsWaiverDialogOpen(false);
   };
 
-
   if (step === "custom-form" && signupFormSchema) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => setStep("anonymous-info")} className="gap-2 -ml-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setStep("anonymous-info")}
+          className="gap-2 -ml-2"
+        >
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
@@ -425,10 +493,22 @@ export function ProjectSignupForm({
               </div>
 
               <div className="flex items-center gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={handleApplyClick} className="h-8">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleApplyClick}
+                  className="h-8"
+                >
                   Use Saved Info
                 </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={forgetSavedProfile} className="h-8">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={forgetSavedProfile}
+                  className="h-8"
+                >
                   Forget
                 </Button>
               </div>
@@ -437,11 +517,14 @@ export function ProjectSignupForm({
             <div className="flex items-center justify-between pt-2 border-t border-primary/10">
               <div className="flex items-center gap-2">
                 <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
-                <Label htmlFor="auto-apply" className="text-xs text-muted-foreground cursor-pointer">
+                <Label
+                  htmlFor="auto-apply"
+                  className="text-xs text-muted-foreground cursor-pointer"
+                >
                   Auto-apply for future signups
                 </Label>
               </div>
-              <Switch 
+              <Switch
                 id="auto-apply"
                 checked={autoApplyEnabled}
                 onCheckedChange={handleAutoApplyToggle}
@@ -457,7 +540,8 @@ export function ProjectSignupForm({
 
             {waiverRequired && !usedSavedProfile && (
               <p className="text-xs text-muted-foreground leading-relaxed">
-                If this email already has a waiver for this project, we&apos;ll reuse it automatically.
+                If this email already has a waiver for this project, we&apos;ll
+                reuse it automatically.
               </p>
             )}
           </AlertDescription>
@@ -470,7 +554,12 @@ export function ProjectSignupForm({
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
             <FieldLabel htmlFor={field.name}>Full Name</FieldLabel>
-            <Input id={field.name} placeholder="Enter your name" {...field} aria-invalid={fieldState.invalid} />
+            <Input
+              id={field.name}
+              placeholder="Enter your name"
+              {...field}
+              aria-invalid={fieldState.invalid}
+            />
             {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
           </Field>
         )}
@@ -482,7 +571,12 @@ export function ProjectSignupForm({
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
             <FieldLabel htmlFor={field.name}>Email</FieldLabel>
-            <Input id={field.name} placeholder="your@email.com" {...field} aria-invalid={fieldState.invalid} />
+            <Input
+              id={field.name}
+              placeholder="your@email.com"
+              {...field}
+              aria-invalid={fieldState.invalid}
+            />
             {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
           </Field>
         )}
@@ -494,7 +588,9 @@ export function ProjectSignupForm({
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
             <div className="flex justify-between items-center">
-              <FieldLabel htmlFor={field.name}>Phone Number (Optional)</FieldLabel>
+              <FieldLabel htmlFor={field.name}>
+                Phone Number (Optional)
+              </FieldLabel>
               {/* Display character count */}
               <span
                 className={`text-xs ${phoneNumberLength > PHONE_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
@@ -532,8 +628,12 @@ export function ProjectSignupForm({
             return (
               <Field data-invalid={fieldState.invalid}>
                 <div className="flex justify-between items-center">
-                  <FieldLabel htmlFor={field.name}>Comment (Optional)</FieldLabel>
-                  <span className={`text-xs ${commentLength > 100 ? "text-destructive" : "text-muted-foreground"}`}>
+                  <FieldLabel htmlFor={field.name}>
+                    Comment (Optional)
+                  </FieldLabel>
+                  <span
+                    className={`text-xs ${commentLength > 100 ? "text-destructive" : "text-muted-foreground"}`}
+                  >
                     {commentLength}/100
                   </span>
                 </div>
@@ -550,7 +650,9 @@ export function ProjectSignupForm({
                 <FieldDescription className="text-xs">
                   Brief note visible to the organizer.
                 </FieldDescription>
-                {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                {fieldState.invalid && (
+                  <FormMessage errors={[fieldState.error]} />
+                )}
               </Field>
             );
           }}
@@ -567,41 +669,43 @@ export function ProjectSignupForm({
           {!waiverSignature && hasLocallyCachedWaiver && (
             <Alert className="mb-3 border-primary/30 bg-primary/5">
               <AlertDescription className="text-xs text-primary">
-                We found a recent waiver on this device, but it isn&apos;t confirmed on the server for this profile yet. Please sign again to continue.
+                We found a recent waiver on this device, but it isn&apos;t
+                confirmed on the server for this profile yet. Please sign again
+                to continue.
               </AlertDescription>
             </Alert>
           )}
-          
+
           {!waiverSignature ? (
-             <Button 
-               type="button" 
-               onClick={() => setIsWaiverDialogOpen(true)}
-               variant="outline"
-               className="w-full sm:w-auto"
-             >
-               <PenTool className="h-4 w-4 mr-2" />
-               Sign Waiver
-             </Button>
+            <Button
+              type="button"
+              onClick={() => setIsWaiverDialogOpen(true)}
+              variant="outline"
+              className="w-full sm:w-auto"
+            >
+              <PenTool className="h-4 w-4 mr-2" />
+              Sign Waiver
+            </Button>
           ) : (
-             <div className="flex items-center justify-between p-3 bg-success/10 border border-success rounded-lg">
-                <div className="flex items-center gap-2">
-                   <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center text-success">
-                      <Check className="h-4 w-4" />
-                   </div>
-                   <div className="text-sm font-medium text-success">
-                      Signature Captured
-                   </div>
+            <div className="flex items-center justify-between p-3 bg-success/10 border border-success rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center text-success">
+                  <Check className="h-4 w-4" />
                 </div>
-                <Button 
-                   type="button" 
-                   variant="ghost" 
-                   size="sm"
-                   onClick={() => setIsWaiverDialogOpen(true)}
-                   className="text-muted-foreground hover:text-foreground"
-                >
-                   Review
-                </Button>
-             </div>
+                <div className="text-sm font-medium text-success">
+                  Signature Captured
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsWaiverDialogOpen(true)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Review
+              </Button>
+            </div>
           )}
 
           <WaiverSigningDialog
@@ -625,7 +729,8 @@ export function ProjectSignupForm({
             <div>
               <p className="font-medium text-foreground">Security check</p>
               <p className="text-xs text-muted-foreground">
-                Complete bot verification before submitting your anonymous signup.
+                Complete bot verification before submitting your anonymous
+                signup.
               </p>
             </div>
           </div>
@@ -650,11 +755,15 @@ export function ProjectSignupForm({
                 }}
                 onError={() => {
                   turnstileRef.current?.reset();
-                  setTurnstileError("Security verification failed. Please try again.");
+                  setTurnstileError(
+                    "Security verification failed. Please try again.",
+                  );
                   setTurnstileToken(null);
                 }}
                 onExpire={() => {
-                  setTurnstileError("Security verification expired. Please complete it again.");
+                  setTurnstileError(
+                    "Security verification expired. Please complete it again.",
+                  );
                   setTurnstileToken(null);
                 }}
               />
@@ -672,11 +781,13 @@ export function ProjectSignupForm({
       <DialogFooter>
         <Button
           type="submit"
-          disabled={isSubmitting || !waiverSatisfied || (showTurnstileWidget && !turnstileToken)}
+          disabled={
+            isSubmitting ||
+            !waiverSatisfied ||
+            (showTurnstileWidget && !turnstileToken)
+          }
         >
-          {isSubmitting && (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          )}
+          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Sign Up
         </Button>
       </DialogFooter>

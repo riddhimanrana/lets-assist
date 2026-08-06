@@ -169,7 +169,10 @@ export function resolveProviderMessageId(event: unknown): string | null {
  * already recorded.
  */
 export function resolveOccurredAt(event: unknown): string | null {
-  const envelope = event as { created_at?: unknown; data?: { created_at?: unknown } };
+  const envelope = event as {
+    created_at?: unknown;
+    data?: { created_at?: unknown };
+  };
   const raw = envelope?.created_at ?? envelope?.data?.created_at;
   if (typeof raw !== "string" || raw.length === 0) return null;
 
@@ -274,9 +277,11 @@ export function resolveBounceType(event: unknown): string {
  * none of them is a token, so all of them become `Unknown`.
  */
 export function resolveBounceSubtype(event: unknown): string {
-  const bounce = (event as {
-    data?: { bounce?: { subType?: unknown; sub_type?: unknown } };
-  })?.data?.bounce;
+  const bounce = (
+    event as {
+      data?: { bounce?: { subType?: unknown; sub_type?: unknown } };
+    }
+  )?.data?.bounce;
   const subtype = bounce?.subType ?? bounce?.sub_type;
   if (typeof subtype !== "string") return UNKNOWN_PROVIDER_TOKEN;
   return PROVIDER_TOKEN_PATTERN.test(subtype)
@@ -548,7 +553,9 @@ const SQLSTATE_PATTERN = /^[0-9A-Z]{5}$/;
  * arbitrary string there. Logging it unchecked would be one more channel for
  * unbounded text, so the shape is proved before the value is used.
  */
-export function boundedSqlState(code: string | null | undefined): string | null {
+export function boundedSqlState(
+  code: string | null | undefined,
+): string | null {
   return typeof code === "string" && SQLSTATE_PATTERN.test(code) ? code : null;
 }
 
@@ -608,7 +615,9 @@ export function thrownFaultKind(error: unknown): string {
  * Read from the same rows as `ledgerReasonCode()`, so "permanent" and "has a
  * quarantine code the SQL contract admits" cannot come apart.
  */
-export function ledgerFailureClass(error: LedgerError): "permanent" | "retryable" {
+export function ledgerFailureClass(
+  error: LedgerError,
+): "permanent" | "retryable" {
   return permanentQuarantineFault(error) ? "permanent" : "retryable";
 }
 
@@ -624,7 +633,8 @@ export function ledgerFailureClass(error: LedgerError): "permanent" | "retryable
  */
 export function ledgerQuarantineDetail(reasonCode: string): string | null {
   return (
-    PERMANENT_LEDGER_FAULTS.find((fault) => fault.code === reasonCode)?.detail ?? null
+    PERMANENT_LEDGER_FAULTS.find((fault) => fault.code === reasonCode)
+      ?.detail ?? null
   );
 }
 
@@ -642,7 +652,9 @@ export function readsCsfPluginTag(event: unknown): boolean {
   if (!tags || typeof tags !== "object") return false;
 
   if (!Array.isArray(tags)) {
-    return (tags as Record<string, unknown>)[CSF_PLUGIN_TAG] === CSF_PLUGIN_TAG_VALUE;
+    return (
+      (tags as Record<string, unknown>)[CSF_PLUGIN_TAG] === CSF_PLUGIN_TAG_VALUE
+    );
   }
 
   return (tags as LegacySignedTag[]).some(
@@ -674,17 +686,20 @@ export async function quarantineCsfProviderEvent(input: {
   const { createPluginAdminClient } = await import("@/lib/plugins/supabase");
   const pluginDb = createPluginAdminClient();
 
-  const { data, error } = await pluginDb.rpc("csf_quarantine_communication_webhook", {
-    p_provider_event_id: input.providerEventId,
-    p_raw_body_hash: input.rawBodyHash,
-    p_reason_code: input.reasonCode,
-    p_reason_detail: input.reasonDetail,
-    p_event_type: input.eventType,
-    p_provider_message_id: input.providerMessageId,
-    p_claimed_organization_id: input.claimedOrganizationId,
-    p_claimed_attempt_id: input.claimedAttemptId,
-    p_claimed_campaign_id: input.claimedCampaignId,
-  });
+  const { data, error } = await pluginDb.rpc(
+    "csf_quarantine_communication_webhook",
+    {
+      p_provider_event_id: input.providerEventId,
+      p_raw_body_hash: input.rawBodyHash,
+      p_reason_code: input.reasonCode,
+      p_reason_detail: input.reasonDetail,
+      p_event_type: input.eventType,
+      p_provider_message_id: input.providerMessageId,
+      p_claimed_organization_id: input.claimedOrganizationId,
+      p_claimed_attempt_id: input.claimedAttemptId,
+      p_claimed_campaign_id: input.claimedCampaignId,
+    },
+  );
 
   return {
     data,
@@ -793,7 +808,10 @@ export async function POST(req: NextRequest) {
   const id = req.headers.get("svix-id");
 
   if (!signature || !timestamp || !id) {
-    return NextResponse.json({ error: "Missing webhook headers." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing webhook headers." },
+      { status: 400 },
+    );
   }
 
   // Step 2: the exact bytes, as a string. Nothing is parsed yet.
@@ -833,7 +851,10 @@ export async function POST(req: NextRequest) {
     logWebhook("error", "Rejected unverified Resend webhook.", {
       providerEventDigest,
     });
-    return NextResponse.json({ error: "Invalid webhook signature." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid webhook signature." },
+      { status: 400 },
+    );
   }
 
   // Step 4: everything below runs only on verified content.
@@ -844,7 +865,9 @@ export async function POST(req: NextRequest) {
   // re-verified later without keeping the message itself.
   const rawBodyHash = sha256Hex(payload);
   const boundedEventType =
-    typeof eventType === "string" && eventType.length > 0 && eventType.length <= 100
+    typeof eventType === "string" &&
+    eventType.length > 0 &&
+    eventType.length <= 100
       ? eventType
       : null;
 
@@ -908,11 +931,15 @@ export async function POST(req: NextRequest) {
     // call at all produces the same 503 without a pointless round trip, and logs
     // a code an operator can actually search for.
     if (!isQuarantineReasonCode(reasonCode)) {
-      logWebhook("error", "CSF webhook quarantine refused an unmodelled reason.", {
-        providerEventId: id,
-        eventType: safeEventType,
-        reasonCode,
-      });
+      logWebhook(
+        "error",
+        "CSF webhook quarantine refused an unmodelled reason.",
+        {
+          providerEventId: id,
+          eventType: safeEventType,
+          reasonCode,
+        },
+      );
       return NextResponse.json(
         { error: "Webhook quarantine unavailable." },
         { status: 503 },
@@ -1126,6 +1153,9 @@ export async function POST(req: NextRequest) {
       organizationId: routing.organizationId,
       faultKind: thrownFaultKind(error),
     });
-    return NextResponse.json({ error: "Webhook processing failed." }, { status: 503 });
+    return NextResponse.json(
+      { error: "Webhook processing failed." },
+      { status: 503 },
+    );
   }
 }

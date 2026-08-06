@@ -53,8 +53,17 @@ import {
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { canDeleteProject } from "@/utils/project";
 import { CancelProjectDialog } from "@/app/projects/_components/CancelProjectDialog";
-import { differenceInHours, isBefore, isAfter, parseISO, format } from "date-fns";
-import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
+import {
+  differenceInHours,
+  isBefore,
+  isAfter,
+  parseISO,
+  format,
+} from "date-fns";
+import {
+  getProjectStartDateTime,
+  getProjectEndDateTime,
+} from "@/utils/project";
 import ProjectTimeline from "./ProjectTimeline";
 import { ProjectQRCodeModal } from "./ProjectQRCodeModal";
 import CalendarOptionsModal from "@/app/projects/_components/CalendarOptionsModal";
@@ -88,7 +97,9 @@ export default function CreatorDashboard({
 
   // Calendar integration states
   const [showCalendarModal, setShowCalendarModal] = useState(false);
-  const [isCalendarSynced, setIsCalendarSynced] = useState(!!project.creator_calendar_event_id);
+  const [isCalendarSynced, setIsCalendarSynced] = useState(
+    !!project.creator_calendar_event_id,
+  );
 
   // Auto-sync calendar on page load if user is connected and project isn't synced
   useEffect(() => {
@@ -132,7 +143,9 @@ export default function CreatorDashboard({
       } else {
         const notificationStatus = result.cancellationNotifications;
         if (notificationStatus?.enqueued) {
-          toast.success("Project cancelled successfully. Approved volunteers will be emailed shortly.");
+          toast.success(
+            "Project cancelled successfully. Approved volunteers will be emailed shortly.",
+          );
           if (notificationStatus.error) {
             toast.warning(notificationStatus.error);
           }
@@ -140,7 +153,7 @@ export default function CreatorDashboard({
           toast.success("Project cancelled successfully.");
           toast.warning(
             notificationStatus?.error ||
-            "We couldn't queue cancellation emails. Please try again shortly."
+              "We couldn't queue cancellation emails. Please try again shortly.",
           );
         }
         setShowCancelDialog(false);
@@ -153,7 +166,9 @@ export default function CreatorDashboard({
 
   const handleDeleteProject = async () => {
     if (!canDeleteProject(project)) {
-      toast.error("Projects cannot be deleted 24 hours before start until 48 hours after end");
+      toast.error(
+        "Projects cannot be deleted 24 hours before start until 48 hours after end",
+      );
       setShowDeleteDialog(false);
       return;
     }
@@ -196,17 +211,19 @@ export default function CreatorDashboard({
     try {
       const supabase = createClient();
       const { data: signups, error } = await supabase
-        .from('project_signups')
-        .select(`
+        .from("project_signups")
+        .select(
+          `
           user_id,
           profiles!inner(email, full_name)
-        `)
-        .eq('project_id', project.id)
-        .not('profiles.email', 'is', null);
+        `,
+        )
+        .eq("project_id", project.id)
+        .not("profiles.email", "is", null);
 
       if (error) {
-        console.log('Error fetching signups:', error);
-        console.error('Error fetching signups:', error);
+        console.log("Error fetching signups:", error);
+        console.error("Error fetching signups:", error);
         toast.error("Failed to fetch signup emails" + error.message);
         return;
       }
@@ -218,12 +235,18 @@ export default function CreatorDashboard({
 
       // Extract emails from the signups
       const emails = signups
-        .map((signup: { profiles: { email: string | null } | { email: string | null }[] }) => {
-          const profile = Array.isArray(signup.profiles) ? signup.profiles[0] : signup.profiles;
-          return profile?.email;
-        })
-        .filter(email => email) // Remove any null/undefined emails
-        .join(',');
+        .map(
+          (signup: {
+            profiles: { email: string | null } | { email: string | null }[];
+          }) => {
+            const profile = Array.isArray(signup.profiles)
+              ? signup.profiles[0]
+              : signup.profiles;
+            return profile?.email;
+          },
+        )
+        .filter((email) => email) // Remove any null/undefined emails
+        .join(",");
 
       if (!emails) {
         toast.error("No valid email addresses found");
@@ -232,15 +255,19 @@ export default function CreatorDashboard({
 
       // Create mailto link
       const subject = encodeURIComponent(`Update regarding: ${project.title}`);
-      const body = encodeURIComponent(`Dear volunteers,\n\nI hope this message finds you well. I wanted to reach out regarding the upcoming volunteer project "${project.title}".\n\n[Please add your message here]\n\nThank you for your commitment to this project!\n\nBest regards,\n[Your name]`);
+      const body = encodeURIComponent(
+        `Dear volunteers,\n\nI hope this message finds you well. I wanted to reach out regarding the upcoming volunteer project "${project.title}".\n\n[Please add your message here]\n\nThank you for your commitment to this project!\n\nBest regards,\n[Your name]`,
+      );
       const mailtoLink = `mailto:?bcc=${emails}&subject=${subject}&body=${body}`;
 
       // Open email client
       window.location.href = mailtoLink;
 
-      toast.success(`Opening email client with ${signups.length} volunteer emails`);
+      toast.success(
+        `Opening email client with ${signups.length} volunteer emails`,
+      );
     } catch (_error) {
-      console.error('Error fetching signups:', _error);
+      console.error("Error fetching signups:", _error);
       toast.error("Failed to fetch signup emails");
     }
   };
@@ -254,7 +281,8 @@ export default function CreatorDashboard({
 
   // --- Phases ---
   const isStartingSoon = hoursUntilStart <= 24 && isBefore(now, startDateTime); // Within 24 hours but not started
-  const isInProgress = isAfter(now, startDateTime) && isBefore(now, endDateTime);
+  const isInProgress =
+    isAfter(now, startDateTime) && isBefore(now, endDateTime);
   const isCompleted = isAfter(now, endDateTime);
   const isCheckInOpen = hoursUntilStart <= 2 && isBefore(now, endDateTime); // Within 2 hours before start until end
 
@@ -298,7 +326,6 @@ export default function CreatorDashboard({
             ? "Closed"
             : "Scheduled";
 
-
   // --- Helper function to get the key used in the 'published' object ---
   const getPublishStateKey = (sessionId: string): string => {
     if (project.event_type === "oneTime" && sessionId === "oneTime") {
@@ -314,7 +341,7 @@ export default function CreatorDashboard({
         // Legacy format: YYYY-MM-DD-slotIndex
         return sessionId;
       }
-      
+
       const match = sessionId.match(/day-(\d+)-slot-(\d+)/);
       if (match && project.schedule.multiDay) {
         const dayIndex = parseInt(match[1], 10);
@@ -332,11 +359,16 @@ export default function CreatorDashboard({
       const match = sessionId.match(/role-(\d+)/);
       if (match && project.schedule.sameDayMultiArea?.roles) {
         const roleIndex = parseInt(match[1], 10);
-        const roleName = project.schedule.sameDayMultiArea.roles[roleIndex]?.name;
+        const roleName =
+          project.schedule.sameDayMultiArea.roles[roleIndex]?.name;
         return roleName || sessionId; // Use role name if found
       }
       // If the sessionId is already the role name (as used in HoursClient), return it directly
-      if (project.schedule.sameDayMultiArea?.roles.some(r => r.name === sessionId)) {
+      if (
+        project.schedule.sameDayMultiArea?.roles.some(
+          (r) => r.name === sessionId,
+        )
+      ) {
         return sessionId;
       }
     }
@@ -346,23 +378,31 @@ export default function CreatorDashboard({
 
   // --- NEW: Session-specific Editing Window Check (FILTERED) ---
   const activeUnpublishedSessionsInEditingWindow = useMemo(() => {
-    const result: { id: string; name: string; hoursRemaining: number; attendedCount: number }[] = [];
+    const result: {
+      id: string;
+      name: string;
+      hoursRemaining: number;
+      attendedCount: number;
+    }[] = [];
     const publishedKeys = project.published || {};
 
     // Helper to get number of people who attended a session (status 'attended')
     const getAttendedCount = (sessionIds: string[]): number => {
       // FIX: Use attended count instead of total signups count
-      return allSignups.filter(signup => 
-        signup.status === 'attended' && 
-        sessionIds.includes(signup.schedule_id)
+      return allSignups.filter(
+        (signup) =>
+          signup.status === "attended" &&
+          sessionIds.includes(signup.schedule_id),
       ).length;
     };
 
     // Check one-time events
     if (project.event_type === "oneTime" && project.schedule.oneTime) {
       const date = parseISO(project.schedule.oneTime.date);
-      const [hours, minutes] = project.schedule.oneTime.endTime.split(':').map(Number);
-      const sessionEndTime = new Date(new Date(date).setHours(hours, minutes)); 
+      const [hours, minutes] = project.schedule.oneTime.endTime
+        .split(":")
+        .map(Number);
+      const sessionEndTime = new Date(new Date(date).setHours(hours, minutes));
       const hoursSinceEnd = differenceInHours(now, sessionEndTime);
       const sessionId = "oneTime";
       const publishKey = getPublishStateKey(sessionId);
@@ -372,12 +412,18 @@ export default function CreatorDashboard({
       const attendedCount = getAttendedCount(sessionIds);
 
       // Only count sessions where people actually attended, unless it's a special requirement
-      if (isAfter(now, sessionEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48 && !publishedKeys[publishKey] && attendedCount > 0) {
+      if (
+        isAfter(now, sessionEndTime) &&
+        hoursSinceEnd >= 0 &&
+        hoursSinceEnd < 48 &&
+        !publishedKeys[publishKey] &&
+        attendedCount > 0
+      ) {
         result.push({
           id: sessionId,
           name: `Event on ${format(date, "MMM d")}`,
           hoursRemaining: 48 - hoursSinceEnd,
-          attendedCount
+          attendedCount,
         });
       }
     }
@@ -388,8 +434,10 @@ export default function CreatorDashboard({
         const dayDate = parseISO(day.date);
 
         day.slots.forEach((slot, slotIndex) => {
-          const [hours, minutes] = slot.endTime.split(':').map(Number);
-          const slotEndTime = new Date(new Date(dayDate).setHours(hours, minutes));
+          const [hours, minutes] = slot.endTime.split(":").map(Number);
+          const slotEndTime = new Date(
+            new Date(dayDate).setHours(hours, minutes),
+          );
           const hoursSinceEnd = differenceInHours(now, slotEndTime);
           const sessionId = `${day.date}-${dayIndex}-${slotIndex}`;
           const publishKey = getPublishStateKey(sessionId);
@@ -402,12 +450,18 @@ export default function CreatorDashboard({
           const sessionIds = [sessionId, simplifiedId, dateBasedId, uniqueId];
           const attendedCount = getAttendedCount(sessionIds);
 
-          if (isAfter(now, slotEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48 && !publishedKeys[publishKey] && attendedCount > 0) {
+          if (
+            isAfter(now, slotEndTime) &&
+            hoursSinceEnd >= 0 &&
+            hoursSinceEnd < 48 &&
+            !publishedKeys[publishKey] &&
+            attendedCount > 0
+          ) {
             result.push({
               id: sessionId,
               name: `${format(dayDate, "MMM d")} (${slot.startTime} - ${slot.endTime})`,
               hoursRemaining: 48 - hoursSinceEnd,
-              attendedCount
+              attendedCount,
             });
           }
         });
@@ -415,26 +469,35 @@ export default function CreatorDashboard({
     }
 
     // Check same-day multi-area events
-    else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+    else if (
+      project.event_type === "sameDayMultiArea" &&
+      project.schedule.sameDayMultiArea
+    ) {
       const date = parseISO(project.schedule.sameDayMultiArea.date);
 
       project.schedule.sameDayMultiArea.roles.forEach((role) => {
-        const [hours, minutes] = role.endTime.split(':').map(Number);
-        const roleEndTime = new Date(new Date(date).setHours(hours, minutes)); 
+        const [hours, minutes] = role.endTime.split(":").map(Number);
+        const roleEndTime = new Date(new Date(date).setHours(hours, minutes));
         const hoursSinceEnd = differenceInHours(now, roleEndTime);
-        const sessionId = role.name; 
-        const publishKey = sessionId; 
+        const sessionId = role.name;
+        const publishKey = sessionId;
 
         // For sameDayMultiArea, the schedule_id is usually role.name
         const sessionIds = [sessionId];
         const attendedCount = getAttendedCount(sessionIds);
 
-        if (isAfter(now, roleEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48 && !publishedKeys[publishKey] && attendedCount > 0) {
+        if (
+          isAfter(now, roleEndTime) &&
+          hoursSinceEnd >= 0 &&
+          hoursSinceEnd < 48 &&
+          !publishedKeys[publishKey] &&
+          attendedCount > 0
+        ) {
           result.push({
-            id: sessionId, 
+            id: sessionId,
             name: `${role.name} (${role.startTime} - ${role.endTime})`,
             hoursRemaining: 48 - hoursSinceEnd,
-            attendedCount
+            attendedCount,
           });
         }
       });
@@ -444,7 +507,8 @@ export default function CreatorDashboard({
   }, [project, now, project.published, allSignups]);
 
   // Rename variable used later
-  const hasActiveUnpublishedSessions = activeUnpublishedSessionsInEditingWindow.length > 0;
+  const hasActiveUnpublishedSessions =
+    activeUnpublishedSessionsInEditingWindow.length > 0;
   // --- END NEW ---
 
   return (
@@ -453,8 +517,15 @@ export default function CreatorDashboard({
         <CardHeader className="pb-3">
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-3">
-              <CardTitle className="text-xl sm:text-2xl">Project Dashboard</CardTitle>
-              <div className={cn("inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold shrink-0", statusTone)}>
+              <CardTitle className="text-xl sm:text-2xl">
+                Project Dashboard
+              </CardTitle>
+              <div
+                className={cn(
+                  "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold shrink-0",
+                  statusTone,
+                )}
+              >
                 {statusLabel}
               </div>
             </div>
@@ -467,23 +538,37 @@ export default function CreatorDashboard({
           <div className="hidden sm:block rounded-lg border bg-muted/30">
             <div className="grid divide-y sm:grid-cols-3 sm:divide-y-0 sm:divide-x">
               <div className="p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Starts</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Starts
+                </div>
                 <div className="mt-2 text-sm font-semibold text-foreground">
                   {format(startDateTime, "EEE, MMM d")}
                 </div>
-                <div className="text-xs text-muted-foreground">{format(startDateTime, "p")}</div>
+                <div className="text-xs text-muted-foreground">
+                  {format(startDateTime, "p")}
+                </div>
               </div>
               <div className="p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Ends</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Ends
+                </div>
                 <div className="mt-2 text-sm font-semibold text-foreground">
                   {format(endDateTime, "EEE, MMM d")}
                 </div>
-                <div className="text-xs text-muted-foreground">{format(endDateTime, "p")}</div>
+                <div className="text-xs text-muted-foreground">
+                  {format(endDateTime, "p")}
+                </div>
               </div>
               <div className="p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Check-in</div>
-                <div className="mt-2 text-sm font-semibold text-foreground">{checkInLabel}</div>
-                <div className="text-xs text-muted-foreground">{verificationLabel}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Check-in
+                </div>
+                <div className="mt-2 text-sm font-semibold text-foreground">
+                  {checkInLabel}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {verificationLabel}
+                </div>
               </div>
             </div>
           </div>
@@ -491,15 +576,28 @@ export default function CreatorDashboard({
           {hasActiveUnpublishedSessions && (
             <div className="flex items-center gap-2 rounded-md border border-info/40 bg-info/10 px-3 py-2 text-xs text-info">
               <Clock className="h-3.5 w-3.5" />
-              {activeUnpublishedSessionsInEditingWindow.length} session{activeUnpublishedSessionsInEditingWindow.length === 1 ? "" : "s"} ({activeUnpublishedSessionsInEditingWindow.reduce((acc, s) => acc + s.attendedCount, 0)} attended) need hours published.
+              {activeUnpublishedSessionsInEditingWindow.length} session
+              {activeUnpublishedSessionsInEditingWindow.length === 1
+                ? ""
+                : "s"}{" "}
+              (
+              {activeUnpublishedSessionsInEditingWindow.reduce(
+                (acc, s) => acc + s.attendedCount,
+                0,
+              )}{" "}
+              attended) need hours published.
             </div>
           )}
 
           <div className="rounded-lg border bg-background/40">
             <div className="flex items-center justify-between px-3 py-3 sm:px-4">
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Quick actions</h3>
-                <p className="text-xs text-muted-foreground hidden sm:block">Jump into the most common creator tasks.</p>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Quick actions
+                </h3>
+                <p className="text-xs text-muted-foreground hidden sm:block">
+                  Jump into the most common creator tasks.
+                </p>
               </div>
             </div>
 
@@ -524,7 +622,9 @@ export default function CreatorDashboard({
                     variant="ghost"
                     size="sm"
                     className="h-10 w-full justify-between px-2"
-                    onClick={() => router.push(`/projects/${project.id}/signups`)}
+                    onClick={() =>
+                      router.push(`/projects/${project.id}/signups`)
+                    }
                   >
                     <span className="flex items-center gap-2">
                       <Users className="h-4 w-4" />
@@ -536,25 +636,30 @@ export default function CreatorDashboard({
                 <div>
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger render={
-                        <span className="w-full">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-10 w-full justify-between px-2"
-                            onClick={handleContactAllSignups}
-                            disabled={isCancelled}
-                          >
-                            <span className="flex items-center gap-2">
-                              <Mail className="h-4 w-4" />
-                              Contact All Signups
-                            </span>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </span>
-                      } />
+                      <TooltipTrigger
+                        render={
+                          <span className="w-full">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-10 w-full justify-between px-2"
+                              onClick={handleContactAllSignups}
+                              disabled={isCancelled}
+                            >
+                              <span className="flex items-center gap-2">
+                                <Mail className="h-4 w-4" />
+                                Contact All Signups
+                              </span>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </span>
+                        }
+                      />
                       <TooltipContent className="max-w-75 p-2">
-                        <p>Open your email client with all volunteer emails pre-populated in BCC field</p>
+                        <p>
+                          Open your email client with all volunteer emails
+                          pre-populated in BCC field
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -573,26 +678,30 @@ export default function CreatorDashboard({
                   <div>
                     <TooltipProvider>
                       <Tooltip>
-                        <TooltipTrigger render={
-                          <span className="w-full">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-10 w-full justify-between px-2"
-                              onClick={() => setShowCalendarModal(true)}
-                            >
-                              <span className="flex items-center gap-2">
-                                {isCalendarSynced ? (
-                                  <CalendarCheck className="h-4 w-4 text-success" />
-                                ) : (
-                                  <Calendar className="h-4 w-4" />
-                                )}
-                                {isCalendarSynced ? "Synced to Calendar" : "Add to Calendar"}
-                              </span>
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                          </span>
-                        } />
+                        <TooltipTrigger
+                          render={
+                            <span className="w-full">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-10 w-full justify-between px-2"
+                                onClick={() => setShowCalendarModal(true)}
+                              >
+                                <span className="flex items-center gap-2">
+                                  {isCalendarSynced ? (
+                                    <CalendarCheck className="h-4 w-4 text-success" />
+                                  ) : (
+                                    <Calendar className="h-4 w-4" />
+                                  )}
+                                  {isCalendarSynced
+                                    ? "Synced to Calendar"
+                                    : "Add to Calendar"}
+                                </span>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </span>
+                          }
+                        />
                         <TooltipContent className="max-w-70 p-2">
                           <p>
                             {isCalendarSynced
@@ -604,45 +713,56 @@ export default function CreatorDashboard({
                     </TooltipProvider>
                   </div>
                 )}
-                {hasActiveUnpublishedSessions && project.verification_method !== 'auto' && (
-                  <div>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger render={
-                          <span className="w-full">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-10 w-full justify-between px-2"
-                              onClick={() => router.push(`/projects/${project.id}/hours`)}
-                            >
-                              <span className="flex items-center gap-2">
-                                <Clock className="h-4 w-4" />
-                                Manage Hours
+                {hasActiveUnpublishedSessions &&
+                  project.verification_method !== "auto" && (
+                    <div>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <span className="w-full">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-10 w-full justify-between px-2"
+                                  onClick={() =>
+                                    router.push(`/projects/${project.id}/hours`)
+                                  }
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <Clock className="h-4 w-4" />
+                                    Manage Hours
+                                  </span>
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                </Button>
                               </span>
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                          </span>
-                        } />
-                        <TooltipContent className="max-w-70 p-2">
-                          <p>
-                            {activeUnpublishedSessionsInEditingWindow.length === 1
-                              ? `Editing window open for: ${activeUnpublishedSessionsInEditingWindow[0].name}`
-                              : `Editing windows open for ${activeUnpublishedSessionsInEditingWindow.length} sessions`}
-                          </p>
-                          <ul className="text-xs mt-1 space-y-1">
-                            {activeUnpublishedSessionsInEditingWindow.map(session => (
-                              <li key={session.id}>
-                                • {session.name}: {session.attendedCount} attended ({session.hoursRemaining}h left)
-                              </li>
-                            ))}
-                          </ul>
-                          <p className="text-xs mt-1 text-muted-foreground">Click to review/edit hours before publishing.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                )}
+                            }
+                          />
+                          <TooltipContent className="max-w-70 p-2">
+                            <p>
+                              {activeUnpublishedSessionsInEditingWindow.length ===
+                              1
+                                ? `Editing window open for: ${activeUnpublishedSessionsInEditingWindow[0].name}`
+                                : `Editing windows open for ${activeUnpublishedSessionsInEditingWindow.length} sessions`}
+                            </p>
+                            <ul className="text-xs mt-1 space-y-1">
+                              {activeUnpublishedSessionsInEditingWindow.map(
+                                (session) => (
+                                  <li key={session.id}>
+                                    • {session.name}: {session.attendedCount}{" "}
+                                    attended ({session.hoursRemaining}h left)
+                                  </li>
+                                ),
+                              )}
+                            </ul>
+                            <p className="text-xs mt-1 text-muted-foreground">
+                              Click to review/edit hours before publishing.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  )}
               </div>
             </div>
 
@@ -666,7 +786,11 @@ export default function CreatorDashboard({
                 disabled={isCloning}
               >
                 <span className="flex items-center gap-2">
-                  {isCloning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+                  {isCloning ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
                   Clone Project
                 </span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -686,24 +810,29 @@ export default function CreatorDashboard({
 
               <TooltipProvider>
                 <Tooltip>
-                  <TooltipTrigger render={
-                    <span className="w-full">
-                      <Button
-                        variant="outline"
-                        className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
-                        onClick={handleContactAllSignups}
-                        disabled={isCancelled}
-                      >
-                        <span className="flex items-center gap-2">
-                          <Mail className="h-4 w-4" />
-                          Contact All Signups
-                        </span>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </span>
-                  } />
+                  <TooltipTrigger
+                    render={
+                      <span className="w-full">
+                        <Button
+                          variant="outline"
+                          className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
+                          onClick={handleContactAllSignups}
+                          disabled={isCancelled}
+                        >
+                          <span className="flex items-center gap-2">
+                            <Mail className="h-4 w-4" />
+                            Contact All Signups
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </span>
+                    }
+                  />
                   <TooltipContent className="max-w-75 p-2">
-                    <p>Open your email client with all volunteer emails pre-populated in BCC field</p>
+                    <p>
+                      Open your email client with all volunteer emails
+                      pre-populated in BCC field
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -719,28 +848,33 @@ export default function CreatorDashboard({
               {canSyncProjectCalendar && (
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger render={
-                      <span className="w-full">
-                        <Button
-                          variant="outline"
-                          className={`h-10 w-full justify-between gap-2 bg-background/60 shadow-none ${isCalendarSynced
-                            ? "bg-success/10 hover:bg-success/20 border-success/80"
-                            : ""
+                    <TooltipTrigger
+                      render={
+                        <span className="w-full">
+                          <Button
+                            variant="outline"
+                            className={`h-10 w-full justify-between gap-2 bg-background/60 shadow-none ${
+                              isCalendarSynced
+                                ? "bg-success/10 hover:bg-success/20 border-success/80"
+                                : ""
                             }`}
-                          onClick={() => setShowCalendarModal(true)}
-                        >
-                          <span className="flex items-center gap-2">
-                            {isCalendarSynced ? (
-                              <CalendarCheck className="h-4 w-4 text-success" />
-                            ) : (
-                              <Calendar className="h-4 w-4" />
-                            )}
-                            {isCalendarSynced ? "Synced to Calendar" : "Add to Calendar"}
-                          </span>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </span>
-                    } />
+                            onClick={() => setShowCalendarModal(true)}
+                          >
+                            <span className="flex items-center gap-2">
+                              {isCalendarSynced ? (
+                                <CalendarCheck className="h-4 w-4 text-success" />
+                              ) : (
+                                <Calendar className="h-4 w-4" />
+                              )}
+                              {isCalendarSynced
+                                ? "Synced to Calendar"
+                                : "Add to Calendar"}
+                            </span>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </span>
+                      }
+                    />
                     <TooltipContent className="max-w-70 p-2">
                       <p>
                         {isCalendarSynced
@@ -752,47 +886,57 @@ export default function CreatorDashboard({
                 </TooltipProvider>
               )}
 
-              {hasActiveUnpublishedSessions && project.verification_method !== 'auto' && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger render={
-                      <span className="w-full">
-                        <Button
-                          variant="outline"
-                          className="h-10 w-full justify-between gap-2 bg-primary/10 hover:bg-primary/20 border-primary/80 shadow-none"
-                          onClick={() => router.push(`/projects/${project.id}/hours`)}
-                        >
-                          <span className="flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            Manage Hours
+              {hasActiveUnpublishedSessions &&
+                project.verification_method !== "auto" && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <span className="w-full">
+                            <Button
+                              variant="outline"
+                              className="h-10 w-full justify-between gap-2 bg-primary/10 hover:bg-primary/20 border-primary/80 shadow-none"
+                              onClick={() =>
+                                router.push(`/projects/${project.id}/hours`)
+                              }
+                            >
+                              <span className="flex items-center gap-2">
+                                <Clock className="h-4 w-4" />
+                                Manage Hours
+                              </span>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </Button>
                           </span>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </span>
-                    } />
-                    <TooltipContent className="max-w-70 p-2">
-                      <p>
-                        {activeUnpublishedSessionsInEditingWindow.length === 1
-                          ? `Editing window open for: ${activeUnpublishedSessionsInEditingWindow[0].name}`
-                          : `Editing windows open for ${activeUnpublishedSessionsInEditingWindow.length} sessions`}
-                      </p>
-                      <ul className="text-xs mt-1 space-y-1">
-                        {activeUnpublishedSessionsInEditingWindow.map(session => (
-                          <li key={session.id}>
-                            • {session.name}: {session.attendedCount} attended ({session.hoursRemaining}h left)
-                          </li>
-                        ))}
-                      </ul>
-                      <p className="text-xs mt-1 text-muted-foreground">Click to review/edit hours before publishing.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
+                        }
+                      />
+                      <TooltipContent className="max-w-70 p-2">
+                        <p>
+                          {activeUnpublishedSessionsInEditingWindow.length === 1
+                            ? `Editing window open for: ${activeUnpublishedSessionsInEditingWindow[0].name}`
+                            : `Editing windows open for ${activeUnpublishedSessionsInEditingWindow.length} sessions`}
+                        </p>
+                        <ul className="text-xs mt-1 space-y-1">
+                          {activeUnpublishedSessionsInEditingWindow.map(
+                            (session) => (
+                              <li key={session.id}>
+                                • {session.name}: {session.attendedCount}{" "}
+                                attended ({session.hoursRemaining}h left)
+                              </li>
+                            ),
+                          )}
+                        </ul>
+                        <p className="text-xs mt-1 text-muted-foreground">
+                          Click to review/edit hours before publishing.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
             </div>
           </div>
 
-            {/* Attendance Button - for QR code and manual methods */}
-            {/* {(project.verification_method === 'qr-code' || project.verification_method === 'manual') && (
+          {/* Attendance Button - for QR code and manual methods */}
+          {/* {(project.verification_method === 'qr-code' || project.verification_method === 'manual') && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -823,10 +967,9 @@ export default function CreatorDashboard({
                 </Tooltip>
               </TooltipProvider>
             )}  */}
-            {/* Visual indicator for automatic check-in */}
+          {/* Visual indicator for automatic check-in */}
 
-
-            {/* <TooltipProvider>
+          {/* <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="w-full sm:w-auto">
@@ -859,19 +1002,39 @@ export default function CreatorDashboard({
 
           {/* --- Conditional Alerts --- */}
           {/* Signup-Only */}
-          {project.verification_method === 'signup-only' && !isCancelled && (
+          {project.verification_method === "signup-only" && !isCancelled && (
             <>
               {isStartingSoon && (
-                <Alert variant="default" className="border-info/50 bg-info/10 mt-4">
+                <Alert
+                  variant="default"
+                  className="border-info/50 bg-info/10 mt-4"
+                >
                   <Info className="h-4 w-4 text-info" />
-                  <AlertTitle className="text-info">Event Starting Soon!</AlertTitle>
+                  <AlertTitle className="text-info">
+                    Event Starting Soon!
+                  </AlertTitle>
                   <AlertDescription>
-                    Your signup-only event starts within 24 hours. Consider pausing signups if you&apos;re no longer accepting volunteers. You can also view or print the current signup list from the Manage Signups page.
+                    Your signup-only event starts within 24 hours. Consider
+                    pausing signups if you&apos;re no longer accepting
+                    volunteers. You can also view or print the current signup
+                    list from the Manage Signups page.
                     <div className="mt-3 flex gap-2">
-                      <Link href={`/projects/${project.id}/signups`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}>
+                      <Link
+                        href={`/projects/${project.id}/signups`}
+                        className={cn(
+                          buttonVariants({ variant: "outline", size: "sm" }),
+                          "no-underline! hover:no-underline!",
+                        )}
+                      >
                         <Pause className="h-4 w-4 mr-1.5" /> Pause/View Signups
                       </Link>
-                      <Link href={`/projects/${project.id}/signups`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}>
+                      <Link
+                        href={`/projects/${project.id}/signups`}
+                        className={cn(
+                          buttonVariants({ variant: "outline", size: "sm" }),
+                          "no-underline! hover:no-underline!",
+                        )}
+                      >
                         <Printer className="h-4 w-4 mr-1.5" /> Print List
                       </Link>
                     </div>
@@ -879,19 +1042,30 @@ export default function CreatorDashboard({
                 </Alert>
               )}
               {isInProgress && (
-                <Alert variant="default" className="border-warning/50 bg-warning/10 mt-4">
+                <Alert
+                  variant="default"
+                  className="border-warning/50 bg-warning/10 mt-4"
+                >
                   <Info className="h-4 w-4 text-warning" />
-                  <AlertTitle className="text-warning">Event In Progress</AlertTitle>
+                  <AlertTitle className="text-warning">
+                    Event In Progress
+                  </AlertTitle>
                   <AlertDescription>
-                    Your signup-only event is currently ongoing based on the scheduled time.
+                    Your signup-only event is currently ongoing based on the
+                    scheduled time.
                   </AlertDescription>
                 </Alert>
               )}
               {/* --- MODIFIED: Signup-Only Completed Alert --- */}
               {isCompleted && ( // Condition already checks for completion
-                <Alert variant="default" className="border-success/50 bg-success/10 mt-4">
+                <Alert
+                  variant="default"
+                  className="border-success/50 bg-success/10 mt-4"
+                >
                   <CheckCircle2 className="h-4 w-4 text-success" />
-                  <AlertTitle className="text-success">Event Completed</AlertTitle>
+                  <AlertTitle className="text-success">
+                    Event Completed
+                  </AlertTitle>
                   <AlertDescription>
                     {/* Use hasActiveUnpublishedSessions for conditional text */}
                     {hasActiveUnpublishedSessions
@@ -900,32 +1074,47 @@ export default function CreatorDashboard({
                     <div className="mt-3">
                       <TooltipProvider>
                         <Tooltip>
-                          <TooltipTrigger render={
-                            /* Span needed for tooltip on disabled button */
-                            <span className="inline-block" tabIndex={hasActiveUnpublishedSessions ? -1 : 0}>
-                              {hasActiveUnpublishedSessions ? (
-                                <Link
-                                  href={`/projects/${project.id}/hours`}
-                                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}
-                                >
-                                  <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
-                                </Link>
-                              ) : (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled
-                                  className="pointer-events-none opacity-60"
-                                >
-                                  <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
-                                </Button>
-                              )}
-                            </span>
-                          } />
+                          <TooltipTrigger
+                            render={
+                              /* Span needed for tooltip on disabled button */
+                              <span
+                                className="inline-block"
+                                tabIndex={hasActiveUnpublishedSessions ? -1 : 0}
+                              >
+                                {hasActiveUnpublishedSessions ? (
+                                  <Link
+                                    href={`/projects/${project.id}/hours`}
+                                    className={cn(
+                                      buttonVariants({
+                                        variant: "outline",
+                                        size: "sm",
+                                      }),
+                                      "no-underline! hover:no-underline!",
+                                    )}
+                                  >
+                                    <Clock className="h-4 w-4 mr-1.5" /> Manage
+                                    Hours
+                                  </Link>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled
+                                    className="pointer-events-none opacity-60"
+                                  >
+                                    <Clock className="h-4 w-4 mr-1.5" /> Manage
+                                    Hours
+                                  </Button>
+                                )}
+                              </span>
+                            }
+                          />
                           {/* Tooltip for disabled button */}
                           {!hasActiveUnpublishedSessions && (
                             <TooltipContent>
-                              <p>Editing window closed or all sessions published.</p>
+                              <p>
+                                Editing window closed or all sessions published.
+                              </p>
                             </TooltipContent>
                           )}
                         </Tooltip>
@@ -938,136 +1127,249 @@ export default function CreatorDashboard({
             </>
           )}
           {/* QR Code / Manual */}
-          {(project.verification_method === 'qr-code' || project.verification_method === 'manual') && !isCancelled && (
-            <>
-              {isStartingSoon && !isCheckInOpen && ( // Show only if > 2 hours away
-                <Alert variant="default" className="border-info/50 bg-info/10 mt-4">
-                  <Info className="h-4 w-4 text-info" />
-                  <AlertTitle className="text-info">Event Starting Soon!</AlertTitle>
-                  <AlertDescription>
-                    Your event starts within 24 hours.
-                    {project.verification_method === 'qr-code' && " QR codes for check-in will be available 2 hours before the start time."}
-                    {project.verification_method === 'manual' && " Prepare for manual volunteer check-in."}
-                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      {project.verification_method === 'qr-code' && (
-                        <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setQrCodeOpen(true)}>
-                          <QrCode className="h-4 w-4 mr-1.5" /> Preview QR Codes
-                        </Button>
-                      )}
-                      <Link
-                        href={`/projects/${project.id}/signups`}
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline! w-full sm:w-auto")}
-                      >
-                        <Users className="h-4 w-4 mr-1.5" /> View Signups
-                      </Link>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              )}
-              {isCheckInOpen && !isInProgress && !isCompleted && ( // Show only if < 2 hours away but not started
-                <Alert variant="default" className="border-primary/50 bg-primary/10 mt-4">
-                  <Hourglass className="h-4 w-4 text-primary" />
-                  <AlertTitle className="text-primary">Check-in Window Open!</AlertTitle>
-                  <AlertDescription>
-                    Volunteer check-in is available starting 2 hours before the event.
-                    {project.verification_method === 'qr-code' && " Ensure QR codes are accessible."}
-                    {project.verification_method === 'manual' && " Be ready to check volunteers in manually."}
-                    <div className="mt-3 flex gap-2">
-                      {project.verification_method === 'qr-code' && (
-                        <Button variant="outline" size="sm" onClick={() => setQrCodeOpen(true)}>
-                          <QrCode className="h-4 w-4 mr-1.5" /> View QR Codes
-                        </Button>
-                      )}
-                      <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}>
-                        <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
-                      </Link>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              )}
-              {isInProgress && (
-                <Alert variant="default" className="border-warning/50 bg-warning/10 mt-4">
-                  <Info className="h-4 w-4 text-warning" />
-                  <AlertTitle className="text-warning">Event In Progress</AlertTitle>
-                  <AlertDescription>
-                    Your event is currently ongoing. Manage check-ins and view attendance records.
-                    <div className="mt-3 flex gap-2">
-                      {project.verification_method === 'qr-code' && (
-                        <Button variant="outline" size="sm" onClick={() => setQrCodeOpen(true)}>
-                          <QrCode className="h-4 w-4 mr-1.5" /> View QR Codes
-                        </Button>
-                      )}
-                      <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}>
-                        <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
-                      </Link>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              )}
-              {isCompleted && (project.verification_method === 'qr-code' || project.verification_method === 'manual') && !isCancelled && (
-                <Alert
-                  variant="default"
-                  // Use hasActiveUnpublishedSessions for conditional styling
-                  className={`border-${hasActiveUnpublishedSessions ? "info" : "success"}/50 bg-${hasActiveUnpublishedSessions ? "info" : "success"}/10 mt-4`}
-                >
-                  <CheckCircle2 className={`h-4 w-4 text-${hasActiveUnpublishedSessions ? "info" : "success"}`} />
-                  <AlertTitle className={`text-${hasActiveUnpublishedSessions ? "info" : "success"}`}>Event Completed</AlertTitle>
-                  <AlertDescription>
-                    {/* Use hasActiveUnpublishedSessions here */}
-                    {hasActiveUnpublishedSessions
-                      ? "Your event has finished. Please review, edit, and publish volunteer hours within 48 hours of the event end time to generate certificates. If you don't edit, hours will be published automatically."
-                      : "Your event has finished, and the window for managing volunteer hours has closed or all sessions are published. You can still view the final attendance records."}
-                    <div className="mt-3 flex gap-2 flex-wrap">
-                      <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}>
-                        <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
-                      </Link>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger render={
-                            <span className="inline-block" tabIndex={hasActiveUnpublishedSessions ? -1 : 0}>
-                              {hasActiveUnpublishedSessions ? (
-                                <Link
-                                  href={`/projects/${project.id}/hours`}
-                                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}
-                                >
-                                  <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
-                                </Link>
-                              ) : (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled
-                                  className="pointer-events-none opacity-60"
-                                >
-                                  <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
-                                </Button>
-                              )}
-                            </span>
-                          } />
-                          {/* Tooltip for disabled button */}
-                          {!hasActiveUnpublishedSessions && (
-                            <TooltipContent>
-                              <p>Editing window closed or all sessions published.</p>
-                            </TooltipContent>
+          {(project.verification_method === "qr-code" ||
+            project.verification_method === "manual") &&
+            !isCancelled && (
+              <>
+                {isStartingSoon &&
+                  !isCheckInOpen && ( // Show only if > 2 hours away
+                    <Alert
+                      variant="default"
+                      className="border-info/50 bg-info/10 mt-4"
+                    >
+                      <Info className="h-4 w-4 text-info" />
+                      <AlertTitle className="text-info">
+                        Event Starting Soon!
+                      </AlertTitle>
+                      <AlertDescription>
+                        Your event starts within 24 hours.
+                        {project.verification_method === "qr-code" &&
+                          " QR codes for check-in will be available 2 hours before the start time."}
+                        {project.verification_method === "manual" &&
+                          " Prepare for manual volunteer check-in."}
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                          {project.verification_method === "qr-code" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full sm:w-auto"
+                              onClick={() => setQrCodeOpen(true)}
+                            >
+                              <QrCode className="h-4 w-4 mr-1.5" /> Preview QR
+                              Codes
+                            </Button>
                           )}
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              )}
-              {/* --- END MODIFIED --- */}
-            </>
-          )}
+                          <Link
+                            href={`/projects/${project.id}/signups`}
+                            className={cn(
+                              buttonVariants({
+                                variant: "outline",
+                                size: "sm",
+                              }),
+                              "no-underline! hover:no-underline! w-full sm:w-auto",
+                            )}
+                          >
+                            <Users className="h-4 w-4 mr-1.5" /> View Signups
+                          </Link>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                {isCheckInOpen &&
+                  !isInProgress &&
+                  !isCompleted && ( // Show only if < 2 hours away but not started
+                    <Alert
+                      variant="default"
+                      className="border-primary/50 bg-primary/10 mt-4"
+                    >
+                      <Hourglass className="h-4 w-4 text-primary" />
+                      <AlertTitle className="text-primary">
+                        Check-in Window Open!
+                      </AlertTitle>
+                      <AlertDescription>
+                        Volunteer check-in is available starting 2 hours before
+                        the event.
+                        {project.verification_method === "qr-code" &&
+                          " Ensure QR codes are accessible."}
+                        {project.verification_method === "manual" &&
+                          " Be ready to check volunteers in manually."}
+                        <div className="mt-3 flex gap-2">
+                          {project.verification_method === "qr-code" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setQrCodeOpen(true)}
+                            >
+                              <QrCode className="h-4 w-4 mr-1.5" /> View QR
+                              Codes
+                            </Button>
+                          )}
+                          <Link
+                            href={`/projects/${project.id}/attendance`}
+                            className={cn(
+                              buttonVariants({
+                                variant: "outline",
+                                size: "sm",
+                              }),
+                              "no-underline! hover:no-underline!",
+                            )}
+                          >
+                            <UserCheck className="h-4 w-4 mr-1.5" /> Manage
+                            Attendance
+                          </Link>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                {isInProgress && (
+                  <Alert
+                    variant="default"
+                    className="border-warning/50 bg-warning/10 mt-4"
+                  >
+                    <Info className="h-4 w-4 text-warning" />
+                    <AlertTitle className="text-warning">
+                      Event In Progress
+                    </AlertTitle>
+                    <AlertDescription>
+                      Your event is currently ongoing. Manage check-ins and view
+                      attendance records.
+                      <div className="mt-3 flex gap-2">
+                        {project.verification_method === "qr-code" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setQrCodeOpen(true)}
+                          >
+                            <QrCode className="h-4 w-4 mr-1.5" /> View QR Codes
+                          </Button>
+                        )}
+                        <Link
+                          href={`/projects/${project.id}/attendance`}
+                          className={cn(
+                            buttonVariants({ variant: "outline", size: "sm" }),
+                            "no-underline! hover:no-underline!",
+                          )}
+                        >
+                          <UserCheck className="h-4 w-4 mr-1.5" /> Manage
+                          Attendance
+                        </Link>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {isCompleted &&
+                  (project.verification_method === "qr-code" ||
+                    project.verification_method === "manual") &&
+                  !isCancelled && (
+                    <Alert
+                      variant="default"
+                      // Use hasActiveUnpublishedSessions for conditional styling
+                      className={`border-${hasActiveUnpublishedSessions ? "info" : "success"}/50 bg-${hasActiveUnpublishedSessions ? "info" : "success"}/10 mt-4`}
+                    >
+                      <CheckCircle2
+                        className={`h-4 w-4 text-${hasActiveUnpublishedSessions ? "info" : "success"}`}
+                      />
+                      <AlertTitle
+                        className={`text-${hasActiveUnpublishedSessions ? "info" : "success"}`}
+                      >
+                        Event Completed
+                      </AlertTitle>
+                      <AlertDescription>
+                        {/* Use hasActiveUnpublishedSessions here */}
+                        {hasActiveUnpublishedSessions
+                          ? "Your event has finished. Please review, edit, and publish volunteer hours within 48 hours of the event end time to generate certificates. If you don't edit, hours will be published automatically."
+                          : "Your event has finished, and the window for managing volunteer hours has closed or all sessions are published. You can still view the final attendance records."}
+                        <div className="mt-3 flex gap-2 flex-wrap">
+                          <Link
+                            href={`/projects/${project.id}/attendance`}
+                            className={cn(
+                              buttonVariants({
+                                variant: "outline",
+                                size: "sm",
+                              }),
+                              "no-underline! hover:no-underline!",
+                            )}
+                          >
+                            <UserCheck className="h-4 w-4 mr-1.5" /> Manage
+                            Attendance
+                          </Link>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <span
+                                    className="inline-block"
+                                    tabIndex={
+                                      hasActiveUnpublishedSessions ? -1 : 0
+                                    }
+                                  >
+                                    {hasActiveUnpublishedSessions ? (
+                                      <Link
+                                        href={`/projects/${project.id}/hours`}
+                                        className={cn(
+                                          buttonVariants({
+                                            variant: "outline",
+                                            size: "sm",
+                                          }),
+                                          "no-underline! hover:no-underline!",
+                                        )}
+                                      >
+                                        <Clock className="h-4 w-4 mr-1.5" />{" "}
+                                        Manage Hours
+                                      </Link>
+                                    ) : (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled
+                                        className="pointer-events-none opacity-60"
+                                      >
+                                        <Clock className="h-4 w-4 mr-1.5" />{" "}
+                                        Manage Hours
+                                      </Button>
+                                    )}
+                                  </span>
+                                }
+                              />
+                              {/* Tooltip for disabled button */}
+                              {!hasActiveUnpublishedSessions && (
+                                <TooltipContent>
+                                  <p>
+                                    Editing window closed or all sessions
+                                    published.
+                                  </p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                {/* --- END MODIFIED --- */}
+              </>
+            )}
           {/* Auto Check-in (Keep this separate as it has no hours management) */}
-          {project.verification_method === 'auto' && !isCancelled && (
-            <Alert variant="default" className="border-secondary/50 bg-secondary/10 mt-4">
+          {project.verification_method === "auto" && !isCancelled && (
+            <Alert
+              variant="default"
+              className="border-secondary/50 bg-secondary/10 mt-4"
+            >
               <Zap className="h-4 w-4 text-secondary" />
-              <AlertTitle className="text-secondary">Automatic Check-in Enabled</AlertTitle>
+              <AlertTitle className="text-secondary">
+                Automatic Check-in Enabled
+              </AlertTitle>
               <AlertDescription>
-                Volunteer check-in is automatic. Hours are recorded based on the schedule. Manual editing is not available for this project type.
+                Volunteer check-in is automatic. Hours are recorded based on the
+                schedule. Manual editing is not available for this project type.
                 <div className="mt-3 flex gap-2">
-                  <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}>
+                  <Link
+                    href={`/projects/${project.id}/attendance`}
+                    className={cn(
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "no-underline! hover:no-underline!",
+                    )}
+                  >
                     <Users className="h-4 w-4 mr-1.5" /> View Attendance
                   </Link>
                 </div>
@@ -1076,19 +1378,27 @@ export default function CreatorDashboard({
           )}
           {/* --- End Conditional Alerts --- */}
 
-
           {/* Cancelled Project Info */}
           {isCancelled ? (
             <div className="flex flex-col sm:flex-row items-start gap-2 rounded-md border border-destructive p-3 sm:p-4 bg-destructive/10">
               <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
               <div className="text-sm text-muted-foreground space-y-2">
                 <p>
-                  This project has been cancelled. You can still edit details and manage existing signups,
-                  but new signups are disabled and this project has been shut off. If this was a mistake, please contact <Link className="text-primary hover:underline" href="mailto:support@lets-assist.com">support@lets-assist.com</Link>
+                  This project has been cancelled. You can still edit details
+                  and manage existing signups, but new signups are disabled and
+                  this project has been shut off. If this was a mistake, please
+                  contact{" "}
+                  <Link
+                    className="text-primary hover:underline"
+                    href="mailto:support@lets-assist.com"
+                  >
+                    support@lets-assist.com
+                  </Link>
                 </p>
                 {project.cancellation_reason && (
                   <p className="mt-1">
-                    <span className="font-medium">Reason:</span> {project.cancellation_reason}
+                    <span className="font-medium">Reason:</span>{" "}
+                    {project.cancellation_reason}
                   </p>
                 )}
               </div>
@@ -1103,15 +1413,20 @@ export default function CreatorDashboard({
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent className="max-w-[95vw] sm:max-w-106.25">
           <AlertDialogHeader className="space-y-3">
-            <AlertDialogTitle className="text-lg sm:text-xl">Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle className="text-lg sm:text-xl">
+              Are you sure?
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-sm">
               This action cannot be undone. This will permanently delete your
-              project and remove all data associated with it, including volunteer
-              signups and documents. If you need to cancel or reschedule, we recommend you cancel the project instead.
+              project and remove all data associated with it, including
+              volunteer signups and documents. If you need to cancel or
+              reschedule, we recommend you cancel the project instead.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-3">
-            <AlertDialogCancel className="w-full sm:w-auto mt-0">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="w-full sm:w-auto mt-0">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteProject}
               className="w-full sm:w-auto bg-destructive/10 text-destructive hover:bg-destructive/20"
@@ -1145,7 +1460,7 @@ export default function CreatorDashboard({
       />
 
       {/* Add QR Code Modal - only for qr code method */}
-      {project.verification_method === 'qr-code' && (
+      {project.verification_method === "qr-code" && (
         <ProjectQRCodeModal
           project={project}
           open={qrCodeOpen}

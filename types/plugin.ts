@@ -21,23 +21,21 @@ export interface OrganizationPluginLifecycleOrganization {
  * Plugin permission scopes for granular access control
  */
 export type OrganizationPluginScope =
-  | "org:read"           // Read organization data
-  | "org:write"          // Modify organization settings
-  | "members:read"       // Read member list
-  | "members:write"      // Modify member roles
-  | "projects:read"      // Read projects
-  | "projects:write"     // Create/modify projects
-  | "signups:read"       // Read anonymous signups
-  | "signups:write"      // Modify signups
+  | "org:read" // Read organization data
+  | "org:write" // Modify organization settings
+  | "members:read" // Read member list
+  | "members:write" // Modify member roles
+  | "projects:read" // Read projects
+  | "projects:write" // Create/modify projects
+  | "signups:read" // Read anonymous signups
+  | "signups:write" // Modify signups
   | "notifications:send" // Send notifications
-  | "storage:read"       // Read files
-  | "storage:write"      // Upload files
-  | "api:expose";        // Expose custom API endpoints
+  | "storage:read" // Read files
+  | "storage:write" // Upload files
+  | "api:expose"; // Expose custom API endpoints
 
 export type OrganizationPluginOwnerType =
-  | "platform-official"
-  | "partner"
-  | "community";
+  "platform-official" | "partner" | "community";
 
 export interface OrganizationPluginOwner {
   name: string;
@@ -48,34 +46,33 @@ export interface OrganizationPluginOwner {
  * Available surfaces where plugins can inject UI components
  */
 export type OrganizationPluginSurface =
-  | "organization.overview.cards"      // Cards on organization dashboard
-  | "organization.settings.cards"      // Cards in organization settings
-  | "anonymous.profile.cards"          // Cards on anonymous signup pages
-  | "project.detail.cards"             // Cards on project detail pages
-  | "project.detail.actions"           // Action buttons on project pages
-  | "user.profile.cards"               // Cards on user profile pages
-  | "dashboard.sidebar.items"          // Items in sidebar navigation
-  | "dashboard.header.actions";        // Actions in header area
+  | "organization.overview.cards" // Cards on organization dashboard
+  | "organization.settings.cards" // Cards in organization settings
+  | "anonymous.profile.cards" // Cards on anonymous signup pages
+  | "project.detail.cards" // Cards on project detail pages
+  | "project.detail.actions" // Action buttons on project pages
+  | "user.profile.cards" // Cards on user profile pages
+  | "dashboard.sidebar.items" // Items in sidebar navigation
+  | "dashboard.header.actions"; // Actions in header area
 
 /**
  * Available behavior hooks for modifying application behavior
  */
 export type OrganizationPluginBehaviorHook =
-  | "anonymous.profile.experience"     // Modify anonymous signup experience
-  | "organization.tabs"                // Add custom tabs to org dashboard
+  | "anonymous.profile.experience" // Modify anonymous signup experience
+  | "organization.tabs" // Add custom tabs to org dashboard
   | "organization.navigation.overrides" // Override core org navigation tabs
-  | "project.create.validation"        // Validate project creation
-  | "project.update.validation"        // Validate project updates
-  | "project.create.additional_steps"  // Add custom steps to project creation wizard
-  | "signup.form.fields"               // Add custom fields to signup forms
-  | "signup.submit.validation"         // Validate signup submissions
-  | "notification.send.intercept"      // Intercept outgoing notifications
-  | "organization.member.join"         // React to member joining
-  | "organization.member.leave";       // React to member leaving
+  | "project.create.validation" // Validate project creation
+  | "project.update.validation" // Validate project updates
+  | "project.create.additional_steps" // Add custom steps to project creation wizard
+  | "signup.form.fields" // Add custom fields to signup forms
+  | "signup.submit.validation" // Validate signup submissions
+  | "notification.send.intercept" // Intercept outgoing notifications
+  | "organization.member.join" // React to member joining
+  | "organization.member.leave"; // React to member leaving
 
 export type OrganizationPluginSurfaceAccessLevel =
-  | OrganizationPluginAccessRole
-  | "public";
+  OrganizationPluginAccessRole | "public";
 
 export type OrganizationPluginSurfaceAccessPolicy = Partial<
   Record<OrganizationPluginSurface, OrganizationPluginSurfaceAccessLevel>
@@ -193,7 +190,8 @@ export interface ResolvedOrganizationPluginSurface {
   node: ReactNode;
 }
 
-export type OrganizationCoreTabKey = "overview" | "members" | "projects" | "reports";
+export type OrganizationCoreTabKey =
+  "overview" | "members" | "projects" | "reports";
 
 export interface OrganizationCoreTabReplacement {
   pluginKey: string;
@@ -215,12 +213,13 @@ export interface ProjectValidationResult {
  */
 export interface SignupFormField {
   key: string;
-  type: "text" | "email" | "tel" | "select" | "checkbox" | "textarea" | "number";
+  type:
+    "text" | "email" | "tel" | "select" | "checkbox" | "textarea" | "number";
   label: string;
   placeholder?: string;
   helpText?: string;
   required?: boolean;
-  options?: Array<{ value: string; label: string }>;  // For select type
+  options?: Array<{ value: string; label: string }>; // For select type
   validation?: {
     pattern?: string;
     min?: number;
@@ -242,7 +241,7 @@ export interface SignupValidationResult {
  * Notification interception result
  */
 export interface NotificationInterceptResult {
-  suppress?: boolean;      // Don't send the notification
+  suppress?: boolean; // Don't send the notification
   modify?: {
     subject?: string;
     body?: string;
@@ -254,12 +253,14 @@ export interface NotificationInterceptResult {
  * Member event reaction (no return needed, side-effect only)
  */
 export interface MemberEventResult {
-  handled?: boolean;  // Acknowledge processing
+  handled?: boolean; // Acknowledge processing
 }
 
 export interface OrganizationNavigationBehavior {
   defaultTab?: OrganizationCoreTabKey | string;
-  coreTabReplacements?: Partial<Record<OrganizationCoreTabKey, OrganizationCoreTabReplacement>>;
+  coreTabReplacements?: Partial<
+    Record<OrganizationCoreTabKey, OrganizationCoreTabReplacement>
+  >;
   hideMembersTab?: boolean;
   hideProjectsTab?: boolean;
   hideOverviewTab?: boolean;
@@ -321,8 +322,7 @@ export interface OrganizationPluginBehaviorHookResultMap {
   "organization.member.leave": MemberEventResult;
 }
 
-export interface OrganizationPluginBehaviorHookContext
-  extends OrganizationPluginSurfaceRenderContext {
+export interface OrganizationPluginBehaviorHookContext extends OrganizationPluginSurfaceRenderContext {
   hookInput?: Record<string, unknown>;
 }
 
@@ -457,7 +457,9 @@ export interface OrganizationPluginLifecycleHooks {
   /**
    * Called when plugin configuration is updated
    */
-  onConfigUpdate?: (context: OrganizationPluginLifecycleContext) => Promise<void>;
+  onConfigUpdate?: (
+    context: OrganizationPluginLifecycleContext,
+  ) => Promise<void>;
 
   /**
    * Called when the plugin version is updated

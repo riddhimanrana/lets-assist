@@ -45,7 +45,7 @@ interface SlotAttendeesDropdownProps {
  */
 export function SlotAttendeesDropdown({
   attendees,
-  defaultOpen = false
+  defaultOpen = false,
 }: SlotAttendeesDropdownProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
@@ -55,21 +55,23 @@ export function SlotAttendeesDropdown({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full mt-2">
-      <CollapsibleTrigger render={
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-xs gap-1.5 hover:bg-muted/50 w-full justify-start"
-        >
-          <Users className="h-3 w-3" />
-          <span>{attendees.length} signed up</span>
-          {isOpen ? (
-            <ChevronUp className="h-3 w-3 ml-auto" />
-          ) : (
-            <ChevronDown className="h-3 w-3 ml-auto" />
-          )}
-        </Button>
-      } />
+      <CollapsibleTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs gap-1.5 hover:bg-muted/50 w-full justify-start"
+          >
+            <Users className="h-3 w-3" />
+            <span>{attendees.length} signed up</span>
+            {isOpen ? (
+              <ChevronUp className="h-3 w-3 ml-auto" />
+            ) : (
+              <ChevronDown className="h-3 w-3 ml-auto" />
+            )}
+          </Button>
+        }
+      />
 
       <CollapsibleContent className="mt-2">
         <div className="space-y-2.5 pl-2 pr-1 py-2">
@@ -79,10 +81,7 @@ export function SlotAttendeesDropdown({
               : attendee.full_name;
 
             return (
-              <div
-                key={attendee.signup_id}
-                className="flex items-start gap-2"
-              >
+              <div key={attendee.signup_id} className="flex items-start gap-2">
                 <ProfileHoverCard
                   username={attendee.username}
                   fullName={attendee.full_name}
@@ -92,13 +91,20 @@ export function SlotAttendeesDropdown({
                   createdAt={attendee.created_at}
                   disabled={attendee.is_anonymous}
                 >
-                  <div className={cn(
-                    "flex items-center gap-2 shrink-0",
-                    !attendee.is_anonymous && "cursor-pointer hover:text-foreground"
-                  )}>
+                  <div
+                    className={cn(
+                      "flex items-center gap-2 shrink-0",
+                      !attendee.is_anonymous &&
+                        "cursor-pointer hover:text-foreground",
+                    )}
+                  >
                     <Avatar className="h-6 w-6">
                       <AvatarImage
-                        src={attendee.is_anonymous ? undefined : attendee.avatar_url}
+                        src={
+                          attendee.is_anonymous
+                            ? undefined
+                            : attendee.avatar_url
+                        }
                         alt={displayName}
                       />
                       <AvatarFallback className="text-[10px]">
@@ -108,11 +114,13 @@ export function SlotAttendeesDropdown({
                     <div className="flex items-center gap-2 flex-wrap">
                       {attendee.is_anonymous ? (
                         <Tooltip>
-                          <TooltipTrigger render={
-                            <span className="font-medium text-foreground">
-                              {displayName}
-                            </span>
-                          } />
+                          <TooltipTrigger
+                            render={
+                              <span className="font-medium text-foreground">
+                                {displayName}
+                              </span>
+                            }
+                          />
                           <TooltipContent>Anonymous Profile</TooltipContent>
                         </Tooltip>
                       ) : (

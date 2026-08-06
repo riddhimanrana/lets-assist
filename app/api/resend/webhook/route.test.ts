@@ -17,7 +17,10 @@ type VerifyCall = { payload: string; headers: Record<string, string> };
 
 const verifyCalls: VerifyCall[] = [];
 const constructedApiKeys: unknown[] = [];
-let verifyImpl: (call: VerifyCall) => unknown = () => ({ type: "email.sent", data: {} });
+let verifyImpl: (call: VerifyCall) => unknown = () => ({
+  type: "email.sent",
+  data: {},
+});
 
 mock.module("resend", () => ({
   Resend: class {
@@ -27,7 +30,10 @@ mock.module("resend", () => ({
 
     webhooks = {
       verify: (call: VerifyCall) => {
-        verifyCalls.push({ payload: call.payload, headers: { ...call.headers } });
+        verifyCalls.push({
+          payload: call.payload,
+          headers: { ...call.headers },
+        });
         return verifyImpl(call);
       },
     };
@@ -41,7 +47,11 @@ type RpcOutcome = {
 };
 const rpcCalls: RpcCall[] = [];
 let rpcResult: RpcOutcome = {
-  data: { duplicate: false, processingState: "reduced", reductionApplied: true },
+  data: {
+    duplicate: false,
+    processingState: "reduced",
+    reductionApplied: true,
+  },
   error: null,
 };
 /** The quarantine RPC answers separately, so a ledger outage and a quarantine
@@ -98,16 +108,19 @@ function csfLegacyTags(extra: Array<{ name: string; value: string }> = []) {
 }
 
 function makeRequest(body: string, headers: Record<string, string> = {}) {
-  return new Request("https://example.test/api/resend/webhook?organization=attacker", {
-    method: "POST",
-    body,
-    headers: {
-      "svix-id": SVIX_ID,
-      "svix-timestamp": "1700000000",
-      "svix-signature": "v1,synthetic-signature",
-      ...headers,
+  return new Request(
+    "https://example.test/api/resend/webhook?organization=attacker",
+    {
+      method: "POST",
+      body,
+      headers: {
+        "svix-id": SVIX_ID,
+        "svix-timestamp": "1700000000",
+        "svix-signature": "v1,synthetic-signature",
+        ...headers,
+      },
     },
-  }) as unknown as Parameters<typeof route.POST>[0];
+  ) as unknown as Parameters<typeof route.POST>[0];
 }
 
 type LoggedLine = { message: string; fields: Record<string, unknown> };
@@ -122,7 +135,11 @@ beforeEach(() => {
   logged.length = 0;
   verifyImpl = () => ({ type: "email.sent", data: {} });
   rpcResult = {
-    data: { duplicate: false, processingState: "reduced", reductionApplied: true },
+    data: {
+      duplicate: false,
+      processingState: "reduced",
+      reductionApplied: true,
+    },
     error: null,
   };
   quarantineResult = {
@@ -431,7 +448,9 @@ describe("CSF routing comes from signed object-shaped tags", () => {
   test("the legacy array tag shape still routes as a defensive fallback", async () => {
     const raw =
       '{"type":"email.sent","created_at":"2032-04-01T09:00:00.000Z","data":{"email_id":"synthetic-message-legacy","tags":' +
-      JSON.stringify(csfLegacyTags([{ name: "csf_attempt_id", value: ATTEMPT }])) +
+      JSON.stringify(
+        csfLegacyTags([{ name: "csf_attempt_id", value: ATTEMPT }]),
+      ) +
       "}}";
     verifyImpl = () => JSON.parse(raw);
 
@@ -443,7 +462,8 @@ describe("CSF routing comes from signed object-shaped tags", () => {
   });
 
   test("an untagged signed event is acknowledged without CSF persistence", async () => {
-    const raw = '{"type":"email.sent","data":{"email_id":"other-product-message"}}';
+    const raw =
+      '{"type":"email.sent","data":{"email_id":"other-product-message"}}';
     verifyImpl = () => JSON.parse(raw);
 
     const response = await route.POST(makeRequest(raw));
@@ -454,7 +474,8 @@ describe("CSF routing comes from signed object-shaped tags", () => {
   });
 
   test("a query parameter cannot route an untagged event into a tenant", async () => {
-    const raw = '{"type":"email.sent","data":{"email_id":"other-product-message"}}';
+    const raw =
+      '{"type":"email.sent","data":{"email_id":"other-product-message"}}';
     verifyImpl = () => JSON.parse(raw);
 
     // The request URL carries ?organization=attacker; the route must ignore it.
@@ -506,7 +527,11 @@ describe("ledger failures are classified by structured error code", () => {
 
   test("a duplicate is reported by the ledger and acknowledged", async () => {
     rpcResult = {
-      data: { duplicate: true, processingState: "reduced", reductionApplied: true },
+      data: {
+        duplicate: true,
+        processingState: "reduced",
+        reductionApplied: true,
+      },
       error: null,
     };
     verifyImpl = () => JSON.parse(raw);
@@ -551,7 +576,9 @@ describe("ledger failures are classified by structured error code", () => {
       (call) => call.fn === "csf_quarantine_communication_webhook",
     );
     expect(quarantineCall).toBeDefined();
-    expect(quarantineCall!.args.p_reason_code).toBe("immutable_replay_conflict");
+    expect(quarantineCall!.args.p_reason_code).toBe(
+      "immutable_replay_conflict",
+    );
     expect(quarantineCall!.args.p_reason_detail).toBe(
       "envelope already recorded with different immutable evidence",
     );
@@ -631,7 +658,9 @@ describe("ledger failures are classified by structured error code", () => {
     const quarantineCall = rpcCalls.find(
       (call) => call.fn === "csf_quarantine_communication_webhook",
     );
-    expect(quarantineCall!.args.p_reason_code).toBe("unknown_tenant_coordinate");
+    expect(quarantineCall!.args.p_reason_code).toBe(
+      "unknown_tenant_coordinate",
+    );
     expect(quarantineCall!.args.p_reason_detail).toBe(
       "signed routing coordinate does not exist in this organization",
     );
@@ -704,7 +733,8 @@ describe("ledger failures are classified by structured error code", () => {
     },
     {
       sqlstate: "23503",
-      message: 'The CSF communication campaign "z" does not exist in this organization.',
+      message:
+        'The CSF communication campaign "z" does not exist in this organization.',
       code: "unknown_tenant_coordinate",
     },
   ] as const;
@@ -737,7 +767,9 @@ describe("ledger failures are classified by structured error code", () => {
           route.ledgerFailureClass(error),
           `${row.code} must not be permanent under ${other.sqlstate}`,
         ).toBe("retryable");
-        expect(route.ledgerReasonCode(error)).toBe("unclassified_ledger_failure");
+        expect(route.ledgerReasonCode(error)).toBe(
+          "unclassified_ledger_failure",
+        );
       }
     }
   });
@@ -792,13 +824,18 @@ describe("ledger failures are classified by structured error code", () => {
           route.ledgerFailureClass(error),
           `code ${JSON.stringify(code)} must not classify ${row.code} as permanent`,
         ).toBe("retryable");
-        expect(route.ledgerReasonCode(error)).toBe("unclassified_ledger_failure");
+        expect(route.ledgerReasonCode(error)).toBe(
+          "unclassified_ledger_failure",
+        );
       }
     }
 
     // Lowercase is not a SQLSTATE, even when it spells a real class.
     expect(
-      route.ledgerFailureClass({ message: PERMANENT_MATRIX[0].message, code: "23505" }),
+      route.ledgerFailureClass({
+        message: PERMANENT_MATRIX[0].message,
+        code: "23505",
+      }),
     ).toBe("permanent");
   });
 
@@ -824,7 +861,8 @@ describe("ledger failures are classified by structured error code", () => {
       error: {
         // Right sentence, transport code. Previously quarantined and 200'd.
         code: "08006",
-        message: 'The CSF dispatch attempt "y" belongs to another organization.',
+        message:
+          'The CSF dispatch attempt "y" belongs to another organization.',
       },
     };
     verifyImpl = () => JSON.parse(raw);
@@ -832,7 +870,9 @@ describe("ledger failures are classified by structured error code", () => {
     return route.POST(makeRequest(raw)).then((response) => {
       expect(response.status).toBeGreaterThanOrEqual(500);
       expect(
-        rpcCalls.some((call) => call.fn === "csf_quarantine_communication_webhook"),
+        rpcCalls.some(
+          (call) => call.fn === "csf_quarantine_communication_webhook",
+        ),
       ).toBe(false);
     });
   });
@@ -842,17 +882,29 @@ describe("ledger failures are classified by structured error code", () => {
   // the quarantine path at all. This pins that decision rather than the old
   // behaviour of inventing an authored sentence for it.
   test("an unclassified failure is retryable and has no quarantine vocabulary", () => {
-    const error = { message: "remaining connection slots are reserved", code: "53300" };
+    const error = {
+      message: "remaining connection slots are reserved",
+      code: "53300",
+    };
 
     expect(route.ledgerFailureClass(error)).toBe("retryable");
     expect(route.ledgerReasonCode(error)).toBe("unclassified_ledger_failure");
-    expect(route.isQuarantineReasonCode("unclassified_ledger_failure")).toBe(false);
-    expect(route.ledgerQuarantineDetail("unclassified_ledger_failure")).toBeNull();
+    expect(route.isQuarantineReasonCode("unclassified_ledger_failure")).toBe(
+      false,
+    );
+    expect(
+      route.ledgerQuarantineDetail("unclassified_ledger_failure"),
+    ).toBeNull();
   });
 
   // A Set lookup, so a reason code can never resolve to an inherited property.
   test("inherited object properties are not quarantine reason codes", () => {
-    for (const key of ["constructor", "__proto__", "toString", "hasOwnProperty"]) {
+    for (const key of [
+      "constructor",
+      "__proto__",
+      "toString",
+      "hasOwnProperty",
+    ]) {
       expect(route.isQuarantineReasonCode(key)).toBe(false);
       expect(route.ledgerQuarantineDetail(key)).toBeNull();
     }
@@ -868,7 +920,10 @@ describe("ledger failures are classified by structured error code", () => {
     };
     quarantineResult = {
       data: null,
-      error: { code: "53300", message: "remaining connection slots are reserved" },
+      error: {
+        code: "53300",
+        message: "remaining connection slots are reserved",
+      },
     };
     verifyImpl = () => JSON.parse(raw);
 
@@ -883,7 +938,10 @@ describe("ledger failures are classified by structured error code", () => {
     // quarantined as though it were permanent.
     rpcResult = {
       data: null,
-      error: { code: "53300", message: "remaining connection slots are reserved" },
+      error: {
+        code: "53300",
+        message: "remaining connection slots are reserved",
+      },
     };
     verifyImpl = () => JSON.parse(raw);
 
@@ -891,7 +949,9 @@ describe("ledger failures are classified by structured error code", () => {
 
     expect(response.status).toBeGreaterThanOrEqual(500);
     expect(
-      rpcCalls.some((call) => call.fn === "csf_quarantine_communication_webhook"),
+      rpcCalls.some(
+        (call) => call.fn === "csf_quarantine_communication_webhook",
+      ),
     ).toBe(false);
   });
 
@@ -908,7 +968,10 @@ describe("ledger failures are classified by structured error code", () => {
   });
 
   test("an unclassified ledger failure asks Resend to retry", async () => {
-    rpcResult = { data: null, error: { message: "transport failed with no code" } };
+    rpcResult = {
+      data: null,
+      error: { message: "transport failed with no code" },
+    };
     verifyImpl = () => JSON.parse(raw);
 
     const response = await route.POST(makeRequest(raw));
@@ -1049,7 +1112,11 @@ describe("signed CSF poison is quarantined rather than discarded", () => {
       });
       verifyImpl = () => JSON.parse(body);
       quarantineResult = {
-        data: { quarantineId: "q-hostile", occurrenceCount: 1, firstCapture: true },
+        data: {
+          quarantineId: "q-hostile",
+          occurrenceCount: 1,
+          firstCapture: true,
+        },
         error: null,
       };
 
@@ -1079,7 +1146,9 @@ describe("signed CSF poison is quarantined rather than discarded", () => {
       const fragments = [
         hostile.value,
         hostile.value.slice(0, 24),
-        ...hostile.value.split(/[^A-Za-z0-9.@]+/).filter((part) => part.length >= 6),
+        ...hostile.value
+          .split(/[^A-Za-z0-9.@]+/)
+          .filter((part) => part.length >= 6),
       ];
 
       const rpcText = JSON.stringify(rpcCalls);
@@ -1090,15 +1159,18 @@ describe("signed CSF poison is quarantined rather than discarded", () => {
         // fragments that are not themselves ordinary tokens are meaningful.
         if (fragment.length < 6 || fragment === "email.") continue;
 
-        expect(rpcText, `RPC args leaked ${JSON.stringify(fragment)}`).not.toContain(
-          fragment,
-        );
-        expect(logText, `logs leaked ${JSON.stringify(fragment)}`).not.toContain(
-          fragment,
-        );
-        expect(payload, `response leaked ${JSON.stringify(fragment)}`).not.toContain(
-          fragment,
-        );
+        expect(
+          rpcText,
+          `RPC args leaked ${JSON.stringify(fragment)}`,
+        ).not.toContain(fragment);
+        expect(
+          logText,
+          `logs leaked ${JSON.stringify(fragment)}`,
+        ).not.toContain(fragment);
+        expect(
+          payload,
+          `response leaked ${JSON.stringify(fragment)}`,
+        ).not.toContain(fragment);
       }
 
       // And the log field carries the closed token rather than being omitted, so
@@ -1116,7 +1188,10 @@ describe("signed CSF poison is quarantined rather than discarded", () => {
     const foreign = JSON.stringify({
       type: "vendor.\u001b[31mexploit\u0000ATTACKER",
       created_at: "2032-04-01T10:00:00.000Z",
-      data: { email_id: "synthetic-message-z", tags: { other_plugin: "not_csf" } },
+      data: {
+        email_id: "synthetic-message-z",
+        tags: { other_plugin: "not_csf" },
+      },
     });
     verifyImpl = () => JSON.parse(foreign);
 
@@ -1278,9 +1353,11 @@ describe("logs never carry recipient or message content", () => {
       expect(serialized).not.toContain(forbidden);
     }
 
-    expect(logged.some((line) => line.message.includes("Recorded CSF provider event"))).toBe(
-      true,
-    );
+    expect(
+      logged.some((line) =>
+        line.message.includes("Recorded CSF provider event"),
+      ),
+    ).toBe(true);
   });
 
   test("the inbound-email event type no longer logs sender or subject", async () => {
@@ -1336,7 +1413,11 @@ describe("a ledger failure is logged as a bounded code, never as raw database te
     const body = JSON.stringify(await response.json());
     const serialized = JSON.stringify(logged);
 
-    for (const forbidden of [PII_ADDRESS, LONG_DB_DETAIL, "Failing row contains"]) {
+    for (const forbidden of [
+      PII_ADDRESS,
+      LONG_DB_DETAIL,
+      "Failing row contains",
+    ]) {
       expect(serialized).not.toContain(forbidden);
       expect(body).not.toContain(forbidden);
     }
@@ -1357,8 +1438,7 @@ describe("a ledger failure is logged as a bounded code, never as raw database te
       data: null,
       error: {
         code: "53300",
-        message:
-          "connection to server failed while writing for " + PII_ADDRESS,
+        message: "connection to server failed while writing for " + PII_ADDRESS,
       },
     };
     verifyImpl = () => JSON.parse(raw);
@@ -1394,7 +1474,10 @@ describe("a ledger failure is logged as a bounded code, never as raw database te
     };
     quarantineResult = {
       data: null,
-      error: { code: "53300", message: "no slots left while storing " + PII_ADDRESS },
+      error: {
+        code: "53300",
+        message: "no slots left while storing " + PII_ADDRESS,
+      },
     };
     verifyImpl = () => JSON.parse(raw);
 
@@ -1402,8 +1485,12 @@ describe("a ledger failure is logged as a bounded code, never as raw database te
 
     expect(response.status).toBe(503);
     expect(JSON.stringify(logged)).not.toContain(PII_ADDRESS);
-    const failure = logged.find((line) => line.message.includes("quarantine failed"));
-    expect(failure!.fields.quarantineFailureCode).toBe("unclassified_ledger_failure");
+    const failure = logged.find((line) =>
+      line.message.includes("quarantine failed"),
+    );
+    expect(failure!.fields.quarantineFailureCode).toBe(
+      "unclassified_ledger_failure",
+    );
     expect(failure!.fields.sqlstate).toBe("53300");
   });
 
@@ -1500,14 +1587,17 @@ describe("email.bounced carries only reviewed, bounded tokens", () => {
   }
 
   function metadataFor(event: unknown) {
-    return route.buildProviderEventMetadata(event, route.extractCsfRouting(event));
+    return route.buildProviderEventMetadata(
+      event,
+      route.extractCsfRouting(event),
+    );
   }
 
   test("each documented bounce type survives exactly", () => {
     for (const type of ["Permanent", "Transient", "Undetermined"]) {
-      expect(
-        `${type}=${route.resolveBounceType(bouncedEvent({ type }))}`,
-      ).toBe(`${type}=${type}`);
+      expect(`${type}=${route.resolveBounceType(bouncedEvent({ type }))}`).toBe(
+        `${type}=${type}`,
+      );
     }
     expect([...route.RESEND_BOUNCE_TYPES]).toEqual([
       "Permanent",
@@ -1592,7 +1682,9 @@ describe("email.bounced carries only reviewed, bounded tokens", () => {
     // to decide anything, so keeping the provider's exact word costs nothing.
     for (const subType of ["General", "NoEmail", "Suppressed", "MailboxFull"]) {
       expect(
-        route.resolveBounceSubtype(bouncedEvent({ type: "Transient", subType })),
+        route.resolveBounceSubtype(
+          bouncedEvent({ type: "Transient", subType }),
+        ),
       ).toBe(subType);
     }
   });
@@ -1687,7 +1779,10 @@ describe("email.suppressed carries only a bounded subtype token", () => {
   }
 
   function metadataFor(event: unknown) {
-    return route.buildProviderEventMetadata(event, route.extractCsfRouting(event));
+    return route.buildProviderEventMetadata(
+      event,
+      route.extractCsfRouting(event),
+    );
   }
 
   test("the official documented payload classifies exactly", () => {
@@ -1696,10 +1791,14 @@ describe("email.suppressed carries only a bounded subtype token", () => {
       type: "OnAccountSuppressionList",
     });
 
-    expect(route.resolveSuppressionType(event)).toBe("OnAccountSuppressionList");
+    expect(route.resolveSuppressionType(event)).toBe(
+      "OnAccountSuppressionList",
+    );
     expect(metadataFor(event).suppressionType).toBe("OnAccountSuppressionList");
     // The exported constant and the behaviour agree, so a typo in either fails.
-    expect(route.RESEND_ACCOUNT_SUPPRESSION_TYPE).toBe("OnAccountSuppressionList");
+    expect(route.RESEND_ACCOUNT_SUPPRESSION_TYPE).toBe(
+      "OnAccountSuppressionList",
+    );
   });
 
   test("only data.suppressed.type is read; every other path is ignored", () => {
@@ -1727,7 +1826,10 @@ describe("email.suppressed carries only a bounded subtype token", () => {
         suppressedEvent({ message: "m", sub_type: "OnAccountSuppressionList" }),
       ],
       // The free-text field, which is where the token most plausibly appears.
-      ["data.suppressed.message", suppressedEvent({ message: "OnAccountSuppressionList" })],
+      [
+        "data.suppressed.message",
+        suppressedEvent({ message: "OnAccountSuppressionList" }),
+      ],
     ];
 
     for (const [label, event] of wrongPaths) {
@@ -1743,11 +1845,17 @@ describe("email.suppressed carries only a bounded subtype token", () => {
       ["null", suppressedEvent(null)],
       ["suppressed-is-number", suppressedEvent(42)],
       ["suppressed-is-string", suppressedEvent("OnAccountSuppressionList")],
-      ["suppressed-is-array", suppressedEvent([{ type: "OnAccountSuppressionList" }])],
+      [
+        "suppressed-is-array",
+        suppressedEvent([{ type: "OnAccountSuppressionList" }]),
+      ],
       ["type-null", suppressedEvent({ type: null })],
       ["type-number", suppressedEvent({ type: 1 })],
       ["type-boolean", suppressedEvent({ type: true })],
-      ["type-object", suppressedEvent({ type: { value: "OnAccountSuppressionList" } })],
+      [
+        "type-object",
+        suppressedEvent({ type: { value: "OnAccountSuppressionList" } }),
+      ],
       ["type-array", suppressedEvent({ type: ["OnAccountSuppressionList"] })],
       ["type-empty", suppressedEvent({ type: "" })],
       // 65 characters: one past the bound.
@@ -1860,7 +1968,10 @@ describe("email.suppressed carries only a bounded subtype token", () => {
 
   test("the free-text message reaches neither the RPC arguments nor the logs", async () => {
     const raw = JSON.stringify(
-      suppressedEvent({ message: HOSTILE_MESSAGE, type: "OnAccountSuppressionList" }),
+      suppressedEvent({
+        message: HOSTILE_MESSAGE,
+        type: "OnAccountSuppressionList",
+      }),
     );
     verifyImpl = () => JSON.parse(raw);
 
@@ -1920,16 +2031,24 @@ describe("email.suppressed carries only a bounded subtype token", () => {
         tags: csfTags(),
         // Even if the provider attached one, a delivered event is not a
         // suppression and must never be classified as one.
-        suppressed: { type: "OnAccountSuppressionList", message: HOSTILE_MESSAGE },
+        suppressed: {
+          type: "OnAccountSuppressionList",
+          message: HOSTILE_MESSAGE,
+        },
       },
     };
 
-    expect(Object.keys(metadataFor(delivered))).not.toContain("suppressionType");
+    expect(Object.keys(metadataFor(delivered))).not.toContain(
+      "suppressionType",
+    );
   });
 
   test("the signature is still verified against the raw body before any persistence", async () => {
     const raw = JSON.stringify(
-      suppressedEvent({ message: HOSTILE_MESSAGE, type: "OnAccountSuppressionList" }),
+      suppressedEvent({
+        message: HOSTILE_MESSAGE,
+        type: "OnAccountSuppressionList",
+      }),
     );
     let rpcCallsAtVerify = -1;
     verifyImpl = () => {

@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { chmodSync, linkSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { realpathSync } from "node:fs";
@@ -101,6 +108,8 @@ describe("one-command CSF local bootstrap", () => {
     writeFileSync(target, "synthetic-password-Aa1!\n", { mode: 0o600 });
     chmodSync(target, 0o600);
     linkSync(target, join(workDir, "second-name"));
-    expect(() => ensureFixturePassword(workDir)).toThrow("exactly one hard link");
+    expect(() => ensureFixturePassword(workDir)).toThrow(
+      "exactly one hard link",
+    );
   });
 });

@@ -31,23 +31,21 @@ export const metadata: Metadata = {
   description: "View and manage your earned volunteer certificates.",
 };
 
-
 export default async function CertificatesPage() {
   // get logged-in user
   // Check authentication using getClaims() for better performance
-  const {
-    user,
-    error: authError
-  } = await getAuthUser();
+  const { user, error: authError } = await getAuthUser();
   if (authError || !user) {
     return redirect("/login?redirect=/certificates");
   }
 
   const admin = getAdminClient();
 
-  const certificatesResult = await withRetryableSupabaseQuery(() => admin
-    .from("user_certificate_read_model")
-    .select(`
+  const certificatesResult = await withRetryableSupabaseQuery(() =>
+    admin
+      .from("user_certificate_read_model")
+      .select(
+        `
       id,
       project_title,
       creator_name,
@@ -64,9 +62,11 @@ export default async function CertificatesPage() {
       volunteer_name,
       project_location,
       project_timezone
-    `)
-    .eq("user_id", user.id)
-    .order("issued_at", { ascending: false }));
+    `,
+      )
+      .eq("user_id", user.id)
+      .order("issued_at", { ascending: false }),
+  );
 
   const { data: certificates, error: certError } = certificatesResult as {
     data: Certificate[] | null;
@@ -86,15 +86,15 @@ export default async function CertificatesPage() {
 
   return (
     <main className="mx-auto py-8 px-4 sm:px-12">
-      <CertificatesList 
-          certificates={certificateList}
+      <CertificatesList
+        certificates={certificateList}
         user={{
           name:
             (user.user_metadata as { full_name?: string } | null)?.full_name ||
-            user.email?.split('@')[0] ||
-            'User',
-          email: user.email || ''
-        }} 
+            user.email?.split("@")[0] ||
+            "User",
+          email: user.email || "",
+        }}
       />
     </main>
   );

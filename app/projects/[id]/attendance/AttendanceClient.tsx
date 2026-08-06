@@ -3,7 +3,21 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { escapeHtml } from "@/lib/security/html";
-import { Search, ArrowLeft, Clock, CheckCircle, Printer, RefreshCw, ArrowUpDown, ChevronUp, ChevronDown, Loader2, UserRoundCheck, CalendarClock, AlertCircle } from "lucide-react";
+import {
+  Search,
+  ArrowLeft,
+  Clock,
+  CheckCircle,
+  Printer,
+  RefreshCw,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
+  Loader2,
+  UserRoundCheck,
+  CalendarClock,
+  AlertCircle,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Project } from "@/types";
@@ -79,28 +93,36 @@ interface Sort {
   direction: SortDirection;
 }
 
-export function AttendanceClient({ projectId, initialAvailability }: Props): React.JSX.Element {
+export function AttendanceClient({
+  projectId,
+  initialAvailability,
+}: Props): React.JSX.Element {
   const router = useRouter();
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [project, setProject] = useState<Project | null>(initialAvailability.project || null);
+  const [project, setProject] = useState<Project | null>(
+    initialAvailability.project || null,
+  );
   const [sessionFilter, setSessionFilter] = useState<string>("all");
-  const [sort, setSort] = useState<Sort>({ field: "check_in_time", direction: "desc" });
+  const [sort, setSort] = useState<Sort>({
+    field: "check_in_time",
+    direction: "desc",
+  });
   const [isAttendanceActive] = useState<boolean>(initialAvailability.isActive);
   const [earliestSessionTime] = useState<Date | null>(
-    initialAvailability.earliestTime ? new Date(initialAvailability.earliestTime) : null
+    initialAvailability.earliestTime
+      ? new Date(initialAvailability.earliestTime)
+      : null,
   );
   const [timeUntilOpen, setTimeUntilOpen] = useState<string>("");
 
   const toggleSort = (field: SortField) => {
-    setSort(current => ({
+    setSort((current) => ({
       field,
       direction:
-        current.field === field && current.direction === "asc"
-          ? "desc"
-          : "asc"
+        current.field === field && current.direction === "asc" ? "desc" : "asc",
     }));
   };
 
@@ -116,16 +138,18 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
   // Print attendance list
   const printAttendance = () => {
     // Create a hidden print-only container if it doesn't exist yet
-    let printContainer = document.getElementById('print-container');
+    let printContainer = document.getElementById("print-container");
     if (!printContainer) {
-      printContainer = document.createElement('div');
-      printContainer.id = 'print-container';
-      printContainer.className = 'hidden print:block';
+      printContainer = document.createElement("div");
+      printContainer.id = "print-container";
+      printContainer.className = "hidden print:block";
       document.body.appendChild(printContainer);
     }
 
-    const safeProjectTitle = escapeHtml(project?.title || 'Project');
-    const printedAt = escapeHtml(`${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`);
+    const safeProjectTitle = escapeHtml(project?.title || "Project");
+    const printedAt = escapeHtml(
+      `${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`,
+    );
 
     // Generate HTML content for printing
     const printContent = `
@@ -143,25 +167,38 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
       </style>
       <h1>Attendance Record - ${safeProjectTitle}</h1>
       <div>Printed: ${printedAt}</div>
-      ${Object.entries(filteredAttendanceBySession).map(([session, sessionAttendance]) => {
-      const safeSessionLabel = project ? escapeHtml(formatSessionName(project, session)) : escapeHtml(session);
-      return sessionAttendance.length > 0 ? `
+      ${Object.entries(filteredAttendanceBySession)
+        .map(([session, sessionAttendance]) => {
+          const safeSessionLabel = project
+            ? escapeHtml(formatSessionName(project, session))
+            : escapeHtml(session);
+          return sessionAttendance.length > 0
+            ? `
         <div class="session-attendance">
           <h2>${safeSessionLabel}</h2>
           <table>
           <thead><tr><th>Name</th><th>Email</th><th>Type</th><th>Check-in Time</th><th>Check-out Time</th></tr></thead>
           <tbody>
-            ${sessionAttendance.map(a => {
-        const isRegistered = !!a.user_id;
-        const name = isRegistered ? a.profile?.full_name : a.anonymous_signup?.name;
-        const email = isRegistered ? a.profile?.email : a.anonymous_signup?.email;
-        const type = isRegistered ? 'Registered' : 'Anonymous';
-        const checkInTime = a.check_in_time ? format(parseISO(a.check_in_time), 'MMM d, yyyy h:mm a') : 'N/A';
-        const checkOutTime = a.check_out_time ? format(parseISO(a.check_out_time), 'MMM d, yyyy h:mm a') : 'N/A';
-        const safeName = escapeHtml(name || 'N/A');
-        const safeEmail = escapeHtml(email || 'N/A');
+            ${sessionAttendance
+              .map((a) => {
+                const isRegistered = !!a.user_id;
+                const name = isRegistered
+                  ? a.profile?.full_name
+                  : a.anonymous_signup?.name;
+                const email = isRegistered
+                  ? a.profile?.email
+                  : a.anonymous_signup?.email;
+                const type = isRegistered ? "Registered" : "Anonymous";
+                const checkInTime = a.check_in_time
+                  ? format(parseISO(a.check_in_time), "MMM d, yyyy h:mm a")
+                  : "N/A";
+                const checkOutTime = a.check_out_time
+                  ? format(parseISO(a.check_out_time), "MMM d, yyyy h:mm a")
+                  : "N/A";
+                const safeName = escapeHtml(name || "N/A");
+                const safeEmail = escapeHtml(email || "N/A");
 
-        return `
+                return `
               <tr>
           <td>${safeName}</td>
           <td>${safeEmail}</td>
@@ -170,13 +207,16 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
           <td>${escapeHtml(checkOutTime)}</td>
               </tr>
               `;
-      }).join('')}
+              })
+              .join("")}
           </tbody>
           </table>
         </div>
-        ` : '';
-    }).join('')}
-      ${Object.keys(filteredAttendanceBySession).length === 0 ? '<p>No attendance records found.</p>' : ''}
+        `
+            : "";
+        })
+        .join("")}
+      ${Object.keys(filteredAttendanceBySession).length === 0 ? "<p>No attendance records found.</p>" : ""}
       </div>
     `;
 
@@ -193,13 +233,16 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
 
   // Group attendance by session
   const attendanceBySession = useMemo(() => {
-    return attendance.reduce((acc, record) => {
-      if (!acc[record.schedule_id]) {
-        acc[record.schedule_id] = [];
-      }
-      acc[record.schedule_id].push(record);
-      return acc;
-    }, {} as Record<string, Attendance[]>);
+    return attendance.reduce(
+      (acc, record) => {
+        if (!acc[record.schedule_id]) {
+          acc[record.schedule_id] = [];
+        }
+        acc[record.schedule_id].push(record);
+        return acc;
+      },
+      {} as Record<string, Attendance[]>,
+    );
   }, [attendance]);
 
   // Filter and sort attendance based on search term, session filter, and sort state
@@ -211,7 +254,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
       sessionData = { ...attendanceBySession };
     } else {
       sessionData = {
-        [sessionFilter]: attendanceBySession[sessionFilter] || []
+        [sessionFilter]: attendanceBySession[sessionFilter] || [],
       };
     }
 
@@ -223,13 +266,19 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
     } else {
       const searchLower = searchTerm.toLowerCase();
       Object.entries(sessionData).forEach(([session, sessionAttendance]) => {
-        const matchingAttendance = sessionAttendance.filter(record => {
+        const matchingAttendance = sessionAttendance.filter((record) => {
           const nameMatch = record.user_id
-            ? (record.profile?.full_name?.toLowerCase().includes(searchLower) || false)
-            : (record.anonymous_signup?.name?.toLowerCase().includes(searchLower) || false);
+            ? record.profile?.full_name?.toLowerCase().includes(searchLower) ||
+              false
+            : record.anonymous_signup?.name
+                ?.toLowerCase()
+                .includes(searchLower) || false;
           const emailMatch = record.user_id
-            ? (record.profile?.email?.toLowerCase().includes(searchLower) || false)
-            : (record.anonymous_signup?.email?.toLowerCase().includes(searchLower) || false);
+            ? record.profile?.email?.toLowerCase().includes(searchLower) ||
+              false
+            : record.anonymous_signup?.email
+                ?.toLowerCase()
+                .includes(searchLower) || false;
           return nameMatch || emailMatch;
         });
         if (matchingAttendance.length > 0) {
@@ -239,19 +288,21 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
     }
 
     // Finally, sort each session's attendance records
-    Object.keys(filtered).forEach(session => {
+    Object.keys(filtered).forEach((session) => {
       filtered[session].sort((a, b) => {
         const direction = sort.direction === "asc" ? 1 : -1;
 
         if (sort.field === "check_in_time") {
-          const timeA = a.check_in_time || '';
-          const timeB = b.check_in_time || '';
-          return (timeA.localeCompare(timeB)) * direction;
+          const timeA = a.check_in_time || "";
+          const timeB = b.check_in_time || "";
+          return timeA.localeCompare(timeB) * direction;
         }
 
         if (sort.field === "name") {
-          const nameA = (a.user_id ? a.profile?.full_name : a.anonymous_signup?.name) || '';
-          const nameB = (b.user_id ? b.profile?.full_name : b.anonymous_signup?.name) || '';
+          const nameA =
+            (a.user_id ? a.profile?.full_name : a.anonymous_signup?.name) || "";
+          const nameB =
+            (b.user_id ? b.profile?.full_name : b.anonymous_signup?.name) || "";
           return nameA.localeCompare(nameB) * direction;
         }
 
@@ -279,9 +330,13 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
 
       if (diffMs > 0) {
         const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        const diffMinutes = Math.floor(
+          (diffMs % (1000 * 60 * 60)) / (1000 * 60),
+        );
 
-        setTimeUntilOpen(`${diffHours} hour${diffHours !== 1 ? 's' : ''} and ${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''}`);
+        setTimeUntilOpen(
+          `${diffHours} hour${diffHours !== 1 ? "s" : ""} and ${diffMinutes} minute${diffMinutes !== 1 ? "s" : ""}`,
+        );
       }
     }
   }, [earliestSessionTime, isAttendanceActive]);
@@ -314,7 +369,8 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
 
     const { data, error } = await supabase
       .from("project_signups")
-      .select(`
+      .select(
+        `
       id,
       check_in_time,
   check_out_time,
@@ -333,7 +389,8 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
         email,
         phone_number
       )
-      `)
+      `,
+      )
       .eq("project_id", projectId)
       .order("check_in_time", { ascending: false });
 
@@ -382,10 +439,10 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
 
   const formatTimeTo12Hour = (time: string) => {
     if (!time) return "";
-    const [hours, minutes] = time.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
+    const [hours, minutes] = time.split(":").map(Number);
+    const period = hours >= 12 ? "PM" : "AM";
     const adjustedHours = hours % 12 || 12;
-    return `${adjustedHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+    return `${adjustedHours}:${minutes.toString().padStart(2, "0")} ${period}`;
   };
 
   const formatSessionName = (project: Project, sessionId: string) => {
@@ -393,9 +450,14 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
     if (!project) return sessionId;
 
     if (project.event_type === "oneTime") {
-      if ((sessionId === "oneTime" || sessionId === "0" || sessionId === "default") && project.schedule.oneTime) {
+      if (
+        (sessionId === "oneTime" ||
+          sessionId === "0" ||
+          sessionId === "default") &&
+        project.schedule.oneTime
+      ) {
         const dateStr = project.schedule.oneTime.date;
-        const [year, month, day] = dateStr.split('-').map(Number);
+        const [year, month, day] = dateStr.split("-").map(Number);
         const date = new Date(year, month - 1, day);
         return `${format(date, "MMMM d, yyyy")} from ${formatTimeTo12Hour(project.schedule.oneTime.startTime)} to ${formatTimeTo12Hour(project.schedule.oneTime.endTime)}`;
       }
@@ -411,7 +473,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
           const day = project.schedule.multiDay[dayIndex];
           const slot = day?.slots[slotIndex];
           if (day && slot) {
-            const [year, month, d] = day.date.split('-').map(Number);
+            const [year, month, d] = day.date.split("-").map(Number);
             const utcDate = new Date(year, month - 1, d);
             return `${format(utcDate, "EEEE, MMMM d, yyyy")} from ${formatTimeTo12Hour(slot.startTime)} to ${formatTimeTo12Hour(slot.endTime)}`;
           }
@@ -425,14 +487,14 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
         const slotPart = parts.pop();
         const date = parts.join("-");
 
-        const day = project.schedule.multiDay?.find(d => d.date === date);
+        const day = project.schedule.multiDay?.find((d) => d.date === date);
 
         if (day && slotPart !== undefined) {
           const slotIdx = parseInt(slotPart, 10);
           const slot = day.slots[slotIdx];
 
           if (slot) {
-            const [year, month, dayNum] = date.split('-').map(Number);
+            const [year, month, dayNum] = date.split("-").map(Number);
             const utcDate = new Date(year, month - 1, dayNum);
             return `${format(utcDate, "EEEE, MMMM d, yyyy")} from ${formatTimeTo12Hour(slot.startTime)} to ${formatTimeTo12Hour(slot.endTime)}`;
           }
@@ -441,12 +503,14 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
     }
 
     if (project.event_type === "sameDayMultiArea") {
-      const role = project.schedule.sameDayMultiArea?.roles.find(r => r.name === sessionId);
+      const role = project.schedule.sameDayMultiArea?.roles.find(
+        (r) => r.name === sessionId,
+      );
 
       if (role) {
         const eventDate = project.schedule.sameDayMultiArea?.date;
         if (eventDate) {
-          const [year, month, day] = eventDate.split('-').map(Number);
+          const [year, month, day] = eventDate.split("-").map(Number);
           const utcDate = new Date(year, month - 1, day);
           return `${format(utcDate, "EEEE, MMMM d, yyyy")} - Role: ${role.name} (${formatTimeTo12Hour(role.startTime)} to ${formatTimeTo12Hour(role.endTime)})`;
         } else {
@@ -461,11 +525,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
       <div className="mb-6">
-        <Button
-          variant="ghost"
-          className="gap-2"
-          onClick={() => router.back()}
-        >
+        <Button variant="ghost" className="gap-2" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
           Back to Project
         </Button>
@@ -483,18 +543,23 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
             <div className="rounded-full bg-muted p-6 w-fit">
               <CalendarClock className="h-10 w-10 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold mt-6">Attendance management not yet available</h3>
+            <h3 className="text-xl font-semibold mt-6">
+              Attendance management not yet available
+            </h3>
             <p className="text-muted-foreground max-w-md">
-              Attendance records will be available 2 hours before the event starts.
+              Attendance records will be available 2 hours before the event
+              starts.
               {earliestSessionTime && timeUntilOpen && (
                 <>
-                  <br /><br />
+                  <br />
+                  <br />
                   <span className="block">
                     <AlertCircle className="inline-block h-4 w-4 mr-2 mb-1" />
                     Attendance will open in {timeUntilOpen}
                   </span>
                   <span className="block mt-2 text-sm">
-                    First session starts at: {format(earliestSessionTime, "MMMM d, yyyy 'at' h:mm a")}
+                    First session starts at:{" "}
+                    {format(earliestSessionTime, "MMMM d, yyyy 'at' h:mm a")}
                   </span>
                 </>
               )}
@@ -512,7 +577,9 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
             <div className="absolute inset-0 flex items-center justify-center z-10">
               <div className="flex flex-col items-center gap-2 mt-10">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Loading attendance records...</span>
+                <span className="text-sm text-muted-foreground">
+                  Loading attendance records...
+                </span>
               </div>
             </div>
           )}
@@ -521,11 +588,11 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
               <div>
                 <CardTitle>Attendance Records</CardTitle>
                 <CardDescription>
-                  {project?.verification_method === 'manual'
+                  {project?.verification_method === "manual"
                     ? "Check in volunteers and manage attendee records"
-                    : project?.verification_method === 'auto'
+                    : project?.verification_method === "auto"
                       ? "View volunteer attendance (check-ins are automatic)"
-                      : project?.verification_method === 'signup-only'
+                      : project?.verification_method === "signup-only"
                         ? "View volunteer attendance records"
                         : "View and track check-ins for your project"}
                 </CardDescription>
@@ -534,17 +601,18 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
           </CardHeader>
 
           {/* Display explanatory message for automatic or signup-only methods */}
-          {(project?.verification_method === 'auto' || project?.verification_method === 'signup-only') && (
+          {(project?.verification_method === "auto" ||
+            project?.verification_method === "signup-only") && (
             <div className="mx-6 mb-4">
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>
-                  {project?.verification_method === 'auto'
+                  {project?.verification_method === "auto"
                     ? "Automatic Check-in Enabled"
                     : "Sign-up Only Project"}
                 </AlertTitle>
                 <AlertDescription>
-                  {project?.verification_method === 'auto'
+                  {project?.verification_method === "auto"
                     ? "Volunteers will be automatically checked in at their scheduled start time. Manual check-in is not required."
                     : "This project is configured for sign-up tracking only. No check-in functionality is available."}
                 </AlertDescription>
@@ -572,14 +640,21 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                     value={sessionFilter}
                     onValueChange={(val) => setSessionFilter(val || "all")}
                   >
-                    <SelectTrigger className="w-full sm:min-w-[240px] sm:w-auto" aria-label="Filter by session">
+                    <SelectTrigger
+                      className="w-full sm:min-w-[240px] sm:w-auto"
+                      aria-label="Filter by session"
+                    >
                       <SelectValue placeholder="Filter by session">
-                        {sessionFilter === "all" ? "All Sessions" : project ? formatSessionName(project, sessionFilter) : "Filter by session"}
+                        {sessionFilter === "all"
+                          ? "All Sessions"
+                          : project
+                            ? formatSessionName(project, sessionFilter)
+                            : "Filter by session"}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="max-w-[400px]">
                       <SelectItem value="all">All Sessions</SelectItem>
-                      {availableSessions.map(session => (
+                      {availableSessions.map((session) => (
                         <SelectItem key={session} value={session}>
                           {formatSessionName(project as Project, session)}
                         </SelectItem>
@@ -592,7 +667,9 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                       variant="outline"
                       className="p-3 sm:gap-2"
                       onClick={printAttendance}
-                      disabled={Object.keys(filteredAttendanceBySession).length === 0}
+                      disabled={
+                        Object.keys(filteredAttendanceBySession).length === 0
+                      }
                       aria-label="Print Attendance"
                     >
                       <Printer className="h-4 w-4" />
@@ -605,7 +682,9 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                       disabled={refreshing}
                       aria-label="Refresh"
                     >
-                      <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                      <RefreshCw
+                        className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                      />
                       <span className="hidden sm:inline">Refresh</span>
                     </Button>
                   </div>
@@ -613,128 +692,183 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
               </div>
             </div>
 
-            {Object.entries(filteredAttendanceBySession).map(([session, sessionAttendance]) => (
-              <div key={session} className="space-y-2">
-                <h3 className="font-medium text-sm text-muted-foreground">
-                  {project && formatSessionName(project, session)}
-                </h3>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead
-                        className="cursor-pointer hover:text-foreground transition-colors"
-                        onClick={() => toggleSort("name")}
-                      >
-                        <div className="flex items-center min-w-[120px]">
-                          Name
-                          {getSortIcon("name")}
-                        </div>
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer hover:text-foreground transition-colors"
-                        onClick={() => toggleSort("check_in_time")}
-                      >
-                        <div className="flex items-center min-w-[115px]">
-                          Check-in Time
-                          {getSortIcon("check_in_time")}
-                        </div>
-                      </TableHead>
-                      <TableHead>Check-out Time</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sessionAttendance.map((record) => {
-                      const isRegistered = !!record.user_id;
-                      const name = isRegistered ? record.profile?.full_name : record.anonymous_signup?.name;
-                      const email = isRegistered ? record.profile?.email : record.anonymous_signup?.email;
-                      const phone = isRegistered ? record.profile?.phone : record.anonymous_signup?.phone_number;
-                      const checkInTime = record.check_in_time ? format(parseISO(record.check_in_time), 'h:mm a') : 'N/A';
-                      const checkOutTime = record.check_out_time ? format(parseISO(record.check_out_time), 'h:mm a') : 'N/A';
+            {Object.entries(filteredAttendanceBySession).map(
+              ([session, sessionAttendance]) => (
+                <div key={session} className="space-y-2">
+                  <h3 className="font-medium text-sm text-muted-foreground">
+                    {project && formatSessionName(project, session)}
+                  </h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead
+                          className="cursor-pointer hover:text-foreground transition-colors"
+                          onClick={() => toggleSort("name")}
+                        >
+                          <div className="flex items-center min-w-[120px]">
+                            Name
+                            {getSortIcon("name")}
+                          </div>
+                        </TableHead>
+                        <TableHead
+                          className="cursor-pointer hover:text-foreground transition-colors"
+                          onClick={() => toggleSort("check_in_time")}
+                        >
+                          <div className="flex items-center min-w-[115px]">
+                            Check-in Time
+                            {getSortIcon("check_in_time")}
+                          </div>
+                        </TableHead>
+                        <TableHead>Check-out Time</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sessionAttendance.map((record) => {
+                        const isRegistered = !!record.user_id;
+                        const name = isRegistered
+                          ? record.profile?.full_name
+                          : record.anonymous_signup?.name;
+                        const email = isRegistered
+                          ? record.profile?.email
+                          : record.anonymous_signup?.email;
+                        const phone = isRegistered
+                          ? record.profile?.phone
+                          : record.anonymous_signup?.phone_number;
+                        const checkInTime = record.check_in_time
+                          ? format(parseISO(record.check_in_time), "h:mm a")
+                          : "N/A";
+                        const checkOutTime = record.check_out_time
+                          ? format(parseISO(record.check_out_time), "h:mm a")
+                          : "N/A";
 
-                      return (
-                        <TableRow key={record.id}>
-                          <TableCell className="font-medium">
-                            {name || 'N/A'}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={checkInTime !== "N/A" ? "default" : "outline"}
-                              className="gap-1"
-                            >
-                              {checkInTime !== "N/A" ? (
-                                <CheckCircle className="h-3 w-3 shrink-0" aria-label="Checked in" />
-                              ) : (
-                                <Clock className="h-3 w-3 shrink-0" aria-label="Not checked in" />
-                              )}
-                              {checkInTime}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={checkOutTime !== "N/A" ? "default" : "outline"}
-                              className="gap-1"
-                            >
-                              {checkOutTime !== "N/A" ? (
-                                <CheckCircle className="h-3 w-3 shrink-0" aria-label="Checked out" />
-                              ) : (
-                                <Clock className="h-3 w-3 shrink-0" aria-label="Not checked out" />
-                              )}
-                              {checkOutTime}
-                            </Badge>
-                          </TableCell>
-                          <TableCell><div className="flex flex-col gap-0.5">
-                            <span>{email}</span>
-                            {isRegistered && phone && (
-                              <span className="text-xs text-muted-foreground">
-                                {phone.replace(
-                                  /^(\d{3})(\d{3})(\d{4})$/,
-                                  "$1-$2-$3"
-                                )}
-                              </span>
-                            )}
-                          </div></TableCell>
-                          <TableCell>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              <Button
-                                size="sm"
-                                onClick={() => handleManualCheckIn(record.id)}
-                                disabled={!!record.check_in_time || project?.verification_method === 'auto' || project?.verification_method === 'signup-only'}
-                                className={cn(
-                                  (record.check_in_time || project?.verification_method === 'auto' || project?.verification_method === 'signup-only') && "opacity-50 cursor-not-allowed"
-                                )}
+                        return (
+                          <TableRow key={record.id}>
+                            <TableCell className="font-medium">
+                              {name || "N/A"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  checkInTime !== "N/A" ? "default" : "outline"
+                                }
+                                className="gap-1"
                               >
-                                Check in
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleManualCheckOut(record.id)}
-                                disabled={!record.check_in_time || project?.verification_method === 'auto' || project?.verification_method === 'signup-only'}
-                                className={cn(
-                                  (!record.check_in_time || project?.verification_method === 'auto' || project?.verification_method === 'signup-only') && "opacity-50 cursor-not-allowed"
+                                {checkInTime !== "N/A" ? (
+                                  <CheckCircle
+                                    className="h-3 w-3 shrink-0"
+                                    aria-label="Checked in"
+                                  />
+                                ) : (
+                                  <Clock
+                                    className="h-3 w-3 shrink-0"
+                                    aria-label="Not checked in"
+                                  />
                                 )}
+                                {checkInTime}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  checkOutTime !== "N/A" ? "default" : "outline"
+                                }
+                                className="gap-1"
                               >
-                                Check out
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            ))}
-
-            {Object.keys(filteredAttendanceBySession).length === 0 && !loading && (
-              <div className="flex flex-col items-center text-muted-foreground space-y-2 py-10">
-                <UserRoundCheck className="h-8 w-8 mt-10" />
-                <p className="text-lg font-medium">No attendance records found</p>
-                <p className="text-sm">No one has checked in yet or no records match your filters.</p>
-              </div>
+                                {checkOutTime !== "N/A" ? (
+                                  <CheckCircle
+                                    className="h-3 w-3 shrink-0"
+                                    aria-label="Checked out"
+                                  />
+                                ) : (
+                                  <Clock
+                                    className="h-3 w-3 shrink-0"
+                                    aria-label="Not checked out"
+                                  />
+                                )}
+                                {checkOutTime}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-0.5">
+                                <span>{email}</span>
+                                {isRegistered && phone && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {phone.replace(
+                                      /^(\d{3})(\d{3})(\d{4})$/,
+                                      "$1-$2-$3",
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleManualCheckIn(record.id)}
+                                  disabled={
+                                    !!record.check_in_time ||
+                                    project?.verification_method === "auto" ||
+                                    project?.verification_method ===
+                                      "signup-only"
+                                  }
+                                  className={cn(
+                                    (record.check_in_time ||
+                                      project?.verification_method === "auto" ||
+                                      project?.verification_method ===
+                                        "signup-only") &&
+                                      "opacity-50 cursor-not-allowed",
+                                  )}
+                                >
+                                  Check in
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    handleManualCheckOut(record.id)
+                                  }
+                                  disabled={
+                                    !record.check_in_time ||
+                                    project?.verification_method === "auto" ||
+                                    project?.verification_method ===
+                                      "signup-only"
+                                  }
+                                  className={cn(
+                                    (!record.check_in_time ||
+                                      project?.verification_method === "auto" ||
+                                      project?.verification_method ===
+                                        "signup-only") &&
+                                      "opacity-50 cursor-not-allowed",
+                                  )}
+                                >
+                                  Check out
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              ),
             )}
+
+            {Object.keys(filteredAttendanceBySession).length === 0 &&
+              !loading && (
+                <div className="flex flex-col items-center text-muted-foreground space-y-2 py-10">
+                  <UserRoundCheck className="h-8 w-8 mt-10" />
+                  <p className="text-lg font-medium">
+                    No attendance records found
+                  </p>
+                  <p className="text-sm">
+                    No one has checked in yet or no records match your filters.
+                  </p>
+                </div>
+              )}
           </CardContent>
         </Card>
       )}

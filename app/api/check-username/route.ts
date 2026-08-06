@@ -24,7 +24,11 @@ export const GET = async (request: Request) => {
 
     if (!USERNAME_REGEX.test(username)) {
       return NextResponse.json(
-        { available: false, error: "Username can only contain letters, numbers, underscores, dots and hyphens" },
+        {
+          available: false,
+          error:
+            "Username can only contain letters, numbers, underscores, dots and hyphens",
+        },
         { status: 200 },
       );
     }
@@ -36,7 +40,9 @@ export const GET = async (request: Request) => {
     if (profanityResult.isProfane) {
       return NextResponse.json({
         available: false,
-        error: profanityResult.error || "This username contains inappropriate language"
+        error:
+          profanityResult.error ||
+          "This username contains inappropriate language",
       });
     }
 

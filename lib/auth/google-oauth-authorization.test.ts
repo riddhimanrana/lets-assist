@@ -170,10 +170,7 @@ test("both OAuth endpoints use the active-membership authorization gate", () => 
   );
 
   assert.match(authorizationSource, /\.select\("role,status"\)/u);
-  assert.match(
-    authorizationSource,
-    /facts\.membershipStatus !== "active"/u,
-  );
+  assert.match(authorizationSource, /facts\.membershipStatus !== "active"/u);
   assert.match(connectSource, /authorizeGoogleOAuthOrganizationRequest\(/u);
   assert.match(callbackSource, /authorizeGoogleOAuthOrganizationRequest\(/u);
   assert.ok(
@@ -257,10 +254,19 @@ test("preserves legacy organization settings and personal Sheets intents", () =>
 });
 
 test("derives requested Google scopes from signed purpose rather than query aliases", () => {
-  assert.equal(getGoogleOAuthRequiredScopeFamily("personal_calendar"), "calendar");
-  assert.equal(getGoogleOAuthRequiredScopeFamily("organization_calendar"), "calendar");
+  assert.equal(
+    getGoogleOAuthRequiredScopeFamily("personal_calendar"),
+    "calendar",
+  );
+  assert.equal(
+    getGoogleOAuthRequiredScopeFamily("organization_calendar"),
+    "calendar",
+  );
   assert.equal(getGoogleOAuthRequiredScopeFamily("personal_sheets"), "sheets");
-  assert.equal(getGoogleOAuthRequiredScopeFamily("organization_sheets"), "sheets");
+  assert.equal(
+    getGoogleOAuthRequiredScopeFamily("organization_sheets"),
+    "sheets",
+  );
   assert.equal(getGoogleOAuthRequiredScopeFamily("csf_import"), "sheets");
 
   const explicitCalendar = resolveGoogleOAuthRequestIntent({

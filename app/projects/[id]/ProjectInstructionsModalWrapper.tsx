@@ -11,15 +11,20 @@ type Props = {
   project: Project;
   isCreator?: boolean;
   buttonClassName?: string;
-  buttonVariant?: "default" | "outline" | "secondary" | "ghost" | "destructive" | "link";
-  buttonSize?: "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg";
+  buttonVariant?:
+    "default" | "outline" | "secondary" | "ghost" | "destructive" | "link";
+  buttonSize?:
+    "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg";
   showChevron?: boolean;
 };
 
-const ProjectInstructionsModal = dynamic(() => import("./ProjectInstructions"), {
-  ssr: false,
-  loading: () => null,
-});
+const ProjectInstructionsModal = dynamic(
+  () => import("./ProjectInstructions"),
+  {
+    ssr: false,
+    loading: () => null,
+  },
+);
 
 export default function ProjectInstructionsModalWrapper({
   project,
@@ -43,14 +48,20 @@ export default function ProjectInstructionsModalWrapper({
       <Button
         variant={variant}
         size={size}
-        className={cn("gap-2", showChevron && "justify-between", buttonClassName)}
+        className={cn(
+          "gap-2",
+          showChevron && "justify-between",
+          buttonClassName,
+        )}
         disabled
       >
         <span className="flex items-center gap-2">
           <HelpCircle className="h-4 w-4" />
           {Label}
         </span>
-        {showChevron && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+        {showChevron && (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        )}
       </Button>
     );
   }

@@ -57,7 +57,9 @@ export function MiniCertificate({
           className="space-y-3"
         >
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Certificate of Volunteer Service</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              Certificate of Volunteer Service
+            </p>
             <h3 className="text-lg font-bold leading-tight">{projectName}</h3>
           </div>
 

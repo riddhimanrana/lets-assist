@@ -110,7 +110,9 @@ export async function hasUnboundActiveGoogleOAuthConnection(
     .in("connection_id", connectionIds);
 
   if (bindingError) return true;
-  const boundIds = new Set((bindings ?? []).map((binding) => binding.connection_id));
+  const boundIds = new Set(
+    (bindings ?? []).map((binding) => binding.connection_id),
+  );
   return connectionIds.some((connectionId) => !boundIds.has(connectionId));
 }
 

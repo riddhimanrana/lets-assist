@@ -20,10 +20,10 @@ export async function signInWithGoogle(
 ) {
   const origin = process.env.NEXT_PUBLIC_SITE_URL || "";
   const supabase = await createClient();
-  
+
   let redirectTo = `${origin}/auth/callback`;
   const params = new URLSearchParams();
-  
+
   if (redirectAfterAuth) {
     params.set("redirectAfterAuth", redirectAfterAuth);
   }
@@ -54,12 +54,12 @@ export async function signInWithGoogle(
       redirectTo,
     },
   });
-  
+
   if (error) {
     console.error("Google OAuth error:", error);
     return { error: { server: [error.message] } };
   }
-  
+
   return { url };
 }
 
@@ -69,7 +69,10 @@ export async function applyPostLoginAffiliations(
 ) {
   const { user, error } = await getAuthUser({ sensitive: true });
   if (error || !user) {
-    return { inviteOutcome: null, error: error?.message ?? "Not authenticated" };
+    return {
+      inviteOutcome: null,
+      error: error?.message ?? "Not authenticated",
+    };
   }
 
   const domainOutcome = await applyVerifiedDomainAffiliation(user.id);
@@ -147,8 +150,8 @@ export async function login(formData: FormData) {
 
   // Return the session so LoginClient can immediately use it
   // This is the critical fix - the server action returns the authenticated user
-  return { 
-    success: true, 
-    session: data.session 
+  return {
+    success: true,
+    session: data.session,
   };
 }

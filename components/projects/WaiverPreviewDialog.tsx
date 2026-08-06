@@ -1,19 +1,24 @@
-'use client';
+"use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   SignaturePayload,
   SignaturePreviewSummary,
   SignerData,
-} from '@/types/waiver-definitions';
-import { Loader2, Download, Printer } from 'lucide-react';
-import { useState, useEffect } from 'react';
+} from "@/types/waiver-definitions";
+import { Loader2, Download, Printer } from "lucide-react";
+import { useState, useEffect } from "react";
 
 type PreviewableSigner = Pick<
   SignerData,
-  'role_key' | 'method' | 'timestamp' | 'signer_name'
+  "role_key" | "method" | "timestamp" | "signer_name"
 >;
 
 // Define a compatible type for the signature
@@ -48,7 +53,7 @@ export function WaiverPreviewDialog({
   onDownload,
   onPrint,
   isDownloading = false,
-  isPrinting = false
+  isPrinting = false,
 }: WaiverPreviewDialogProps) {
   const [iframeLoading, setIframeLoading] = useState(true);
 
@@ -64,9 +69,9 @@ export function WaiverPreviewDialog({
     signature.signature_summary?.signers ?? payload?.signers ?? null;
 
   // Determine standard signer display for legacy or overview
-  const mainSignerName = signature.signer_name || 'Volunteer';
-  const mainSignedAt = signature.signed_at 
-    ? new Date(signature.signed_at).toLocaleString() 
+  const mainSignerName = signature.signer_name || "Volunteer";
+  const mainSignedAt = signature.signed_at
+    ? new Date(signature.signed_at).toLocaleString()
     : new Date(signature.created_at).toLocaleString();
 
   // Handle print action
@@ -75,7 +80,11 @@ export function WaiverPreviewDialog({
       onPrint(signature.id);
     } else {
       // Fallback: Open preview URL in new window for printing with security attributes
-      window.open(`/api/waivers/${signature.id}/preview`, '_blank', 'noopener,noreferrer');
+      window.open(
+        `/api/waivers/${signature.id}/preview`,
+        "_blank",
+        "noopener,noreferrer",
+      );
     }
   };
 
@@ -85,24 +94,32 @@ export function WaiverPreviewDialog({
         <DialogHeader className="p-6 pb-2">
           <DialogTitle>Signed Waiver</DialogTitle>
         </DialogHeader>
-        
+
         <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4">
           {/* Signer Details Section */}
           <div className="border rounded-lg p-4 bg-muted/20">
             <h3 className="font-semibold mb-3 text-sm">Signer Details</h3>
-            
+
             {signers ? (
               <div className="space-y-2">
                 {signers.map((signer, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-sm">
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between text-sm"
+                  >
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{signer.signer_name || 'Unnamed'}</span>
+                      <span className="font-medium">
+                        {signer.signer_name || "Unnamed"}
+                      </span>
                       <Badge variant="outline" className="text-xs capitalize">
-                        {signer.role_key.replace('_', ' ')}
+                        {signer.role_key.replace("_", " ")}
                       </Badge>
                     </div>
                     <div className="text-muted-foreground flex items-center gap-2">
-                      <Badge variant="secondary" className="text-[10px] uppercase">
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] uppercase"
+                      >
                         {signer.method}
                       </Badge>
                       <span>{new Date(signer.timestamp).toLocaleString()}</span>
@@ -118,22 +135,24 @@ export function WaiverPreviewDialog({
                   <Badge variant="outline">Signer</Badge>
                 </div>
                 <div className="text-muted-foreground flex items-center gap-2">
-                   <Badge variant="secondary" className="text-[10px] uppercase">
+                  <Badge variant="secondary" className="text-[10px] uppercase">
                     {signature.signature_type}
                   </Badge>
                   <span>{mainSignedAt}</span>
                 </div>
               </div>
             )}
-            
+
             {/* Show typed signature text if applicable (legacy) */}
-            {signature.signature_type === 'typed' && signature.signature_text && (
-               <div className="mt-2 text-sm text-muted-foreground bg-background p-2 rounded border">
-                 Signature Text: <span className="font-mono">{signature.signature_text}</span>
-               </div>
-            )}
+            {signature.signature_type === "typed" &&
+              signature.signature_text && (
+                <div className="mt-2 text-sm text-muted-foreground bg-background p-2 rounded border">
+                  Signature Text:{" "}
+                  <span className="font-mono">{signature.signature_text}</span>
+                </div>
+              )}
           </div>
-          
+
           {/* PDF Preview Section */}
           <div className="border rounded-lg overflow-hidden relative bg-muted/10 h-125">
             {/* We will rely on download for now if preview endpoint isn't ready, 
@@ -142,13 +161,13 @@ export function WaiverPreviewDialog({
                 The prompt suggests an optional Preview API endpoint. 
                 For now, let's use the object tag with the legacy URL or new endpoint.
             */}
-             
+
             {iframeLoading && (
-               <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
-                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-               </div>
+              <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
             )}
-            
+
             {/* 
               We need a URL for the iframe. 
               The SignupsClient currently uses `getWaiverDownloadUrl` action which returns a signed URL.
@@ -171,7 +190,7 @@ export function WaiverPreviewDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          <Button 
+          <Button
             variant="outline"
             onClick={handlePrint}
             disabled={isPrinting || iframeLoading}
@@ -188,7 +207,7 @@ export function WaiverPreviewDialog({
               </>
             )}
           </Button>
-          <Button 
+          <Button
             onClick={() => onDownload(signature.id)}
             disabled={isDownloading}
           >

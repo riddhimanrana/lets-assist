@@ -1,19 +1,19 @@
-import { PdfTextItem } from './pdf-text-extract';
-import { createHash } from 'crypto';
+import { PdfTextItem } from "./pdf-text-extract";
+import { createHash } from "crypto";
 
 /**
  * Type of waiver label detected in PDF text
  */
 export type WaiverLabelType =
-  | 'signature'
-  | 'date'
-  | 'printed_name'
-  | 'email'
-  | 'phone'
-  | 'parent_guardian'
-  | 'initials'
-  | 'witness'
-  | 'other';
+  | "signature"
+  | "date"
+  | "printed_name"
+  | "email"
+  | "phone"
+  | "parent_guardian"
+  | "initials"
+  | "witness"
+  | "other";
 
 /**
  * A detected label in a waiver PDF with position and classification
@@ -35,7 +35,7 @@ export interface DetectedLabel {
 
 /**
  * Find waiver field labels in PDF text items using keyword/pattern matching.
- * 
+ *
  * Uses robust case-insensitive matching for common waiver labels like:
  * - signature, sign here, signer signature
  * - date, signed on
@@ -43,9 +43,9 @@ export interface DetectedLabel {
  * - parent/guardian, guardian signature
  * - initials
  * - witness
- * 
+ *
  * Coordinates are preserved in PDF bottom-left coordinate space.
- * 
+ *
  * @param textItems - PDF text items with positions
  * @returns Array of detected labels with classifications
  */
@@ -58,7 +58,7 @@ export function findLabels(textItems: PdfTextItem[]): DetectedLabel[] {
 
   for (const item of textItems) {
     const normalized = normalizeText(item.text);
-    
+
     // Skip empty or very short text
     if (normalized.length < 2) {
       continue;
@@ -66,11 +66,11 @@ export function findLabels(textItems: PdfTextItem[]): DetectedLabel[] {
 
     // Detect label type and confidence
     const detection = detectLabelType(normalized, item.text);
-    
-    if (detection.type !== 'other') {
+
+    if (detection.type !== "other") {
       // Generate deterministic ID
       const id = generateLabelId(item, normalized);
-      
+
       labels.push({
         id,
         text: item.text,
@@ -95,10 +95,7 @@ export function findLabels(textItems: PdfTextItem[]): DetectedLabel[] {
  * Normalize text for comparison (lowercase, trim, collapse whitespace)
  */
 function normalizeText(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, ' ');
+  return text.toLowerCase().trim().replace(/\s+/g, " ");
 }
 
 /**
@@ -106,9 +103,9 @@ function normalizeText(text: string): string {
  */
 function detectLabelType(
   normalized: string,
-  original: string
+  original: string,
 ): { type: WaiverLabelType; confidence: number } {
-  const compact = normalized.replace(/\s+/g, ' ').trim();
+  const compact = normalized.replace(/\s+/g, " ").trim();
   const looksLabelLike = isLikelyLabelText(compact);
 
   // Priority order: more specific patterns first
@@ -118,63 +115,60 @@ function detectLabelType(
     /\b(parent|guardian)\b/.test(normalized) &&
     (looksLabelLike || /parent\s*\/\s*guardian/.test(normalized))
   ) {
-    return { type: 'parent_guardian', confidence: 0.95 };
+    return { type: "parent_guardian", confidence: 0.95 };
   }
 
   // Email
   if (/\b(e-?mail|email)\b/.test(normalized) && looksLabelLike) {
-    return { type: 'email', confidence: 0.95 };
+    return { type: "email", confidence: 0.95 };
   }
 
   // Phone / Cell
   if (/\b(phone|cell|mobile|telephone)\b/.test(normalized) && looksLabelLike) {
-    return { type: 'phone', confidence: 0.93 };
+    return { type: "phone", confidence: 0.93 };
   }
 
   // Witness - use word boundary
   if (/\bwitness\b/.test(normalized)) {
-    return { type: 'witness', confidence: 0.95 };
+    return { type: "witness", confidence: 0.95 };
   }
 
   // Initials - check before signature (since signature is more generic), use word boundary
-  if (
-    /\binitial(s)?\b/.test(normalized) &&
-    !normalized.includes('signature')
-  ) {
-    return { type: 'initials', confidence: 0.9 };
+  if (/\binitial(s)?\b/.test(normalized) && !normalized.includes("signature")) {
+    return { type: "initials", confidence: 0.9 };
   }
 
   // Signature patterns
   if (
-    looksLabelLike && (
-      /\bsignature\b/.test(normalized) ||
+    looksLabelLike &&
+    (/\bsignature\b/.test(normalized) ||
       /\bsigner\b/.test(normalized) ||
-      (/\bsign\b/.test(normalized) && /\bhere\b/.test(normalized))
-    )
+      (/\bsign\b/.test(normalized) && /\bhere\b/.test(normalized)))
   ) {
-    return { type: 'signature', confidence: 0.9 };
+    return { type: "signature", confidence: 0.9 };
   }
 
   // Date patterns - check after signature to catch "signed on" properly, use word boundaries
   if (isDateLabelLike(normalized, compact)) {
-    return { type: 'date', confidence: 0.9 };
+    return { type: "date", confidence: 0.9 };
   }
 
   // Printed name patterns - be context-aware
   if (
-    (normalized.includes('print') && normalized.includes('name')) ||
-    (normalized.includes('printed') && normalized.includes('name')) ||
-    (normalized === 'name:' || normalized === 'name')
+    (normalized.includes("print") && normalized.includes("name")) ||
+    (normalized.includes("printed") && normalized.includes("name")) ||
+    normalized === "name:" ||
+    normalized === "name"
   ) {
-    return { type: 'printed_name', confidence: 0.85 };
+    return { type: "printed_name", confidence: 0.85 };
   }
 
   // Standalone "Name:" at end of text (with colon)
   if (original.trim().match(/^name\s*:?\s*$/i)) {
-    return { type: 'printed_name', confidence: 0.8 };
+    return { type: "printed_name", confidence: 0.8 };
   }
 
-  return { type: 'other', confidence: 0 };
+  return { type: "other", confidence: 0 };
 }
 
 /**
@@ -182,29 +176,29 @@ function detectLabelType(
  */
 function isDateInSentence(normalized: string): boolean {
   // If text is short and contains colon, it's likely a label
-  if (normalized.length < 15 && normalized.includes(':')) {
+  if (normalized.length < 15 && normalized.includes(":")) {
     return false;
   }
 
   // Check for sentence patterns that indicate it's not a label
   const sentenceIndicators = [
-    'the date is',
-    'the date was',
-    'a date',
-    'date is important',
-    'date must',
-    'date should',
-    'before the date',
-    'on the date',
-    'of service',
+    "the date is",
+    "the date was",
+    "a date",
+    "date is important",
+    "date must",
+    "date should",
+    "before the date",
+    "on the date",
+    "of service",
   ];
 
-  return sentenceIndicators.some(indicator => normalized.includes(indicator));
+  return sentenceIndicators.some((indicator) => normalized.includes(indicator));
 }
 
 function isLikelyLabelText(normalized: string): boolean {
   // Typical label traits: short phrase and/or colon.
-  if (normalized.includes(':')) return true;
+  if (normalized.includes(":")) return true;
 
   const words = normalized.split(/\s+/).filter(Boolean);
   const isShortPhrase = words.length <= 6 && normalized.length <= 42;
@@ -212,7 +206,12 @@ function isLikelyLabelText(normalized: string): boolean {
 
   // Avoid sentence-like fragments.
   if (/[.!?]$/.test(normalized)) return false;
-  if (/\b(the|and|or|for|with|before|after|because|which|that)\b/.test(normalized) && words.length > 4) {
+  if (
+    /\b(the|and|or|for|with|before|after|because|which|that)\b/.test(
+      normalized,
+    ) &&
+    words.length > 4
+  ) {
     return false;
   }
 
@@ -225,7 +224,7 @@ function isDateLabelLike(normalized: string, compact: string): boolean {
   if (!/\bdate\b/.test(normalized)) return false;
   if (isDateInSentence(normalized)) return false;
 
-  if (compact.includes(':')) return true;
+  if (compact.includes(":")) return true;
 
   // Allow known short label forms without colon.
   if (/^(date|date signed|signed date|date of birth|dob)$/i.test(compact)) {
@@ -241,12 +240,12 @@ function isDateLabelLike(normalized: string, compact: string): boolean {
 function generateLabelId(item: PdfTextItem, normalizedText: string): string {
   // Create a stable string representation including width/height for collision prevention
   const stableString = `${item.pageIndex}-${Math.round(item.x)}-${Math.round(item.y)}-${Math.round(item.width)}-${Math.round(item.height)}-${normalizedText}`;
-  
+
   // Generate a short hash
-  const hash = createHash('sha256')
+  const hash = createHash("sha256")
     .update(stableString)
-    .digest('hex')
+    .digest("hex")
     .substring(0, 12);
-  
+
   return `label-${hash}`;
 }

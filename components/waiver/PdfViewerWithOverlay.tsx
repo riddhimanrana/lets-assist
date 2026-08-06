@@ -1,9 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import * as pdfjsLib from 'pdfjs-dist/webpack.mjs';
+import { useCallback, useEffect, useRef, useState } from "react";
+import * as pdfjsLib from "pdfjs-dist/webpack.mjs";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  ZoomOut,
+  Loader2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   createRectFromCenter,
@@ -41,7 +47,7 @@ interface PdfViewerWithOverlayProps {
   onDetectedFieldClick?: (field: DetectedPdfField) => void;
   onAddPlacement: (placement: Partial<CustomPlacement>) => void;
   onPlacementResize?: (placementId: string, newRect: PdfRect) => void;
-  mode: 'view' | 'add-signature' | 'edit';
+  mode: "view" | "add-signature" | "edit";
   highlightedField?: DetectedPdfField | null;
   /** Optional: renders entered field values/signatures over the PDF (DOM overlay). */
   valueLayer?: PdfViewerValueLayer;
@@ -59,7 +65,7 @@ export function PdfViewerWithOverlay({
   onPlacementResize,
   mode,
   highlightedField,
-  valueLayer
+  valueLayer,
 }: PdfViewerWithOverlayProps) {
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [pageCount, setPageCount] = useState<number>(0);
@@ -86,7 +92,9 @@ export function PdfViewerWithOverlay({
         setPdfDoc(doc);
         setPageCount(doc.numPages);
         // Clamp current page just in case
-        setCurrentPage((prev) => Math.min(Math.max(1, prev), doc.numPages || 1));
+        setCurrentPage((prev) =>
+          Math.min(Math.max(1, prev), doc.numPages || 1),
+        );
         setLoading(false);
       } catch (err) {
         if (isStale) return;
@@ -114,7 +122,8 @@ export function PdfViewerWithOverlay({
 
   // Handle page navigation
   const prevPage = () => setCurrentPage((p) => Math.max(1, p - 1));
-  const nextPage = () => setCurrentPage((p) => Math.max(1, Math.min(pageCount, p + 1)));
+  const nextPage = () =>
+    setCurrentPage((p) => Math.max(1, Math.min(pageCount, p + 1)));
   const zoomIn = () => setScale((s) => Math.min(2.0, s + 0.1));
   const zoomOut = () => setScale((s) => Math.max(0.5, s - 0.1));
 
@@ -133,45 +142,83 @@ export function PdfViewerWithOverlay({
       {/* Toolbar */}
       <div className="flex-none px-4 border-b bg-background/95 backdrop-blur flex items-center justify-between sticky top-0 z-30 h-10 shrink-0">
         <div className="flex items-center gap-1.5">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prevPage} disabled={currentPage <= 1}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={prevPage}
+            disabled={currentPage <= 1}
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-xs md:text-sm font-medium px-2">
             {currentPage} / {pageCount || "-"}
           </span>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={nextPage} disabled={currentPage >= pageCount}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={nextPage}
+            disabled={currentPage >= pageCount}
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
         <div className="flex items-center gap-1.5">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={zoomOut} disabled={scale <= 0.5}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={zoomOut}
+            disabled={scale <= 0.5}
+          >
             <ZoomOut className="h-4 w-4" />
           </Button>
-          <span className="text-xs md:text-sm font-medium min-w-12 text-center">{Math.round(scale * 100)}%</span>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={zoomIn} disabled={scale >= 2.0}>
+          <span className="text-xs md:text-sm font-medium min-w-12 text-center">
+            {Math.round(scale * 100)}%
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={zoomIn}
+            disabled={scale >= 2.0}
+          >
             <ZoomIn className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
       {/* PDF Viewport */}
-      <div 
+      <div
         ref={containerRef}
         className={cn(
-          "flex-1 overflow-auto p-1 sm:p-2 flex justify-center relative bg-muted/20", 
-          mode === 'add-signature' ? "cursor-crosshair" : "cursor-default"
+          "flex-1 overflow-auto p-1 sm:p-2 flex justify-center relative bg-muted/20",
+          mode === "add-signature" ? "cursor-crosshair" : "cursor-default",
         )}
       >
-        {loading && <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
-        {error && <div className="flex items-center justify-center h-full text-destructive text-sm">{error}</div>}
-        
+        {loading && (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )}
+        {error && (
+          <div className="flex items-center justify-center h-full text-destructive text-sm">
+            {error}
+          </div>
+        )}
+
         {pdfDoc && !loading && (
           <PdfPage
             pdfDoc={pdfDoc}
             pageNumber={currentPage}
             scale={scale}
-            detectedFields={detectedFields.filter(f => f.pageIndex === currentPage - 1)}
-            customPlacements={customPlacements.filter(p => p.pageIndex === currentPage - 1)}
+            detectedFields={detectedFields.filter(
+              (f) => f.pageIndex === currentPage - 1,
+            )}
+            customPlacements={customPlacements.filter(
+              (p) => p.pageIndex === currentPage - 1,
+            )}
             detectedFieldRoleMap={detectedFieldRoleMap}
             selectedPlacementId={selectedPlacementId}
             onPlacementClick={onPlacementClick}
@@ -179,7 +226,11 @@ export function PdfViewerWithOverlay({
             onAddPlacement={onAddPlacement}
             onPlacementResize={onPlacementResize}
             mode={mode}
-            highlightedField={highlightedField?.pageIndex === currentPage - 1 ? highlightedField : null}
+            highlightedField={
+              highlightedField?.pageIndex === currentPage - 1
+                ? highlightedField
+                : null
+            }
             valueLayer={valueLayer}
           />
         )}
@@ -200,7 +251,7 @@ interface PdfPageProps {
   onDetectedFieldClick?: (field: DetectedPdfField) => void;
   onAddPlacement: (placement: Partial<CustomPlacement>) => void;
   onPlacementResize?: (placementId: string, newRect: PdfRect) => void;
-  mode: 'view' | 'add-signature' | 'edit';
+  mode: "view" | "add-signature" | "edit";
   highlightedField: DetectedPdfField | null;
   valueLayer?: PdfViewerValueLayer;
 }
@@ -219,7 +270,7 @@ function PdfPage({
   onPlacementResize,
   mode,
   highlightedField,
-  valueLayer
+  valueLayer,
 }: PdfPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -231,8 +282,12 @@ function PdfPage({
     (rect: PdfRect, minWidth = 0, minHeight = 0): PdfRect => {
       if (!viewport) return rect;
 
-      const [xMin = 0, yMin = 0, xMax = viewport.width / viewport.scale, yMax = viewport.height / viewport.scale] =
-        viewport.viewBox;
+      const [
+        xMin = 0,
+        yMin = 0,
+        xMax = viewport.width / viewport.scale,
+        yMax = viewport.height / viewport.scale,
+      ] = viewport.viewBox;
 
       const pageWidth = Math.max(0, xMax - xMin);
       const pageHeight = Math.max(0, yMax - yMin);
@@ -245,7 +300,7 @@ function PdfPage({
 
       return { x, y, width, height };
     },
-    [viewport]
+    [viewport],
   );
 
   // Render Page
@@ -264,7 +319,7 @@ function PdfPage({
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const context = canvas.getContext('2d');
+        const context = canvas.getContext("2d");
         if (!context) return;
 
         // Clear any previous content
@@ -306,7 +361,7 @@ function PdfPage({
         if (isStale) return;
         const name = err instanceof Error ? err.name : undefined;
         // RenderingCancelledException is expected on fast navigation/zoom.
-        if (name !== 'RenderingCancelledException') {
+        if (name !== "RenderingCancelledException") {
           console.error("Page render error:", err);
           // Retry once after 100ms if initial render fails
           if (renderAttempts === 0) {
@@ -348,7 +403,7 @@ function PdfPage({
   }, [pdfDoc]);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (mode !== 'add-signature' || !viewport) return;
+    if (mode !== "add-signature" || !viewport) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -358,13 +413,13 @@ function PdfPage({
     // viewbox is [x, y, w, h] usually [0,0,w,h]
     // PDF coordinates Y is inverted relative to canvas Y usually.
     // pdfjs viewport.convertToPdfPoint takes [x, y] in canvas pixels and returns [x, y] in pdf points.
-    
+
     const [pdfX, pdfY] = viewport.convertToPdfPoint(x, y);
 
-    const textFieldSize = getCustomPlacementFieldSize('text');
+    const textFieldSize = getCustomPlacementFieldSize("text");
 
     const clampedRect = clampRectToPage(
-      createRectFromCenter(pdfX, pdfY, 'text'),
+      createRectFromCenter(pdfX, pdfY, "text"),
       textFieldSize.minWidth,
       textFieldSize.minHeight,
     );
@@ -377,21 +432,34 @@ function PdfPage({
 
   if (!viewport) return <div className="w-150 h-200 bg-white animate-pulse" />;
 
-  const toWaiverFieldType = (fieldType: DetectedPdfField['fieldType']): WaiverFieldType => {
-    const knownFieldTypes: WaiverFieldType[] = ['signature', 'text', 'checkbox', 'radio', 'dropdown'];
+  const toWaiverFieldType = (
+    fieldType: DetectedPdfField["fieldType"],
+  ): WaiverFieldType => {
+    const knownFieldTypes: WaiverFieldType[] = [
+      "signature",
+      "text",
+      "checkbox",
+      "radio",
+      "dropdown",
+    ];
     if (knownFieldTypes.includes(fieldType as WaiverFieldType)) {
       return fieldType as WaiverFieldType;
     }
-    return 'text';
+    return "text";
   };
 
   // Helper to convert PDF rect to specific canvas style
   const getStyle = (rect: PdfRect) => {
     // PDF coords: x, y, width, height. y is from bottom if it's raw PDF, but PDF.js viewport handles the transform
     // viewport.convertToViewportRectangle([x, y, x+w, y+h]) returns [x1, y1, x2, y2] in canvas coords
-    
-    const [x1, y1, x2, y2] = viewport.convertToViewportRectangle([rect.x, rect.y, rect.x + rect.width, rect.y + rect.height]);
-    
+
+    const [x1, y1, x2, y2] = viewport.convertToViewportRectangle([
+      rect.x,
+      rect.y,
+      rect.x + rect.width,
+      rect.y + rect.height,
+    ]);
+
     // Calculate CSS properties
     // Note: viewport rectangle might have y1 > y2 or vice versa depending on rotation/inversion
     const minX = Math.min(x1, x2);
@@ -404,52 +472,57 @@ function PdfPage({
       top: minY,
       width: maxX - minX,
       height: maxY - minY,
-      position: 'absolute' as const,
+      position: "absolute" as const,
     };
   };
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className="relative ring-1 ring-border shadow-sm"
       style={{ width: viewport.width, height: viewport.height }}
       onClick={handleCanvasClick}
     >
       <canvas ref={canvasRef} className="block bg-white" />
-      
+
       {/* Detected Fields Overlay */}
       {detectedFields.map((field, idx) => {
-        const isSignature = field.fieldType === 'signature';
+        const isSignature = field.fieldType === "signature";
         const isHighlighted = highlightedField?.fieldName === field.fieldName;
         const signerRoleKey = detectedFieldRoleMap?.[field.fieldName];
         const fieldValue = valueLayer?.fieldValues?.[field.fieldName];
-        const signature = signerRoleKey ? valueLayer?.signatures?.[signerRoleKey] : undefined;
+        const signature = signerRoleKey
+          ? valueLayer?.signatures?.[signerRoleKey]
+          : undefined;
         const previewPlacement: CustomPlacement = {
           id: `detected-preview-${field.fieldName}-${field.pageIndex}`,
           fieldKey: field.fieldName,
           label: field.fieldName,
-          signerRoleKey: signerRoleKey ?? 'unassigned',
+          signerRoleKey: signerRoleKey ?? "unassigned",
           fieldType: toWaiverFieldType(field.fieldType),
           required: field.required ?? false,
           pageIndex: field.pageIndex,
           rect: field.rect,
         };
-        
+
         return (
           <div
             key={`detected-${field.fieldName}-${field.pageIndex}-${idx}`}
             style={getStyle(field.rect)}
             className={cn(
               "border-2 absolute transition-all cursor-pointer group flex items-center justify-center z-10",
-              isSignature ? "border-blue-500 bg-blue-500/15 hover:bg-blue-500/25" : "border-gray-400 bg-gray-400/15 hover:bg-gray-400/25",
-              isHighlighted && "ring-2 ring-warning ring-offset-2 bg-warning/20 border-warning"
+              isSignature
+                ? "border-blue-500 bg-blue-500/15 hover:bg-blue-500/25"
+                : "border-gray-400 bg-gray-400/15 hover:bg-gray-400/25",
+              isHighlighted &&
+                "ring-2 ring-warning ring-offset-2 bg-warning/20 border-warning",
             )}
             onClick={(e) => {
               e.stopPropagation();
               onDetectedFieldClick?.(field);
             }}
           >
-             <span className="opacity-0 group-hover:opacity-100 bg-popover text-popover-foreground text-[10px] px-1.5 py-0.5 rounded absolute -top-6 whitespace-nowrap pointer-events-none shadow-sm border text-center">
+            <span className="opacity-0 group-hover:opacity-100 bg-popover text-popover-foreground text-[10px] px-1.5 py-0.5 rounded absolute -top-6 whitespace-nowrap pointer-events-none shadow-sm border text-center">
               {field.fieldName} ({field.fieldType})
             </span>
 
@@ -468,12 +541,14 @@ function PdfPage({
       {customPlacements.map((placement) => {
         const isSelected = selectedPlacementId === placement.id;
 
-        const fieldValue = placement.fieldKey && valueLayer?.fieldValues
-          ? valueLayer.fieldValues[placement.fieldKey]
-          : undefined;
+        const fieldValue =
+          placement.fieldKey && valueLayer?.fieldValues
+            ? valueLayer.fieldValues[placement.fieldKey]
+            : undefined;
 
-        const signature = valueLayer?.signatures?.[placement.signerRoleKey] ?? undefined;
-        
+        const signature =
+          valueLayer?.signatures?.[placement.signerRoleKey] ?? undefined;
+
         return (
           <ResizablePlacement
             key={placement.id}
@@ -506,10 +581,10 @@ export function WaiverPlacementValue({
   // even when the app theme is dark. Keep the ink color black for readability.
   const inkClass = "text-black/90";
 
-  if (placement.fieldType === 'signature') {
+  if (placement.fieldType === "signature") {
     if (!signature) return null;
 
-    if (signature.method === 'typed') {
+    if (signature.method === "typed") {
       const text = signature.data?.trim();
       if (!text) return null;
       return (
@@ -517,9 +592,9 @@ export function WaiverPlacementValue({
           data-testid="waiver-placement-signature-typed"
           className={cn(
             "text-[11px] md:text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-full",
-            inkClass
+            inkClass,
           )}
-          style={{ fontFamily: 'cursive' }}
+          style={{ fontFamily: "cursive" }}
         >
           {text}
         </span>
@@ -532,14 +607,14 @@ export function WaiverPlacementValue({
       // eslint-disable-next-line @next/next/no-img-element
       <img
         data-testid="waiver-placement-signature-image"
-        alt={placement.label ? `${placement.label} signature` : 'Signature'}
+        alt={placement.label ? `${placement.label} signature` : "Signature"}
         src={src}
         className="max-h-full max-w-full object-contain opacity-90"
       />
     );
   }
 
-  if (typeof fieldValue === 'boolean') {
+  if (typeof fieldValue === "boolean") {
     if (!fieldValue) return null;
     return (
       <span
@@ -561,7 +636,7 @@ export function WaiverPlacementValue({
       data-testid="waiver-placement-text"
       className={cn(
         "text-[11px] md:text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-full",
-        inkClass
+        inkClass,
       )}
     >
       {text}
@@ -576,8 +651,12 @@ interface ResizablePlacementProps {
   viewport: pdfjsLib.PageViewport;
   onPlacementClick: (placementId: string) => void;
   onPlacementResize?: (placementId: string, newRect: PdfRect) => void;
-  clampRectToPage: (rect: PdfRect, minWidth?: number, minHeight?: number) => PdfRect;
-  mode: 'view' | 'add-signature' | 'edit';
+  clampRectToPage: (
+    rect: PdfRect,
+    minWidth?: number,
+    minHeight?: number,
+  ) => PdfRect;
+  mode: "view" | "add-signature" | "edit";
   fieldValue?: string | boolean | number | null;
   signature?: SignerData;
 }
@@ -591,7 +670,7 @@ function ResizablePlacement({
   clampRectToPage,
   mode,
   fieldValue,
-  signature
+  signature,
 }: ResizablePlacementProps) {
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -600,7 +679,9 @@ function ResizablePlacement({
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
   const startRectRef = useRef<PdfRect | null>(null);
   const latestRectRef = useRef<PdfRect>(placement.rect);
-  const { minWidth, minHeight } = getCustomPlacementFieldSize(placement.fieldType);
+  const { minWidth, minHeight } = getCustomPlacementFieldSize(
+    placement.fieldType,
+  );
 
   useEffect(() => {
     if (isDragging || isResizing) return;
@@ -613,9 +694,9 @@ function ResizablePlacement({
       rect.x,
       rect.y,
       rect.x + rect.width,
-      rect.y + rect.height
+      rect.y + rect.height,
     ]);
-    
+
     const minX = Math.min(x1, x2);
     const maxX = Math.max(x1, x2);
     const minY = Math.min(y1, y2);
@@ -626,14 +707,14 @@ function ResizablePlacement({
       top: minY,
       width: maxX - minX,
       height: maxY - minY,
-      position: 'absolute' as const,
+      position: "absolute" as const,
     };
   };
 
   const handleMouseDown = (e: React.MouseEvent, handle: string) => {
     e.stopPropagation();
     e.preventDefault();
-    
+
     setIsResizing(true);
     setResizeHandle(handle);
     startPosRef.current = { x: e.clientX, y: e.clientY };
@@ -642,8 +723,8 @@ function ResizablePlacement({
 
   const handleDragStart = (e: React.MouseEvent) => {
     // Only start drag if clicking on the box itself, not handles
-    if ((e.target as HTMLElement).closest('.resize-handle')) return;
-    
+    if ((e.target as HTMLElement).closest(".resize-handle")) return;
+
     e.stopPropagation();
     setIsDragging(true);
     startPosRef.current = { x: e.clientX, y: e.clientY };
@@ -651,10 +732,16 @@ function ResizablePlacement({
   };
 
   useEffect(() => {
-    if ((!isResizing && !isDragging) || !startPosRef.current || !startRectRef.current) return;
+    if (
+      (!isResizing && !isDragging) ||
+      !startPosRef.current ||
+      !startRectRef.current
+    )
+      return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!startPosRef.current || !startRectRef.current || !onPlacementResize) return;
+      if (!startPosRef.current || !startRectRef.current || !onPlacementResize)
+        return;
 
       const deltaX = e.clientX - startPosRef.current.x;
       const deltaY = e.clientY - startPosRef.current.y;
@@ -668,7 +755,7 @@ function ResizablePlacement({
         const newRect = clampRectToPage({
           ...startRectRef.current,
           x: startRectRef.current.x + pdfDeltaX,
-          y: startRectRef.current.y + pdfDeltaY
+          y: startRectRef.current.y + pdfDeltaY,
         });
 
         latestRectRef.current = newRect;
@@ -685,39 +772,84 @@ function ResizablePlacement({
 
       // Apply resize based on handle
       switch (resizeHandle) {
-        case 'se': // Bottom-right corner
-          newRect.width = Math.max(minWidth, startRectRef.current.width + pdfDeltaX);
-          newRect.height = Math.max(minHeight, startRectRef.current.height - pdfDeltaY);
-          newRect.y = startRectRef.current.y + startRectRef.current.height - newRect.height;
+        case "se": // Bottom-right corner
+          newRect.width = Math.max(
+            minWidth,
+            startRectRef.current.width + pdfDeltaX,
+          );
+          newRect.height = Math.max(
+            minHeight,
+            startRectRef.current.height - pdfDeltaY,
+          );
+          newRect.y =
+            startRectRef.current.y +
+            startRectRef.current.height -
+            newRect.height;
           break;
-        case 'sw': // Bottom-left corner
-          newRect.width = Math.max(minWidth, startRectRef.current.width - pdfDeltaX);
-          newRect.height = Math.max(minHeight, startRectRef.current.height - pdfDeltaY);
+        case "sw": // Bottom-left corner
+          newRect.width = Math.max(
+            minWidth,
+            startRectRef.current.width - pdfDeltaX,
+          );
+          newRect.height = Math.max(
+            minHeight,
+            startRectRef.current.height - pdfDeltaY,
+          );
           newRect.x = startRectRef.current.x + pdfDeltaX;
-          newRect.y = startRectRef.current.y + startRectRef.current.height - newRect.height;
+          newRect.y =
+            startRectRef.current.y +
+            startRectRef.current.height -
+            newRect.height;
           break;
-        case 'ne': // Top-right corner
-          newRect.width = Math.max(minWidth, startRectRef.current.width + pdfDeltaX);
-          newRect.height = Math.max(minHeight, startRectRef.current.height + pdfDeltaY);
+        case "ne": // Top-right corner
+          newRect.width = Math.max(
+            minWidth,
+            startRectRef.current.width + pdfDeltaX,
+          );
+          newRect.height = Math.max(
+            minHeight,
+            startRectRef.current.height + pdfDeltaY,
+          );
           break;
-        case 'nw': // Top-left corner
-          newRect.width = Math.max(minWidth, startRectRef.current.width - pdfDeltaX);
-          newRect.height = Math.max(minHeight, startRectRef.current.height + pdfDeltaY);
+        case "nw": // Top-left corner
+          newRect.width = Math.max(
+            minWidth,
+            startRectRef.current.width - pdfDeltaX,
+          );
+          newRect.height = Math.max(
+            minHeight,
+            startRectRef.current.height + pdfDeltaY,
+          );
           newRect.x = startRectRef.current.x + pdfDeltaX;
           break;
-        case 'e': // Right edge
-          newRect.width = Math.max(minWidth, startRectRef.current.width + pdfDeltaX);
+        case "e": // Right edge
+          newRect.width = Math.max(
+            minWidth,
+            startRectRef.current.width + pdfDeltaX,
+          );
           break;
-        case 'w': // Left edge
-          newRect.width = Math.max(minWidth, startRectRef.current.width - pdfDeltaX);
+        case "w": // Left edge
+          newRect.width = Math.max(
+            minWidth,
+            startRectRef.current.width - pdfDeltaX,
+          );
           newRect.x = startRectRef.current.x + pdfDeltaX;
           break;
-        case 's': // Bottom edge
-          newRect.height = Math.max(minHeight, startRectRef.current.height - pdfDeltaY);
-          newRect.y = startRectRef.current.y + startRectRef.current.height - newRect.height;
+        case "s": // Bottom edge
+          newRect.height = Math.max(
+            minHeight,
+            startRectRef.current.height - pdfDeltaY,
+          );
+          newRect.y =
+            startRectRef.current.y +
+            startRectRef.current.height -
+            newRect.height;
           break;
-        case 'n': // Top edge
-          newRect.height = Math.max(minHeight, startRectRef.current.height + pdfDeltaY);
+        case "n": // Top edge
+          newRect.height = Math.max(
+            minHeight,
+            startRectRef.current.height + pdfDeltaY,
+          );
           break;
       }
 
@@ -738,12 +870,12 @@ function ResizablePlacement({
       startRectRef.current = null;
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [
     isResizing,
@@ -759,22 +891,31 @@ function ResizablePlacement({
 
   const style = getStyle(localRect);
 
-  const isSignature = placement.fieldType === 'signature';
+  const isSignature = placement.fieldType === "signature";
   const resizeHandleColorClass = isSignature
     ? "bg-primary border-primary"
     : "bg-indigo-600 border-indigo-600";
 
-  const isEditable = mode === 'edit' && typeof onPlacementResize === 'function';
-  
+  const isEditable = mode === "edit" && typeof onPlacementResize === "function";
+
   return (
     <div
       style={style}
       className={cn(
         "border-2 absolute hover:bg-opacity-30 transition-colors z-20 select-none rounded-sm",
-        isSignature ? "border-primary bg-primary/20" : "border-indigo-500 bg-indigo-500/20",
-        isSelected && (isSignature ? "ring-2 ring-primary ring-offset-2 shadow-lg border-primary bg-primary/30" : "ring-2 ring-indigo-500 ring-offset-2 shadow-lg border-indigo-500 bg-indigo-500/30"),
+        isSignature
+          ? "border-primary bg-primary/20"
+          : "border-indigo-500 bg-indigo-500/20",
+        isSelected &&
+          (isSignature
+            ? "ring-2 ring-primary ring-offset-2 shadow-lg border-primary bg-primary/30"
+            : "ring-2 ring-indigo-500 ring-offset-2 shadow-lg border-indigo-500 bg-indigo-500/30"),
         isResizing && "cursor-crosshair",
-        isEditable ? (isDragging ? "cursor-grabbing opacity-80 shadow-xl" : "cursor-move") : "cursor-pointer"
+        isEditable
+          ? isDragging
+            ? "cursor-grabbing opacity-80 shadow-xl"
+            : "cursor-move"
+          : "cursor-pointer",
       )}
       onClick={(e) => {
         e.stopPropagation();
@@ -786,7 +927,7 @@ function ResizablePlacement({
       <div
         className={cn(
           "absolute left-1 top-1 text-[9px] md:text-[10px] text-white px-1.5 py-0.5 rounded truncate max-w-[calc(100%-0.5rem)] pointer-events-none font-medium",
-          isSignature ? "bg-primary" : "bg-indigo-600"
+          isSignature ? "bg-primary" : "bg-indigo-600",
         )}
       >
         {placement.label || (isSignature ? "Signature" : placement.fieldType)}
@@ -794,45 +935,73 @@ function ResizablePlacement({
 
       {/* Value overlay */}
       <div className="absolute inset-0 flex items-center justify-center px-1.5 py-1 pointer-events-none">
-        <WaiverPlacementValue placement={placement} fieldValue={fieldValue} signature={signature} />
+        <WaiverPlacementValue
+          placement={placement}
+          fieldValue={fieldValue}
+          signature={signature}
+        />
       </div>
-      
+
       {isSelected && isEditable && !isResizing && !isDragging && (
         <>
           {/* Corner handles */}
           <div
-            className={cn("resize-handle absolute -top-1 -left-1 w-3 h-3 border rounded-full cursor-nw-resize z-30", resizeHandleColorClass)}
-            onMouseDown={(e) => handleMouseDown(e, 'nw')}
+            className={cn(
+              "resize-handle absolute -top-1 -left-1 w-3 h-3 border rounded-full cursor-nw-resize z-30",
+              resizeHandleColorClass,
+            )}
+            onMouseDown={(e) => handleMouseDown(e, "nw")}
           />
           <div
-            className={cn("resize-handle absolute -top-1 -right-1 w-3 h-3 border rounded-full cursor-ne-resize z-30", resizeHandleColorClass)}
-            onMouseDown={(e) => handleMouseDown(e, 'ne')}
+            className={cn(
+              "resize-handle absolute -top-1 -right-1 w-3 h-3 border rounded-full cursor-ne-resize z-30",
+              resizeHandleColorClass,
+            )}
+            onMouseDown={(e) => handleMouseDown(e, "ne")}
           />
           <div
-            className={cn("resize-handle absolute -bottom-1 -left-1 w-3 h-3 border rounded-full cursor-sw-resize z-30", resizeHandleColorClass)}
-            onMouseDown={(e) => handleMouseDown(e, 'sw')}
+            className={cn(
+              "resize-handle absolute -bottom-1 -left-1 w-3 h-3 border rounded-full cursor-sw-resize z-30",
+              resizeHandleColorClass,
+            )}
+            onMouseDown={(e) => handleMouseDown(e, "sw")}
           />
           <div
-            className={cn("resize-handle absolute -bottom-1 -right-1 w-3 h-3 border rounded-full cursor-se-resize z-30", resizeHandleColorClass)}
-            onMouseDown={(e) => handleMouseDown(e, 'se')}
+            className={cn(
+              "resize-handle absolute -bottom-1 -right-1 w-3 h-3 border rounded-full cursor-se-resize z-30",
+              resizeHandleColorClass,
+            )}
+            onMouseDown={(e) => handleMouseDown(e, "se")}
           />
-          
+
           {/* Edge handles */}
           <div
-            className={cn("resize-handle absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-2 border rounded cursor-n-resize z-30", resizeHandleColorClass)}
-            onMouseDown={(e) => handleMouseDown(e, 'n')}
+            className={cn(
+              "resize-handle absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-2 border rounded cursor-n-resize z-30",
+              resizeHandleColorClass,
+            )}
+            onMouseDown={(e) => handleMouseDown(e, "n")}
           />
           <div
-            className={cn("resize-handle absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-2 border rounded cursor-s-resize z-30", resizeHandleColorClass)}
-            onMouseDown={(e) => handleMouseDown(e, 's')}
+            className={cn(
+              "resize-handle absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-2 border rounded cursor-s-resize z-30",
+              resizeHandleColorClass,
+            )}
+            onMouseDown={(e) => handleMouseDown(e, "s")}
           />
           <div
-            className={cn("resize-handle absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-3 border rounded cursor-w-resize z-30", resizeHandleColorClass)}
-            onMouseDown={(e) => handleMouseDown(e, 'w')}
+            className={cn(
+              "resize-handle absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-3 border rounded cursor-w-resize z-30",
+              resizeHandleColorClass,
+            )}
+            onMouseDown={(e) => handleMouseDown(e, "w")}
           />
           <div
-            className={cn("resize-handle absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-3 border rounded cursor-e-resize z-30", resizeHandleColorClass)}
-            onMouseDown={(e) => handleMouseDown(e, 'e')}
+            className={cn(
+              "resize-handle absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-3 border rounded cursor-e-resize z-30",
+              resizeHandleColorClass,
+            )}
+            onMouseDown={(e) => handleMouseDown(e, "e")}
           />
         </>
       )}

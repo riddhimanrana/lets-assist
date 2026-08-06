@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { Label } from "@/components/ui/label"
-import { cn } from "@/lib/utils"
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 interface MaxLengthFieldProps {
   label: string;
@@ -16,7 +16,7 @@ export function MaxLengthField({
   current,
   max,
   required = false,
-  className
+  className,
 }: MaxLengthFieldProps) {
   const getCounterColor = (current: number, max: number) => {
     const percentage = (current / max) * 100;
@@ -27,11 +27,14 @@ export function MaxLengthField({
 
   return (
     <div className={cn("flex justify-between items-baseline", className)}>
-      <Label>{label}{required && "*"}</Label>
+      <Label>
+        {label}
+        {required && "*"}
+      </Label>
       <span
         className={cn(
           "text-xs transition-colors",
-          getCounterColor(current, max)
+          getCounterColor(current, max),
         )}
       >
         {current}/{max}

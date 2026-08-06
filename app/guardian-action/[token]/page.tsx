@@ -112,7 +112,9 @@ export default async function GuardianActionPage({
                       aria-label="Available for some rounds"
                       className="border-input text-primary focus-visible:border-ring focus-visible:ring-ring/50 size-4 shrink-0 appearance-none rounded-full border shadow-xs outline-none checked:border-[5px] checked:border-primary focus-visible:ring-[3px]"
                     />
-                    <FieldLabel htmlFor="limited">Available for some rounds</FieldLabel>
+                    <FieldLabel htmlFor="limited">
+                      Available for some rounds
+                    </FieldLabel>
                   </Field>
                   <Field orientation="horizontal">
                     <input

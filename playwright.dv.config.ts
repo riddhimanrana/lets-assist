@@ -26,14 +26,14 @@ const port = CSF_ISOLATED_APP_PORT;
 const baseURL = `http://localhost:${port}`;
 const artifactRoot = path.join(
   process.cwd(),
-  "artifacts",
+  ".artifacts",
   "dvhs-csf-e2e",
   process.env.CSF_E2E_RUN_ID ?? "playwright-local",
   "playwright",
 );
 
 export default defineConfig({
-  testDir: "./tests/dv",
+  testDir: "./tests/e2e/dv",
   outputDir: path.join(artifactRoot, "dv-test-results"),
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
@@ -50,7 +50,10 @@ export default defineConfig({
   reporter: process.env.CI
     ? [
         ["github"],
-        ["html", { outputFolder: path.join(artifactRoot, "dv-html"), open: "never" }],
+        [
+          "html",
+          { outputFolder: path.join(artifactRoot, "dv-html"), open: "never" },
+        ],
       ]
     : "list",
   use: {

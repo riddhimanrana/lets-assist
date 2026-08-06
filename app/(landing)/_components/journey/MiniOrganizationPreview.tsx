@@ -19,7 +19,11 @@ interface MiniOrganizationPreviewProps {
   members: Member[];
 }
 
-export function MiniOrganizationPreview({ name, verified = true, members }: MiniOrganizationPreviewProps) {
+export function MiniOrganizationPreview({
+  name,
+  verified = true,
+  members,
+}: MiniOrganizationPreviewProps) {
   const top3 = members.slice(0, 3);
   const totalHours = members.reduce((sum, m) => sum + m.verifiedHours, 0);
 
@@ -33,7 +37,10 @@ export function MiniOrganizationPreview({ name, verified = true, members }: Mini
             </div>
             <CardTitle className="text-base font-semibold">{name}</CardTitle>
             {verified && (
-              <Badge variant="secondary" className="gap-1 bg-green-500/10 text-green-600 dark:text-green-500 border-green-500/20">
+              <Badge
+                variant="secondary"
+                className="gap-1 bg-green-500/10 text-green-600 dark:text-green-500 border-green-500/20"
+              >
                 <BadgeCheck className="h-3 w-3" /> Verified
               </Badge>
             )}
@@ -66,7 +73,10 @@ export function MiniOrganizationPreview({ name, verified = true, members }: Mini
               </div>
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <Clock className="h-3 w-3 text-primary" />
-                <span className="font-semibold text-foreground">{m.verifiedHours}h</span> verified
+                <span className="font-semibold text-foreground">
+                  {m.verifiedHours}h
+                </span>{" "}
+                verified
               </div>
             </motion.div>
           ))}
@@ -74,10 +84,10 @@ export function MiniOrganizationPreview({ name, verified = true, members }: Mini
 
         {/* Totals */}
         <div className="rounded-md border border-border/60 p-3 bg-card flex items-center justify-between">
-          <div className="text-xs text-muted-foreground">Total verified hours</div>
-          <div className="text-sm font-bold">
-            {totalHours.toFixed(1)}h
+          <div className="text-xs text-muted-foreground">
+            Total verified hours
           </div>
+          <div className="text-sm font-bold">{totalHours.toFixed(1)}h</div>
         </div>
       </CardContent>
     </Card>
