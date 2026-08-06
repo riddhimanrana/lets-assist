@@ -8,8 +8,10 @@
 
 # testing
 /coverage
-
-/docs/
+/playwright-report/
+/test-results/
+/.artifacts/
+/artifacts/
 
 # next.js
 /.next/
@@ -22,6 +24,14 @@
 # misc
 .DS_Store
 *.pem
+*.log
+*.bak
+*.orig
+*.swp
+*~
+/.cache/
+/.turbo/
+/.claude/
 
 # debug
 npm-debug.log*
@@ -79,10 +89,6 @@ lib/plugins/private/*
 # scripts/local-dev/
 
 playwright.config.ts
-playwright-report/
-test-results/
-artifacts/dvhs-csf-e2e/*/playwright/
-
 # Pending plugin data migrations (not yet ready for deploy)
 supabase/migrations/.pending-plugin-data/
 

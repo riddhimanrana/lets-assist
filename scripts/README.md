@@ -234,6 +234,6 @@ If ANY stage fails, deployment is blocked and manual approval is required.
 
 ## More Info
 
-- Full guide: See `docs/SUPABASE_DEPLOYMENT.md`
+- Full guide: See `docs/development/supabase-deployment.md`
 - Supabase docs: https://supabase.com/docs/guides/cli
 - RLS guide: https://supabase.com/docs/guides/auth/row-level-security
