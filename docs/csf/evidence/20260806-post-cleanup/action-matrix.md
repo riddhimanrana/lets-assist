@@ -2,7 +2,7 @@
 
 This matrix maps the primary visible actions represented by the curated synthetic screenshots. `Captured` means the route and control are visible in the supplied evidence. Transactional and permission assertions belong to the automated suites, not to the screenshot alone.
 
-Companion post-hardening evidence: private-plugin isolation browser/API smoke passes; role navigation passes 14/14; the full CSF Playwright run passes 26, intentionally skips 3 live-Google scenarios, and has 0 failures in 2.3 minutes. Permission-denial checks target the sole alert.
+Companion post-cleanup evidence: private-plugin isolation browser/API smoke passes; every officer-template navigation and direct-route boundary passes; the compiled-runtime CSF Playwright run passes 40 behavioral scenarios, intentionally skips only the 3 opt-in gallery captures, and has 0 failures. The separate sanitized gallery capture passes 3/3.
 
 | Actor | Area | Visible action | Expected result | Screenshot | Evidence |
 |---|---|---|---|---|---|

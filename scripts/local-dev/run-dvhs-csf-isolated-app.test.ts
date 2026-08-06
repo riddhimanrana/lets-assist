@@ -682,6 +682,7 @@ describe("browser web servers cannot fall back to an ambient next dev", () => {
       );
       expect(source, file).toContain("CSF_ISOLATED_APP_PORT");
       expect(source, file).toContain("reuseExistingServer: false");
+      expect(source, file).toContain('CSF_BROWSER_SERVER_MODE: "production"');
     }
   });
 

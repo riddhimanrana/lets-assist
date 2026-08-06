@@ -1,11 +1,11 @@
 # DVHS CSF local browser acceptance and lifecycle-gap audit
 
-**Run:** `20260722-gallery-final`<br>
+**Run:** `20260806-post-cleanup`<br>
 **Environment:** local Let’s Assist at `http://localhost:3001`, local Supabase only  
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** latest isolated replay, production build, private/root test suites, plugin-isolation smoke, 14/14 role navigation, and 26-pass CSF Playwright run passed; full visible mutation, live Google, cloud-development, accessibility, and Slides acceptance remain open
+**Status:** isolated replay, production build, root/private suites, plugin-isolation checks, 40-scenario CSF browser gate, 3-scenario DV gate, workflow/scale/cron gates, and sanitized gallery passed; full visible mutation, live Google, hosted Development, accessibility, and Slides acceptance remain open
 
-**Latest contract amendment:** July 22, 2026; final isolated database and focused application hardening evidence recorded below without upgrading any external or unexecuted scope
+**Latest contract amendment:** August 6, 2026; cleanup certification evidence is recorded below without upgrading any external or unexecuted scope
 
 ## Scope and safety boundary
 
@@ -33,7 +33,7 @@ Three representative Gmail messages were previously inspected and reduced to wor
 
 ## Local data and security audit
 
-- The latest isolated replay discovers 57 `plugin_data.csf_*` tables.
+- The latest isolated replay discovers 82 `plugin_data.csf_*` tables.
 - Every CSF table has RLS enabled.
 - Browser roles have no direct CSF table `SELECT` grant.
 - CSF `SECURITY DEFINER` functions are not executable by `anon` or `authenticated`.
@@ -104,7 +104,7 @@ This amendment supersedes earlier local test-count and build-status summaries on
 | CSF-E2E-030 | P2       | Local developer / isolated Supabase                         | Local environment resolution previously assumed a fixed Supabase port, which made a safely namespaced stack appear unhealthy.                                                | Local validation now recognizes loopback Supabase endpoints on arbitrary ports while continuing to reject hosted/non-local endpoints in development.                                                                                                        | Status endpoint and local environment resolver tests pass against the isolated stack.                                                                                                                                        | This does not provision or validate a cloud Supabase `development` branch.                                                                                           |
 | CSF-E2E-031 | P1       | Developer/operator / final local gate                       | Earlier evidence predated the final combined seed, runtime, browser, and concurrency changes.                                                                                | Re-ran the isolated database ledger, application hardening gates, full private suite, and production build against the final combined diff.                                                                                                                 | Latest replay: 190 migrations, 57 CSF tables, 43 pgTAP files, and 1,279/1,279 assertions; focused Bun: 73/73 tests and 761 expectations; private suite: 272/272; root typecheck, focused ESLint, and production build clean. | CI remains unproven until the least-privilege private-submodule secret, GitGuardian false-positive disposition, and authenticated Vercel Preview gates are resolved. |
 | CSF-E2E-032 | P2       | Applicant/member and officer templates / browser boundaries | Profile confirmation and the complete officer-template navigation matrix needed current production-browser evidence.                                                         | Retained the privacy-limited exact-match prompt, explicit decline path, granular navigation, and direct-route authorization boundaries.                                                                                                                     | Exact claim and decline pass; every officer-role navigation/direct-route scenario passes in the final production Playwright run.                                                                                             | Officer resolution and the broader signup-to-close visible mutation lifecycle remain incomplete.                                                                     |
-| CSF-E2E-033 | P2       | Artifact reader / sanitized gallery                         | Raw test output would add noise and could retain sensitive browser state.                                                                                                    | Kept only a curated, offline 22-image synthetic gallery with sanitized summaries and action evidence.                                                                                                                                                       | [`evidence/20260722-gallery-final/index.html`](evidence/20260722-gallery-final/index.html) references all 22 images; raw Playwright reports, traces, videos, and payloads are excluded.                                      | The gallery is visual evidence only and does not upgrade mutation, Google, cloud, or accessibility acceptance.                                                       |
+| CSF-E2E-033 | P2       | Artifact reader / sanitized gallery                         | Raw test output would add noise and could retain sensitive browser state.                                                                                                    | Kept only a curated, offline 22-image synthetic gallery with sanitized summaries and action evidence.                                                                                                                                                       | [`evidence/20260806-post-cleanup/index.html`](evidence/20260806-post-cleanup/index.html) references all 22 images; raw Playwright reports, traces, videos, and payloads are excluded.                                        | The gallery is visual evidence only and does not upgrade mutation, Google, cloud, or accessibility acceptance.                                                       |
 | CSF-E2E-034 | P1       | Developer/operator / database concurrency and integrity     | Atomic contracts needed proof against retry races, cross-tenant relationships, legacy write paths, direct evidence mutation, and a real concurrent close/write interleaving. | Added profile-claim concurrency and idempotent-retry coverage, validated organization-scoped tenant foreign keys, revoked the legacy close path, enforced nine evidence-write guards, and exercised close versus insert through two real database sessions. | The latest isolated replay passes all 43 pgTAP files and 1,279 assertions, including the real `dblink` two-session close-vs-insert race.                                                                                     | These database results do not replace the still-open complete visible mutation lifecycle or cloud acceptance.                                                        |
 | CSF-E2E-035 | P1       | Applicant/member / onboarding and cohort relations          | The final browser run exposed PostgREST relationship ambiguity after new composite tenant foreign keys added multiple possible onboarding/cohort embeds.                     | Private-plugin commit `7f12388` uses explicit constraint embeds for the affected relations and adds a regression guard.                                                                                                                                     | `release-green-20260722` passes all 26 production-mode scenarios after the fix. The only server output is the Next.js diagnostic `Unexpected root span type AppRender.fetch`; there are no application exceptions.           | The diagnostic remains framework output to monitor; external and full-mutation gates remain open.                                                                    |
 | CSF-E2E-036 | P1       | Import-capable officer / Google connection                  | An encrypted Google credential could not safely serve multiple CSF tenants unless every use proved the original authorization context.                                       | Persist the exact organization, plugin, purpose, and capability on the connection; reauthorize that binding on token lookup, refresh, source access, and disconnect. Unbound legacy rows require reconnect.                                                 | Included in the 1,279-assertion database replay and the 73-test focused Bun gate.                                                                                                                                            | No live OAuth, Picker, token refresh, reconnect, revocation, 403, 429, or Drive read was executed.                                                                   |
@@ -138,40 +138,41 @@ The current officer procedure is documented in the [officer runbook](officer-run
 
 ## Acceptance gates
 
-- [x] Clean isolated replay: 190 migrations, 57 CSF tables, 43 pgTAP files, and 1,279/1,279 assertions
+- [x] Clean isolated replay: 214 migrations, 82 CSF tables, 63 pgTAP files, and 3,165/3,165 assertions
 - [x] Profile-claim concurrency/idempotent retry, tenant foreign keys, legacy-close revocation, nine evidence-write guards, and real `dblink` two-session close-vs-insert race
-- [x] Private-plugin unit suite: 272 passed
+- [x] Private-plugin CSF unit/security suite: 2,337 passed
 - [x] Import parser/reconciliation and idempotency tests for the implemented contracts
-- [x] Production-mode isolated Playwright `release-green-20260722`: 26 passed, 3 opt-in screenshot-capture tests intentionally skipped, 0 failed, 52.8 seconds
+- [x] Compiled-runtime CSF Playwright: 40 behavioral scenarios passed, 3 opt-in screenshot captures intentionally skipped, 0 failed
+- [x] DV Playwright: 3 passed after explicit fictional DV fixture seeding
 - [x] Exact profile claim and decline plus navigation/direct-route boundaries for every officer role
-- [x] Separate sanitized gallery: 22 synthetic captures under `20260722-gallery-final`
+- [x] Separate sanitized gallery capture: 3/3 passed and produced 22 reviewed synthetic images under `20260806-post-cleanup`
 - [ ] Keyboard, focus, and screen-reader pass (dark/light and 390/768/1440 px visual coverage passed)
-- [x] 600-application and 1,000-member paging/response test (613.1 ms fixture load; 19.1 ms member directory; 7.7 ms application queue; 94.8 ms relation batches locally)
-- [x] Final post-hardening production build (Next.js 16.2.10, TypeScript, 79 generated pages, sitemap)
+- [x] 600-application and 1,000-member paging/response test (389.2 ms fixture load; 10.8 ms member directory; 4.9 ms application queue; 37.5 ms relation batches locally)
+- [x] Production build (Next.js 16.3.0, TypeScript, 80 generated static pages)
 - [x] Latest focused hardening gate: 73/73 Bun tests with 761 expectations; root typecheck clean; focused ESLint clean
-- [x] Lint: 0 errors and 180 existing warnings
-- [x] `bun run csf:test:workflows` passed locally; public-route subcheck skipped because no app server was running, with structural public privacy covered separately by the green browser suite
+- [x] Formatting, source organization, typecheck, and lint: 0 errors and 0 warnings
+- [x] `bun run csf:test:workflows`, `bun run csf:test:scale`, and the 5-route cron probe passed locally; cron recorded 269 assertions, zero dispatch, and zero egress
+- [x] Supabase advisors report no issues; architecture hard checks and plugin isolation/data-access audits pass
 - [x] Post-hardening private-plugin isolation browser/API smoke
-- [x] Targeted role-navigation suite: 14/14
-- [x] Final full CSF Playwright under `20260722-final-pass`: 26 passed, 3 intentional Google-gated skips, 0 failed, 2.3 minutes
-- [x] Post-hardening production build and complete private-plugin unit-suite rerun
+- [x] Exact detached private gitlink, registry/runtime contracts, and strict submodule validation pass
+- [x] `bun audit --production`: no vulnerabilities
 - [ ] Complete visible signup → organization/install → import → application → points → meetings/clubs → close/reopen mutation lifecycle
 - [ ] Live Google OAuth, account chooser, Picker, reconnect/revocation, and Drive failure-state execution
 - [ ] Native Google Slides process suite; gated by incomplete `T35`
 - [ ] Zero P0/P1 defects across the unexecuted mutation/Google scope; ordinary read-only browser acceptance has no uncaught browser error
 
-### July 22 gate delta
+### Historical July 22 gate delta
 
 - [x] Atomic exact-email profile claim and reasoned officer connection resolution
 - [x] Purpose/capability-bound signed Google OAuth state with connect/callback authorization
 - [x] Strict historical class-activity point values; missing values cannot default to one
 - [x] Transactional term close with unresolved-import blocker and stale-evidence rejection
 - [x] Tracked seed-safety scanner: 9 focused tests
-- [x] Latest isolated replay: 190 migrations, 57 CSF tables, 43 pgTAP files, 1,279/1,279 assertions
+- [x] Historical July isolated replay: 190 migrations, 57 CSF tables, 43 pgTAP files, 1,279/1,279 assertions
 - [x] Database concurrency/integrity: profile claim retry safety, tenant FKs, legacy close revocation, nine evidence-write guards, and a real `dblink` two-session close-vs-insert race
-- [x] Latest private-plugin suite: 272 tests, 0 failures
-- [x] Latest root typecheck and post-hardening production build
-- [x] Lint: 0 errors and 180 existing warnings
+- [x] Historical July private-plugin suite: 272 tests, 0 failures
+- [x] Historical July root typecheck and post-hardening production build
+- [x] Historical July lint: 0 errors and 180 recorded warnings
 - [x] Latest focused hardening verification: 73/73 Bun tests, 761 expectations, clean root typecheck, clean focused ESLint
 - [x] Google credentials bound to exact organization/plugin/purpose/capability; unbound legacy rows require reconnect
 - [x] Atomic signed/manual profile connection with link-type, cohort, accepted-application lock, and stale-retry revalidation
@@ -201,20 +202,20 @@ The current officer procedure is documented in the [officer runbook](officer-run
 
 ## Artifact index
 
-The current sanitized capture is available under `docs/csf/evidence/20260722-gallery-final/`:
+The current sanitized capture is available under `docs/csf/evidence/20260806-post-cleanup/`:
 
-- [`index.html`](evidence/20260722-gallery-final/index.html) — offline curated gallery entry point
-- [`screenshots/`](evidence/20260722-gallery-final/screenshots/) — 22 synthetic officer, member, public, desktop, tablet, phone, light, and dark captures
-- [`41-applications-list.png`](evidence/20260722-gallery-final/screenshots/41-applications-list.png) and [`42-application-review.png`](evidence/20260722-gallery-final/screenshots/42-application-review.png) — compact list and full-page review
-- [`49-imports.png`](evidence/20260722-gallery-final/screenshots/49-imports.png) — staged import workspace using synthetic data
-- [`54-member-my-csf.png`](evidence/20260722-gallery-final/screenshots/54-member-my-csf.png) and [`55-public-page.png`](evidence/20260722-gallery-final/screenshots/55-public-page.png) — member and public boundaries
-- [`verification-summary.md`](evidence/20260722-gallery-final/verification-summary.md) and [`residual-risk-register.md`](evidence/20260722-gallery-final/residual-risk-register.md) — sanitized verification scope and open gates
+- [`index.html`](evidence/20260806-post-cleanup/index.html) — offline curated gallery entry point
+- [`screenshots/`](evidence/20260806-post-cleanup/screenshots/) — 22 synthetic officer, member, public, desktop, tablet, phone, light, and dark captures
+- [`41-applications-list.png`](evidence/20260806-post-cleanup/screenshots/41-applications-list.png) and [`42-application-review.png`](evidence/20260806-post-cleanup/screenshots/42-application-review.png) — compact list and full-page review
+- [`49-imports.png`](evidence/20260806-post-cleanup/screenshots/49-imports.png) — staged import workspace using synthetic data
+- [`54-member-my-csf.png`](evidence/20260806-post-cleanup/screenshots/54-member-my-csf.png) and [`55-public-page.png`](evidence/20260806-post-cleanup/screenshots/55-public-page.png) — member and public boundaries
+- [`verification-summary.md`](evidence/20260806-post-cleanup/verification-summary.md) and [`residual-risk-register.md`](evidence/20260806-post-cleanup/residual-risk-register.md) — sanitized verification scope and open gates
 
-The generated July Playwright report was intentionally removed. Its summarized result remains historical evidence only: 26 passed, 3 intentional Google-gated skips, and 0 failed.
+The previous July gallery and all generated Playwright reports were intentionally removed. The August curated gallery replaces them rather than accumulating another binary evidence set.
 
 No raw trace, video, network payload, cookie, or storage state is included in the curated gallery.
 
-The earlier `release-green-20260722` run skipped 3 opt-in screenshot-capture cases because the curated 22-image gallery was produced separately. The later `20260722-final-pass` run skipped a different set of 3 scenarios that require live Google consent/configuration. Those external scenarios remain intentionally gated; they are not treated as passed.
+The August behavioral run skips only the 3 opt-in screenshot-capture cases. The separate sanitized capture run passes all 3. Live Google scenarios are separately gated and are not treated as passed.
 
 The gallery intentionally omits earlier screenshots containing the real platform
 administrator identity or the chapter inbox. No Google chooser, consent screen,

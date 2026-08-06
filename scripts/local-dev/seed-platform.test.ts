@@ -39,6 +39,18 @@ function occurrenceCount(source: string, value: string) {
 }
 
 describe("local platform seed authorization", () => {
+  test("keeps the isolated CSF administrator fictional and portrait-free", () => {
+    const csfAdmin = sourceSection('key: "csfAdmin"', 'key: "csfOfficer"');
+
+    expect(csfAdmin).toContain('fullName: "CSF Admin Fixture"');
+    expect(csfAdmin).toContain("avatarUrl: null");
+    expect(csfAdmin).not.toContain("Riddhiman Rana");
+    expect(csfAdmin).not.toContain("riddhiman-rana");
+    expect(seedSource).toContain("syncFixturePublicProfile");
+    expect(seedSource).toContain("signInWithPassword");
+    expect(seedSource).toContain("avatar_url: account.avatarUrl ?? null");
+  });
+
   test("V47: preserves the distinction between organization admin and platform super-admin", () => {
     expect(seedSource).toContain("superAdmin: true");
     expect(seedSource).toContain('role: "super_admin"');

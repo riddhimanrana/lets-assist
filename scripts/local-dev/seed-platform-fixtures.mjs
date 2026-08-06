@@ -111,8 +111,8 @@ const accounts = [
   {
     key: "csfAdmin",
     email: "csf.admin@local.test",
-    fullName: "Riddhiman Rana",
-    avatarUrl: "/demo/avatars/riddhiman-rana.png",
+    fullName: "CSF Admin Fixture",
+    avatarUrl: null,
     roles: [null, null, null, "admin"],
   },
   {

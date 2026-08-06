@@ -6,22 +6,24 @@
 - No uncaught application exception is visible in the 22 final synthetic captures.
 - The captured routes rendered their expected CSF content rather than a Next.js error overlay or generic 500 page.
 - The public page contains no visible private application, dues, meeting, point, proof, or audit data.
-- The production-mode isolated Playwright run `release-green-20260722` completed in 52.8 seconds with 26 passed, 3 intentionally skipped opt-in screenshot-capture tests, and 0 failed. The skipped capture tests are distinct from the completed sanitized 22-image curated gallery; no raw test report is bundled.
-- The post-hardening private-plugin isolation browser/API smoke passes, targeted role navigation passes 14/14, and the full CSF Playwright run in `20260722-final-pass` completes in 2.3 minutes with 26 passed, 3 intentional Google consent/configuration skips, and 0 failed.
-- The earlier July 22 production build and 268-test private-plugin baseline passed. The latest hardening delta has clean root typecheck, focused ESLint, 73/73 focused Bun tests, and green browser/isolation gates; a post-hardening production build and complete private-plugin unit rerun remain open.
-- The latest isolated database replay passes 190 migrations, 57 CSF tables, 43 pgTAP files, and all 1,279 assertions. It covers atomic signed/manual profile links, stale-retry and cohort/link-type enforcement, accepted-application locking, validated tenant foreign keys, legacy-close revocation, immutable closure evidence, nine evidence-write guards, and a real `dblink` two-session close-vs-insert race.
-- The latest focused Bun gate passes 73/73 tests with 761 expectations; root typecheck and focused ESLint are clean.
+- The compiled-runtime CSF Playwright run `20260806-cleanup-csf-production` completed with 40 passed, 3 intentionally skipped opt-in gallery captures, and 0 failed. The separate `20260806-post-cleanup-gallery` capture passed 3/3 and produced the 22 reviewed images in this folder.
+- The DV browser suite passed 3/3 after its explicitly optional fictional fixtures were seeded. Private-plugin isolation browser/API smoke and every CSF officer-template navigation/direct-route boundary pass.
+- The production build, zero-warning lint, typecheck, source-organization checks, root process-isolated tests, and 2,337-test private CSF suite pass. `bun audit --production` reports no vulnerabilities.
+- The fresh isolated database replay applied 214 migrations, discovered 82 CSF tables, ran 63 pgTAP files, and passed all 3,165 assertions. Supabase advisors report no issues.
+- Deterministic CSF workflows, 1,000-profile/600-application scale verification, architecture hard checks, plugin isolation/data-access audits, registry/runtime contracts, and strict detached-gitlink validation pass.
+- The five-route cron auth/shape probe passed 269 assertions with zero dispatch and zero egress. Routes outside its explicitly named scope remain unclaimed.
 - Purpose-bound Google authorization is locally verified at the state, storage, token-use, refresh, and disconnect boundaries. This is code/test evidence only; no live Google flow ran.
 - Permission-checked report archives are local ZIP downloads with formula-safe CSV and no Google write destination.
 - The isolated replay used only the dedicated Let’s Assist project identity and label-scoped resources. Vela was not accessed or reused.
-- The browser run exposed a PostgREST ambiguity caused by new composite foreign keys on onboarding/cohort relations. Private-plugin commit `7f12388` adds explicit constraint embeds and a regression guard; the final rerun passes.
+- Teardown first passed a full dry-run ownership proof, then removed the exact isolated project. A second check found no launcher-owned container, volume, network, work directory, or generated secret remaining.
+- The seed/gallery review found and fixed a stale public-profile identity: reseeding now synchronizes the fictional auth identity through the ordinary authenticated self-update policy and clears the CSF admin portrait.
 - The private registry statically imports its required submodule rather than silently returning an empty registry after a failed dynamic load. Isolation smoke uses the seeded DV admin with a 30-second cold-compile deadline.
 - Fixture reset preserves audit-linked profiles and reruns cleanly. Project-feed requests are aborted and ignored only when navigation makes them obsolete; genuine failures remain visible. Permission-denial assertions are scoped to the sole alert.
-- The only server output in the green run was the Next.js diagnostic `Unexpected root span type AppRender.fetch`. No application exception was emitted.
+- Production builds report the documented dynamic-require analysis warnings in waiver/cron modules; the compiled application and browser gates complete successfully. These warnings are retained as review evidence rather than hidden.
 
 ## Known development observations
 
-- The Next.js development server may perform a memory-threshold restart during the large screenshot sweep. The gallery harness retries the route once. The final production build and sequential production Playwright run pass, so this remains a development-runner observation rather than evidence of a production crash.
+- Long development-mode browser runs can invalidate client modules during incremental recompilation. The canonical E2E commands now use the same compiled runtime locally and in CI; interactive development remains a separate launcher.
 - Some captures show the footer service badge as `Checking` because the image was taken before the asynchronous health request settled. This label is excluded from availability acceptance.
 - A successful page render does not prove server authorization. Role denial and private-response boundaries are verified by the role-based browser and server suites.
 - The earlier login automation race was corrected by waiting for the form's explicit hydrated-ready marker. The isolated-stack environment resolver now accepts local Supabase loopback URLs on arbitrary ports.

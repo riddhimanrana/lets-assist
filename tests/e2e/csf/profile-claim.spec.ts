@@ -225,8 +225,13 @@ test.describe("reusable class-link profile claiming", () => {
     await expect(
       page.getByRole("main").getByText("Taylor Fixture", { exact: true }),
     ).toBeVisible();
+    const candidate = page
+      .getByRole("heading", {
+        name: "We found your CSF record — is this you?",
+      })
+      .locator("..");
     await expect(
-      page
+      candidate
         .locator('[data-slot="badge"]')
         .filter({ hasText: /^Class of 2028$/ }),
     ).toBeVisible();
