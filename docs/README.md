@@ -10,6 +10,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Testing](development/testing.md)
 - [Deployment boundaries](development/deployment.md)
 - [Cleanup register](development/cleanup-register.md)
+- [Dependency modernization ledger](development/dependency-modernization.md)
 
 ## Architecture
 
@@ -32,6 +33,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Member import parser setup](development/member-imports.md)
 - [Google Cross-Account Protection](development/google-cross-account-protection.md)
 - [Database simplification roadmap](development/database-simplification-roadmap.md)
+- [Dependency modernization ledger](development/dependency-modernization.md)
 
 ## DVHS CSF
 

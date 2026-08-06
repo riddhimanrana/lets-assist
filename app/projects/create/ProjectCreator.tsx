@@ -1159,6 +1159,7 @@ export default function ProjectCreator({
 
       // Force a full page redirect using window.location.href instead of Next.js router
       // This ensures the page fully loads on production
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = `/projects/${projectId}`;
     } catch (error) {
       console.error("Error submitting project:", error);

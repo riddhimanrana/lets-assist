@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useRouter } from "next/navigation";
 
 // Constants for validation
 const _USERNAME_MIN_LENGTH = 3;
@@ -59,6 +60,7 @@ export default function InitialOnboardingModal({
   currentEmail: _currentEmail,
   autoJoinedOrg,
 }: InitialOnboardingModalProps) {
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
     null,
@@ -279,7 +281,7 @@ export default function InitialOnboardingModal({
         }
 
         setTimeout(() => {
-          window.location.href = "/home?onboarding=complete";
+          router.replace("/home?onboarding=complete");
         }, 1000);
       }
     } catch (error) {

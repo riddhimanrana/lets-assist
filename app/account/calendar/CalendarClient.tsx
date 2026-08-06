@@ -76,6 +76,8 @@ export default function CalendarClient({
   const [removingEventId, setRemovingEventId] = useState<string | null>(null);
 
   const handleConnect = async () => {
+    // OAuth begins with a redirect response, so this must be a document navigation.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href =
       "/api/calendar/google/connect?purpose=personal_calendar";
   };

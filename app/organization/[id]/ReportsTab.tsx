@@ -284,6 +284,11 @@ export default function ReportsTab({
   const connectUrl = `/api/calendar/google/connect?purpose=organization_sheets&scopes=sheets&sheets_sync=1&force=1&org_id=${organizationId}&return_to=${encodeURIComponent(
     `/organization/${orgSlugOrId}?tab=reports`,
   )}`;
+  const startGoogleConnection = () => {
+    // OAuth begins with a redirect response, so this must be a document navigation.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = connectUrl;
+  };
   const pickerApiKey = process.env.NEXT_PUBLIC_GOOGLE_PICKER_API_KEY;
   const setupBlockedReason = viewerMissingConnection
     ? "Connect your Google account to set up Sheets sync."
@@ -953,9 +958,7 @@ export default function ReportsTab({
                         <div className="space-y-2">
                           <Button
                             variant="outline"
-                            onClick={() => {
-                              window.location.href = connectUrl;
-                            }}
+                            onClick={startGoogleConnection}
                           >
                             {sheetStatus?.viewerIsOwner
                               ? "Reconnect Google Sheets"
@@ -983,12 +986,7 @@ export default function ReportsTab({
                         Connect Google Sheets to create and sync organization
                         reports.
                       </p>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          window.location.href = connectUrl;
-                        }}
-                      >
+                      <Button variant="outline" onClick={startGoogleConnection}>
                         Connect Google Sheets
                       </Button>
                     </>
@@ -1059,9 +1057,7 @@ export default function ReportsTab({
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                            window.location.href = connectUrl;
-                          }}
+                          onClick={startGoogleConnection}
                         >
                           {viewerConnected && viewerScopesOk
                             ? "Take over with my Google account"
@@ -1478,9 +1474,7 @@ export default function ReportsTab({
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => {
-                                      window.location.href = connectUrl;
-                                    }}
+                                    onClick={startGoogleConnection}
                                   >
                                     {viewerConnected && viewerScopesOk
                                       ? "Take over with my Google account"
@@ -1516,9 +1510,7 @@ export default function ReportsTab({
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => {
-                                window.location.href = connectUrl;
-                              }}
+                              onClick={startGoogleConnection}
                             >
                               {viewerMissingConnection
                                 ? "Connect Google Sheets"

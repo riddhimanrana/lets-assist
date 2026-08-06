@@ -372,6 +372,8 @@ export default function SecurityClient() {
         if (result.success) {
           localStorage.clear();
           sessionStorage.clear();
+          // Account deletion must reload the document so no authenticated client state survives.
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
           window.location.href = "/?deleted=true&noRedirect=1";
         }
       }

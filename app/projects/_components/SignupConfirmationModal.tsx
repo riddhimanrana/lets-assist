@@ -203,6 +203,7 @@ export function SignupConfirmationModal({
       const returnUrl = `/projects/${project.id}`;
 
       // Redirect to OAuth
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = `/api/calendar/google/connect?purpose=personal_calendar&scopes=calendar&return_to=${encodeURIComponent(returnUrl)}`;
     } catch (error) {
       console.error("Failed to connect calendar:", error);

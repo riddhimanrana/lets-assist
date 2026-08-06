@@ -198,6 +198,8 @@ export const NotificationService = {
                 "Personalize your profile by setting a custom username in your account settings.",
               action: {
                 label: "Go to settings",
+                // This service is framework-agnostic and cannot use the Next.js navigation hook.
+                // eslint-disable-next-line @next/next/no-location-assign-relative-destination
                 onClick: () => (window.location.href = "/account/profile"),
               },
             });

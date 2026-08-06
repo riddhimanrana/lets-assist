@@ -301,7 +301,7 @@ export default function OrganizationHeader({
                   {
                     action: {
                       label: "Go to Organizations",
-                      onClick: () => (window.location.href = "/organization"),
+                      onClick: () => router.push("/organization"),
                     },
                   },
                 )
