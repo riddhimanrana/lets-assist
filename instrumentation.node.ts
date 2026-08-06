@@ -52,7 +52,7 @@ async function startPostHogTraceExporter() {
     const sdk = new NodeSDK({
       resource: resourceFromAttributes({ "service.name": "lets-assist" }),
       traceExporter: new PostHogTraceExporter({
-        apiKey: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
+        projectToken: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
         host: "https://us.i.posthog.com",
       }),
     });
