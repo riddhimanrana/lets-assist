@@ -78,9 +78,31 @@ Validation completed for this group:
 - preview-isolated production build under Node `22.23.2`, including ESM sitemap generation and 80 routes
 - production dependency audit re-run; unrelated findings remain open under `CLEAN-003`
 
+## Observability and AI group — 2026-08-05
+
+| Package family  | Previous         | Selected  | Decision                                                                                                                                                                                                                               |
+| --------------- | ---------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AI SDK          | 6.0.158          | 6.0.244   | Latest stable 6.x release compatible with PostHog AI's declared AI-provider peer range. AI SDK 7 is intentionally deferred because it installs provider API 4, while PostHog AI 8.6.7 declares compatibility with provider API 2 or 3. |
+| PostHog AI      | 7.21.0           | 8.6.7     | Latest stable; removes unused provider/LangChain packages from the production tree and includes current stream, redaction, and failure-isolation fixes.                                                                                |
+| PostHog browser | 1.408.0          | 1.413.2   | Latest stable; includes current replay privacy and unhandled-request-failure fixes and resolves a fixed DOMPurify.                                                                                                                     |
+| OpenTelemetry   | 2.10.0 / 0.221.0 | unchanged | The installed stable/experimental pair is already the current matched release. Its accepted gRPC child is forced from 1.14.3 to the fixed 1.14.4 patch.                                                                                |
+
+PostHog AI 8 renamed the OTLP exporter credential option from `apiKey` to `projectToken`; the Node instrumentation now uses the new explicit name. The package also requires Node 22.22 or newer, so the declared engine floor is now `22.22.0` while CI and local setup remain pinned to `22.23.2`.
+
+AI SDK provider-utils still declares Undici 5 even though the fixed security line is 6.23 or newer. Its runtime fallback uses only the stable `Agent` and `fetch` surface. Bun therefore resolves one reviewed Undici `7.29.0` across provider-utils and shadcn, and a runtime contract loads Undici from provider-utils' own module boundary to prove the expected implementation and API are present.
+
+Validation completed for this group:
+
+- current Context7 documentation and official AI SDK/PostHog changelog review
+- frozen Bun install and explicit dependency ancestry for gRPC, LangChain, DOMPurify, UUID, and Undici
+- AI SDK 6 bundled documentation and source review for `generateText`, `streamText`, `Output.object`, gateway, and telemetry usage
+- `bun run quality:static`
+- `bun run test`, including the Undici runtime boundary and 2,426 private-plugin tests
+- preview-isolated production build under Node `22.23.2`
+- production dependency audit reduced from 94 findings before the dependency series to 36; remaining provider/general findings stay open under `CLEAN-003`
+
 ## Remaining groups
 
-1. PostHog, OpenTelemetry, and AI packages.
-2. Resend, Stripe, Google integrations, and general utilities.
+1. Resend, Stripe, Google integrations, and general utilities.
 
 The completion condition remains no critical/high advisory, no unreviewed lower-severity advisory, no stale compatible direct dependency, and no unexplained duplicate family.

@@ -32,6 +32,7 @@ const groups = [
       ...preload,
       "components/projects/project-feed-lifecycle.test.ts",
       "lib/auth/theme-script-boundary.test.ts",
+      "lib/ai/dependency-boundaries.test.ts",
       "lib/supabase/retry-query.test.ts",
       "lib/supabase/retry-policy-boundary.test.ts",
       "scripts/local-dev/csf-browser-harness.launcher-ownership.test.ts",
