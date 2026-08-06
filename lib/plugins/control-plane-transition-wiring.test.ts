@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readProjectActionSource } from "@/tests/support/project-action-source";
+import { readOrganizationSettingsActionSource } from "@/tests/support/organization-settings-action-source";
+import { readAdminPluginActionSource } from "@/tests/support/admin-plugin-action-source";
+import { readProjectCreateActionSource } from "@/tests/support/project-create-action-source";
 
 const root = join(import.meta.dir, "../..");
 
@@ -17,11 +20,11 @@ function exportedFunctionSource(source: string, name: string) {
 }
 
 describe("plugin control-plane action wiring", () => {
-  const organizationActions = read("app/organization/[id]/settings/actions.ts");
+  const organizationActions = readOrganizationSettingsActionSource();
   const organizationPluginSettings = read(
     "app/organization/[id]/settings/OrganizationPluginSettings.tsx",
   );
-  const adminActions = read("app/admin/plugins/actions.ts");
+  const adminActions = readAdminPluginActionSource();
   const transitionAdapter = read("lib/plugins/control-plane-transition.ts");
   const transitionLockMigration = read(
     "supabase/migrations/20260712012500_serialize_plugin_control_plane_transitions.sql",
@@ -91,7 +94,7 @@ describe("plugin control-plane action wiring", () => {
   });
 
   test("project creation and signup lifecycle integrations remain wired", () => {
-    const projectCreate = read("app/projects/create/actions.ts");
+    const projectCreate = readProjectCreateActionSource();
     const projectActions = readProjectActionSource(root);
     expect(projectCreate).toContain("runProjectCreate(plugin, {");
     expect(projectActions).toContain("runPluginOnSignup(definition, {");

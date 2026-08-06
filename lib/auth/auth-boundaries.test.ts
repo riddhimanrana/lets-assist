@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { readProjectActionSource } from "@/tests/support/project-action-source";
+import { readAdminActionSource } from "@/tests/support/admin-action-source";
 
 const ROOT = process.cwd();
 const SENSITIVE_MFA_GUARD =
@@ -42,7 +43,7 @@ test("confirmation never reports success without a verification credential", () 
 });
 
 test("the shared super-admin guard uses fresh auth and MFA assurance", () => {
-  const source = read("app/admin/actions.ts");
+  const source = readAdminActionSource();
   assert.match(source, /getAuthUser\(\{ sensitive: true, checkMfa: true \}\)/u);
 });
 

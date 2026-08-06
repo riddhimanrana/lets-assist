@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { readAttendanceActionSource } from "@/tests/support/attendance-action-source";
 
 import {
   EMAIL_ALIAS_RESEND_COOLDOWN_MS,
@@ -69,10 +70,7 @@ test("alias writes are server-only and verification is bounded in SQL", () => {
     ),
     "utf8",
   );
-  const attendanceActions = readFileSync(
-    join(process.cwd(), "app/attend/[projectId]/actions.ts"),
-    "utf8",
-  );
+  const attendanceActions = readAttendanceActionSource();
   const confirmRoute = readFileSync(
     join(process.cwd(), "app/auth/confirm/route.ts"),
     "utf8",
