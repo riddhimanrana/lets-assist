@@ -36,11 +36,32 @@ Validation completed for this group:
 - `bun why next` and `bun why sharp`
 - production dependency audit re-run; remaining findings stay open under `CLEAN-003`
 
+## Supabase group — 2026-08-05
+
+| Package family        | Previous | Selected | Decision                                                                                                                                                                                                   |
+| --------------------- | -------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Supabase JS/PostgREST | 2.108.2  | 2.112.1  | Latest stable, pinned exactly with one resolved family.                                                                                                                                                    |
+| Supabase SSR          | 0.12.0   | 0.12.4   | Latest stable; existing `getAll`/`setAll` adapters are retained, and proxy cookie writes preserve the SDK's private no-cache headers.                                                                      |
+| Supabase CLI          | 2.111.0  | 2.111.0  | Already the latest stable registry release; the isolated Docker identity oracle remains unchanged.                                                                                                         |
+| Node.js runtime       | implicit | 22.23.2  | Supabase client libraries now require Node 22 or newer. The application pins the current Node 22 LTS patch in `.node-version`, declares the supported 22.x engine range, and installs it explicitly in CI. |
+| Node types            | 20.19.43 | 22.20.1  | Latest stable typings for the selected Node 22 runtime line.                                                                                                                                               |
+
+Supabase JS now retries transient GET/HEAD requests automatically. This application already classifies and bounds idempotent read retries through `withRetryableSupabaseQuery`, so all four application client factories set `db.retry` to `false`. A source-boundary regression test prevents a future client factory from multiplying one logical attempt into nested SDK retries.
+
+Validation completed for this group:
+
+- current Supabase changelog review, including Node 20 support removal and automatic PostgREST retries
+- frozen Bun install and explicit Supabase dependency ancestry
+- `bun run quality:static`
+- `bun run test`, including the retry-policy regression and 2,426 private-plugin tests
+- preview-isolated production build under Node `22.23.2`, with 80 generated routes
+- pinned Supabase CLI `--help`, version, and existing exact-version contract tests
+- production dependency audit re-run; unrelated findings remain open under `CLEAN-003`
+
 ## Remaining groups
 
-1. Supabase client packages and pinned CLI.
-2. Playwright and test tooling.
-3. PostHog, OpenTelemetry, and AI packages.
-4. Resend, Stripe, Google integrations, and general utilities.
+1. Playwright and test tooling.
+2. PostHog, OpenTelemetry, and AI packages.
+3. Resend, Stripe, Google integrations, and general utilities.
 
 The completion condition remains no critical/high advisory, no unreviewed lower-severity advisory, no stale compatible direct dependency, and no unexplained duplicate family.

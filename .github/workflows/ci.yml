@@ -102,6 +102,11 @@ jobs:
           git -C lib/plugins/private remote set-url origin https://github.com/riddhimanrana/lets-assist-plugins.git
           git submodule absorbgitdirs lib/plugins/private
 
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -183,6 +188,11 @@ jobs:
         run: |
           git -C lib/plugins/private remote set-url origin https://github.com/riddhimanrana/lets-assist-plugins.git
           git submodule absorbgitdirs lib/plugins/private
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

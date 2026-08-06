@@ -32,6 +32,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
@@ -107,6 +112,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
@@ -172,6 +182,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
@@ -221,6 +236,11 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1

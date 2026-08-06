@@ -2,6 +2,14 @@
 
 Choose the environment before running commands. The shared local and isolated CSF stacks are different databases and must not be mixed.
 
+## Runtime prerequisites
+
+- Node.js `22.23.2`, pinned in `.node-version`; `package.json` accepts the supported Node 22 line only.
+- Bun `1.3.14`, pinned in `packageManager` and CI.
+- Supabase CLI `2.111.0`, pinned by the isolated-stack scripts and workflows.
+
+CI installs the declared Node runtime explicitly before Bun so every `node`-backed script uses the same supported runtime as hosted application code.
+
 | Environment         | Purpose                                    | Start                                       | Data                                         | Production impact                       |
 | ------------------- | ------------------------------------------ | ------------------------------------------- | -------------------------------------------- | --------------------------------------- |
 | Shared local        | Platform and non-CSF work                  | `bun run supabase`, then `bun run dev:next` | Deterministic fictional platform/DV fixtures | None                                    |
