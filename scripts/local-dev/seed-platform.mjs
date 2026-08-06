@@ -378,6 +378,34 @@ async function upsertAuthUser(admin, account) {
   return data.user;
 }
 
+async function syncFixturePublicProfile({ url, serviceRoleKey, account, id }) {
+  // PostgREST intentionally does not let the service-role API mutate public
+  // profiles as a substitute for the authenticated owner. Sign in as the
+  // run-scoped fictional account and exercise the ordinary self-update policy.
+  const fixtureClient = createClient(url, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data: session, error: signInError } =
+    await fixtureClient.auth.signInWithPassword({
+      email: account.email,
+      password: fixturePassword,
+    });
+  if (signInError) throw signInError;
+  if (session.user?.id !== id) {
+    throw new Error(`Fixture profile identity mismatch for ${account.email}.`);
+  }
+
+  const { error: profileError } = await fixtureClient
+    .from("profiles")
+    .update({
+      full_name: account.fullName,
+      avatar_url: account.avatarUrl ?? null,
+      username: account.email.split("@")[0].replaceAll(".", "-"),
+    })
+    .eq("id", id);
+  if (profileError) throw profileError;
+}
+
 async function must(label, promise) {
   const result = await promise;
   if (result.error) throw new Error(`${label}: ${result.error.message}`);
@@ -398,6 +426,32 @@ async function main() {
   const users = {};
   for (const account of seededAccounts) {
     users[account.key] = await upsertAuthUser(admin, account);
+  }
+
+  // The auth insertion trigger creates the public profile only once. Updating
+  // an existing fixture user's auth metadata does not resynchronize that row,
+  // so reseeds must explicitly keep the visible identity fictional too. This
+  // also clears a previously seeded portrait when `avatarUrl` is null.
+  for (const account of seededAccounts) {
+    if (PLAN_LEDGER_PATH) {
+      await must(
+        `fixture public profile ${account.key}`,
+        admin
+          .from("profiles")
+          .update({
+            full_name: account.fullName,
+            avatar_url: account.avatarUrl ?? null,
+          })
+          .eq("id", users[account.key].id),
+      );
+      continue;
+    }
+    await syncFixturePublicProfile({
+      url,
+      serviceRoleKey,
+      account,
+      id: users[account.key].id,
+    });
   }
 
   await must(

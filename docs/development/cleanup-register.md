@@ -4,12 +4,10 @@ This register separates actionable repository defects from provider/account and 
 
 ## Repository-owned P0–P2
 
-| ID        | Priority | Finding                                                                                                                                                   | Owner                  | Evidence / exit gate                                     |
-| --------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | -------------------------------------------------------- |
-| CLEAN-001 | P2       | Split oversized root action, report, moderation, and seed modules without changing public contracts.                                                      | Root cleanup PRs       | Maintainability check plus focused tests and build       |
-| CLEAN-002 | P2       | Split oversized private CSF actions, dashboard assembly, and import-integrity tests.                                                                      | Private CSF cleanup PR | Private tests, root gitlink integration, isolated replay |
-| CLEAN-004 | P2       | Complete keyboard, focus, reduced-motion, and screen-reader acceptance for CSF roles and breakpoints.                                                     | CSF UX cleanup PR      | Automated checks plus sanitized browser evidence         |
-| CLEAN-005 | P2       | Complete visible synthetic CSF mutation lifecycle for profile claim/resolution, imports, applications, points, meetings/clubs, close/reopen, and reports. | CSF acceptance PR      | Role matrix at desktop/tablet/phone                      |
+| ID        | Priority | Finding                                                                                                                                                   | Owner             | Evidence / exit gate                             |
+| --------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------ |
+| CLEAN-004 | P2       | Complete keyboard, focus, reduced-motion, and screen-reader acceptance for CSF roles and breakpoints.                                                     | CSF UX cleanup PR | Automated checks plus sanitized browser evidence |
+| CLEAN-005 | P2       | Complete visible synthetic CSF mutation lifecycle for profile claim/resolution, imports, applications, points, meetings/clubs, close/reopen, and reports. | CSF acceptance PR | Role matrix at desktop/tablet/phone              |
 
 No repository-owned P0 is currently recorded. This is not a claim that undiscovered defects are impossible.
 
@@ -30,3 +28,9 @@ No repository-owned P0 is currently recorded. This is not a claim that undiscove
 | Test process isolation              | `bun run test` executes mock-sensitive groups in separate Bun processes and completes the root and private-plugin suites.                                                                              |
 | Artifact boundary                   | Generated browser output and formatter caches use ignored `.artifacts/`; the allowlisted cleaner is dry-run by default.                                                                                |
 | Production dependency audit         | `bun audit --production` reports no vulnerabilities and now runs inside `quality:static`; compatible direct dependencies are current and four major-version holds have explicit peer/runtime evidence. |
+| Root module extraction              | Oversized root action, report, moderation, seed, and browser-harness code is split behind compatibility exports; maintainability checks, focused tests, and the production build pass.                 |
+| Private CSF module extraction       | The private CSF actions, dashboard assembly, and import-integrity suites are split by domain; 2,337 private tests, root gitlink integration, and the isolated replay pass.                             |
+| Compiled browser runtime            | Local CSF/DV E2E now uses the same compiled runtime as CI, eliminating the development hot-reload module invalidation failure; CSF passes 40/40 behavioral scenarios and DV passes 3/3.                |
+| Fictional fixture identity          | CSF admin fixtures no longer reuse a real owner name or portrait; seed reruns synchronize the public profile through authenticated self-update RLS, with regression coverage and reviewed screenshots. |
+| Isolated teardown                   | Dry-run ownership validation preceded deletion; the exact CSF stack then proved zero residual labeled containers, volumes, or networks and removed its generated work directory and secrets.           |
+| Fresh-install dependency graph      | The global Ajv override that broke ESLint after a clean Bun install is removed, and the imported Shadcn Tailwind v4 stylesheet is now declared; both resolutions have regression coverage.             |

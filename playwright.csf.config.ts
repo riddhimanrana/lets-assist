@@ -110,7 +110,11 @@ export default defineConfig({
       PATH: process.env.PATH ?? "/usr/bin:/bin",
       HOME: process.env.HOME ?? "",
       CSF_ISOLATED_WORK_DIR: isolatedStack.workDir,
-      CSF_BROWSER_SERVER_MODE: process.env.CI ? "production" : "development",
+      // Browser acceptance must exercise the same compiled runtime locally and
+      // in CI. The interactive server can invalidate modules while a long,
+      // sequential suite is still interacting with the page, which made local
+      // dialog and menu failures disagree with the hosted gate.
+      CSF_BROWSER_SERVER_MODE: "production",
     },
   },
 });

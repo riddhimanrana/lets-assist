@@ -17,6 +17,6 @@ Preserve the established officer workflows: sheet-like point processing, profile
 - [Officer runbook](officer-runbook.md)
 - [Testing, release, and residual risk](testing-and-release.md)
 - [Synthetic workbook](reference/c-o-2028-synthetic.xlsx)
-- [Curated evidence](evidence/20260722-gallery-final/index.html)
+- [Curated evidence](evidence/20260806-post-cleanup/index.html)
 
 The implementation lives in `lib/plugins/private/plugins/dvhs-csf`; the root repository owns the integration boundary, migrations, launchers, and acceptance orchestration.

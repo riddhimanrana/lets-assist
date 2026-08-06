@@ -1,10 +1,10 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** latest isolated database, post-hardening production build/private-unit suites, plugin-isolation smoke, 14/14 role navigation, and 26-pass CSF browser gate passed; live Google, cloud-development, full mutation, accessibility, and Slides acceptance remain pending
+**Current status:** the August 6 isolated database replay, production build, root/private suites, plugin-isolation checks, 40-scenario CSF browser gate, 3-scenario DV gate, and sanitized gallery passed; live Google, hosted Development, complete visible mutation, accessibility, and Slides acceptance remain pending
 **Authoritative record after review:** Let's Assist
 
-This runbook describes the intended officer workflow using the verified July 22 local contracts. Do not use it for a production cutover until the remaining Google, remote-development, full browser-mutation, accessibility, and Slides gates in [testing and release](testing-and-release.md) pass.
+This runbook describes the intended officer workflow using the verified August 6 local contracts. Do not use it for a production cutover until the remaining Google, remote-development, full browser-mutation, accessibility, and Slides gates in [testing and release](testing-and-release.md) pass.
 
 ## 1. Start of each work session
 
@@ -179,25 +179,25 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [x] Strict historical point import; no one-point fallback
 - [x] Transactional semester close with stale-evidence rejection
 - [x] Fictional-only tracked seed enforcement
-- [x] Clean isolated replay through 190 migrations, 57 CSF tables, 43 pgTAP files, and 1,279/1,279 assertions
+- [x] Clean isolated replay through 214 migrations, 82 CSF tables, 63 pgTAP files, and 3,165/3,165 assertions
 - [x] Profile claim concurrency/idempotent retry, validated tenant foreign keys, legacy close revocation, nine evidence-write guards, and real `dblink` two-session close-vs-insert race
 - [x] Final post-hardening production build and root typecheck
-- [x] Lint completed with 0 errors and 180 existing warnings
-- [x] Private-plugin unit suite: 272 passed
+- [x] Lint completed with 0 errors and 0 warnings
+- [x] Private-plugin CSF unit/security suite: 2,337 passed
 - [x] Latest focused hardening gate: 73/73 Bun tests with 761 expectations, clean root typecheck, clean focused ESLint
 - [x] Exact Google organization/plugin/purpose/capability binding with legacy reconnect
 - [x] Signed/manual profile-link link-type, cohort, application-lock, and stale-retry hardening
 - [x] Local ZIP reports with formula-safe CSV and no Google write destination
 - [x] Dedicated CSF stack validation and label-scoped cleanup; no Vela infrastructure access
-- [x] Production-mode isolated Playwright `release-green-20260722`: 26 passed, 3 opt-in screenshot-capture tests intentionally skipped, 0 failed, 52.8 seconds
+- [x] Compiled-runtime CSF Playwright: 40 behavioral scenarios passed, 3 opt-in screenshot captures intentionally skipped, 0 failed
 - [x] Post-hardening private-plugin isolation browser/API smoke using the seeded DV admin and a 30-second cold-compile deadline
 - [x] Targeted role-navigation matrix: 14/14
-- [x] Full CSF Playwright `20260722-final-pass`: 26 passed, 3 intentional Google-gated skips, 0 failed, 2.3 minutes
+- [x] DV Playwright: 3 passed after explicit fictional DV fixture seeding
 - [x] Repeatable fixture reset preserves audit-linked profiles; obsolete project-feed fetches cancel cleanly; denial assertion targets the sole alert
 - [x] Composite-FK PostgREST onboarding/cohort ambiguity fixed in private-plugin commit `7f12388` with explicit constraint embeds and regression coverage
 - [x] Exact profile claim and decline plus navigation/direct-route boundaries for every officer role
 - [x] Login hydration-ready marker and arbitrary-port isolated Supabase environment resolution
-- [x] Final sanitized 22-image curated gallery at [`evidence/20260722-gallery-final/index.html`](evidence/20260722-gallery-final/index.html), separate from generated Playwright output
+- [x] Final sanitized 22-image curated gallery at [`evidence/20260806-post-cleanup/index.html`](evidence/20260806-post-cleanup/index.html), separate from generated Playwright output
 - [ ] Complete green PR checks; least-privilege `PRIVATE_SUBMODULE_TOKEN`, GitGuardian disposition for the removed local-only fixture password, and authenticated Vercel Preview diagnosis remain open
 - [x] Post-hardening production build and full private-plugin unit-suite rerun
 - [ ] Persistent isolated Supabase development branch after explicit `$0.01344/hour` cost confirmation
