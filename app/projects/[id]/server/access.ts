@@ -1,3 +1,5 @@
+"use server";
+
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -46,7 +48,7 @@ export type CurrentUserProjectPermissions = {
   canManageProject: boolean;
 };
 
-export const getManageableProjectOrganizationId = (
+const getManageableProjectOrganizationId = (
   project?: ManageableProjectRecord | null,
 ) => project?.organization_id ?? project?.organization?.id ?? null;
 

@@ -1,5 +1,3 @@
-"use server";
-
 export {
   isProjectCreator,
   getCurrentUserProjectPermissions,

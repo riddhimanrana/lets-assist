@@ -1,3 +1,5 @@
+"use server";
+
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";

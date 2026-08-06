@@ -49,7 +49,7 @@ function exportedNames(source: string) {
 describe("project action module boundaries", () => {
   test("preserves the complete public action surface through the compatibility barrel", () => {
     expect(exportedNames(barrelSource)).toEqual([...PUBLIC_ACTIONS].sort());
-    expect(barrelSource.startsWith('"use server";')).toBe(true);
+    expect(barrelSource).not.toContain('"use server"');
     expect(barrelSource).not.toContain("getAdminClient(");
     expect(barrelSource).not.toContain('.from("');
   });

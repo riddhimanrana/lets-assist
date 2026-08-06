@@ -1,5 +1,3 @@
-"use server";
-
 export { getPluginControlPlaneData } from "./server/query";
 export {
   bulkUpsertOrganizationPluginEntitlements,

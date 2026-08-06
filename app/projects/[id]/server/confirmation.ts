@@ -1,3 +1,5 @@
+"use server";
+
 import "server-only";
 import { type Project } from "@/types";
 import crypto from "crypto";

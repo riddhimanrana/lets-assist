@@ -1,5 +1,3 @@
-"use server";
-
 export { getOrganizationMembers } from "./server/members";
 export {
   bulkInviteMembers,

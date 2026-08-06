@@ -1,5 +1,3 @@
-"use server";
-
 export { getSheetSyncStatus } from "./server/status";
 export {
   createSheetSync,

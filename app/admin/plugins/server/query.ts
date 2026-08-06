@@ -1,3 +1,5 @@
+"use server";
+
 import "server-only";
 
 import { getAdminClient } from "@/lib/supabase/admin";

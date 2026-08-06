@@ -1,5 +1,3 @@
-"use server";
-
 export { checkSuperAdmin } from "./server/auth";
 export { sendSystemNotification } from "./server/notifications";
 export {

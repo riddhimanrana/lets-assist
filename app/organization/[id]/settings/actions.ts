@@ -1,5 +1,3 @@
-"use server";
-
 export {
   checkUsernameAvailability,
   deleteOrganization,

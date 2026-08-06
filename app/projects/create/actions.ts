@@ -1,5 +1,3 @@
-"use server";
-
 export { createBasicProject } from "./server/create";
 export {
   linkProjectUploadedAssets,

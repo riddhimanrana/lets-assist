@@ -1,3 +1,5 @@
+"use server";
+
 import "server-only";
 
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
