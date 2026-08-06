@@ -50,9 +50,7 @@ const BINARY_EXTENSIONS = new Set([
 // growth beyond these reviewed line counts fail immediately; cleanup PRs remove
 // entries as modules are split below their category limit.
 const OVERSIZED_BASELINE = Object.freeze({
-  "lets-assist": Object.freeze({
-    "components/projects/ProjectsInfiniteScroll.tsx": 1759,
-  }),
+  "lets-assist": Object.freeze({}),
   private: Object.freeze({
     "plugins/dvhs-csf/actions.ts": 11145,
     "plugins/dvhs-csf/services/import-integrity.test.ts": 10065,
