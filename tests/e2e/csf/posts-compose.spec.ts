@@ -57,8 +57,11 @@ test.describe("officer post compose in the class Stream", () => {
     const stream = page.getByRole("region", { name: "Class stream" });
     await expect(stream).toBeVisible();
 
-    // Compose: the dialog arrives preseeded to this class's audience.
-    await stream.getByRole("button", { name: "New post", exact: true }).click();
+    // Compose: the composer row opens the dialog, preseeded to this class's
+    // audience. The row names the class it posts to rather than the action.
+    await stream
+      .getByRole("button", { name: "Announce something to Class of 2028" })
+      .click();
     const dialog = page.getByRole("dialog");
     await expect(
       dialog.getByRole("heading", { name: "Write a post" }),
@@ -71,7 +74,7 @@ test.describe("officer post compose in the class Stream", () => {
 
     // The email decision exists but stays off for this scenario.
     const emailToggle = dialog.getByRole("checkbox", {
-      name: /Also send as email to that class/,
+      name: "Also send this as an email",
     });
     await expect(emailToggle).toBeVisible();
     await expect(emailToggle).not.toBeChecked();
@@ -102,18 +105,21 @@ test.describe("officer post compose in the class Stream", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     const composedEntry = page
       .getByRole("region", { name: "Class stream" })
-      .locator("> div")
+      .getByRole("article")
       .filter({ hasText: composedTitle });
     await expect(composedEntry).toHaveCount(1);
-    await expect(
-      composedEntry.getByText("published", { exact: true }),
-    ).toBeVisible();
-    await expect(
-      composedEntry.getByText("Class of 2028", { exact: true }),
-    ).toBeVisible();
+    // Published is the Stream's expected state and deliberately carries no
+    // badge; the states an officer still has to act on are the ones that do.
+    await expect(composedEntry.getByText("Draft", { exact: true })).toHaveCount(
+      0,
+    );
+    await expect(composedEntry.getByText(/^Scheduled/)).toHaveCount(0);
+    await expect(composedEntry).toContainText("Class of 2028");
 
     // Pin it from the Stream controls.
-    await composedEntry.getByRole("button", { name: "Pin", exact: true }).click();
+    await composedEntry
+      .getByRole("button", { name: "Pin post", exact: true })
+      .click();
     await expect
       .poll(async () => {
         const { data } = await fixture.admin
@@ -130,11 +136,11 @@ test.describe("officer post compose in the class Stream", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     const pinnedEntry = page
       .getByRole("region", { name: "Class stream" })
-      .locator("> div")
+      .getByRole("article")
       .filter({ hasText: composedTitle });
     await expect(pinnedEntry.getByText("Pinned", { exact: true })).toBeVisible();
     await expect(
-      pinnedEntry.getByRole("button", { name: "Unpin", exact: true }),
+      pinnedEntry.getByRole("button", { name: "Unpin post", exact: true }),
     ).toBeVisible();
 
     expectNoBrowserFailures(failures);
@@ -146,14 +152,12 @@ test.describe("officer post compose in the class Stream", () => {
     const failures = watchBrowserFailures(page);
     await loginAs(page, "member");
 
-    const feed = page.getByRole("region", { name: "CSF posts" });
+    const feed = page.getByRole("region", { name: "Class feed" });
     await expect(feed).toBeVisible();
-    const post = feed.locator("[data-post-id]").filter({ hasText: composedTitle });
+    const post = feed.getByRole("article").filter({ hasText: composedTitle });
     await expect(post).toHaveCount(1);
     await expect(post.getByText("Pinned", { exact: true })).toBeVisible();
-    await expect(
-      post.getByText("Class of 2028", { exact: true }),
-    ).toBeVisible();
+    await expect(post).toContainText("Class of 2028");
 
     expectNoBrowserFailures(failures);
   });
@@ -166,8 +170,13 @@ test.describe("officer post compose in the class Stream", () => {
     await expect(
       page.getByRole("tab", { name: "Home", exact: true }),
     ).toBeVisible();
+    // Neither compose entry point exists for a member: the Home feed's "New
+    // post" button nor the class Stream's click-to-open composer row.
     await expect(
       page.getByRole("button", { name: "New post", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /^Announce something to / }),
     ).toHaveCount(0);
     await expect(
       page.getByRole("tab", { name: "Classes", exact: true }),

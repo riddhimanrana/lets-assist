@@ -92,14 +92,17 @@ test.describe("member Home class feed", () => {
     await expect(
       summary.getByRole("heading", { name: "Class of 2028" }),
     ).toBeVisible();
-    await expect(summary.getByText("Spring 2026", { exact: true })).toBeVisible();
+    // The semester shares its line with the classmate count.
+    await expect(summary).toContainText("Spring 2026");
 
     // The feed shows the pinned post first, then reverse-chronological posts.
-    const feed = page.getByRole("region", { name: "CSF posts" });
+    const feed = page.getByRole("region", { name: "Class feed" });
     await expect(feed).toBeVisible();
     await expect(feed.getByText(newerTitle, { exact: true })).toBeVisible();
+    // Each post row titles itself with a heading, so feed order is readable
+    // straight off the accessibility tree.
     const fixtureTitles = feed
-      .locator('[data-slot="card-title"]')
+      .getByRole("heading", { level: 3 })
       .filter({ hasText: TITLE_PREFIX });
     await expect(fixtureTitles).toHaveText([
       pinnedTitle,
@@ -109,18 +112,17 @@ test.describe("member Home class feed", () => {
     ]);
 
     const pinnedCard = feed
-      .locator('[data-post-id]')
+      .getByRole("article")
       .filter({ hasText: pinnedTitle });
     await expect(pinnedCard.getByText("Pinned", { exact: true })).toBeVisible();
 
-    // The class post carries its class badge; the other class's post is
-    // resolved server-side and never reaches this member's document.
+    // The class post carries its class label in the row meta line; the other
+    // class's post is resolved server-side and never reaches this member's
+    // document.
     const classCard = feed
-      .locator('[data-post-id]')
+      .getByRole("article")
       .filter({ hasText: ownClassTitle });
-    await expect(
-      classCard.getByText("Class of 2028", { exact: true }),
-    ).toBeVisible();
+    await expect(classCard).toContainText("Class of 2028");
     await expect(page.getByText(otherClassTitle)).toHaveCount(0);
     expect(await page.content()).not.toContain(otherClassTitle);
 

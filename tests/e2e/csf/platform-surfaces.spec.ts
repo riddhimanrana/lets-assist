@@ -45,8 +45,10 @@ test.describe("platform surfaces for linked CSF members", () => {
       section.getByRole("heading", { name: "From your organizations" }),
     ).toBeVisible();
 
+    // The section is one card of hairline-divided rows, so each update is a
+    // list item rather than a card of its own.
     const item = section
-      .locator('[data-slot="card"]')
+      .getByRole("listitem")
       .filter({ hasText: feedPostTitle });
     await expect(item).toHaveCount(1);
     await expect(item.getByText("DVHS CSF", { exact: true })).toBeVisible();
@@ -62,12 +64,17 @@ test.describe("platform surfaces for linked CSF members", () => {
   }) => {
     await loginAs(page, "member", "/dashboard");
 
-    const card = page
-      .locator('[data-slot="card"]')
-      .filter({ has: page.getByText("DVHS CSF", { exact: true }) })
-      .first();
-    await expect(card).toBeVisible();
-    const open = card.getByRole("link", { name: "Open" });
+    // The plugin strip is one row per organization inside the Overview panel:
+    // a heading for the organization and an "Open" link that names it.
+    const overview = page.getByRole("tabpanel", { name: "Overview" });
+    await expect(
+      overview.getByRole("heading", { name: "DVHS CSF", exact: true }),
+    ).toBeVisible();
+    const open = overview.getByRole("link", {
+      name: "Open DVHS CSF",
+      exact: true,
+    });
+    await expect(open).toBeVisible();
     await expect(open).toHaveAttribute(
       "href",
       /\/organization\/dvhs-csf\/plugins\/dvhs-csf\/home$/,

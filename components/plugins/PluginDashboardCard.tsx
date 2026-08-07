@@ -65,8 +65,12 @@ export function PluginDashboardCard({
         </div>
       )}
 
+      {/* The strip can hold a row per plugin, and "Open" on its own is the
+          classic ambiguous link: out of context every row reads the same. The
+          visible word stays the prefix of the accessible name. */}
       <Link
         href={card.href}
+        aria-label={`Open ${card.title}`}
         className={cn(
           buttonVariants({ variant: "outline", size: "sm" }),
           "w-full shrink-0 lg:ml-auto lg:w-auto",

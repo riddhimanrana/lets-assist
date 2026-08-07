@@ -28,6 +28,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   CSF_APP_ENV_KEYS,
+  CSF_ISOLATED_APP_PORT,
   getCsfIsolatedSupabaseEnv,
   inspectCsfIsolatedWorkDir,
   loadCsfIsolatedAppEnvironment,
@@ -60,6 +61,11 @@ export const BOOTSTRAP_OS_ENV_KEYS = [
   "USER",
   "SHELL",
   "TERM",
+  // The app port must reach the runner child. The launcher writes the pinned
+  // origin from it, and the runner re-validates that origin, so dropping it
+  // here would make the child expect 3000 while the generated environment says
+  // something else — the stack would come up and then refuse itself.
+  "CSF_ISOLATED_APP_PORT",
 ];
 
 function positiveRuntimeEnvironment(hostEnv = process.env) {
@@ -343,7 +349,7 @@ function seedFixturesOnce(workDir, password) {
 
 function printHandoff(workDir, password) {
   console.log("\nDVHS CSF local workspace is ready");
-  console.log("  app      : http://localhost:3000/login");
+  console.log(`  app      : http://localhost:${CSF_ISOLATED_APP_PORT}/login`);
   console.log(`  work dir : ${workDir}`);
   console.log(`  password : ${password}`);
   console.log("  officer  : csf.officer@local.test (CSF Officer)");
