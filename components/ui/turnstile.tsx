@@ -1,12 +1,48 @@
 "use client";
 
-import { Turnstile, TurnstileInstance } from "@marsidev/react-turnstile";
+import {
+  DEFAULT_SCRIPT_ID,
+  SCRIPT_URL,
+  Turnstile,
+  TurnstileInstance,
+} from "@marsidev/react-turnstile";
 import { ShieldCheck } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+
+import { shouldReinjectTurnstileScript } from "@/lib/auth/secure-check";
 
 type WindowWithTurnstile = Window & {
   turnstile?: Window["turnstile"];
 };
+
+/**
+ * Drop a Turnstile script tag that never initialized so the next mount fetches
+ * it again. Without this, a blocked first load leaves a dead tag behind and no
+ * amount of remounting would reach Cloudflare.
+ */
+export function clearStaleTurnstileScript(): boolean {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return false;
+  }
+
+  const scripts = Array.from(
+    document.querySelectorAll<HTMLScriptElement>(
+      `script#${DEFAULT_SCRIPT_ID}, script[src^="${SCRIPT_URL}"]`,
+    ),
+  );
+
+  const shouldReinject = shouldReinjectTurnstileScript({
+    hasScriptTag: scripts.length > 0,
+    hasTurnstileGlobal: Boolean((window as WindowWithTurnstile).turnstile),
+  });
+
+  if (!shouldReinject) {
+    return false;
+  }
+
+  scripts.forEach((script) => script.remove());
+  return true;
+}
 
 interface TurnstileComponentProps {
   onVerify?: (token: string) => void;

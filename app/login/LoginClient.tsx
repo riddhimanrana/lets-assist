@@ -9,7 +9,7 @@ import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { applyPostLoginAffiliations, signInWithGoogle } from "./actions";
-import { SecureCheckLoading } from "@/components/auth/SecureCheckLoading";
+import { SecureCheckPanel } from "@/components/auth/SecureCheckPanel";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,6 +21,8 @@ import {
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
+import { useHydrated } from "@/hooks/useHydrated";
+import { useSecureCheck } from "@/hooks/useSecureCheck";
 import { resolvePostAuthRedirectPath } from "@/lib/auth/mfa";
 import { buildStaffInviteRedirectPath } from "@/lib/organization/staff-invite-outcome";
 import {
@@ -58,10 +60,9 @@ export default function LoginClient({
 }: LoginClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const isHydrated = useHydrated();
   const [_turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
-  const [turnstileReady, setTurnstileReady] = useState(false);
   const normalizedPrefilledEmail = prefilledEmail?.trim() ?? "";
 
   const form = useForm<LoginValues>({
@@ -70,6 +71,13 @@ export default function LoginClient({
       email: normalizedPrefilledEmail,
       password: "",
       turnstileToken: "",
+    },
+  });
+
+  const secureCheck = useSecureCheck({
+    onRetry: () => {
+      setTurnstileVerified(false);
+      form.setValue("turnstileToken", "");
     },
   });
 
@@ -83,10 +91,6 @@ export default function LoginClient({
     // This avoids SSR redirects caused by stale prefetched payloads right after sign-in.
     window.location.assign(path);
   };
-
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
 
   useEffect(() => {
     if (authError === "network-timeout") {
@@ -397,27 +401,36 @@ export default function LoginClient({
               />
 
               <div className="flex justify-center">
-                <div className="relative flex h-16.25 w-full max-w-75 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-background">
-                  {!turnstileReady && <SecureCheckLoading />}
+                <SecureCheckPanel
+                  phase={secureCheck.phase}
+                  onRetry={secureCheck.retry}
+                  fallbackClassName="max-w-75"
+                >
                   <TurnstileComponent
+                    key={secureCheck.widgetKey}
                     ref={turnstileRef}
-                    onLoad={() => setTurnstileReady(true)}
+                    onLoad={secureCheck.handleLoad}
                     onVerify={(token: string) => {
                       setTurnstileVerified(true);
                       form.setValue("turnstileToken", token);
                     }}
                     onError={() => {
+                      const wasReady = secureCheck.isReady;
+                      secureCheck.handleError();
                       setTurnstileVerified(false);
-                      toast.error(
-                        "Security verification failed. Please try again.",
-                      );
+
+                      if (wasReady) {
+                        toast.error(
+                          "Security verification failed. Please try again.",
+                        );
+                      }
                     }}
                     onExpire={() => {
                       setTurnstileVerified(false);
                       form.setValue("turnstileToken", "");
                     }}
                   />
-                </div>
+                </SecureCheckPanel>
               </div>
 
               <Button

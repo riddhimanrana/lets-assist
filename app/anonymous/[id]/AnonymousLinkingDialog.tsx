@@ -38,6 +38,7 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TurnstileComponent } from "@/components/ui/turnstile";
+import { SecureCheckPanel } from "@/components/auth/SecureCheckPanel";
 import { useBotVerification } from "@/hooks/useBotVerification";
 import { shouldRenderTurnstileWidget } from "@/lib/anonymous-signup-security";
 import { createClient } from "@/lib/supabase/client";
@@ -574,24 +575,21 @@ export function AnonymousLinkingDialog({
                 </div>
 
                 <div className="flex justify-center">
-                  <div className="relative flex h-16.25 w-75 items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-background/80">
-                    {!verification.isReady && (
-                      <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                        <Shield className="h-4 w-4 text-muted-foreground/80" />
-                        <span className="text-[0.7rem] font-semibold normal-case">
-                          Bot verification loading…
-                        </span>
-                      </div>
-                    )}
-
+                  <SecureCheckPanel
+                    phase={verification.phase}
+                    onRetry={verification.retry}
+                    className="w-75 rounded-lg border-border/50 bg-background/80"
+                    fallbackClassName="w-75 rounded-lg border-border/50 bg-background/80"
+                  >
                     <TurnstileComponent
+                      key={verification.widgetKey}
                       ref={verification.ref}
                       onLoad={verification.onLoad}
                       onVerify={verification.onVerify}
                       onError={verification.onError}
                       onExpire={() => verification.reset()}
                     />
-                  </div>
+                  </SecureCheckPanel>
                 </div>
 
                 {verification.error && (

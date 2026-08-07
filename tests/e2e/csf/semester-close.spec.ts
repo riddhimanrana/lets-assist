@@ -17,6 +17,10 @@ test.describe("transactional semester-close preflight", () => {
     const failures = watchBrowserFailures(page);
     await loginAs(page, "admin", policyPath);
 
+    // The semester workspace now lives inside the Classes hub, collapsed
+    // under "Semesters & setup"; expand it before asserting its content.
+    await page.getByRole("button", { name: "Semesters & setup" }).click();
+
     await expect(
       page.getByText("Semester close preflight", { exact: true }),
     ).toBeVisible();

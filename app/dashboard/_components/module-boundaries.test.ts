@@ -7,8 +7,13 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 describe("volunteer dashboard module boundaries", () => {
   test("the route delegates data loading and presentation", () => {
     const page = read("app/dashboard/page.tsx");
-    expect(page).toContain("await loadVolunteerDashboardData()");
-    expect(page).toContain("<VolunteerDashboardView {...data} />");
+    // Dashboard data and plugin dashboard cards load in parallel; both are
+    // delegated — the route itself still owns no queries or presentation.
+    expect(page).toContain("loadVolunteerDashboardData()");
+    expect(page).toContain("resolvePlatformDashboardCards");
+    expect(page).toContain(
+      "<VolunteerDashboardView {...data} pluginCards={pluginCards} />",
+    );
     expect(page).not.toContain("createClient");
   });
 

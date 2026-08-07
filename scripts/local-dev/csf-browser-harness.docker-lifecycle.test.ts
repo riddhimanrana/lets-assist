@@ -151,12 +151,12 @@ describe("isolated launcher Docker identity matrix", () => {
       'PREFLIGHT_RESOURCES="$(collect_project_resources)"',
     );
     const bundlePortCheck = launcher.indexOf(
-      "assert_loopback_port_free",
+      "assert_host_port_free",
       preflightCall,
     );
     const appPortCheck = launcher.indexOf(
-      "assert_loopback_port_free",
-      launcher.indexOf("# Fixed app port 3000"),
+      "assert_host_port_free",
+      launcher.indexOf("# Fixed app port (3000 unless CSF_ISOLATED_APP_PORT"),
     );
     const claimRootCreate = launcher.indexOf(
       'if ! mkdir -p "${CLAIM_ROOT}"; then',
@@ -181,13 +181,13 @@ describe("isolated launcher Docker identity matrix", () => {
     expect(appPortCheck).toBeLessThan(workDirCreate);
     expect(appPortCheck).toBeLessThan(startCall);
 
-    // Production probes bind only the exact loopback port. The filesystem-wide
-    // lsof behavior remains available solely to this hermetic fake harness.
-    const probeStart = launcher.indexOf("probe_loopback_port() {");
-    const probeEnd = launcher.indexOf("assert_loopback_port_free() {");
+    // Production probes bind the same wildcard host scope Docker publishes.
+    // The filesystem-wide lsof behavior remains solely for this fake harness.
+    const probeStart = launcher.indexOf("probe_host_port() {");
+    const probeEnd = launcher.indexOf("assert_host_port_free() {");
     const probeSource = launcher.slice(probeStart, probeEnd);
     expect(probeSource).toContain('node - "${port}"');
-    expect(probeSource).toContain('host: "127.0.0.1"');
+    expect(probeSource).toContain('host: "0.0.0.0"');
     expect(probeSource).toContain(
       'CSF_ISOLATED_TEST_CLAIM_ROOT:-}" == "hermetic-test"',
     );
@@ -201,7 +201,7 @@ describe("isolated launcher Docker identity matrix", () => {
     );
   });
 
-  test("optional analytics exclusion is explicit and keeps the owned launcher path", async () => {
+  test("optional analytics disablement uses config without an obsolete exclusion name", async () => {
     const sandbox = await createSandbox();
     const result = launch(sandbox, {
       CSF_ISOLATED_RUN_ID: "no-analytics",
@@ -214,7 +214,7 @@ describe("isolated launcher Docker identity matrix", () => {
       call.startsWith("start "),
     );
     expect(starts).toHaveLength(1);
-    expect(starts[0]).toContain("--exclude analytics");
+    expect(starts[0]).not.toContain("--exclude analytics");
     const generatedConfig = await readFile(
       join(sandbox.workDir("no-analytics"), "supabase", "config.toml"),
       "utf8",

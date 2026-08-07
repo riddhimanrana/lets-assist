@@ -17,6 +17,7 @@ const groups = [
       "lib/auth/google-oauth-connection-store.test.ts",
       "lib/auth/google-oauth-state.test.ts",
       "lib/auth/google-oauth-authorization.test.ts",
+      "scripts/check-source-data-hygiene.test.ts",
       "scripts/check-source-organization.test.ts",
       "scripts/check-supabase-seed-safety.test.ts",
       "scripts/private-submodule-ci-credential.test.ts",

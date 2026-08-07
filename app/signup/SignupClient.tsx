@@ -27,7 +27,8 @@ import { toast } from "sonner";
 import { TurnstileComponent } from "@/components/ui/turnstile";
 import { useBotVerification } from "@/hooks/useBotVerification";
 import { useRouter } from "next/navigation";
-import { SecureCheckLoading } from "@/components/auth/SecureCheckLoading";
+import { SecureCheckPanel } from "@/components/auth/SecureCheckPanel";
+import { isSecureCheckBlockingSubmit } from "@/lib/auth/secure-check";
 import { passwordSchema } from "@/lib/auth/password-policy";
 
 interface SignupClientProps {
@@ -350,21 +351,27 @@ export default function SignupClient({
               )}
             />
             <div className="flex justify-center">
-              <div className="relative flex h-16.25 w-full max-w-75 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-background">
-                {!verification.isReady && <SecureCheckLoading />}
+              <SecureCheckPanel
+                phase={verification.phase}
+                onRetry={verification.retry}
+                fallbackClassName="max-w-75"
+              >
                 <TurnstileComponent
+                  key={verification.widgetKey}
                   ref={verification.ref}
                   onLoad={verification.onLoad}
                   onVerify={verification.onVerify}
                   onError={verification.onError}
                   onExpire={() => verification.reset()}
                 />
-              </div>
+              </SecureCheckPanel>
             </div>
             <Button
               type="submit"
               className="h-10 w-full rounded-full bg-primary font-semibold text-primary-foreground shadow-none hover:bg-primary/90"
-              disabled={isLoading || !verification.isReady}
+              disabled={
+                isLoading || isSecureCheckBlockingSubmit(verification.phase)
+              }
             >
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>

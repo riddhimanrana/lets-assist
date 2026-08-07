@@ -5,6 +5,10 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import InitialOnboardingModal from "@/components/onboarding/InitialOnboardingModal";
 import FirstLoginTour from "@/components/onboarding/FirstLoginTour";
 import { NotificationProvider } from "@/components/providers/NotificationContext";
+import {
+  isCsfConnectOnboardingContext,
+  shouldShowOnboardingModal,
+} from "@/components/providers/onboarding-visibility";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 
@@ -65,6 +69,15 @@ function GlobalNotificationProviderInner({
     pathname?.startsWith("/projects/create") ||
     pathname?.startsWith("/organization/create")
   );
+
+  // CSF cohort-link signups finish account setup on the plugin connect route
+  // once their student record is connected. This never affects the intro tour
+  // and is false for every non-CSF signup, keeping /home behavior unchanged.
+  const isCsfConnectContext = isCsfConnectOnboardingContext({
+    pathname,
+    connectedParam: searchParams.get("connected"),
+    signupFlow: user?.user_metadata?.signup_flow,
+  });
 
   useEffect(() => {
     if (!isHomeRoute || typeof window === "undefined") {
@@ -320,10 +333,13 @@ function GlobalNotificationProviderInner({
     }
 
     if (
-      !onboardingCompletedRef.current &&
-      !suppressOnboardingModal &&
-      isHomeRoute &&
-      !suppressOnboardingAfterReturn
+      shouldShowOnboardingModal({
+        onboardingCompleted: onboardingCompletedRef.current,
+        suppressOnboardingModal,
+        suppressOnboardingAfterReturn,
+        isHomeRoute,
+        isCsfConnectContext,
+      })
     ) {
       prepareOnboardingModal();
       setShowOnboardingModal(true);
@@ -339,15 +355,16 @@ function GlobalNotificationProviderInner({
     introTourStarted,
     showIntroTour,
     isHomeRoute,
+    isCsfConnectContext,
     pendingOnboardingAfterTour,
     shouldRedirectHome,
   ]);
 
   useEffect(() => {
-    if (suppressOnboardingModal || !isHomeRoute) {
+    if (suppressOnboardingModal || (!isHomeRoute && !isCsfConnectContext)) {
       setShowOnboardingModal(false);
     }
-  }, [isHomeRoute, suppressOnboardingModal]);
+  }, [isHomeRoute, isCsfConnectContext, suppressOnboardingModal]);
 
   return (
     <NotificationProvider>
@@ -376,6 +393,7 @@ function GlobalNotificationProviderInner({
             currentFullName={currentUserFullName}
             currentEmail={currentUserEmail}
             autoJoinedOrg={autoJoinedOrg}
+            variant={isCsfConnectContext ? "csf" : "default"}
           />
         )}
       {children}

@@ -121,6 +121,28 @@ describe("creating a campaign draft", () => {
       // A transactional campaign carries no topic; it cannot be refused.
       p_broadcast_topic_key: null,
       p_resend_topic_id: null,
+      // And it was not queued from a post.
+      p_source_announcement_id: null,
+    });
+  });
+
+  test("a campaign queued from a post transmits its source announcement", async () => {
+    const { plugin, calls } = harness();
+
+    await campaign.createCsfCampaignDraft(plugin, {
+      organizationId: ORG,
+      campaignKind: "broadcast",
+      subject: "New volunteering opportunity",
+      bodyText: "Read the post in your class feed.",
+      actorUserId: ACTOR,
+      audienceKind: "cohort_members",
+      broadcastTopicKey: "announcements",
+      sourceAnnouncementId: "ce300000-0000-4000-8000-000000000009",
+    });
+
+    expect(calls[0].args).toMatchObject({
+      p_audience_kind: "cohort_members",
+      p_source_announcement_id: "ce300000-0000-4000-8000-000000000009",
     });
   });
 

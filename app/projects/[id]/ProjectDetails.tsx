@@ -116,6 +116,8 @@ import {
   TurnstileComponent,
   type TurnstileRef,
 } from "@/components/ui/turnstile";
+import { SecureCheckPanel } from "@/components/auth/SecureCheckPanel";
+import { useSecureCheck } from "@/hooks/useSecureCheck";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -371,7 +373,10 @@ export default function ProjectDetails({
   const [resendTurnstileToken, setResendTurnstileToken] = useState<
     string | null
   >(null);
-  const [resendTurnstileReady, setResendTurnstileReady] = useState(false);
+  const resendSecureCheck = useSecureCheck({
+    onRetry: () => setResendTurnstileToken(null),
+  });
+  const resetResendSecureCheck = resendSecureCheck.retry;
 
   const showResendTurnstile = shouldRenderTurnstileWidget({
     siteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
@@ -1356,7 +1361,6 @@ export default function ProjectDetails({
     } finally {
       resendTurnstileRef.current?.reset();
       setResendTurnstileToken(null);
-      setResendTurnstileReady(false);
       setIsResending(false);
     }
   };
@@ -1364,9 +1368,10 @@ export default function ProjectDetails({
   useEffect(() => {
     if (showResendDialog) return;
 
-    setResendTurnstileToken(null);
-    setResendTurnstileReady(false);
-  }, [showResendDialog]);
+    // Closing the dialog unmounts the widget, so start the next attempt (and
+    // its bounded wait) from scratch.
+    resetResendSecureCheck();
+  }, [resetResendSecureCheck, showResendDialog]);
 
   // Redirect to auth pages
   const redirectToAuth = (path: "login" | "signup") => {
@@ -2685,29 +2690,31 @@ export default function ProjectDetails({
                 </div>
 
                 <div className="flex justify-center">
-                  <div className="relative flex h-16.25 w-75 items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-background/80">
-                    {!resendTurnstileReady && (
-                      <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                        <Shield className="h-4 w-4 text-muted-foreground/80" />
-                        <span className="text-[0.7rem] font-semibold normal-case">
-                          Bot verification loading…
-                        </span>
-                      </div>
-                    )}
-
+                  <SecureCheckPanel
+                    phase={resendSecureCheck.phase}
+                    onRetry={resendSecureCheck.retry}
+                    className="w-75 rounded-lg border-border/50 bg-background/80"
+                    fallbackClassName="w-75 rounded-lg border-border/50 bg-background/80"
+                  >
                     <TurnstileComponent
+                      key={resendSecureCheck.widgetKey}
                       ref={resendTurnstileRef}
-                      onLoad={() => setResendTurnstileReady(true)}
+                      onLoad={resendSecureCheck.handleLoad}
                       onVerify={(token) => setResendTurnstileToken(token)}
                       onError={() => {
+                        const wasReady = resendSecureCheck.isReady;
+                        resendSecureCheck.handleError();
                         setResendTurnstileToken(null);
-                        toast.error(
-                          "Security verification failed. Please try again.",
-                        );
+
+                        if (wasReady) {
+                          toast.error(
+                            "Security verification failed. Please try again.",
+                          );
+                        }
                       }}
                       onExpire={() => setResendTurnstileToken(null)}
                     />
-                  </div>
+                  </SecureCheckPanel>
                 </div>
               </div>
             )}

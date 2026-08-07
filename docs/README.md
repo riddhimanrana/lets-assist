@@ -43,6 +43,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Officer runbook](csf/officer-runbook.md)
 - [Testing, release, and residual risk](csf/testing-and-release.md)
 - [Synthetic reference workbook](csf/reference/c-o-2028-synthetic.xlsx)
+- [Real source-data layout and semantics](csf/source-data.md) (the files themselves live git-ignored in `docs/csf/source-data/`)
 - [Current curated evidence](csf/evidence/20260806-post-cleanup/index.html)
 
 ## Archive

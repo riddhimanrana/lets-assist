@@ -8,7 +8,10 @@ import {
   getCsfIsolatedSupabaseEnv,
   getLocalSupabaseEnv,
 } from "./dv-local-env.mjs";
-import { seedDvhsCsfFixtures } from "./seed-platform-csf-plan.mjs";
+import {
+  linkDvhsCsfFixtureProject,
+  seedDvhsCsfFixtures,
+} from "./seed-platform-csf-plan.mjs";
 import {
   buildSeedFixtureSets,
   fixtureJoinCode,
@@ -649,6 +652,12 @@ async function main() {
       cover_image_url: "/demo/projects/santa-cruz-beach-cleanup.png",
     }),
   );
+
+  if (SEEDS_DVHS_CSF) {
+    // Deferred until the fixture project row exists: the CSF activity links to
+    // it by foreign key, and the officer signup panel needs a roster to read.
+    await linkDvhsCsfFixtureProject({ admin, users, must });
+  }
 
   await must(
     "org-project",

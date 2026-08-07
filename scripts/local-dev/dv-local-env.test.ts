@@ -530,14 +530,28 @@ describe("generated isolated config is provider-disabled", () => {
   });
 
   test("the fixed app port is a shared constant, never a base-relative offset", () => {
+    // Unset in this process, so both sides must still resolve to the default.
+    expect(process.env.CSF_ISOLATED_APP_PORT).toBeUndefined();
     expect(CSF_ISOLATED_APP_PORT).toBe(3000);
-    expect(launcherSource).toContain("APP_PORT=3000");
-    // 3000 must not appear in the Supabase bundle, and the launcher must refuse
-    // a base that would place a Supabase service on it.
+    // The launcher reads the same override with the same default, so the module
+    // and the shell can never disagree about where the app is.
+    expect(launcherSource).toContain(
+      'APP_PORT="${CSF_ISOLATED_APP_PORT:-3000}"',
+    );
+    // The app port must not appear in the Supabase bundle, and the launcher must
+    // refuse a base that would place a Supabase service on it.
     expect(launcherSource).toContain("PORT_OFFSETS=(0 1 2 3 4 5 6 7 9)");
     expect(launcherSource).toContain(
       "would place a Supabase service on the fixed app port",
     );
+  });
+
+  test("an out-of-range app port override is refused by both the module and the launcher", () => {
+    // The shell validates with the same bounds the module enforces below.
+    expect(launcherSource).toContain(
+      "CSF_ISOLATED_APP_PORT must be an integer between 1024 and 65535.",
+    );
+    expect(launcherSource).toContain("APP_PORT < 1024 || APP_PORT > 65535");
   });
 
   test("accepts the exact disabled shape", async () => {

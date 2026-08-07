@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
+import { SecureCheckPanel } from "@/components/auth/SecureCheckPanel";
+import { useSecureCheck } from "@/hooks/useSecureCheck";
 import { shouldRenderTurnstileWidget } from "@/lib/anonymous-signup-security";
 import {
   Loader2,
@@ -230,9 +232,14 @@ export function ProjectSignupForm({
     useState<WaiverSignatureInput | null>(null);
   const [isWaiverDialogOpen, setIsWaiverDialogOpen] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
-  const [turnstileReady, setTurnstileReady] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileError, setTurnstileError] = useState<string | null>(null);
+  const secureCheck = useSecureCheck({
+    onRetry: () => {
+      setTurnstileToken(null);
+      setTurnstileError(null);
+    },
+  });
 
   const showTurnstileWidget = shouldRenderTurnstileWidget({
     siteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
@@ -736,29 +743,31 @@ export function ProjectSignupForm({
           </div>
 
           <div className="flex justify-center">
-            <div className="relative flex h-16.25 w-75 items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-background/80">
-              {!turnstileReady && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                  <Shield className="h-4 w-4 text-muted-foreground/80" />
-                  <span className="text-[0.7rem] font-semibold normal-case">
-                    Bot verification loading…
-                  </span>
-                </div>
-              )}
-
+            <SecureCheckPanel
+              phase={secureCheck.phase}
+              onRetry={secureCheck.retry}
+              className="w-75 rounded-lg border-border/50 bg-background/80"
+              fallbackClassName="w-75 rounded-lg border-border/50 bg-background/80"
+            >
               <TurnstileComponent
+                key={secureCheck.widgetKey}
                 ref={turnstileRef}
-                onLoad={() => setTurnstileReady(true)}
+                onLoad={secureCheck.handleLoad}
                 onVerify={(token) => {
                   setTurnstileError(null);
                   setTurnstileToken(token);
                 }}
                 onError={() => {
-                  turnstileRef.current?.reset();
-                  setTurnstileError(
-                    "Security verification failed. Please try again.",
-                  );
+                  const wasReady = secureCheck.isReady;
+                  secureCheck.handleError();
                   setTurnstileToken(null);
+
+                  if (wasReady) {
+                    turnstileRef.current?.reset();
+                    setTurnstileError(
+                      "Security verification failed. Please try again.",
+                    );
+                  }
                 }}
                 onExpire={() => {
                   setTurnstileError(
@@ -767,7 +776,7 @@ export function ProjectSignupForm({
                   setTurnstileToken(null);
                 }}
               />
-            </div>
+            </SecureCheckPanel>
           </div>
 
           {turnstileError && (

@@ -7,13 +7,14 @@ const primaryTabs = [
   "Applications",
   "Members",
   "Service",
-  "Semester",
+  "Classes",
 ] as const;
 const utilityTabs = [
   "Imports",
   "Reports",
   "Staff access",
   "Change history",
+  "Communications",
   "Settings",
 ] as const;
 

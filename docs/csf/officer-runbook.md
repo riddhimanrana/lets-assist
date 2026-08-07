@@ -156,7 +156,40 @@ Only the adviser with the explicit permission, or an organization admin exercisi
 
 Reports do not write to Google Sheets and do not expose a Google destination picker.
 
-## 10. Troubleshooting and stop rules
+## 10. Fall 2026 rollout: cohort links, legacy seed, and posts
+
+This section is the one-time cutover procedure from Google Classroom + spreadsheets to Let's Assist, plus the recurring posts/email workflow it enables. Real source files live git-ignored in `docs/csf/source-data/` — see [source data](source-data.md) for every file's layout. Never copy real values out of them.
+
+### 10.1 One-time semester and cohort setup
+
+1. Create cohorts Class of 2027 through Class of 2030 (2026 exists only if seeding history for graduated seniors) and terms Spring 2025, Fall 2025, Spring 2026 (closed) and Fall 2026 (current) through Semester setup (§2).
+2. Confirm the communications broadcast topic and Resend topic id are saved in organization plugin settings for the `term_members` audience — cohort posts email through the same announcements consent topic.
+
+### 10.2 Legacy data seed (rehearse locally first: `bun run dev`)
+
+Import in this order through the existing Sheets workspace preview → commit fence; every commit is staff-approved and reversible only forward:
+
+1. **Club registry and policies** — `rosters/Clubs Points.xlsx`, `rosters/Spring 2025 CSF Returning Clubs Responses.xlsx`, `rosters/CSF Club Audit Spring 2026 Responses.xlsx` as partner-form imports → partner clubs with per-club point policy.
+2. **Member roster** — `rosters/CSF Application Spring 2026 Responses.xlsx` as `application_responses` for Spring 2026. Expect ~517 rows / ~516 unique profiles; grade maps 9→2029, 10→2028, 11→2027, 12→2026.
+3. **March 2025 chapter attendance** — `rosters/CSF March Meeting Attendance 2025.xlsx` as `meeting_attendance` for Spring 2025. Name-only rows will land ambiguous/unmatched — resolve what you can; `skipped` is an honest terminal state for departed students.
+4. **Per-club Fall 2025 points** — normalize first: `bun run csf:normalize:legacy` (drafts editable mappings under `.artifacts/legacy-csf/mappings/`), review each mapping (sheet selection, club name, excluded rows, points-per-mark), then `bun run csf:normalize:legacy --apply` and upload each normalized workbook from `.artifacts/legacy-csf/normalized/` as a `partner_club_audit` import for Fall 2025.
+
+Acceptance: per-cohort roster counts match the application grade distribution; spot-check at least three clubs' point totals against their source workbooks; ambiguous-row queues triaged to zero or documented.
+
+### 10.3 Student rollout (replaces the four Classroom codes)
+
+1. Create four cohort onboarding links (§4) — one per graduating class, Fall 2026 term, combined link type. These replace the Freshman/Sophomore/Junior/Senior Google Classroom codes everywhere the chapter publishes them.
+2. Students who sign up through a cohort link skip the generic platform tour, confirm the exact-email claim ("is this you?"), pick a username in place, and get the CSF member tour on their class Home.
+3. Students whose sign-up email is not on the roster submit a link request; resolve them in the Members queue, where ranked name-similarity suggestions offer one-click connects. Never expose roster names to students.
+
+### 10.4 Posts and announcement email
+
+1. Post from the class Stream (or member Home compose): audience `class` targets one cohort; `members` targets the whole chapter. Pin sparingly.
+2. The "also send as email" toggle queues exactly one campaign per post through the durable ledger — retries are safe; edits after queueing never change the email. Delivery drains via the `csf-communications-dispatch` workflow every 10 minutes.
+3. Recipients can opt out via the link in every announcement email (verify-the-address confirmation). Opt-outs exclude the address from future snapshots automatically; do not hand-manage them.
+4. Grant posting rights via the `manage_posts` capability (Publicity VP and Web Master templates carry it; org admins and the owner always can).
+
+## 11. Troubleshooting and stop rules
 
 | Condition                                                | Officer action                                                                            |
 | -------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -170,7 +203,7 @@ Reports do not write to Google Sheets and do not expose a Google destination pic
 | A mutation partially appears to succeed                  | Stop and inspect Change history before retrying; do not add a compensating manual record. |
 | Private data appears on a public route or in an artifact | Treat as P0, stop testing, remove the artifact, and notify the platform owner.            |
 
-## 11. Current release checklist
+## 12. Current release checklist
 
 Before this runbook is used for the real chapter cutover, all boxes must be checked:
 

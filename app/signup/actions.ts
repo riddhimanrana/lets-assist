@@ -6,6 +6,7 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "crypto";
 import {
   buildAuthConfirmRedirectUrl,
+  isCsfConnectRedirect,
   normalizeRedirectPath,
 } from "./redirect-utils";
 import { passwordSchema } from "@/lib/auth/password-policy";
@@ -122,6 +123,8 @@ export async function signup(formData: FormData) {
           created_at: string;
           pending_staff_token?: string;
           pending_staff_org_username?: string;
+          signup_flow?: string;
+          has_completed_intro_tour?: boolean;
         };
         emailRedirectTo: string;
         captchaToken?: string;
@@ -141,6 +144,14 @@ export async function signup(formData: FormData) {
             ? {
                 pending_staff_token: validatedFields.data.staffToken,
                 pending_staff_org_username: validatedFields.data.orgUsername,
+              }
+            : {}),
+          // Students arriving from a CSF cohort onboarding link skip the
+          // generic platform tour; the CSF plugin runs its own welcome tour.
+          ...(isCsfConnectRedirect(redirectUrl)
+            ? {
+                signup_flow: "csf_connect",
+                has_completed_intro_tour: true,
               }
             : {}),
         },

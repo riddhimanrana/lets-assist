@@ -1449,28 +1449,28 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
         published_at: "2026-03-02T12:00:00-08:00",
       },
       {
+        // The one fixture activity that exercises the Let's Assist signup path
+        // end to end. `linked_project_id` cannot be set here because the
+        // fixture project is upserted after this block; `linkDvhsCsfFixture
+        // Project` below closes the link once the project row exists.
         id: IDS.csfOpportunityCleanup,
         organization_id: IDS.csfOrg,
         term_id: IDS.csfTermS26,
-        title: "DVHS Campus Cleanup",
-        body: "<p>Officer-led campus cleanup after school. Gloves and bags will be provided at the Commons.</p>",
-        starts_at: "2026-08-28T15:45:00-07:00",
-        ends_at: "2026-08-28T17:15:00-07:00",
-        location: "DVHS Commons",
-        signup_url:
-          "https://docs.google.com/spreadsheets/d/local-campus-cleanup/edit",
+        title: "Santa Cruz Beach Cleanup",
+        body: "<p>Shoreline teams, a supply table, and recycling support. Sign up on the Let&rsquo;s Assist project page so officers can see the roster.</p>",
+        starts_at: "2026-12-05T09:00:00-08:00",
+        ends_at: "2026-12-05T13:00:00-08:00",
+        location: "Santa Cruz Beach Boardwalk Parking",
         contact_email: "csf-operations@local.test",
         point_value: 1.5,
         point_type: "non_drive",
-        signup_mode: "external",
+        signup_mode: "lets_assist_project",
         requires_point_submission: false,
         evidence_policy: "none",
         source_organization: "DVHS CSF",
         created_by_user_id: users.csfOfficer.id,
         status: "published",
-        external_sheet_url:
-          "https://docs.google.com/spreadsheets/d/local-campus-cleanup/edit",
-        sheet_export_status: "pending",
+        sheet_export_status: "not_exported",
         published_at: "2026-07-01T12:00:00-07:00",
       },
       {
@@ -2179,6 +2179,90 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
         },
       ],
       { onConflict: "id", ignoreDuplicates: true },
+    ),
+  );
+}
+
+/**
+ * Closes the CSF activity -> Let's Assist project link, and gives officers a
+ * roster to reconcile against.
+ *
+ * This runs after the fixture project is upserted because
+ * `csf_opportunities.linked_project_id` references `public.projects(id)`. The
+ * signups are deliberately mixed: two accounts, one guest, one withdrawal, and
+ * one already checked in, so the officer panel shows every state it renders.
+ */
+export async function linkDvhsCsfFixtureProject({ admin, users, must }) {
+  const pluginDb = admin.schema("plugin_data");
+  const guestSignupId = "10000000-0000-4000-8000-000000000230";
+
+  await must(
+    "csf-activity-project-link",
+    pluginDb
+      .from("csf_opportunities")
+      .update({
+        signup_mode: "lets_assist_project",
+        linked_project_id: IDS.publicProject,
+        signup_url: `/projects/${IDS.publicProject}`,
+      })
+      .eq("organization_id", IDS.csfOrg)
+      .eq("id", IDS.csfOpportunityCleanup),
+  );
+
+  await must(
+    "csf-linked-project-guest-signup",
+    admin.from("anonymous_signups").upsert(
+      {
+        id: guestSignupId,
+        project_id: IDS.publicProject,
+        name: "Rowan Alvarez",
+        email: "rowan.alvarez@guest.local.test",
+        confirmed_at: "2026-11-20T18:04:00-08:00",
+        created_at: "2026-11-20T18:02:00-08:00",
+      },
+      { onConflict: "id" },
+    ),
+  );
+
+  await must(
+    "csf-linked-project-signups",
+    admin.from("project_signups").upsert(
+      [
+        {
+          id: "10000000-0000-4000-8000-000000000231",
+          project_id: IDS.publicProject,
+          user_id: users.csfMember.id,
+          schedule_id: "oneTime",
+          status: "approved",
+          created_at: "2026-11-18T17:12:00-08:00",
+        },
+        {
+          id: "10000000-0000-4000-8000-000000000232",
+          project_id: IDS.publicProject,
+          user_id: users.csfApplicant.id,
+          schedule_id: "oneTime",
+          status: "attended",
+          check_in_time: "2026-12-05T09:06:00-08:00",
+          created_at: "2026-11-19T08:41:00-08:00",
+        },
+        {
+          id: "10000000-0000-4000-8000-000000000233",
+          project_id: IDS.publicProject,
+          anonymous_id: guestSignupId,
+          schedule_id: "oneTime",
+          status: "pending",
+          created_at: "2026-11-20T18:02:00-08:00",
+        },
+        {
+          id: "10000000-0000-4000-8000-000000000234",
+          project_id: IDS.publicProject,
+          user_id: users.csfVpPublicity.id,
+          schedule_id: "oneTime",
+          status: "cancelled",
+          created_at: "2026-11-21T12:30:00-08:00",
+        },
+      ],
+      { onConflict: "id" },
     ),
   );
 }

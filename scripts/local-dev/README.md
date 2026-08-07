@@ -34,9 +34,12 @@ and restarting the local stack.
 
 > **This whole section is isolated-only.** The shared-local instructions above
 > remain correct for non-CSF work; they are not a fallback for DVHS CSF
-> recovery. The isolated topology is app `3000` and Supabase base `55320`
+> recovery. The isolated topology is app `3000` and prefers Supabase base `55320`
 > (API `55321`, DB `55322`, Studio `55323`, Mailpit UI `55324`, SMTP `55325`,
-> edge inspector `55326`, analytics `55327`, pooler config `55329`).
+> edge inspector `55326`, analytics `55327`, pooler config `55329`). If another
+> local project owns any host port in that bundle, the normal bootstrap advances
+> by ten until it finds a free bundle. An explicit `CSF_ISOLATED_BASE_PORT`
+> remains strict and never moves silently.
 
 For normal day-to-day CSF development, use the one-command bootstrap:
 
@@ -79,8 +82,8 @@ app runner; those remain the only permitted live stack and app launchers.
 
 1. Export the two run-scoped fixture-password variables shown above.
 2. Run `scripts/local-dev/start-dvhs-csf-isolated-stack.sh` and copy the exact
-   work directory it prints. It allocates one bounded run ID, atomically claims
-   that project ID and its whole port bundle, proves Docker holds no container,
+   work directory it prints. It allocates one bounded run ID, selects and
+   atomically claims a free port bundle, proves Docker holds no container,
    volume, or network for the project, starts once, and records the exact
    `supabase_db_<project-id>` volume in its ownership marker.
    If Docker repeatedly kills only the optional local Logflare analytics

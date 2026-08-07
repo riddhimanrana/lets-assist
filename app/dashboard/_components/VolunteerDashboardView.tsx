@@ -37,6 +37,8 @@ import { ExportSection } from "./ExportSection";
 import { AllHoursSection } from "./AllHoursSection";
 import { AddVolunteerHoursModal } from "./AddVolunteerHoursModal";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
+import { PluginDashboardCard } from "@/components/plugins/PluginDashboardCard";
+import type { PlatformDashboardCard } from "@/types";
 import {
   formatTotalDuration,
   type VolunteerDashboardData,
@@ -48,7 +50,8 @@ export function VolunteerDashboardView({
   upcomingSessions,
   user,
   uiCertificates,
-}: VolunteerDashboardData) {
+  pluginCards = [],
+}: VolunteerDashboardData & { pluginCards?: PlatformDashboardCard[] }) {
   return (
     <div className="mx-auto px-4 sm:px-8 lg:px-12 py-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
@@ -86,6 +89,19 @@ export function VolunteerDashboardView({
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
+          {/* Plugin-contributed organization cards: one full-width strip so a
+              single card leaves no dead grid cells and several tile as rows. */}
+          {pluginCards.length > 0 && (
+            <div className="divide-y rounded-xl border bg-card">
+              {pluginCards.map((card) => (
+                <PluginDashboardCard
+                  key={`${card.href}-${card.title}`}
+                  card={card}
+                />
+              ))}
+            </div>
+          )}
+
           {/* Stats Grid - 2 cols mobile, 4 cols desktop */}
           <div
             className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4"

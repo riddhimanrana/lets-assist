@@ -134,6 +134,13 @@ export async function createCsfCampaignDraft(
     resendTopicId?: string;
     tags?: Record<string, string>;
     correlationId?: string;
+    /**
+     * The announcement this campaign is queued from, for post "also send as
+     * email" requests. The RPC proves the post belongs to the organization and
+     * a partial unique index keeps at most one live campaign per post, so a
+     * retried publish lands on the existing campaign instead of double-sending.
+     */
+    sourceAnnouncementId?: string;
   },
 ): Promise<CsfCampaignDraft> {
   const response = await plugin.rpc("csf_create_communication_campaign_draft", {
@@ -149,6 +156,7 @@ export async function createCsfCampaignDraft(
     p_resend_topic_id: input.resendTopicId ?? null,
     p_tags: input.tags ?? {},
     p_correlation_id: input.correlationId ?? null,
+    p_source_announcement_id: input.sourceAnnouncementId ?? null,
   });
 
   const data = unwrap<Record<string, unknown>>(

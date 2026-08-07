@@ -10,7 +10,10 @@ import {
   isRetryableAuthError,
   withRetryableAuthOperation,
 } from "@/lib/supabase/retry-auth";
-import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
+import {
+  isCsfConnectRedirect,
+  normalizeRedirectPath,
+} from "@/app/signup/redirect-utils";
 import {
   getAccountAccessErrorCode,
   isAccountBlockedStatus,
@@ -328,6 +331,31 @@ export async function GET(request: Request) {
                 affiliationError,
               );
               // Don't fail signup if affiliation processing fails
+            }
+          }
+
+          // OAuth signups cannot carry signup metadata the way auth.signUp
+          // does, so mark CSF cohort-link signups here instead: skip the
+          // generic platform tour and tag the flow for the CSF onboarding UI.
+          if (
+            isCsfConnectRedirect(redirectAfterAuth) &&
+            (user.user_metadata as { signup_flow?: string } | null)
+              ?.signup_flow !== "csf_connect"
+          ) {
+            const { error: csfMetadataError } = await supabase.auth.updateUser({
+              data: {
+                signup_flow: "csf_connect",
+                has_completed_intro_tour: true,
+              },
+            });
+
+            if (csfMetadataError) {
+              // Metadata tagging is best-effort; the connect flow still works
+              // without it, the user just sees the generic onboarding instead.
+              console.error(
+                "Failed to tag CSF connect signup metadata:",
+                csfMetadataError,
+              );
             }
           }
 

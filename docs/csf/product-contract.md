@@ -1,11 +1,24 @@
 # DVHS CSF Product and Operational Specification
 
 **Status:** Approved implementation source of truth<br>
-**Version:** 1.0<br>
-**Last updated:** July 22, 2026<br>
+**Version:** 1.1<br>
+**Last updated:** August 6, 2026<br>
 **Product surface:** DVHS CSF private organization plugin inside Let’s Assist
 
 This document defines the product, operating model, information architecture, terminology, data boundaries, workflows, page behavior, and acceptance criteria for the DVHS CSF rebuild. If current code, old mockups, seed data, or earlier labels conflict with this document, this document wins unless it is amended explicitly.
+
+## Amendment record
+
+### Amendment 1 — Member posts and chapter email delivery (v1.1, August 6, 2026)
+
+Version 1.0 removed the Communications/Updates surface and treated Google Classroom as the chapter’s announcement channel. The chapter has since decided to retire Google Classroom for CSF and make Let’s Assist the member home. This amendment reinstates a deliberately narrow communications surface:
+
+- **Cohort posts.** Officers publish posts to a member feed scoped to `members`, a single graduating-class cohort (`class`), `officers`, or `public`. Posts support pinning and scheduling. Posts have **no comments** and no read-tracking.
+- **Per-post email delivery.** Publishing a post may optionally queue exactly one email campaign through the existing durable communications ledger (audience snapshot, content digest, leased dispatch, provider-event reconciliation). Delivery status is reported from ledger state; there are no simulated delivery claims.
+- **Recipient control.** Broadcast email honors the opt-out ledger and Resend topic one-click unsubscribe, plus a recipient-facing verify-your-address unsubscribe flow. Transactional mail is unaffected.
+- **What stays prohibited:** internal direct messaging, comments, any Google Classroom API or posting simulator, and delivery claims not backed by ledger/provider events.
+
+Clauses amended by this record are annotated “(amended v1.1)” in place. Where v1.0 text conflicts with this record, this record wins.
 
 ---
 
@@ -20,7 +33,7 @@ The rebuild is governed by these decisions:
 1. **The permanent student record is separate from every semester application and membership.** A student may apply in many semesters; each application and completed membership outcome remains historically accurate.
 2. **Academic eligibility, dues, the application decision, and end-of-semester participation are separate state dimensions.** “Approved” never implies that all service or meeting requirements have already been completed.
 3. **Google Forms and Sheets remain controlled intake and import channels.** Google Drive remains the location of source documents. Once an officer commits and reconciles an import, Let’s Assist is the operational source of truth for the normalized record.
-4. **Google Classroom remains outside the product.** Officers may manually post the same activity or deadline there. There is no Classroom API, posting simulator, internal communications center, or “draft announcement” tracker.
+4. **Google Classroom is retired for CSF; announcements live in the product (amended v1.1).** There is still no Classroom API or posting simulator. Chapter announcements are cohort-scoped member posts with optional ledger-backed email delivery, per Amendment 1.
 5. **Cutover is staged and officer-approved.** There is no permanent dual-write model and no silent synchronization over reviewed platform data.
 6. **The officer experience lives inside the familiar Let’s Assist organization shell.** DVHS CSF contributes purpose-built routes and workflows without replacing the host header, type system, theme, or organization identity.
 7. **Every displayed status names a real condition and a next action.** Generic “risk,” “readiness,” “health,” or “review inbox” abstractions are prohibited.
@@ -97,12 +110,13 @@ An adviser may change future-semester policy. Historical evaluations always reta
 - Term-scoped reports and compatibility exports
 - Capability-based officer access and immutable change history
 - Applicant/member self-service status and next steps
+- Cohort-scoped member posts with optional ledger-backed email delivery (Amendment 1, amended v1.1)
 - A minimal public activity page with no student records
 
 ### 3.2 Explicit non-goals
 
 - Google Classroom integration or simulated posting state
-- Internal direct messaging, email campaigns, or a communications hub
+- Internal direct messaging, post comments, or ad-hoc email outside the durable ledger (cohort posts with per-post email delivery are in scope per Amendment 1, amended v1.1)
 - Native payment processing or financial account storage
 - Automated transcript OCR or AI eligibility decisions
 - Public member directories, public membership badges, or public student progress
@@ -200,7 +214,7 @@ The current implementation contains important work that should be retained and r
 | “F25 focus”                                 | Internal shorthand presented as product language                                                                                                | Replace with a full semester selector, such as “Fall 2025”                                                 |
 | “CSF member ledger”                         | Finance-like and unfamiliar                                                                                                                     | Replace with “Members” or “Member directory”                                                               |
 | Generic “Onboarding”                        | Mixes invitations, account matching, and student creation                                                                                       | Remove as navigation; place “Connect student record” in Members                                            |
-| Communications/Updates                      | Duplicates the external Classroom/website workflow and implies platform delivery                                                                | Remove from active IA; keep old announcement rows as migration history only                                |
+| Communications/Updates                      | Duplicates the external Classroom/website workflow and implies platform delivery                                                                | Reinstated as cohort posts per Amendment 1 (amended v1.1); legacy announcement rows stay migration history |
 | Applications dialog                         | Shows aggregate point totals but not the course lines, document checks, dues state, provenance, or decision history needed to review accurately | Rebuild as an addressable review workspace                                                                 |
 | Member table                                | Shows many empty future-term chips and generic “needs attention” state                                                                          | Show current application/membership columns and historical data on detail only                             |
 | Classes & Terms                             | Exposes implementation structure instead of semester operations                                                                                 | Rebuild as Semester with Schedule, Policy, and Previous semesters                                          |
@@ -322,7 +336,7 @@ Existing direct plugin routes remain temporary compatibility aliases. They redir
 | `staff`, `roles`                   | Staff access                                                              |
 | `audit`                            | Change history                                                            |
 | `restrictions`                     | Member detail or Settings                                                 |
-| `calendar`                         | Removed; historical announcement records are read-only migration data     |
+| `calendar`                         | Removed; legacy announcement rows are read-only migration data. New cohort posts are active per Amendment 1 (amended v1.1) |
 | `reports`                          | Reports                                                                   |
 | `settings`                         | Settings or Semester → Policy, depending on field                         |
 | `my-profile`, `application-status` | My CSF                                                                    |
@@ -1107,16 +1121,14 @@ The same domain evaluator powers member UI, officer tables, reports, exports, an
 
 Forms are represented through their linked response Sheets and source metadata. The platform does not edit form structure or responses. A configured application link may appear in My CSF while the window is open.
 
-### 13.4 Google Classroom
+### 13.4 Google Classroom (amended v1.1)
 
-There is intentionally no integration.
+There is intentionally no Classroom integration. Google Classroom is retired as the chapter announcement channel; announcements are in-product cohort posts per Amendment 1.
 
 - No Classroom OAuth scopes
 - No class picker
-- No draft/post/failed status
 - No recipient simulation
-- No internal communications page
-- No delivery claim
+- Post email delivery status comes only from the durable ledger and provider events — no simulated or asserted delivery claims
 
 Activity and deadline pages may offer a local “Copy summary” action. Copying text is a convenience and does not create a communications record or imply publication.
 
@@ -1195,7 +1207,7 @@ All seed data is fictional and visibly synthetic.
 - Include meetings with matched, ambiguous, unmatched, excused, and manually corrected attendance.
 - Include approved/pending/rejected partner clubs and aliases.
 - Include successful, partial, failed, corrected-retry, and reviewed-field-conflict imports.
-- Do not seed Classroom announcements. Existing announcement rows may remain only as migration-history fixtures clearly excluded from active product UI.
+- Do not seed Classroom announcements. Legacy (pre-v1.1) announcement rows may remain only as migration-history fixtures. Fixtures for the v1.1 posts surface are fictional cohort posts covering draft/scheduled/published/archived, pinned, class-targeted, and email-queued states.
 - Load/performance fixtures generate approximately 600 applications and 1,000 member profiles without being committed as private-looking named data.
 
 Raw fixture workbooks may mirror the **shape** of observed DVHS sheets but never their private values.
@@ -1206,7 +1218,7 @@ Raw fixture workbooks may mirror the **shape** of observed DVHS sheets but never
 
 ### 16.1 Remove from active product
 
-- Communications/Updates navigation and creation UI
+- Legacy Communications/Updates navigation and creation UI (superseded by the Amendment 1 posts surface, amended v1.1)
 - Generic Onboarding navigation
 - “Review inbox,” “Semester readiness,” “At risk,” “Prepare [term],” “F25 focus,” and “CSF member ledger” copy
 - Decorative metric cards and empty charts
@@ -1217,7 +1229,7 @@ Raw fixture workbooks may mirror the **shape** of observed DVHS sheets but never
 
 ### 16.2 Preserve as read-only history or compatibility
 
-- Existing announcement rows: migration history only, not active communications
+- Pre-v1.1 announcement rows: migration history only. Posts created under Amendment 1 are active product data (amended v1.1)
 - Existing direct plugin URLs: temporary redirect aliases
 - Existing aggregate application totals: source/cache fields, not the eligibility decision model
 - Existing legacy term meeting records: migrated to logical meeting/session records
@@ -1263,7 +1275,7 @@ Current accepted/active membership maps to `requirements_in_progress`. Only a de
 - Add independent application state dimensions, typed checks, dues, deadlines, notes, assignments, correlation, and atomic decision updates.
 - Rebuild canonical shell/navigation.
 - Build Home, review queue/detail, all applications, member directory/detail, account connection, My CSF, and current-semester views.
-- Remove generic home/onboarding/communications concepts from active navigation.
+- Remove generic home/onboarding concepts and legacy communications UI from active navigation (the Amendment 1 posts surface is not legacy UI).
 
 **Exit:** An imported fictional application can be reviewed course-by-course, corrected, approved/rejected atomically, and seen correctly by the student.
 

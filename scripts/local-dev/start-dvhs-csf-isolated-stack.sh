@@ -34,11 +34,15 @@ if [[ ! "${RUN_ID}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,15}$ ]]; then
 fi
 PROJECT_ID="lets-assist-csf-browser-${RUN_ID}"
 WORK_DIR="${CSF_ISOLATED_WORK_DIR:-${TMPDIR:-/tmp}/${PROJECT_ID}}"
-# The DVHS CSF recovery topology: app 3000, isolated Supabase base 55320
+# The preferred DVHS CSF recovery topology: app 3000, isolated Supabase base 55320
 # (API 55321, DB 55322, Studio 55323, Mailpit UI 55324, SMTP 55325, edge
 # inspector 55326, analytics 55327, pooler 55329). An explicit
-# CSF_ISOLATED_BASE_PORT still wins, and the allocator below still refuses a
-# collision rather than sharing a bundle with another stack.
+# CSF_ISOLATED_BASE_PORT still wins. Otherwise the allocator advances by ten
+# until it finds a free, non-overlapping host-port bundle.
+BASE_PORT_EXPLICIT=false
+if [[ -n "${CSF_ISOLATED_BASE_PORT:-}" ]]; then
+  BASE_PORT_EXPLICIT=true
+fi
 BASE_PORT="${CSF_ISOLATED_BASE_PORT:-55320}"
 if [[ ! "${BASE_PORT}" =~ ^[0-9]+$ ]] || ((BASE_PORT < 1024 || BASE_PORT > 65526)); then
   fail "CSF_ISOLATED_BASE_PORT must be an integer between 1024 and 65526."
@@ -62,7 +66,13 @@ PORT_OFFSETS=(0 1 2 3 4 5 6 7 9)
 # offset: the isolated Supabase bundle and the isolated app are separate
 # resources, and deriving one from the other would move the app whenever the base
 # moved. It is preflighted below, before the first mutation of any kind.
-APP_PORT=3000
+# Defaults to 3000; CSF_ISOLATED_APP_PORT moves it so the stack can run beside a
+# developer's own server on 3000. dv-local-env.mjs reads the same variable and
+# derives the pinned origin from it, so the two never disagree.
+APP_PORT="${CSF_ISOLATED_APP_PORT:-3000}"
+if [[ ! "${APP_PORT}" =~ ^[0-9]+$ ]] || ((APP_PORT < 1024 || APP_PORT > 65535)); then
+  fail "CSF_ISOLATED_APP_PORT must be an integer between 1024 and 65535."
+fi
 PROJECT_LABEL_KEY="com.supabase.cli.project"
 PROJECT_LABEL="${PROJECT_LABEL_KEY}=${PROJECT_ID}"
 DB_VOLUME_NAME="supabase_db_${PROJECT_ID}"
@@ -120,13 +130,15 @@ NODE
   fi
 }
 
-# Check the exact loopback endpoint the isolated services will bind. `lsof -i`
+# Check the wildcard endpoint Docker will publish. A loopback-only probe can
+# succeed while Docker already owns the same port on `0.0.0.0` or `[::]`, which
+# turns a clean preflight into a later `supabase start` failure. `lsof -i`
 # still walks mounted filesystems on macOS and can block indefinitely on an
-# unavailable Time Machine/SMB volume, even though this check only cares about a
-# TCP listener. A short-lived bind is both narrower and independent of unrelated
-# mounts. The lsof branch is reachable only from the existing hermetic launcher
-# harness, where the executable is a test fake and no socket access is allowed.
-probe_loopback_port() {
+# unavailable Time Machine/SMB volume. A short-lived wildcard bind matches
+# Docker's publication scope and is independent of unrelated mounts. The lsof
+# branch is reachable only from the existing hermetic launcher harness, where
+# the executable is a test fake and no socket access is allowed.
+probe_host_port() {
   local port="$1"
   local probe_status=0
 
@@ -149,7 +161,7 @@ const probe = createServer();
 probe.once("error", (error) => {
   process.exitCode = error?.code === "EADDRINUSE" ? 1 : 2;
 });
-probe.listen({ host: "127.0.0.1", port, exclusive: true }, () => {
+probe.listen({ host: "0.0.0.0", port, exclusive: true }, () => {
   probe.close((error) => {
     process.exitCode = error ? 2 : 0;
   });
@@ -157,17 +169,37 @@ probe.listen({ host: "127.0.0.1", port, exclusive: true }, () => {
 NODE
 }
 
-assert_loopback_port_free() {
+assert_host_port_free() {
   local port="$1"
   local occupied_message="$2"
   local probe_status=0
 
-  probe_loopback_port "${port}" || probe_status=$?
+  probe_host_port "${port}" || probe_status=$?
   case "${probe_status}" in
     0) return 0 ;;
     1) fail "${occupied_message}" ;;
-    *) fail "Could not verify whether loopback port ${port} is available; refusing to start." ;;
+    *) fail "Could not verify whether host port ${port} is available; refusing to start." ;;
   esac
+}
+
+port_bundle_is_available() {
+  local offset port probe_status
+
+  for offset in "${PORT_OFFSETS[@]}"; do
+    port=$((BASE_PORT + offset))
+    if [[ -d "${CLAIM_ROOT}/port-${port}" ]]; then
+      return 1
+    fi
+    probe_status=0
+    probe_host_port "${port}" || probe_status=$?
+    case "${probe_status}" in
+      0) ;;
+      1) return 1 ;;
+      *) return 2 ;;
+    esac
+  done
+
+  return 0
 }
 
 # One pinned, test-owned contract of exact names for Supabase CLI 2.111.0, typed
@@ -528,20 +560,22 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
-# Fixed app port 3000 — checked first, before any persistent mutation.
+# Fixed app port (3000 unless CSF_ISOLATED_APP_PORT overrides it) — checked
+# first, before any persistent mutation.
 #
 # This runs ahead of the claim root, the project claim, the port bundle, the work
 # directory, and `supabase start`. A stack whose app port is already taken is a
 # stack that cannot be driven, and discovering that after Docker has a database
 # volume means tearing the whole thing down again. It is also independent of the
-# Supabase bundle on purpose: 3000 is never one of the base-relative offsets.
+# Supabase bundle on purpose, and the loop below refuses any base port that would
+# place a Supabase service on it.
 # ---------------------------------------------------------------------------
 for offset in "${PORT_OFFSETS[@]}"; do
   if ((BASE_PORT + offset == APP_PORT)); then
     fail "CSF_ISOLATED_BASE_PORT ${BASE_PORT} would place a Supabase service on the fixed app port ${APP_PORT}."
   fi
 done
-assert_loopback_port_free \
+assert_host_port_free \
   "${APP_PORT}" \
   "The fixed isolated app port ${APP_PORT} is already in use; free it before starting the isolated stack."
 
@@ -570,6 +604,34 @@ assert_private_directory "${PROJECT_CLAIM}"
 if ! acquire_allocator_lock; then
   exit 1
 fi
+
+# A human-facing `bun run dev` should coexist with other local Supabase
+# projects. Only the implicit default may move: an explicit base remains a
+# strict, reproducible contract for CI and callers that depend on exact ports.
+if [[ "${BASE_PORT_EXPLICIT}" != true ]]; then
+  PORT_BUNDLE_STATUS=1
+  for _attempt in $(seq 1 50); do
+    PORT_BUNDLE_STATUS=0
+    port_bundle_is_available || PORT_BUNDLE_STATUS=$?
+    if ((PORT_BUNDLE_STATUS == 0)); then
+      break
+    fi
+    if ((PORT_BUNDLE_STATUS != 1)); then
+      echo "Could not verify whether the isolated Supabase host ports are available; refusing to start." >&2
+      exit "${PORT_BUNDLE_STATUS}"
+    fi
+    BASE_PORT=$((BASE_PORT + 10))
+    if ((BASE_PORT > 65526)); then
+      break
+    fi
+  done
+  if ((PORT_BUNDLE_STATUS != 0)) || ((BASE_PORT > 65526)); then
+    echo "No free isolated Supabase port bundle was found at or above 55320." >&2
+    echo "Set CSF_ISOLATED_BASE_PORT to an unused base port and retry." >&2
+    exit 1
+  fi
+fi
+
 PORT_CLAIM_STATUS=0
 claim_port_bundle || PORT_CLAIM_STATUS=$?
 if ((PORT_CLAIM_STATUS == 0)); then
@@ -596,7 +658,7 @@ fi
 
 for offset in "${PORT_OFFSETS[@]}"; do
   port=$((BASE_PORT + offset))
-  assert_loopback_port_free \
+  assert_host_port_free \
     "${port}" \
     "Port ${port} is already in use; choose another CSF_ISOLATED_BASE_PORT."
 done
@@ -734,11 +796,9 @@ write_marker starting
 
 START_ATTEMPTED=true
 run_supabase_start() {
-  if [[ "${CSF_ISOLATED_ANALYTICS_MODE}" == "disabled" ]]; then
-    supabase start --workdir "${WORK_DIR}" --exclude analytics --yes
-  else
-    supabase start --workdir "${WORK_DIR}" --yes
-  fi
+  # Analytics is disabled in the generated config above. Supabase CLI 2.111.0
+  # no longer accepts the historical `analytics` name in --exclude.
+  supabase start --workdir "${WORK_DIR}" --yes
 }
 if ! run_supabase_start >"${START_LOG}" 2>&1; then
   fail "supabase start failed for isolated project ${PROJECT_ID}; see ${START_LOG}."
@@ -864,9 +924,9 @@ emit_app_env_value() {
   emit_app_env_value SUPABASE_SECRET_KEY "${SECRET_KEY}"
   emit_app_env_value SUPABASE_SERVICE_ROLE_KEY "${SERVICE_ROLE_KEY}"
   emit_app_env_value CSF_PROFILE_CLAIM_SECRET "${CSF_PROFILE_CLAIM_SECRET}"
-  emit_app_env_value NEXT_PUBLIC_SITE_URL "http://localhost:3000"
-  emit_app_env_value SITE_URL "http://localhost:3000"
-  emit_app_env_value NEXT_PUBLIC_VERCEL_URL "localhost:3000"
+  emit_app_env_value NEXT_PUBLIC_SITE_URL "http://localhost:${APP_PORT}"
+  emit_app_env_value SITE_URL "http://localhost:${APP_PORT}"
+  emit_app_env_value NEXT_PUBLIC_VERCEL_URL "localhost:${APP_PORT}"
   emit_app_env_value CSF_ISOLATED_WORK_DIR "${WORK_DIR}"
 } >"${APP_ENV_FILE}"
 chmod 600 "${APP_ENV_FILE}"

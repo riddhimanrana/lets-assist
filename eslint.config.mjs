@@ -19,6 +19,7 @@ export default tseslint.config(
       "dist",
       "coverage",
       ".artifacts/**",
+      "supabase/.temp/**",
       "*.config.mjs",
       "tmp-component-usage.json",
       "**/*.backup.tsx",

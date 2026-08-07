@@ -39,6 +39,32 @@ export function normalizeRedirectPath(
   }
 }
 
+export function isCsfConnectRedirect(
+  path: string | null | undefined,
+): boolean {
+  const normalized = normalizeRedirectPath(path);
+  if (!normalized) {
+    return false;
+  }
+
+  const pathnameOnly = normalized.split("#")[0].split("?")[0];
+  const segments = pathnameOnly.split("/").filter(Boolean);
+
+  // /organization/<slug>/plugins/dvhs-csf/connect[/<code>]
+  if (segments.length !== 5 && segments.length !== 6) {
+    return false;
+  }
+
+  return (
+    segments[0] === "organization" &&
+    segments[1].length > 0 &&
+    segments[2] === "plugins" &&
+    segments[3] === "dvhs-csf" &&
+    segments[4] === "connect" &&
+    (segments.length === 5 || segments[5].length > 0)
+  );
+}
+
 export function buildAuthConfirmRedirectUrl(
   origin: string,
   redirectPath?: string | null,

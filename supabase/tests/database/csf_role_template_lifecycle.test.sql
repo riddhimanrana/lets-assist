@@ -102,6 +102,9 @@ SELECT extensions.ok(
   ),
   'custom role identity, presentation, type, and seat limit are stored separately'
 );
+-- Derived from the catalog function rather than a literal: the catalog grows
+-- as capabilities are added, and the invariant under test is "a custom role
+-- stores one row per catalog permission", not any particular count.
 SELECT extensions.is(
   (
     SELECT count(*)::integer
@@ -110,7 +113,7 @@ SELECT extensions.is(
     WHERE role.organization_id = 'f7100000-0000-4000-8000-000000000001'
       AND role.key = 'community-lead-operations'
   ),
-  37,
+  array_length(plugin_data.csf_role_permission_catalog(), 1),
   'the custom role stores the exact current permission catalog'
 );
 SELECT extensions.is(

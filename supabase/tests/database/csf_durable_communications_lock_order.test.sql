@@ -115,7 +115,7 @@ SELECT extensions.ok(
 -- so it takes no lock at all. Taking one would be pure contention.
 SELECT extensions.ok(
   pg_get_functiondef(
-    'plugin_data.csf_create_communication_campaign_draft(uuid,text,text,text,uuid,uuid,text,text,text,text,jsonb,text)'::regprocedure
+    'plugin_data.csf_create_communication_campaign_draft(uuid,text,text,text,uuid,uuid,text,text,text,text,jsonb,text,uuid)'::regprocedure
   ) NOT LIKE '%pg_advisory_xact_lock%',
   'creating a draft locks nothing: the row it inserts has no other claimant'
 );
@@ -200,7 +200,7 @@ SELECT extensions.ok(
   (
     SELECT bool_and(routine.prosecdef)
     FROM unnest(ARRAY[
-      'plugin_data.csf_create_communication_campaign_draft(uuid,text,text,text,uuid,uuid,text,text,text,text,jsonb,text)',
+      'plugin_data.csf_create_communication_campaign_draft(uuid,text,text,text,uuid,uuid,text,text,text,text,jsonb,text,uuid)',
       'plugin_data.csf_update_communication_campaign_draft(uuid,uuid,uuid,text,text,text,text)',
       'plugin_data.csf_record_broadcast_preference_decision(uuid,text,text,text,text,text,uuid,text,text)'
     ]) AS routine_name
@@ -217,7 +217,7 @@ SELECT extensions.ok(
       AND has_function_privilege('service_role', routine_name::regprocedure, 'EXECUTE')
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_create_communication_campaign_draft(uuid,text,text,text,uuid,uuid,text,text,text,text,jsonb,text)',
+      'plugin_data.csf_create_communication_campaign_draft(uuid,text,text,text,uuid,uuid,text,text,text,text,jsonb,text,uuid)',
       'plugin_data.csf_update_communication_campaign_draft(uuid,uuid,uuid,text,text,text,text)',
       'plugin_data.csf_record_broadcast_preference_decision(uuid,text,text,text,text,text,uuid,text,text)'
     ]) AS routine_name
@@ -231,7 +231,7 @@ SELECT extensions.ok(
   (
     SELECT bool_and(routine.proconfig @> ARRAY['search_path=""'])
     FROM unnest(ARRAY[
-      'plugin_data.csf_create_communication_campaign_draft(uuid,text,text,text,uuid,uuid,text,text,text,text,jsonb,text)',
+      'plugin_data.csf_create_communication_campaign_draft(uuid,text,text,text,uuid,uuid,text,text,text,text,jsonb,text,uuid)',
       'plugin_data.csf_update_communication_campaign_draft(uuid,uuid,uuid,text,text,text,text)',
       'plugin_data.csf_record_broadcast_preference_decision(uuid,text,text,text,text,text,uuid,text,text)'
     ]) AS routine_name

@@ -671,7 +671,7 @@ describe("shared profile-claim secret contract", () => {
 // ---------------------------------------------------------------------------
 
 describe("recovery base port", () => {
-  test("defaults to the 55320 recovery bundle", async () => {
+  test("prefers the 55320 recovery bundle when it is available", async () => {
     const sandbox = await createSandbox();
     const workDir = sandbox.workDir("base-default");
 
@@ -720,13 +720,34 @@ describe("recovery base port", () => {
     ).toContain("base_port=61000");
   }, 60_000);
 
-  test("the launcher source keeps 55320 as the default and refuses an out-of-range base", () => {
+  test("an implicit default advances past a host-port collision", async () => {
+    const sandbox = await createSandbox();
+    const workDir = sandbox.workDir("base-collision");
+
+    const result = launch(sandbox, {
+      CSF_ISOLATED_RUN_ID: "base-collision",
+      CSF_ISOLATED_WORK_DIR: workDir,
+      CSF_ISOLATED_BASE_PORT: "",
+      FAKE_LSOF_OCCUPIED_PORTS: "55322",
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(
+      await readFile(join(workDir, ".lets-assist-csf-isolated-stack"), "utf8"),
+    ).toContain("base_port=55330");
+    expect(
+      await readFile(join(workDir, "supabase", "config.toml"), "utf8"),
+    ).toContain("port = 55332");
+  }, 60_000);
+
+  test("the launcher source prefers 55320 and refuses an out-of-range base", () => {
     const launcherSource = readFileSync(launcherPath, "utf8");
     expect(launcherSource).toContain(
       'BASE_PORT="${CSF_ISOLATED_BASE_PORT:-55320}"',
     );
     expect(launcherSource).not.toContain("56350");
-    // Allocator collision refusal is preserved.
+    expect(launcherSource).toContain("BASE_PORT=$((BASE_PORT + 10))");
+    // Explicit allocator collision refusal is preserved.
     expect(launcherSource).toContain("PORT_OFFSETS=(0 1 2 3 4 5 6 7 9)");
     expect(launcherSource).toContain(
       'fail "CSF_ISOLATED_BASE_PORT must be an integer between 1024 and 65526."',

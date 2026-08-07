@@ -15,7 +15,7 @@ const canonicalTabs = [
   "Applications",
   "Members",
   "Service",
-  "Semester",
+  "Classes",
 ] as const;
 
 const canonicalMoreItems = [
@@ -23,6 +23,7 @@ const canonicalMoreItems = [
   "Reports",
   "Staff access",
   "Change history",
+  "Communications",
   "Settings",
 ] as const;
 
@@ -49,13 +50,21 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
     actor: "coPresident",
     label: "Co-President",
     visibleTabs: canonicalTabs,
-    visibleMoreItems: ["Imports", "Reports", "Change history", "Settings"],
+    visibleMoreItems: [
+      "Imports",
+      "Reports",
+      "Change history",
+      "Communications",
+      "Settings",
+    ],
     deniedRoute: "staff",
   },
   {
     actor: "vpMembership",
     label: "Vice President — Membership",
-    visibleTabs: ["Home", "Applications", "Members", "Service"],
+    // The Classes hub opens for any class-tab capability; membership holds
+    // manage_profiles, process_points, and manage_meetings.
+    visibleTabs: ["Home", "Applications", "Members", "Service", "Classes"],
     visibleMoreItems: ["Imports", "Reports"],
     deniedRoute: "staff",
   },
@@ -69,7 +78,8 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
   {
     actor: "vpClubs",
     label: "Vice President — Clubs",
-    visibleTabs: ["Home", "Service"],
+    // process_points opens the Classes hub (Points tab only inside it).
+    visibleTabs: ["Home", "Service", "Classes"],
     visibleMoreItems: ["Imports", "Reports"],
     deniedRoute: "applications",
   },
@@ -83,7 +93,8 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
   {
     actor: "secretary",
     label: "Secretary",
-    visibleTabs: ["Home", "Members", "Service", "Semester"],
+    // The former Semester tab now lives inside the Classes hub.
+    visibleTabs: ["Home", "Members", "Service", "Classes"],
     visibleMoreItems: ["Imports", "Reports"],
     deniedRoute: "applications",
   },
@@ -104,7 +115,7 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
   {
     actor: "dataManagement",
     label: "Data Management",
-    visibleTabs: ["Home", "Applications", "Members", "Service"],
+    visibleTabs: ["Home", "Applications", "Members", "Service", "Classes"],
     visibleMoreItems: ["Imports", "Reports", "Change history"],
     deniedRoute: "staff",
   },
@@ -314,17 +325,22 @@ test.describe("DVHS CSF role-aware navigation", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("member sees only My CSF, Activities, and Point submissions", async ({
+  test("member sees only Home, Activities, Point submissions, and My CSF", async ({
     page,
   }) => {
     await loginAs(page, "member");
+
+    // Home is the member default landing tab.
+    const memberHome = page.getByRole("tab", { name: "Home", exact: true });
+    await expect(memberHome).toBeVisible();
+    await expect(memberHome).toHaveAttribute("aria-selected", "true");
 
     for (const tab of ["My CSF", "Activities", "Point submissions"]) {
       await expect(
         page.getByRole("tab", { name: tab, exact: true }),
       ).toBeVisible();
     }
-    for (const tab of ["Applications", "Members", "Service", "Semester"]) {
+    for (const tab of ["Applications", "Members", "Service", "Classes"]) {
       await expect(
         page.getByRole("tab", { name: tab, exact: true }),
       ).toHaveCount(0);
@@ -343,15 +359,17 @@ test.describe("DVHS CSF role-aware navigation", () => {
   test("applicant sees only their own CSF workflow", async ({ page }) => {
     await loginAs(page, "applicant");
 
-    for (const tab of ["My CSF", "Activities", "Point submissions"]) {
+    for (const tab of ["Home", "My CSF", "Activities", "Point submissions"]) {
       await expect(
         page.getByRole("tab", { name: tab, exact: true }),
       ).toBeVisible();
     }
+    // The applicant's review state lives in My CSF; Home is the landing feed.
+    await page.getByRole("tab", { name: "My CSF", exact: true }).click();
     await expect(
       page.getByText("Under review", { exact: true }).first(),
     ).toBeVisible();
-    for (const tab of ["Applications", "Members", "Service", "Semester"]) {
+    for (const tab of ["Applications", "Members", "Service", "Classes"]) {
       await expect(
         page.getByRole("tab", { name: tab, exact: true }),
       ).toHaveCount(0);

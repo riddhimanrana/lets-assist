@@ -198,6 +198,9 @@ export const FAKE_DOCKER = [
 export const FAKE_LSOF = [
   "#!/bin/sh",
   'printf "%s\\n" "$*" >> "${FAKE_LSOF_CALLS:-/dev/null}"',
+  "for port in ${FAKE_LSOF_OCCUPIED_PORTS:-}; do",
+  '  case "$*" in *"-iTCP:${port}"*) exit 0 ;; esac',
+  "done",
   "exit 1",
   "",
 ].join("\n");

@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 // Constants for validation
 const _USERNAME_MIN_LENGTH = 3;
@@ -50,6 +50,11 @@ interface InitialOnboardingModalProps {
   currentFullName?: string | null;
   currentEmail?: string | null;
   autoJoinedOrg?: { id: string; name: string } | null;
+  /**
+   * "csf" only swaps the heading/description copy for students arriving from
+   * a CSF cohort connect link and keeps them on the connect page afterwards.
+   */
+  variant?: "default" | "csf";
 }
 
 export default function InitialOnboardingModal({
@@ -59,8 +64,10 @@ export default function InitialOnboardingModal({
   currentFullName: _currentFullName,
   currentEmail: _currentEmail,
   autoJoinedOrg,
+  variant = "default",
 }: InitialOnboardingModalProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
     null,
@@ -281,7 +288,13 @@ export default function InitialOnboardingModal({
         }
 
         setTimeout(() => {
-          router.replace("/home?onboarding=complete");
+          // CSF connect signups stay on the connect/confirmation page instead
+          // of being pulled to /home.
+          router.replace(
+            variant === "csf" && pathname
+              ? `${pathname}?onboarding=complete`
+              : "/home?onboarding=complete",
+          );
         }, 1000);
       }
     } catch (error) {
@@ -320,11 +333,15 @@ export default function InitialOnboardingModal({
                   </div>
                   <div>
                     <DialogTitle className="text-xl font-semibold">
-                      Welcome to Let&apos;s Assist!
+                      {variant === "csf"
+                        ? "Finish setting up your Let's Assist account"
+                        : "Welcome to Let's Assist!"}
                     </DialogTitle>
                     <div className="space-y-1">
                       <DialogDescription className="text-sm">
-                        Let&apos;s set up your profile
+                        {variant === "csf"
+                          ? "Your CSF record is connected — choose a username to finish"
+                          : "Let's set up your profile"}
                       </DialogDescription>
                       <p className="text-xs text-muted-foreground/80">
                         This will keep showing up until filled out and then go

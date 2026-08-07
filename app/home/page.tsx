@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { redirect } from "next/navigation";
@@ -11,6 +11,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { Metadata } from "next";
 import { ProjectsInfiniteScroll } from "@/components/projects/ProjectsInfiniteScroll";
+import { PluginFeedSection } from "@/components/plugins/PluginFeedSection";
 import { checkSuperAdmin } from "@/app/admin/actions";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
 
@@ -125,6 +126,10 @@ export default async function Home({ searchParams }: HomePageProps) {
             </Link>
           </div>
         </div>
+
+        <Suspense fallback={null}>
+          <PluginFeedSection userId={user.id} />
+        </Suspense>
 
         {/* Render the infinite scroll component */}
         <ProjectsInfiniteScroll />

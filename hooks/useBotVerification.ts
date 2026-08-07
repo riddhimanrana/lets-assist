@@ -2,6 +2,8 @@
 
 import { useState, useRef } from "react";
 import { TurnstileRef } from "@/components/ui/turnstile";
+import { useSecureCheck } from "@/hooks/useSecureCheck";
+import type { SecureCheckPhase } from "@/lib/auth/secure-check";
 
 interface UseBotVerificationOptions {
   onSuccess?: (token: string) => void;
@@ -10,9 +12,15 @@ interface UseBotVerificationOptions {
 
 export function useBotVerification(options?: UseBotVerificationOptions) {
   const [token, setToken] = useState<string | null>(null);
-  const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<TurnstileRef>(null);
+
+  const secureCheck = useSecureCheck({
+    onRetry: () => {
+      setToken(null);
+      setError(null);
+    },
+  });
 
   const handleVerify = (verificationToken: string) => {
     setToken(verificationToken);
@@ -21,14 +29,24 @@ export function useBotVerification(options?: UseBotVerificationOptions) {
   };
 
   const handleError = (errorCode?: string) => {
+    const wasReady = secureCheck.isReady;
+    secureCheck.handleError();
+    setToken(null);
+
+    // Before the widget loads there is nothing for the person to act on in an
+    // error message; the unavailable state explains the situation and offers a
+    // retry instead.
+    if (!wasReady) {
+      return;
+    }
+
     const errorMessage = errorCode || "Verification failed. Please try again.";
     setError(errorMessage);
-    setToken(null);
     options?.onError?.(errorMessage);
   };
 
   const handleLoad = () => {
-    setIsReady(true);
+    secureCheck.handleLoad();
   };
 
   const reset = () => {
@@ -44,11 +62,16 @@ export function useBotVerification(options?: UseBotVerificationOptions) {
   return {
     // State
     token: getToken(),
-    isReady,
+    isReady: secureCheck.isReady,
+    phase: secureCheck.phase as SecureCheckPhase,
     error,
 
     // Ref for TurnstileComponent
     ref,
+
+    // Remount key + retry for the secure check fallback
+    widgetKey: secureCheck.widgetKey,
+    retry: secureCheck.retry,
 
     // Handlers for TurnstileComponent
     onVerify: handleVerify,

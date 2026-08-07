@@ -13,6 +13,10 @@
 /.artifacts/
 /artifacts/
 
+# Real CSF source data (student PII) — local only, never committed.
+# Layout and semantics are documented in docs/csf/source-data.md.
+/docs/csf/source-data/
+
 # next.js
 /.next/
 /.next-csf-isolated/

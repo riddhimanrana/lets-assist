@@ -39,6 +39,7 @@
     "csf:dev:isolated": "node scripts/local-dev/bootstrap-dvhs-csf-dev.mjs",
     "csf:test:e2e": "bun run test:e2e:csf",
     "csf:inspect:legacy": "bun scripts/local-dev/inspect-dvhs-csf-legacy-workbooks.ts",
+    "csf:normalize:legacy": "bun scripts/local-dev/normalize-dvhs-csf-club-audit-workbooks.ts",
     "plugin:submodules:init": "git submodule update --init --recursive",
     "plugin:submodules:check": "node scripts/check-private-submodules.mjs",
     "plugin:submodules:check:strict": "node scripts/check-private-submodules.mjs --strict",

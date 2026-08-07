@@ -1,5 +1,4 @@
 "use client";
-import { Shield } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,6 +23,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { TurnstileComponent } from "@/components/ui/turnstile";
+import { SecureCheckPanel } from "@/components/auth/SecureCheckPanel";
 import { useBotVerification } from "@/hooks/useBotVerification";
 
 const resetPasswordSchema = z.object({
@@ -159,23 +159,21 @@ export default function ResetPasswordClient({
               )}
             />
             <div className="flex justify-center">
-              <div className="relative w-75 h-16.25 overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
-                {!verification.isReady && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                    <Shield className="h-4 w-4 text-muted-foreground/80" />
-                    <span className="text-[0.7rem] font-semibold normal-case">
-                      Bot verification loading…
-                    </span>
-                  </div>
-                )}
+              <SecureCheckPanel
+                phase={verification.phase}
+                onRetry={verification.retry}
+                className="w-75 rounded-lg border-border/50 bg-muted/30"
+                fallbackClassName="w-75 rounded-lg border-border/50 bg-muted/30"
+              >
                 <TurnstileComponent
+                  key={verification.widgetKey}
                   ref={verification.ref}
                   onLoad={verification.onLoad}
                   onVerify={verification.onVerify}
                   onError={verification.onError}
                   onExpire={() => verification.reset()}
                 />
-              </div>
+              </SecureCheckPanel>
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Sending Reset Link..." : "Send Reset Link"}

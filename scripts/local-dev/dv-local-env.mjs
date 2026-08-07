@@ -46,15 +46,38 @@ const CSF_ISOLATED_APP_ENV_FILE = "lets-assist-browser.sh";
 // The exact port bundle the launcher writes into the generated config.
 const CSF_ISOLATED_PORT_OFFSETS = [0, 1, 2, 3, 4, 5, 6, 7, 9];
 
-// The launcher pins the app to this loopback origin; nothing else is accepted.
-const CSF_ISOLATED_SITE_URL = "http://localhost:3000";
-const CSF_ISOLATED_VERCEL_URL = "localhost:3000";
-
 // The app port is fixed independently of the Supabase base port. It is
 // deliberately *not* a base-relative offset: the isolated Supabase bundle and
 // the isolated app are two separate resources, and deriving one from the other
 // would silently move the app whenever the base moved.
-export const CSF_ISOLATED_APP_PORT = 3000;
+//
+// It defaults to 3000 and is overridable ONLY through CSF_ISOLATED_APP_PORT, so
+// a developer already serving their own work on 3000 can run the isolated stack
+// beside it instead of having to stop one to use the other. Everything derived
+// from the port — the pinned origin, the preflight, the port claim — reads this
+// one value, so an override moves the whole stack coherently or not at all.
+export const CSF_ISOLATED_APP_PORT = resolveIsolatedAppPort();
+
+function resolveIsolatedAppPort() {
+  const requested = (process.env.CSF_ISOLATED_APP_PORT ?? "").trim();
+  if (requested === "") return 3000;
+  if (!/^\d+$/u.test(requested)) {
+    throw new Error(
+      "CSF_ISOLATED_APP_PORT must be an integer between 1024 and 65535.",
+    );
+  }
+  const port = Number.parseInt(requested, 10);
+  if (port < 1024 || port > 65535) {
+    throw new Error(
+      "CSF_ISOLATED_APP_PORT must be an integer between 1024 and 65535.",
+    );
+  }
+  return port;
+}
+
+// The launcher pins the app to this loopback origin; nothing else is accepted.
+const CSF_ISOLATED_SITE_URL = `http://localhost:${CSF_ISOLATED_APP_PORT}`;
+const CSF_ISOLATED_VERCEL_URL = `localhost:${CSF_ISOLATED_APP_PORT}`;
 
 // The exact provider-disabled `[auth.external.google]` shape the launcher writes
 // into the generated config, and the only shape that validates.

@@ -71,8 +71,89 @@ export type OrganizationPluginBehaviorHook =
   | "organization.member.join" // React to member joining
   | "organization.member.leave"; // React to member leaving
 
+/**
+ * Platform-level surfaces where plugins contribute sanitized data DTOs.
+ * The platform owns rendering; plugins never return ReactNodes here.
+ */
+export type PlatformPluginSurface =
+  | "platform.home.feed" // Feed items on the signed-in /home page
+  | "platform.dashboard.card"; // Summary card on the volunteer /dashboard
+
 export type OrganizationPluginSurfaceAccessLevel =
   OrganizationPluginAccessRole | "public";
+
+export type PlatformPluginSurfaceAccessPolicy = Partial<
+  Record<PlatformPluginSurface, OrganizationPluginSurfaceAccessLevel>
+>;
+
+export interface PlatformSurfaceContext {
+  organizationId: string;
+  organizationName: string;
+  organizationSlug: string | null;
+  userId: string;
+  viewerRole: OrganizationPluginAccessRole;
+  pluginConfiguration: Record<string, unknown> | null;
+  /** Maximum contributions the platform will keep from this plugin. */
+  limit: number;
+}
+
+export interface PlatformFeedItem {
+  id: string;
+  kind: "post" | "event";
+  title: string;
+  /** Plain text only; the platform resolver drops or truncates anything else. */
+  summary: string | null;
+  /** App-relative link; must start with "/". */
+  href: string;
+  /** ISO timestamp used for feed ordering. */
+  publishedAt: string;
+  pinned: boolean;
+  badgeLabel: string;
+  /**
+   * App-relative link to the organization the item came from, used by the
+   * host feed for its "View all" affordance. Stamped by the platform resolver
+   * from the viewer's membership — never read from plugin output.
+   */
+  sourceHref: string | null;
+}
+
+/**
+ * What a plugin returns for the host feed. `sourceHref` is deliberately absent:
+ * the platform stamps it so an organization link can never be plugin-supplied.
+ */
+export type PlatformFeedItemInput = Omit<PlatformFeedItem, "sourceHref">;
+
+/**
+ * A plugin the signed-in person could see platform content from, as offered by
+ * the account setting that controls it. Derived from their memberships,
+ * installed plugins and declared `platformSurfaces` — never a fixed list.
+ */
+export interface PlatformPluginSource {
+  pluginKey: string;
+  name: string;
+  description: string | null;
+  /** Organizations of theirs that supply this plugin, alphabetical. */
+  organizationNames: string[];
+}
+
+export interface PlatformDashboardCardStat {
+  label: string;
+  value: string;
+  hint?: string;
+}
+
+export interface PlatformDashboardCardStatus {
+  label: string;
+  tone: "positive" | "warning" | "neutral";
+}
+
+export interface PlatformDashboardCard {
+  title: string;
+  href: string;
+  /** Capped at 3 by the platform resolver. */
+  stats: PlatformDashboardCardStat[];
+  status: PlatformDashboardCardStatus | null;
+}
 
 export type OrganizationPluginSurfaceAccessPolicy = Partial<
   Record<OrganizationPluginSurface, OrganizationPluginSurfaceAccessLevel>
@@ -377,6 +458,11 @@ export interface OrganizationPluginManifest {
   surfaceAccess?: OrganizationPluginSurfaceAccessPolicy;
   behaviorAccess?: OrganizationPluginBehaviorAccessPolicy;
   /**
+   * Platform surfaces (home feed, volunteer dashboard) this plugin
+   * contributes data DTOs to, with the minimum org role per surface.
+   */
+  platformSurfaces?: PlatformPluginSurfaceAccessPolicy;
+  /**
    * JSON Schema for configuration validation
    */
   configSchema?: OrganizationPluginConfigSchema;
@@ -532,6 +618,20 @@ export interface OrganizationPluginDefinition {
     surface: OrganizationPluginSurface,
     context: OrganizationPluginSurfaceRenderContext,
   ) => ReactNode | null | Promise<ReactNode | null>;
+  /**
+   * Sanitized data contributions for the platform /home feed. The platform
+   * renders the items; plugins only return `PlatformFeedItemInput` DTOs.
+   */
+  resolvePlatformFeedItems?: (
+    context: PlatformSurfaceContext,
+  ) => Promise<PlatformFeedItemInput[]>;
+  /**
+   * Sanitized summary card for the platform /dashboard, or null when the
+   * viewer has nothing to show.
+   */
+  resolvePlatformDashboardCard?: (
+    context: PlatformSurfaceContext,
+  ) => Promise<PlatformDashboardCard | null>;
   resolveBehaviorHook?: (
     hook: OrganizationPluginBehaviorHook,
     context: OrganizationPluginBehaviorHookContext,

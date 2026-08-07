@@ -810,15 +810,38 @@ describe("seed modes have the footprint they claim", () => {
     const shared = runSeedPlan("shared-local-v1");
     const isolated = runSeedPlan("csf-isolated-v1");
 
+    // Public tables the isolated plan writes only because a CSF activity is
+    // linked to the fixture Let's Assist project and officers need a roster to
+    // reconcile against. Shared local seeds no CSF record, so it has no roster
+    // to write and never touches these. Named here rather than silently
+    // absorbed, so any further divergence still fails.
+    const csfLinkedProjectTables = new Set([
+      "anonymous_signups",
+      "project_signups",
+    ]);
     const nonCsfTables = (entries: LedgerEntry[]) =>
       entries
-        .filter((entry) => entry.schema === "public" && entry.table)
+        .filter(
+          (entry) =>
+            entry.schema === "public" &&
+            entry.table &&
+            !csfLinkedProjectTables.has(entry.table),
+        )
         .map((entry) => `${entry.op}:${entry.table}`);
 
     // Every non-CSF call the isolated plan makes, the shared plan makes too.
     expect(new Set(nonCsfTables(shared.entries))).toEqual(
       new Set(nonCsfTables(isolated.entries)),
     );
+    const linkedProjectTables = (entries: LedgerEntry[]) =>
+      entries
+        .filter((entry) => csfLinkedProjectTables.has(entry.table ?? ""))
+        .map((entry) => entry.table);
+    expect(linkedProjectTables(isolated.entries)).toEqual([
+      "anonymous_signups",
+      "project_signups",
+    ]);
+    expect(linkedProjectTables(shared.entries)).toEqual([]);
     expect(csfEntries(shared.entries).length).toBe(0);
     expect(csfEntries(isolated.entries).length).toBeGreaterThan(0);
   });

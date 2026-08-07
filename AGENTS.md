@@ -71,6 +71,8 @@ Before non-trivial CSF work, read:
 - [officer runbook](docs/csf/officer-runbook.md)
 - [testing and release evidence](docs/csf/testing-and-release.md)
 
+Real chapter spreadsheets live git-ignored in `docs/csf/source-data/`; their layout and semantics are documented in [source data](docs/csf/source-data.md). Read them locally for context, but never copy real values into code, fixtures, tests, docs, or migrations.
+
 Consequential transitions must be organization-scoped, atomic, audited, retry-safe, and covered at both the Server Action/service boundary and the database boundary. Extend existing CSF models instead of creating parallel concepts.
 
 ## Change discipline

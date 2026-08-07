@@ -8,6 +8,7 @@ import {
   Shield,
   Key,
   Bell,
+  Blocks,
   Calendar,
   ChevronRight,
 } from "lucide-react";
@@ -52,6 +53,12 @@ const sidebarItems = [
     description: "Sync & integrations",
     href: "/account/calendar",
     icon: Calendar,
+  },
+  {
+    title: "Plugin content",
+    description: "Home & dashboard sections",
+    href: "/account/plugins",
+    icon: Blocks,
   },
 ];
 
