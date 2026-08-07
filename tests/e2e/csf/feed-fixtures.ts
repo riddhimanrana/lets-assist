@@ -87,6 +87,68 @@ export async function seedFeedPosts(
   }
 }
 
+export type SeededFeedActivity = {
+  title: string;
+  body: string;
+  /** ISO timestamp for the activity itself. */
+  startsAt: string;
+  location?: string | null;
+  pointValue?: number;
+  pointType?: "non_drive" | "drive";
+  cohortId?: string | null;
+  /** ISO timestamp; defaults to now. Orders the activity in the stream. */
+  publishedAt?: string;
+};
+
+/**
+ * Published activities for the unified member Feed stream. Same discipline as
+ * the posts: fictional titles under the spec's own prefix, removed by
+ * `cleanFeedActivities` afterwards.
+ */
+export async function seedFeedActivities(
+  fixture: CsfFeedFixture,
+  activities: SeededFeedActivity[],
+) {
+  const { error } = await fixture.admin
+    .schema("plugin_data")
+    .from("csf_opportunities")
+    .insert(
+      activities.map((activity) => ({
+        organization_id: fixture.organizationId,
+        title: activity.title,
+        body: activity.body,
+        starts_at: activity.startsAt,
+        location: activity.location ?? null,
+        point_value: activity.pointValue ?? 1,
+        point_type: activity.pointType ?? "non_drive",
+        signup_mode: "none",
+        status: "published",
+        cohort_id: activity.cohortId ?? null,
+        published_at: activity.publishedAt ?? new Date().toISOString(),
+      })),
+    );
+  if (error) {
+    throw new Error(`Could not seed fixture feed activities: ${error.message}`);
+  }
+}
+
+export async function cleanFeedActivities(
+  fixture: CsfFeedFixture,
+  titlePrefix: string,
+) {
+  const { error } = await fixture.admin
+    .schema("plugin_data")
+    .from("csf_opportunities")
+    .delete()
+    .eq("organization_id", fixture.organizationId)
+    .like("title", `${titlePrefix}%`);
+  if (error) {
+    throw new Error(
+      `Could not clean fixture feed activities: ${error.message}`,
+    );
+  }
+}
+
 /**
  * Delete every announcement whose title carries the spec's prefix. Safe for
  * repeated runs and crashed prior runs; the deterministic seed announcements

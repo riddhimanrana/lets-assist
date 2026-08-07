@@ -16,6 +16,9 @@ const TITLE_PREFIX = "E2E compose";
 const composedTitle = `${TITLE_PREFIX} spring class update`;
 const composedBody =
   "Fictional class announcement composed by the browser suite. No real students are addressed.";
+// Replies cascade with their announcement, so cleanFeedPosts removes this too.
+const composedReply =
+  "Follow-up from the browser suite: room moved to the fictional annex.";
 
 test.describe("officer post compose in the class Stream", () => {
   test.describe.configure({ mode: "serial" });
@@ -146,7 +149,49 @@ test.describe("officer post compose in the class Stream", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("the member Home feed shows the officer's post pinned", async ({
+  test("an officer appends a follow-up reply from the Stream card", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await loginAs(page, "admin");
+    await page.goto(
+      `${CSF_ORGANIZATION_PATH}?tab=csf-cohorts&csf_cohort=${fixture.cohortIdsByYear[2028]}&csf_cohort_tab=stream`,
+      { waitUntil: "domcontentloaded" },
+    );
+
+    const stream = page.getByRole("region", { name: "Class stream" });
+    await expect(stream).toBeVisible();
+    const card = stream.getByRole("article").filter({ hasText: composedTitle });
+    await expect(card).toHaveCount(1);
+
+    // Retry the disclosure as one block: the first click can land before the
+    // stream hydrates, and a pre-hydration click is silently lost.
+    await expect(async () => {
+      await card.getByRole("button", { name: "Add a follow-up" }).click();
+      await expect(card.getByLabel("Follow-up message")).toBeVisible({
+        timeout: 2_000,
+      });
+    }).toPass();
+    await card.getByLabel("Follow-up message").fill(composedReply);
+    await card.getByRole("button", { name: "Post follow-up" }).click();
+    // The optimistic row appears at once; the durable write follows.
+    await expect(card.getByText(composedReply, { exact: true })).toBeVisible();
+    await expect
+      .poll(async () => {
+        const { data } = await fixture.admin
+          .schema("plugin_data")
+          .from("csf_announcement_replies")
+          .select("id")
+          .eq("organization_id", fixture.organizationId)
+          .eq("body", composedReply);
+        return data?.length ?? 0;
+      })
+      .toBe(1);
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("the member Home feed shows the officer's post pinned with its reply", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
@@ -158,6 +203,11 @@ test.describe("officer post compose in the class Stream", () => {
     await expect(post).toHaveCount(1);
     await expect(post.getByText("Pinned", { exact: true })).toBeVisible();
     await expect(post).toContainText("Class of 2028");
+    // The officer's follow-up rides inside the card, read-only for members.
+    await expect(post.getByText(composedReply, { exact: true })).toBeVisible();
+    await expect(
+      post.getByRole("button", { name: "Add a follow-up" }),
+    ).toHaveCount(0);
 
     expectNoBrowserFailures(failures);
   });
@@ -168,9 +218,9 @@ test.describe("officer post compose in the class Stream", () => {
     await loginAs(page, "member");
 
     await expect(
-      page.getByRole("tab", { name: "Home", exact: true }),
+      page.getByRole("tab", { name: "Feed", exact: true }),
     ).toBeVisible();
-    // Neither compose entry point exists for a member: the Home feed's "New
+    // Neither compose entry point exists for a member: the Feed's "New
     // post" button nor the class Stream's click-to-open composer row.
     await expect(
       page.getByRole("button", { name: "New post", exact: true }),

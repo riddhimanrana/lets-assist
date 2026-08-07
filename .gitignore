@@ -98,3 +98,13 @@ supabase/migrations/.pending-plugin-data/
 
 .gemini/
 gha-creds-*.json
+
+# design-sync (claude.ai/design)
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+.design-sync/.compiled/
+.design-sync/.componentSrcMap.generated.json
+.design-sync/.manual-entry.mjs

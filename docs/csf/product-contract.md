@@ -1,8 +1,8 @@
 # DVHS CSF Product and Operational Specification
 
 **Status:** Approved implementation source of truth<br>
-**Version:** 1.1<br>
-**Last updated:** August 6, 2026<br>
+**Version:** 1.2<br>
+**Last updated:** August 7, 2026<br>
 **Product surface:** DVHS CSF private organization plugin inside Let’s Assist
 
 This document defines the product, operating model, information architecture, terminology, data boundaries, workflows, page behavior, and acceptance criteria for the DVHS CSF rebuild. If current code, old mockups, seed data, or earlier labels conflict with this document, this document wins unless it is amended explicitly.
@@ -13,12 +13,20 @@ This document defines the product, operating model, information architecture, te
 
 Version 1.0 removed the Communications/Updates surface and treated Google Classroom as the chapter’s announcement channel. The chapter has since decided to retire Google Classroom for CSF and make Let’s Assist the member home. This amendment reinstates a deliberately narrow communications surface:
 
-- **Cohort posts.** Officers publish posts to a member feed scoped to `members`, a single graduating-class cohort (`class`), `officers`, or `public`. Posts support pinning and scheduling. Posts have **no comments** and no read-tracking.
+- **Cohort posts.** Officers publish posts to a member feed scoped to `members`, a single graduating-class cohort (`class`), `officers`, or `public`. Posts support pinning and scheduling. Posts have **no comments** (see Amendment 2: member comments stay excluded; officers may append follow-up replies) and no read-tracking.
 - **Per-post email delivery.** Publishing a post may optionally queue exactly one email campaign through the existing durable communications ledger (audience snapshot, content digest, leased dispatch, provider-event reconciliation). Delivery status is reported from ledger state; there are no simulated delivery claims.
 - **Recipient control.** Broadcast email honors the opt-out ledger and Resend topic one-click unsubscribe, plus a recipient-facing verify-your-address unsubscribe flow. Transactional mail is unaffected.
 - **What stays prohibited:** internal direct messaging, comments, any Google Classroom API or posting simulator, and delivery claims not backed by ledger/provider events.
 
 Clauses amended by this record are annotated “(amended v1.1)” in place. Where v1.0 text conflicts with this record, this record wins.
+
+### Amendment 2 — Officer follow-up replies and the unified member stream (v1.2, August 7, 2026)
+
+- **Member comments remain excluded.** Nothing in this amendment gives members a composer; the Amendment 1 prohibition on member comments stands.
+- **Officer follow-up replies.** Officers holding `manage_posts` may append follow-up replies to their chapter’s published posts. A reply inherits the parent post’s audience, is **never emailed**, and carries no pin and no audience of its own. Anyone who can see the parent post can read its replies. Deleting a reply is limited to the reply’s author or an organization admin. Reply writes are audited.
+- **Unified member stream.** The member feed carries announcements and published activities as one reverse-chronological stream ordered by publication time. Deadlines and meetings do not enter the feed; they remain date-anchored agenda items in the rail.
+
+Clauses amended by this record are annotated “(see Amendment 2)” in place. Where earlier text conflicts with this record, this record wins.
 
 ---
 

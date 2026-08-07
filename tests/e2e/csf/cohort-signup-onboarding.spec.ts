@@ -393,10 +393,10 @@ test.describe("cohort-link signup onboarding", () => {
       await expectNoGenericFirstLoginTour(page);
     });
 
-    await test.step("member Home runs the CSF setup tour, never the generic tour", async () => {
+    await test.step("member Feed runs the CSF setup tour, never the generic tour", async () => {
       await page.goto(CSF_ORGANIZATION_PATH, { waitUntil: "domcontentloaded" });
       await expect(
-        page.getByRole("tab", { name: "Home", exact: true }),
+        page.getByRole("tab", { name: "Feed", exact: true }),
       ).toBeVisible();
 
       const tourCard = page

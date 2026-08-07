@@ -325,13 +325,13 @@ test.describe("DVHS CSF role-aware navigation", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("member sees only Home, Activities, Point submissions, and My CSF", async ({
+  test("member sees only Feed, Activities, Point submissions, and My CSF", async ({
     page,
   }) => {
     await loginAs(page, "member");
 
-    // Home is the member default landing tab.
-    const memberHome = page.getByRole("tab", { name: "Home", exact: true });
+    // Feed is the member default landing tab.
+    const memberHome = page.getByRole("tab", { name: "Feed", exact: true });
     await expect(memberHome).toBeVisible();
     await expect(memberHome).toHaveAttribute("aria-selected", "true");
 
@@ -359,12 +359,12 @@ test.describe("DVHS CSF role-aware navigation", () => {
   test("applicant sees only their own CSF workflow", async ({ page }) => {
     await loginAs(page, "applicant");
 
-    for (const tab of ["Home", "My CSF", "Activities", "Point submissions"]) {
+    for (const tab of ["Feed", "My CSF", "Activities", "Point submissions"]) {
       await expect(
         page.getByRole("tab", { name: tab, exact: true }),
       ).toBeVisible();
     }
-    // The applicant's review state lives in My CSF; Home is the landing feed.
+    // The applicant's review state lives in My CSF; Feed is the landing tab.
     await page.getByRole("tab", { name: "My CSF", exact: true }).click();
     await expect(
       page.getByText("Under review", { exact: true }).first(),

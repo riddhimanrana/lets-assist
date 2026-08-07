@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  cleanFeedActivities,
   cleanFeedPosts,
   loadCsfFeedFixture,
+  seedFeedActivities,
   seedFeedPosts,
   type CsfFeedFixture,
 } from "./feed-fixtures";
@@ -19,6 +21,7 @@ const newerTitle = `${TITLE_PREFIX} newer update`;
 const olderTitle = `${TITLE_PREFIX} older update`;
 const ownClassTitle = `${TITLE_PREFIX} class of 2028 notice`;
 const otherClassTitle = `${TITLE_PREFIX} class of 2029 notice`;
+const activityTitle = `${TITLE_PREFIX} beach cleanup activity`;
 
 function minutesAgo(minutes: number) {
   return new Date(Date.now() - minutes * 60_000).toISOString();
@@ -33,6 +36,18 @@ test.describe("member Home class feed", () => {
   test.beforeAll(async () => {
     fixture = await loadCsfFeedFixture();
     await cleanFeedPosts(fixture, TITLE_PREFIX);
+    await cleanFeedActivities(fixture, TITLE_PREFIX);
+    await seedFeedActivities(fixture, [
+      {
+        title: activityTitle,
+        body: "Fictional shoreline cleanup seeded by the browser suite.",
+        startsAt: new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString(),
+        location: "Fictional State Beach",
+        pointValue: 1.5,
+        pointType: "non_drive",
+        publishedAt: minutesAgo(90),
+      },
+    ]);
     await seedFeedPosts(fixture, [
       {
         title: pinnedTitle,
@@ -71,17 +86,20 @@ test.describe("member Home class feed", () => {
   });
 
   test.afterAll(async () => {
-    if (fixture) await cleanFeedPosts(fixture, TITLE_PREFIX);
+    if (fixture) {
+      await cleanFeedPosts(fixture, TITLE_PREFIX);
+      await cleanFeedActivities(fixture, TITLE_PREFIX);
+    }
   });
 
-  test("a linked member lands on Home by default and reads the class feed", async ({
+  test("a linked member lands on Feed by default and reads the class stream", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
     await loginAs(page, "member");
 
-    // Home is the member default tab and carries the member's class label.
-    const homeTab = page.getByRole("tab", { name: "Home", exact: true });
+    // Feed is the member default tab and carries the member's class label.
+    const homeTab = page.getByRole("tab", { name: "Feed", exact: true });
     await expect(homeTab).toBeVisible();
     await expect(homeTab).toHaveAttribute("aria-selected", "true");
 
@@ -95,12 +113,14 @@ test.describe("member Home class feed", () => {
     // The semester shares its line with the classmate count.
     await expect(summary).toContainText("Spring 2026");
 
-    // The feed shows the pinned post first, then reverse-chronological posts.
+    // The stream shows the pinned post first, then reverse-chronological
+    // items — announcements and published activities interleaved by their
+    // publication instant.
     const feed = page.getByRole("region", { name: "Class feed" });
     await expect(feed).toBeVisible();
     await expect(feed.getByText(newerTitle, { exact: true })).toBeVisible();
-    // Each post row titles itself with a heading, so feed order is readable
-    // straight off the accessibility tree.
+    // Each stream card titles itself with a heading, so stream order is
+    // readable straight off the accessibility tree.
     const fixtureTitles = feed
       .getByRole("heading", { level: 3 })
       .filter({ hasText: TITLE_PREFIX });
@@ -108,8 +128,27 @@ test.describe("member Home class feed", () => {
       pinnedTitle,
       ownClassTitle,
       newerTitle,
+      activityTitle,
       olderTitle,
     ]);
+
+    // The interleaved activity is a distinct card kind: points chip plus a
+    // single View activity action into the Activities tab.
+    const activityCard = feed
+      .getByRole("article")
+      .filter({ hasText: activityTitle });
+    await expect(activityCard.getByText("1.5 non-drive")).toBeVisible();
+    // Button-rendered links report role button in this tree (see the class
+    // workspace tabs note in posts-compose.spec.ts).
+    await expect(
+      activityCard.getByRole("button", { name: "View activity" }),
+    ).toBeVisible();
+
+    // Members never see a reply affordance anywhere in the stream.
+    await expect(
+      feed.getByRole("button", { name: "Add a follow-up" }),
+    ).toHaveCount(0);
+    await expect(feed.getByRole("textbox")).toHaveCount(0);
 
     const pinnedCard = feed
       .getByRole("article")
@@ -171,7 +210,7 @@ test.describe("member Home class feed", () => {
     try {
       await loginAs(page, "outsider");
 
-      const homeTab = page.getByRole("tab", { name: "Home", exact: true });
+      const homeTab = page.getByRole("tab", { name: "Feed", exact: true });
       await expect(homeTab).toBeVisible();
       await expect(homeTab).toHaveAttribute("aria-selected", "true");
 

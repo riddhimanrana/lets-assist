@@ -19,6 +19,11 @@ export default tseslint.config(
       "dist",
       "coverage",
       ".artifacts/**",
+      // Design-sync tooling drops generated bundles at the repo root; they are
+      // not source and must not fail the zero-warning gate.
+      ".design-sync/**",
+      ".ds-sync/**",
+      "ds-bundle/**",
       "supabase/.temp/**",
       "*.config.mjs",
       "tmp-component-usage.json",
