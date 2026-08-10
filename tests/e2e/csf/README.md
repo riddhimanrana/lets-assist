@@ -8,7 +8,7 @@ Run the local fixture seed before the suite, then provide the local fixture pass
 CSF_LOCAL_TEST_PASSWORD=... bun run csf:test:e2e
 ```
 
-The Playwright web server uses port `3113` by default and the currently running local Supabase stack. Override the port with `CSF_E2E_PORT`, or point at an already-running isolated app with `CSF_E2E_BASE_URL`.
+The Playwright config starts and owns its own isolated stack. It refuses an ambient one: it resolves the Supabase environment and work directory at config load, reads the profile-claim secret from that work directory, and fails if an ambient `CSF_PROFILE_CLAIM_SECRET` disagrees. The base URL is `http://127.0.0.1:${CSF_ISOLATED_APP_PORT}`; there is no port or base-URL override. Let the config bring the stack up rather than pointing it at a running one.
 
 Coverage:
 
@@ -19,7 +19,7 @@ Coverage:
 - visible navigation/action targets;
 - light/dark responsive smoke checks at 390px, 768px, and 1440px.
 
-Current ordinary result: 23 passed, 3 capture-only tests skipped, 0 failed. The
+Current ordinary result: 40 scenarios, 3 capture-only tests skipped, 0 failed. The
 footer-branding and fixture-contact privacy regressions each pass 1/1. After
 fixture re-upsert, the sanitized gallery is opt-in and passed 3/3 capture tests under
 `20260716-final-gallery`:

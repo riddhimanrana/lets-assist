@@ -4,6 +4,7 @@ This directory is the canonical documentation home for humans and coding agents.
 
 ## Start here
 
+- [Developer onboarding](development/onboarding.md)
 - [Repository agent guide](../AGENTS.md)
 - [Platform architecture](architecture/platform.md)
 - [Local and hosted environments](development/environments.md)
@@ -29,6 +30,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Testing and acceptance](development/testing.md)
 - [Deployment model](development/deployment.md)
 - [Private-plugin and submodule workflow](development/private-plugins.md)
+- [Plugin install and entitlement guide](development/plugin-install-guide.md)
 - [Supabase deployment workflow](development/supabase-deployment.md)
 - [Local fictional accounts](development/local-accounts.md)
 - [Member import parser setup](development/member-imports.md)
@@ -39,6 +41,7 @@ This directory is the canonical documentation home for humans and coding agents.
 ## DVHS CSF
 
 - [Subsystem overview](csf/README.md)
+- [Onboarding a new chapter](csf/new-chapter-onboarding.md)
 - [Formal invariants](csf/invariants.md)
 - [Product contract](csf/product-contract.md)
 - [Officer runbook](csf/officer-runbook.md)

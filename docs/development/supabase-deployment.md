@@ -6,7 +6,7 @@ Safe, validated CI/CD for Supabase database migrations with comprehensive safety
 
 This pipeline ensures that all schema changes are:
 
-- ✅ **Validated** — migration syntax and formats checked
+- ✅ **Validated** — migration file naming and formats checked, plus a risky-pattern grep
 - ✅ **Tested** — replayed locally to catch issues early
 - ✅ **Audited** — security and performance advisors run
 - ✅ **Safe** — dry-run before production deployment
@@ -95,14 +95,26 @@ git push origin development
 # GitHub Actions will automatically run full validation
 ```
 
-### 5. **Automatic CI/CD on Main**
+### 5. **CI on Main, and the manual production gate**
+
+> **Merging to `main` does not deploy the schema.** A push to `main` that touches
+> `supabase/migrations/**` or `supabase/config.toml` runs validation only. The
+> `deploy-to-production` job in `.github/workflows/deploy-schema.yml` runs **only**
+> on a manual `workflow_dispatch`, only from `refs/heads/main`, and only when the
+> `production_confirmation` input exactly matches
+> `deploy-production:fotdmeakexgrkronxlof`. It then verifies the target project
+> ref twice, dry-runs, pushes, and checks migration-ledger parity.
+>
+> The real safeguard is stronger than automation would be. Treat production
+> schema deployment as a deliberate, authorized act.
 
 When your PR merges to `main`, GitHub Actions automatically:
 
 1. ✅ **Validates Migrations**
    - Checks file naming conventions
    - Verifies no duplicate timestamps
-   - Validates SQL syntax
+   - Scans for risky SQL patterns (`SELECT *`, `WHERE 1=1`, `-- UNSAFE`).
+     This is a grep, not a parser — it does not validate SQL syntax.
 
 2. ✅ **Tests Locally**
    - Runs `supabase db reset` to replay all migrations
@@ -145,7 +157,7 @@ supabase db push --linked --yes
 | File format check     | ✓              | ✓     | Catch naming errors early           |
 | Duplicate timestamps  | ✓              | ✓     | Prevent migration conflicts         |
 | Migration replay test | ✓              | ✓     | Ensure migrations work from scratch |
-| SQL syntax            | ✗              | ✓     | Catch SQL errors before prod        |
+| Risky-pattern grep    | ✗              | ✓     | Flags `SELECT *`, `WHERE 1=1`, `-- UNSAFE`. Not a syntax check |
 | Security advisors     | ✓              | ✓     | Find RLS/exposure issues            |
 | Performance advisors  | ✓              | ✓     | Identify missing indexes            |
 | Dry-run check         | ✓              | ✓     | Preview prod changes safely         |
