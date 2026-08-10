@@ -77,6 +77,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
+  type SignupAttemptResult,
+  useSignupConfirmationAction,
+} from "@/app/projects/_components/useSignupConfirmationAction";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -247,6 +251,7 @@ export default function ProjectDetails({
 
   // Add state for confirmation modals
   const [showSignupConfirmation, setShowSignupConfirmation] = useState(false);
+  const signupConfirmation = useSignupConfirmationAction();
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [pendingScheduleId, setPendingScheduleId] = useState<string>("");
@@ -923,6 +928,7 @@ export default function ProjectDetails({
         userId: user.id,
       });
       setPendingScheduleId(scheduleId);
+      signupConfirmation.reset();
       setShowSignupConfirmation(true);
       return;
     }
@@ -947,11 +953,12 @@ export default function ProjectDetails({
   };
 
   // Handle confirmation modal actions
-  const handleConfirmSignup = (
+  const handleConfirmSignup = async (
     comment?: string,
     waiverSignature?: WaiverSignatureInput | null,
     formData?: Record<string, unknown>,
   ) => {
+    if (!pendingScheduleId) return;
     logSignupClientDebug({
       step: "confirmation_modal_submit",
       projectId: project.id,
@@ -960,21 +967,21 @@ export default function ProjectDetails({
       hasWaiverSignature: Boolean(waiverSignature),
       hasFormData: Boolean(formData && Object.keys(formData).length > 0),
     });
-    setShowSignupConfirmation(false);
-    handleSignUp(
-      pendingScheduleId,
-      undefined,
-      comment,
-      waiverSignature,
-      formData,
+    await signupConfirmation.submit(
+      handleSignUp,
+      [pendingScheduleId, undefined, comment, waiverSignature, formData],
+      () => {
+        setShowSignupConfirmation(false);
+        setPendingScheduleId("");
+      },
     );
-    setPendingScheduleId("");
   };
 
   const handleCloseModals = () => {
     setShowSignupConfirmation(false);
     setShowCancelConfirmation(false);
     setPendingScheduleId("");
+    signupConfirmation.reset();
   };
 
   // Handle signup
@@ -984,7 +991,7 @@ export default function ProjectDetails({
     volunteerComment?: string,
     waiverSignature?: WaiverSignatureInput | null,
     formData?: Record<string, unknown>,
-  ) => {
+  ): Promise<SignupAttemptResult> => {
     setLoadingStates((prev) => ({ ...prev, [scheduleId]: true }));
     // Reset alert state on new signup attempt
     setShowConfirmationAlert(false);
@@ -999,7 +1006,7 @@ export default function ProjectDetails({
         setAnonymousDialogOpen(false);
         setAnonymousSlotSelectionOpen(false);
         setShowSignupConfirmation(false);
-        return;
+        return { success: true };
       }
 
       logSignupClientDebug({
@@ -1041,6 +1048,7 @@ export default function ProjectDetails({
         } else {
           toast.error(result.error);
         }
+        return { success: false, error: result.error };
       } else if (result.success) {
         if (result.needsConfirmation) {
           // Show the persistent alert
@@ -1131,7 +1139,11 @@ export default function ProjectDetails({
             scheduleId,
           });
         }
+        return { success: true };
       }
+      const error = "The signup response was incomplete. Please try again.";
+      toast.error(error);
+      return { success: false, error };
     } catch (error) {
       console.error(
         "[signup-client-debug]",
@@ -1142,7 +1154,9 @@ export default function ProjectDetails({
           error,
         }),
       );
-      toast.error("An unexpected error occurred. Please try again.");
+      const message = "An unexpected error occurred. Please try again.";
+      toast.error(message);
+      return { success: false, error: message };
     } finally {
       setLoadingStates((prev) => ({ ...prev, [scheduleId]: false }));
       if (anonymousData) {
@@ -2837,6 +2851,7 @@ export default function ProjectDetails({
           }}
           scheduleId={pendingScheduleId}
           isLoading={loadingStates[pendingScheduleId]}
+          error={signupConfirmation.error}
         />
       )}
 

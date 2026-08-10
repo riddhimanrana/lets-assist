@@ -341,14 +341,14 @@ describe("pinned Supabase CLI helper", () => {
     // The cron harness owns its server and refuses to adopt one, so the verifier
     // must not hand it a base URL to point at.
     expect(source).not.toContain("CRON_TEST_BASE_URL");
-    // The label now states the harness's exact scope: the five selected worker
+    // The label now states the harness's exact scope: the six selected worker
     // routes, not "every operational cron route".
     expect(source).toContain(
-      '"Cron Auth/Shape Smoke — five selected worker routes (no dispatch, no egress)" \\',
+      '"Cron Auth/Shape Smoke — six selected worker routes (no dispatch, no egress)" \\',
     );
     expect(source).toContain("bun run dev:test:cron");
     expect(source).toContain(
-      "organization-calendar-sync, organization-sheet-sync, and data-exports.",
+      "organization-calendar-sync, organization-sheet-sync, data-exports, and csf-scheduled-post-publisher.",
     );
   });
 

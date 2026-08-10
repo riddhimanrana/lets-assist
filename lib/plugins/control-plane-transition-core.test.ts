@@ -204,6 +204,28 @@ describe("plugin control-plane lifecycle ordering", () => {
     ]);
   });
 
+  test("a stale config revision is refused before lifecycle or persistence", async () => {
+    const harness = callbacks();
+    const result = await applyPluginControlPlaneTransition({
+      current: currentInstall,
+      transition: {
+        kind: "config_update",
+        configuration: { mode: "new" },
+        expectedUpdatedAt: "2026-07-10T23:59:59.000Z",
+      },
+      callbacks: harness.implementation,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      changed: false,
+      actions: [],
+      error:
+        "Plugin settings changed after this screen loaded. Reload and try again.",
+    });
+    expect(harness.events).toEqual([]);
+  });
+
   test("a disabled version update runs both hooks before one state mutation", async () => {
     const harness = callbacks();
     const result = await applyPluginControlPlaneTransition({

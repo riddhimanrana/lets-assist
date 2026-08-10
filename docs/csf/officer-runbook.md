@@ -1,10 +1,10 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** the August 6 isolated database replay, production build, root/private suites, plugin-isolation checks, 40-scenario CSF browser gate, 3-scenario DV gate, and sanitized gallery passed; live Google, hosted Development, complete visible mutation, accessibility, and Slides acceptance remain pending
+**Current status:** the August 6 isolated database replay, production build, root/private suites, plugin-isolation checks, 40-scenario CSF browser gate, 3-scenario DV gate, and sanitized gallery remain the last consolidated baseline. The August 9 lifecycle-truth implementation is under combined verification; live Google, hosted Development, complete visible mutation, accessibility, scheduled-post publication, and Slides acceptance remain pending.
 **Authoritative record after review:** Let's Assist
 
-This runbook describes the intended officer workflow using the verified August 6 local contracts. Do not use it for a production cutover until the remaining Google, remote-development, full browser-mutation, accessibility, and Slides gates in [testing and release](testing-and-release.md) pass.
+This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the combined August 9 replay/build/browser gates and the remaining Google, remote-development, full browser-mutation, accessibility, scheduling, and Slides gates in [testing and release](testing-and-release.md) pass.
 
 ## 1. Start of each work session
 
@@ -18,11 +18,11 @@ Organization admins can operate every CSF area. Adviser-only responsibilities in
 
 ## 2. Semester setup
 
-Use **Semester** in this order:
+Use **Classes** in this order:
 
 1. Create or select the full term, such as **Fall 2026**.
 2. Enter application, meeting, point, and closeout dates.
-3. Prepare the policy draft: dues, total service points, per-activity cap, drive cap, required meetings, allowed absences, and outside-volunteering rule.
+3. Prepare the policy draft: academic thresholds, disqualifying grades, the six List I/II/III × A/B grade-point values, dues, total service points, per-activity cap, drive cap, required meetings, allowed absences, and outside-volunteering rule. The baseline is List I A=3/B=1, List II A=2/B=1, and List III A=1/B=0; A+/A− use A and B+/B− use B.
 4. Have the adviser review and publish the policy. Draft values do not govern applications, points, reports, or closeout.
 5. Create the required cohorts and connect only the source tabs that belong to the term. Codes such as `F26` identify Sheet tabs, not the product's semester name.
 
@@ -40,7 +40,7 @@ Use **Applications → Review queue** for daily work and **All applications** fo
 6. Approve only after mandatory checks pass. An adviser override requires a specific reason and preserves the deterministic eligibility result.
 7. Reject or withdraw with the correct explicit reason.
 
-Application decision, membership creation, and audit history are one transaction. If the action fails, refresh the application before retrying; do not create a membership manually to compensate.
+Application decision, membership creation, decision event, and audit/request receipt are one transaction. If the response is lost or the action fails, reload the application before retrying; an exact stable-request replay succeeds only while the same decision and evidence remain current. Do not create a membership manually to compensate.
 
 ## 4. Student joining and account connection
 
@@ -53,13 +53,23 @@ Application decision, membership creation, and audit history are one transaction
 5. If the student confirms, the server atomically connects the account and records history.
 6. If the student selects **Not me**, or the email is missing, ambiguous, or conflicts with another link, the request moves to officer review.
 
+Creating, copying, or renewing this link does not send an email. The product must say **Create link**, **Copy link**, or **Renew link** and must not display a sent time or resend count unless an explicit recipient email has entered the durable delivery ledger.
+
 Only a profile-connect or combined invitation may start this workflow. An application-only link is never a profile-claim link. The claimed profile must belong to the invitation's cohort.
+
+### Student-specific secure link
+
+1. Open the unconnected-student list in **Members** and choose the active student record first.
+2. Choose one of the school/personal emails the product lists for that record. The product excludes missing or shared addresses; officers cannot type an arbitrary recipient. If the intended address is absent or belongs to more than one active record, close the dialog and make an audited member correction first.
+3. Choose the semester and expiry, then create the link once. The result is a secure link ready to copy; no email is sent.
+4. Copy the existing link when the student needs it again. Use **Renew link** only when the old token must stop working, and then share the replacement manually.
+5. If a response is lost, reload Members before retrying. The stable request receipt returns the original result only if the selected profile, recorded email, and link remain current; it refuses a changed or stale request.
 
 ### Officer review
 
 1. Open **Members → account connections**.
-2. Compare the request with the student's submitted evidence; never match on name alone.
-3. Choose **Connect** or **Reject** and enter a clear reason of at least four characters.
+2. Compare the request with the student's submitted evidence; never match on name alone. Similar-name suggestions are discovery aids only. A conflicting cohort, verified email, or existing account is a hard stop.
+3. Choose **Connect** or **Reject** and enter a clear reason of at least four characters. **Connect** is available only when the account's current confirmed email still matches the request snapshot, appears on exactly one active student record, and that record also has the exact requested name and one matching active class. A unique name is still name-only and never authorizes a connection. If those checks fail, correct the student record through the audited member-correction workflow first, or reject the request and issue a student-specific link to the address you can verify.
 4. If the student already has an accepted application for the same cohort and term, the atomic connection may activate that term membership.
 5. Use unlink/relink only to correct a documented error and always include a reason.
 
@@ -76,21 +86,23 @@ Live Google acceptance is not complete. Until it is, use only synthetic/local so
 3. Choose the exact tab and a bounded range.
 4. Map stable source columns by index/key, not only by display header.
 5. Preview normalized rows and their resolved cohort/term.
-6. Resolve duplicates, missing targets, malformed dates, `#REF!`, ambiguous identities, and inaccessible evidence.
+6. Resolve duplicates, missing targets, malformed dates, `#REF!`, ambiguous identities, and inaccessible evidence. **Use match** requires the member plus a 4–500 character explanation of the evidence. **Skip row** requires a 4–500 character explanation of why the row must not be imported. A failed decision keeps the selection/reason; only success clears it.
 7. Commit valid rows explicitly.
-8. Review accepted, skipped, failed, and unresolved counts. Retry corrected rows from the recorded lineage.
+8. Review accepted, skipped, failed, and unresolved counts. Expand run details for the recorded operator, abbreviated digest, reconciliation decisions/reasons, and preview/retry ancestry. **Not recorded** is an honest historical value, not zero. Retry corrected rows from the recorded lineage.
 
 Operational rules:
 
-- The encrypted Google connection is scoped to the exact organization, CSF plugin, import purpose, and officer capability approved during OAuth. Every token use and refresh rechecks that binding.
-- A legacy connection without a defensible binding shows **Reconnect**. Officers must not work around it with another organization's token.
+- The encrypted Google connection is scoped to the exact organization, CSF plugin, import purpose, and officer capability approved during OAuth. Google user-info must also verify the exact account `dvhighcsf@gmail.com`; a calendar-email label or officer assertion is not identity evidence. Every token use and refresh rechecks the binding.
+- A wrong, missing, or legacy-unverified account shows **Switch or reconnect**. Officers must not work around it with another organization's token.
 - **Import changes** creates a new immutable snapshot; there is no background sync or Sheet writeback.
+- Google Sheets are input-only in this release. Reports download locally as a formula-safe ZIP; there is no timestamped compatibility-tab or report-write destination.
 - A second import of the same snapshot must be idempotent.
 - Reviewed Let’s Assist fields are never silently overwritten.
 - A missing, blank, malformed, non-positive, or implausibly large historical point value blocks that activity; it never becomes one point.
 - An invalid meeting timestamp blocks commit until corrected with a recorded reason.
 - A partner-club Form import remains preview-only until an officer explicitly commits it.
 - If Drive access is lost, reconnect the source. Do not delete the reviewed platform record.
+- **Disconnect from CSF** removes the local purpose binding and retains reviewed records/source history. **Disconnect and revoke at Google** is stronger: the product may say revoked only after Google confirms it and must preserve a shared grant still used by another active binding. Treat remote-success/local-cleanup-failure as a recovery state, not complete success.
 
 ## 6. Members
 
@@ -99,7 +111,7 @@ Use **Members** to locate the permanent student identity and current-semester re
 1. Search by student or confirmed account; filter by class, connection, application, eligibility, dues, or membership result.
 2. Open the member detail before correcting identity, class, account connection, attendance, or points.
 3. Record corrections with the source, reason, and current officer identity.
-4. Merge duplicate profiles only after confirming both records describe the same person.
+4. Merge duplicate profiles only after confirming both records describe the same person with stable corroborating evidence. The preview must enumerate every moved record and block hard identity conflicts.
 5. Keep completed historical semesters visible; hide empty future terms.
 
 The member's **My CSF** view should agree with the officer record for application, eligibility, dues, attendance dates, points, decision, and deadlines.
@@ -120,6 +132,8 @@ The member's **My CSF** view should agree with the officer record for applicatio
 4. Verify the awarded quantity in the member's My CSF view. Multiple points are one numeric award, not repeated one-point rows.
 5. Process an appeal as a separate reasoned decision; do not edit the original decision out of history.
 
+Every submit/proof-finalize/withdraw/review/appeal action rechecks current account ownership or reviewer permission, open semester, active membership, published policy, source relationship, cap, class, and finalized proof as applicable. If any of those changed, reload and resolve the current blocker instead of retrying from an older page.
+
 ### Meetings
 
 1. Create the required meeting for the semester/class.
@@ -137,7 +151,7 @@ The member's **My CSF** view should agree with the officer record for applicatio
 
 ## 8. Semester close and reopen
 
-1. Open the close preflight in **Semester**.
+1. Open the close preflight in **Classes → Semester setup**.
 2. Resolve every linked blocker: applications, point submissions, appeals, attendance, dues, and import reconciliation.
 3. Review the published policy version and the current summary.
 4. Submit close only from that preflight. The browser sends the reviewed evidence hash; the server derives each completed or not-completed outcome.
@@ -162,8 +176,8 @@ This section is the one-time cutover procedure from Google Classroom + spreadshe
 
 ### 10.1 One-time semester and cohort setup
 
-1. Create cohorts Class of 2027 through Class of 2030 (2026 exists only if seeding history for graduated seniors) and terms Spring 2025, Fall 2025, Spring 2026 (closed) and Fall 2026 (current) through Semester setup (§2).
-2. Confirm the communications broadcast topic and Resend topic id are saved in organization plugin settings for the `term_members` audience — cohort posts email through the same announcements consent topic.
+1. Create cohorts Class of 2027 through Class of 2030 (2026 exists only if seeding history for graduated seniors) and terms Spring 2025, Fall 2025, Spring 2026 (closed) and Fall 2026 (current) through **Classes → Semester setup** (§2).
+2. In **CSF Settings → Communications**, confirm the broadcast consent topic, Resend topic id, sender, and integration health for the `term_members` audience. Do not use the generic organization-plugin JSON editor; cohort posts email through the same announcements consent topic.
 
 ### 10.2 Legacy data seed (rehearse locally first: `bun run dev`)
 
@@ -179,29 +193,37 @@ Acceptance: per-cohort roster counts match the application grade distribution; s
 ### 10.3 Student rollout (replaces the four Classroom codes)
 
 1. Create four cohort onboarding links (§4) — one per graduating class, Fall 2026 term, combined link type. These replace the Freshman/Sophomore/Junior/Senior Google Classroom codes everywhere the chapter publishes them.
-2. Students who sign up through a cohort link skip the generic platform tour, confirm the exact-email claim ("is this you?"), pick a username in place, and get the CSF member tour on their class Home.
-3. Students whose sign-up email is not on the roster submit a link request; resolve them in the Members queue, where ranked name-similarity suggestions offer one-click connects. Never expose roster names to students.
+2. Students who sign up through a cohort link skip the generic platform tour, confirm **We found your CSF record — is this you?**, pick a username in place, and get the CSF member tour on their **Feed**.
+3. Students whose sign-up email is not on the roster submit a link request; resolve them in the Members queue. Ranked suggestions help an officer locate evidence, but **Connect** remains blocked until stable corroborating identity evidence is present and every hard conflict is cleared. Never expose roster names to students.
 
 ### 10.4 Posts and announcement email
 
-1. Post from the class Stream (or member Home compose): audience `class` targets one cohort; `members` targets the whole chapter. Pin sparingly.
-2. The "also send as email" toggle queues exactly one campaign per post through the durable ledger — retries are safe; edits after queueing never change the email. Delivery drains via the `csf-communications-dispatch` workflow every 10 minutes.
+1. Open **Classes**, choose the class, then use **Stream**. Audience `class` targets that one cohort; `members` targets the whole chapter. Members read the result in **Feed**. Pin sparingly.
+2. The "also send as email" toggle requests exactly one campaign per post through the durable ledger — retries are safe. A class campaign freezes the current term, exact class cohort, consent topic, content, and recipient snapshot; later member/class changes or post edits do not rewrite it. The result must separately say **Post published** and either **Email queued** or **Email not queued**. A queue failure never means that a persisted post was not saved. The `csf-communications-dispatch` route is locally auth-first, bounded, input-free, and exact opt-in, and its isolated probe proves disabled/probe execution has no database or provider egress. There is still no checked-in or repeatedly verified hosted cadence. **Email queued** is not **Email delivered**; do not promise automatic or fixed-time delivery until infrastructure acceptance closes that gap.
 3. Recipients can opt out via the link in every announcement email (verify-the-address confirmation). Opt-outs exclude the address from future snapshots automatically; do not hand-manage them.
 4. Grant posting rights via the `manage_posts` capability (Publicity VP and Web Master templates carry it; org admins and the owner always can).
+5. Review quarantined or unknown provider outcomes in **CSF Settings → Communications**. Reconcile only from exact provider evidence; an unknown attempt is never blindly resent. Closing a quarantine item acknowledges human triage and records a reason, but does not apply/rewrite the provider event or change delivery/address safety.
+6. Do not rely on **Schedule post** in the currently accepted release. A stored due time is not proof that the post entered Feed or queued email. Use manual publication as the temporary pre-acceptance path until the in-progress publisher passes its migration, route, pgTAP, and central replay gates.
 
 ## 11. Troubleshooting and stop rules
 
-| Condition                                                | Officer action                                                                            |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Wrong connected Google identity                          | Stop before file selection; reconnect the approved chapter account.                       |
-| Google source says **Reconnect**                         | Reauthorize; keep existing reviewed records.                                              |
-| Missing or malformed imported point value                | Leave the row unresolved and correct the source mapping/value; never guess.               |
-| Invalid meeting timestamp                                | Correct with a reason before commit.                                                      |
-| Duplicate or ambiguous profile                           | Send to account-connection review; never search or expose the roster to the student.      |
-| Application approval is blocked                          | Complete the mandatory check or have the adviser record a reasoned override.              |
-| Semester evidence changed                                | Refresh preflight and review again.                                                       |
-| A mutation partially appears to succeed                  | Stop and inspect Change history before retrying; do not add a compensating manual record. |
-| Private data appears on a public route or in an artifact | Treat as P0, stop testing, remove the artifact, and notify the platform owner.            |
+| Condition                                                | Officer action                                                                                                                                                  |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Wrong connected Google identity                          | Stop before file selection; reconnect the approved chapter account.                                                                                             |
+| Google source says **Reconnect**                         | Reauthorize; keep existing reviewed records.                                                                                                                    |
+| Intended secure-link email is absent/shared              | Close link creation and make an audited member correction first; never type a substitute.                                                                       |
+| Missing or malformed imported point value                | Leave the row unresolved and correct the source mapping/value; never guess.                                                                                     |
+| Invalid meeting timestamp                                | Correct with a reason before commit.                                                                                                                            |
+| Import match/skip action fails                           | Keep the visible member/reason, read the inline error, and retry only after correction.                                                                         |
+| Duplicate or ambiguous profile                           | Send to account-connection review; never search or expose the roster to the student.                                                                            |
+| Application approval is blocked                          | Complete the mandatory check or have the adviser record a reasoned override.                                                                                    |
+| Semester evidence changed                                | Refresh preflight and review again.                                                                                                                             |
+| A mutation partially appears to succeed                  | Stop and inspect Change history before retrying; do not add a compensating manual record.                                                                       |
+| Post says scheduled                                      | In the currently accepted release, treat it as unpublished until Feed/dispatch evidence exists; use the temporary manual path while the publisher gate is open. |
+| Post saved but email did not queue                       | Keep the post; correct the named email blocker and use the post's email retry action.                                                                           |
+| Email is queued but dispatch timing is unclear           | Treat it as queued, not delivered. Confirm the hosted worker configuration and invocation evidence; do not promise a fixed delivery time.                       |
+| Email outcome is unknown or webhook is quarantined       | Use Communications recovery with exact provider evidence; never blindly resend or guess.                                                                        |
+| Private data appears on a public route or in an artifact | Treat as P0, stop testing, remove the artifact, and notify the platform owner.                                                                                  |
 
 ## 12. Current release checklist
 
@@ -240,6 +262,14 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Complete synthetic visible mutation lifecycle for every actor
 - [ ] Keyboard, focus, and screen-reader acceptance
 - [ ] Three native Google Slides decks created and visually accepted
+- [ ] Re-run merge/connection hard-conflict, application-preflight, invitation-telemetry, post partial-success, and import-readiness acceptance added after the August 9 lifecycle audit
+- [ ] Verify CSF-owned communications configuration and unknown-outcome reconciliation with `manage_settings`, plus reachable post composition for every `manage_posts` template
+- [ ] Fresh combined replay/build/static gates for the exact August 9 root + private-submodule tree, including request-safe application/merge/direct-link/post mutations, point authority revalidation, exact Google identity/disconnect, communications quarantine, grade policy, and import-history contracts
+- [ ] Visible exact-recorded-email student-specific link and response-loss replay journeys; no fabricated send telemetry
+- [ ] Visible six-value grade-policy edit → publish → recalculation journey with stale-draft refusal
+- [ ] Visible import match/skip failure-preservation and truthful history/lineage journey
+- [ ] Accept the in-progress authorized, retry-safe scheduled-post publisher through migration, route, pgTAP, and central replay; until then officers use the temporary manual path
+- [ ] Configure and verify hosted `csf-communications-dispatch` invocation before promising automatic or fixed-cadence announcement delivery
 
 No live Google OAuth/Picker/Drive import or Google write has been performed. No paid Supabase development branch has been created. Production and Vela were not accessed or mutated. These are action-time release gates, not completed runbook steps.
 

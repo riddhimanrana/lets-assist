@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(25);
+SELECT extensions.plan(26);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -20,12 +20,20 @@ SELECT extensions.ok(
   'authenticated clients cannot bypass the member resubmission action'
 );
 SELECT extensions.ok(
-  has_function_privilege(
+  NOT has_function_privilege(
     'service_role',
     'plugin_data.csf_resubmit_point_submission(uuid,uuid,numeric,text,date,text,uuid,uuid)',
     'EXECUTE'
   ),
-  'the server role can execute the atomic resubmission workflow'
+  'the server role cannot bypass the request-aware resubmission boundary'
+);
+SELECT extensions.ok(
+  has_function_privilege(
+    'service_role',
+    'plugin_data.csf_resubmit_point_submission_request(uuid,uuid,numeric,text,date,text,uuid,uuid)',
+    'EXECUTE'
+  ),
+  'the server role can execute replay-safe correction resubmission'
 );
 
 INSERT INTO auth.users (

@@ -1,14 +1,21 @@
+import "server-only";
+
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 import { readPositiveInteger } from "@/lib/async/map-with-concurrency";
+import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 import {
   CsfWorkerRpcError,
   runCsfDispatchWorker,
   type CsfPluginRpc,
   type CsfWorkerAttemptReport,
 } from "@/services/csf-communications-worker";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * The bounded, server-only invocation path for the CSF dispatch worker.
@@ -138,18 +145,39 @@ function emptyTally(): OutcomeTally {
   };
 }
 
+function json(body: unknown, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: {
+      "Cache-Control":
+        "private, no-cache, no-store, max-age=0, must-revalidate",
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     // NOTHING HAS HAPPENED YET. No client is built, no organization is read, and
     // no provider call is made on this path.
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return json({ error: "Unauthorized" }, 401);
   }
 
-  if (process.env.CSF_COMMUNICATIONS_WORKER_ENABLED === "false") {
-    return NextResponse.json(
-      { message: "CSF communications dispatch worker disabled" },
-      { status: 200 },
-    );
+  const probe = cronAuthShapeProbe("csf-communications-dispatch", request);
+  if (probe) return probe;
+
+  // Exact opt-in. A missing flag is disabled just like an empty, malformed, or
+  // explicitly false flag. This matters because merely checking for `false`
+  // turns an omitted deployment variable into permission to send real email.
+  if (process.env.CSF_COMMUNICATIONS_WORKER_ENABLED !== "true") {
+    return json({
+      enabled: false,
+      organizationsQueued: 0,
+      organizationsProcessed: 0,
+      claimed: 0,
+      outcomes: emptyTally(),
+      faults: 0,
+      deadlineReached: false,
+    });
   }
 
   const startedAt = Date.now();
@@ -166,10 +194,7 @@ export async function POST(request: NextRequest) {
   try {
     plugin = pluginClient();
   } catch {
-    return NextResponse.json(
-      { error: "Worker transport unavailable" },
-      { status: 503 },
-    );
+    return json({ error: "Worker transport unavailable" }, 503);
   }
 
   // ORGANIZATION SCOPE IS DERIVED, NEVER SUPPLIED. service_role holds SELECT on
@@ -183,10 +208,7 @@ export async function POST(request: NextRequest) {
 
   if (queueError) {
     // Bounded: the database's own message can name rows and addresses.
-    return NextResponse.json(
-      { error: "Queue scope unavailable" },
-      { status: 503 },
-    );
+    return json({ error: "Queue scope unavailable" }, 503);
   }
 
   const organizationIds = [
@@ -240,19 +262,17 @@ export async function POST(request: NextRequest) {
 
   // AGGREGATES ONLY. No attempt identity, no campaign identity, no recipient
   // address, no subject, no provider message id, and no provider error text.
-  return NextResponse.json(
-    {
-      organizationsQueued: organizationIds.length,
-      organizationsProcessed,
-      claimed,
-      outcomes: tally,
-      faults,
-      deadlineReached,
-      batchSize,
-      durationMs: Date.now() - startedAt,
-    },
-    { status: 200 },
-  );
+  return json({
+    enabled: true,
+    organizationsQueued: organizationIds.length,
+    organizationsProcessed,
+    claimed,
+    outcomes: tally,
+    faults,
+    deadlineReached,
+    batchSize,
+    durationMs: Date.now() - startedAt,
+  });
 }
 
 export async function GET(request: NextRequest) {

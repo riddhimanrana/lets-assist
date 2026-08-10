@@ -4,12 +4,44 @@ This register separates actionable repository defects from provider/account and 
 
 ## Repository-owned P0–P2
 
-| ID        | Priority | Finding                                                                                                                                                   | Owner             | Evidence / exit gate                             |
-| --------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------ |
-| CLEAN-004 | P2       | Complete keyboard, focus, reduced-motion, and screen-reader acceptance for CSF roles and breakpoints.                                                     | CSF UX cleanup PR | Automated checks plus sanitized browser evidence |
-| CLEAN-005 | P2       | Complete visible synthetic CSF mutation lifecycle for profile claim/resolution, imports, applications, points, meetings/clubs, close/reopen, and reports. | CSF acceptance PR | Role matrix at desktop/tablet/phone              |
+| ID        | Priority | Finding                                                                                                                                                                                                                            | Owner                      | Evidence / exit gate                                                                                                                                                                     |
+| --------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CLEAN-004 | P1       | Fix the lifecycle audit's critical control names, ARIA relationships, nested interactive controls, contrast, focus, keyboard, reduced-motion, and screen-reader defects across CSF roles and breakpoints.                          | CSF lifecycle overhaul     | Zero critical axe findings plus keyboard/screen-reader evidence                                                                                                                          |
+| CLEAN-005 | P1       | Complete visible synthetic CSF mutation lifecycle for profile claim/resolution, imports, applications, points, meetings/clubs, close/reopen, communications, and reports.                                                          | CSF lifecycle overhaul     | Role matrix at desktop/tablet/phone                                                                                                                                                      |
+| CLEAN-006 | P0       | Merge preview can mark unrelated students ready and offer a consequential merge despite conflicting identity evidence.                                                                                                             | CSF lifecycle overhaul     | Hard-conflict database/service tests plus blocked browser journey                                                                                                                        |
+| CLEAN-007 | P0       | Application detail and decision modal can report ready/all-green while academic evidence is failed, missing, stale, or internally contradictory.                                                                                   | CSF lifecycle overhaul     | One server preflight proven in queue/detail/modal and DB tests                                                                                                                           |
+| CLEAN-008 | P1       | `manage_posts` templates can lack a reachable composer, and a persisted post can be reported unsaved when its settings-only campaign request fails.                                                                                | CSF lifecycle overhaul     | Every posting role reaches composer; partial outcome tests                                                                                                                               |
+| CLEAN-009 | P1       | Direct invitation link creation/renewal changes sent-at and resend telemetry without sending or durably queueing email.                                                                                                            | CSF lifecycle overhaul     | Forward migration and link-vs-delivery regression coverage                                                                                                                               |
+| CLEAN-010 | P1       | Failed or incomplete import jobs can display ready/no-conflict copy and an enabled commit action because UI readiness diverges from server blockers.                                                                               | CSF lifecycle overhaul     | Shared server blocker contract in service and browser tests                                                                                                                              |
+| CLEAN-011 | P1       | Mutating dialogs can require a silent first click, remain open after success, accept repeats, or lose a clear success/error announcement.                                                                                          | CSF lifecycle overhaul     | Shared pending/result behavior and focused interaction tests                                                                                                                             |
+| CLEAN-012 | P1       | CSF communications configuration is directed to an inaccessible private-plugin settings surface, and unknown/quarantined delivery outcomes have no officer reconciliation UI.                                                      | CSF lifecycle overhaul     | Reachable `manage_settings` flow and recovery acceptance                                                                                                                                 |
+| CLEAN-013 | P0       | Officer resolution of an account-connection request could connect a same-named classmate: the queue offered a one-click connect and the resolve RPC required no corroborating identity attribute.                                  | CSF lifecycle overhaul     | Corroboration migration plus pgTAP and reviewed-connect UI                                                                                                                               |
+| CLEAN-014 | P1       | Member feed and stream payloads carried officer email-delivery state for every post, hidden only by conditional rendering.                                                                                                         | CSF lifecycle overhaul     | Payload omits the field unless post authority is re-derived                                                                                                                              |
+| CLEAN-015 | P1       | The accepted CSF baseline can persist a `scheduled` post and report **Post scheduled**, but has no accepted due-post transition into the member Feed or optional email queue.                                                      | CSF lifecycle overhaul     | In-progress permission-rechecked, serialized, retry-safe, atomic/audited publisher passes migration, route, pgTAP, central replay, and browser/cron acceptance                           |
+| CLEAN-016 | P1       | The officer runbook promised ten-minute announcement delivery draining, but the repository contains only a fail-closed ledger/worker route and no accepted repository-owned hosted scheduler configuration or invocation evidence. | CSF release/infrastructure | Confirm the Vercel plan and useful cadence, configure the hosted invocation, then verify repeated route/ledger/provider outcomes before making an automatic or fixed-time delivery claim |
 
-No repository-owned P0 is currently recorded. This is not a claim that undiscovered defects are impossible.
+The August 9 worktree contains implementation candidates for CLEAN-006 through
+CLEAN-014, but they remain in this active register until the exact combined
+root/private tree passes its fresh isolated replay, static/build gates, and the
+named visible lifecycle exit gates. Focused tests or a locally edited contract
+alone do not close a finding. CLEAN-015 now has a dedicated implementation lane,
+but remains open until that exact publisher passes the listed central gates;
+officers use manual publication only as the temporary pre-acceptance path.
+CLEAN-016 remains open. The communications route now requires exact opt-in,
+authenticates before its isolated probe/flag/client, accepts no caller work
+coordinates, bounds each run, and is covered by the shared seven-route no-egress
+probe. A narrow contract test keeps both CSF paths out of `vercel.json` until the
+Vercel plan, useful cadence, and isolated hosted-Production acceptance are known.
+Those local controls do not establish or verify a cadence.
+
+### Knowingly unchanged automated findings
+
+`scrollable-region-focusable` on the Point submissions `role="tablist"` is not
+being "fixed". The list is horizontally scrollable and axe cannot see that its
+tab triggers use the roving-tabindex pattern, so arrow keys already move focus
+and scroll the container. Adding `tabIndex={0}` to the tablist would create a
+purposeless focus stop and fight the pattern. Re-evaluate only if manual
+keyboard testing shows the region is genuinely unreachable.
 
 ## External/account blockers
 

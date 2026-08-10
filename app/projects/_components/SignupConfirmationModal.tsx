@@ -4,19 +4,11 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   User,
   Mail,
@@ -25,10 +17,7 @@ import {
   MapPin,
   Clock,
   Loader2,
-  ChevronDown,
-  Download,
 } from "lucide-react";
-import Image from "next/image";
 import { getUserProfile } from "@/app/projects/[id]/actions";
 import { toast } from "sonner";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
@@ -41,6 +30,12 @@ import type {
 } from "@/types";
 import { ModernFormRenderer } from "@/components/forms/ModernFormRenderer";
 import type { FormSchema } from "@/lib/forms/engine";
+import {
+  SignupConfirmationActionContent,
+  SignupConfirmationActionFeedback,
+  SignupConfirmationActionFrame,
+} from "./SignupConfirmationActionFeedback";
+import { SignupConfirmationCalendar } from "./SignupConfirmationCalendar";
 
 interface UserProfile {
   full_name: string | null;
@@ -55,7 +50,7 @@ interface SignupConfirmationModalProps {
     comment?: string,
     waiverSignature?: WaiverSignatureInput | null,
     formData?: Record<string, unknown>,
-  ) => void;
+  ) => void | Promise<void>;
   enableVolunteerComments?: boolean;
   waiverRequired?: boolean;
   waiverAllowUpload?: boolean;
@@ -74,6 +69,7 @@ interface SignupConfirmationModalProps {
   };
   scheduleId: string;
   isLoading?: boolean;
+  error?: string | null;
 }
 
 export function SignupConfirmationModal({
@@ -90,6 +86,7 @@ export function SignupConfirmationModal({
   project,
   scheduleId,
   isLoading = false,
+  error = null,
 }: SignupConfirmationModalProps) {
   const [step, setStep] = useState<"confirmation" | "custom-form">(
     "confirmation",
@@ -116,6 +113,8 @@ export function SignupConfirmationModal({
     if (!isOpen) {
       setComment("");
       setWaiverSignature(null);
+      setFormData(null);
+      setStep("confirmation");
     }
   }, [isOpen]);
 
@@ -283,6 +282,7 @@ export function SignupConfirmationModal({
   };
 
   const handleConfirm = () => {
+    if (isLoading) return;
     if (signupFormSchema && step === "confirmation") {
       setStep("custom-form");
       return;
@@ -298,6 +298,7 @@ export function SignupConfirmationModal({
   };
 
   const handleCustomFormSubmit = (data: Record<string, unknown>) => {
+    if (isLoading) return;
     setFormData(data);
     const trimmed = comment.trim();
     onConfirm(
@@ -332,8 +333,12 @@ export function SignupConfirmationModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-h-[90vh] overflow-y-auto">
+    <SignupConfirmationActionFrame
+      isOpen={isOpen}
+      onClose={onClose}
+      isLoading={isLoading}
+    >
+      <SignupConfirmationActionContent isLoading={isLoading}>
         <DialogHeader>
           <div className="flex items-center gap-2">
             {step === "custom-form" && (
@@ -342,8 +347,10 @@ export function SignupConfirmationModal({
                 size="icon"
                 className="h-8 w-8 -ml-2"
                 onClick={() => setStep("confirmation")}
+                disabled={isLoading}
+                aria-label="Back to signup confirmation"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               </Button>
             )}
             <DialogTitle>
@@ -358,6 +365,8 @@ export function SignupConfirmationModal({
               : "Please complete the following information required for this tournament."}
           </DialogDescription>
         </DialogHeader>
+
+        <SignupConfirmationActionFeedback error={error} isLoading={isLoading} />
 
         {step === "confirmation" ? (
           <>
@@ -450,6 +459,7 @@ export function SignupConfirmationModal({
                     <Button
                       onClick={() => setIsWaiverDialogOpen(true)}
                       className="w-full sm:w-auto"
+                      disabled={isLoading}
                     >
                       <PenTool className="h-4 w-4 mr-2" />
                       Sign Waiver
@@ -469,6 +479,7 @@ export function SignupConfirmationModal({
                         size="sm"
                         onClick={() => setIsWaiverDialogOpen(true)}
                         className="text-muted-foreground hover:text-text"
+                        disabled={isLoading}
                       >
                         Edit
                       </Button>
@@ -508,6 +519,7 @@ export function SignupConfirmationModal({
                     rows={2}
                     maxLength={100}
                     className="resize-none text-sm"
+                    disabled={isLoading}
                   />
                   <div className="text-xs text-muted-foreground">
                     Brief note visible to the organizer.
@@ -515,90 +527,15 @@ export function SignupConfirmationModal({
                 </div>
               )}
 
-              {/* Calendar Integration Section */}
-              <div className="space-y-3 pt-3 border-t">
-                <h4 className="font-semibold text-sm text-text">
-                  Add to Calendar
-                </h4>
-                {checkingConnection ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Checking connection...
-                  </div>
-                ) : calendarConnected ? (
-                  <div className="flex items-center justify-between gap-3 p-3 bg-success/10 border border-success/80 rounded-lg max-w-md">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center shrink-0">
-                        <Image
-                          className="h-4 w-4"
-                          src="/resources/google-calendar-logo-2026.png"
-                          alt="Google Calendar"
-                          width={16}
-                          height={16}
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-success truncate">
-                          Google Calendar Connected
-                        </div>
-                        {connectedEmail && (
-                          <div className="text-xs text-success/80 truncate">
-                            {connectedEmail}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 shrink-0"
-                          >
-                            <ChevronDown className="h-4 w-4" />
-                          </Button>
-                        }
-                      />
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={handleDownloadICal}>
-                          <Download className="h-4 w-4 mr-2" />
-                          Download as iCal
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="w-full max-w-md justify-start h-auto p-3"
-                    onClick={handleConnectCalendar}
-                    disabled={connectingCalendar}
-                  >
-                    <div className="flex items-center gap-3 w-full">
-                      {connectingCalendar ? (
-                        <Loader2 className="h-5 w-5 animate-spin shrink-0" />
-                      ) : (
-                        <Image
-                          src="/resources/google-calendar-logo-2026.png"
-                          alt="Google Calendar"
-                          width={20}
-                          height={20}
-                          className="h-5 w-5 mr-1"
-                        />
-                      )}
-                      <div className="text-left flex-1">
-                        <div className="text-sm font-medium">
-                          Connect Google Calendar
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Auto-sync events to your calendar
-                        </div>
-                      </div>
-                    </div>
-                  </Button>
-                )}
-              </div>
+              <SignupConfirmationCalendar
+                calendarConnected={calendarConnected}
+                checkingConnection={checkingConnection}
+                connectedEmail={connectedEmail}
+                connectingCalendar={connectingCalendar}
+                isLoading={isLoading}
+                onConnect={handleConnectCalendar}
+                onDownloadICal={handleDownloadICal}
+              />
             </div>
 
             <DialogFooter className="mt-6 pt-6 border-t">
@@ -638,7 +575,7 @@ export function SignupConfirmationModal({
             ) : null}
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </SignupConfirmationActionContent>
+    </SignupConfirmationActionFrame>
   );
 }

@@ -130,18 +130,21 @@ mock.module("@supabase/supabase-js", () => ({
   }),
 }));
 
-const { POST } = await import("./route");
+const { GET, POST } = await import("./route");
 const { NextRequest } = await import("next/server");
 
-function request(headers: Record<string, string> = {}) {
+function request(
+  headers: Record<string, string> = {},
+  method: "GET" | "POST" = "POST",
+) {
   return new NextRequest(
     "http://localhost/api/cron/csf-communications-dispatch",
-    { method: "POST", headers },
+    { method, headers },
   );
 }
 
-function authorized() {
-  return request({ authorization: "Bearer synthetic-cron-token" });
+function authorized(method: "GET" | "POST" = "POST") {
+  return request({ authorization: "Bearer synthetic-cron-token" }, method);
 }
 
 /**
@@ -176,6 +179,11 @@ beforeEach(() => {
   claimHandler = () => ({ data: { claimedCount: 0, claims: [] }, error: null });
 
   process.env.CRON_TOKEN = "synthetic-cron-token";
+  delete process.env.CRON_SECRET;
+  delete process.env.CSF_COMMUNICATIONS_WORKER_SECRET_TOKEN;
+  process.env.CSF_COMMUNICATIONS_WORKER_ENABLED = "true";
+  delete process.env.CSF_COMMUNICATIONS_WORKER_BATCH_SIZE;
+  delete process.env.CRON_AUTH_SHAPE_PROBE_ONLY;
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://synthetic.invalid";
   process.env.SUPABASE_SECRET_KEY = "synthetic-secret-key";
   process.env.EMAIL_TRANSPORT = "resend";
@@ -183,6 +191,64 @@ beforeEach(() => {
 });
 
 describe("the bounded CSF dispatch worker route", () => {
+  test("every value except exact true is disabled with zero database or provider work", async () => {
+    const disabledValues: Array<string | undefined> = [
+      undefined,
+      "",
+      "false",
+      "1",
+      "TRUE",
+      " true ",
+    ];
+
+    for (const value of disabledValues) {
+      if (value === undefined) {
+        delete process.env.CSF_COMMUNICATIONS_WORKER_ENABLED;
+      } else {
+        process.env.CSF_COMMUNICATIONS_WORKER_ENABLED = value;
+      }
+
+      const response = await POST(authorized());
+      expect(response.status, String(value)).toBe(200);
+      expect(await response.json()).toEqual({
+        enabled: false,
+        organizationsQueued: 0,
+        organizationsProcessed: 0,
+        claimed: 0,
+        outcomes: {
+          sent: 0,
+          refused: 0,
+          failed: 0,
+          retryable: 0,
+          unknown: 0,
+          authorization_lost: 0,
+        },
+        faults: 0,
+        deadlineReached: false,
+      });
+      expect(rpcCalls, String(value)).toHaveLength(0);
+      expect(sendCalls, String(value)).toHaveLength(0);
+      expect(fromCalls, String(value)).toHaveLength(0);
+    }
+  });
+
+  test("GET uses the same authenticated exact-opt-in path and is never cached", async () => {
+    delete process.env.CSF_COMMUNICATIONS_WORKER_ENABLED;
+
+    const disabled = await GET(authorized("GET"));
+    expect(disabled.status).toBe(200);
+    expect(await disabled.json()).toMatchObject({ enabled: false, claimed: 0 });
+    expect(disabled.headers.get("cache-control")).toContain("no-store");
+    expect(fromCalls).toHaveLength(0);
+    expect(sendCalls).toHaveLength(0);
+
+    const unauthorized = await GET(request({}, "GET"));
+    expect(unauthorized.status).toBe(401);
+    expect(unauthorized.headers.get("cache-control")).toContain("no-store");
+    expect(fromCalls).toHaveLength(0);
+    expect(sendCalls).toHaveLength(0);
+  });
+
   test("an unauthenticated call claims nothing and sends nothing", async () => {
     const response = await POST(request());
 
@@ -321,6 +387,21 @@ describe("the bounded CSF dispatch worker route", () => {
 
     delete process.env.CSF_COMMUNICATIONS_WORKER_SECRET_TOKEN;
     process.env.CRON_TOKEN = "synthetic-cron-token";
+  });
+
+  test("Vercel's CRON_SECRET authenticates the scheduled GET when CRON_TOKEN is absent", async () => {
+    delete process.env.CRON_TOKEN;
+    process.env.CRON_SECRET = "synthetic-vercel-cron-secret";
+
+    const response = await GET(
+      request({ authorization: "Bearer synthetic-vercel-cron-secret" }, "GET"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ enabled: true, claimed: 0 });
+    expect(fromCalls).toEqual(["csf_communication_dispatch_attempts"]);
+    expect(rpcCalls).toHaveLength(0);
+    expect(sendCalls).toHaveLength(0);
   });
 
   test("neither the header nor the secret is ever logged", async () => {

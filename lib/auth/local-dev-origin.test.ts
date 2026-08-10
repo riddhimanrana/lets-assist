@@ -48,7 +48,7 @@ describe("local browser verification origin", () => {
     }
   });
 
-  test("the CSF isolated stack pins the Let’s Assist port", () => {
+  test("the CSF isolated stack derives every origin from one validated app port", () => {
     const launcher = readFileSync(
       join(
         import.meta.dir,
@@ -62,19 +62,22 @@ describe("local browser verification origin", () => {
     );
 
     expect(launcher).toContain(
-      'emit_app_env_value NEXT_PUBLIC_SITE_URL "http://localhost:3000"',
+      'emit_app_env_value NEXT_PUBLIC_SITE_URL "http://localhost:${APP_PORT}"',
     );
     expect(launcher).toContain(
-      'emit_app_env_value SITE_URL "http://localhost:3000"',
+      'emit_app_env_value SITE_URL "http://localhost:${APP_PORT}"',
     );
     expect(launcher).toContain(
-      'emit_app_env_value NEXT_PUBLIC_VERCEL_URL "localhost:3000"',
+      'emit_app_env_value NEXT_PUBLIC_VERCEL_URL "localhost:${APP_PORT}"',
     );
     expect(environmentContract).toContain(
-      'const CSF_ISOLATED_SITE_URL = "http://localhost:3000";',
+      "if (requested === \"\") return 3000;",
     );
     expect(environmentContract).toContain(
-      'const CSF_ISOLATED_VERCEL_URL = "localhost:3000";',
+      "const CSF_ISOLATED_SITE_URL = `http://localhost:${CSF_ISOLATED_APP_PORT}`;",
+    );
+    expect(environmentContract).toContain(
+      "const CSF_ISOLATED_VERCEL_URL = `localhost:${CSF_ISOLATED_APP_PORT}`;",
     );
   });
 

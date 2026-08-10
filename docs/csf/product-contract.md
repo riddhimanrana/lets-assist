@@ -1,8 +1,8 @@
 # DVHS CSF Product and Operational Specification
 
 **Status:** Approved implementation source of truth<br>
-**Version:** 1.2<br>
-**Last updated:** August 7, 2026<br>
+**Version:** 1.3<br>
+**Last updated:** August 9, 2026<br>
 **Product surface:** DVHS CSF private organization plugin inside Let’s Assist
 
 This document defines the product, operating model, information architecture, terminology, data boundaries, workflows, page behavior, and acceptance criteria for the DVHS CSF rebuild. If current code, old mockups, seed data, or earlier labels conflict with this document, this document wins unless it is amended explicitly.
@@ -13,7 +13,7 @@ This document defines the product, operating model, information architecture, te
 
 Version 1.0 removed the Communications/Updates surface and treated Google Classroom as the chapter’s announcement channel. The chapter has since decided to retire Google Classroom for CSF and make Let’s Assist the member home. This amendment reinstates a deliberately narrow communications surface:
 
-- **Cohort posts.** Officers publish posts to a member feed scoped to `members`, a single graduating-class cohort (`class`), `officers`, or `public`. Posts support pinning and scheduling. Posts have **no comments** (see Amendment 2: member comments stay excluded; officers may append follow-up replies) and no read-tracking.
+- **Cohort posts.** Officers publish posts to a member feed scoped to `members`, a single graduating-class cohort (`class`), `officers`, or `public`. Posts support pinning. Although the data model retains a scheduled status, Amendment 3 withholds any automatic-scheduling claim until the due-post publisher is accepted. Posts have **no comments** (see Amendment 2: member comments stay excluded; officers may append follow-up replies) and no read-tracking.
 - **Per-post email delivery.** Publishing a post may optionally queue exactly one email campaign through the existing durable communications ledger (audience snapshot, content digest, leased dispatch, provider-event reconciliation). Delivery status is reported from ledger state; there are no simulated delivery claims.
 - **Recipient control.** Broadcast email honors the opt-out ledger and Resend topic one-click unsubscribe, plus a recipient-facing verify-your-address unsubscribe flow. Transactional mail is unaffected.
 - **What stays prohibited:** internal direct messaging, comments, any Google Classroom API or posting simulator, and delivery claims not backed by ledger/provider events.
@@ -28,6 +28,23 @@ Clauses amended by this record are annotated “(amended v1.1)” in place. Wher
 
 Clauses amended by this record are annotated “(see Amendment 2)” in place. Where earlier text conflicts with this record, this record wins.
 
+### Amendment 3 — Lifecycle truth and operator safety (v1.3, August 9, 2026)
+
+The complete synthetic officer/member walkthrough found several surfaces where the UI could describe a state the server had not proved. This amendment makes operator truth a release boundary:
+
+- **Identity and application decisions.** A merge, connection, or approval uses one server-derived preflight. Similar names are never sufficient; hard identity conflicts and failed, missing, or stale academic evidence block the ordinary decision path everywhere, including confirmation dialogs.
+- **Links are not email.** Creating, copying, or renewing an onboarding link changes link state only. A student-specific link may use only a current, unique school or personal email recorded on the selected active profile; officers correct the record before link creation rather than type an arbitrary recipient. Sent timestamps, resend counts, and delivery language require a durable recipient delivery receipt.
+- **Policy values are operative data.** The semester draft exposes the six List I/II/III × A/B grade-point values that drive application calculation. Plus/minus variants inherit the base letter, drafts do not govern until publication, and saved advanced grade keys are not silently discarded.
+- **Posts and announcement email.** `manage_posts` grants a reachable composer and post-linked email request. Post persistence and email queueing have separate, truthful outcomes; a queue failure may never claim that a persisted post was not saved. A post-linked campaign freezes its term, audience, exact class coordinate, recipient snapshot, and content before dispatch.
+- **Queue is not delivery.** The durable announcement ledger and `csf-communications-dispatch` route are implemented. Locally, that route authenticates before any work, accepts no organization/message input, runs only when `CSF_COMMUNICATIONS_WORKER_ENABLED` is exactly `true`, bounds each invocation, and participates in the isolated cron no-egress probe. Those controls do not create a scheduler: `vercel.json` deliberately has no CSF worker cron while the Vercel plan, useful cadence, and isolated hosted-Production acceptance remain unresolved. **Email queued** means only that durable queueing succeeded; no operator copy may promise automatic or fixed-time delivery until hosted invocation is configured and repeatedly verified separately.
+- **Scheduling is not yet accepted publication.** The currently accepted repository state can retain a `scheduled` post and due time but has no accepted due-post publisher. Manual publication is the temporary pre-acceptance operator path; no screen or runbook may promise automatic publication or scheduled email until the in-progress authorized, retry-safe publisher passes its migration, route, pgTAP, and central replay gates.
+- **Imports.** One server-derived blocker list controls job status, summary copy, and commit availability. A failed, stale, inaccessible, unresolved, or incomplete job cannot look ready. Match/skip decisions require a visible officer reason, and history displays only facts actually recorded for that run.
+- **Google and email recovery.** A CSF import connection is valid only after Google verifies the exact approved chapter account. Disconnect preserves reviewed records and provenance. Unknown delivery outcomes and quarantined webhook events may be reconciled only from provider evidence; triage never silently sends, retries, suppresses, or rewrites an event.
+- **Google Sheets are input-only in this release.** Reports are local formula-safe ZIP archives. There is no Google report destination, compatibility-tab writer, or Sheet writeback.
+- **Action and recovery states.** Mutating controls show pending, named success, and named failure states, prevent duplicate activation, and close only after confirmed success. Authorized CSF settings operators can configure communications and reconcile durable unknown outcomes from a CSF-owned surface.
+
+This amendment also resolves older navigation and Classroom wording: the member order is **Feed, Activities, Point submissions, My CSF**, and Google Classroom is retired rather than an active manual broadcast step.
+
 ---
 
 ## 1. Executive decision record
@@ -40,7 +57,7 @@ The rebuild is governed by these decisions:
 
 1. **The permanent student record is separate from every semester application and membership.** A student may apply in many semesters; each application and completed membership outcome remains historically accurate.
 2. **Academic eligibility, dues, the application decision, and end-of-semester participation are separate state dimensions.** “Approved” never implies that all service or meeting requirements have already been completed.
-3. **Google Forms and Sheets remain controlled intake and import channels.** Google Drive remains the location of source documents. Once an officer commits and reconciles an import, Let’s Assist is the operational source of truth for the normalized record.
+3. **Google Forms and Sheets remain controlled intake and import channels.** Google Drive remains the location of source documents. Once an officer commits and reconciles an import, Let’s Assist is the operational source of truth for the normalized record. This release performs no Google Sheet writeback or report export to Google; reports download as a local ZIP.
 4. **Google Classroom is retired for CSF; announcements live in the product (amended v1.1).** There is still no Classroom API or posting simulator. Chapter announcements are cohort-scoped member posts with optional ledger-backed email delivery, per Amendment 1.
 5. **Cutover is staged and officer-approved.** There is no permanent dual-write model and no silent synchronization over reviewed platform data.
 6. **The officer experience lives inside the familiar Let’s Assist organization shell.** DVHS CSF contributes purpose-built routes and workflows without replacing the host header, type system, theme, or organization identity.
@@ -81,7 +98,7 @@ The platform therefore treats these as different questions:
 
 Current published and source-form rules provide initial values only. They must be stored in a versioned semester policy and never hard-coded into reusable UI.
 
-- Academic eligibility starts with a configurable threshold equivalent to 10 academic points total, at least 4 from List I, at least 7 from Lists I and II combined, no more than five counted courses, configured grade-point values, configured honors/AP bonuses, and disqualifying-grade rules.
+- Academic eligibility starts with a configurable threshold equivalent to 10 academic points total, at least 4 from List I, at least 7 from Lists I and II combined, no more than five counted courses, configured honors/AP bonuses, and disqualifying-grade rules. The initial six grade-point values are List I A=3/B=1, List II A=2/B=1, and List III A=1/B=0. A+/A− evaluate as A and B+/B− as B unless a future published policy explicitly introduces a different normalized grade model.
 - The current chapter baseline includes $5 dues, a seven-point participation requirement, a two-point drive cap, a three-point cap per activity, and up to one missed required meeting.
 - Senior recognition is calculated from completed semester memberships using the policy effective for the applicable graduating class and year.
 
@@ -89,14 +106,14 @@ An adviser may change future-semester policy. Historical evaluations always reta
 
 ### 2.4 What the platform owns—and what it does not
 
-| System                         | Operational responsibility                                                                                                                               | Authority after import                                                                     | Write behavior                                                                                              |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| Google Forms                   | Original application, attendance, and club-audit submissions                                                                                             | Immutable source evidence only                                                             | Let’s Assist does not edit responses                                                                        |
-| Google Sheets                  | Raw response grids, historical class tabs, officer compatibility exports                                                                                 | Raw source before reconciliation; not authoritative for reviewed platform fields afterward | Read for preview/import; exports create a new timestamped tab and never overwrite an officer-maintained tab |
-| Google Drive                   | Transcripts, receipts, proofs, spreadsheets, and chapter source files                                                                                    | Authoritative file bytes and access controls                                               | Store provider IDs and links; do not duplicate public copies                                                |
-| Let’s Assist                   | Normalized students, reviews, eligibility, dues verification, decisions, term membership, attendance, point awards, club approvals, reports, and history | Operational source of truth after officer commit                                           | All consequential changes are permission-checked and audited                                                |
-| Google Classroom               | External member broadcast channel                                                                                                                        | No platform state                                                                          | Officers post manually; no API or internal tracker                                                          |
-| DVHS CSF website and Instagram | Public chapter information and outreach                                                                                                                  | Public-information source                                                                  | The plugin does not attempt to become a competing CMS                                                       |
+| System                         | Operational responsibility                                                                                                                               | Authority after import                                                                     | Write behavior                                                                                          |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Google Forms                   | Original application, attendance, and club-audit submissions                                                                                             | Immutable source evidence only                                                             | Let’s Assist does not edit responses                                                                    |
+| Google Sheets                  | Raw response grids and historical class tabs                                                                                                             | Raw source before reconciliation; not authoritative for reviewed platform fields afterward | Read for explicit preview/import only; no writeback, compatibility-tab writer, or report destination    |
+| Google Drive                   | Transcripts, receipts, proofs, spreadsheets, and chapter source files                                                                                    | Authoritative file bytes and access controls                                               | Store provider IDs and links; do not duplicate public copies                                            |
+| Let’s Assist                   | Normalized students, reviews, eligibility, dues verification, decisions, term membership, attendance, point awards, club approvals, reports, and history | Operational source of truth after officer commit                                           | Consequential changes are permission-checked/audited; report output is a local formula-safe ZIP archive |
+| Google Classroom               | Retired CSF channel; retained only as historical operating context                                                                                       | No platform state                                                                          | No active posting workflow, OAuth scope, API, simulator, or delivery tracker                            |
+| DVHS CSF website and Instagram | Public chapter information and outreach                                                                                                                  | Public-information source                                                                  | The plugin does not attempt to become a competing CMS                                                   |
 
 ---
 
@@ -115,7 +132,7 @@ An adviser may change future-semester policy. Historical evaluations always reta
 - Current and historical term memberships
 - Activities, point submissions, awarded credit, appeals, meetings, attendance, and partner clubs
 - Deadline ownership and term-close preflight
-- Term-scoped reports and compatibility exports
+- Term-scoped, locally downloaded report exports
 - Capability-based officer access and immutable change history
 - Applicant/member self-service status and next steps
 - Cohort-scoped member posts with optional ledger-backed email delivery (Amendment 1, amended v1.1)
@@ -129,7 +146,7 @@ An adviser may change future-semester policy. Historical evaluations always reta
 - Automated transcript OCR or AI eligibility decisions
 - Public member directories, public membership badges, or public student progress
 - A generic school club-management product
-- Permanent bidirectional synchronization with Google Sheets
+- Any Google Sheets writeback, report destination, compatibility-tab writer, or permanent bidirectional synchronization
 - Decorative analytics, prediction, risk scoring, or artificial urgency
 - Replacing the official DVHS CSF website or Instagram
 
@@ -164,6 +181,7 @@ The adult chapter authority or explicitly delegated administrator. This role can
 | Verify dues                             |                               No                                |                     No                      |                `manage_payment_review`                 |        Yes         |
 | Apply academic override                 |                               No                                |                     No                      |             No unless explicitly delegated             |        Yes         |
 | Manage activities                       |                               No                                |                     No                      |                 `manage_opportunities`                 |        Yes         |
+| Publish posts and post-linked email     |                               No                                |                     No                      |                     `manage_posts`                     |        Yes         |
 | Review point submissions                |                               No                                |                     No                      |                  `verify_submissions`                  |        Yes         |
 | Process final point records             |                               No                                |                     No                      |                    `process_points`                    |        Yes         |
 | Manage meetings and attendance          |                               No                                |                     No                      | `manage_cohorts_terms` or delegated meeting permission |        Yes         |
@@ -183,7 +201,7 @@ Templates provide sensible starting capabilities and remain editable by the advi
 - **Vice presidents:** applications, appeals, member records, point processing, partner clubs, imports, and reports according to assignment.
 - **Treasurer:** dues evidence, waivers delegated by the adviser, and dues reports.
 - **Secretary:** semester schedule, meetings, attendance, imports, deadlines, and routine reports.
-- **Webmaster:** activity/public-page content inside this product; the external website and social accounts remain separate.
+- **Publicity vice president/webmaster:** cohort posts, post-linked announcement email, and activity/public-page content inside this product; the external website and social accounts remain separate.
 - **Activity coordinators:** activity creation, signup verification, point-submission review, and partner-club support.
 - **Adviser:** all sensitive review, policy, override, access, closure, and export capabilities.
 
@@ -204,7 +222,7 @@ The current implementation contains important work that should be retained and r
 - Versioned term policy and shared requirement evaluation
 - Atomic application decision, point-review, policy-update, and term-close RPC boundaries
 - Normalized activities, submissions, credit records, meetings, attendance, appeals, and partner clubs
-- Raw import rows, row hashes, source coordinates, preview/commit separation, and compatibility exports
+- Raw import rows, row hashes, source coordinates, preview/commit separation, and local report-export history
 - Capability-based staff positions and change events
 - Route-scoped data loading
 - Plugin-controlled public privacy boundary
@@ -235,7 +253,7 @@ The current implementation contains important work that should be retained and r
 | Audit History                               | Technically correct but sounds punitive                                                                                                         | Rename visible UI to “Change history”; retain immutable audit model                                        |
 | Restrictions                                | Separate route exposes a low-frequency implementation concept                                                                                   | Move to student detail or Settings according to target                                                     |
 | Staff/Roles                                 | Duplicate routes and technical role language                                                                                                    | Merge into “Staff access” with position assignments and capabilities                                       |
-| Settings                                    | Mixes policy and product settings                                                                                                               | Keep product settings only; move semester rules to Semester → Policy                                       |
+| Settings                                    | Mixes policy and product settings                                                                                                               | Keep product settings only; move semester rules to Classes → Policy                                        |
 | Public page                                 | Must not compete with the official chapter site                                                                                                 | Keep minimal: identity, safe activities, sign-in, official links                                           |
 | Direct plugin and embedded routes           | Duplicate navigation and aliases create inconsistent wayfinding                                                                                 | Make the organization tab surface canonical and redirect legacy aliases                                    |
 | Hidden accessibility tabs/duplicate aliases | Invisible or repeated navigation creates confusing focus and route state                                                                        | Remove from DOM or convert to one labeled, keyboard-operable navigation model                              |
@@ -284,7 +302,7 @@ The organization plugin shows one primary row:
 2. **Applications**
 3. **Members**
 4. **Service**
-5. **Semester**
+5. **Classes**
 6. **More** — Imports, Reports, Staff access, Change history, Settings
 
 The primary row must fit at ordinary desktop widths without a second “More tools” row. On smaller screens it becomes a labeled menu/sheet, not a clipped horizontal list.
@@ -293,61 +311,64 @@ Page-local navigation:
 
 - Applications: **Review queue**, **All applications**
 - Members: **Directory**, **Current semester**, **Seniors**
-- Service: **Activities**, **Point submissions**, **Meetings**, **Partner clubs**
-- Semester: **Schedule & deadlines**, **Policy**, **Previous semesters**
+- Service: **Activities**, **Point submissions**, **Verification**, **Meetings**, **Partner clubs**
+- Classes: class picker plus semester **Schedule & deadlines**, **Policy**, and **Previous semesters**; one selected class opens **Stream**, **Members**, **Points**, and **Meetings** according to the officer's capabilities
+
+**Classes → Stream** is the officer post composer and class announcement history. **Feed** is the member-facing unified stream. Neither surface is called Classroom, and neither sends email merely because a post or link was created.
 
 ### 6.2 Applicant/member navigation
 
-1. **My CSF**
+1. **Feed**
 2. **Activities**
 3. **Point submissions**
+4. **My CSF**
 
-Applicants who are not yet approved can see My CSF. Activities and Point submissions appear only when the current state permits those workflows.
+Applicants who are not yet approved can see My CSF. The Feed, Activities, and Point submissions appear only when the current state and audience permit those workflows. Feed is the default member destination after a successful cohort/profile connection.
 
 ### 6.3 Canonical URLs
 
 The host organization route is canonical. Visible state must be addressable and recoverable after refresh.
 
-| Surface                 | Canonical pattern                                             |
-| ----------------------- | ------------------------------------------------------------- |
-| Home                    | `/organization/:slug?tab=csf-overview`                        |
-| Applications            | `/organization/:slug?tab=csf-applications&view=review         | all`        |
-| Selected application    | Same route with `application=:id`                             |
-| Members                 | `/organization/:slug?tab=csf-members&view=directory           | current     | seniors` |
-| Selected member         | Same route with `member=:id`                                  |
-| Service                 | `/organization/:slug?tab=csf-service&view=activities          | submissions | meetings | clubs` |
-| Selected service record | Same route with the relevant stable record ID                 |
-| Semester                | `/organization/:slug?tab=csf-semester&view=schedule           | policy      | history` |
-| Imports                 | `/organization/:slug?tab=csf-imports` with optional `job=:id` |
-| Reports                 | `/organization/:slug?tab=csf-reports`                         |
-| Staff access            | `/organization/:slug?tab=csf-access`                          |
-| Change history          | `/organization/:slug?tab=csf-history`                         |
-| Settings                | `/organization/:slug?tab=csf-settings`                        |
+| Surface                  | Canonical pattern                                                                                                                               |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Home                     | `/organization/:slug?tab=csf-overview`                                                                                                          |
+| Applications             | `/organization/:slug?tab=csf-applications` plus stable application/view parameters                                                              |
+| Members                  | `/organization/:slug?tab=csf-members` plus stable member/view parameters                                                                        |
+| Service                  | `/organization/:slug?tab=csf-activities&csf_service=:section`, where section is opportunities, points, verification, meetings, or partner-clubs |
+| Selected service record  | Same route with the relevant stable record identifier                                                                                           |
+| Classes and setup        | `/organization/:slug?tab=csf-cohorts` plus `csf_semester_view=schedule`, `policy`, or `history`                                                 |
+| Selected class workspace | Same route with `csf_cohort=:id` and optional `csf_cohort_tab=stream`, `members`, `points`, or `meetings`                                       |
+| Imports                  | `/organization/:slug?tab=csf-imports` with optional stable job/source parameters                                                                |
+| Reports                  | `/organization/:slug?tab=csf-reports`                                                                                                           |
+| Staff access             | `/organization/:slug?tab=csf-staff`                                                                                                             |
+| Change history           | `/organization/:slug?tab=csf-audit`                                                                                                             |
+| Communications           | `/organization/:slug?tab=csf-communications`                                                                                                    |
+| Settings                 | `/organization/:slug?tab=csf-settings`                                                                                                          |
 
 Existing direct plugin routes remain temporary compatibility aliases. They redirect inward to the equivalent host route. They must never redirect in both directions.
 
 ### 6.4 Legacy route mapping
 
-| Existing route                     | Destination                                                               |
-| ---------------------------------- | ------------------------------------------------------------------------- |
-| `overview`                         | Home                                                                      |
-| `profiles`                         | Members → Directory                                                       |
-| `applications`                     | Applications → Review queue                                               |
-| `onboarding`, `connect`            | Members → Connect student record, preserving invitation code when present |
-| `cohorts`, `terms`                 | Semester → Schedule & deadlines or Previous semesters                     |
-| `opportunities`                    | Service → Activities                                                      |
-| `submissions`, member `points`     | Point submissions                                                         |
-| staff `points`                     | Service → Point submissions/processing                                    |
-| `meetings`                         | Service → Meetings                                                        |
-| `partner-clubs`                    | Service → Partner clubs                                                   |
-| `sheets`                           | Imports                                                                   |
-| `staff`, `roles`                   | Staff access                                                              |
-| `audit`                            | Change history                                                            |
-| `restrictions`                     | Member detail or Settings                                                 |
+| Existing route                     | Destination                                                                                                                |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `overview`                         | Home                                                                                                                       |
+| `profiles`                         | Members → Directory                                                                                                        |
+| `applications`                     | Applications → Review queue                                                                                                |
+| `onboarding`, `connect`            | Members → Connect student record, preserving invitation code when present                                                  |
+| `cohorts`, `terms`                 | Classes → class hub, Schedule & deadlines, Policy, or Previous semesters                                                   |
+| `opportunities`                    | Service → Activities                                                                                                       |
+| `submissions`, member `points`     | Point submissions                                                                                                          |
+| staff `points`                     | Service → Point submissions/processing                                                                                     |
+| `meetings`                         | Service → Meetings                                                                                                         |
+| `partner-clubs`                    | Service → Partner clubs                                                                                                    |
+| `sheets`                           | Imports                                                                                                                    |
+| `staff`, `roles`                   | Staff access                                                                                                               |
+| `audit`                            | Change history                                                                                                             |
+| `restrictions`                     | Member detail or Settings                                                                                                  |
 | `calendar`                         | Removed; legacy announcement rows are read-only migration data. New cohort posts are active per Amendment 1 (amended v1.1) |
-| `reports`                          | Reports                                                                   |
-| `settings`                         | Settings or Semester → Policy, depending on field                         |
-| `my-profile`, `application-status` | My CSF                                                                    |
+| `reports`                          | Reports                                                                                                                    |
+| `settings`                         | Settings or Classes → Policy, depending on field                                                                           |
+| `my-profile`, `application-status` | My CSF                                                                                                                     |
 
 ---
 
@@ -399,6 +420,8 @@ Every page defines:
 - **Page error:** gives a human explanation, a retry, and a correlation ID for support.
 - **Success:** confirms the record and resulting state, with a direct next action.
 - **Validation:** appears next to the field/row and in a concise summary for long forms.
+- **Pending mutation:** the activating control names the work in progress, remains disabled against duplicate submission, and preserves the dialog/page context.
+- **Partial success:** names each independently durable result and the exact recovery action; it never collapses “record saved, delivery not queued” into a generic failure.
 
 ### 7.5 Responsive and accessible behavior
 
@@ -486,8 +509,8 @@ Prohibited home content: “At risk,” “Review inbox,” “Semester readines
 **Purpose:** Find a durable student record and understand its current-semester state quickly.<br>
 **Primary users:** Profile managers and adviser.<br>
 **Shows:** Student, graduating class, account connection, current application decision, eligibility, dues, membership outcome/progress, counted points, meetings, and last update. Empty future semesters are never rendered as chips.<br>
-**Primary actions:** Open member; add a missing student; start “Connect student record.”<br>
-**Secondary actions:** Merge duplicate candidates; resend/expire invitation; export filtered directory.<br>
+**Primary actions:** Open member; add a missing student; create a reusable class link; create a student-specific secure link from one current unique email recorded on the selected active profile.<br>
+**Secondary actions:** Merge duplicate candidates; copy/renew/expire a secure link; export filtered directory. Link actions do not send email or change email-delivery telemetry.<br>
 **Filters/search:** Class, account connection, application decision, eligibility, dues, membership outcome, and search.<br>
 **Empty states:** No students imported; no filter matches.<br>
 **Permissions:** Application/dues fields are column-filtered by capability; profile managers without payment access see a neutral “Complete/Needs verification” summary only if permitted.<br>
@@ -529,11 +552,11 @@ Prohibited home content: “At risk,” “Review inbox,” “Semester readines
 
 ### 8.9 Service — Activities
 
-**Purpose:** Create and maintain the authoritative structured activity that is also announced manually through Classroom.<br>
+**Purpose:** Create and maintain the authoritative structured activity that appears in the unified member stream when published.<br>
 **Primary users:** Activity coordinators/officers; members receive a filtered view.<br>
 **Shows:** Title, term, optional class audience, date/time, location, point type/value/cap, signup method, evidence rule, lifecycle, and member preview.<br>
 **Primary actions:** Create; publish; edit; close.<br>
-**Secondary actions:** Duplicate for another term; cancel; archive; copy a plain-text summary for manual Classroom posting. Copying text creates no communications record.<br>
+**Secondary actions:** Duplicate for another term; cancel; archive; copy a plain-text summary for an external use. Copying text creates no communications record.<br>
 **Filters/search:** Term, status, point type, audience, date, search.<br>
 **Empty states:** No activities exist; no published activities; no filter matches.<br>
 **Validation:** A published activity requires term, date, title, member-facing details, point rule, signup behavior, and evidence behavior. Cancellation requires a reason.<br>
@@ -566,6 +589,8 @@ Activity lifecycle: `draft`, `published`, `closed`, `cancelled`, `archived`.
 
 A `needs_action` correction resubmits the same submission; it is not an appeal or a replacement claim. The atomic transition revalidates verified ownership, current open term, active membership, current activity/partner-club policy, and proof requirements while preserving prior review, audit, and correlated resubmission history.
 
+Every begin, proof finalization, withdrawal, review, appeal, and appeal decision reauthorizes the current actor and locks/revalidates the submission, current open term, active membership, published policy, source relationship, numeric caps, and finalized-proof requirement as applicable. Browser-provided eligibility or a previously valid membership is never sufficient authority for the write.
+
 ### 8.12 Service — Meetings
 
 **Purpose:** Configure required meetings and reconcile attendance from dated sessions.<br>
@@ -591,7 +616,7 @@ Meeting and session timestamps use the shared compact Pacific-time formatter. Ra
 **Validation:** A club is not valid for member submission until the term relationship is approved. A renamed club attaches an alias instead of creating silent duplicate identity.<br>
 **Mobile:** Directory list plus full-page club record/reconciliation.
 
-### 8.14 Semester — Schedule & deadlines
+### 8.14 Classes — Semester schedule & deadlines
 
 **Purpose:** Define the real operating calendar and owners for one semester.<br>
 **Primary users:** Presidents, secretary, adviser.<br>
@@ -604,18 +629,18 @@ Meeting and session timestamps use the shared compact Pacific-time formatter. Ra
 **Permissions:** Policy/closure capabilities are separate from ordinary meeting editing.<br>
 **Mobile:** Chronological list with status and owner; editor is full-screen.
 
-### 8.15 Semester — Policy
+### 8.15 Classes — Semester policy
 
 **Purpose:** Version the academic, dues, service, meeting, and recognition rules used by evaluations.<br>
 **Primary users:** Adviser and explicitly delegated presidents.<br>
-**Shows:** Effective policy version, academic thresholds and grade values, bonus/disqualification rules, dues requirement, service total, drive cap, per-activity cap, meeting rule, carryover behavior, and recognition rules.<br>
+**Shows:** Effective policy version, academic thresholds, the six operative List I/II/III × A/B grade-point values, plus/minus normalization, bonus/disqualification rules, dues requirement, service total, drive cap, per-activity cap, meeting rule, carryover behavior, and recognition rules.<br>
 **Actions:** Create a new draft version; validate; publish for a planned/open term under allowed conditions.<br>
-**Validation:** A policy used by a decided application or closed term is immutable. Editing creates a new version. Re-evaluating decided records is always explicit and audited.<br>
+**Validation:** The default baseline is List I A=3/B=1, List II A=2/B=1, and List III A=1/B=0. A+/A− use A and B+/B− use B. Saving a draft preserves any valid advanced grade keys already stored, checks the expected draft revision, and changes no active calculation until publication. A policy used by a decided application or closed term is immutable. Re-evaluating decided records is always explicit and audited.<br>
 **Empty state:** No policy exists; offer to copy the latest prior policy and require review.<br>
 **Permissions:** Adviser by default.<br>
 **Mobile:** Sections with a sticky save/publish footer.
 
-### 8.16 Semester — Previous semesters
+### 8.16 Classes — Previous semesters
 
 **Purpose:** Review closed terms without mixing them into current operations.<br>
 **Primary users:** Officers with report access and adviser.<br>
@@ -629,7 +654,7 @@ Meeting and session timestamps use the shared compact Pacific-time formatter. Ra
 
 **Purpose:** Safely convert Drive/Sheet source data into normalized records.<br>
 **Primary users:** Import operators and adviser.<br>
-**Shows:** New import wizard, recent jobs, source, type, operator, preview/commit status, created/updated/unresolved/error counts, and retry lineage.<br>
+**Shows:** New import wizard, recent jobs, source, type, operator when recorded, preview/commit status, recorded created/updated/unresolved/error counts, abbreviated integrity digest when recorded, row reconciliation decisions/reasons, and retry or preview ancestry.<br>
 **Primary actions:** Start import; continue reconciliation; commit valid rows; retry corrected rows.<br>
 **Secondary actions:** Open source; download sanitized error report; compare mapping; open generated records.<br>
 **Filters/search:** Source type, status, operator, date, term.<br>
@@ -637,6 +662,8 @@ Meeting and session timestamps use the shared compact Pacific-time formatter. Ra
 **Error:** Provider/auth errors are separate from mapping errors and row errors. Reauthorization does not discard a completed preview.<br>
 **Permissions:** `manage_sheet_sync`; sensitive source access is rechecked server-side.<br>
 **Mobile:** Job history is usable; mapping and reconciliation recommend desktop but remain functional in stacked full-page form.
+
+The selected job's status, blocker list, summary language, and commit control use the same server-derived readiness result. Historical row counts or a previously successful preview cannot override a current provider, provenance, mapping, target-resolution, or job-state blocker. Missing historical fields render as **Not recorded** or **Officer unavailable**, never as an invented zero, actor, or outcome.
 
 The wizard is specified in Section 12.
 
@@ -676,10 +703,10 @@ The wizard is specified in Section 12.
 
 **Purpose:** Configure stable plugin behavior that is not a semester policy.<br>
 **Primary users:** Adviser/admin.<br>
-**Shows:** Organization identity/links, safe public-page settings, Drive/Sheets connection status, default import behavior, file retention, and feature flags approved for this plugin.<br>
-**Actions:** Update safe defaults; reconnect provider; disable public activity page; view integration health.<br>
+**Shows:** Organization identity/links, safe public-page settings, Drive/Sheets connection status, communications consent topic, Resend topic/sender health, recoverable email outcomes, default import behavior, file retention, and feature flags approved for this plugin.<br>
+**Actions:** Update safe defaults; reconnect or disconnect a provider; configure communications; reconcile an authorized unknown email outcome; disable public activity page; view integration health.<br>
 **Empty/error:** Missing Google connection is an actionable setup state, not a failed semester.<br>
-**Exclusions:** Academic/service rules live in Semester → Policy; permissions live in Staff access.
+**Exclusions:** Academic/service rules live in Classes → Policy; permissions live in Staff access.
 
 ### 8.22 My CSF
 
@@ -720,7 +747,7 @@ The wizard is specified in Section 12.
 
 ### 9.1 Create and open a semester
 
-1. Adviser creates a `planned` semester or copies the immediately prior semester into a draft.
+1. Adviser opens **Classes**, creates a `planned` semester, or copies the immediately prior semester into a draft.
 2. Adviser verifies name, school year, application window, deadlines, and owners.
 3. Adviser reviews and publishes a new immutable policy version.
 4. Secretary configures logical meetings and sessions.
@@ -737,9 +764,9 @@ Prior-term closure and next-term setup may overlap.
 3. Operator maps identity, class, course, grade, aggregate, transcript, receipt, and relevant source columns.
 4. Platform snapshots the source metadata and rows, computes hashes, normalizes fields, and validates without writing student/application records.
 5. Reconciliation classifies exact matches, candidate matches, duplicates, missing data, and row errors.
-6. Operator resolves ambiguous identity where evidence is sufficient.
+6. Operator resolves ambiguous identity where evidence is sufficient. **Use match** requires the selected member and a visible explanation of the evidence; **Skip row** requires a visible explanation of why the source row must not be imported. Failed actions preserve both fields and reset only after confirmed success.
 7. Commit creates/updates permitted records from the immutable preview. Reviewed platform fields become conflicts instead of being overwritten.
-8. Summary links to created applications and unresolved rows.
+8. Summary links to created applications and unresolved rows. History retains the typed decision and reason and shows only recorded counts, operator, abbreviated digest, reconciliation entries, and retry/preview ancestry.
 
 ### 9.3 Review an applicant
 
@@ -762,11 +789,13 @@ Prior-term closure and next-term setup may overlap.
 
 ### 9.5 Connect a Let’s Assist account
 
-1. A verified signed-in email that uniquely matches one student record may connect automatically.
+1. A confirmed signed-in email that uniquely matches one active student record may offer the limited **We found your CSF record — is this you?** confirmation; it does not connect before the student confirms.
 2. A duplicate email, conflicting account, or nonunique match creates a review request.
 3. Name and graduating class may identify candidates but never auto-connect an account.
-4. Officer compares limited identity evidence and connects, rejects, or creates a missing student record.
-5. Linking, unlinking, and merge resolution are audited. Unlinking/merging requires a reason.
+4. To create a student-specific secure link, the officer selects an unconnected active profile, then selects one of that profile's current unique school/personal emails and a semester. Arbitrary recipient typing, shared email, and missing email are blocked; correct the member record first.
+5. Creating, copying, or renewing the link sends no email. The stable request receipt records link state only and an exact retry returns success only while the same profile/email/link evidence remains current.
+6. Officer compares limited identity evidence and connects or rejects. The account's current confirmed email, exact name, and one active cohort must corroborate the selected profile; a candidate ranking or unique name alone is insufficient.
+7. Linking, unlinking, and merge resolution are audited. Unlinking/merging requires a reason.
 
 ### 9.6 Verify dues
 
@@ -779,7 +808,7 @@ Prior-term closure and next-term setup may overlap.
 
 1. Activity coordinator creates a draft with term, audience, point rule, signup, and evidence behavior.
 2. Officer previews the member view and publishes.
-3. Officer manually announces it in Classroom if desired; the platform records nothing about that manual post.
+3. Publication places the activity in the eligible member feed. An officer with `manage_posts` may publish a separate cohort post and optionally request one ledger-backed announcement email.
 4. Member signs up externally or in a linked Let’s Assist project, completes the activity, and submits evidence if required.
 5. Reviewer approves, adjusts with reason, requests correction, or rejects.
 6. Approval creates one normalized award with the numeric quantity allowed by policy.
@@ -818,6 +847,14 @@ Prior-term closure and next-term setup may overlap.
 2. It applies the recognition policy version relevant to the graduating class and year, including senior-year conditions.
 3. Exceptions are explicit, adviser-reviewed, and audited.
 4. Export identifies policy version and generated time.
+
+### 9.12 Publish a class or chapter post
+
+1. An officer with `manage_posts` opens **Classes**, selects the class, and uses **Stream**. A chapter-wide member post may be created from the same reachable composer.
+2. Publishing commits the post and its immutable audit receipt before any optional email operation. The UI reports **Post published** separately from **Email queued** or **Email not queued**.
+3. For class email, the campaign freezes the post's term, exact class cohort, consent topic, content, and recipient snapshot. Later profile/cohort edits or post edits cannot widen, shrink, or rewrite that campaign.
+4. The communications dispatcher may send only finalized ledger attempts. An unknown outcome is never blindly resent; an authorized settings operator reconciles it from exact provider evidence.
+5. Do not use **Schedule post** as an automatic publication mechanism in the accepted release. A stored `scheduled` row is not itself proof of publication, email, or member-feed visibility. Use manual publication as the temporary pre-acceptance path until the in-progress publisher closes CLEAN-015 through its migration, route, pgTAP, and central replay gates.
 
 ---
 
@@ -909,14 +946,14 @@ The rebuild extends the existing `plugin_data.csf_*` foundation. It does not cre
 
 ### 11.1 Identity and access
 
-| Concept                     | Physical model                                                      | Required behavior                                                                                                                           |
-| --------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Permanent student           | `csf_profiles`                                                      | One durable student record per organization; normalized identity fields; fictional test ID support; no semester status stored here          |
-| Platform account connection | `csf_profile_accounts`                                              | Verified account link with actor/source/time; one active unambiguous connection per user/org                                                |
-| Link request                | `csf_profile_link_requests`                                         | Candidate list and resolution history; exact unique verified email may auto-link; name-only never does                                      |
-| Graduating class            | `csf_cohorts`, `csf_profile_cohort_memberships`                     | Historical membership and class changes remain traceable                                                                                    |
-| Duplicate merge             | `csf_profile_merge_reviews`                                         | Preview and two-person/adviser review when configured; move references atomically; source becomes merged tombstone rather than disappearing |
-| Staff access                | `csf_roles`, `csf_role_permissions`, `csf_staff_positions`, history | Capability-based, effective-dated assignments                                                                                               |
+| Concept                     | Physical model                                                      | Required behavior                                                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Permanent student           | `csf_profiles`                                                      | One durable student record per organization; normalized identity fields; fictional test ID support; no semester status stored here                                    |
+| Platform account connection | `csf_profile_accounts`                                              | Verified account link with actor/source/time; one active unambiguous connection per user/org                                                                          |
+| Link request                | `csf_profile_link_requests`                                         | Limited candidate and resolution history; exact unique confirmed email may offer student confirmation, but does not connect before confirmation; name-only never does |
+| Graduating class            | `csf_cohorts`, `csf_profile_cohort_memberships`                     | Historical membership and class changes remain traceable                                                                                                              |
+| Duplicate merge             | `csf_profile_merge_reviews`                                         | Preview and two-person/adviser review when configured; move references atomically; source becomes merged tombstone rather than disappearing                           |
+| Staff access                | `csf_roles`, `csf_role_permissions`, `csf_staff_positions`, history | Capability-based, effective-dated assignments                                                                                                                         |
 
 ### 11.2 Semester, application, and eligibility
 
@@ -970,13 +1007,13 @@ Free-form “Activity 1–7” columns are import evidence only. Current operati
 
 ### 11.4 Imports and provenance
 
-| Concept           | Physical model                        | Required behavior                                                                                                    |
-| ----------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Source            | extend `csf_sheet_sources`            | Provider, Drive file ID/name/url, modified time, source type, tab/range, owner, current mapping version              |
-| Mapping           | source mapping JSON plus version/hash | Header signature, field destinations, transforms, defaults, author/time; historical jobs retain snapshot             |
-| Job               | extend `csf_sheet_import_jobs`        | Source snapshot, type, term/cohort, status, counts, operator, parent retry job, correlation ID, start/end            |
-| Row               | extend `csf_sheet_import_rows`        | Raw/normalized data, tab/range/row, row hash, validation, match candidates, resolution, commit target, retry lineage |
-| Sync/provider log | `csf_sheet_sync_logs`                 | Technical read/write health only; not a second business-state log                                                    |
+| Concept           | Physical model                        | Required behavior                                                                                                                       |
+| ----------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Source            | extend `csf_sheet_sources`            | Provider, Drive file ID/name/url, modified time, source type, tab/range, owner, current mapping version                                 |
+| Mapping           | source mapping JSON plus version/hash | Header signature, field destinations, transforms, defaults, author/time; historical jobs retain snapshot                                |
+| Job               | extend `csf_sheet_import_jobs`        | Source snapshot/digest, type, term/cohort, status, actually recorded counts/operator, preview/retry ancestry, correlation ID, start/end |
+| Row               | extend `csf_sheet_import_rows`        | Raw/normalized data, tab/range/row, row hash, validation, match candidates, typed resolution/reason, commit target, retry lineage       |
+| Sync/provider log | `csf_sheet_sync_logs`                 | Technical read health only in this release; not a second business-state log or evidence of Sheet writeback                              |
 
 ### 11.5 History and correlation
 
@@ -989,6 +1026,8 @@ Extend `csf_admin_audit_events` with:
 
 Database triggers prevent update/delete of audit and immutable source rows except explicit retention procedures executed by service-role maintenance.
 
+Request-aware consequential operations use an explicit request-receipt namespace rather than treating an arbitrary correlation value as proof of success. The receipt binds organization, actor, normalized intent/fingerprint, target, canonical committed state, and underlying audit evidence. Authorization occurs before receipt lookup. An exact retry may reuse success only while that state and evidence remain current; changed intent or stale state fails closed.
+
 ### 11.6 Organization-scoped integrity
 
 Critical child relationships must enforce organization consistency, preferably through composite unique keys and composite foreign keys such as `(organization_id, id)`. Application, membership, course, file, dues, submission, award, attendance, import, and history records may never reference a parent from another organization.
@@ -997,9 +1036,11 @@ Critical child relationships must enforce organization consistency, preferably t
 
 Security-definer RPCs remain service-role-only and perform their own organization/record validation. At minimum, these boundaries are atomic:
 
-- Application approval/rejection plus membership and history
+- Application approval/rejection plus membership, decision event, request receipt, and history
 - Point-submission decision plus award/reversal and history
-- Profile merge plus reference movement and history
+- Profile merge plus reference movement, merge review, request receipt, and history
+- Direct student-specific link create/renew/cancel/expire plus its request receipt; delivery telemetry remains separate
+- Post create/update/pin/archive plus its request receipt; optional email campaign creation remains a separate truthful outcome
 - Policy publication plus history
 - Attendance import-row commit plus provenance
 - Term close/reclose plus every membership outcome, closure snapshot, and history
@@ -1061,14 +1102,16 @@ The same domain evaluator powers member UI, officer tables, reports, exports, an
 - Exact stable ID or exact unique normalized verified email may match automatically.
 - Name plus class/year creates candidates only.
 - Name alone never commits automatically.
-- Operator can select a candidate, create a new record, skip, or leave unresolved.
+- Operator can select a candidate, create a new record, skip, or leave unresolved. A **Use match** decision stores a typed match outcome plus a required 4–500 character officer explanation of the evidence. A **Skip row** decision stores a typed skip outcome plus a required 4–500 character explanation of why the source row must not be imported.
 - A reviewed platform field that differs from the import is a conflict; resolution must explicitly keep platform or apply source with permission/reason.
+- Decision controls disable while pending, preserve the selected profile/reason after validation or transport failure, and clear only after confirmed success.
 
 #### Step 6 — Commit
 
 - Commit reads the immutable preview, not a fresh unannounced source version.
 - If provider modified time changed, warn and require a new preview or explicit commit of the captured snapshot.
 - Commit remains blocked until the exact file ID/name, current access, selected tab/range, mapping version, and every pending row’s resolved cohort and semester are present. UI enforces readiness and the server rechecks it before creating the commit job.
+- The server returns the canonical blocker list used by job status, preview summary, and the commit control; a failed or stale job cannot be reinterpreted as ready from row counts alone.
 - Valid/resolved rows commit idempotently by source identity/hash.
 - Valid rows may commit while unresolved/invalid rows remain exceptions.
 - Each row records created/updated targets and correlation ID.
@@ -1079,6 +1122,7 @@ The same domain evaluator powers member UI, officer tables, reports, exports, an
 - Link to generated records and exception table.
 - “Retry corrected rows” creates a child job with `parent_job_id`; it never mutates the old job snapshot.
 - A sanitized error export excludes private raw fields not needed to correct the source.
+- History distinguishes preview ancestry from retry ancestry and includes row decisions with officer/reason/time when present. It abbreviates a recorded source digest and uses **Not recorded** rather than deriving missing historical facts from current rows or another run.
 
 ### 12.3 Idempotency and overwrite rules
 
@@ -1114,16 +1158,18 @@ The same domain evaluator powers member UI, officer tables, reports, exports, an
 - Request the narrowest scopes compatible with Drive Picker and user-selected files.
 - Reads are explicit previews; scheduled background business-state synchronization is off by default.
 - Mapping, import, reconciliation, and history follow Section 12.
-- Compatibility exports create a new timestamped tab containing documented columns and policy version; never overwrite class tabs.
+- This release is input-only: it performs no Sheet writeback and exposes no compatibility-tab or report destination. Report exports are permission-checked local ZIP archives containing formula-safe CSV files and a manifest.
 - Provider/API failure shows whether authorization, access, quota, range, or parsing failed.
 
 ### 13.2 Google Drive
 
 - Drive Picker selects a file the connected account can access.
+- The CSF callback stores a connection only when Google user-info verifies the exact approved chapter identity, `dvhighcsf@gmail.com`, for the organization/plugin/import-purpose binding. A wrong, missing, or legacy-unverified identity requires account switch/reconnect before Picker access.
 - Persist provider file ID, display name, safe URL/reference, MIME type, modified time, selected tab/range where relevant, and import/access timestamp.
 - Recheck access before opening a supporting document.
 - Generate scoped links or server-mediated access; never turn a private source into a public URL.
 - When a source disappears or access is revoked, keep provenance and show “Source unavailable”; do not delete reviewed records.
+- **Disconnect from CSF** removes the local purpose binding and preserves reviewed records/source history. **Disconnect and revoke at Google** claims remote revocation only after Google confirms it; a grant shared by another active binding is not revoked silently, and a remote-success/local-failure outcome remains recoverable rather than being reported as complete.
 
 ### 13.3 Google Forms
 
@@ -1138,7 +1184,7 @@ There is intentionally no Classroom integration. Google Classroom is retired as 
 - No recipient simulation
 - Post email delivery status comes only from the durable ledger and provider events — no simulated or asserted delivery claims
 
-Activity and deadline pages may offer a local “Copy summary” action. Copying text is a convenience and does not create a communications record or imply publication.
+Activity and deadline pages may offer a local “Copy summary” action for external use. Copying text is a convenience and does not create a communications record or imply publication.
 
 ### 13.5 Public website and Instagram
 
@@ -1181,13 +1227,16 @@ The following require a reason and immutable history:
 - Term close/reopen/reclose
 - Sensitive export
 - Staff capability change
+- Import-row match/skip and unknown-outcome reconciliation
+- Communications quarantine acknowledgement or provider-evidence outcome reconciliation
 
 ### 14.4 Concurrency
 
 - Review pages display a version/updated time.
-- Consequential mutations use row locks or optimistic version checks.
+- Consequential mutations use row locks or optimistic version checks. Application decisions, profile merges, direct secure-link mutations, and post mutations additionally use a stable request identifier bound to actor and normalized intent with an immutable receipt.
 - If another reviewer changes the record, the stale action fails safely and shows what changed.
 - Assignment does not grant permission by itself; capability and assignment are both checked where required.
+- A replayed request is success only when the exact committed target/state and supporting audit evidence remain current. Reusing the identifier for changed intent, or replaying after state drift, fails closed.
 
 ### 14.5 Observability
 
@@ -1215,7 +1264,7 @@ All seed data is fictional and visibly synthetic.
 - Include meetings with matched, ambiguous, unmatched, excused, and manually corrected attendance.
 - Include approved/pending/rejected partner clubs and aliases.
 - Include successful, partial, failed, corrected-retry, and reviewed-field-conflict imports.
-- Do not seed Classroom announcements. Legacy (pre-v1.1) announcement rows may remain only as migration-history fixtures. Fixtures for the v1.1 posts surface are fictional cohort posts covering draft/scheduled/published/archived, pinned, class-targeted, and email-queued states.
+- Do not seed Classroom announcements. Legacy (pre-v1.1) announcement rows may remain only as migration-history fixtures. Fixtures for the v1.1 posts surface are fictional cohort posts covering draft/published/archived, pinned, class-targeted, and email-queued states. A synthetic `scheduled` row may exist only to prove the open publisher-acceptance boundary and must not be presented as delivered or automatically published before V120 passes.
 - Load/performance fixtures generate approximately 600 applications and 1,000 member profiles without being committed as private-looking named data.
 
 Raw fixture workbooks may mirror the **shape** of observed DVHS sheets but never their private values.
@@ -1241,7 +1290,7 @@ Raw fixture workbooks may mirror the **shape** of observed DVHS sheets but never
 - Existing direct plugin URLs: temporary redirect aliases
 - Existing aggregate application totals: source/cache fields, not the eligibility decision model
 - Existing legacy term meeting records: migrated to logical meeting/session records
-- Existing class tabs: import evidence and compatibility export targets only
+- Existing class tabs: read/import evidence only; they are not compatibility-export or report-write targets in this release
 
 ### 16.3 Data migration principles
 
@@ -1330,6 +1379,11 @@ Current accepted/active membership maps to `requirements_in_progress`. Only a de
 - Every CSF table has RLS enabled and no unintended browser role grant.
 - Cross-organization foreign-reference and query tests fail closed.
 - Application decision, point review, profile merge, policy publish, and term close are atomic and audited.
+- Identity merge/connection and application decisions reject stale preflights and hard conflicts at the database/service boundary.
+- Link creation/renewal cannot mutate delivery telemetry; email telemetry requires a durable queue/delivery receipt.
+- Direct secure-link creation accepts only a current unique email recorded on the selected active profile and exact retries revalidate that identity/link evidence.
+- Post create/update/pin/archive commits one canonical post mutation and request receipt atomically. A class-post campaign freezes its exact cohort and recipient snapshot.
+- Point submission/proof/withdrawal/review/appeal boundaries reauthorize current actor, term, membership, published policy, source, cap, and proof conditions under lock as applicable.
 - Audit/source evidence cannot be updated or deleted through product operations.
 - Import commit is idempotent and preserves retry lineage.
 - Private files require current authorization and time-limited access.
@@ -1338,6 +1392,7 @@ Current accepted/active membership maps to `requirements_in_progress`. Only a de
 ### 18.2 Eligibility and membership
 
 - Unit tests cover List I, List I+II, total thresholds, course limit, grade points, bonus caps, disqualifying grades, unknown courses, missing transcript, dues, and adviser override.
+- UI/action tests cover all six List I/II/III × A/B policy values, plus/minus normalization, draft revision conflicts, preservation of valid advanced keys, and publication-only activation.
 - Approved application produces `requirements_in_progress`, not `completed`.
 - Term close uses the selected immutable policy version and produces explicit incomplete reasons.
 - Senior recognition uses completed outcomes and versioned recognition policy.
@@ -1348,10 +1403,18 @@ Current accepted/active membership maps to `requirements_in_progress`. Only a de
 - Tests cover changed headers, missing columns, duplicate emails, duplicate names, malformed dates, `#REF!`, inaccessible file links, repeated activity slots, source changes after preview, partial commit, conflict with reviewed data, and corrected retry.
 - Preview writes no operational business record.
 - Every committed row links back to source/job/row/hash/mapping.
+- Match and skip each require a visible bounded officer reason, preserve fields on failure, and appear in truthful run history with only actually recorded actor/digest/count/ancestry facts.
 
 ### 18.4 UI and workflows
 
 - Every visible button has a meaningful, tested action.
+- Mutating buttons enter a visible pending state on the first activation, prevent duplicate requests, and preserve form data after failure.
+- Persisted records and optional provider/queue side effects have separately tested success, partial-success, and failure copy.
+- Classes → Stream is reachable to every `manage_posts` template; Feed remains the member label. No active UI or instruction calls either surface Classroom.
+- Scheduled post UI is not accepted as automatic publication until the due-post runner proves permission revalidation, concurrency/retry safety, audit, feed publication, optional email ordering, and central replay. Until then manual publication is the temporary operator path.
+- Google connection state displays the exact verified chapter account, refuses wrong/unverified identities, and distinguishes local disconnect, confirmed remote revoke, shared-grant preservation, and partial cleanup failure.
+- Unknown delivery outcomes and quarantined webhook events expose a permission-checked, evidence-only recovery path that cannot silently retry, send, suppress, or rewrite provider evidence.
+- Announcement email copy distinguishes durable queueing from provider delivery. A hosted dispatch cadence is not accepted until its configuration and repeated invocation are verified; the existence of the route/ledger alone is insufficient.
 - Every linked count opens the exact underlying filtered records.
 - Every status in UI matches Section 10.
 - No prohibited copy appears in active CSF UI.
@@ -1403,7 +1466,7 @@ The rebuild is accepted only when all of the following are true:
 4. Imports can be previewed, reconciled, committed, retried, and traced without silently overwriting reviewed data.
 5. Service, meetings, and partner clubs use normalized records rather than spreadsheet-slot semantics.
 6. Term closure is preflighted, versioned, atomic, and reversible only through an audited adviser process.
-7. Google Classroom is not represented as an integrated or tracked system.
+7. Google Classroom is not represented as an integrated, tracked, or active manual CSF workflow.
 8. No real private Drive data appears in repository fixtures, logs, screenshots, or public output.
 9. The product looks and behaves like a focused DVHS CSF workspace inside Let’s Assist—not a generic SaaS demo or a separate microsite.
 
@@ -1423,8 +1486,8 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 8. A name-only import or account claim never auto-links a student.
 9. Preview precedes import commit; source provenance and raw snapshots are retained.
 10. Reviewed platform records are never silently overwritten by Google data.
-11. Google sources are intake/evidence/export channels after cutover, not dual operational authority.
-12. Google Classroom remains unintegrated and untracked.
+11. Google Forms/Sheets/Drive are intake/evidence channels after cutover, not dual operational authority. This release writes no Google Sheet; reports are local formula-safe ZIP archives.
+12. Google Classroom remains retired, unintegrated, and untracked.
 13. Every consequential mutation is server-authorized, organization-scoped, reasoned where required, correlated, and immutable in history.
 14. Every private file remains private and is opened only through a current scoped authorization check.
 15. Public pages expose no student record or private aggregate derived from student records.
@@ -1440,6 +1503,19 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 25. Historical activity imports never infer a point value. Every imported award must contain an explicit, positive numeric quantity within the accepted import bound.
 26. Semester close accepts the reviewed evidence hash—not browser-supplied membership decisions—and derives outcomes while the relevant policy and operational records are locked.
 27. Tracked Supabase seeds contain no executable canonical seed, live contact, OAuth/bearer material, reusable invitation material, or hosted Supabase project URL.
+28. A merge, connection, application approval, or import commit is available only from the same current server-derived preflight shown to the operator.
+29. Link lifecycle and email-delivery lifecycle are separate; delivery language and telemetry require durable evidence.
+30. `manage_posts` provides a reachable posting workflow, and post persistence is reported independently from optional email queueing.
+31. Mutating controls expose pending and settled outcomes, reject duplicate activation, and never silently discard entered data.
+32. A direct student-specific link can use only one current unique email recorded on the selected active profile; creating, copying, or renewing it sends no email.
+33. The published semester policy, not a draft or component default, supplies the operative six List I/II/III × A/B grade-point values; plus/minus grades normalize to their base letter.
+34. Import match/skip decisions retain a typed outcome and required officer reason; import history displays only recorded counts, actor, digest, reconciliation, and ancestry.
+35. Request-aware application decisions, profile merges, direct-link changes, and post mutations authorize before receipt lookup, bind actor and normalized intent, and replay only while exact committed evidence remains current.
+36. A post-linked email campaign freezes its term, audience, exact class cohort where applicable, recipient snapshot, consent topic, and content; later post/profile/cohort edits cannot rewrite it.
+37. A CSF Google import connection is usable only after Google verifies the exact approved chapter account for the organization/plugin/purpose binding. Disconnect preserves reviewed records and provenance.
+38. Unknown email outcomes are reconciled only from durable provider evidence and are never blindly resent. Quarantine resolution acknowledges triage with immutable history but does not apply or rewrite the provider event.
+39. A stored `scheduled` post is not evidence of publication, feed visibility, or email queueing. Automatic scheduling remains unavailable until a dedicated due-post transition is authorized, retry-safe, audited, and accepted.
+40. Point lifecycle mutations reauthorize current actor/ownership, open term, active membership, published policy, source, cap, and finalized-proof conditions at the database boundary as applicable.
 
 ---
 
@@ -1606,11 +1682,11 @@ This amendment records the contracts verified after the July 16 browser baseline
 - The confirmation UI uses the functional prompt **We found your CSF record — is this you?** and a short-lived signed claim token bound to the organization, link, profile, user, and verified email.
 - `csf_confirm_profile_claim` atomically activates host membership without downgrading an existing admin or staff role, verifies the profile-account link, activates cohort membership, activates an accepted term membership when present, records the resolved request, and writes correlated immutable history.
 - **Not me**, missing matches, ambiguous matches, and conflicting existing links do not guess. They create or retain officer-review work without exposing another profile.
-- `csf_resolve_profile_link_request` permits only organization administrators or staff with `manage_profiles`, requires an explicit reason, locks the pending request, and atomically connects or rejects it with history.
+- `csf_resolve_profile_link_request` permits only organization administrators or staff with `manage_profiles`, requires an explicit reason before any identity lookup, and locks the pending request. A connection requires the account's current confirmed email to match the request snapshot and exactly one active roster profile, plus exact first/last name and exactly one matching active cohort. Request-declared email fields and even a unique exact name are review context only. The transition records a non-PII evidence snapshot with its immutable history.
 - Claim, decline, and manual connection resolution accept only reusable profile-connect or combined links. An application-only link cannot be repurposed to expose or connect a profile.
 - A signed claim must match the link's cohort. A manual request for an existing verified account must already have the matching active cohort membership and no conflicting active cohort; it cannot self-assign a class by submitting a different grade.
 - Accepted applications are locked and must belong to the requested cohort before a term membership can be activated. This serializes account connection with application decisions instead of trusting stale browser state.
-- Idempotent retries revalidate the current profile link, organization membership, cohort, and correlated audit evidence. If a previously linked account was revoked or its cohort now conflicts, the retry moves to officer review and writes a new reasoned audit event rather than returning stale success.
+- An exact semantic retry revalidates the current profile link, organization membership, single cohort, and correlated audit evidence before returning the original receipt. A changed target, actor, rationale, revoked link, or conflicting cohort is refused rather than returning stale success and must enter the audited correction workflow.
 - Focused database coverage passes 26 assertions for exact-match privacy, conflicts, transaction behavior, tenant boundaries, and server-only execution. Signed-token and UI-boundary tests are included in the private plugin suite.
 
 ### 22.2 Purpose-bound Google authorization
@@ -1710,3 +1786,30 @@ The following must not be described as completed:
 The 3 final Playwright skips are intentional external Google consent/configuration gates, not product failures. No Google file, Sheet, report destination, or Gmail message was written. No paid Supabase branch was created. Production Supabase, production Vercel, `main`, and the existing DVHS CSF organization were not mutated. Vela was not accessed or used as infrastructure for this work.
 
 Until these gates close, the product is a verified local implementation and browser-boundary milestone, not a completed chapter cutover or cloud-development release.
+
+---
+
+## 24. Lifecycle-truth implementation amendment — August 9, 2026
+
+This amendment records the repository implementation associated with v1.3. It does not supersede the verified July/August baseline counts above until the full isolated replay, combined private/root gates, production build, and fresh browser lifecycle have been rerun against this exact combined tree.
+
+### 24.1 Implemented contract changes under combined verification
+
+- Profile merge and officer account connection now compute hard conflicts server-side and require corroborating identity evidence. The UI treats suggestions as search aids and directs officers to the audited correction workflow when email/cohort/account evidence conflicts.
+- Application queue, detail, confirmation, and database decision paths share current academic/check readiness. Ordinary approval refuses missing, failed, stale, or internally contradictory evidence.
+- Reusable class links and student-specific secure links use stable client request identifiers. A student-specific link accepts only one current unique email on the selected active profile, records link readiness rather than fabricated send telemetry, and revalidates the profile/email/link state before replaying success.
+- Semester policy editing exposes and persists the six operative List I/II/III × A/B grade-point values while preserving valid advanced keys. Application calculation normalizes plus/minus grades to the base letter.
+- Import reconciliation requires a visible officer reason for match and skip, preserves input on failure, and resets only on confirmed success. Import history projects only recorded run/preview facts, abbreviated digests, decisions, reasons, actors when available, and retry/preview ancestry.
+- Post create/update/pin/archive now enters one service-only, permission-rechecked, replay-safe database mutation that commits the post and request receipt atomically. Optional email queueing remains a separately reported outcome. Class campaigns freeze the exact same-organization cohort before recipient/content finalization.
+- Every point begin/proof/withdraw/review/appeal boundary revalidates current actor, term, membership, published policy, source, cap, and proof authority under lock as applicable.
+- The CSF Google callback requires provider-verified identity for the exact approved chapter account. Connection health exposes the account; disconnect preserves reviewed records/provenance and distinguishes local cleanup, confirmed remote revocation, shared grants, and partial failure.
+- CSF-owned communications settings expose consent/provider-topic configuration and durable recovery queues. Unknown outcomes require provider evidence; quarantined webhook triage writes an acknowledgement receipt without applying, retrying, suppressing, or rewriting the event.
+- Member Feed/Stream payloads omit officer delivery lifecycle fields unless post authority is re-derived for the request. Posting roles reach the composer through **Classes → Stream**; students use **Feed**.
+
+### 24.2 Deliberately open boundary
+
+- The combined forward migration ledger and all pgTAP files must pass from a fresh isolated database after every concurrent lane lands. Focused green tests are supporting evidence, not a substitute for that replay.
+- The complete synthetic visible lifecycle and new sanitized delta screenshot pack remain open. They must cover signup/claim, direct links, connection/merge conflict, application decisions, imports/history, policy grades, point lifecycle, class posts/email partial outcomes, communications recovery, Google states without live mutation, close/reopen, reports, role denials, and accessibility.
+- No Development/Preview or Production deployment, live Google read/write, Resend send, real student source, or officer-maintained Sheet mutation is authorized by this amendment.
+- Scheduled post persistence is not proof of an accepted automatic publisher. Until the in-progress publisher closes CLEAN-015, officers use the temporary manual path and no queued email may be attributed to a future schedule without the accepted transition/dispatch evidence.
+- The durable communications ledger and dispatch route do not prove a hosted invocation cadence. CLEAN-016 remains open until hosted invocation is configured and repeatedly verified; queued email must not be described as delivered or guaranteed within a fixed interval.

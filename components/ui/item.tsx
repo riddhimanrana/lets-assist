@@ -6,10 +6,18 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 
+/**
+ * A layout group, not an ARIA list.
+ *
+ * This previously defaulted to `role="list"`, but `Item` renders a div (and
+ * frequently an anchor via `render`), so the group never contained a single
+ * `listitem`. Assistive technology announced an empty list on every surface
+ * that used it. Callers that genuinely have a homogeneous list can still pass
+ * `role="list"` together with `role="listitem"` on each `Item`.
+ */
 function ItemGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      role="list"
       data-slot="item-group"
       className={cn(
         "gap-4 has-[[data-size=sm]]:gap-2.5 has-[[data-size=xs]]:gap-2 group/item-group flex w-full flex-col",

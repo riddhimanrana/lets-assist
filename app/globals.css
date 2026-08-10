@@ -13,10 +13,10 @@
     /*--page-foreground: 240 10% 3.9%;*/
     /* text */
 
-    --success: hsl(142.1 76.2% 36.3%);
-    /* green */
-    --warning: hsl(35 77% 49%);
-    /* yellow */
+    --success: hsl(142.1 76.2% 29%);
+    /* green — AA against white text and on white backgrounds */
+    --warning: hsl(35 77% 33%);
+    /* yellow — AA against the 10% warning tint */
     --info: hsl(220 91% 54%);
 
     --background: hsl(0 0% 100%);
@@ -31,8 +31,8 @@
     /* base */
     --popover-foreground: hsl(240 10% 3.9%);
     /* text */
-    --primary: hsl(142.1 76.2% 36.3%);
-    /* accent - green */
+    --primary: hsl(142.1 76.2% 29%);
+    /* accent - green — AA behind --primary-foreground */
     --primary-foreground: hsl(355.7 100% 97.3%);
     /* base */
     --secondary: hsl(240 4.8% 95.9%);
@@ -41,21 +41,21 @@
     /* text */
     --muted: hsl(240 4.8% 95.9%);
     /* surface0 */
-    --muted-foreground: hsl(240 3.8% 46.1%);
-    /* subtext1 */
+    --muted-foreground: hsl(240 3.8% 43%);
+    /* subtext1 — AA on --muted, not only on white */
     --accent: hsl(240 4.8% 95.9%);
     /* surface0 */
     --accent-foreground: hsl(240 5.9% 10%);
     /* text */
-    --destructive: hsl(0 84.2% 60.2%);
-    /* red */
+    --destructive: hsl(0 84.2% 47%);
+    /* red — AA on white and behind --destructive-foreground */
     --destructive-foreground: hsl(0 0% 98%);
     /* mantle */
     --border: hsl(240 5.9% 90%);
     /* surface1 */
     --input: hsl(240 5.9% 90%);
     /* surface1 */
-    --ring: hsl(142.1 76.2% 36.3%);
+    --ring: hsl(142.1 76.2% 29%);
     /* text */
     --radius: 1rem;
     --chart-1: hsl(12 76% 61%);

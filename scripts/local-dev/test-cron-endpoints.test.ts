@@ -396,6 +396,7 @@ describe("the child environment is a positive allowlist", () => {
       "ORG_CALENDAR_SYNC_WORKER_SECRET_TOKEN",
       "ORG_SHEET_SYNC_WORKER_SECRET_TOKEN",
       "CSF_COMMUNICATIONS_WORKER_SECRET_TOKEN",
+      "CSF_SCHEDULED_POST_PUBLISHER_SECRET_TOKEN",
       // false worker flags, including the CSF communications worker
       ...DISABLED_WORKER_ENV_KEYS,
       // provider and hosted-runtime keys, shadowed to empty
@@ -521,6 +522,7 @@ describe("the child environment is a positive allowlist", () => {
       "ORG_SHEET_SYNC_WORKER_ENABLED",
       // The one that was missing: the CSF communications worker sends mail.
       "CSF_COMMUNICATIONS_WORKER_ENABLED",
+      "CSF_SCHEDULED_POST_PUBLISHER_ENABLED",
     ]) {
       expect(childEnv[key]).toBe("false");
     }
@@ -888,14 +890,13 @@ describe("harness source contracts", () => {
     expect(harnessSource).not.toContain('"run", "dev"');
   });
 
-  test("states its exact five-route scope and names the six routes outside it", () => {
+  test("states its exact seven-route scope and names the five routes outside it", () => {
     expect(harnessSource).toContain(
-      "the five selected worker routes: auto-publish-hours,",
+      "the seven selected worker routes: auto-publish-hours,",
     );
     for (const outside of [
       "ai-moderation",
       "anonymous-cleanup",
-      "csf-communications-dispatch",
       "csf-proof-cleanup",
       "generate-recurring-projects",
       "waiver-cleanup",
@@ -910,13 +911,15 @@ describe("harness source contracts", () => {
     expect(harnessSource).not.toContain("Using existing dev server");
   });
 
-  test("covers all five stable route IDs on both dispatching methods", () => {
+  test("covers all seven stable route IDs on both dispatching methods", () => {
     for (const id of [
       "auto-publish-hours",
       "project-cancellations",
       "organization-calendar-sync",
       "organization-sheet-sync",
       "data-exports",
+      "csf-communications-dispatch",
+      "csf-scheduled-post-publisher",
     ]) {
       expect(harnessSource).toContain(`id: "${id}"`);
     }

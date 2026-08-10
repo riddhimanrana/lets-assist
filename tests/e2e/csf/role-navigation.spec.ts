@@ -36,6 +36,7 @@ type StaffRoleNavigationScenario = {
   visibleTabs: readonly CanonicalTab[];
   visibleMoreItems: readonly CanonicalMoreItem[];
   deniedRoute: "applications" | "profiles" | "staff" | null;
+  opensClassStream?: boolean;
 };
 
 const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
@@ -71,9 +72,12 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
   {
     actor: "vpPublicity",
     label: "Vice President — Publicity",
-    visibleTabs: ["Home", "Service"],
+    // manage_posts opens Classes so posting officers can reach each class Stream
+    // without gaining Members, Points, Meetings, or the Communications console.
+    visibleTabs: ["Home", "Service", "Classes"],
     visibleMoreItems: [],
     deniedRoute: "applications",
+    opensClassStream: true,
   },
   {
     actor: "vpClubs",
@@ -101,9 +105,10 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
   {
     actor: "webMaster",
     label: "Web Master",
-    visibleTabs: ["Home", "Service"],
+    visibleTabs: ["Home", "Service", "Classes"],
     visibleMoreItems: [],
     deniedRoute: "applications",
+    opensClassStream: true,
   },
   {
     actor: "activityCoordinator",
@@ -170,6 +175,23 @@ async function expectMembersDirectory(page: Page) {
   ).toBeVisible();
   await expect(
     page.getByRole("columnheader", { name: "Student", exact: true }),
+  ).toBeVisible();
+}
+
+async function expectClassStream(page: Page) {
+  await page.getByRole("tab", { name: "Classes", exact: true }).click();
+  await expect(page).toHaveURL(/[?&]tab=csf-cohorts(?:&|$)/);
+  await page.getByRole("link", { name: "Class of 2028", exact: true }).click();
+  await expect(page).toHaveURL(/[?&]csf_cohort=/);
+
+  const workspaceTabs = page.getByRole("navigation", {
+    name: "Class workspace tabs",
+  });
+  await expect(
+    workspaceTabs.getByRole("button", { name: "Stream", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Class stream" }),
   ).toBeVisible();
 }
 
@@ -291,6 +313,12 @@ test.describe("DVHS CSF role-aware navigation", () => {
       if (scenario.visibleTabs.includes("Members")) {
         await test.step("opens the authorized Members directory", async () => {
           await expectMembersDirectory(page);
+        });
+      }
+
+      if (scenario.opensClassStream) {
+        await test.step("opens Classes and a class Stream", async () => {
+          await expectClassStream(page);
         });
       }
 

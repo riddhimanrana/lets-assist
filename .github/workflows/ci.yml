@@ -322,9 +322,10 @@ jobs:
       - name: Validate CSF scale and cleanup
         run: bun run csf:test:scale
 
-      # After seeding and before any browser run: the five selected worker routes
+      # After seeding and before any browser run: the six selected worker routes
       # (auto-publish-hours, project-cancellations, organization-calendar-sync,
-      # organization-sheet-sync, and data-exports) must authenticate and return
+      # organization-sheet-sync, data-exports, and csf-scheduled-post-publisher)
+      # must authenticate and return
       # without dispatching on a stack that now has fixture rows in it. Running it
       # before the seed would prove only that empty queues do nothing.
       - name: Validate cron auth/shape on the seeded isolated stack

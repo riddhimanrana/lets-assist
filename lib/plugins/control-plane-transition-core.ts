@@ -15,7 +15,12 @@ export type PluginControlPlaneTransition =
     }
   | { kind: "disable" }
   | { kind: "uninstall" }
-  | { kind: "config_update"; configuration: Record<string, unknown> }
+  | {
+      kind: "config_update";
+      configuration: Record<string, unknown>;
+      /** Install revision read by the editing surface; stale writes fail closed. */
+      expectedUpdatedAt?: string;
+    }
   | { kind: "version_update"; targetVersion: string };
 
 export type PluginLifecycleInvocation =
@@ -310,6 +315,18 @@ export async function applyPluginControlPlaneTransition(input: {
   }
 
   if (transition.kind === "config_update") {
+    if (
+      transition.expectedUpdatedAt !== undefined &&
+      transition.expectedUpdatedAt !== current.updatedAt
+    ) {
+      return {
+        success: false,
+        changed: false,
+        actions: [],
+        error:
+          "Plugin settings changed after this screen loaded. Reload and try again.",
+      };
+    }
     const lifecycle = await runLifecycleSequence(
       [
         {

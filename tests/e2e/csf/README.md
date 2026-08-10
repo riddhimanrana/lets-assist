@@ -1,39 +1,64 @@
 # DVHS CSF browser acceptance suite
 
-This suite is intentionally read-only against the deterministic local DVHS CSF fixture. It never resets Supabase, opens real Drive files, or writes officer-maintained Sheets.
+This is a synthetic-only acceptance harness. It includes both read-only journeys
+and bounded mutation journeys. Mutating specs create disposable fictional rows
+and clean up the records they own; they must never run against shared local,
+Development, Preview, Production, real student data, or officer-maintained
+Sheets.
 
-Run the local fixture seed before the suite, then provide the local fixture password:
+The harness requires a running, marker-validated isolated CSF Supabase stack and
+its exact `CSF_ISOLATED_WORK_DIR`. Follow
+[`scripts/local-dev/README.md`](../../../scripts/local-dev/README.md) to start
+that stack and load its validated app environment, then run:
 
 ```bash
-CSF_LOCAL_TEST_PASSWORD=... bun run csf:test:e2e
+export CSF_LOCAL_TEST_PASSWORD="<the run-scoped synthetic fixture password>"
+export CSF_ISOLATED_WORK_DIR="<the exact work directory printed by the isolated launcher>"
+bun run csf:test:e2e
 ```
 
-The Playwright web server uses port `3113` by default and the currently running local Supabase stack. Override the port with `CSF_E2E_PORT`, or point at an already-running isolated app with `CSF_E2E_BASE_URL`.
+Playwright validates the selected stack and profile-claim secret before any test
+runs. It then starts and owns one compiled Next.js server through
+`bootstrap-dvhs-csf-dev.mjs`, at the fixed isolated app port (`3000`), with
+`reuseExistingServer: false`. There is no `CSF_E2E_PORT`,
+`CSF_E2E_BASE_URL`, ambient-server adoption, or development-mode fallback.
+
+The bootstrap seeds the deterministic fictional fixture once when needed and
+preserves an already-seeded isolated dataset unless the separately documented
+reseed switch is used. Playwright runs with `fullyParallel: false` and
+`workers: 1`, so stateful journeys share one ordered worker. The suite still
+owns only its explicitly prefixed disposable records; fixture baselines are not
+cleanup targets.
 
 Coverage:
 
-- 14/14 role-navigation scenarios across organization admin, adviser, every distinct officer template, applicant, member, direct-URL denial, and 390 px phone navigation;
-- compact application list, filters, addressable detail, and Back-state restoration;
-- structural public-response privacy assertions;
-- responsive product-company footer branding and synthetic fixture-contact privacy;
-- visible navigation/action targets;
-- light/dark responsive smoke checks at 390px, 768px, and 1440px.
+- organization admin, adviser, distinct officer templates, applicant, member,
+  direct-route denial, and phone navigation;
+- class Stream, applications, onboarding/profile claim, points, semester,
+  communications, account connection, responsive, privacy, and accessibility
+  journeys represented by the current `*.spec.ts` files;
+- positive and negative visible outcomes, with mutation cleanup where a spec
+  creates state.
 
-Current ordinary result: 23 passed, 3 capture-only tests skipped, 0 failed. The
-footer-branding and fixture-contact privacy regressions each pass 1/1. After
-fixture re-upsert, the sanitized gallery is opt-in and passed 3/3 capture tests under
-`20260716-final-gallery`:
+Do not copy old pass totals into this file; the executable suite is the source of
+truth. Normal evidence is written under
+`.artifacts/dvhs-csf-e2e/<CSF_E2E_RUN_ID>/playwright/` (HTML report, failure
+screenshots, retained-on-failure trace, and retained-on-failure video). Generated
+browser output stays ignored. Sanitized gallery capture remains opt-in:
 
 ```bash
-CSF_CAPTURE_GALLERY=1 CSF_E2E_RUN_ID=20260716-final-gallery bun run test:e2e:csf -- tests/e2e/csf/screenshot-gallery.spec.ts
+CSF_CAPTURE_GALLERY=1 CSF_E2E_RUN_ID=<run-id> bun run test:e2e:csf -- tests/e2e/csf/screenshot-gallery.spec.ts
 ```
 
-Complementary local gates:
+Safety boundary:
 
-- CSF-specific plugin suite: 187 tests and 1,250 expectations;
-- full plugin unit gate: 253 passed, 0 failed, 1,614 expectations;
-- `bun run csf:test:workflows`: passed, including the explicit V83 proof-lifecycle probe. Its public-route subcheck skipped because no app server was running; the ordinary browser suite covers structural public privacy separately.
+- no real Google consent, Picker, Drive import, officer Sheet write, provider
+  delivery, or Production state is part of this harness;
+- outbound workers are disabled by the isolated runner, and local mail is
+  loopback-only;
+- screenshots are evidence, not a substitute for DOM assertions, durable-state
+  checks, cleanup, or browser-error checks.
 
-This read-only suite does not execute real Google consent, account chooser,
-Picker, Drive imports, a complete visible mutation lifecycle, remote-system
-changes, or the Google Slides process suite.
+Run `bun run test:plugins`, `bun run csf:test:workflows`, and the isolated
+database gates separately. A green browser run proves only this isolated local
+compiled harness; it does not prove hosted Development, Preview, or Production.

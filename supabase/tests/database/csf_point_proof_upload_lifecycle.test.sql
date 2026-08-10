@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(27);
+SELECT extensions.plan(30);
 
 SELECT extensions.has_column('plugin_data', 'csf_submission_files', 'upload_status', 'proof rows store upload lifecycle state');
 SELECT extensions.has_column('plugin_data', 'csf_submission_files', 'upload_token', 'pending proof rows use a one-time upload token');
@@ -26,24 +26,36 @@ SELECT extensions.ok(
   'authenticated users cannot bypass the permission-checked point action'
 );
 SELECT extensions.ok(
-  has_function_privilege('service_role', 'plugin_data.csf_begin_point_submission(uuid,uuid,uuid,uuid,uuid,uuid,text,text,numeric,text,date,uuid,uuid,text,text,text,text,bigint,uuid,uuid)', 'EXECUTE'),
-  'the server role can begin a proof-backed point submission'
+  NOT has_function_privilege('service_role', 'plugin_data.csf_begin_point_submission(uuid,uuid,uuid,uuid,uuid,uuid,text,text,numeric,text,date,uuid,uuid,text,text,text,text,bigint,uuid,uuid)', 'EXECUTE'),
+  'the server role cannot bypass the request-aware point-submission boundary'
+);
+SELECT extensions.ok(
+  has_function_privilege('service_role', 'plugin_data.csf_begin_point_submission_request(uuid,uuid,uuid,uuid,uuid,text,text,numeric,text,date,uuid,text,text,bigint,text,uuid)', 'EXECUTE'),
+  'the server role can begin a replay-safe proof-backed point submission'
 );
 SELECT extensions.ok(
   NOT has_function_privilege('authenticated', 'plugin_data.csf_finalize_point_submission_proof(uuid,uuid,uuid,uuid,uuid)', 'EXECUTE'),
   'authenticated users cannot finalize proof metadata directly'
 );
 SELECT extensions.ok(
-  has_function_privilege('service_role', 'plugin_data.csf_finalize_point_submission_proof(uuid,uuid,uuid,uuid,uuid)', 'EXECUTE'),
-  'the server role can finalize proof metadata'
+  NOT has_function_privilege('service_role', 'plugin_data.csf_finalize_point_submission_proof(uuid,uuid,uuid,uuid,uuid)', 'EXECUTE'),
+  'the server role cannot bypass request-aware proof finalization'
+);
+SELECT extensions.ok(
+  has_function_privilege('service_role', 'plugin_data.csf_finalize_point_submission_proof_request(uuid,uuid,uuid,uuid,uuid,uuid)', 'EXECUTE'),
+  'the server role can finalize proof metadata through a replay-safe request'
 );
 SELECT extensions.ok(
   NOT has_function_privilege('authenticated', 'plugin_data.csf_fail_point_submission_proof(uuid,uuid,uuid,uuid,uuid,text)', 'EXECUTE'),
   'authenticated users cannot fail proof uploads directly'
 );
 SELECT extensions.ok(
-  has_function_privilege('service_role', 'plugin_data.csf_fail_point_submission_proof(uuid,uuid,uuid,uuid,uuid,text)', 'EXECUTE'),
-  'the server role can fail proof uploads and enqueue cleanup'
+  NOT has_function_privilege('service_role', 'plugin_data.csf_fail_point_submission_proof(uuid,uuid,uuid,uuid,uuid,text)', 'EXECUTE'),
+  'the server role cannot bypass request-aware proof cleanup'
+);
+SELECT extensions.ok(
+  has_function_privilege('service_role', 'plugin_data.csf_fail_point_submission_proof_request(uuid,uuid,uuid,uuid,uuid,text,uuid)', 'EXECUTE'),
+  'the server role can fail proof uploads through a replay-safe request'
 );
 
 INSERT INTO auth.users (
@@ -69,6 +81,37 @@ INSERT INTO plugin_data.csf_profiles (id, organization_id, first_name, last_name
 VALUES
   ('d5300000-0000-4000-8000-000000000001', 'd5100000-0000-4000-8000-000000000001', 'Proof', 'Member', 'proof', 'member'),
   ('d5300000-0000-4000-8000-000000000002', 'd5100000-0000-4000-8000-000000000002', 'Other', 'Tenant', 'other', 'tenant');
+
+INSERT INTO plugin_data.csf_profile_accounts (
+  organization_id, profile_id, user_id, status, is_primary
+) VALUES (
+  'd5100000-0000-4000-8000-000000000001',
+  'd5300000-0000-4000-8000-000000000001',
+  'd5000000-0000-4000-8000-000000000001',
+  'verified',
+  true
+);
+
+INSERT INTO plugin_data.csf_term_memberships (
+  organization_id, profile_id, term_id, status, accepted_at
+) VALUES (
+  'd5100000-0000-4000-8000-000000000001',
+  'd5300000-0000-4000-8000-000000000001',
+  'd5200000-0000-4000-8000-000000000001',
+  'accepted',
+  now()
+);
+
+INSERT INTO plugin_data.csf_term_policies (
+  organization_id, term_id, max_points_per_activity,
+  outside_volunteering_allowed, published_at
+) VALUES (
+  'd5100000-0000-4000-8000-000000000001',
+  'd5200000-0000-4000-8000-000000000001',
+  3,
+  true,
+  now()
+);
 
 SELECT extensions.lives_ok(
   $$ SELECT plugin_data.csf_begin_point_submission(
@@ -203,8 +246,8 @@ SELECT extensions.throws_ok(
     'd5000000-0000-4000-8000-000000000001', NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     'd5700000-0000-4000-8000-000000000004'
   ) $$,
-  'P0001', 'CSF profile was not found.',
-  'a point submission cannot target another organization profile'
+  'P0001', 'Only the connected member may submit this point claim.',
+  'a point submission cannot target another organization profile or disclose it before ownership'
 );
 
 SELECT extensions.finish();

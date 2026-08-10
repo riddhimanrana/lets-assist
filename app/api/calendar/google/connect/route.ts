@@ -151,6 +151,8 @@ export async function GET(request: Request) {
       forceConsent ||
       !existingTypeMatches ||
       !existingConnection?.refresh_token;
+    const shouldSelectAccount =
+      intent.purpose === "csf_import" && intent.pluginKey === "dvhs-csf";
 
     const sheetsScopes = [GOOGLE_DRIVE_FILE_SCOPE];
 
@@ -177,8 +179,12 @@ export async function GET(request: Request) {
     googleAuthUrl.searchParams.set("scope", scopes.join(" "));
     googleAuthUrl.searchParams.set("access_type", "offline");
     googleAuthUrl.searchParams.set("include_granted_scopes", "true");
-    if (shouldPromptConsent) {
-      googleAuthUrl.searchParams.set("prompt", "consent");
+    if (shouldPromptConsent || shouldSelectAccount) {
+      const prompts = [
+        ...(shouldSelectAccount ? ["select_account"] : []),
+        ...(shouldPromptConsent ? ["consent"] : []),
+      ];
+      googleAuthUrl.searchParams.set("prompt", prompts.join(" "));
     }
     googleAuthUrl.searchParams.set("state", state);
 

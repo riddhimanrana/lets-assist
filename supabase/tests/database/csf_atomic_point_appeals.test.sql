@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(27);
+SELECT extensions.plan(30);
 
 SELECT extensions.has_column('plugin_data', 'csf_point_appeals', 'correlation_id', 'point appeals retain their submission correlation');
 SELECT extensions.has_column('plugin_data', 'csf_point_appeals', 'decision_reason_code', 'appeal decisions retain a typed operational reason');
@@ -21,24 +21,36 @@ SELECT extensions.ok(
   'the server cannot bypass the validated point-review wrapper'
 );
 SELECT extensions.ok(
-  has_function_privilege('service_role', 'plugin_data.csf_review_point_submission_v2(uuid,uuid,text,numeric,text,uuid)', 'EXECUTE'),
-  'the server can execute the validated point-review workflow'
+  NOT has_function_privilege('service_role', 'plugin_data.csf_review_point_submission_v2(uuid,uuid,text,numeric,text,uuid)', 'EXECUTE'),
+  'the server cannot bypass request-aware point review'
+);
+SELECT extensions.ok(
+  has_function_privilege('service_role', 'plugin_data.csf_review_point_submission_request(uuid,uuid,text,numeric,text,uuid,uuid)', 'EXECUTE'),
+  'the server can execute replay-safe point review'
 );
 SELECT extensions.ok(
   NOT has_function_privilege('authenticated', 'plugin_data.csf_submit_point_appeal(uuid,uuid,text,numeric,uuid,uuid)', 'EXECUTE'),
   'authenticated users cannot bypass the member appeal action'
 );
 SELECT extensions.ok(
-  has_function_privilege('service_role', 'plugin_data.csf_submit_point_appeal(uuid,uuid,text,numeric,uuid,uuid)', 'EXECUTE'),
-  'the server can atomically submit point appeals'
+  NOT has_function_privilege('service_role', 'plugin_data.csf_submit_point_appeal(uuid,uuid,text,numeric,uuid,uuid)', 'EXECUTE'),
+  'the server cannot bypass request-aware appeal submission'
+);
+SELECT extensions.ok(
+  has_function_privilege('service_role', 'plugin_data.csf_submit_point_appeal_request(uuid,uuid,text,numeric,uuid,uuid)', 'EXECUTE'),
+  'the server can submit replay-safe point appeals'
 );
 SELECT extensions.ok(
   NOT has_function_privilege('authenticated', 'plugin_data.csf_review_point_appeal(uuid,uuid,text,text,uuid,uuid)', 'EXECUTE'),
   'authenticated users cannot resolve appeals directly'
 );
 SELECT extensions.ok(
-  has_function_privilege('service_role', 'plugin_data.csf_review_point_appeal(uuid,uuid,text,text,uuid,uuid)', 'EXECUTE'),
-  'the server can atomically resolve point appeals'
+  NOT has_function_privilege('service_role', 'plugin_data.csf_review_point_appeal(uuid,uuid,text,text,uuid,uuid)', 'EXECUTE'),
+  'the server cannot bypass request-aware appeal review'
+);
+SELECT extensions.ok(
+  has_function_privilege('service_role', 'plugin_data.csf_review_point_appeal_request(uuid,uuid,text,text,uuid,uuid)', 'EXECUTE'),
+  'the server can review replay-safe point appeals'
 );
 
 INSERT INTO auth.users (
@@ -58,11 +70,49 @@ VALUES
   ('d6100000-0000-4000-8000-000000000001', 'd6000000-0000-4000-8000-000000000002', 'staff', 'active'),
   ('d6100000-0000-4000-8000-000000000001', 'd6000000-0000-4000-8000-000000000003', 'member', 'active');
 
+INSERT INTO plugin_data.csf_roles (
+  id, organization_id, key, display_name, public_title, role_type, is_system
+) VALUES (
+  'd6150000-0000-4000-8000-000000000001',
+  'd6100000-0000-4000-8000-000000000001',
+  'point-reviewer',
+  'Point reviewer',
+  'Point reviewer',
+  'custom',
+  false
+);
+
+INSERT INTO plugin_data.csf_role_permissions (
+  organization_id, role_id, permission_key, enabled
+) VALUES
+  ('d6100000-0000-4000-8000-000000000001', 'd6150000-0000-4000-8000-000000000001', 'verify_submissions', true),
+  ('d6100000-0000-4000-8000-000000000001', 'd6150000-0000-4000-8000-000000000001', 'process_points', true);
+
+INSERT INTO plugin_data.csf_staff_positions (
+  organization_id, user_id, role_id, school_year, display_title,
+  status, starts_at, ends_at
+) VALUES (
+  'd6100000-0000-4000-8000-000000000001',
+  'd6000000-0000-4000-8000-000000000002',
+  'd6150000-0000-4000-8000-000000000001',
+  '2030-2031',
+  'Point reviewer',
+  'active',
+  current_date - 1,
+  current_date + 30
+);
+
 INSERT INTO plugin_data.csf_terms (id, organization_id, code, label, school_year, semester, is_current, lifecycle_status)
 VALUES ('d6200000-0000-4000-8000-000000000001', 'd6100000-0000-4000-8000-000000000001', 'F30', 'Fall 2030', '2030-2031', 'fall', true, 'open');
 
-INSERT INTO plugin_data.csf_term_policies (organization_id, term_id, max_points_per_activity)
-VALUES ('d6100000-0000-4000-8000-000000000001', 'd6200000-0000-4000-8000-000000000001', 3);
+INSERT INTO plugin_data.csf_term_policies (
+  organization_id, term_id, max_points_per_activity, outside_volunteering_allowed
+) VALUES (
+  'd6100000-0000-4000-8000-000000000001',
+  'd6200000-0000-4000-8000-000000000001',
+  3,
+  true
+);
 
 INSERT INTO plugin_data.csf_profiles (id, organization_id, first_name, last_name, normalized_first_name, normalized_last_name)
 VALUES ('d6300000-0000-4000-8000-000000000001', 'd6100000-0000-4000-8000-000000000001', 'Appeal', 'Member', 'appeal', 'member');
@@ -70,11 +120,41 @@ VALUES ('d6300000-0000-4000-8000-000000000001', 'd6100000-0000-4000-8000-0000000
 INSERT INTO plugin_data.csf_profile_accounts (organization_id, profile_id, user_id, status, is_primary)
 VALUES ('d6100000-0000-4000-8000-000000000001', 'd6300000-0000-4000-8000-000000000001', 'd6000000-0000-4000-8000-000000000001', 'verified', true);
 
+INSERT INTO plugin_data.csf_term_memberships (
+  organization_id, profile_id, term_id, status, accepted_at
+) VALUES (
+  'd6100000-0000-4000-8000-000000000001',
+  'd6300000-0000-4000-8000-000000000001',
+  'd6200000-0000-4000-8000-000000000001',
+  'accepted',
+  now()
+);
+
 INSERT INTO plugin_data.csf_point_submissions (
-  id, organization_id, profile_id, term_id, description, claimed_points, point_type, status, submitted_by
+  id, organization_id, profile_id, term_id, source, description, claimed_points, point_type, status, submitted_by
 ) VALUES
-  ('d6400000-0000-4000-8000-000000000001', 'd6100000-0000-4000-8000-000000000001', 'd6300000-0000-4000-8000-000000000001', 'd6200000-0000-4000-8000-000000000001', 'Rejected service claim', 2, 'non_drive', 'rejected', 'd6000000-0000-4000-8000-000000000001'),
-  ('d6400000-0000-4000-8000-000000000002', 'd6100000-0000-4000-8000-000000000001', 'd6300000-0000-4000-8000-000000000001', 'd6200000-0000-4000-8000-000000000001', 'Submitted service claim', 1.5, 'non_drive', 'submitted', 'd6000000-0000-4000-8000-000000000001');
+  ('d6400000-0000-4000-8000-000000000001', 'd6100000-0000-4000-8000-000000000001', 'd6300000-0000-4000-8000-000000000001', 'd6200000-0000-4000-8000-000000000001', 'student', 'Rejected service claim', 2, 'non_drive', 'rejected', 'd6000000-0000-4000-8000-000000000001'),
+  ('d6400000-0000-4000-8000-000000000002', 'd6100000-0000-4000-8000-000000000001', 'd6300000-0000-4000-8000-000000000001', 'd6200000-0000-4000-8000-000000000001', 'manual', 'Submitted service claim', 1.5, 'non_drive', 'submitted', 'd6000000-0000-4000-8000-000000000001');
+
+INSERT INTO plugin_data.csf_submission_files (
+  id, organization_id, submission_id, profile_id, term_id, bucket,
+  object_path, original_filename, mime_type, size_bytes, uploaded_by,
+  upload_status, finalized_at
+) VALUES (
+  'd6450000-0000-4000-8000-000000000001',
+  'd6100000-0000-4000-8000-000000000001',
+  'd6400000-0000-4000-8000-000000000001',
+  'd6300000-0000-4000-8000-000000000001',
+  'd6200000-0000-4000-8000-000000000001',
+  'csf-private',
+  'organizations/atomic-appeals/rejected-claim/proof.pdf',
+  'proof.pdf',
+  'application/pdf',
+  256,
+  'd6000000-0000-4000-8000-000000000001',
+  'finalized',
+  now()
+);
 
 SELECT extensions.lives_ok(
   $$ SELECT plugin_data.csf_submit_point_appeal(
@@ -158,7 +238,7 @@ SELECT extensions.throws_ok(
     'approved', 'A second officer attempted the same final decision.',
     'd6000000-0000-4000-8000-000000000002', 'd6500000-0000-4000-8000-000000000005'
   ) $$,
-  'P0001', 'This point appeal has already been decided.',
+  'P0001', 'Point appeal was not found or has already been decided.',
   'a concurrent or repeated final appeal decision cannot overwrite the result'
 );
 SELECT extensions.throws_ok(

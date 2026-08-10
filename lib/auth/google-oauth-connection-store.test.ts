@@ -170,7 +170,11 @@ describe("Google OAuth credential purpose boundaries", () => {
     );
 
     expect(store).toContain("hasUnboundActiveGoogleOAuthConnection(");
-    expect(store).toContain("if (!connectionId) return null;");
+    expect(store).toContain("if (!binding) return null;");
+    expect(store).toContain("binding_identity_email: binding.identityEmail");
+    expect(store).toContain(
+      "binding_identity_verified_at: binding.identityVerifiedAt",
+    );
     expect(service).toContain("hasLegacyGoogleOAuthReconnectRequired");
     expect(calendarPage).toContain("legacyReconnectRequired");
     expect(csfGoogleImportActions).toContain('"legacy_unbound"');

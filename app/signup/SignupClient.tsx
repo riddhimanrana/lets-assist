@@ -186,7 +186,11 @@ export default function SignupClient({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 p-6 sm:p-7 sm:pt-6">
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3.5">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            aria-busy={isLoading}
+            className="space-y-3.5"
+          >
             <Button
               type="button"
               variant="outline"
@@ -366,6 +370,20 @@ export default function SignupClient({
                 />
               </SecureCheckPanel>
             </div>
+            {/* The submit button is disabled while the security check runs.
+                Without this line the control simply ignores a click and the
+                visitor has no way to tell that from a broken page. */}
+            <p
+              className="text-center text-sm text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              {isLoading
+                ? "Creating your account…"
+                : isSecureCheckBlockingSubmit(verification.phase)
+                  ? "Finishing the security check before this form can be submitted…"
+                  : ""}
+            </p>
             <Button
               type="submit"
               className="h-10 w-full rounded-full bg-primary font-semibold text-primary-foreground shadow-none hover:bg-primary/90"

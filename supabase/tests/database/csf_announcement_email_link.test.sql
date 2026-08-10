@@ -295,7 +295,7 @@ SELECT extensions.ok(
     plugin_data.csf_create_communication_campaign_draft(
       'be100000-0000-4000-8000-000000000001', 'broadcast', 'Queued from a post',
       'Body.', 'be000000-0000-4000-8000-000000000001',
-      NULL, 'cohort_members', NULL, 'announcements', NULL, '{}'::jsonb, NULL,
+      NULL, 'term_members', NULL, 'announcements', NULL, '{}'::jsonb, NULL,
       'be300000-0000-4000-8000-000000000003'
     ) ->> 'status'
   ) = 'draft',
@@ -309,8 +309,8 @@ SELECT extensions.is(
     WHERE campaign.source_announcement_id = 'be300000-0000-4000-8000-000000000003'
       AND campaign.status <> 'cancelled'
   ),
-  'cohort_members',
-  'the queued campaign remembers both its source post and its cohort audience'
+  'term_members',
+  'the queued campaign remembers both its source post and its member audience'
 );
 
 SELECT extensions.finish();
