@@ -32,6 +32,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Private-plugin and submodule workflow](development/private-plugins.md)
 - [Plugin install and entitlement guide](development/plugin-install-guide.md)
 - [Supabase deployment workflow](development/supabase-deployment.md)
+- [Production cutover runbook](development/production-cutover-runbook.md)
 - [Local fictional accounts](development/local-accounts.md)
 - [Member import parser setup](development/member-imports.md)
 - [Google Cross-Account Protection](development/google-cross-account-protection.md)

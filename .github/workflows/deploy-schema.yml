@@ -164,6 +164,24 @@ jobs:
             exit 1
           fi
 
+      - name: Run pgTAP database tests
+        run: |
+          echo "Running the pgTAP suite against the replayed schema..."
+          # The production deploy job depends on this job, so this is what makes
+          # the database tests an actual production gate. Before this step they
+          # ran only in ci.yml behind a paths filter, and a workflow_dispatch
+          # deploy never re-ran them -- nothing verified that a green CI run
+          # existed for the commit being deployed.
+          #
+          # These files are pure SQL and exercise tables created by public-repo
+          # migrations, so they need no private submodule.
+          if supabase test db --local supabase/tests/database; then
+            echo "✓ pgTAP suite passed"
+          else
+            echo "❌ pgTAP suite failed — refusing to continue toward production"
+            exit 1
+          fi
+
       - name: Verify schema integrity
         run: |
           echo "✓ Verifying schema integrity..."
