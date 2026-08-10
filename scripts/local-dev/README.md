@@ -177,19 +177,20 @@ case, so a proven-clean failure never leaves a stale claim behind.
 - `bun run db:test:redesign` to run the full sequential Supabase/plugin redesign merge gate
 - `bun run dv:test:db` to verify local RLS and schema behavior
 - `bun run dv:test:e2e` to run the Playwright DV browser checks
-- `bun run dev:test:cron` to prove the five selected worker routes:
+- `bun run dev:test:cron` to prove the seven selected worker routes:
   auto-publish-hours, project-cancellations, organization-calendar-sync,
-  organization-sheet-sync, and data-exports authenticate and return without
+  organization-sheet-sync, data-exports, csf-communications-dispatch, and
+  csf-scheduled-post-publisher
+  authenticate and return without
   dispatching. It requires a validated `CSF_ISOLATED_WORK_DIR`, starts and owns
   its own loopback server (refusing an occupied port rather than adopting one),
   forces every worker flag false, and rejects and records every non-loopback
   HTTP(S) request and every SMTP connection — loopback Mailpit included. It
   proves auth and shape only; it proves nothing about queue behavior or provider
   delivery.
-  - Six other current cron routes are **outside** this harness and are neither
+  - Five other current cron routes are **outside** this harness and are neither
     probed nor changed by it: `ai-moderation`, `anonymous-cleanup`,
-    `csf-communications-dispatch`, `csf-proof-cleanup`,
-    `generate-recurring-projects`, and `waiver-cleanup`.
+    `csf-proof-cleanup`, `generate-recurring-projects`, and `waiver-cleanup`.
 - `bun run db:advisors` to verify local Supabase advisor output stays clean after migrations
 - `bun run db:audit:architecture` to verify tenant indexes/FKs, RLS policy hygiene, and read-model view safety
   - Also hard-fails unexpected client-executable public `SECURITY DEFINER` functions while printing the reviewed allowlist.
@@ -222,7 +223,7 @@ never touches the shared local stack, never resets a database, and never issues 
 linked or remote command — and then runs the advisors, the architecture,
 plugin-isolation, and plugin-data-access audits, the plugin registry and runtime
 contract gates, the strict submodule check, typecheck, lint, the plugin
-login/API isolation browser smoke, and the five-route cron auth/shape smoke on
+login/API isolation browser smoke, and the seven-route cron auth/shape smoke on
 that one stack.
 
 Do not run `bun run supabase` as the schema gate's bootstrap: it is the shared

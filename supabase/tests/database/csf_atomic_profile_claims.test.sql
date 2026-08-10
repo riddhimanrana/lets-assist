@@ -416,6 +416,33 @@ SELECT extensions.is(
   'a declined candidate remains in officer review'
 );
 
+-- Synthetic officer correction before resolution: the originally suggested
+-- row keeps its provenance but no longer carries the account address, while
+-- the confirmed matching row has the exact name, unique confirmed email, and
+-- one requested class required by the hardened resolver.
+UPDATE plugin_data.csf_profiles
+SET personal_email = 'former-declined@local.test',
+    normalized_personal_email = 'former-declined@local.test'
+WHERE id = 'e1400000-0000-4000-8000-000000000004';
+
+UPDATE plugin_data.csf_profiles
+SET first_name = 'Declined',
+    last_name = 'Match',
+    normalized_first_name = 'declined',
+    normalized_last_name = 'match',
+    personal_email = 'declined-claim@local.test',
+    normalized_personal_email = 'declined-claim@local.test'
+WHERE id = 'e1400000-0000-4000-8000-000000000005';
+
+INSERT INTO plugin_data.csf_profile_cohort_memberships (
+  organization_id, profile_id, cohort_id, status
+) VALUES (
+  'e1100000-0000-4000-8000-000000000001',
+  'e1400000-0000-4000-8000-000000000005',
+  'e1300000-0000-4000-8000-000000000001',
+  'active'
+);
+
 SELECT extensions.throws_ok(
   $$
     SELECT plugin_data.csf_resolve_profile_link_request(
@@ -572,7 +599,11 @@ INSERT INTO plugin_data.csf_profile_cohort_memberships (
   ('e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000007', 'e1300000-0000-4000-8000-000000000001', 'active'),
   ('e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000008', 'e1300000-0000-4000-8000-000000000001', 'active'),
   ('e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000009', 'e1300000-0000-4000-8000-000000000001', 'active'),
-  ('e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000010', 'e1300000-0000-4000-8000-000000000001', 'active');
+  ('e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000010', 'e1300000-0000-4000-8000-000000000001', 'active'),
+  ('e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000011', 'e1300000-0000-4000-8000-000000000001', 'active'),
+  ('e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000012', 'e1300000-0000-4000-8000-000000000001', 'active'),
+  ('e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000013', 'e1300000-0000-4000-8000-000000000001', 'active'),
+  ('e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000014', 'e1300000-0000-4000-8000-000000000001', 'active');
 
 INSERT INTO plugin_data.csf_onboarding_links (
   id, organization_id, term_id, cohort_id, code, title,
@@ -789,7 +820,7 @@ SELECT extensions.throws_ok(
     )
   $$,
   'P0001',
-  'This account has inactive organization access; reactivate it through organization administration first.',
+  'This CSF account connection is not supported by corroborating identity evidence.',
   'officer resolution cannot reactivate inactive host organization access'
 );
 SELECT extensions.ok(

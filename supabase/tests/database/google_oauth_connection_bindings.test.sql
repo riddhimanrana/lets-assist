@@ -41,7 +41,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'authenticated',
-    'public.save_google_oauth_connection_for_binding(uuid,text,text,text,timestamptz,text,text,text,text,uuid,text,text)',
+    'public.save_google_oauth_connection_for_binding(uuid,text,text,text,timestamptz,text,text,text,text,uuid,text,text,text,timestamptz)',
     'EXECUTE'
   ),
   'authenticated cannot call the bound-connection save RPC'
@@ -50,7 +50,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   has_function_privilege(
     'service_role',
-    'public.save_google_oauth_connection_for_binding(uuid,text,text,text,timestamptz,text,text,text,text,uuid,text,text)',
+    'public.save_google_oauth_connection_for_binding(uuid,text,text,text,timestamptz,text,text,text,text,uuid,text,text,text,timestamptz)',
     'EXECUTE'
   ),
   'service_role can call the bound-connection save RPC'
@@ -119,6 +119,8 @@ VALUES (
     'personal_calendar',
     NULL,
     NULL,
+    NULL,
+    NULL,
     NULL
   )
 ), (
@@ -134,6 +136,8 @@ VALUES (
     'sheets',
     'organization_sheets',
     'ab100000-0000-4000-8000-000000000001',
+    NULL,
+    NULL,
     NULL,
     NULL
   )
@@ -170,6 +174,8 @@ SELECT extensions.is(
     'organization_sheets',
     'ab100000-0000-4000-8000-000000000001',
     NULL,
+    NULL,
+    NULL,
     NULL
   ),
   (SELECT connection_id FROM google_binding_results WHERE purpose = 'organization_sheets'),
@@ -199,13 +205,15 @@ VALUES (
     'csf-access',
     'csf-refresh',
     now() + interval '1 hour',
-    'csf-google@local.test',
+    'dvhighcsf@gmail.com',
     'https://www.googleapis.com/auth/drive.file',
     'sheets',
     'csf_import',
     'ab100000-0000-4000-8000-000000000001',
     'dvhs-csf',
-    'import_members'
+    'import_members',
+    'dvhighcsf@gmail.com',
+    now()
   )
 );
 
@@ -216,13 +224,15 @@ SELECT extensions.is(
     'csf-access-updated',
     'csf-refresh-updated',
     now() + interval '2 hours',
-    'csf-google@local.test',
+    'dvhighcsf@gmail.com',
     'https://www.googleapis.com/auth/drive.file',
     'sheets',
     'csf_import',
     'ab100000-0000-4000-8000-000000000001',
     'dvhs-csf',
-    'import_meetings'
+    'import_meetings',
+    'dvhighcsf@gmail.com',
+    now()
   ),
   (SELECT connection_id FROM google_binding_results WHERE purpose = 'csf_import'),
   'CSF capabilities reuse one purpose and tenant-bound credential'
@@ -520,6 +530,8 @@ SELECT extensions.throws_ok(
       'organization_sheets',
       NULL,
       NULL,
+      NULL,
+      NULL,
       NULL
     )
   $$,
@@ -542,7 +554,9 @@ SELECT extensions.throws_ok(
       'csf_import',
       'ab100000-0000-4000-8000-000000000001',
       'dvhs-csf',
-      'export_sensitive_reports'
+      'export_sensitive_reports',
+      'dvhighcsf@gmail.com',
+      now()
     )
   $$,
   'P0001',

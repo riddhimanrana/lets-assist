@@ -2,17 +2,17 @@
 /**
  * DVHS CSF cron auth/shape smoke.
  *
- * Scope: the five selected worker routes: auto-publish-hours,
+ * Scope: the seven selected worker routes: auto-publish-hours,
  * project-cancellations, organization-calendar-sync, organization-sheet-sync,
- * and data-exports.
+ * data-exports, csf-communications-dispatch, and
+ * csf-scheduled-post-publisher.
  *
- * Six other cron routes exist in this repository and are deliberately outside
- * this harness: ai-moderation, anonymous-cleanup, csf-communications-dispatch,
- * csf-proof-cleanup, generate-recurring-projects, and waiver-cleanup. They are
- * neither probed nor modified here, so nothing below should be read as evidence
- * about them.
+ * Five other cron routes exist in this repository and are deliberately outside
+ * this harness: ai-moderation, anonymous-cleanup, csf-proof-cleanup,
+ * generate-recurring-projects, and waiver-cleanup. They are neither probed nor
+ * modified here, so nothing below should be read as evidence about them.
  *
- * What this proves: each of the five selected routes authenticates, reaches its
+ * What this proves: each of the seven selected routes authenticates, reaches its
  * dispatch boundary, and returns *without dispatching* — and that nothing in the
  * process attempted provider egress while it did so.
  *
@@ -76,7 +76,7 @@ const PROBE_MODE = "auth-shape-v1";
 const PROBE_HEADER = "x-lets-assist-cron-probe";
 
 /**
- * The five selected worker routes, by stable ID, asserted on the wire so a
+ * The seven selected worker routes, by stable ID, asserted on the wire so a
  * handler cannot answer under a neighbour's name.
  */
 const ROUTES = [
@@ -88,6 +88,14 @@ const ROUTES = [
   },
   { id: "organization-sheet-sync", path: "/api/cron/organization-sheet-sync" },
   { id: "data-exports", path: "/api/cron/data-exports" },
+  {
+    id: "csf-communications-dispatch",
+    path: "/api/cron/csf-communications-dispatch",
+  },
+  {
+    id: "csf-scheduled-post-publisher",
+    path: "/api/cron/csf-scheduled-post-publisher",
+  },
 ] as const;
 
 const METHODS = ["GET", "POST"] as const;
@@ -609,12 +617,13 @@ async function main() {
 
   console.log("DVHS CSF cron auth/shape smoke (auth-shape-v1)");
   console.log(
-    "  scope            : the five selected worker routes: auto-publish-hours, " +
-      "project-cancellations, organization-calendar-sync, organization-sheet-sync, and data-exports",
+    "  scope            : the seven selected worker routes: auto-publish-hours, " +
+      "project-cancellations, organization-calendar-sync, organization-sheet-sync, " +
+      "data-exports, csf-communications-dispatch, and csf-scheduled-post-publisher",
   );
   console.log(
-    "  outside scope    : ai-moderation, anonymous-cleanup, csf-communications-dispatch, " +
-      "csf-proof-cleanup, generate-recurring-projects, and waiver-cleanup",
+    "  outside scope    : ai-moderation, anonymous-cleanup, csf-proof-cleanup, " +
+      "generate-recurring-projects, and waiver-cleanup",
   );
   console.log(`  isolated project : ${isolated.projectId}`);
   console.log(

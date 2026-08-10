@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(20);
+SELECT extensions.plan(21);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -21,12 +21,20 @@ SELECT extensions.ok(
   'authenticated clients cannot execute point-submission review'
 );
 SELECT extensions.ok(
-  has_function_privilege(
+  NOT has_function_privilege(
     'service_role',
     'plugin_data.csf_review_point_submission_v2(uuid,uuid,text,numeric,text,uuid)',
     'EXECUTE'
   ),
-  'the server role can execute point-submission review'
+  'the server role cannot bypass request-aware point-submission review'
+);
+SELECT extensions.ok(
+  has_function_privilege(
+    'service_role',
+    'plugin_data.csf_review_point_submission_request(uuid,uuid,text,numeric,text,uuid,uuid)',
+    'EXECUTE'
+  ),
+  'the server role can execute replay-safe point-submission review'
 );
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -68,15 +76,59 @@ VALUES (
   '720001'
 );
 
+INSERT INTO public.organization_members (organization_id, user_id, role, status)
+VALUES (
+  'cd100000-0000-4000-8000-000000000001',
+  'cd000000-0000-4000-8000-000000000001',
+  'staff',
+  'active'
+);
+
+INSERT INTO plugin_data.csf_roles (
+  id, organization_id, key, display_name, public_title, role_type, is_system
+) VALUES (
+  'cd150000-0000-4000-8000-000000000001',
+  'cd100000-0000-4000-8000-000000000001',
+  'point-reviewer',
+  'Point reviewer',
+  'Point reviewer',
+  'custom',
+  false
+);
+
+INSERT INTO plugin_data.csf_role_permissions (
+  organization_id, role_id, permission_key, enabled
+) VALUES (
+  'cd100000-0000-4000-8000-000000000001',
+  'cd150000-0000-4000-8000-000000000001',
+  'verify_submissions',
+  true
+);
+
+INSERT INTO plugin_data.csf_staff_positions (
+  organization_id, user_id, role_id, school_year, display_title,
+  status, starts_at, ends_at
+) VALUES (
+  'cd100000-0000-4000-8000-000000000001',
+  'cd000000-0000-4000-8000-000000000001',
+  'cd150000-0000-4000-8000-000000000001',
+  '2026-2027',
+  'Point reviewer',
+  'active',
+  current_date - 1,
+  current_date + 30
+);
+
 INSERT INTO plugin_data.csf_terms (
-  id, organization_id, code, label, school_year, semester
+  id, organization_id, code, label, school_year, semester, is_current
 ) VALUES (
   'cd200000-0000-4000-8000-000000000001',
   'cd100000-0000-4000-8000-000000000001',
   'S27',
   'Spring 2027',
   '2026-2027',
-  'spring'
+  'spring',
+  true
 );
 
 INSERT INTO plugin_data.csf_term_policies (
@@ -98,13 +150,24 @@ INSERT INTO plugin_data.csf_profiles (
   'member'
 );
 
+INSERT INTO plugin_data.csf_term_memberships (
+  organization_id, profile_id, term_id, status, accepted_at
+) VALUES (
+  'cd100000-0000-4000-8000-000000000001',
+  'cd300000-0000-4000-8000-000000000001',
+  'cd200000-0000-4000-8000-000000000001',
+  'accepted',
+  now()
+);
+
 INSERT INTO plugin_data.csf_point_submissions (
-  id, organization_id, profile_id, term_id, description, claimed_points, point_type, status
+  id, organization_id, profile_id, term_id, source, description, claimed_points, point_type, status
 ) VALUES (
   'cd400000-0000-4000-8000-000000000001',
   'cd100000-0000-4000-8000-000000000001',
   'cd300000-0000-4000-8000-000000000001',
   'cd200000-0000-4000-8000-000000000001',
+  'manual',
   'Atomic approval fixture',
   2,
   'non_drive',
@@ -168,24 +231,41 @@ SELECT extensions.ok(
   'awarded credit retains its submission source and correlation id'
 );
 
+UPDATE plugin_data.csf_terms
+SET is_current = false
+WHERE organization_id = 'cd100000-0000-4000-8000-000000000001'
+  AND id = 'cd200000-0000-4000-8000-000000000001';
+
 INSERT INTO plugin_data.csf_terms (
-  id, organization_id, code, label, school_year, semester
+  id, organization_id, code, label, school_year, semester, is_current
 ) VALUES (
   'cd200000-0000-4000-8000-000000000002',
   'cd100000-0000-4000-8000-000000000001',
   'F27',
   'Fall 2027',
   '2027-2028',
-  'fall'
+  'fall',
+  true
+);
+
+INSERT INTO plugin_data.csf_term_memberships (
+  organization_id, profile_id, term_id, status, accepted_at
+) VALUES (
+  'cd100000-0000-4000-8000-000000000001',
+  'cd300000-0000-4000-8000-000000000001',
+  'cd200000-0000-4000-8000-000000000002',
+  'accepted',
+  now()
 );
 
 INSERT INTO plugin_data.csf_point_submissions (
-  id, organization_id, profile_id, term_id, description, claimed_points, point_type, status
+  id, organization_id, profile_id, term_id, source, description, claimed_points, point_type, status
 ) VALUES (
   'cd400000-0000-4000-8000-000000000002',
   'cd100000-0000-4000-8000-000000000001',
   'cd300000-0000-4000-8000-000000000001',
   'cd200000-0000-4000-8000-000000000002',
+  'manual',
   'No policy fixture',
   2,
   'non_drive',
@@ -204,7 +284,7 @@ SELECT extensions.throws_ok(
     )
   $$,
   'P0001',
-  'A saved semester policy is required before approving point submissions.',
+  'A published semester policy is required before approving points.',
   'approval is blocked until the semester has a saved policy'
 );
 

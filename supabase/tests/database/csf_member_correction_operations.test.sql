@@ -37,8 +37,8 @@ SELECT extensions.ok(
   'authenticated clients cannot merge CSF profiles directly'
 );
 SELECT extensions.ok(
-  has_function_privilege('service_role', 'plugin_data.csf_merge_profiles(uuid,uuid,uuid,text,uuid)', 'EXECUTE'),
-  'the server role can merge conflict-free CSF profiles'
+  NOT has_function_privilege('service_role', 'plugin_data.csf_merge_profiles(uuid,uuid,uuid,text,uuid)', 'EXECUTE'),
+  'the server role cannot bypass request-aware profile merges'
 );
 
 INSERT INTO auth.users (
@@ -55,6 +55,11 @@ INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES
   ('cd100000-0000-4000-8000-000000000001', 'CSF Member Corrections A', 'csf-member-corrections-a', 'school', '988001'),
   ('cd100000-0000-4000-8000-000000000002', 'CSF Member Corrections B', 'csf-member-corrections-b', 'school', '988002');
+
+INSERT INTO public.organization_members (organization_id, user_id, role, status)
+VALUES
+  ('cd100000-0000-4000-8000-000000000001', 'cd000000-0000-4000-8000-000000000001', 'admin', 'active'),
+  ('cd100000-0000-4000-8000-000000000002', 'cd000000-0000-4000-8000-000000000001', 'admin', 'active');
 
 INSERT INTO plugin_data.csf_terms (
   id, organization_id, code, label, school_year, semester
@@ -73,8 +78,8 @@ INSERT INTO plugin_data.csf_profiles (
   normalized_first_name, normalized_last_name, normalized_school_email, source_summary
 ) VALUES
   ('cd400000-0000-4000-8000-000000000001', 'cd100000-0000-4000-8000-000000000001', 'Unlink', 'Student', 'unlink@student.test', 'unlink', 'student', 'unlink@student.test', '{"sources":["roster"]}'),
-  ('cd400000-0000-4000-8000-000000000002', 'cd100000-0000-4000-8000-000000000001', 'Merge', 'Source', 'merge@student.test', 'merge', 'source', 'merge@student.test', '{"sources":["legacy workbook"]}'),
-  ('cd400000-0000-4000-8000-000000000003', 'cd100000-0000-4000-8000-000000000001', 'Merge', 'Canonical', 'canonical@student.test', 'merge', 'canonical', 'canonical@student.test', '{"sources":["current application"]}'),
+  ('cd400000-0000-4000-8000-000000000002', 'cd100000-0000-4000-8000-000000000001', 'Merge', 'Student', 'merge@student.test', 'merge', 'student', 'merge@student.test', '{"sources":["legacy workbook"]}'),
+  ('cd400000-0000-4000-8000-000000000003', 'cd100000-0000-4000-8000-000000000001', 'Merge', 'Student', 'merge@student.test', 'merge', 'student', 'merge@student.test', '{"sources":["current application"]}'),
   ('cd400000-0000-4000-8000-000000000004', 'cd100000-0000-4000-8000-000000000001', 'Conflict', 'Source', 'conflict-source@student.test', 'conflict', 'source', 'conflict-source@student.test', '{}'),
   ('cd400000-0000-4000-8000-000000000005', 'cd100000-0000-4000-8000-000000000001', 'Conflict', 'Target', 'conflict-target@student.test', 'conflict', 'target', 'conflict-target@student.test', '{}'),
   ('cd400000-0000-4000-8000-000000000006', 'cd100000-0000-4000-8000-000000000001', 'Account', 'Conflict A', NULL, 'account', 'conflict a', NULL, '{}'),

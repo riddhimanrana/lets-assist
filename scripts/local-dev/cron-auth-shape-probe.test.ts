@@ -22,7 +22,7 @@ import { join } from "node:path";
 mock.module("server-only", () => ({}));
 
 /**
- * The shared cron auth/shape probe, and the five routes that call it, driven
+ * The shared cron auth/shape probe, and the seven routes that call it, driven
  * with no database, no provider, no Storage, and no network.
  *
  * The assertions that matter most are the negative ones. Every danger boundary
@@ -47,6 +47,8 @@ const sheetsWriteCalls: unknown[] = [];
 const googleTokenCalls: unknown[] = [];
 const googleAuthCalls: unknown[] = [];
 const reportRowCalls: unknown[] = [];
+const pluginAdminClientCalls: unknown[] = [];
+const scheduledFeedRevalidationCalls: unknown[] = [];
 
 function dangerCallTotals() {
   return {
@@ -59,6 +61,8 @@ function dangerCallTotals() {
     googleAccessToken: googleTokenCalls.length,
     googleOAuthAuthorization: googleAuthCalls.length,
     organizationReportRows: reportRowCalls.length,
+    createPluginAdminClient: pluginAdminClientCalls.length,
+    revalidateScheduledPostFeed: scheduledFeedRevalidationCalls.length,
   };
 }
 
@@ -72,6 +76,8 @@ const ZERO_DANGER_CALLS = {
   googleAccessToken: 0,
   googleOAuthAuthorization: 0,
   organizationReportRows: 0,
+  createPluginAdminClient: 0,
+  revalidateScheduledPostFeed: 0,
 };
 
 // `processExpiredSessions()` and `processPendingJobs()` are module-local, so
@@ -154,6 +160,25 @@ mock.module("@/lib/organization/report-service", () => ({
     );
   },
 }));
+
+mock.module("@/lib/plugins/supabase", () => ({
+  createPluginAdminClient: (...args: unknown[]) => {
+    pluginAdminClientCalls.push(args);
+    throw new Error(
+      "createPluginAdminClient() must not be reached under the probe",
+    );
+  },
+}));
+
+mock.module(
+  "@/lib/plugins/private/plugins/dvhs-csf/server/actions/support-feed-revalidation",
+  () => ({
+    revalidateFeed: (...args: unknown[]) => {
+      scheduledFeedRevalidationCalls.push(args);
+      throw new Error("feed revalidation must not run under the probe");
+    },
+  }),
+);
 
 mock.module("@/emails/certificate-published", () => ({ default: () => null }));
 mock.module("@/emails/project-cancellation", () => ({ default: () => null }));
@@ -286,11 +311,15 @@ const LOAD_TIME_ENV: Record<string, string> = {
   PROJECT_CANCELLATION_WORKER_SECRET_TOKEN: CRON_SECRET,
   ORG_CALENDAR_SYNC_WORKER_SECRET_TOKEN: CRON_SECRET,
   ORG_SHEET_SYNC_WORKER_SECRET_TOKEN: CRON_SECRET,
+  CSF_COMMUNICATIONS_WORKER_SECRET_TOKEN: CRON_SECRET,
+  CSF_SCHEDULED_POST_PUBLISHER_SECRET_TOKEN: CRON_SECRET,
   // Deliberately enabled: a route that only looked safe because its worker was
   // switched off would prove nothing about the probe.
   AUTO_PUBLISH_ENABLED: "true",
   PROJECT_CANCELLATION_WORKER_ENABLED: "true",
   ORG_SHEET_SYNC_WORKER_ENABLED: "true",
+  CSF_COMMUNICATIONS_WORKER_ENABLED: "true",
+  CSF_SCHEDULED_POST_PUBLISHER_ENABLED: "true",
 };
 for (const [key, value] of Object.entries(LOAD_TIME_ENV))
   process.env[key] = value;
@@ -315,6 +344,10 @@ const routeModules = {
   "organization-sheet-sync":
     await import("@/app/api/cron/organization-sheet-sync/route"),
   "data-exports": await import("@/app/api/cron/data-exports/route"),
+  "csf-communications-dispatch":
+    await import("@/app/api/cron/csf-communications-dispatch/route"),
+  "csf-scheduled-post-publisher":
+    await import("@/app/api/cron/csf-scheduled-post-publisher/route"),
 } as const;
 
 const ROUTE_PATHS = {
@@ -323,6 +356,8 @@ const ROUTE_PATHS = {
   "organization-calendar-sync": "/api/cron/organization-calendar-sync",
   "organization-sheet-sync": "/api/cron/organization-sheet-sync",
   "data-exports": "/api/cron/data-exports",
+  "csf-communications-dispatch": "/api/cron/csf-communications-dispatch",
+  "csf-scheduled-post-publisher": "/api/cron/csf-scheduled-post-publisher",
 } as const;
 
 type RouteId = keyof typeof routeModules;
@@ -349,6 +384,8 @@ function resetCounters() {
     googleTokenCalls,
     googleAuthCalls,
     reportRowCalls,
+    pluginAdminClientCalls,
+    scheduledFeedRevalidationCalls,
   ]) {
     list.length = 0;
   }
@@ -403,13 +440,15 @@ const EXACT_PROBE_HEADERS = headersWith({
 // ---------------------------------------------------------------------------
 
 describe("cron auth/shape probe helper contract", () => {
-  test("exposes exactly the five stable route IDs", () => {
+  test("exposes exactly the seven stable route IDs", () => {
     expect([...CRON_PROBE_ROUTE_IDS]).toEqual([
       "auto-publish-hours",
       "project-cancellations",
       "organization-calendar-sync",
       "organization-sheet-sync",
       "data-exports",
+      "csf-communications-dispatch",
+      "csf-scheduled-post-publisher",
     ]);
     expect(CRON_AUTH_SHAPE_PROBE_ENV).toBe("CRON_AUTH_SHAPE_PROBE_ONLY");
     expect(CRON_AUTH_SHAPE_PROBE_MODE).toBe("auth-shape-v1");

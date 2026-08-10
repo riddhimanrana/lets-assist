@@ -6,6 +6,7 @@ import {
   hasUnboundActiveGoogleOAuthConnection,
 } from "@/lib/auth/google-oauth-connection-store";
 import type { GoogleOAuthConnectionBindingExpectation } from "@/lib/auth/google-oauth-connection-binding";
+import { googleOAuthConnectionHasVerifiedCsfIdentity } from "@/lib/auth/google-oauth-csf-identity";
 import { authorizeGoogleOAuthOrganizationRequest } from "@/lib/auth/google-oauth-authorization";
 import type { GoogleOAuthCsfImportCapability } from "@/lib/auth/google-oauth-state";
 import { hasGoogleCalendarWriteScope } from "@/lib/auth/google-oauth-scopes";
@@ -443,6 +444,7 @@ export async function deactivateGoogleConnection(
   success: boolean;
   error?: string;
   remoteRevocation?: GoogleOAuthRemoteRevocationState;
+  localCleanup?: "removed" | "failed";
 }> {
   const expectedBinding =
     options.expectedBinding ?? PERSONAL_CALENDAR_GOOGLE_BINDING;
@@ -499,10 +501,15 @@ export async function deactivateGoogleConnection(
 
   if (deactivateError) {
     console.error("Failed to deactivate Google connection:", deactivateError);
-    return { success: false, error: "Failed to disconnect Google account" };
+    return {
+      success: false,
+      error: "Failed to disconnect Google account",
+      remoteRevocation,
+      localCleanup: "failed",
+    };
   }
 
-  return { success: true, remoteRevocation };
+  return { success: true, remoteRevocation, localCleanup: "removed" };
 }
 
 export async function hasLegacyGoogleOAuthReconnectRequired(userId: string) {
@@ -625,6 +632,15 @@ export async function getGoogleAccessTokenForUser(
     { useServiceRole },
   );
   if (!connection) return null;
+  if (
+    !googleOAuthConnectionHasVerifiedCsfIdentity(options.expectedBinding, {
+      connectionEmail: connection.calendar_email,
+      identityEmail: connection.binding_identity_email,
+      identityVerifiedAt: connection.binding_identity_verified_at,
+    })
+  ) {
+    return null;
+  }
 
   const requiredScopes = options?.requiredScopes?.filter(Boolean) ?? [];
   const allowedTypes =
@@ -681,7 +697,17 @@ export async function getGoogleAccessTokenForUser(
     options.expectedBinding,
     { useServiceRole },
   );
-  if (!currentConnection || currentConnection.id !== connection.id) return null;
+  if (
+    !currentConnection ||
+    currentConnection.id !== connection.id ||
+    !googleOAuthConnectionHasVerifiedCsfIdentity(options.expectedBinding, {
+      connectionEmail: currentConnection.calendar_email,
+      identityEmail: currentConnection.binding_identity_email,
+      identityVerifiedAt: currentConnection.binding_identity_verified_at,
+    })
+  ) {
+    return null;
+  }
 
   const newExpiresAt = new Date(Date.now() + refreshed.expiresIn * 1000);
   const encryptedAccessToken = encrypt(refreshed.accessToken);

@@ -276,8 +276,9 @@ export default function LoginClient({
     <section className="relative isolate flex min-h-[calc(100svh-4.5rem)] items-center justify-center overflow-hidden bg-background px-4 py-14 shadow-[inset_0_1px_0_hsl(var(--border))] sm:px-6 lg:px-8">
       <Card className="relative mx-auto w-full max-w-[410px] gap-0 overflow-hidden rounded-2xl border border-border/70 bg-card/95 py-0 shadow-[0_16px_44px_rgba(0,0,0,0.12),0_1px_6px_rgba(0,0,0,0.04)] ring-0 backdrop-blur-xl">
         <CardHeader className="space-y-2 px-6 pt-7 pb-0 sm:px-7">
-          <CardTitle className="text-2xl font-semibold tracking-tight">
-            Login
+          {/* CardTitle renders a plain div, so the page had no h1 at all. */}
+          <CardTitle>
+            <h1 className="text-2xl font-semibold tracking-tight">Login</h1>
           </CardTitle>
           <CardDescription className="text-sm leading-5">
             {redirectPath
@@ -337,7 +338,7 @@ export default function LoginClient({
                     <span className="w-full border-t border-border/80" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-3 font-semibold tracking-wide text-muted-foreground/80">
+                    <span className="bg-card px-3 font-semibold tracking-wide text-muted-foreground">
                       Or continue with
                     </span>
                   </div>

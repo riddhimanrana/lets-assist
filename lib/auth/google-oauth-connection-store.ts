@@ -22,16 +22,29 @@ type SaveBoundGoogleConnectionInput = {
   connectionType: "calendar" | "sheets" | "both";
   binding: GoogleOAuthConnectionBindingExpectation;
   requestedCapability: GoogleOAuthCsfImportCapability | null;
+  identityEmail: string | null;
+  identityVerifiedAt: string | null;
 };
 
-async function findGoogleOAuthBindingConnectionId(
+export type BoundGoogleOAuthConnection = CalendarConnection & {
+  binding_identity_email: string | null;
+  binding_identity_verified_at: string | null;
+};
+
+type GoogleOAuthBindingEvidence = {
+  connectionId: string;
+  identityEmail: string | null;
+  identityVerifiedAt: string | null;
+};
+
+async function findGoogleOAuthBindingEvidence(
   userId: string,
   expected: GoogleOAuthConnectionBindingExpectation,
-): Promise<string | null> {
+): Promise<GoogleOAuthBindingEvidence | null> {
   const admin = getAdminClient();
   let query = admin
     .from("user_google_oauth_connection_bindings")
-    .select("connection_id")
+    .select("connection_id, identity_email, identity_verified_at")
     .eq("user_id", userId)
     .eq("provider", "google")
     .eq("purpose", expected.purpose);
@@ -49,7 +62,12 @@ async function findGoogleOAuthBindingConnectionId(
     return null;
   }
 
-  return data?.connection_id ?? null;
+  if (!data?.connection_id) return null;
+  return {
+    connectionId: data.connection_id,
+    identityEmail: data.identity_email ?? null,
+    identityVerifiedAt: data.identity_verified_at ?? null,
+  };
 }
 
 /**
@@ -60,12 +78,9 @@ export async function getGoogleOAuthConnectionForBinding(
   userId: string,
   expected: GoogleOAuthConnectionBindingExpectation,
   options: BoundGoogleConnectionOptions = {},
-): Promise<CalendarConnection | null> {
-  const connectionId = await findGoogleOAuthBindingConnectionId(
-    userId,
-    expected,
-  );
-  if (!connectionId) return null;
+): Promise<BoundGoogleOAuthConnection | null> {
+  const binding = await findGoogleOAuthBindingEvidence(userId, expected);
+  if (!binding) return null;
 
   const client = options.useServiceRole
     ? getAdminClient()
@@ -73,7 +88,7 @@ export async function getGoogleOAuthConnectionForBinding(
   let query = client
     .from("user_calendar_connections")
     .select("*")
-    .eq("id", connectionId)
+    .eq("id", binding.connectionId)
     .eq("user_id", userId)
     .eq("provider", "google");
 
@@ -83,7 +98,11 @@ export async function getGoogleOAuthConnectionForBinding(
 
   const { data, error } = await query.maybeSingle();
   if (error || !data) return null;
-  return data as CalendarConnection;
+  return {
+    ...(data as CalendarConnection),
+    binding_identity_email: binding.identityEmail,
+    binding_identity_verified_at: binding.identityVerifiedAt,
+  };
 }
 
 /**
@@ -158,6 +177,8 @@ export async function saveGoogleOAuthConnectionForBinding(
       p_organization_id: input.binding.organizationId,
       p_plugin_key: input.binding.pluginKey,
       p_requested_capability: input.requestedCapability,
+      p_identity_email: input.identityEmail,
+      p_identity_verified_at: input.identityVerifiedAt,
     },
   );
 

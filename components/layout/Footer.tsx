@@ -114,26 +114,32 @@ export function Footer() {
 
   const statusMeta = FOOTER_STATUS_META[systemStatus];
 
+  // The trigger RENDERS the link rather than wrapping it. A tooltip trigger is
+  // a button by default, and a button containing an anchor is a nested
+  // interactive control: assistive technology cannot address the inner link,
+  // and this footer is on every page, so the violation was global.
   const statusBadge = (
     <Tooltip>
-      <TooltipTrigger className="inline-flex items-center align-middle">
-        <Link
-          href="https://status.lets-assist.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium leading-none align-middle transition-colors hover:opacity-90",
-            statusMeta.badgeClassName,
-          )}
-          aria-label={`System status: ${statusMeta.label}`}
-        >
-          <span
-            className={cn("size-2 rounded-full", statusMeta.dotClassName)}
-            aria-hidden="true"
-          />
-          <span className="leading-none">{statusMeta.label}</span>
-        </Link>
-      </TooltipTrigger>
+      <TooltipTrigger
+        render={
+          <Link
+            href="https://status.lets-assist.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium leading-none align-middle transition-colors hover:opacity-90",
+              statusMeta.badgeClassName,
+            )}
+            aria-label={`System status: ${statusMeta.label}`}
+          >
+            <span
+              className={cn("size-2 rounded-full", statusMeta.dotClassName)}
+              aria-hidden="true"
+            />
+            <span className="leading-none">{statusMeta.label}</span>
+          </Link>
+        }
+      />
       <TooltipContent side="top">
         Current system status based on our latest checks.
       </TooltipContent>
@@ -155,7 +161,10 @@ export function Footer() {
             />
           </div>
 
-          <nav className="grid grid-cols-2 gap-x-6 gap-y-3 text-left ml-3">
+          <nav
+                aria-label="Footer"
+                className="grid grid-cols-2 gap-x-6 gap-y-3 text-left ml-3"
+              >
             {footerLinks.map((link) => (
               <Link
                 key={link.href}
@@ -224,7 +233,10 @@ export function Footer() {
           </div>
 
           <div className="flex items-center gap-6">
-            <nav className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-left">
+            <nav
+              aria-label="Legal and policies"
+              className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-left"
+            >
               {footerLinks.map((link) => (
                 <Link
                   key={link.href}

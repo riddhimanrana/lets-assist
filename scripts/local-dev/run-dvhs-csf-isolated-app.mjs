@@ -84,6 +84,7 @@ export const DISABLED_WORKER_ENV_KEYS = [
   "ORG_CALENDAR_SYNC_WORKER_ENABLED",
   "ORG_SHEET_SYNC_WORKER_ENABLED",
   "CSF_COMMUNICATIONS_WORKER_ENABLED",
+  "CSF_SCHEDULED_POST_PUBLISHER_ENABLED",
 ];
 
 /**
@@ -146,6 +147,7 @@ const CRON_TOKEN_KEYS = [
   "ORG_CALENDAR_SYNC_WORKER_SECRET_TOKEN",
   "ORG_SHEET_SYNC_WORKER_SECRET_TOKEN",
   "CSF_COMMUNICATIONS_WORKER_SECRET_TOKEN",
+  "CSF_SCHEDULED_POST_PUBLISHER_SECRET_TOKEN",
 ];
 
 // ---------------------------------------------------------------------------
@@ -208,7 +210,7 @@ export function discoverRepositoryEnvFileKeys(repoRoot = REPO_ROOT) {
 // ---------------------------------------------------------------------------
 
 /**
- * One builder for both isolated children: the app runner and the five-route cron
+ * One builder for both isolated children: the app runner and the seven-route cron
  * harness. They differ only in what they are allowed to reach, never in how the
  * environment is constructed.
  *

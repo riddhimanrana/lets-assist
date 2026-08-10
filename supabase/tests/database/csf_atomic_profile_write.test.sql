@@ -430,10 +430,35 @@ WHERE organization_id = 'be100000-0000-4000-8000-000000000001';
 UPDATE plugin_data.csf_application_checks
 SET status = 'passed',
     summary = 'Verified for atomic profile decision test.',
+    details = CASE
+      WHEN check_type = 'academic_eligibility'
+        THEN jsonb_build_object('policyVersion', 1)
+      ELSE coalesce(details, '{}'::jsonb)
+    END,
     reviewed_by = 'be000000-0000-4000-8000-000000000001',
     reviewed_at = now(),
     updated_at = now()
 WHERE organization_id = 'be100000-0000-4000-8000-000000000001';
+
+INSERT INTO plugin_data.csf_application_course_entries (
+  organization_id, application_id, course_list, course_name, grade, points, is_bonus
+)
+SELECT
+  application.organization_id,
+  application.id,
+  course.course_list,
+  course.course_name,
+  'A',
+  course.points,
+  course.is_bonus
+FROM plugin_data.csf_term_applications AS application
+JOIN (
+  VALUES
+    ('I'::text, 'Synthetic List I A', 3::numeric, true),
+    ('I'::text, 'Synthetic List I A 2', 3::numeric, false),
+    ('II'::text, 'Synthetic List II A', 2::numeric, true)
+) AS course(course_list, course_name, points, is_bonus) ON true
+WHERE application.organization_id = 'be100000-0000-4000-8000-000000000001';
 
 UPDATE plugin_data.csf_dues_records
 SET status = 'verified',

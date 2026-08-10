@@ -4,7 +4,7 @@ DVHS CSF is an organization-scoped private plugin for scholarship-federation ope
 
 ## Source of truth
 
-Platform records are authoritative after import. Google Forms, Sheets, Drive, and Classroom remain source/export/broadcast channels. Imports require explicit source identity, tab/range, mapping, preview, reconciliation, authorization recheck, and atomic commit.
+Platform records are authoritative after import. Google Forms and Sheets are controlled read/import evidence channels, while Drive retains the private source files selected for review. This release does not write reports or compatibility exports to Google Sheets; officers download a permission-checked local ZIP containing formula-safe CSV files and a manifest. Google Classroom is retired for CSF; the member feed, cohort posts, and ledger-backed announcement email are the active broadcast workflow. Imports require explicit source identity, tab/range, mapping, preview, reconciliation, authorization recheck, and atomic commit.
 
 ## Product shape
 

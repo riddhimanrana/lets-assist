@@ -210,10 +210,13 @@ describe("the isolated app child environment is built, not inherited", () => {
     }
   });
 
-  test("every worker flag, including the CSF communications worker, is false", () => {
+  test("every worker flag, including both CSF workers, is false", () => {
     const { childEnv } = build();
     expect(DISABLED_WORKER_ENV_KEYS).toContain(
       "CSF_COMMUNICATIONS_WORKER_ENABLED",
+    );
+    expect(DISABLED_WORKER_ENV_KEYS).toContain(
+      "CSF_SCHEDULED_POST_PUBLISHER_ENABLED",
     );
     for (const key of DISABLED_WORKER_ENV_KEYS) {
       expect(childEnv[key], key).toBe("false");

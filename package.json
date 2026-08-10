@@ -166,7 +166,7 @@
     "eslint-config-prettier": "^10.1.8",
     "fast-glob": "^3.3.3",
     "playwright": "1.62.1",
-    "postcss": "^8.5.25",
+    "postcss": "^8.5.26",
     "prettier": "^3.9.6",
     "shadcn": "4.16.2",
     "tailwindcss": "4.3.3",

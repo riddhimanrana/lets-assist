@@ -25,6 +25,11 @@ import {
   getGoogleOAuthConnectionForBinding,
   saveGoogleOAuthConnectionForBinding,
 } from "@/lib/auth/google-oauth-connection-store";
+import {
+  DVHS_CSF_GOOGLE_IMPORT_EMAIL,
+  isDvhsCsfGoogleImportBinding,
+  validateGoogleOAuthCallbackIdentity,
+} from "@/lib/auth/google-oauth-csf-identity";
 import { canReuseExistingGoogleRefreshToken } from "./connection-selection";
 
 function getCallbackBaseUrl(request: NextRequest): string {
@@ -251,6 +256,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const identityDecision = validateGoogleOAuthCallbackIdentity({
+      binding,
+      email: calendarEmail,
+      emailVerified: userInfo.verified_email === true,
+    });
+    if (!identityDecision.ok) {
+      return redirectAndConsumeOAuthState(
+        buildCallbackRedirect(baseUrl, stateData.returnTo, {
+          error: identityDecision.error,
+        }),
+      );
+    }
+
     // Calculate token expiry
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
@@ -297,6 +315,12 @@ export async function GET(request: NextRequest) {
       connectionType,
       binding,
       requestedCapability: stateData.requestedCapability,
+      identityEmail: isDvhsCsfGoogleImportBinding(binding)
+        ? DVHS_CSF_GOOGLE_IMPORT_EMAIL
+        : null,
+      identityVerifiedAt: isDvhsCsfGoogleImportBinding(binding)
+        ? new Date().toISOString()
+        : null,
     });
     if (!saveResult.connectionId) {
       return redirectAndConsumeOAuthState(
@@ -396,7 +420,9 @@ export async function GET(request: NextRequest) {
     return redirectAndConsumeOAuthState(
       buildCallbackRedirect(baseUrl, stateData.returnTo, {
         success: "connected",
-        email: calendarEmail,
+        ...(isDvhsCsfGoogleImportBinding(binding)
+          ? {}
+          : { email: calendarEmail }),
       }),
     );
   } catch (error) {

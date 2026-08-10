@@ -45,12 +45,12 @@ SELECT extensions.ok(
   'authenticated clients cannot add officer-only notes directly'
 );
 SELECT extensions.ok(
-  has_function_privilege(
+  NOT has_function_privilege(
     'service_role',
     'plugin_data.csf_decide_term_application(uuid,uuid,text,text,uuid)',
     'EXECUTE'
   ),
-  'the server role can decide CSF applications'
+  'the server role cannot bypass request-aware application decisions'
 );
 SELECT extensions.ok(
   has_function_privilege(
@@ -135,6 +135,14 @@ VALUES
     'school',
     '984002'
   );
+
+INSERT INTO public.organization_members (organization_id, user_id, role, status)
+VALUES (
+  'ca100000-0000-4000-8000-000000000001',
+  'ca000000-0000-4000-8000-000000000001',
+  'admin',
+  'active'
+);
 
 INSERT INTO plugin_data.csf_terms (
   id, organization_id, code, label, school_year, semester
@@ -241,6 +249,7 @@ INSERT INTO plugin_data.csf_term_applications (
   term_id,
   source,
   status,
+  submission_status,
   current_grade_level,
   most_checked_email
 ) VALUES (
@@ -251,8 +260,17 @@ INSERT INTO plugin_data.csf_term_applications (
   'ca200000-0000-4000-8000-000000000001',
   'google_form_sheet',
   'submitted',
+  'ready',
   11,
   'review.student@local.test'
+);
+
+INSERT INTO plugin_data.csf_application_course_entries (
+  organization_id, application_id, course_list, course_name, grade, points
+) VALUES (
+  'ca100000-0000-4000-8000-000000000001',
+  'ca600000-0000-4000-8000-000000000001',
+  'I', 'Synthetic adviser-review course', 'A', 3
 );
 
 SELECT extensions.is(

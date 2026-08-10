@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(23);
+SELECT extensions.plan(24);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -21,12 +21,20 @@ SELECT extensions.ok(
   'authenticated clients cannot call the privileged withdrawal RPC directly'
 );
 SELECT extensions.ok(
-  has_function_privilege(
+  NOT has_function_privilege(
     'service_role',
     'plugin_data.csf_withdraw_point_submission(uuid,uuid,uuid,uuid)',
     'EXECUTE'
   ),
-  'the server role can execute point-submission withdrawal'
+  'the server role cannot bypass request-aware point-submission withdrawal'
+);
+SELECT extensions.ok(
+  has_function_privilege(
+    'service_role',
+    'plugin_data.csf_withdraw_point_submission_request(uuid,uuid,uuid,uuid,uuid)',
+    'EXECUTE'
+  ),
+  'the server role can execute replay-safe point-submission withdrawal'
 );
 
 INSERT INTO auth.users (
@@ -83,8 +91,14 @@ VALUES
     '839902'
   );
 
+INSERT INTO public.organization_members (organization_id, user_id, role, status)
+VALUES
+  ('e1000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000001', 'member', 'active'),
+  ('e1000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000002', 'member', 'active'),
+  ('e1000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000003', 'member', 'active');
+
 INSERT INTO plugin_data.csf_terms (
-  id, organization_id, code, label, school_year, semester
+  id, organization_id, code, label, school_year, semester, is_current
 ) VALUES
   (
     'e2000000-0000-4000-8000-000000000001',
@@ -92,7 +106,8 @@ INSERT INTO plugin_data.csf_terms (
     'S31',
     'Spring 2031',
     '2030-2031',
-    'spring'
+    'spring',
+    true
   ),
   (
     'e2000000-0000-4000-8000-000000000002',
@@ -100,7 +115,8 @@ INSERT INTO plugin_data.csf_terms (
     'S31',
     'Spring 2031',
     '2030-2031',
-    'spring'
+    'spring',
+    true
   );
 
 INSERT INTO plugin_data.csf_profiles (
@@ -125,12 +141,30 @@ INSERT INTO plugin_data.csf_profiles (
 
 INSERT INTO plugin_data.csf_profile_accounts (
   organization_id, profile_id, user_id, status, is_primary
+) VALUES
+  (
+    'e1000000-0000-4000-8000-000000000001',
+    'e3000000-0000-4000-8000-000000000001',
+    'e0000000-0000-4000-8000-000000000001',
+    'verified',
+    true
+  ),
+  (
+    'e1000000-0000-4000-8000-000000000001',
+    'e3000000-0000-4000-8000-000000000001',
+    'e0000000-0000-4000-8000-000000000003',
+    'verified',
+    false
+  );
+
+INSERT INTO plugin_data.csf_term_memberships (
+  organization_id, profile_id, term_id, status, accepted_at
 ) VALUES (
   'e1000000-0000-4000-8000-000000000001',
   'e3000000-0000-4000-8000-000000000001',
-  'e0000000-0000-4000-8000-000000000001',
-  'verified',
-  true
+  'e2000000-0000-4000-8000-000000000001',
+  'accepted',
+  now()
 );
 
 INSERT INTO plugin_data.csf_point_submissions (
@@ -321,13 +355,13 @@ SELECT extensions.lives_ok(
       'e0000000-0000-4000-8000-000000000003'
     )
   $$,
-  'the original submitter can withdraw without a verified account link'
+  'a verified secondary profile account can withdraw its own untouched submission'
 );
 
 SELECT extensions.is(
   (SELECT status FROM plugin_data.csf_point_submissions WHERE id = 'e4000000-0000-4000-8000-000000000002'),
   'withdrawn',
-  'original-submitter withdrawal updates the submission'
+  'verified secondary-account withdrawal updates the submission'
 );
 
 SELECT extensions.is(
@@ -338,7 +372,7 @@ SELECT extensions.is(
       AND action = 'point_submission.withdraw'
   ),
   1,
-  'original-submitter withdrawal is audited'
+  'verified secondary-account withdrawal is audited'
 );
 
 SELECT extensions.throws_ok(
@@ -351,7 +385,7 @@ SELECT extensions.throws_ok(
     )
   $$,
   'P0001',
-  'You can only withdraw your own point submission.',
+  'Only the connected member may withdraw this point submission.',
   'an unrelated actor cannot withdraw another member submission'
 );
 
@@ -371,7 +405,7 @@ SELECT extensions.throws_ok(
     )
   $$,
   'P0001',
-  'Point submission was not found.',
+  'Point-action actor is not an active organization member.',
   'a submission cannot be withdrawn through another organization and profile'
 );
 
@@ -391,7 +425,7 @@ SELECT extensions.throws_ok(
     )
   $$,
   'P0001',
-  'Only submitted point submissions that have not been reviewed can be withdrawn.',
+  'Only an untouched submitted point claim can be withdrawn.',
   'a reviewed point submission cannot be withdrawn'
 );
 
@@ -411,7 +445,7 @@ SELECT extensions.throws_ok(
     )
   $$,
   'P0001',
-  'Point submissions with awarded credit cannot be withdrawn.',
+  'Only an untouched submitted point claim can be withdrawn.',
   'a point submission with linked credit cannot be withdrawn'
 );
 
@@ -431,7 +465,7 @@ SELECT extensions.throws_ok(
     )
   $$,
   'P0001',
-  'Only submitted point submissions that have not been reviewed can be withdrawn.',
+  'Only an untouched submitted point claim can be withdrawn.',
   'a non-submitted point submission cannot be withdrawn'
 );
 
