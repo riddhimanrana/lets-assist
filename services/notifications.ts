@@ -1,20 +1,19 @@
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import type {
+  NotificationData,
+  NotificationType,
+} from "@/services/notification-types";
 
-export type NotificationType =
-  "email_notifications" | "project_updates" | "general";
-
-// Add a severity type for notifications
-export type NotificationSeverity = "info" | "warning" | "success";
-
-export interface NotificationData {
-  title: string;
-  body: string;
-  type: NotificationType;
-  severity?: NotificationSeverity; // Add severity field
-  actionUrl?: string;
-  data?: Record<string, unknown>;
-}
+// The shapes moved to a client-agnostic module so server-only callers can
+// describe a notification without importing this file, which pulls in the
+// browser Supabase client and sonner. Re-exported so existing importers of
+// "@/services/notifications" keep working.
+export type {
+  NotificationData,
+  NotificationSeverity,
+  NotificationType,
+} from "@/services/notification-types";
 
 export const NotificationService = {
   async createNotification(

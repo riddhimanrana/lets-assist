@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getAdminClient } from "@/lib/supabase/admin";
-import { NotificationService } from "@/services/notifications";
+import { createNotificationForUser } from "@/services/notifications-server";
 import { sendEmail } from "@/services/email";
 import ContentModerationActionEmail from "@/emails/content-moderation-action";
 import ReportStatusUpdateEmail from "@/emails/report-status-update";
@@ -380,7 +380,7 @@ export async function notifyReporterOfReportUpdate({
       ? `Your report about ${contentSummary.contentTypeLabel} “${contentSummary.title}” has been resolved.`
       : `Your report about ${contentSummary.contentTypeLabel} “${contentSummary.title}” was dismissed after review.`;
 
-  await NotificationService.createNotification(
+  await createNotificationForUser(
     {
       title: "Update on your report",
       body: notificationBody,

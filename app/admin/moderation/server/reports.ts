@@ -4,7 +4,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { NotificationService } from "@/services/notifications";
+import { createNotificationForUser } from "@/services/notifications-server";
 import { checkSuperAdmin } from "../../actions";
 import {
   matchesReportStatusFilter,
@@ -304,7 +304,7 @@ export async function sendReportFeedback(
   }
 
   if (userId) {
-    await NotificationService.createNotification(
+    await createNotificationForUser(
       {
         title: "Update on your report",
         body: message,

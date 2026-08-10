@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { revalidatePath } from "next/cache";
 import { type SignupStatus } from "@/types";
-import { NotificationService } from "@/services/notifications";
+import { createNotificationForUser } from "@/services/notifications-server";
 import { removeCalendarEventForSignup } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
@@ -101,8 +101,9 @@ export async function createRejectionNotification(
 
     const projectTitle = projectData.title;
 
-    // Create notification directly
-    await NotificationService.createNotification(
+    // Delivered with the service-role client: this runs on the server, where
+    // the browser client has no session.
+    await createNotificationForUser(
       {
         title: "Project Status Update",
         body: `Your signup to volunteer for "${projectTitle}" has been rejected`,
