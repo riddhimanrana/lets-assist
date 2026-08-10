@@ -13,11 +13,12 @@
     /*--page-foreground: 240 10% 3.9%;*/
     /* text */
 
-    --success: hsl(142.1 76.2% 29%);
+    --success: hsl(142.1 76.2% 28%);
     /* green — AA against white text and on white backgrounds */
     --warning: hsl(35 77% 33%);
     /* yellow — AA against the 10% warning tint */
-    --info: hsl(220 91% 54%);
+    --info: hsl(220 91% 51%);
+    /* blue — AA against the 10% info tint */
 
     --background: hsl(0 0% 100%);
     /* base */
@@ -31,8 +32,15 @@
     /* base */
     --popover-foreground: hsl(240 10% 3.9%);
     /* text */
-    --primary: hsl(142.1 76.2% 29%);
-    /* accent - green — AA behind --primary-foreground */
+    --primary: hsl(142.1 76.2% 28%);
+    /* accent - green — AA behind --primary-foreground (29% was 4.46:1) */
+    --brand: hsl(142.1 76.2% 36.3%);
+    /* green #16a34a — the identity green shipped in Production, emails, and the
+       OpenGraph card. Darkening --primary for AA also drained the decorative
+       brand washes, so those keep the identity hue here. Decorative only: never
+       put text, an icon that carries meaning, a filled control, or a focus ring
+       on --brand, because at full strength it is below AA behind
+       --primary-foreground. Interactive and status surfaces use --primary. */
     --primary-foreground: hsl(355.7 100% 97.3%);
     /* base */
     --secondary: hsl(240 4.8% 95.9%);
@@ -47,16 +55,17 @@
     /* surface0 */
     --accent-foreground: hsl(240 5.9% 10%);
     /* text */
-    --destructive: hsl(0 84.2% 47%);
-    /* red — AA on white and behind --destructive-foreground */
+    --destructive: hsl(0 84.2% 44%);
+    /* red — AA on white, behind --destructive-foreground, and against the 10%
+       destructive tint it is paired with in alerts (47% was 4.24:1 there) */
     --destructive-foreground: hsl(0 0% 98%);
     /* mantle */
     --border: hsl(240 5.9% 90%);
     /* surface1 */
     --input: hsl(240 5.9% 90%);
     /* surface1 */
-    --ring: hsl(142.1 76.2% 29%);
-    /* text */
+    --ring: hsl(142.1 76.2% 28%);
+    /* text — kept in step with --primary */
     --radius: 1rem;
     --chart-1: hsl(12 76% 61%);
     /* red */
@@ -136,6 +145,11 @@
     /* surface1 */
     --primary: hsl(115 54% 76%);
     /* accent - Green */
+    --brand: hsl(115 54% 76%);
+    /* Pinned to the dark --primary so the decorative washes render exactly as
+       they did before --brand existed. The light-theme split exists because AA
+       forced --primary away from the identity green; dark mode never had that
+       conflict, so it needs no second hue. */
     --primary-foreground: hsl(240 21% 15%);
     /* base */
     --secondary: hsl(237 16% 23%);
@@ -213,6 +227,8 @@
 
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+
+  --color-brand: var(--brand);
 
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);

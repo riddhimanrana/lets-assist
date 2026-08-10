@@ -132,8 +132,8 @@ SELECT extensions.is(
     FROM plugin_data.csf_role_permissions
     WHERE organization_id = 'cf100000-0000-4000-8000-000000000001'
   ),
-  397,
-  'retrying installation keeps one canonical eleven-by-thirty-six matrix plus retained legacy provenance'
+  419,
+  'retrying installation keeps one canonical eleven-by-thirty-eight matrix plus retained legacy provenance'
 );
 SELECT extensions.ok(
   NOT EXISTS (

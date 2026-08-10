@@ -339,6 +339,8 @@ describe("local Supabase environment resolution", () => {
       databaseVolume: "supabase_db_lets-assist-csf-browser-test-run",
       apiPort: 56351,
       databasePort: 56352,
+      mailpitPort: 56354,
+      smtpPort: 56355,
     });
 
     const wrongProject = await createIsolatedWorkDir({

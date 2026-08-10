@@ -506,7 +506,9 @@ export default async function OrganizationPage({
     <div className="flex flex-col w-full">
       <div
         className={cn(
-          "w-full absolute bg-linear-to-br from-primary/15 via-primary/5 to-background/0 before:content-[''] before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:to-background",
+          // Purely decorative header wash behind the organization identity, so
+          // it carries the brand green rather than the AA-tuned --primary.
+          "w-full absolute bg-linear-to-br from-brand/15 via-brand/5 to-background/0 before:content-[''] before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:to-background",
           navOverrides.compactHeader ? "min-h-40" : "min-h-72",
         )}
       />

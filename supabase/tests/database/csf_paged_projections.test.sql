@@ -129,8 +129,8 @@ SELECT extensions.is(
     FROM plugin_data.csf_role_permissions
     WHERE organization_id = 'cd100000-0000-4000-8000-000000000001'
   ),
-  396,
-  'a fresh organization receives one eleven-by-thirty-six permission matrix'
+  418,
+  'a fresh organization receives one eleven-by-thirty-eight permission matrix'
 );
 SELECT extensions.ok(
   NOT EXISTS (

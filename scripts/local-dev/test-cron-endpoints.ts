@@ -750,8 +750,8 @@ async function main() {
       "This gate proves only authentication and the no-dispatch shape.",
   );
   console.log(
-    "   Also not covered: ai-moderation, anonymous-cleanup, csf-communications-dispatch, " +
-      "csf-proof-cleanup, generate-recurring-projects, and waiver-cleanup.",
+    "   Also not covered: ai-moderation, anonymous-cleanup, csf-proof-cleanup, " +
+      "generate-recurring-projects, and waiver-cleanup.",
   );
 }
 

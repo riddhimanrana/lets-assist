@@ -4,11 +4,57 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+const FOCUSABLE_TABLE_CONTENT_SELECTOR =
+  'a[href],button,input,select,textarea,summary,[tabindex]:not([tabindex="-1"])';
+
+/**
+ * A horizontally scrollable region has to be reachable by keyboard (WCAG 2.1.1,
+ * axe `scrollable-region-focusable`). Tables that already contain links, menus,
+ * or form controls are reachable through those controls, and giving them a tab
+ * stop as well would add a stop that goes nowhere. So the container only becomes
+ * focusable when its own content offers no other way in — which is exactly the
+ * read-only case, such as the change-history log.
+ */
+function useScrollRegionTabStop(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+) {
+  const [needsTabStop, setNeedsTabStop] = React.useState(false);
+
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    setNeedsTabStop(
+      container.querySelector(FOCUSABLE_TABLE_CONTENT_SELECTOR) === null,
+    );
+  });
+
+  return needsTabStop;
+}
+
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const needsTabStop = useScrollRegionTabStop(containerRef);
+  // Reuse the table's own accessible name so the new stop announces the thing
+  // it scrolls. Without a name there is nothing for a group to convey, so the
+  // container stays a plain focusable scroll region rather than an anonymous
+  // one that a screen reader would enter and leave unlabelled.
+  const label = props["aria-label"];
+  const labelledBy = props["aria-labelledby"];
+  const named = needsTabStop && Boolean(label || labelledBy);
+
   return (
     <div
+      ref={containerRef}
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      role={named ? "group" : undefined}
+      aria-label={named ? label : undefined}
+      aria-labelledby={named ? labelledBy : undefined}
+      tabIndex={needsTabStop ? 0 : undefined}
+      className={cn(
+        "relative w-full overflow-x-auto",
+        needsTabStop &&
+          "focus-visible:ring-ring/50 focus-visible:border-ring rounded-md outline-none focus-visible:ring-[3px]",
+      )}
     >
       <table
         data-slot="table"

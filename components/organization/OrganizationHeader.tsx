@@ -129,7 +129,12 @@ export default function OrganizationHeader({
                 src={organization.logo_url || undefined}
                 alt={organization.name}
               />
-              <AvatarFallback className="bg-primary/10 text-xl rounded-full">
+              {/*
+                Decorative brand tint behind the monogram. The monogram itself
+                stays on --foreground, and the verified badge below stays on
+                --primary, because that one reports state.
+              */}
+              <AvatarFallback className="bg-brand/10 text-xl rounded-full">
                 {getMonogramFallback(organization.name)}
               </AvatarFallback>
             </Avatar>

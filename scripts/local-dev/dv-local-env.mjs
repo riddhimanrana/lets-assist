@@ -774,6 +774,10 @@ export function inspectCsfIsolatedWorkDir(workDirValue) {
     databaseVolume: validated.db_volume,
     apiPort: basePort + 1,
     databasePort: basePort + 2,
+    // Mailpit's HTTP listener (`local_smtp.port`), which serves the loopback
+    // mailbox API the browser suite reads. Same validated bundle offset as the
+    // SMTP listener below, so the two can never drift apart.
+    mailpitPort: basePort + 4,
     // Mailpit's SMTP listener, derived from the same validated bundle offset the
     // generated config was checked against.
     smtpPort: basePort + 5,

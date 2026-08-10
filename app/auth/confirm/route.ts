@@ -4,14 +4,22 @@ import { createClient } from "@/lib/supabase/server";
 import { syncPrimaryUserEmail } from "@/lib/auth/primary-email";
 import { redirect } from "next/navigation";
 import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
+import { resolveAuthRedirectOrigin } from "@/app/signup/request-origin";
 
+/**
+ * `origin` is the validated auth redirect origin, never `new URL(request.url)`:
+ * Next.js rebuilds `request.url` from the server's own binding, so on the
+ * loopback stack it reads `http://localhost:<port>` even when the browser
+ * confirmed on `http://127.0.0.1:<port>`. Redirecting there would hand the
+ * verified account to a different cookie origin than the one that just
+ * completed the PKCE exchange.
+ */
 async function redirectToSuccess(
-  request: NextRequest,
+  origin: string,
   email?: string,
   type: "signup" | "email_change" = "signup",
   redirectAfterAuth?: string | null,
 ) {
-  const origin = new URL(request.url).origin;
   const redirectUrl = new URL(`${origin}/auth/verification-success`);
   redirectUrl.searchParams.set("type", type);
   if (email) {
@@ -34,6 +42,7 @@ export async function GET(request: NextRequest) {
   const redirectAfterAuth = normalizeRedirectPath(
     searchParams.get("redirectAfterAuth"),
   );
+  const authOrigin = resolveAuthRedirectOrigin(request.headers.get("host"));
 
   const isExpiredLinkError = (message: string) => {
     const lowered = message.toLowerCase();
@@ -45,7 +54,7 @@ export async function GET(request: NextRequest) {
   };
 
   const redirectToExpiredLink = () => {
-    const url = new URL("/auth/email-expired", request.url);
+    const url = new URL("/auth/email-expired", authOrigin);
     if (email) {
       url.searchParams.set("email", email);
     }
@@ -115,7 +124,7 @@ export async function GET(request: NextRequest) {
     const userEmail = trustedUser.email;
     await supabase.auth.signOut();
     return redirectToSuccess(
-      request,
+      authOrigin,
       userEmail,
       type === "email_change" ? "email_change" : "signup",
       redirectAfterAuth,
@@ -166,7 +175,7 @@ export async function GET(request: NextRequest) {
 
   if (type === "email_change") {
     return redirectToSuccess(
-      request,
+      authOrigin,
       trustedUser.email,
       "email_change",
       redirectAfterAuth,
@@ -175,5 +184,5 @@ export async function GET(request: NextRequest) {
 
   const userEmail = trustedUser.email;
   await supabase.auth.signOut();
-  return redirectToSuccess(request, userEmail, "signup", redirectAfterAuth);
+  return redirectToSuccess(authOrigin, userEmail, "signup", redirectAfterAuth);
 }

@@ -110,8 +110,10 @@ test.describe("DVHS CSF staff access presentation", () => {
     await openStaffAccess(page);
 
     const revoke = page
-      .getByRole("button", { name: "Revoke", exact: true })
+      .getByRole("region", { name: "Officer roster" })
+      .getByRole("button", { name: /^Revoke .+ access$/ })
       .first();
+    await expect(revoke).toHaveAccessibleName(/^Revoke .+ access$/);
     await revoke.click();
     const dialog = page.getByRole("dialog");
     await expect(

@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "crypto";
@@ -9,6 +10,10 @@ import {
   isCsfConnectRedirect,
   normalizeRedirectPath,
 } from "./redirect-utils";
+import {
+  resolveAuthRequestOrigin,
+  resolveConfiguredSiteOrigin,
+} from "./request-origin";
 import { passwordSchema } from "@/lib/auth/password-policy";
 
 const signupSchema = z.object({
@@ -21,18 +26,19 @@ const signupSchema = z.object({
   orgUsername: z.string().nullish(),
 });
 
-const getSiteUrl = () => {
-  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  const vercelSiteUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : undefined;
+const getSiteUrl = () => resolveConfiguredSiteOrigin();
 
-  return (
-    configuredSiteUrl ||
-    vercelSiteUrl ||
-    "http://localhost:3000"
-  ).replace(/\/+$/u, "");
-};
+/**
+ * The origin used for links that depend on the PKCE verifier this request
+ * stores. Loopback development may keep the spelling the developer actually
+ * opened (127.0.0.1 vs localhost) because those are separate cookie origins;
+ * every other deployment keeps the trusted configured origin.
+ */
+const getAuthLinkOrigin = async () =>
+  resolveAuthRequestOrigin({
+    configuredOrigin: getSiteUrl(),
+    requestHost: (await headers()).get("host"),
+  });
 
 function getResendErrorCode(message: string, status?: number) {
   const lowered = message.toLowerCase();
@@ -90,7 +96,7 @@ export async function signup(formData: FormData) {
   const supabase = await createClient();
 
   try {
-    const origin = getSiteUrl();
+    const origin = await getAuthLinkOrigin();
 
     // Check if this email is blacklisted
     const adminClient = getAdminClient();
@@ -220,7 +226,7 @@ export async function resendVerificationEmail(
 ) {
   try {
     const supabase = await createClient();
-    const origin = getSiteUrl();
+    const origin = await getAuthLinkOrigin();
 
     const options: Record<string, string> = {
       emailRedirectTo: buildAuthConfirmRedirectUrl(origin, redirectAfterAuth),

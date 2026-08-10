@@ -903,6 +903,10 @@ describe("harness source contracts", () => {
     ]) {
       expect(harnessSource, outside).toContain(outside);
     }
+    const finalBoundary = harnessSource.slice(
+      harnessSource.indexOf("Also not covered:"),
+    );
+    expect(finalBoundary).not.toContain("csf-communications-dispatch");
   });
 
   test("never adopts an externally supplied base URL", () => {

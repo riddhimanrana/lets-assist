@@ -172,6 +172,13 @@ describe("local platform seed authorization", () => {
   });
 
   test("seeds the canonical role templates and preserves their capability boundaries", () => {
+    const permissionCatalogSource = sourceSection(
+      "const csfPermissionKeys = [",
+      "const seededRoles = [",
+    );
+    expect(permissionCatalogSource).toContain('"manage_posts"');
+    expect(permissionCatalogSource).toContain('"manage_review_periods"');
+
     const rolesSource = sourceSection(
       "const seededRoles = [",
       '"csf-expanded-roles"',
@@ -204,6 +211,27 @@ describe("local platform seed authorization", () => {
     expect(treasurerSource).toContain('"manage_payment_review"');
     expect(treasurerSource).toContain('"export_dues_reports"');
     expect(treasurerSource).not.toContain('"decide_applications"');
+
+    for (const [roleKey, nextRoleKey] of [
+      ["vice-president-publicity", "vice-president-clubs"],
+      ["web-master", "activity-coordinator"],
+    ] as const) {
+      const roleStart = rolesSource.indexOf(`key: "${roleKey}"`);
+      const roleEnd = rolesSource.indexOf(`key: "${nextRoleKey}"`, roleStart);
+      const roleSource = rolesSource.slice(roleStart, roleEnd);
+      expect(
+        roleStart,
+        `Missing seeded role: ${roleKey}`,
+      ).toBeGreaterThanOrEqual(0);
+      expect(
+        roleEnd,
+        `Missing next seeded role: ${nextRoleKey}`,
+      ).toBeGreaterThan(roleStart);
+      expect(roleSource).toContain('"manage_opportunities"');
+      expect(roleSource).toContain('"manage_posts"');
+      expect(roleSource).not.toContain('"manage_settings"');
+      expect(roleSource).toMatch(/member[- ]posts?/);
+    }
 
     const coordinatorStart = rolesSource.indexOf('key: "activity-coordinator"');
     const coordinatorEnd = rolesSource.indexOf(

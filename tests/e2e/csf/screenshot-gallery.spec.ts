@@ -102,7 +102,10 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
       [
         "48-semester",
         `${CSF_ORGANIZATION_PATH}?tab=csf-cohorts`,
-        "Schedule & deadlines",
+        // The cohorts tab is the class hub: "Schedule & deadlines" now lives
+        // inside the collapsed "Semesters & setup" disclosure, so the marker
+        // asserts the setup trigger the collapsed hub actually shows.
+        "Semesters & setup",
       ],
       [
         "49-imports",
@@ -139,6 +142,22 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
         tabpanel.getByText(marker, { exact: false }).first(),
       ).toBeVisible();
       await capture(page, name);
+
+      if (name === "48-semester") {
+        // Prove the marker is the *collapsed* hub truth: the class picker and
+        // the server-derived cutover summary are both readable without opening
+        // the disclosure, and the gallery never expands it.
+        await expect(
+          tabpanel.getByRole("heading", { name: "Your classes" }),
+        ).toBeVisible();
+        const setupTrigger = tabpanel.getByRole("button", {
+          name: "Semesters & setup",
+        });
+        await expect(setupTrigger).toHaveAttribute("aria-expanded", "false");
+        await expect(
+          setupTrigger.getByText(/of \d+ setup checkpoints? recorded/),
+        ).toBeVisible();
+      }
 
       if (name === "41-applications-list") {
         const reviewLinks = page.locator('a[href*="csf_application="]');
