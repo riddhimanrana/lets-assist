@@ -415,8 +415,14 @@ export default async function OrganizationPage({
   // Admins get a setup checklist until the organization is configured or they
   // dismiss it. Everything but the dismissal flag comes from data already
   // loaded above, so this is one narrow read and only for admins.
+  //
+  // Skipped when a plugin owns this organization's page chrome. The checklist
+  // is a platform onboarding surface, and an organization running a plugin
+  // workspace has its own onboarding; rendering both also adds height above the
+  // workspace, which is enough to introduce a scrollbar and re-wrap rows inside
+  // it.
   const setupChecklist =
-    userRole === "admin"
+    userRole === "admin" && !organizationExperience
       ? await loadOrganizationSetupChecklist({
           organizationId: organization.id,
           organizationSlug: organization.username ?? organization.id,
