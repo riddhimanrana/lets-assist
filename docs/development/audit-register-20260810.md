@@ -315,6 +315,43 @@ Dependabot reports 2 high-severity vulnerabilities on the default branch; not ye
 
 ---
 
+## Hosted Development verification, 2026-08-10
+
+Verified in the Vercel dashboard as `admin@lets-assist.com` on team `lets-assist-team` (Hobby plan), project `lets-assist`.
+
+| Check | Result |
+|---|---|
+| `dev.lets-assist.com` domain | **Valid Configuration**, assigned to the `development` branch |
+| `lets-assist.com` domain | **Valid Configuration**, Production |
+| Branch-scoped Preview variables | Present and scoped to `development`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF` (all marked Sensitive, added 2026-08-04) |
+| Latest `development` deployments | `f3fcf79`, `83ce42f`, `9b9abcd`, `e4f0179` — all **Ready** |
+| `dev.lets-assist.com` serves | Yes. Vercel deployment protection is on; an authenticated Vercel session passes through |
+| Supabase branch migrations | 218, head `20260807223600` — identical to the repository ledger |
+| Supabase branch advisors | 90 lints, all `INFO`/`rls_enabled_no_policy`; 0 ERROR, 0 WARN |
+| **Production untouched** | **49 migrations, head `20260603035734`** — unchanged throughout this session |
+
+**Which Supabase project the deployment targets is proven by construction rather than by reading a value.** Every Vercel build runs `bun run build`, whose second step is `node scripts/verify-deployment-environment.mjs`. That script refuses any non-production `VERCEL_ENV` whose `NEXT_PUBLIC_SUPABASE_URL` is not HTTPS, is a production host (`api.lets-assist.com`, `fotdmeakexgrkronxlof.supabase.co`), or does not exactly match `EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF`. A **Ready** Preview deployment therefore cannot have been built against production. The three Supabase variables being branch-scoped to `development` is the other half of the same proof.
+
+Browser network inspection could not confirm the target independently: the pages fetch server-side, so the browser never contacts Supabase directly. That is the expected shape for this architecture, not a gap.
+
+### The stale-deployment finding
+
+`a5c4ea7` (*Land the class-stream redesign*) shows **Error at 11 s, 2 days ago** — the same unpushed-submodule failure that took CI down (AUD-007). The Vercel build died at submodule fetch too.
+
+So `dev.lets-assist.com` had been serving a **stale build from 2026-08-06** for two days, and every deployment attempt in between failed the same way. Anyone testing hosted Development during that window was testing old code. Several earlier Errors on 2026-08-02 and 2026-08-03 (`93ca1f2`, `388cb2a`, `c20d31f`, `287cb57`) suggest this has recurred.
+
+The Phase 0 gitlink repair fixed it: the four subsequent commits all deployed **Ready**.
+
+### AUD-013 — `RESEND_API_KEY` is flagged "Needs Attention"
+
+**Priority:** P2 · **Status:** Observed, not investigated
+
+The Vercel environment-variable list shows `RESEND_API_KEY` with a **Needs Attention** badge on both entries — `All Pre-Production Environments` and `Production`. Email delivery is load-bearing for CSF announcement campaigns, waiver notices, and certificate publication. Worth resolving before the cutover, since the release will exercise those paths.
+
+Not investigated further here: reading or rotating a provider credential is outside an audit's remit and needs the account owner.
+
+---
+
 ## Next
 
 AUD-002 and AUD-006 were not in the original plan — they were found during Track 2 and are the highest-value new work. AUD-002 should be fixed in the same cutover as AUD-001, and its code change (AUD-006) can land on `development` immediately, since it is a correctness improvement independent of the RLS change.
