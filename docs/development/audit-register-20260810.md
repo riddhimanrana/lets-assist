@@ -14,12 +14,13 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 
 | ID | Pri | Area | Finding | Status |
 |---|---|---|---|---|
-| [AUD-001](#aud-001) | P0 | Core RLS | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status | Confirmed, live in Production |
-| [AUD-002](#aud-002) | P0 | Core RLS | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection | Confirmed, live in Production |
-| [AUD-003](#aud-003) | P1 | Grants | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions | Confirmed |
-| [AUD-004](#aud-004) | P1 | Plugin audit | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited | Confirmed |
-| [AUD-005](#aud-005) | P2 | Plugin RLS | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob | Confirmed |
-| [AUD-006](#aud-006) | P2 | Architecture | Two `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | Confirmed |
+| [AUD-001](#aud-001) | P0 | Core RLS | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status | **Fixed on `development`**; live in Production until cutover |
+| [AUD-002](#aud-002) | P0 | Core RLS | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection | **Fixed on `development`**; live in Production until cutover |
+| [AUD-003](#aud-003) | P1 | Grants | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions | **Tables fixed**; functions half still open |
+| [AUD-004](#aud-004) | P1 | Plugin audit | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited | **Fixed on `development`** |
+| [AUD-005](#aud-005) | P3 | Plugin RLS | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob | Reclassified — designed behaviour, document the contract |
+| [AUD-006](#aud-006) | P2 | Architecture | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`** |
+| [AUD-012](#aud-012) | P2 | Notifications | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter | Confirmed; fixed for the server path only |
 | [AUD-007](#aud-007) | P2 | CI | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test | Fixed this session |
 | [AUD-008](#aud-008) | P2 | Architecture | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript | Confirmed, by design |
 | [AUD-009](#aud-009) | P2 | Gate coverage | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads` | Confirmed |
@@ -108,7 +109,16 @@ The FUNCTIONS half is the more valuable fix: `GRANT ALL ON FUNCTIONS TO anon` me
 
 **Blast radius of fixing it: zero at cutover.** `ALTER DEFAULT PRIVILEGES` affects only objects created after it runs, and every existing object carries explicit grants.
 
-**Fix:** mirror `20260701054111` for `public`, as its own migration so it can be reverted independently; add a pgTAP assertion on `pg_default_acl`; extend `audit-supabase-architecture.sh`; and add the rule to `AGENTS.md` that every new `public` table and function must carry explicit `GRANT`s. Specification in the plan, Task 5.3.
+**Status after implementation — the tables half is fixed, the functions half is not, and that distinction was established by testing rather than assumed.**
+
+`20260810220400_revoke_public_default_privileges.sql` revokes the TABLES and SEQUENCES defaults for grantors `postgres` and `service_role`. `public_default_privileges.test.sql` proves the property that matters: a freshly created `public` table is unreadable and unwritable by both `anon` and `authenticated`.
+
+Two deliberate exclusions, both verified rather than guessed:
+
+1. **FUNCTIONS.** Postgres grants `EXECUTE` to PUBLIC as a built-in default. Revoking it through `ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` was tested locally and did **not** suppress the `=X/postgres` entry on a newly created function — `has_function_privilege('anon', …)` still returned true even with the default ACL correctly reduced to `{postgres=X, service_role=X}`. Shipping that revoke would have been security theatre. New `SECURITY DEFINER` functions must keep carrying their own explicit `REVOKE EXECUTE … FROM PUBLIC, anon, authenticated`, as `20260701040027`, `20260701051022`, and `20260802195500` already do. **This half of AUD-003 remains open** and needs a different mechanism — most likely a `ddl_command_end` event trigger, or a gate check that fails any migration creating a `public` function without an accompanying revoke.
+2. **`supabase_admin`'s default ACLs**, which also name `anon` and `authenticated`. `postgres` is not superuser on hosted Supabase and cannot alter another role's defaults, so attempting it would fail the deploy. Objects created by migrations use the `postgres` grantor, so this does not affect the fix's coverage.
+
+**Still to do:** extend `audit-supabase-architecture.sh` so re-introduction fails the gate, and add the explicit-`GRANT` rule to `AGENTS.md`.
 
 ---
 
@@ -128,13 +138,20 @@ The FUNCTIONS half is the more valuable fix: `GRANT ALL ON FUNCTIONS TO anon` me
 
 ## AUD-005 — Plugin install configuration is member-readable {#aud-005}
 
-**Priority:** P2 · **Status:** Confirmed
+**Priority:** P3 (revised down from P2) · **Status:** Confirmed, but reclassified as a contract, not a defect
 
-`organization_plugin_installs` has one SELECT policy, `Plugin installs readable by org members`, whose `USING` admits roles `admin`, `staff`, **and `member`**. The row includes the whole `configuration` JSON blob.
+`organization_plugin_installs` has one SELECT policy, `Plugin installs readable by org members`, whose `USING` admits roles `admin`, `staff`, **and `member`**. The row includes the whole `configuration` JSON blob, while the server action `getOrganizationPluginSettings` restricts the same data to admins.
 
-Meanwhile the server action `getOrganizationPluginSettings` restricts the same data to admins via `isOrganizationAdminForSettings()`. The database is more permissive than the application, so any member can read the configuration directly through PostgREST — including any targeting allowlists or operational settings a plugin stores there.
+**Revised after attempting the fix.** The obvious remedy — revoking the `configuration` column from `authenticated` — would break working features. Two private plugins read that column with the **member's own** session client:
 
-**Fix:** column-level grants (the pattern already used for `organizations.join_code` in `20260712014700`) or a `security_invoker` view that omits `configuration` for non-admins. Plan Task 2.3.
+- `lib/plugins/private/plugins/dv-speech-debate/membership-flow.ts:393` — `.select("configuration")`
+- `lib/plugins/private/plugins/dvhs-csf/services/communications-access.ts:102` — `.select("configuration")`
+
+Member-readable configuration is therefore **designed behaviour** that plugins depend on, not an oversight. The correct reading of this finding is not "the database is more permissive than the app" but "the settings action is stricter than the data model, and plugins rely on the looser model."
+
+The residual risk is narrower and real: **any plugin that stores a secret, a token, or an authorization-relevant allowlist in `configuration` is exposing it to every member of that organization.**
+
+**Resolution:** no migration. Document the constraint as part of the plugin contract — `organization_plugin_installs.configuration` is member-readable; it is for settings, never for secrets or authorization data. This belongs in the plugin install guide and in `docs/development/private-plugins.md`. Revisit only if a plugin needs privileged configuration, at which point the right shape is a separate server-only table rather than a column revoke.
 
 ---
 
@@ -241,6 +258,29 @@ Present in schema and, in several cases, in the admin UI — but consulted by no
 
 ---
 
+## AUD-012 — Repeat notifications are silently suppressed {#aud-012}
+
+**Priority:** P2 · **Status:** Confirmed; fixed for the server path, still present in the browser path
+
+`services/notifications.ts` checks for an existing notification before inserting:
+
+```ts
+.from("notifications").select("id")
+  .eq("user_id", userId).eq("type", notification.type).limit(1)
+```
+
+There is no filter on `read`, `displayed`, or `created_at`, and `type` only ever takes three broad values (`general`, `project_updates`, `email_notifications`). So a user who has *ever* received a `project_updates` notification never receives another one. A volunteer whose signup is rejected twice is told once, forever.
+
+The check was almost certainly written for `checkUsernameSetting`'s one-time "set a custom username" nudge, where suppressing repeats is correct, and then applied to every caller.
+
+`services/notifications-server.ts` deliberately omits it, so cancellation and moderation notifications now deliver per event. The browser path — used by `SignupsClient.tsx` — is unchanged and still suppresses.
+
+**Fix:** give the browser service an explicit one-time-nudge affordance (an optional dedupe key) rather than deduping on `type`, and drop the blanket check. Not done in this pass because it changes user-visible behaviour in a flow the audit had not yet exercised.
+
+**Related, not yet investigated:** `app/projects/[id]/hours/actions.ts` inserts volunteer notifications with the publisher's session client. The surviving policy branch requires `p.creator_id = auth.uid()`, so a **staff manager** publishing hours for a project they did not create would fail that insert. This predates today's change — the removed `auth.uid() IS NULL` disjunct never applied there, since a session is always present — but it should be confirmed against a `can_be_managed_by_staff` project.
+
+---
+
 ## Gate baseline, 2026-08-10
 
 Local, on `development` at `9b9abcd`, macOS, Bun 1.3.14.
@@ -255,6 +295,19 @@ Local, on `development` at `9b9abcd`, macOS, Bun 1.3.14.
 | `build` | Pass |
 | `db:test:redesign` | Not yet run in this pass |
 | Hosted `development` advisors (security) | 90 lints, all `INFO`/`rls_enabled_no_policy`; 0 ERROR, 0 WARN |
+
+After the AUD-001..004 fixes, on a full local replay of all 222 migrations:
+
+| Gate | Result |
+|---|---|
+| `supabase db reset` (full replay) | Pass |
+| `supabase test db` (whole suite) | **Pass — 70 files, 3,262 tests** (was 66 files, 3,219) |
+| `db:audit:architecture` | Pass |
+| `db:audit:plugin-isolation` | Pass |
+| `plugin:audit:data-access` | Pass |
+| `supabase db advisors --local --fail-on error` | No issues found |
+
+**Local environment note:** three orphaned isolated CSF stacks (32 containers, ~19 hours old) were left running by earlier sessions and prevented the shared local stack from starting. They were torn down with `scripts/local-dev/stop-dvhs-csf-isolated-stack.sh`, which validated resource ownership before and residual absence after. Nine stale work directories under `/tmp` and `$TMPDIR` were removed with them. Worth checking for periodically — a failed run leaves its stack behind.
 
 Migration ledger: local 218 · hosted `development` 218 (identical) · **Production 49**, head `20260603035734` — 169 behind.
 
