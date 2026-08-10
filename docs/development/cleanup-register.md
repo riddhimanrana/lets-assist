@@ -8,8 +8,16 @@ This register separates actionable repository defects from provider/account and 
 | --------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------ |
 | CLEAN-004 | P2       | Complete keyboard, focus, reduced-motion, and screen-reader acceptance for CSF roles and breakpoints.                                                     | CSF UX cleanup PR | Automated checks plus sanitized browser evidence |
 | CLEAN-005 | P2       | Complete visible synthetic CSF mutation lifecycle for profile claim/resolution, imports, applications, points, meetings/clubs, close/reopen, and reports. | CSF acceptance PR | Role matrix at desktop/tablet/phone              |
+| AUD-001   | P0       | `public.trusted_member` INSERT policy has no `status` guard, so a user can self-grant trusted status and unlock organization and project creation.        | Production cutover | Forward migration with two guards plus `trusted_member_self_grant.test.sql`; live in Production until cutover |
+| AUD-002   | P0       | `public.notifications` INSERT policy ends in `OR (auth.uid() IS NULL)`, letting any unauthenticated caller inject notifications for any user.             | Production cutover | Server callers moved off the browser client, disjunct removed, `notifications_rls.test.sql`; live in Production until cutover |
+| AUD-003   | P1       | `public` default privileges still grant `anon`/`authenticated` on every future table and function; only RLS contains new tables.                          | Production cutover | Revoke migration mirroring `20260701054111`, `pg_default_acl` assertion, architecture-audit check |
+| AUD-004   | P1       | `plugin_audit_logs_action_check` allows 22 action values while the code emits 28, so six lifecycle events — including plugin data deletion — go unaudited. | Plugin control plane PR | Forward migration with all 28 values; `logPluginAudit` stops swallowing `23514` |
+| AUD-005   | P2       | `organization_plugin_installs` is readable by ordinary members, exposing the whole `configuration` blob that the server action restricts to admins.       | Plugin control plane PR | Column grants or `security_invoker` view, plus pgTAP |
+| AUD-006   | P2       | Two `server-only` modules drive notifications through the browser Supabase client, which is why the AUD-002 escape hatch exists.                          | Platform PR       | Server callers use the admin client; module-boundary test forbids `@/lib/supabase/client` in `server-only` modules |
 
-No repository-owned P0 is currently recorded. This is not a claim that undiscovered defects are impossible.
+See [the 2026-08-10 audit register](audit-register-20260810.md) for full evidence, reproduction, and fix specifications for AUD-001 through AUD-011.
+
+Two repository-owned P0 findings are currently recorded, both live in Production and both scheduled for the production cutover by explicit decision.
 
 ## External/account blockers
 
@@ -17,7 +25,7 @@ No repository-owned P0 is currently recorded. This is not a claim that undiscove
 | ------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | EXT-001 | GitHub Support     | Cached views and PR #97 refs for the removed raw workbook require server-side dereferencing/garbage collection. The available browser Support account does not include repository owner `riddhimanrana`. | Repository owner opens Support ticket with affected commit mappings and PR #97 |
 | EXT-002 | Google             | Live OAuth chooser, Picker, Drive import, refresh/reconnect/revocation, 403, and 429 journeys require approved test account/configuration.                                                               | Google account owner authorizes Development-only run                           |
-| EXT-003 | Hosted Development | Persistent Supabase Development, branch-scoped Vercel configuration, authenticated preview, and failed-deployment log access require an account with access to the repository's Vercel team.             | Infrastructure owner provisions/authorizes Development resources               |
+| EXT-003 | Hosted Development | **Partially resolved 2026-08-10:** the persistent Supabase Development branch now exists (`ocbuygudvarsuxijxhau`, created 2026-08-02, `ACTIVE_HEALTHY`, at all 218 migrations). Still open: branch-scoped Vercel configuration, a stable development alias, authenticated preview access past Vercel SSO protection, and failed-deployment log access — all requiring an account with access to the repository's Vercel team. | Infrastructure owner provisions/authorizes the remaining Vercel-side resources |
 | EXT-004 | Production         | Production migrations, provider credentials, aliases, and release acceptance are intentionally outside this program.                                                                                     | Separate release authorization                                                 |
 
 ## Completed milestones
