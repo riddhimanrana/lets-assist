@@ -61,21 +61,34 @@ describe("local browser verification origin", () => {
       "utf8",
     );
 
+    // The port is allocated per run so concurrent stacks cannot collide, so the
+    // guarantee is no longer a literal 3000 — it is that every origin value the
+    // app sees derives from the same single port variable, and that the variable
+    // still defaults to the Let's Assist port.
+    expect(launcher).toContain('APP_PORT="${CSF_ISOLATED_APP_PORT:-3000}"');
     expect(launcher).toContain(
-      'emit_app_env_value NEXT_PUBLIC_SITE_URL "http://localhost:3000"',
+      'emit_app_env_value NEXT_PUBLIC_SITE_URL "http://localhost:${APP_PORT}"',
     );
     expect(launcher).toContain(
-      'emit_app_env_value SITE_URL "http://localhost:3000"',
+      'emit_app_env_value SITE_URL "http://localhost:${APP_PORT}"',
     );
     expect(launcher).toContain(
-      'emit_app_env_value NEXT_PUBLIC_VERCEL_URL "localhost:3000"',
+      'emit_app_env_value NEXT_PUBLIC_VERCEL_URL "localhost:${APP_PORT}"',
     );
     expect(environmentContract).toContain(
-      'const CSF_ISOLATED_SITE_URL = "http://localhost:3000";',
+      "const CSF_ISOLATED_SITE_URL = `http://localhost:${CSF_ISOLATED_APP_PORT}`;",
     );
     expect(environmentContract).toContain(
-      'const CSF_ISOLATED_VERCEL_URL = "localhost:3000";',
+      "const CSF_ISOLATED_VERCEL_URL = `localhost:${CSF_ISOLATED_APP_PORT}`;",
     );
+    // Every origin the launcher emits must carry the port variable rather than a
+    // baked-in port — a stray literal is how the two sides drift back out of
+    // agreement, which is the drift this test exists to catch.
+    for (const emitted of launcher.matchAll(
+      /emit_app_env_value \w*(?:SITE|VERCEL)_URL "[^"]*"/gu,
+    )) {
+      expect(emitted[0]).toContain("${APP_PORT}");
+    }
   });
 
   test("the CSF workflow gate never assumes a default app origin", () => {
