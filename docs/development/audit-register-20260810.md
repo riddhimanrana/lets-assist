@@ -352,6 +352,50 @@ Not investigated further here: reading or rotating a provider credential is outs
 
 ---
 
+## The parked Codex branch
+
+`codex/csf-lifecycle-overhaul` has been idle since 2026-08-09 18:57. Audited separately, as decided, and **not merged**.
+
+### It existed only on this machine
+
+Neither the root branch nor its submodule branch was on any remote, and both carried uncommitted work. A stray checkout would have destroyed it. All of it is now pushed:
+
+| Ref | Repository | Contents |
+|---|---|---|
+| `codex/csf-lifecycle-overhaul` | root | 2 commits ahead of `development`, +18,611 lines |
+| `codex/csf-lifecycle-overhaul` | plugins | Codex's private-plugin work, including `42388fc` |
+| `wip/codex-root-snapshot-20260810` | root | The worktree's uncommitted work — 28 files, 2,521 insertions |
+| `wip/codex-spill-20260810` | plugins | An intermediate Codex state found in the main checkout |
+
+The root snapshot was taken with `commit-tree` against a throwaway index, so the worktree, its HEAD, and its index were left untouched and Codex can resume exactly where it stopped. It contains work that existed nowhere else, notably `supabase/migrations/20260810021019_csf_posting_role_permission_rollout.sql` and new suites for design-token contrast, brand-token separation, footer target size, focusable scrollable regions, signup request origin, and a signup email PKCE round trip.
+
+### AUD-014 — Codex's migrations all predate this session's {#aud-014}
+
+**Priority:** P2 · **Status:** Confirmed · **Affects merge order, not correctness**
+
+| Set | Range | Count |
+|---|---|---|
+| Codex | `20260809211732` → `20260810015500` | 11 committed, plus `20260810021019` uncommitted |
+| This session | `20260810220100` → `20260810220500` | 5 |
+
+No filename or timestamp collisions. But **every Codex timestamp is earlier than every one of this session's**, so merging Codex *after* these have been applied somewhere would append migrations that sort before the recorded head — the ledger would no longer be ordered.
+
+There is no problem yet: the hosted `development` branch is still at `20260807223600`, so **neither set has been applied anywhere remote**. That is what makes this cheap to fix, and it will not stay true.
+
+**Recommendation: merge `codex/csf-lifecycle-overhaul` into `development` before pushing anything to the hosted branch or Production.** A replay then orders both sets correctly by timestamp and a single `db push` applies them in order.
+
+If Codex lands later instead, renumber its migrations to follow the current head. That is legitimate here precisely because they have never been applied to any database — renumbering an *applied* migration would not be.
+
+The two sets are also disjoint in what they touch: Codex's are all `csf_*`, while this session's touch `trusted_member`, `notifications`, `plugin_audit_logs`, `public` default privileges, and `organizations`. So the risk is ledger hygiene rather than a broken dependency.
+
+### Not yet done for the Codex branch
+
+- A full `db:test:redesign` replay in its own worktree, which needs its own isolated stack.
+- Reconciling its `app/organization/[id]/page.tsx` changes with the setup checklist added to the same file this session — a likely merge conflict.
+- Reviewing its 11 migrations and ~6,000 lines of new pgTAP on their merits.
+
+---
+
 ## Next
 
 AUD-002 and AUD-006 were not in the original plan — they were found during Track 2 and are the highest-value new work. AUD-002 should be fixed in the same cutover as AUD-001, and its code change (AUD-006) can land on `development` immediately, since it is a correctness improvement independent of the RLS change.

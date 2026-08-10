@@ -12,11 +12,12 @@ This register separates actionable repository defects from provider/account and 
 | AUD-002   | P0       | `public.notifications` INSERT policy ends in `OR (auth.uid() IS NULL)`, letting any unauthenticated caller inject notifications for any user.             | Production cutover | Server callers moved off the browser client, disjunct removed, `notifications_rls.test.sql`; live in Production until cutover |
 | AUD-003   | P1       | `public` default privileges granted `anon`/`authenticated` on every future table and function. Tables and sequences are fixed; the FUNCTIONS half is still open because Postgres grants EXECUTE to PUBLIC as a built-in default that ALTER DEFAULT PRIVILEGES does not suppress. | Production cutover | Tables done and pgTAP-proven; functions need an event trigger or a migration gate check |
 | AUD-004   | P1       | `plugin_audit_logs_action_check` allows 22 action values while the code emits 28, so six lifecycle events — including plugin data deletion — go unaudited. | Plugin control plane PR | Forward migration with all 28 values; `logPluginAudit` stops swallowing `23514` |
+| AUD-014   | P2       | Every `codex/csf-lifecycle-overhaul` migration timestamp predates this session's five, so merging Codex after these are applied would leave the ledger unordered. Neither set is applied remotely yet. | Merge order | Merge Codex into `development` before any hosted push, or renumber its migrations |
 | AUD-013   | P2       | `RESEND_API_KEY` is flagged "Needs Attention" on both Production and Pre-Production in Vercel; email delivery is load-bearing for CSF campaigns, waiver notices, and certificates. | Account owner | Credential resolved or rotated before the cutover |
 | AUD-012   | P2       | The browser notification service suppresses any notification whose `(user_id, type)` pair already exists, so repeat notices are silently dropped.          | Platform PR       | Dedupe key replaces the type-wide check; server path already fixed |
 | AUD-006   | P2       | Three `server-only` modules drive notifications through the browser Supabase client, which is why the AUD-002 escape hatch exists.                          | Platform PR       | Server callers use the admin client; module-boundary test forbids `@/lib/supabase/client` in `server-only` modules |
 
-See [the 2026-08-10 audit register](audit-register-20260810.md) for full evidence, reproduction, and fix specifications for AUD-001 through AUD-012.
+See [the 2026-08-10 audit register](audit-register-20260810.md) for full evidence, reproduction, and fix specifications for AUD-001 through AUD-014.
 
 Two repository-owned P0 findings are currently recorded, both live in Production and both scheduled for the production cutover by explicit decision.
 
