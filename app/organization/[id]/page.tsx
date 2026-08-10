@@ -5,6 +5,8 @@ import { formatUtcCalendarDateLabel } from "@/lib/date-format";
 import { getPublicProfilesByIds } from "@/lib/profile/public";
 import { Metadata } from "next";
 import OrganizationHeader from "@/components/organization/OrganizationHeader";
+import OrganizationSetupChecklist from "@/components/organization/OrganizationSetupChecklist";
+import { loadOrganizationSetupChecklist } from "./server/setup-checklist-query";
 import OrganizationTabs from "@/components/organization/OrganizationTabs";
 import type { OrganizationPluginRouteTabLink } from "@/components/organization/OrganizationTabs";
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
@@ -410,6 +412,22 @@ export default async function OrganizationPage({
   const pluginTabs = pluginTabsContributions
     .filter((contribution) => isAllowedPluginSurface(contribution.pluginKey))
     .flatMap((c) => c.behavior);
+  // Admins get a setup checklist until the organization is configured or they
+  // dismiss it. Everything but the dismissal flag comes from data already
+  // loaded above, so this is one narrow read and only for admins.
+  const setupChecklist =
+    userRole === "admin"
+      ? await loadOrganizationSetupChecklist({
+          organizationId: organization.id,
+          organizationSlug: organization.username ?? organization.id,
+          logoUrl: organization.logo_url ?? null,
+          description: organization.description ?? null,
+          type: organization.type ?? null,
+          memberCount,
+          projectCount: projects?.length ?? 0,
+        })
+      : null;
+
   const organizationForDisplay = {
     id: organization.id,
     name: organization.name,
@@ -508,6 +526,13 @@ export default async function OrganizationPage({
           showProjectAction={!navOverrides.hideProjectAction}
           compact={navOverrides.compactHeader}
         />
+
+        {setupChecklist?.shouldShow && (
+          <OrganizationSetupChecklist
+            organizationId={organization.id}
+            checklist={setupChecklist}
+          />
+        )}
 
         <div
           className={cn(
