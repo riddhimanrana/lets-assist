@@ -108,10 +108,11 @@ export const sendCertificatePublishedEmails = async (
 
 /**
  * Supplemental issuance for signups committed onto an already-published
- * session (paper scans). certificates.signup_id has no unique constraint, so
- * the pre-filter against existing certificates is what makes this idempotent
- * — never skip it. Does not flip the session's published flag: it is
- * already true, and flipping it is the publish flow's job.
+ * session (paper scans). The service-only RPC derives certificate data from
+ * the database and uses the verified-signup unique index as its conflict
+ * arbiter, so a raced signup cannot discard unaffected rows in the batch.
+ * Does not flip the session's published flag: it is already true, and
+ * flipping it is the publish flow's job.
  */
 export async function issueCertificatesForSignups(options: {
   projectId: string;
@@ -120,8 +121,12 @@ export async function issueCertificatesForSignups(options: {
   actorId: string;
 }): Promise<{ issued: number; emailsSent: number; errors: string[] }> {
   const { projectId, scheduleId, signupIds, actorId } = options;
-  if (signupIds.length === 0) {
+  const requestedSignupIds = [...new Set(signupIds)];
+  if (requestedSignupIds.length === 0) {
     return { issued: 0, emailsSent: 0, errors: [] };
+  }
+  if (requestedSignupIds.length > 500) {
+    return { issued: 0, emailsSent: 0, errors: ["too_many_signups"] };
   }
 
   const admin = getAdminClient();
@@ -129,88 +134,21 @@ export async function issueCertificatesForSignups(options: {
 
   const { data: projectData, error: projectError } = await admin
     .from("projects")
-    .select(
-      "id, title, location, verification_method, project_timezone, profiles!projects_creator_id_fkey1 (full_name), organization:organizations (name, verified)",
-    )
+    .select("id, title, project_timezone")
     .eq("id", projectId)
     .single();
   if (projectError || !projectData) {
     return { issued: 0, emailsSent: 0, errors: ["project_not_found"] };
   }
-  const creatorName =
-    (projectData.profiles as unknown as { full_name: string | null } | null)
-      ?.full_name || "Project Organizer";
-  const organization = projectData.organization as unknown as {
-    name: string | null;
-    verified: boolean | null;
-  } | null;
-
-  // Idempotency pre-filter: skip any signup that already holds a certificate.
-  const { data: existingCerts } = await admin
-    .from("certificates")
-    .select("signup_id")
-    .in("signup_id", signupIds);
-  const alreadyIssued = new Set(
-    (existingCerts ?? []).map((cert) => cert.signup_id),
+  const { data: insertedCerts, error: insertError } = await admin.rpc(
+    "issue_supplemental_verified_certificates",
+    {
+      p_project_id: projectId,
+      p_schedule_id: scheduleId,
+      p_signup_ids: requestedSignupIds,
+      p_actor_id: actorId,
+    },
   );
-  const pendingIds = signupIds.filter((id) => !alreadyIssued.has(id));
-  if (pendingIds.length === 0) {
-    return { issued: 0, emailsSent: 0, errors: [] };
-  }
-
-  const { data: signups, error: signupsError } = await admin
-    .from("project_signups")
-    .select(
-      "id, user_id, anonymous_id, check_in_time, check_out_time, profiles(full_name, email), anonymous_signups(name, email)",
-    )
-    .in("id", pendingIds)
-    .eq("project_id", projectId)
-    .eq("status", "attended");
-  if (signupsError || !signups || signups.length === 0) {
-    return { issued: 0, emailsSent: 0, errors: ["signups_not_found"] };
-  }
-
-  const certificatesToInsert = signups
-    .filter((signup) => signup.check_in_time && signup.check_out_time)
-    .map((signup) => {
-      const profile = signup.profiles as unknown as {
-        full_name: string | null;
-        email: string | null;
-      } | null;
-      const anon = signup.anonymous_signups as unknown as {
-        name: string | null;
-        email: string | null;
-      } | null;
-      return {
-        project_id: projectId,
-        user_id: signup.user_id,
-        signup_id: signup.id,
-        volunteer_name: profile?.full_name || anon?.name || "No Name Volunteer",
-        volunteer_email: profile?.email || anon?.email || null,
-        project_title: projectData.title,
-        project_location: projectData.location,
-        event_start: signup.check_in_time,
-        event_end: signup.check_out_time,
-        organization_name: organization?.name ?? null,
-        creator_name: creatorName,
-        is_certified: organization?.verified ?? false,
-        creator_id: actorId,
-        type: "verified" as const,
-        check_in_method: projectData.verification_method,
-        schedule_id: scheduleId,
-      };
-    });
-
-  if (certificatesToInsert.length === 0) {
-    return { issued: 0, emailsSent: 0, errors: [] };
-  }
-
-  const { data: insertedCerts, error: insertError } = await admin
-    .from("certificates")
-    .insert(certificatesToInsert)
-    .select(
-      "id, user_id, volunteer_name, volunteer_email, project_title, event_start, event_end",
-    );
   if (insertError) {
     return {
       issued: 0,
@@ -219,7 +157,9 @@ export async function issueCertificatesForSignups(options: {
     };
   }
 
-  const inserted = insertedCerts ?? [];
+  const inserted = (insertedCerts ?? []) as Array<
+    CertificateEmailRow & { user_id: string | null }
+  >;
 
   // In-app notifications for registered volunteers, matching publishVolunteerHours.
   await Promise.allSettled(

@@ -19,13 +19,7 @@ import {
   FileText,
   Mail,
 } from "lucide-react";
-import {
-  format,
-  parseISO,
-  differenceInMinutes,
-  differenceInSeconds,
-  isAfter,
-} from "date-fns";
+import { format, parseISO, differenceInMinutes, isAfter } from "date-fns";
 import {
   Tooltip,
   TooltipContent,
@@ -75,6 +69,7 @@ import { publishVolunteerHours, resendCertificateEmails } from "./actions";
 import { TimePicker } from "@/components/ui/time-picker"; // Import the TimePicker
 import { formatTimeTo12Hour } from "@/lib/utils"; // Assuming this exists and works
 import { getMultiDaySlotDisplayName } from "@/utils/project";
+import { calculateHoursDuration as calculateDuration } from "./hours-duration";
 
 // Define the structure for edited times
 type EditedTime = {
@@ -224,58 +219,6 @@ export function HoursClient({
     }
 
     return sessionId; // Fallback if no formatting rules matched
-  };
-
-  // Enhanced duration calculation with validation
-  const calculateDuration = (
-    checkInISO: string | null,
-    checkOutISO: string | null,
-  ): {
-    text: string;
-    isValid: boolean;
-    minutes: number;
-  } => {
-    if (!checkInISO || !checkOutISO) {
-      return { text: "--:--", isValid: false, minutes: 0 };
-    }
-
-    try {
-      const checkIn = parseISO(checkInISO);
-      const checkOut = parseISO(checkOutISO);
-
-      // Calculate difference in seconds and convert to minutes with rounding
-      const diffSeconds = differenceInSeconds(checkOut, checkIn);
-      const diffMins = Math.round(diffSeconds / 60);
-
-      // Various validation checks
-      if (diffMins < 0) {
-        return {
-          text: "Invalid: Check-out before check-in",
-          isValid: false,
-          minutes: 0,
-        };
-      }
-
-      // Check for unreasonably long duration (more than 24 hours)
-      if (diffMins > 24 * 60) {
-        return {
-          text: `${Math.floor(diffMins / 60)}h ${diffMins % 60}m (Excessive)`,
-          isValid: false,
-          minutes: diffMins,
-        };
-      }
-
-      // Valid duration
-      const hours = Math.floor(diffMins / 60);
-      const minutes = diffMins % 60;
-      return {
-        text: `${hours}h ${minutes}m`,
-        isValid: true,
-        minutes: diffMins,
-      };
-    } catch {
-      return { text: "Error parsing dates", isValid: false, minutes: 0 };
-    }
   };
 
   // Handler for DateTimePicker changes
@@ -522,19 +465,35 @@ export function HoursClient({
         return;
       }
 
+      const publicationEntries = volunteersData.map((volunteer) => ({
+        signupId: volunteer.signupId,
+        checkIn: volunteer.checkIn,
+        checkOut: volunteer.checkOut,
+        isValid: volunteer.isValid,
+      }));
       const result = await publishVolunteerHours(
         project.id,
         sessionId,
-        volunteersData,
+        publicationEntries,
       );
 
       if (result.success) {
         const emailsSent = result.emailsSent ?? 0;
         const emailErrors = result.emailErrors ?? [];
+        const wasReplayed = result.outcome === "replayed";
+        const wasPartial = result.outcome === "partial";
 
-        if (emailsSent > 0) {
+        if (wasReplayed) {
+          toast.success("Hours Already Published", {
+            description: `The existing publication receipt was replayed safely for session: ${formatSessionName(project, sessionId)}. No certificates were duplicated.`,
+          });
+        } else if (emailsSent > 0 && !wasPartial) {
           toast.success("Hours Published & Emails Sent!", {
             description: `${result.certificatesCreated} certificates generated and ${emailsSent} email notifications sent for session: ${formatSessionName(project, sessionId)}.`,
+          });
+        } else if (wasPartial) {
+          toast.warning("Hours Published; Delivery Needs Attention", {
+            description: `${result.certificatesCreated} certificates were committed for session: ${formatSessionName(project, sessionId)}. Some email work was recorded for safe follow-up.`,
           });
         } else {
           toast.success("Hours Published!", {
@@ -598,21 +557,6 @@ export function HoursClient({
     }));
 
     try {
-      // Find all certificates for this session to get their IDs
-      let sessionSignups: ProjectSignup[] = [];
-      if (signupsBySession[sessionId]) {
-        sessionSignups = signupsBySession[sessionId];
-      }
-
-      // Extract certificate IDs from signups
-      // In a real scenario, we'd fetch actual certificates from DB
-      // For now, we'll collect emails and let the action handle it
-
-      if (sessionSignups.length === 0) {
-        toast.error("No volunteers found for this session");
-        return;
-      }
-
       const result = await resendCertificateEmails(project.id, sessionId);
       if (!result.success) {
         toast.error("Certificates were not resent", {
@@ -623,6 +567,20 @@ export function HoursClient({
 
       const emailsSent = result.emailsSent ?? 0;
       const emailErrors = result.emailErrors ?? [];
+      if (result.deliveryMode === "durable-retry") {
+        toast.success(
+          `${emailsSent} certificate email${emailsSent === 1 ? " is" : "s are"} confirmed accepted`,
+          emailErrors.length > 0
+            ? {
+                description: `${emailErrors.length} durable delivery item${emailErrors.length === 1 ? " still needs" : "s still need"} attention.`,
+              }
+            : {
+                description:
+                  "The durable publication ledger is fully reconciled.",
+              },
+        );
+        return;
+      }
       toast.success(
         `${emailsSent} certificate email${emailsSent === 1 ? "" : "s"} resent`,
         emailErrors.length > 0

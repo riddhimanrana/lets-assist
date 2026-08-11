@@ -36,7 +36,8 @@ SELECT extensions.results_eq(
         ('public.get_public_attendees(uuid)', 'authenticated'),
         ('public.is_project_organizer(uuid,uuid)', 'authenticated'),
         ('public.is_super_admin()', 'authenticated'),
-        ('public.is_trusted_member(uuid)', 'authenticated')
+        ('public.is_trusted_member(uuid)', 'authenticated'),
+        ('public.publish_volunteer_hours_transactional(uuid,text,jsonb,text)', 'authenticated')
     ) AS expected(signature, role_name)
     ORDER BY 1, 2
   $$,

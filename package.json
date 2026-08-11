@@ -55,6 +55,7 @@
     "db:audit:architecture": "bash scripts/audit-supabase-architecture.sh",
     "db:audit:remote-readiness": "bash scripts/audit-supabase-remote-readiness.sh",
     "db:test:redesign": "bash scripts/local-dev/verify-supabase-redesign.sh",
+    "db:test:hours-concurrency": "bash scripts/local-dev/test-hours-publication-concurrency.sh",
     "plugin:audit:data-access": "bash scripts/audit-plugin-data-access.sh",
     "audit:inventory": "node scripts/generate-audit-surface-inventory.mjs",
     "source:check:organization": "node scripts/check-source-organization.mjs && cd lib/plugins/private && node ../../../scripts/check-source-organization.mjs",
