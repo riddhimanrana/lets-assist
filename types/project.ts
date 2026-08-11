@@ -1,19 +1,20 @@
 // Project-related types
-import type { 
-  EventType, 
-  VerificationMethod, 
-  ProjectStatus, 
+import type {
+  EventType,
+  VerificationMethod,
+  ProjectStatus,
   ProjectVisibility,
   OrganizationRole,
   LocationData,
   ProjectWorkflowStatus,
   RecurrenceFrequency,
   RecurrenceEndType,
-  RecurrenceWeekday
-} from './common';
-import type { ProjectSchedule } from './schedule';
-import type { Profile } from './profile';
-import type { Organization } from './organization';
+  RecurrenceWeekday,
+} from "./common";
+import type { ProjectSchedule } from "./schedule";
+import type { Profile } from "./profile";
+import type { Organization } from "./organization";
+import type { FormSchema } from "@/lib/forms/engine";
 
 // Project document attachment
 export interface ProjectDocument {
@@ -54,6 +55,7 @@ export interface Project {
   status: ProjectStatus;
   visibility: ProjectVisibility;
   organization_id?: string;
+  can_be_managed_by_staff?: boolean;
   organization?: Organization;
   pause_signups: boolean;
   created_by_role?: OrganizationRole;
@@ -73,5 +75,5 @@ export interface Project {
   recurrence_parent_id?: string;
   recurrence_sequence?: number;
   restrict_to_org_domains?: boolean;
-  signup_form_schema?: any | null;
+  signup_form_schema?: FormSchema | null;
 }

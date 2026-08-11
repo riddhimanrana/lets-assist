@@ -1,7 +1,18 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +29,8 @@ export function GettingStartedSection() {
             Welcome to Let&apos;s Assist
           </CardTitle>
           <CardDescription>
-            Your complete guide to tracking volunteer hours and managing projects
+            Your complete guide to tracking volunteer hours and managing
+            projects
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -61,12 +73,20 @@ export function GettingStartedSection() {
           <AccordionContent className="space-y-3">
             <p>Follow these steps to get your account ready:</p>
             <ol className="list-decimal list-inside space-y-2 text-sm">
-              <li>Complete your profile with your full name and contact information</li>
+              <li>
+                Complete your profile with your full name and contact
+                information
+              </li>
               <li>Upload a profile picture (optional but recommended)</li>
               <li>Set your time zone and notification preferences</li>
               <li>Connect with organizations you volunteer with</li>
             </ol>
-            <Link href="/dashboard" className={cn(buttonVariants({ size: "sm" }))}>Go to Dashboard</Link>
+            <Link
+              href="/dashboard"
+              className={cn(buttonVariants({ size: "sm" }))}
+            >
+              Go to Dashboard
+            </Link>
           </AccordionContent>
         </AccordionItem>
 
@@ -77,11 +97,21 @@ export function GettingStartedSection() {
               <div>
                 <h5 className="font-medium mb-2">Main Sections:</h5>
                 <ul className="space-y-1">
-                  <li><strong>Home:</strong> Your activity overview</li>
-                  <li><strong>Dashboard:</strong> Hour tracking and stats</li>
-                  <li><strong>Projects:</strong> Manage your volunteer projects</li>
-                  <li><strong>Organizations:</strong> Connect with groups</li>
-                  <li><strong>Certificates:</strong> View your achievements</li>
+                  <li>
+                    <strong>Home:</strong> Your activity overview
+                  </li>
+                  <li>
+                    <strong>Dashboard:</strong> Hour tracking and stats
+                  </li>
+                  <li>
+                    <strong>Projects:</strong> Manage your volunteer projects
+                  </li>
+                  <li>
+                    <strong>Organizations:</strong> Connect with groups
+                  </li>
+                  <li>
+                    <strong>Certificates:</strong> View your achievements
+                  </li>
                 </ul>
               </div>
               <div>
@@ -103,16 +133,29 @@ export function GettingStartedSection() {
             <p>Ready to start tracking your volunteer work? Here&apos;s how:</p>
             <div className="space-y-3">
               <div className="p-3 bg-muted/50 rounded-lg">
-                <h6 className="font-medium text-sm mb-1">Option 1: Join an Organization</h6>
-                <p className="text-sm text-muted-foreground">Browse organizations and join projects with built-in verification</p>
+                <h6 className="font-medium text-sm mb-1">
+                  Option 1: Join an Organization
+                </h6>
+                <p className="text-sm text-muted-foreground">
+                  Browse organizations and join projects with built-in
+                  verification
+                </p>
               </div>
               <div className="p-3 bg-muted/50 rounded-lg">
-                <h6 className="font-medium text-sm mb-1">Option 2: Create Individual Project</h6>
-                <p className="text-sm text-muted-foreground">Track personal volunteer work with manual hour entry</p>
+                <h6 className="font-medium text-sm mb-1">
+                  Option 2: Create Individual Project
+                </h6>
+                <p className="text-sm text-muted-foreground">
+                  Track personal volunteer work with manual hour entry
+                </p>
               </div>
               <div className="p-3 bg-muted/50 rounded-lg">
-                <h6 className="font-medium text-sm mb-1">Option 3: Import Existing Hours</h6>
-                <p className="text-sm text-muted-foreground">Upload a CSV file of your previous volunteer work</p>
+                <h6 className="font-medium text-sm mb-1">
+                  Option 3: Import Existing Hours
+                </h6>
+                <p className="text-sm text-muted-foreground">
+                  Upload a CSV file of your previous volunteer work
+                </p>
               </div>
             </div>
           </AccordionContent>

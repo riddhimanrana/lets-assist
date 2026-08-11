@@ -10,7 +10,7 @@ import {
   Column,
   Link,
   Preview,
-} from "@react-email/components";
+} from "react-email";
 import * as React from "react";
 import EmailButton from "./_components/EmailButton";
 import EmailHeader from "./_components/EmailHeader";
@@ -81,8 +81,8 @@ export default function UserSignupConfirmation({
               <Heading style={heading1}>You're signed up</Heading>
               <Text style={paragraph}>Hi {userName},</Text>
               <Text style={paragraph}>
-                Your signup for <strong>{projectName}</strong> is confirmed. We&apos;re excited to have
-                you!
+                Your signup for <strong>{projectName}</strong> is confirmed.
+                We&apos;re excited to have you!
               </Text>
 
               {/* Event Details */}
@@ -126,7 +126,9 @@ export default function UserSignupConfirmation({
 
               {/* Action */}
               <Section style={buttonContainer}>
-                <EmailButton href={projectUrl}>View project details</EmailButton>
+                <EmailButton href={projectUrl}>
+                  View project details
+                </EmailButton>
               </Section>
 
               <Section style={gettingStarted}>

@@ -35,7 +35,7 @@ type OrganizationDisplay = Organization & {
 };
 
 type MembershipRow = {
-  role: 'admin' | 'staff' | 'member';
+  role: "admin" | "staff" | "member";
   organizations?: OrganizationDisplay | null;
 };
 
@@ -57,7 +57,7 @@ export default function OrganizationsDisplay({
   userMemberships,
   isTrusted = false,
   applicationStatus = undefined,
-  sourceBadge = "local-only",
+  sourceBadge: _sourceBadge = "local-only",
   previewWarning = null,
 }: OrganizationsDisplayProps) {
   const getCreatedAtTime = (value?: string | null) =>
@@ -69,8 +69,12 @@ export default function OrganizationsDisplay({
   const [sortBy, setSortBy] = useState("verified-first");
 
   // Helper function to get user's role for an organization
-  const getUserRole = (orgId: string): 'admin' | 'staff' | 'member' | undefined => {
-    const membership = userMemberships.find(m => m.organizations?.id === orgId);
+  const getUserRole = (
+    orgId: string,
+  ): "admin" | "staff" | "member" | undefined => {
+    const membership = userMemberships.find(
+      (m) => m.organizations?.id === orgId,
+    );
     return membership?.role;
   };
 
@@ -81,11 +85,12 @@ export default function OrganizationsDisplay({
     // Apply search filter
     if (search) {
       const searchLower = search.toLowerCase().trim();
-      result = result.filter(org =>
-        org.name.toLowerCase().includes(searchLower) ||
-        org.username.toLowerCase().includes(searchLower) ||
-        org.description?.toLowerCase().includes(searchLower) ||
-        org.type.toLowerCase().includes(searchLower)
+      result = result.filter(
+        (org) =>
+          org.name.toLowerCase().includes(searchLower) ||
+          org.username.toLowerCase().includes(searchLower) ||
+          org.description?.toLowerCase().includes(searchLower) ||
+          org.type.toLowerCase().includes(searchLower),
       );
     }
 
@@ -94,16 +99,24 @@ export default function OrganizationsDisplay({
       case "verified-first":
         result.sort((a, b) => {
           if (a.verified === b.verified) {
-            return getCreatedAtTime(b.created_at) - getCreatedAtTime(a.created_at);
+            return (
+              getCreatedAtTime(b.created_at) - getCreatedAtTime(a.created_at)
+            );
           }
           return b.verified ? 1 : -1;
         });
         break;
       case "newest":
-        result.sort((a, b) => getCreatedAtTime(b.created_at) - getCreatedAtTime(a.created_at));
+        result.sort(
+          (a, b) =>
+            getCreatedAtTime(b.created_at) - getCreatedAtTime(a.created_at),
+        );
         break;
       case "oldest":
-        result.sort((a, b) => getCreatedAtTime(a.created_at) - getCreatedAtTime(b.created_at));
+        result.sort(
+          (a, b) =>
+            getCreatedAtTime(a.created_at) - getCreatedAtTime(b.created_at),
+        );
         break;
       case "alphabetical":
         result.sort((a, b) => a.name.localeCompare(b.name));
@@ -113,7 +126,7 @@ export default function OrganizationsDisplay({
     // Separate user's organizations and other organizations
     // Create a map of user memberships for quick lookup
     const membershipMap = new Map();
-    userMemberships.forEach(membership => {
+    userMemberships.forEach((membership) => {
       if (membership.organizations) {
         membershipMap.set(membership.organizations.id, membership.role);
       }
@@ -123,7 +136,7 @@ export default function OrganizationsDisplay({
     const userOrganizations = userMemberships
       .map((membership) => membership.organizations)
       .filter((org): org is OrganizationDisplay => Boolean(org));
-    const otherOrgsList = result.filter(org => !membershipMap.has(org.id));
+    const otherOrgsList = result.filter((org) => !membershipMap.has(org.id));
 
     // Update state
     setUserOrgs(userOrganizations);
@@ -136,7 +149,10 @@ export default function OrganizationsDisplay({
     <div className="mx-auto px-4 sm:px-8 lg:px-12 py-8">
       <div className="w-full space-y-4 sm:space-y-8">
         {/* Header section */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4" data-tour-id="org-header">
+        <div
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
+          data-tour-id="org-header"
+        >
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Organizations</h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-1">
@@ -144,30 +160,38 @@ export default function OrganizationsDisplay({
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2" data-tour-id="org-actions">
+          <div
+            className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
+            data-tour-id="org-actions"
+          >
             {isLoggedIn && (
               <>
                 <CsvVerificationModal />
                 <JoinOrganizationDialog />
                 {isTrusted || applicationStatus === true ? (
-                  <Link href="/organization/create" className={cn(buttonVariants(), "w-full sm:w-auto")}>
+                  <Link
+                    href="/organization/create"
+                    className={cn(buttonVariants(), "w-full sm:w-auto")}
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     Create Organization
                   </Link>
                 ) : (
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger render={
-                        <span className="w-full sm:w-auto inline-flex">
-                          <Button
-                            className="w-full sm:w-auto cursor-not-allowed opacity-60 pointer-events-none"
-                            disabled
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Create Organization
-                          </Button>
-                        </span>
-                      } />
+                      <TooltipTrigger
+                        render={
+                          <span className="w-full sm:w-auto inline-flex">
+                            <Button
+                              className="w-full sm:w-auto cursor-not-allowed opacity-60 pointer-events-none"
+                              disabled
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              Create Organization
+                            </Button>
+                          </span>
+                        }
+                      />
                       <TooltipContent className="text-xs font-normal max-w-xs">
                         {applicationStatus === false
                           ? "It looks like you already applied for Trusted Member access. Please email support@lets-assist.com for help."
@@ -179,7 +203,13 @@ export default function OrganizationsDisplay({
               </>
             )}
             {!isLoggedIn && (
-              <Link href="/login?redirect=/organization" className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}>
+              <Link
+                href="/login?redirect=/organization"
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "w-full sm:w-auto",
+                )}
+              >
                 Sign In to Join or Create
               </Link>
             )}
@@ -211,12 +241,14 @@ export default function OrganizationsDisplay({
           </div>
 
           <DropdownMenu>
-            <DropdownMenuTrigger render={
-              <Button variant="outline">
-                <Settings2 className="mr-2 h-4 w-4" />
-                Filter & Sort
-              </Button>
-            } />
+            <DropdownMenuTrigger
+              render={
+                <Button variant="outline">
+                  <Settings2 className="mr-2 h-4 w-4" />
+                  Filter & Sort
+                </Button>
+              }
+            />
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuGroup>
                 <DropdownMenuLabel>Sort By</DropdownMenuLabel>
@@ -248,25 +280,36 @@ export default function OrganizationsDisplay({
               {search ? `No results for "${search}"` : "No organizations yet"}
             </h3>
             <p className="mt-2 text-sm sm:text-base text-muted-foreground">
-              {search ? "Try different keywords or filters" : "Be the first to create an organization!"}
+              {search
+                ? "Try different keywords or filters"
+                : "Be the first to create an organization!"}
             </p>
-            {isLoggedIn && !search && (
-              (isTrusted || applicationStatus === true) ? (
-                <Link href="/organization/create" className={cn(buttonVariants(), "mt-4")}>
+            {isLoggedIn &&
+              !search &&
+              (isTrusted || applicationStatus === true ? (
+                <Link
+                  href="/organization/create"
+                  className={cn(buttonVariants(), "mt-4")}
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   Create Organization
                 </Link>
               ) : (
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger render={
-                      <span className="mt-4 inline-flex">
-                        <Button className="cursor-not-allowed opacity-60 pointer-events-none" disabled>
-                          <Plus className="w-4 h-4 mr-2" />
-                          Create Organization
-                        </Button>
-                      </span>
-                    } />
+                    <TooltipTrigger
+                      render={
+                        <span className="mt-4 inline-flex">
+                          <Button
+                            className="cursor-not-allowed opacity-60 pointer-events-none"
+                            disabled
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create Organization
+                          </Button>
+                        </span>
+                      }
+                    />
                     <TooltipContent className="text-xs font-normal max-w-xs">
                       {applicationStatus === false
                         ? "It looks like you already applied for Trusted Member access. Please email support@lets-assist.com for help."
@@ -274,8 +317,7 @@ export default function OrganizationsDisplay({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-              )
-            )}
+              ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-8">

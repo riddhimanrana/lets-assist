@@ -8,15 +8,12 @@
  * @see https://github.com/supabase/supabase/issues/40985
  */
 
-import { createClient } from './server';
-import type { AuthUser } from './types';
-import type { AuthError } from '@supabase/supabase-js';
-import {
-  deriveAuthenticatorAssurance,
-  shouldPromptForMfaChallenge,
-  type MfaListFactorsLike,
-} from '@/lib/auth/mfa';
-import { isStaleSupabaseAuthUserError } from '@/lib/supabase/auth-errors';
+import { createClient } from "./server";
+import type { AuthUser } from "./types";
+import type { AuthError } from "@supabase/supabase-js";
+import { type MfaListFactorsLike } from "@/lib/auth/mfa";
+import { resolveMfaSessionState } from "@/lib/auth/mfa-session-state";
+import { isStaleSupabaseAuthUserError } from "@/lib/supabase/auth-errors";
 
 export type AuthResult = {
   user: AuthUser | null;
@@ -32,35 +29,31 @@ type GetAuthUserOptions = {
 
 async function sessionRequiresMfa(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  currentAal?: string | null,
 ) {
-  if (currentAal === 'aal2') {
-    return { requiresMfa: false, invalidUser: false };
-  }
-
-  const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
-
-  if (factorsError) {
-    if (isStaleSupabaseAuthUserError(factorsError)) {
-      return { requiresMfa: false, invalidUser: true };
-    }
-
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[AuthHelpers] MFA factor lookup failed:', factorsError.message);
-    }
-
-    return { requiresMfa: false, invalidUser: false };
-  }
-
+  const [assuranceResult, factorsResult] = await Promise.all([
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+    supabase.auth.mfa.listFactors(),
+  ]);
+  const { data: assuranceData, error: assuranceError } = assuranceResult;
+  const { data: factorsData, error: factorsError } = factorsResult;
   const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
-  const assuranceData = deriveAuthenticatorAssurance(currentAal, factorData);
+  const mfaState = resolveMfaSessionState({
+    assurance: assuranceData,
+    factors: factorData,
+    assuranceError,
+    factorsError,
+  });
+
+  if (mfaState.lookupError && process.env.NODE_ENV === "development") {
+    console.warn(
+      "[AuthHelpers] MFA assurance lookup failed:",
+      mfaState.lookupError.message,
+    );
+  }
 
   return {
-    requiresMfa: shouldPromptForMfaChallenge(
-      assuranceData,
-      factorData,
-    ),
-    invalidUser: false,
+    ...mfaState,
+    lookupError: mfaState.lookupError as AuthError | null,
   };
 }
 
@@ -96,13 +89,12 @@ async function sessionRequiresMfa(
  * }
  * // Proceed with password change, email change, or account deletion
  */
-export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthResult> {
+export async function getAuthUser(
+  options?: GetAuthUserOptions,
+): Promise<AuthResult> {
   const supabase = await createClient();
 
-  const returnUser = (
-    user: AuthUser,
-    requiresMfa = false,
-  ): AuthResult => ({
+  const returnUser = (user: AuthUser, requiresMfa = false): AuthResult => ({
     user,
     error: null,
     ...(requiresMfa ? { requiresMfa: true } : {}),
@@ -110,7 +102,10 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
 
   if (options?.sensitive) {
     // Use getUser() for sensitive operations - makes API call for fresh data
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
     if (error) {
       if (isStaleSupabaseAuthUserError(error)) {
@@ -124,7 +119,8 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
       return { user: null, error: null };
     }
 
-    if (options.checkMfa) {
+    const checkMfaEnabled = options.checkMfa || options.allowMfaPending;
+    if (checkMfaEnabled) {
       const mfaState = await sessionRequiresMfa(supabase);
 
       if (mfaState.invalidUser) {
@@ -132,20 +128,15 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
         return { user: null, error: null };
       }
 
-      if (mfaState.requiresMfa) {
+      if (mfaState.lookupError) {
+        return { user: null, error: mfaState.lookupError };
+      }
+
+      if (options.checkMfa && mfaState.requiresMfa) {
         return { user: null, error: null, requiresMfa: true };
       }
-    }
 
-    if (options.allowMfaPending) {
-      const mfaState = await sessionRequiresMfa(supabase);
-
-      if (mfaState.invalidUser) {
-        await supabase.auth.signOut();
-        return { user: null, error: null };
-      }
-
-      if (mfaState.requiresMfa) {
+      if (options.allowMfaPending && mfaState.requiresMfa) {
         return returnUser(
           {
             id: user.id,
@@ -184,34 +175,39 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
   }
 
   const { claims } = claimsData;
-  const currentAal = typeof claims.aal === 'string' ? claims.aal : null;
 
-  const mfaState = await sessionRequiresMfa(supabase, currentAal);
+  // ONLY check MFA if explicitly requested, as listing factors requires a network call.
+  const checkMfaEnabled = options?.checkMfa || options?.allowMfaPending;
+  if (checkMfaEnabled) {
+    const mfaState = await sessionRequiresMfa(supabase);
 
-  if (mfaState.invalidUser) {
-    await supabase.auth.signOut();
-    return { user: null, error: null };
-  }
+    if (mfaState.invalidUser) {
+      await supabase.auth.signOut();
+      return { user: null, error: null };
+    }
 
-  if (options?.checkMfa) {
-    if (mfaState.requiresMfa) {
+    if (mfaState.lookupError) {
+      return { user: null, error: mfaState.lookupError };
+    }
+
+    if (options?.checkMfa && mfaState.requiresMfa) {
       return { user: null, error: null, requiresMfa: true };
     }
-  }
 
-  if (options?.allowMfaPending && mfaState.requiresMfa) {
-    return {
-      user: {
-        id: claims.sub,
-        email: claims.email || null,
-        phone: claims.phone || null,
-        role: claims.role || null,
-        user_metadata: claims.user_metadata || null,
-        app_metadata: claims.app_metadata || null,
-      },
-      error: null,
-      requiresMfa: true,
-    };
+    if (options?.allowMfaPending && mfaState.requiresMfa) {
+      return {
+        user: {
+          id: claims.sub,
+          email: claims.email || null,
+          phone: claims.phone || null,
+          role: claims.role || null,
+          user_metadata: claims.user_metadata || null,
+          app_metadata: claims.app_metadata || null,
+        },
+        error: null,
+        requiresMfa: true,
+      };
+    }
   }
 
   // Return user-shaped object from claims
@@ -268,7 +264,9 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
  *   return { success: !error };
  * }
  */
-export async function requireAuth(options?: { sensitive?: boolean }): Promise<AuthUser> {
+export async function requireAuth(options?: {
+  sensitive?: boolean;
+}): Promise<AuthUser> {
   const { user, error } = await getAuthUser(options);
 
   if (error) {
@@ -276,7 +274,7 @@ export async function requireAuth(options?: { sensitive?: boolean }): Promise<Au
   }
 
   if (!user) {
-    throw new Error('Unauthorized: No active session');
+    throw new Error("Unauthorized: No active session");
   }
 
   return user;

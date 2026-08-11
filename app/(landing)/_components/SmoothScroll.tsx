@@ -1,15 +1,11 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect } from "react";
 import Lenis from "lenis";
 
-type SmoothScrollProps = {
-  children: ReactNode;
-};
+const easing = (t: number) => 1 - Math.pow(1 - t, 3);
 
-const easing = (t: number) => 1 - Math.pow(1 - t, 4);
-
-export default function SmoothScroll({ children }: SmoothScrollProps) {
+export default function SmoothScroll() {
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
@@ -24,12 +20,13 @@ export default function SmoothScroll({ children }: SmoothScrollProps) {
     }
 
     const lenis = new Lenis({
-      duration: 1.0,
+      duration: 0.22,
       easing,
       smoothWheel: true,
-      wheelMultiplier: 1.0,
-      touchMultiplier: 1.0,
-      lerp: 0.08,
+      wheelMultiplier: 1,
+      touchMultiplier: 1,
+      syncTouch: false,
+      lerp: 0.34,
     });
 
     let rafId = 0;
@@ -51,5 +48,5 @@ export default function SmoothScroll({ children }: SmoothScrollProps) {
     };
   }, []);
 
-  return <>{children}</>;
+  return null;
 }

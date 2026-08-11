@@ -3,20 +3,41 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ExternalLink, Lock, LogIn, Shield, Users } from "lucide-react";
+import {
+  AlertCircle,
+  ExternalLink,
+  Lock,
+  LogIn,
+  Shield,
+  Users,
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 
 interface ProjectUnauthorizedProps {
   projectId: string;
 }
 
-export default function ProjectUnauthorized({ projectId: _projectId }: ProjectUnauthorizedProps) {
+export default function ProjectUnauthorized({
+  projectId: _projectId,
+}: ProjectUnauthorizedProps) {
   const router = useRouter();
   const { user, loading: isLoading } = useAuth(); // Use centralized auth hook
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -32,7 +53,9 @@ export default function ProjectUnauthorized({ projectId: _projectId }: ProjectUn
                 <Lock className="h-8 w-8 text-destructive" />
               </div>
             </div>
-            <CardTitle className="text-2xl text-center">Private Project</CardTitle>
+            <CardTitle className="text-2xl text-center">
+              Private Project
+            </CardTitle>
             <CardDescription className="text-center text-sm mt-1">
               This project is private and requires organization access
             </CardDescription>
@@ -40,10 +63,17 @@ export default function ProjectUnauthorized({ projectId: _projectId }: ProjectUn
 
           <CardContent className="text-center space-y-4 px-5">
             {!isLoading && !isLoggedIn && (
-              <Alert variant="destructive" className="bg-destructive/5 border-destructive/20 py-2">
+              <Alert
+                variant="destructive"
+                className="bg-destructive/5 border-destructive/20 py-2"
+              >
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle className="text-sm">Authentication required</AlertTitle>
-                <AlertDescription className="text-xs">You need to log in to access this private project.</AlertDescription>
+                <AlertTitle className="text-sm">
+                  Authentication required
+                </AlertTitle>
+                <AlertDescription className="text-xs">
+                  You need to log in to access this private project.
+                </AlertDescription>
               </Alert>
             )}
 
@@ -58,37 +88,50 @@ export default function ProjectUnauthorized({ projectId: _projectId }: ProjectUn
                   <span className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
                     1
                   </span>
-                  <span>Be a member of the organization that owns this project</span>
+                  <span>
+                    Be a member of the organization that owns this project
+                  </span>
                 </li>
                 {!isLoggedIn && (
                   <li className="flex items-center">
                     <span className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
                       2
                     </span>
-                    <span>Log in with an account that has access to this organization</span>
+                    <span>
+                      Log in with an account that has access to this
+                      organization
+                    </span>
                   </li>
                 )}
                 <li className="flex items-center">
                   <span className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
                     {!isLoggedIn ? "3" : "2"}
                   </span>
-                  <span>Request access from the organization administrator if needed</span>
+                  <span>
+                    Request access from the organization administrator if needed
+                  </span>
                 </li>
               </ul>
             </div>
 
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger render={
-                  <div className="flex items-center justify-center p-2 bg-muted/30 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors cursor-help">
-                    <Shield className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
-                    <p className="text-xs text-muted-foreground">
-                      Private projects help organizations maintain confidentiality
-                    </p>
-                  </div>
-                } />
+                <TooltipTrigger
+                  render={
+                    <div className="flex items-center justify-center p-2 bg-muted/30 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors cursor-help">
+                      <Shield className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
+                      <p className="text-xs text-muted-foreground">
+                        Private projects help organizations maintain
+                        confidentiality
+                      </p>
+                    </div>
+                  }
+                />
                 <TooltipContent>
-                  <p className="max-w-xs text-xs">Organization administrators can manage access in the project settings</p>
+                  <p className="max-w-xs text-xs">
+                    Organization administrators can manage access in the project
+                    settings
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -112,12 +155,26 @@ export default function ProjectUnauthorized({ projectId: _projectId }: ProjectUn
             )}
 
             <div className="flex flex-col sm:flex-row gap-3 w-full">
-              <Link href="/organization/join" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full")}>
+              <Link
+                href="/organization/join"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "w-full",
+                )}
+              >
                 Join Organization
                 <ExternalLink className="ml-2 h-3 w-3" />
               </Link>
 
-              <Link href="/projects" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full")}>Browse Public Projects</Link>
+              <Link
+                href="/projects"
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "sm" }),
+                  "w-full",
+                )}
+              >
+                Browse Public Projects
+              </Link>
             </div>
           </CardFooter>
         </Card>

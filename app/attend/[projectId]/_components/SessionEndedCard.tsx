@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,12 +34,15 @@ function Confetti() {
           "bg-success",
           "bg-muted-foreground",
         ][Math.floor(Math.random() * 5)],
-        shapeClass: ["rounded-full", "rounded-sm"][Math.floor(Math.random() * 2)],
+        shapeClass: ["rounded-full", "rounded-sm"][
+          Math.floor(Math.random() * 2)
+        ],
       })),
-    []
+    [],
   );
 
-  const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 800;
+  const viewportHeight =
+    typeof window !== "undefined" ? window.innerHeight : 800;
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -143,15 +146,23 @@ export function SessionEndedCard({
                       <div className="space-y-3">
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0">
-                            <p className="text-xs font-medium text-muted-foreground">Project</p>
-                            <p className="wrap-break-word font-medium leading-snug">{projectTitle}</p>
+                            <p className="text-xs font-medium text-muted-foreground">
+                              Project
+                            </p>
+                            <p className="wrap-break-word font-medium leading-snug">
+                              {projectTitle}
+                            </p>
                           </div>
                         </div>
 
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0">
-                            <p className="text-xs font-medium text-muted-foreground">Session</p>
-                            <p className="wrap-break-word font-medium leading-snug">{sessionName}</p>
+                            <p className="text-xs font-medium text-muted-foreground">
+                              Session
+                            </p>
+                            <p className="wrap-break-word font-medium leading-snug">
+                              {sessionName}
+                            </p>
                           </div>
                           <div className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary ring-1 ring-primary/20">
                             {elapsedTime}
@@ -163,19 +174,28 @@ export function SessionEndedCard({
                     {/* Encouragement message */}
                     <div className="flex items-start gap-2 text-sm text-muted-foreground">
                       <Sparkles className="h-4 w-4" />
-                      <p>
-                        Your hours will be finalized within 48 hours.
-                      </p>
+                      <p>Your hours will be finalized within 48 hours.</p>
                     </div>
                   </div>
                 </CardContent>
 
                 {/* Action buttons */}
                 <div className="px-6 pb-6 flex flex-col gap-2">
-                  <Link href={`/projects/${projectId}`} className={cn(buttonVariants(), "w-full")}>
+                  <Link
+                    href={`/projects/${projectId}`}
+                    className={cn(buttonVariants(), "w-full")}
+                  >
                     View Project Details
                   </Link>
-                  <Link href="/dashboard" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>Back to Dashboard</Link>
+                  <Link
+                    href="/dashboard"
+                    className={cn(
+                      buttonVariants({ variant: "outline" }),
+                      "w-full",
+                    )}
+                  >
+                    Back to Dashboard
+                  </Link>
                 </div>
               </Card>
             </motion.div>

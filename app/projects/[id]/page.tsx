@@ -13,6 +13,7 @@ import { Signup } from "@/types";
 import VolunteerStatusCard from "@/app/projects/_components/VolunteerStatusCard";
 import ProjectClient from "./ProjectClient";
 import { Metadata } from "next";
+import { canManageProjectAccess } from "@/lib/projects/management-access";
 
 export async function generateMetadata({
   params,
@@ -138,9 +139,9 @@ export default async function ProjectPage({
   // Get current user using getClaims() for better performance
   const { user } = await getAuthUser();
   const isCreator = user?.id === project.creator_id;
-  let canManageProject = isCreator;
+  let organizationRole: string | null = null;
 
-  if (user && project.organization_id && !canManageProject) {
+  if (user && project.organization_id && user.id !== project.creator_id) {
     const { data: membership } = await supabase
       .from("organization_members")
       .select("role")
@@ -148,8 +149,17 @@ export default async function ProjectPage({
       .eq("user_id", user.id)
       .single();
 
-    canManageProject = membership?.role === "admin";
+    organizationRole = membership?.role ?? null;
   }
+
+  const canManageProject = user
+    ? canManageProjectAccess({
+        creatorId: project.creator_id,
+        userId: user.id,
+        organizationRole,
+        canBeManagedByStaff: project.can_be_managed_by_staff,
+      })
+    : false;
 
   // If redirected after check-in, render the status card
   if (checkedIn === "true" && schedule && user) {
@@ -172,7 +182,7 @@ export default async function ProjectPage({
   let organization = null;
   if (project.organization_id) {
     const { data: org } = await supabase
-      .from("organizations")
+      .from("organization_public_read_model")
       .select("*")
       .eq("id", project.organization_id)
       .single();
@@ -186,6 +196,27 @@ export default async function ProjectPage({
   // If the current user can manage the project, fetch all signups for the dashboard logic
   let allSignups: ManagerSignupRow[] = [];
   if (canManageProject) {
+    // Collect all possible schedule IDs for this project to ensure we fetch everything
+    const projectScheduleIds: string[] = [];
+    if (project.event_type === "oneTime") {
+      projectScheduleIds.push("oneTime");
+    } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+      project.schedule.multiDay.forEach((day, dayIndex) => {
+        day.slots.forEach((_, slotIndex) => {
+          projectScheduleIds.push(`${day.date}-${dayIndex}-${slotIndex}`);
+          // Also include legacy format just in case
+          projectScheduleIds.push(`${day.date}-${slotIndex}`);
+        });
+      });
+    } else if (
+      project.event_type === "sameDayMultiArea" &&
+      project.schedule.sameDayMultiArea
+    ) {
+      project.schedule.sameDayMultiArea.roles.forEach((role) =>
+        projectScheduleIds.push(role.name),
+      );
+    }
+
     const { data: signups } = await supabase
       .from("project_signups")
       .select("id, schedule_id, status, check_in_time")
@@ -201,25 +232,47 @@ export default async function ProjectPage({
   // Fetch full signup data for the UserDashboard
   let userSignupsData: Signup[] = [];
   if (user) {
-    const { data: relevantSignups, error: relevantSignupsError } = (await supabase
-      .from("project_signups")
-      .select(
-        "id, schedule_id, status, check_in_time, check_out_time, created_at",
-      )
-      .eq("project_id", project.id)
-      .eq("user_id", user.id)
-      .in("status", [...VOLUNTEER_DASHBOARD_SIGNUP_STATUSES])
-      .order("created_at", { ascending: true })) as {
-      data: ApprovedSignupRow[] | null;
-      error: { message: string } | null;
-    };
+    const { data: relevantSignups, error: relevantSignupsError } =
+      (await supabase
+        .from("project_signups")
+        .select(
+          "id, schedule_id, status, check_in_time, check_out_time, created_at",
+        )
+        .eq("project_id", project.id)
+        .eq("user_id", user.id)
+        .in("status", [...VOLUNTEER_DASHBOARD_SIGNUP_STATUSES])
+        .order("created_at", { ascending: true })) as {
+        data: ApprovedSignupRow[] | null;
+        error: { message: string } | null;
+      };
 
     if (relevantSignupsError) {
-      console.error("Error fetching user dashboard signups:", relevantSignupsError);
+      console.error(
+        "Error fetching user dashboard signups:",
+        relevantSignupsError,
+      );
     } else if (relevantSignups) {
       userSignupsData = relevantSignups as Signup[];
 
       const dashboardState = buildVolunteerDashboardSlotState(userSignupsData);
+
+      // Expand legacy IDs to new unique IDs for multi-day events to handle collision issues
+      if (project.event_type === "multiDay" && project.schedule.multiDay) {
+        project.schedule.multiDay.forEach((day, dayIndex) => {
+          day.slots.forEach((_, slotIndex) => {
+            const legacyId = `${day.date}-${slotIndex}`;
+            const newId = `${day.date}-${dayIndex}-${slotIndex}`;
+
+            if (dashboardState.userSignups[legacyId])
+              dashboardState.userSignups[newId] = true;
+            if (dashboardState.attendedSlots[legacyId])
+              dashboardState.attendedSlots[newId] = true;
+            if (dashboardState.pendingSlots[legacyId])
+              dashboardState.pendingSlots[newId] = true;
+          });
+        });
+      }
+
       Object.assign(userSignups, dashboardState.userSignups);
       Object.assign(attendedSlots, dashboardState.attendedSlots);
       Object.assign(pendingSlots, dashboardState.pendingSlots);

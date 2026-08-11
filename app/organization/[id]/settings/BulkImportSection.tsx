@@ -8,7 +8,9 @@ interface BulkImportSectionProps {
   organizationId: string;
 }
 
-export default function BulkImportSection({ organizationId }: BulkImportSectionProps) {
+export default function BulkImportSection({
+  organizationId,
+}: BulkImportSectionProps) {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleImportSuccess = () => {

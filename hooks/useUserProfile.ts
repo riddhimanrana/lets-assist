@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
 /**
  * Hook: useUserProfile
- * 
+ *
  * Provides user profile and settings to components using direct Supabase queries.
  * Uses getClaims() for fast local JWT verification.
- * 
+ *
  * Usage:
  * ```typescript
  * const { profile, settings, loading } = useUserProfile();
  * ```
  */
 
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 export interface UserProfile {
   id: string;
@@ -22,7 +22,7 @@ export interface UserProfile {
   avatar_url: string | null;
   username: string | null;
   phone: string | null;
-  profile_visibility: 'public' | 'private' | 'organization_only' | null;
+  profile_visibility: "public" | "private" | "organization_only" | null;
   created_at: string;
   updated_at: string | null;
   volunteer_goals: Record<string, unknown> | null;
@@ -55,7 +55,9 @@ export function useUserProfile(): UseUserProfileReturn {
   const [error, setError] = useState<Error | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
-  const channelNameRef = useRef(`profile-updates-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`);
+  const channelNameRef = useRef(
+    `profile-updates-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`,
+  );
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
@@ -69,11 +71,11 @@ export function useUserProfile(): UseUserProfileReturn {
     const channel = supabase.channel(`${channelNameRef.current}-${user.id}`);
 
     channel.on(
-      'postgres_changes',
+      "postgres_changes",
       {
-        event: '*',
-        schema: 'public',
-        table: 'profiles',
+        event: "*",
+        schema: "public",
+        table: "profiles",
         filter: `id=eq.${user.id}`,
       },
       (payload) => {
@@ -82,15 +84,15 @@ export function useUserProfile(): UseUserProfileReturn {
         } else if (payload.old) {
           setProfile(payload.old as UserProfile);
         }
-      }
+      },
     );
 
     channel.on(
-      'postgres_changes',
+      "postgres_changes",
       {
-        event: '*',
-        schema: 'public',
-        table: 'notification_settings',
+        event: "*",
+        schema: "public",
+        table: "notification_settings",
         filter: `user_id=eq.${user.id}`,
       },
       (payload) => {
@@ -99,7 +101,7 @@ export function useUserProfile(): UseUserProfileReturn {
         } else if (payload.old) {
           setSettings(payload.old as NotificationSettings);
         }
-      }
+      },
     );
 
     channel.subscribe();
@@ -113,40 +115,51 @@ export function useUserProfile(): UseUserProfileReturn {
     };
   }, [user?.id, supabase]);
 
-  const fetchData = useCallback(async (userId: string) => {
-    setLoading(true);
-    try {
-      // Fetch profile and settings in parallel
-      const [profileResult, settingsResult] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id, full_name, avatar_url, username, phone, profile_visibility, created_at, updated_at, volunteer_goals')
-          .eq('id', userId)
-          .maybeSingle(),
-        supabase
-          .from('notification_settings')
-          .select('user_id, email_notifications, project_updates, general')
-          .eq('user_id', userId)
-          .maybeSingle(),
-      ]);
+  const fetchData = useCallback(
+    async (userId: string) => {
+      setLoading(true);
+      try {
+        // Fetch profile and settings in parallel
+        const [profileResult, settingsResult] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select(
+              "id, full_name, avatar_url, username, phone, profile_visibility, created_at, updated_at, volunteer_goals",
+            )
+            .eq("id", userId)
+            .maybeSingle(),
+          supabase
+            .from("notification_settings")
+            .select("user_id, email_notifications, project_updates, general")
+            .eq("user_id", userId)
+            .maybeSingle(),
+        ]);
 
-      if (profileResult.error) {
-        console.error('[useUserProfile] Profile error:', profileResult.error.message);
-      }
-      if (settingsResult.error) {
-        console.error('[useUserProfile] Settings error:', settingsResult.error.message);
-      }
+        if (profileResult.error) {
+          console.error(
+            "[useUserProfile] Profile error:",
+            profileResult.error.message,
+          );
+        }
+        if (settingsResult.error) {
+          console.error(
+            "[useUserProfile] Settings error:",
+            settingsResult.error.message,
+          );
+        }
 
-      setProfile(profileResult.data as UserProfile | null);
-      setSettings(settingsResult.data as NotificationSettings | null);
-      setError(null);
-    } catch (err) {
-      console.error('[useUserProfile] Fetch error:', err);
-      setError(err instanceof Error ? err : new Error(String(err)));
-    } finally {
-      setLoading(false);
-    }
-  }, [supabase]);
+        setProfile(profileResult.data as UserProfile | null);
+        setSettings(settingsResult.data as NotificationSettings | null);
+        setError(null);
+      } catch (err) {
+        console.error("[useUserProfile] Fetch error:", err);
+        setError(err instanceof Error ? err : new Error(String(err)));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [supabase],
+  );
 
   useEffect(() => {
     if (authLoading) return;

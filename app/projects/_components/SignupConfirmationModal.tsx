@@ -1,31 +1,41 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { User, Mail, Phone, Calendar, MapPin, Clock, Loader2, ChevronDown, Download } from 'lucide-react';
-import Image from "next/image";
-import { getUserProfile } from '@/app/projects/[id]/actions';
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  MapPin,
+  Clock,
+  Loader2,
+} from "lucide-react";
+import { getUserProfile } from "@/app/projects/[id]/actions";
 import { toast } from "sonner";
-import { TimezoneBadge } from '@/components/shared/TimezoneBadge';
-import { WaiverSigningDialog } from '@/components/waiver/WaiverSigningDialog';
-import { Check, PenTool, ArrowLeft } from 'lucide-react';
-import type { Project, WaiverSignatureInput, WaiverDefinitionFull } from '@/types';
-import { ModernFormRenderer } from '@/components/forms/ModernFormRenderer';
+import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
+import { WaiverSigningDialog } from "@/components/waiver/WaiverSigningDialog";
+import { Check, PenTool, ArrowLeft } from "lucide-react";
+import type {
+  Project,
+  WaiverSignatureInput,
+  WaiverDefinitionFull,
+} from "@/types";
+import { ModernFormRenderer } from "@/components/forms/ModernFormRenderer";
+import type { FormSchema } from "@/lib/forms/engine";
+import {
+  SignupConfirmationActionContent,
+  SignupConfirmationActionFeedback,
+  SignupConfirmationActionFrame,
+} from "./SignupConfirmationActionFeedback";
+import { SignupConfirmationCalendar } from "./SignupConfirmationCalendar";
 
 interface UserProfile {
   full_name: string | null;
@@ -36,14 +46,18 @@ interface UserProfile {
 interface SignupConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (comment?: string, waiverSignature?: WaiverSignatureInput | null, formData?: Record<string, any>) => void;
+  onConfirm: (
+    comment?: string,
+    waiverSignature?: WaiverSignatureInput | null,
+    formData?: Record<string, unknown>,
+  ) => void | Promise<void>;
   enableVolunteerComments?: boolean;
   waiverRequired?: boolean;
   waiverAllowUpload?: boolean;
   waiverDisableEsignature?: boolean;
   waiverPdfUrl?: string | null;
   waiverDefinition?: WaiverDefinitionFull | null;
-  signupFormSchema?: any | null;
+  signupFormSchema?: FormSchema | null;
   project: {
     id: string;
     title: string;
@@ -55,6 +69,7 @@ interface SignupConfirmationModalProps {
   };
   scheduleId: string;
   isLoading?: boolean;
+  error?: string | null;
 }
 
 export function SignupConfirmationModal({
@@ -71,13 +86,20 @@ export function SignupConfirmationModal({
   project,
   scheduleId,
   isLoading = false,
+  error = null,
 }: SignupConfirmationModalProps) {
-  const [step, setStep] = useState<"confirmation" | "custom-form">("confirmation");
-  const [formData, setFormData] = useState<Record<string, any> | null>(null);
-  const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
+  const [step, setStep] = useState<"confirmation" | "custom-form">(
+    "confirmation",
+  );
+  const [formData, setFormData] = useState<Record<string, unknown> | null>(
+    null,
+  );
+  const [currentUserProfile, setCurrentUserProfile] =
+    useState<UserProfile | null>(null);
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
-  const [waiverSignature, setWaiverSignature] = useState<WaiverSignatureInput | null>(null);
+  const [waiverSignature, setWaiverSignature] =
+    useState<WaiverSignatureInput | null>(null);
   const [isWaiverDialogOpen, setIsWaiverDialogOpen] = useState(false);
 
   // Calendar connection state
@@ -85,12 +107,14 @@ export function SignupConfirmationModal({
   const [connectedEmail, setConnectedEmail] = useState<string | null>(null);
   const [checkingConnection, setCheckingConnection] = useState(false);
   const [connectingCalendar, setConnectingCalendar] = useState(false);
-  const [comment, setComment] = useState('');
+  const [comment, setComment] = useState("");
 
   useEffect(() => {
     if (!isOpen) {
-      setComment('');
+      setComment("");
       setWaiverSignature(null);
+      setFormData(null);
+      setStep("confirmation");
     }
   }, [isOpen]);
 
@@ -115,8 +139,10 @@ export function SignupConfirmationModal({
           setCurrentUserProfile(result.profile);
         }
       } catch (error) {
-        console.error('Error fetching user profile:', error);
-        setProfileError('An unexpected error occurred while fetching your information.');
+        console.error("Error fetching user profile:", error);
+        setProfileError(
+          "An unexpected error occurred while fetching your information.",
+        );
         setCurrentUserProfile(null);
       } finally {
         setIsFetchingProfile(false);
@@ -132,23 +158,23 @@ export function SignupConfirmationModal({
       if (!isOpen) return;
 
       // Check if we just returned from OAuth
-      const justConnected = sessionStorage.getItem('calendarJustConnected');
-      if (justConnected === 'true') {
-        sessionStorage.removeItem('calendarJustConnected');
+      const justConnected = sessionStorage.getItem("calendarJustConnected");
+      if (justConnected === "true") {
+        sessionStorage.removeItem("calendarJustConnected");
         // Small delay to ensure connection is saved
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
       setCheckingConnection(true);
       try {
-        const response = await fetch('/api/calendar/connection-status');
+        const response = await fetch("/api/calendar/connection-status");
         const data = await response.json();
 
         // API returns 'connected' not 'isConnected'
         setCalendarConnected(data.connected || false);
         setConnectedEmail(data.calendar_email || null);
       } catch (error) {
-        console.error('Error checking calendar connection:', error);
+        console.error("Error checking calendar connection:", error);
         setCalendarConnected(false);
         setConnectedEmail(null);
       } finally {
@@ -163,21 +189,28 @@ export function SignupConfirmationModal({
     setConnectingCalendar(true);
     try {
       // Store modal state before OAuth
-      sessionStorage.setItem('signupModalState', JSON.stringify({
-        projectId: project.id,
-        scheduleId: scheduleId,
-        returnToModal: true,
-      }));
+      sessionStorage.setItem(
+        "signupModalState",
+        JSON.stringify({
+          projectId: project.id,
+          scheduleId: scheduleId,
+          returnToModal: true,
+        }),
+      );
 
       // Build return URL for this project
       const returnUrl = `/projects/${project.id}`;
 
       // Redirect to OAuth
-      window.location.href = `/api/calendar/google/connect?scopes=calendar&return_to=${encodeURIComponent(returnUrl)}`;
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.href = `/api/calendar/google/connect?purpose=personal_calendar&scopes=calendar&return_to=${encodeURIComponent(returnUrl)}`;
     } catch (error) {
-      console.error('Failed to connect calendar:', error);
-      toast.error('Connection Failed', {
-        description: error instanceof Error ? error.message : 'Failed to connect Google Calendar',
+      console.error("Failed to connect calendar:", error);
+      toast.error("Connection Failed", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to connect Google Calendar",
       });
       setConnectingCalendar(false);
     }
@@ -185,68 +218,71 @@ export function SignupConfirmationModal({
 
   const handleDownloadICal = () => {
     // Import the iCal utilities
-    import('@/utils/ical').then(({ generateProjectICalFile, downloadICalFile, generateICalFilename }) => {
-      try {
-        // We need to create a minimal project object with the schedule
-        const projectData: Project = {
-          id: project.id,
-          title: project.title,
-          description: '',
-          location: project.location,
-          event_type: 'oneTime',
-          schedule: {
-            oneTime: {
-              date: project.date,
-              startTime: project.start_time || '00:00',
-              endTime: project.end_time || '23:59',
-              volunteers: 1,
-            }
-          },
-          verification_method: 'manual',
-          require_login: false,
-          creator_id: '',
-          status: 'upcoming',
-          visibility: 'public',
-          pause_signups: false,
-          profiles: {
-            full_name: '',
-            email: '',
-            avatar_url: null,
-            username: '',
-            created_at: '',
-          },
-          created_at: '',
-          published: {},
-        };
+    import("@/utils/ical").then(
+      ({ generateProjectICalFile, downloadICalFile, generateICalFilename }) => {
+        try {
+          // We need to create a minimal project object with the schedule
+          const projectData: Project = {
+            id: project.id,
+            title: project.title,
+            description: "",
+            location: project.location,
+            event_type: "oneTime",
+            schedule: {
+              oneTime: {
+                date: project.date,
+                startTime: project.start_time || "00:00",
+                endTime: project.end_time || "23:59",
+                volunteers: 1,
+              },
+            },
+            verification_method: "manual",
+            require_login: false,
+            creator_id: "",
+            status: "upcoming",
+            visibility: "public",
+            pause_signups: false,
+            profiles: {
+              full_name: "",
+              email: "",
+              avatar_url: null,
+              username: "",
+              created_at: "",
+            },
+            created_at: "",
+            published: {},
+          };
 
-        const icalContent = generateProjectICalFile(projectData, scheduleId);
-        const filename = generateICalFilename(projectData, scheduleId);
-        downloadICalFile(icalContent, filename);
+          const icalContent = generateProjectICalFile(projectData, scheduleId);
+          const filename = generateICalFilename(projectData, scheduleId);
+          downloadICalFile(icalContent, filename);
 
-        toast.success('iCal Downloaded', {
-          description: 'Open the file to add the event to your calendar app',
-        });
-      } catch (error) {
-        console.error('Failed to download iCal:', error);
-        toast.error('Download Failed', {
-          description: 'Failed to download calendar file',
-        });
-      }
-    });
+          toast.success("iCal Downloaded", {
+            description: "Open the file to add the event to your calendar app",
+          });
+        } catch (error) {
+          console.error("Failed to download iCal:", error);
+          toast.error("Download Failed", {
+            description: "Failed to download calendar file",
+          });
+        }
+      },
+    );
   };
 
   const formatDate = (dateString: string) => {
-    const [year, month, day] = dateString.split('-').map(Number);
+    const [year, month, day] = dateString.split("-").map(Number);
     const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
   const handleConfirm = () => {
+    if (isLoading) return;
     if (signupFormSchema && step === "confirmation") {
       setStep("custom-form");
       return;
@@ -255,35 +291,41 @@ export function SignupConfirmationModal({
     const trimmed = comment.trim();
     // Use type assertion if needed, as the action accepts compatible structure
     onConfirm(
-      trimmed.length > 0 ? trimmed : undefined, 
+      trimmed.length > 0 ? trimmed : undefined,
       waiverSignature as WaiverSignatureInput,
-      formData || undefined
+      formData || undefined,
     );
   };
 
-  const handleCustomFormSubmit = (data: Record<string, any>) => {
+  const handleCustomFormSubmit = (data: Record<string, unknown>) => {
+    if (isLoading) return;
     setFormData(data);
     const trimmed = comment.trim();
     onConfirm(
-      trimmed.length > 0 ? trimmed : undefined, 
+      trimmed.length > 0 ? trimmed : undefined,
       waiverSignature as WaiverSignatureInput,
-      data
+      data,
     );
   };
 
   const formatTime = (timeString: string) => {
-    const [hours, minutes] = timeString.split(':');
+    const [hours, minutes] = timeString.split(":");
     const date = new Date();
     date.setHours(parseInt(hours), parseInt(minutes));
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
       hour12: true,
     });
   };
 
   const waiverSatisfied = !waiverRequired || !!waiverSignature;
-  const canConfirm = !isLoading && !isFetchingProfile && !profileError && !!currentUserProfile && waiverSatisfied;
+  const canConfirm =
+    !isLoading &&
+    !isFetchingProfile &&
+    !profileError &&
+    !!currentUserProfile &&
+    waiverSatisfied;
 
   const handleWaiverComplete = async (input: WaiverSignatureInput) => {
     setWaiverSignature(input);
@@ -291,34 +333,47 @@ export function SignupConfirmationModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-h-[90vh] overflow-y-auto">
+    <SignupConfirmationActionFrame
+      isOpen={isOpen}
+      onClose={onClose}
+      isLoading={isLoading}
+    >
+      <SignupConfirmationActionContent isLoading={isLoading}>
         <DialogHeader>
           <div className="flex items-center gap-2">
             {step === "custom-form" && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => setStep("confirmation")}>
-                <ArrowLeft className="h-4 w-4" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 -ml-2"
+                onClick={() => setStep("confirmation")}
+                disabled={isLoading}
+                aria-label="Back to signup confirmation"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               </Button>
             )}
             <DialogTitle>
-              {step === "confirmation" ? "Confirm Event Signup" : "Tournament Registration"}
+              {step === "confirmation"
+                ? "Confirm Event Signup"
+                : "Tournament Registration"}
             </DialogTitle>
           </div>
           <DialogDescription>
-            {step === "confirmation" 
+            {step === "confirmation"
               ? "Please review your information and event details before confirming your signup."
               : "Please complete the following information required for this tournament."}
           </DialogDescription>
         </DialogHeader>
+
+        <SignupConfirmationActionFeedback error={error} isLoading={isLoading} />
 
         {step === "confirmation" ? (
           <>
             <div className="space-y-6">
               {/* User Information */}
               <div className="space-y-3">
-                <h4 className="font-semibold text-sm">
-                  Your Information
-                </h4>
+                <h4 className="font-semibold text-sm">Your Information</h4>
                 {isFetchingProfile ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -331,19 +386,19 @@ export function SignupConfirmationModal({
                     <div className="flex items-center gap-3">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm">
-                        {currentUserProfile.full_name || 'No name provided'}
+                        {currentUserProfile.full_name || "No name provided"}
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm">
-                        {currentUserProfile.email || 'No email provided'}
+                        {currentUserProfile.email || "No email provided"}
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
                       <Phone className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm">
-                        {currentUserProfile.phone || 'No phone number provided'}
+                        {currentUserProfile.phone || "No phone number provided"}
                       </span>
                     </div>
                   </div>
@@ -375,7 +430,7 @@ export function SignupConfirmationModal({
                       <div className="flex items-center gap-2">
                         <span className="text-sm">
                           {project.start_time && formatTime(project.start_time)}
-                          {project.start_time && project.end_time && ' - '}
+                          {project.start_time && project.end_time && " - "}
                           {project.end_time && formatTime(project.end_time)}
                         </span>
                         {project.project_timezone && (
@@ -401,9 +456,10 @@ export function SignupConfirmationModal({
                   </p>
 
                   {!waiverSignature ? (
-                    <Button 
+                    <Button
                       onClick={() => setIsWaiverDialogOpen(true)}
                       className="w-full sm:w-auto"
+                      disabled={isLoading}
                     >
                       <PenTool className="h-4 w-4 mr-2" />
                       Sign Waiver
@@ -418,11 +474,12 @@ export function SignupConfirmationModal({
                           Waiver Signed
                         </div>
                       </div>
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         onClick={() => setIsWaiverDialogOpen(true)}
                         className="text-muted-foreground hover:text-text"
+                        disabled={isLoading}
                       >
                         Edit
                       </Button>
@@ -446,8 +503,12 @@ export function SignupConfirmationModal({
               {enableVolunteerComments && (
                 <div className="space-y-3 pt-3 border-t">
                   <div className="flex justify-between items-center">
-                    <h4 className="font-semibold text-sm text-text">Comment (Optional)</h4>
-                    <span className={`text-xs ${comment.length > 100 ? "text-destructive" : "text-muted-foreground"}`}>
+                    <h4 className="font-semibold text-sm text-text">
+                      Comment (Optional)
+                    </h4>
+                    <span
+                      className={`text-xs ${comment.length > 100 ? "text-destructive" : "text-muted-foreground"}`}
+                    >
                       {comment.length}/100
                     </span>
                   </div>
@@ -458,6 +519,7 @@ export function SignupConfirmationModal({
                     rows={2}
                     maxLength={100}
                     className="resize-none text-sm"
+                    disabled={isLoading}
                   />
                   <div className="text-xs text-muted-foreground">
                     Brief note visible to the organizer.
@@ -465,82 +527,15 @@ export function SignupConfirmationModal({
                 </div>
               )}
 
-              {/* Calendar Integration Section */}
-              <div className="space-y-3 pt-3 border-t">
-                <h4 className="font-semibold text-sm text-text">
-                  Add to Calendar
-                </h4>
-                {checkingConnection ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Checking connection...
-                  </div>
-                ) : calendarConnected ? (
-                  <div className="flex items-center justify-between gap-3 p-3 bg-success/10 border border-success/80 rounded-lg max-w-md">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center shrink-0">
-                        <Image className="h-4 w-4" src="/googlecalendar.svg" alt="Google Calendar" width={16} height={16} />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-success truncate">
-                          Google Calendar Connected
-                        </div>
-                        {connectedEmail && (
-                          <div className="text-xs text-success/80 truncate">
-                            {connectedEmail}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger render={
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 shrink-0"
-                        >
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                      } />
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={handleDownloadICal}>
-                          <Download className="h-4 w-4 mr-2" />
-                          Download as iCal
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="w-full max-w-md justify-start h-auto p-3"
-                    onClick={handleConnectCalendar}
-                    disabled={connectingCalendar}
-                  >
-                    <div className="flex items-center gap-3 w-full">
-                      {connectingCalendar ? (
-                        <Loader2 className="h-5 w-5 animate-spin shrink-0" />
-                      ) : (
-                        <Image
-                          src="/resources/google-calendar-logo.svg"
-                          alt="Google Calendar"
-                          width={20}
-                          height={20}
-                          className="h-5 w-5 mr-1"
-                        />
-                      )}
-                      <div className="text-left flex-1">
-                        <div className="text-sm font-medium">
-                          Connect Google Calendar
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Auto-sync events to your calendar
-                        </div>
-                      </div>
-                    </div>
-                  </Button>
-                )}
-              </div>
+              <SignupConfirmationCalendar
+                calendarConnected={calendarConnected}
+                checkingConnection={checkingConnection}
+                connectedEmail={connectedEmail}
+                connectingCalendar={connectingCalendar}
+                isLoading={isLoading}
+                onConnect={handleConnectCalendar}
+                onDownloadICal={handleDownloadICal}
+              />
             </div>
 
             <DialogFooter className="mt-6 pt-6 border-t">
@@ -556,23 +551,31 @@ export function SignupConfirmationModal({
                 className="mb-2"
                 disabled={!canConfirm}
               >
-                {isLoading ? 'Signing up...' : isFetchingProfile ? 'Loading...' : signupFormSchema ? 'Next: registration' : 'Confirm Signup'}
+                {isLoading
+                  ? "Signing up..."
+                  : isFetchingProfile
+                    ? "Loading..."
+                    : signupFormSchema
+                      ? "Next: registration"
+                      : "Confirm Signup"}
               </Button>
             </DialogFooter>
           </>
         ) : (
           <div className="py-4">
-            <ModernFormRenderer
-              schema={signupFormSchema}
-              title={project.title}
-              description="Tournament Registration Form"
-              onSubmit={handleCustomFormSubmit}
-              isSubmitting={isLoading}
-              userEmail={currentUserProfile?.email || undefined}
-            />
+            {signupFormSchema ? (
+              <ModernFormRenderer
+                schema={signupFormSchema}
+                title={project.title}
+                description="Tournament Registration Form"
+                onSubmit={handleCustomFormSubmit}
+                isSubmitting={isLoading}
+                userEmail={currentUserProfile?.email || undefined}
+              />
+            ) : null}
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </SignupConfirmationActionContent>
+    </SignupConfirmationActionFrame>
   );
 }

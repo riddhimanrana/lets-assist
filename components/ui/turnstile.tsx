@@ -1,11 +1,48 @@
 "use client";
 
-import { Turnstile, TurnstileInstance } from "@marsidev/react-turnstile";
+import {
+  DEFAULT_SCRIPT_ID,
+  SCRIPT_URL,
+  Turnstile,
+  TurnstileInstance,
+} from "@marsidev/react-turnstile";
+import { ShieldCheck } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+
+import { shouldReinjectTurnstileScript } from "@/lib/auth/secure-check";
 
 type WindowWithTurnstile = Window & {
   turnstile?: Window["turnstile"];
 };
+
+/**
+ * Drop a Turnstile script tag that never initialized so the next mount fetches
+ * it again. Without this, a blocked first load leaves a dead tag behind and no
+ * amount of remounting would reach Cloudflare.
+ */
+export function clearStaleTurnstileScript(): boolean {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return false;
+  }
+
+  const scripts = Array.from(
+    document.querySelectorAll<HTMLScriptElement>(
+      `script#${DEFAULT_SCRIPT_ID}, script[src^="${SCRIPT_URL}"]`,
+    ),
+  );
+
+  const shouldReinject = shouldReinjectTurnstileScript({
+    hasScriptTag: scripts.length > 0,
+    hasTurnstileGlobal: Boolean((window as WindowWithTurnstile).turnstile),
+  });
+
+  if (!shouldReinject) {
+    return false;
+  }
+
+  scripts.forEach((script) => script.remove());
+  return true;
+}
 
 interface TurnstileComponentProps {
   onVerify?: (token: string) => void;
@@ -21,93 +58,122 @@ export interface TurnstileRef {
   getResponse: () => string | undefined;
 }
 
-export const TurnstileComponent = forwardRef<TurnstileRef, TurnstileComponentProps>(
-  ({ onVerify, onError, onExpire, onLoad, className, theme = "auto" }, ref) => {
-    const turnstileRef = useRef<TurnstileInstance>(null);
-    const bypassEnabled = process.env.NEXT_PUBLIC_TURNSTILE_BYPASS === "true";
+export const TurnstileComponent = forwardRef<
+  TurnstileRef,
+  TurnstileComponentProps
+>(({ onVerify, onError, onExpire, onLoad, className, theme = "auto" }, ref) => {
+  const turnstileRef = useRef<TurnstileInstance>(null);
+  const bypassEnabled = process.env.NEXT_PUBLIC_TURNSTILE_BYPASS === "true";
 
-    useImperativeHandle(ref, () => ({
-      reset: () => {
-        if (!bypassEnabled) {
-          turnstileRef.current?.reset();
-        }
-      },
-      getResponse: () => {
-        if (bypassEnabled) {
-          return "turnstile-bypass";
-        }
-        return turnstileRef.current?.getResponse();
-      },
-    }));
-
-    useEffect(() => {
+  useImperativeHandle(ref, () => ({
+    reset: () => {
+      if (!bypassEnabled) {
+        turnstileRef.current?.reset();
+      }
+    },
+    getResponse: () => {
       if (bypassEnabled) {
-        onLoad?.();
-        onVerify?.("turnstile-bypass");
-        return;
+        return "turnstile-bypass";
       }
+      return turnstileRef.current?.getResponse();
+    },
+  }));
 
-      if (typeof window === "undefined") {
-        return;
-      }
-
-      const checkReady = () => {
-        if ((window as WindowWithTurnstile).turnstile) {
-          onLoad?.();
-          return true;
-        }
-        return false;
-      };
-
-      if (checkReady()) {
-        return;
-      }
-
-      const interval = window.setInterval(() => {
-        if (checkReady()) {
-          window.clearInterval(interval);
-        }
-      }, 300);
-
-      return () => window.clearInterval(interval);
-    }, [onLoad]);
-
+  useEffect(() => {
     if (bypassEnabled) {
-      return null;
+      onLoad?.();
+      onVerify?.("turnstile-bypass");
+      return;
     }
 
-    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-
-    if (!siteKey) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error("Turnstile site key is not configured (NEXT_PUBLIC_TURNSTILE_SITE_KEY)");
-      }
-      return null;
+    if (typeof window === "undefined") {
+      return;
     }
 
-    const handleError = (errorCode?: string) => {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[Turnstile] Error", errorCode);
+    const checkReady = () => {
+      if ((window as WindowWithTurnstile).turnstile) {
+        onLoad?.();
+        return true;
       }
-      onError?.(errorCode);
+      return false;
     };
 
+    if (checkReady()) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      if (checkReady()) {
+        window.clearInterval(interval);
+      }
+    }, 300);
+
+    return () => window.clearInterval(interval);
+  }, [onLoad]);
+
+  if (bypassEnabled) {
     return (
-      <Turnstile
-        ref={turnstileRef}
-        siteKey={siteKey}
-        onSuccess={onVerify}
-        onError={handleError}
-        onExpire={onExpire}
-        options={{
-          theme,
-          size: "normal",
-          execution: "render",
-        }}
-        className={className}
-      />
+      <div className="flex h-full w-full items-center justify-center gap-3 text-sm text-muted-foreground">
+        <span className="flex size-8 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
+          <ShieldCheck className="size-4" />
+        </span>
+        <span className="flex flex-col">
+          <span className="text-xs font-semibold text-foreground">
+            Secure check ready
+          </span>
+          <span className="text-[0.7rem]">
+            Local development bypass is active
+          </span>
+        </span>
+      </div>
     );
   }
-);
+
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+  if (!siteKey) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error(
+        "Turnstile site key is not configured (NEXT_PUBLIC_TURNSTILE_SITE_KEY)",
+      );
+    }
+    return (
+      <div className="flex h-full w-full items-center justify-center gap-3 text-sm text-muted-foreground">
+        <span className="flex size-8 items-center justify-center rounded-full border border-border bg-muted/50">
+          <ShieldCheck className="size-4" />
+        </span>
+        <span className="flex flex-col">
+          <span className="text-xs font-semibold text-foreground">
+            Secure check unavailable
+          </span>
+          <span className="text-[0.7rem]">Turnstile is not configured</span>
+        </span>
+      </div>
+    );
+  }
+
+  const handleError = (errorCode?: string) => {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[Turnstile] Error", errorCode);
+    }
+    onError?.(errorCode);
+  };
+
+  return (
+    <Turnstile
+      ref={turnstileRef}
+      siteKey={siteKey}
+      onSuccess={onVerify}
+      onError={handleError}
+      onExpire={onExpire}
+      options={{
+        theme,
+        size: "normal",
+        execution: "render",
+      }}
+      className={className}
+    />
+  );
+});
 
 TurnstileComponent.displayName = "TurnstileComponent";

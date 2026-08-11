@@ -26,7 +26,10 @@ export async function POST(
     const { user } = await getAuthUser();
 
     if (!user) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
     }
 
     const url = new URL(request.url);

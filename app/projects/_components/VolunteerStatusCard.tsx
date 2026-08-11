@@ -5,7 +5,10 @@ import { parseISO, differenceInSeconds } from "date-fns";
 import { Project } from "@/types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { getMultiDaySlotByScheduleId, getMultiDaySlotDisplayName } from "@/utils/project";
+import {
+  getMultiDaySlotByScheduleId,
+  getMultiDaySlotDisplayName,
+} from "@/utils/project";
 import Link from "next/link";
 
 interface VolunteerStatusCardProps {
@@ -13,13 +16,16 @@ interface VolunteerStatusCardProps {
   signup: { check_in_time: string | null; schedule_id: string };
 }
 
-export default function VolunteerStatusCard({ project, signup }: VolunteerStatusCardProps) {
+export default function VolunteerStatusCard({
+  project,
+  signup,
+}: VolunteerStatusCardProps) {
   // Determine session timing from project data
   const scheduleId = signup.schedule_id;
   let sessionDate = "";
   let endTime = "";
   let sessionLabel = scheduleId;
-  
+
   if (project.event_type === "oneTime" && project.schedule.oneTime) {
     sessionDate = project.schedule.oneTime.date;
     endTime = project.schedule.oneTime.endTime;
@@ -32,8 +38,13 @@ export default function VolunteerStatusCard({ project, signup }: VolunteerStatus
       endTime = slot.endTime;
       sessionLabel = getMultiDaySlotDisplayName(slot, slotIndex);
     }
-  } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
-    const role = project.schedule.sameDayMultiArea.roles.find(r => r.name === scheduleId);
+  } else if (
+    project.event_type === "sameDayMultiArea" &&
+    project.schedule.sameDayMultiArea
+  ) {
+    const role = project.schedule.sameDayMultiArea.roles.find(
+      (r) => r.name === scheduleId,
+    );
     if (role) {
       sessionDate = project.schedule.sameDayMultiArea.date;
       endTime = role.endTime;
@@ -51,7 +62,10 @@ export default function VolunteerStatusCard({ project, signup }: VolunteerStatus
       // Ensure endDt is valid before proceeding
       if (!isNaN(endDt.getTime())) {
         const totalSec = Math.max(1, differenceInSeconds(endDt, checkIn));
-        const elapsedSec = Math.min(totalSec, differenceInSeconds(new Date(), checkIn));
+        const elapsedSec = Math.min(
+          totalSec,
+          differenceInSeconds(new Date(), checkIn),
+        );
         percent = Math.round((elapsedSec / totalSec) * 100);
       } else {
         console.error("Invalid session end time:", `${sessionDate}T${endTime}`);
@@ -67,12 +81,24 @@ export default function VolunteerStatusCard({ project, signup }: VolunteerStatus
         <CardTitle>Current Check-in Status</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="mb-2">You are checked in to <strong>{project.title}</strong> ({sessionLabel}).</p>
+        <p className="mb-2">
+          You are checked in to <strong>{project.title}</strong> ({sessionLabel}
+          ).
+        </p>
         {/* Ensure Progress component receives a valid number */}
-        <Progress value={percent} className="h-4 mb-2" aria-label="Session progress" />
-        <p className="text-sm text-muted-foreground">{percent}% of session completed</p>
+        <Progress
+          value={percent}
+          className="h-4 mb-2"
+          aria-label="Session progress"
+        />
+        <p className="text-sm text-muted-foreground">
+          {percent}% of session completed
+        </p>
         <div className="mt-4">
-          <Link href="/profile" className="text-sm text-blue-600 hover:underline">
+          <Link
+            href="/profile"
+            className="text-sm text-blue-600 hover:underline"
+          >
             View My Contributions
           </Link>
         </div>

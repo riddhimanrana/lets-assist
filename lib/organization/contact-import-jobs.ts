@@ -134,7 +134,10 @@ async function getInviterName(
     .eq("id", inviterId)
     .single();
 
-  const profile = data as { full_name: string | null; email: string | null } | null;
+  const profile = data as {
+    full_name: string | null;
+    email: string | null;
+  } | null;
   return profile?.full_name || profile?.email || "An admin";
 }
 
@@ -147,7 +150,9 @@ export async function createContactImportJobFromFile(params: {
   file: File;
 }): Promise<ContactImportCreateResponse> {
   const { supabase, organizationId, userId, role, file } = params;
-  const invitationDuration = normalizeInvitationDuration(params.invitationDuration);
+  const invitationDuration = normalizeInvitationDuration(
+    params.invitationDuration,
+  );
 
   const admin = await isOrgAdmin(supabase, organizationId, userId);
   if (!admin) {
@@ -168,12 +173,17 @@ export async function createContactImportJobFromFile(params: {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to parse uploaded file.",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to parse uploaded file.",
     };
   }
 
   const noValidRows = parsed.rows.length === 0;
-  const initialStatus: ContactImportJobRow["status"] = noValidRows ? "failed" : "pending";
+  const initialStatus: ContactImportJobRow["status"] = noValidRows
+    ? "failed"
+    : "pending";
   const initialError = noValidRows
     ? "No valid email rows were found in the uploaded file."
     : null;
@@ -283,7 +293,10 @@ export async function getContactImportJobStatus(params: {
   const admin = await isOrgAdmin(supabase, job.organization_id, userId);
 
   if (!admin) {
-    return { success: false, error: "Only organization admins can access this import job." };
+    return {
+      success: false,
+      error: "Only organization admins can access this import job.",
+    };
   }
 
   const { data: failedRows } = await supabase
@@ -313,7 +326,10 @@ export async function processContactImportJobBatch(params: {
   batchSize?: number;
 }): Promise<ContactImportProcessResponse> {
   const { supabase, jobId, userId } = params;
-  const batchSize = Math.min(Math.max(params.batchSize ?? DEFAULT_BATCH_SIZE, 1), MAX_BATCH_SIZE);
+  const batchSize = Math.min(
+    Math.max(params.batchSize ?? DEFAULT_BATCH_SIZE, 1),
+    MAX_BATCH_SIZE,
+  );
 
   const { data: jobData, error: jobError } = await supabase
     .from("organization_contact_import_jobs")
@@ -330,10 +346,17 @@ export async function processContactImportJobBatch(params: {
   const job = jobData as ContactImportJobRow;
   const admin = await isOrgAdmin(supabase, job.organization_id, userId);
   if (!admin) {
-    return { success: false, error: "Only organization admins can process this import job." };
+    return {
+      success: false,
+      error: "Only organization admins can process this import job.",
+    };
   }
 
-  if (job.status === "completed" || job.status === "failed" || job.status === "cancelled") {
+  if (
+    job.status === "completed" ||
+    job.status === "failed" ||
+    job.status === "cancelled"
+  ) {
     return {
       success: true,
       job: toJob(job),
@@ -346,12 +369,20 @@ export async function processContactImportJobBatch(params: {
     };
   }
 
-  const organization = await getOrganizationContext(supabase, job.organization_id);
+  const organization = await getOrganizationContext(
+    supabase,
+    job.organization_id,
+  );
   if (!organization) {
-    return { success: false, error: "Organization not found for this import job." };
+    return {
+      success: false,
+      error: "Organization not found for this import job.",
+    };
   }
 
-  const invitationDuration = normalizeInvitationDuration(job.invitation_duration);
+  const invitationDuration = normalizeInvitationDuration(
+    job.invitation_duration,
+  );
   const inviterName = await getInviterName(supabase, job.created_by);
   const baseUrl = getInvitationBaseUrl();
   const { expiresAtIso, expiresAtDisplay } =
@@ -371,7 +402,9 @@ export async function processContactImportJobBatch(params: {
 
   const { data: pendingRowsData, error: pendingRowsError } = await supabase
     .from("organization_contact_import_rows")
-    .select("id, row_number, email, full_name, profile_data, status, error, invitation_id")
+    .select(
+      "id, row_number, email, full_name, profile_data, status, error, invitation_id",
+    )
     .eq("job_id", job.id)
     .eq("status", "pending")
     .order("row_number", { ascending: true })
@@ -410,7 +443,9 @@ export async function processContactImportJobBatch(params: {
 
     return {
       success: true,
-      job: completedJobData ? toJob(completedJobData as ContactImportJobRow) : toJob(job),
+      job: completedJobData
+        ? toJob(completedJobData as ContactImportJobRow)
+        : toJob(job),
       batch: {
         processed: 0,
         invited: 0,
@@ -428,7 +463,8 @@ export async function processContactImportJobBatch(params: {
   const existingMemberEmails = new Set(
     (existingMembers || [])
       .map((member) => {
-        const profile = member.profiles as { email: string } | { email: string }[] | null;
+        const profile = member.profiles as
+          { email: string } | { email: string }[] | null;
         if (Array.isArray(profile)) {
           return profile[0]?.email?.toLowerCase();
         }
@@ -464,7 +500,11 @@ export async function processContactImportJobBatch(params: {
   for (const row of pendingRows) {
     const lowerEmail = row.email.toLowerCase();
 
-    const markRow = async (status: "invited" | "skipped" | "failed", error: string | null, invitationId?: string) => {
+    const markRow = async (
+      status: "invited" | "skipped" | "failed",
+      error: string | null,
+      invitationId?: string,
+    ) => {
       await supabase
         .from("organization_contact_import_rows")
         .update({
@@ -519,7 +559,8 @@ export async function processContactImportJobBatch(params: {
       .single();
 
     if (invitationError || !invitationData) {
-      const reason = invitationError?.message || "Failed to create invitation record";
+      const reason =
+        invitationError?.message || "Failed to create invitation record";
       await markRow("failed", reason);
       failedCount++;
       lastErrorMessage = reason;
@@ -576,13 +617,17 @@ export async function processContactImportJobBatch(params: {
       continue;
     }
 
-    const deliveryStatus: InvitationDeliveryStatus = emailResult.skipped ? "skipped" : "sent";
+    const deliveryStatus: InvitationDeliveryStatus = emailResult.skipped
+      ? "skipped"
+      : "sent";
 
     await supabase
       .from("organization_invitations")
       .update({
         email_delivery_status: deliveryStatus,
-        email_delivery_error: emailResult.skipped ? emailResult.reason || null : null,
+        email_delivery_error: emailResult.skipped
+          ? emailResult.reason || null
+          : null,
         last_email_attempt_at: attemptedAtIso,
         last_email_sent_at: emailResult.success ? attemptedAtIso : null,
         email_message_id: emailResult.data?.id || null,
@@ -608,10 +653,14 @@ export async function processContactImportJobBatch(params: {
     .from("organization_contact_import_jobs")
     .update({
       status: nextStatus,
-      processed_rows: Math.min(job.processed_rows + pendingRows.length, job.valid_rows),
+      processed_rows: Math.min(
+        job.processed_rows + pendingRows.length,
+        job.valid_rows,
+      ),
       successful_invites: job.successful_invites + invitedCount,
       failed_invites: job.failed_invites + failedCount + skippedCount,
-      completed_at: nextStatus === "completed" ? new Date().toISOString() : null,
+      completed_at:
+        nextStatus === "completed" ? new Date().toISOString() : null,
       last_error: lastErrorMessage,
     })
     .eq("id", job.id)
@@ -654,7 +703,9 @@ export async function importContactsDirectFromFile(params: {
   }
 > {
   const { supabase, organizationId, userId, role, file } = params;
-  const invitationDuration = normalizeInvitationDuration(params.invitationDuration);
+  const invitationDuration = normalizeInvitationDuration(
+    params.invitationDuration,
+  );
 
   const admin = await isOrgAdmin(supabase, organizationId, userId);
   if (!admin) {
@@ -703,7 +754,10 @@ export async function importContactsDirectFromFile(params: {
         failed: 0,
         results: [],
       },
-      error: error instanceof Error ? error.message : "Failed to parse uploaded file.",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to parse uploaded file.",
     };
   }
 
@@ -738,7 +792,8 @@ export async function importContactsDirectFromFile(params: {
   const existingMemberEmails = new Set(
     (existingMembers || [])
       .map((member) => {
-        const profile = member.profiles as { email: string } | { email: string }[] | null;
+        const profile = member.profiles as
+          { email: string } | { email: string }[] | null;
         if (Array.isArray(profile)) {
           return profile[0]?.email?.toLowerCase();
         }
@@ -853,13 +908,17 @@ export async function importContactsDirectFromFile(params: {
       continue;
     }
 
-    const deliveryStatus: InvitationDeliveryStatus = emailResult.skipped ? "skipped" : "sent";
+    const deliveryStatus: InvitationDeliveryStatus = emailResult.skipped
+      ? "skipped"
+      : "sent";
 
     await supabase
       .from("organization_invitations")
       .update({
         email_delivery_status: deliveryStatus,
-        email_delivery_error: emailResult.skipped ? emailResult.reason || null : null,
+        email_delivery_error: emailResult.skipped
+          ? emailResult.reason || null
+          : null,
         last_email_attempt_at: attemptedAtIso,
         last_email_sent_at: emailResult.success ? attemptedAtIso : null,
         email_message_id: emailResult.data?.id || null,

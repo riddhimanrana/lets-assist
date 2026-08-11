@@ -4,7 +4,13 @@ import { useEffect, useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown, Building2, User, AlertCircle } from "lucide-react";
+import {
+  Check,
+  ChevronsUpDown,
+  Building2,
+  User,
+  AlertCircle,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RichTextContent } from "@/components/ui/rich-text-content";
@@ -26,7 +32,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EventFormState } from "@/hooks/use-event-form";
 import LocationAutocomplete from "@/components/ui/location-autocomplete";
 import { LocationData } from "@/types";
-import { COMMON_TIMEZONES, getUserTimezone, getBestMatchingTimezone } from "@/utils/timezone";
+import {
+  COMMON_TIMEZONES,
+  getUserTimezone,
+  getBestMatchingTimezone,
+} from "@/utils/timezone";
 import {
   Select,
   SelectContent,
@@ -46,7 +56,7 @@ interface BasicInfoProps {
   state: EventFormState;
   updateBasicInfoAction: (
     field: keyof EventFormState["basicInfo"],
-    value: EventFormState["basicInfo"][keyof EventFormState["basicInfo"]]
+    value: EventFormState["basicInfo"][keyof EventFormState["basicInfo"]],
   ) => void;
   initialOrgId?: string;
   initialOrganizations?: OrganizationOption[];
@@ -66,15 +76,23 @@ export default function BasicInfo({
   initialOrganizations = [],
   showLocationPointer,
   onLocationPointerDismiss,
-  errors = {}
+  errors = {},
 }: BasicInfoProps) {
   const [open, setOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [organizationOptions, _setOrganizationOptions] = useState<OrganizationOption[]>(
+  const [organizationOptions, _setOrganizationOptions] = useState<
+    OrganizationOption[]
+  >(
     initialOrganizations.length > 0
       ? initialOrganizations
-      : [{ id: "personal", name: "Personal Project", logo_url: null, role: "creator" }]
+      : [
+          {
+            id: "personal",
+            name: "Personal Project",
+            logo_url: null,
+            role: "creator",
+          },
+        ],
   );
   const initRef = useRef(false);
 
@@ -86,26 +104,29 @@ export default function BasicInfo({
 
     // If initialOrgId is provided, use it
     if (initialOrgId && state.basicInfo.organizationId !== initialOrgId) {
-      updateBasicInfoAction('organizationId', initialOrgId);
+      updateBasicInfoAction("organizationId", initialOrgId);
     } else if (state.basicInfo.organizationId === undefined) {
       // Otherwise, if no organization is set, default to personal (null)
-      updateBasicInfoAction('organizationId', null);
+      updateBasicInfoAction("organizationId", null);
     }
 
     // Initialize timezone to user's current timezone if not set
     if (!state.basicInfo.projectTimezone) {
       const detectedTimezone = getUserTimezone();
       const bestMatch = getBestMatchingTimezone(detectedTimezone);
-      updateBasicInfoAction('projectTimezone', bestMatch);
+      updateBasicInfoAction("projectTimezone", bestMatch);
     }
   }, []);
 
   // Find the selected organization or use personal project as default
-  const selectedOrg = state.basicInfo.organizationId === null
-    ? organizationOptions.find(org => org.id === "personal")
-    : state.basicInfo.organizationId
-      ? organizationOptions.find(org => org.id === state.basicInfo.organizationId)
-      : organizationOptions.find(org => org.id === "personal");
+  const selectedOrg =
+    state.basicInfo.organizationId === null
+      ? organizationOptions.find((org) => org.id === "personal")
+      : state.basicInfo.organizationId
+        ? organizationOptions.find(
+            (org) => org.id === state.basicInfo.organizationId,
+          )
+        : organizationOptions.find((org) => org.id === "personal");
 
   // Handle selection
   const handleOrganizationSelect = (orgId: string) => {
@@ -176,25 +197,27 @@ export default function BasicInfo({
           <div className="space-y-2">
             <Label>Create Project As</Label>
             <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger render={
-                <Button
-                  type="button"
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={open}
-                  className="w-full justify-between"
-                >
-                  {selectedOrg ? (
-                    <div className="flex items-center gap-2">
-                      {renderOrgAvatar(selectedOrg)}
-                      <span>{selectedOrg.name}</span>
-                    </div>
-                  ) : (
-                    "Select who's creating this project..."
-                  )}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              } />
+              <PopoverTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between"
+                  >
+                    {selectedOrg ? (
+                      <div className="flex items-center gap-2">
+                        {renderOrgAvatar(selectedOrg)}
+                        <span>{selectedOrg.name}</span>
+                      </div>
+                    ) : (
+                      "Select who's creating this project..."
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                }
+              />
               <PopoverContent className="w-[300px] p-0" align="start">
                 <Command>
                   <CommandInput placeholder="Search organizations..." />
@@ -220,10 +243,11 @@ export default function BasicInfo({
                           <Check
                             className={cn(
                               "ml-auto h-4 w-4",
-                              ((org.id === state.basicInfo.organizationId) ||
-                                (state.basicInfo.organizationId === null && org.id === "personal"))
+                              org.id === state.basicInfo.organizationId ||
+                                (state.basicInfo.organizationId === null &&
+                                  org.id === "personal")
                                 ? "opacity-100"
-                                : "opacity-0"
+                                : "opacity-0",
                             )}
                           />
                         </CommandItem>
@@ -234,7 +258,8 @@ export default function BasicInfo({
               </PopoverContent>
             </Popover>
             <p className="text-xs text-muted-foreground">
-              Choose whether to create this project personally or on behalf of an organization
+              Choose whether to create this project personally or on behalf of
+              an organization
             </p>
           </div>
         )}
@@ -246,7 +271,7 @@ export default function BasicInfo({
             <span
               className={cn(
                 "text-xs transition-colors",
-                getCounterColor(state.basicInfo.title?.length || 0, 125)
+                getCounterColor(state.basicInfo.title?.length || 0, 125),
               )}
             >
               {state.basicInfo.title?.length || 0}/125
@@ -255,7 +280,7 @@ export default function BasicInfo({
           <Input
             id="title"
             placeholder="e.g., Santa Cruz Beach Cleanup"
-            value={state.basicInfo.title ?? ''} // Ensure value is never undefined
+            value={state.basicInfo.title ?? ""} // Ensure value is never undefined
             onChange={(e) => {
               if (e.target.value.length <= 125) {
                 updateBasicInfoAction("title", e.target.value);
@@ -268,7 +293,10 @@ export default function BasicInfo({
             aria-errormessage={errors.title ? "title-error" : undefined}
           />
           {errors.title && (
-            <div id="title-error" className="text-destructive text-sm flex items-center gap-2 mt-1">
+            <div
+              id="title-error"
+              className="text-destructive text-sm flex items-center gap-2 mt-1"
+            >
               <AlertCircle className="h-4 w-4" />
               {errors.title}
             </div>
@@ -277,7 +305,8 @@ export default function BasicInfo({
 
         {/* Project Location - Simplified */}
         <div className="space-y-2">
-          <Label htmlFor="location">Project Location</Label> {/* Added external Label */}
+          <Label htmlFor="location">Project Location</Label>{" "}
+          {/* Added external Label */}
           <LocationAutocomplete
             id="location" // Pass id
             value={state.basicInfo.locationData}
@@ -306,18 +335,22 @@ export default function BasicInfo({
         <div className="space-y-2">
           <Label htmlFor="timezone">Project Timezone</Label>
           <p className="text-sm text-muted-foreground">
-            Select the timezone where your project takes place. Event times will be displayed in this timezone with a badge (e.g., PST, EST) to help volunteers in other regions.
+            Select the timezone where your project takes place. Event times will
+            be displayed in this timezone with a badge (e.g., PST, EST) to help
+            volunteers in other regions.
           </p>
           <Select
-            value={state.basicInfo.projectTimezone || ''}
+            value={state.basicInfo.projectTimezone || ""}
             onValueChange={(value) =>
-              updateBasicInfoAction('projectTimezone', value)
+              updateBasicInfoAction("projectTimezone", value)
             }
           >
             <SelectTrigger id="timezone" className="w-full">
               <SelectValue placeholder="Select project timezone">
                 {state.basicInfo.projectTimezone
-                  ? COMMON_TIMEZONES.find(tz => tz.value === state.basicInfo.projectTimezone)?.label || state.basicInfo.projectTimezone
+                  ? COMMON_TIMEZONES.find(
+                      (tz) => tz.value === state.basicInfo.projectTimezone,
+                    )?.label || state.basicInfo.projectTimezone
                   : undefined}
               </SelectValue>
             </SelectTrigger>
@@ -357,12 +390,12 @@ export default function BasicInfo({
 
           {previewMode ? (
             <div className="rounded-md border text-sm bg-background p-4 shadow-xs">
-              <RichTextContent content={state.basicInfo.description ?? ''} />
+              <RichTextContent content={state.basicInfo.description ?? ""} />
             </div>
           ) : (
             <div className="space-y-1">
               <RichTextEditor
-                content={state.basicInfo.description ?? ''}
+                content={state.basicInfo.description ?? ""}
                 onChange={(html) => updateBasicInfoAction("description", html)}
                 maxLength={2000}
                 className={errors.description ? "border-destructive" : ""}

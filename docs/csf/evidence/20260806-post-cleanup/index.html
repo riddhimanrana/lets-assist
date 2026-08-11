@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DVHS CSF synthetic lifecycle gallery</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f5f7f5;
+        --panel: #ffffff;
+        --text: #172019;
+        --muted: #647067;
+        --border: #d9dfda;
+        --accent: #15803d;
+        --accent-soft: #dcfce7;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111611;
+          --panel: #171d18;
+          --text: #edf4ee;
+          --muted: #aab5ac;
+          --border: #303a32;
+          --accent: #86efac;
+          --accent-soft: #173d24;
+        }
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      a { color: inherit; }
+      header, main, footer { width: min(1480px, calc(100% - 32px)); margin-inline: auto; }
+      header { padding: 44px 0 24px; }
+      h1 { margin: 0 0 8px; font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.05; }
+      h2 { margin: 0 0 18px; font-size: 1.3rem; }
+      h3 { margin: 0; font-size: 1rem; }
+      p { margin: 0; }
+      .lede { max-width: 78ch; color: var(--muted); font-size: 1.05rem; }
+      .notice {
+        margin-top: 20px;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--panel);
+      }
+      nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+      nav a {
+        padding: 7px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--panel);
+        text-decoration: none;
+      }
+      section { padding: 24px 0; scroll-margin-top: 16px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr)); gap: 18px; }
+      figure {
+        margin: 0;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--panel);
+      }
+      figure a { display: block; background: #0b0d0b; }
+      figure img { display: block; width: 100%; height: auto; }
+      figcaption { display: grid; gap: 5px; padding: 12px 14px 14px; }
+      .meta { color: var(--muted); font-size: 0.86rem; }
+      .tag {
+        display: inline-flex;
+        width: fit-content;
+        padding: 2px 7px;
+        border-radius: 999px;
+        color: var(--accent);
+        background: var(--accent-soft);
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+      .phone-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+      .phone-grid figure img { max-height: 660px; object-fit: contain; }
+      .links {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 10px;
+      }
+      .links a {
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel);
+        text-decoration: none;
+      }
+      footer { padding: 24px 0 44px; color: var(--muted); }
+      @media (max-width: 560px) {
+        header, main, footer { width: min(100% - 20px, 1480px); }
+        header { padding-top: 28px; }
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="tag">Synthetic evidence only</span>
+      <h1>DVHS CSF lifecycle gallery</h1>
+      <p class="lede">A curated, sanitized visual record of the officer and member workspaces. Every image uses fictional local fixtures. No live Google OAuth, Picker selection, Drive import, Google write, paid cloud database, production mutation, or Vela access is represented.</p>
+      <div class="notice"><strong>Scope:</strong> 22 captures covering core officer routes, member status, the public boundary, and responsive light/dark layouts. Companion verification: 214 migrations, 82 CSF tables, 63 pgTAP files, 3,165 passing assertions, plugin-isolation smoke, every officer-role boundary, and 40 passing behavioral browser scenarios. Open any image for its full resolution.</div>
+      <nav aria-label="Gallery sections">
+        <a href="#operations">Officer operations</a>
+        <a href="#records">Records and administration</a>
+        <a href="#member">Member and public</a>
+        <a href="#responsive">Responsive themes</a>
+        <a href="#evidence">Evidence files</a>
+      </nav>
+    </header>
+
+    <main>
+      <section id="operations">
+        <h2>Officer operations</h2>
+        <div class="grid">
+          <figure><a href="screenshots/40-home-admin.png"><img loading="lazy" src="screenshots/40-home-admin.png" alt="Organization admin home with role-aware tasks, quick links, and recent imports" /></a><figcaption><h3>Admin home</h3><p class="meta">Role-aware tasks, useful counts, recent imports, and no dashboard filler.</p></figcaption></figure>
+          <figure><a href="screenshots/41-applications-list.png"><img loading="lazy" src="screenshots/41-applications-list.png" alt="Compact shadcn application review list" /></a><figcaption><h3>Application list</h3><p class="meta">One toolbar, operational columns, queue and all-application views.</p></figcaption></figure>
+          <figure><a href="screenshots/42-application-review.png"><img loading="lazy" src="screenshots/42-application-review.png" alt="Full-page application review with eligibility and source sections" /></a><figcaption><h3>Application review</h3><p class="meta">URL-addressable full-page review with checks, courses, provenance, and decision actions.</p></figcaption></figure>
+          <figure><a href="screenshots/44-service-activities.png"><img loading="lazy" src="screenshots/44-service-activities.png" alt="CSF activities list" /></a><figcaption><h3>Activities</h3><p class="meta">Structured CSF activities with status, credit rules, and publication controls.</p></figcaption></figure>
+          <figure><a href="screenshots/45-service-points.png"><img loading="lazy" src="screenshots/45-service-points.png" alt="Point submissions review list" /></a><figcaption><h3>Point submissions</h3><p class="meta">Term policy, review queue, awarded-credit counts, and appeal state.</p></figcaption></figure>
+          <figure><a href="screenshots/46-service-meetings.png"><img loading="lazy" src="screenshots/46-service-meetings.png" alt="Meetings and attendance import list" /></a><figcaption><h3>Meetings</h3><p class="meta">Required meetings, class audience, linked Sheet state, and reconciliation entry points.</p></figcaption></figure>
+          <figure><a href="screenshots/47-service-partner-clubs.png"><img loading="lazy" src="screenshots/47-service-partner-clubs.png" alt="Partner club standing directory" /></a><figcaption><h3>Partner clubs</h3><p class="meta">Canonical club records with semester standing and member Sheet review.</p></figcaption></figure>
+          <figure><a href="screenshots/48-semester.png"><img loading="lazy" src="screenshots/48-semester.png" alt="Semester schedule, policy, and historical terms" /></a><figcaption><h3>Semester</h3><p class="meta">Dates, policy version, deadlines, meetings, cohorts, close, and reopen controls.</p></figcaption></figure>
+        </div>
+      </section>
+
+      <section id="records">
+        <h2>Records and administration</h2>
+        <div class="grid">
+          <figure><a href="screenshots/43-members-directory.png"><img loading="lazy" src="screenshots/43-members-directory.png" alt="Compact CSF member directory" /></a><figcaption><h3>Member directory</h3><p class="meta">Current operational identity, class, account connection, and semester status.</p></figcaption></figure>
+          <figure><a href="screenshots/49-imports.png"><img loading="lazy" src="screenshots/49-imports.png" alt="Google Sheets import preview and reconciliation" /></a><figcaption><h3>Imports</h3><p class="meta">Connection state, exact source requirements, normalized preview, reconciliation, and blocked commit.</p></figcaption></figure>
+          <figure><a href="screenshots/50-reports.png"><img loading="lazy" src="screenshots/50-reports.png" alt="Term-scoped CSF reports" /></a><figcaption><h3>Reports</h3><p class="meta">Term-scoped counts, source links, and local ZIP export with no Google write destination.</p></figcaption></figure>
+          <figure><a href="screenshots/51-staff-access.png"><img loading="lazy" src="screenshots/51-staff-access.png" alt="CSF officer roster and position seats" /></a><figcaption><h3>Staff access</h3><p class="meta">Chapter seats, fictional assignees, effective access, and permission ownership.</p></figcaption></figure>
+          <figure><a href="screenshots/52-change-history.png"><img loading="lazy" src="screenshots/52-change-history.png" alt="Immutable CSF change history" /></a><figcaption><h3>Change history</h3><p class="meta">Actor, target, action, details, and date for consequential operations.</p></figcaption></figure>
+          <figure><a href="screenshots/53-csf-settings.png"><img loading="lazy" src="screenshots/53-csf-settings.png" alt="Functional CSF settings links" /></a><figcaption><h3>Settings</h3><p class="meta">Small functional links to Google/import configuration and semester policy.</p></figcaption></figure>
+        </div>
+      </section>
+
+      <section id="member">
+        <h2>Member and public boundary</h2>
+        <div class="grid">
+          <figure><a href="screenshots/54-member-my-csf.png"><img loading="lazy" src="screenshots/54-member-my-csf.png" alt="Member My CSF semester status" /></a><figcaption><h3>My CSF</h3><p class="meta">One current-semester status with application, eligibility, dues, attendance, points, and decision.</p></figcaption></figure>
+          <figure><a href="screenshots/55-public-page.png"><img loading="lazy" src="screenshots/55-public-page.png" alt="Minimal public CSF activity page" /></a><figcaption><h3>Public page</h3><p class="meta">Organization links and public activities only; no private application or member records.</p></figcaption></figure>
+        </div>
+      </section>
+
+      <section id="responsive">
+        <h2>Responsive and theme coverage</h2>
+        <div class="grid phone-grid">
+          <figure><a href="screenshots/56-home-desktop-light.png"><img loading="lazy" src="screenshots/56-home-desktop-light.png" alt="Home at 1440 pixels in light mode" /></a><figcaption><h3>Desktop light</h3><p class="meta">1440 × 1000</p></figcaption></figure>
+          <figure><a href="screenshots/56-home-desktop-dark.png"><img loading="lazy" src="screenshots/56-home-desktop-dark.png" alt="Home at 1440 pixels in dark mode" /></a><figcaption><h3>Desktop dark</h3><p class="meta">1440 × 1000</p></figcaption></figure>
+          <figure><a href="screenshots/56-home-tablet-light.png"><img loading="lazy" src="screenshots/56-home-tablet-light.png" alt="Home at 768 pixels in light mode" /></a><figcaption><h3>Tablet light</h3><p class="meta">768 × 1024</p></figcaption></figure>
+          <figure><a href="screenshots/56-home-tablet-dark.png"><img loading="lazy" src="screenshots/56-home-tablet-dark.png" alt="Home at 768 pixels in dark mode" /></a><figcaption><h3>Tablet dark</h3><p class="meta">768 × 1024</p></figcaption></figure>
+          <figure><a href="screenshots/56-home-phone-light.png"><img loading="lazy" src="screenshots/56-home-phone-light.png" alt="Home at 390 pixels in light mode" /></a><figcaption><h3>Phone light</h3><p class="meta">390 × 1118</p></figcaption></figure>
+          <figure><a href="screenshots/56-home-phone-dark.png"><img loading="lazy" src="screenshots/56-home-phone-dark.png" alt="Home at 390 pixels in dark mode" /></a><figcaption><h3>Phone dark</h3><p class="meta">390 × 1118</p></figcaption></figure>
+        </div>
+      </section>
+
+      <section id="evidence">
+        <h2>Evidence files</h2>
+        <div class="links">
+          <a href="verification-summary.md"><strong>Verification summary</strong><br /><span class="meta">Scope, privacy boundary, and evidence limits</span></a>
+          <a href="action-matrix.md"><strong>Action matrix</strong><br /><span class="meta">Actor, route, action, and expected result</span></a>
+          <a href="action-matrix.json"><strong>Action matrix JSON</strong><br /><span class="meta">Machine-readable lifecycle coverage</span></a>
+          <a href="console-summary.md"><strong>Console summary</strong><br /><span class="meta">Sanitized runtime observations</span></a>
+          <a href="aggregate-import-results.md"><strong>Aggregate import results</strong><br /><span class="meta">Synthetic counts only</span></a>
+          <a href="residual-risk-register.md"><strong>Residual risks</strong><br /><span class="meta">Open gates and containment</span></a>
+        </div>
+      </section>
+    </main>
+
+    <footer>Generated from the isolated local CSF fixture tenant on July 22, 2026. This folder contains no live Drive rows or external-account screenshots.</footer>
+  </body>
+</html>

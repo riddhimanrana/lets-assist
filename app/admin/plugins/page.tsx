@@ -1,7 +1,13 @@
 import { redirect } from "next/navigation";
 
 import { checkSuperAdmin } from "@/app/admin/actions";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import PluginControlPlane from "./PluginControlPlane";
 import { getPluginControlPlaneData } from "./actions";
 
@@ -25,9 +31,13 @@ export default async function AdminPluginsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Plugin Control Plane</CardTitle>
-            <CardDescription>Unable to load plugin control data.</CardDescription>
+            <CardDescription>
+              Unable to load plugin control data.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="text-destructive text-sm">{data.error}</CardContent>
+          <CardContent className="text-destructive text-sm">
+            {data.error}
+          </CardContent>
         </Card>
       </div>
     );
@@ -35,7 +45,6 @@ export default async function AdminPluginsPage() {
 
   return (
     <div className="container mx-auto max-w-7xl space-y-6 px-4 py-8 md:px-6">
-
       {data.warning ? (
         <Card className="border-amber-200/70 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20">
           <CardHeader>

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -19,17 +19,26 @@ import {
 } from "@/components/ui/field";
 import { Controller } from "react-hook-form";
 import { Input } from "@/components/ui/input";
-import { initialOnboardingSchema, InitialOnboardingValues } from "@/schemas/onboarding-schema";
+import {
+  initialOnboardingSchema,
+  InitialOnboardingValues,
+} from "@/schemas/onboarding-schema";
 import { useState, useEffect, useRef } from "react";
 import { completeInitialOnboarding } from "./onboarding-actions";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { CircleCheck, XCircle, Building2, ArrowRight, Loader2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import {
+  CircleCheck,
+  XCircle,
+  Building2,
+  ArrowRight,
+  Loader2,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { usePathname, useRouter } from "next/navigation";
 
 // Constants for validation
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 32;
 const PHONE_LENGTH = 10;
@@ -41,6 +50,11 @@ interface InitialOnboardingModalProps {
   currentFullName?: string | null;
   currentEmail?: string | null;
   autoJoinedOrg?: { id: string; name: string } | null;
+  /**
+   * "csf" only swaps the heading/description copy for students arriving from
+   * a CSF cohort connect link and keeps them on the connect page afterwards.
+   */
+  variant?: "default" | "csf";
 }
 
 export default function InitialOnboardingModal({
@@ -50,9 +64,14 @@ export default function InitialOnboardingModal({
   currentFullName: _currentFullName,
   currentEmail: _currentEmail,
   autoJoinedOrg,
+  variant = "default",
 }: InitialOnboardingModalProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
+    null,
+  );
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [usernameLength, setUsernameLength] = useState(0);
   const [phoneNumberLength, setPhoneNumberLength] = useState(0);
@@ -97,7 +116,7 @@ export default function InitialOnboardingModal({
   }, [usernameValue]);
 
   useEffect(() => {
-    const digitsOnly = phoneValue?.replace(/\D/g, '') || '';
+    const digitsOnly = phoneValue?.replace(/\D/g, "") || "";
     setPhoneNumberLength(digitsOnly.length);
   }, [phoneValue]);
 
@@ -187,7 +206,9 @@ export default function InitialOnboardingModal({
     }
 
     if (usernameAvailable === false) {
-      toast.error("Username not available. Please choose a different username.");
+      toast.error(
+        "Username not available. Please choose a different username.",
+      );
       setIsSubmitting(false);
       return;
     }
@@ -195,7 +216,7 @@ export default function InitialOnboardingModal({
     try {
       const result = await completeInitialOnboarding(
         values.username,
-        values.phoneNumber
+        values.phoneNumber,
       );
 
       if (result.error) {
@@ -209,14 +230,22 @@ export default function InitialOnboardingModal({
 
         const waitForMetadataUpdate = async (): Promise<boolean> => {
           try {
-            const { data: { user }, error } = await supabase.auth.getUser();
+            const {
+              data: { user },
+              error,
+            } = await supabase.auth.getUser();
             if (error) {
-              console.warn("Error fetching updated user after onboarding:", error);
+              console.warn(
+                "Error fetching updated user after onboarding:",
+                error,
+              );
               return false;
             }
 
-            const metadata = user?.user_metadata as Record<string, unknown> | undefined;
-            const hasCompletedOnboarding = metadata?.has_completed_onboarding === true;
+            const metadata = user?.user_metadata as
+              Record<string, unknown> | undefined;
+            const hasCompletedOnboarding =
+              metadata?.has_completed_onboarding === true;
 
             if (hasCompletedOnboarding) {
               const autoJoinedOrgName =
@@ -225,9 +254,12 @@ export default function InitialOnboardingModal({
                   : undefined;
               if (autoJoinedOrgName) {
                 setTimeout(() => {
-                  toast.info(`You've been automatically added to ${autoJoinedOrgName} based on your email domain.`, {
-                    duration: 6000,
-                  });
+                  toast.info(
+                    `You've been automatically added to ${autoJoinedOrgName} based on your email domain.`,
+                    {
+                      duration: 6000,
+                    },
+                  );
                 }, 1500);
               }
               return true;
@@ -235,7 +267,7 @@ export default function InitialOnboardingModal({
 
             if (retries < maxRetries) {
               retries++;
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              await new Promise((resolve) => setTimeout(resolve, 1000));
               return await waitForMetadataUpdate();
             }
 
@@ -249,11 +281,20 @@ export default function InitialOnboardingModal({
         onClose();
 
         if (typeof window !== "undefined") {
-          window.sessionStorage.setItem("lets-assist:onboarding-complete", "true");
+          window.sessionStorage.setItem(
+            "lets-assist:onboarding-complete",
+            "true",
+          );
         }
 
         setTimeout(() => {
-          window.location.href = "/home?onboarding=complete";
+          // CSF connect signups stay on the connect/confirmation page instead
+          // of being pulled to /home.
+          router.replace(
+            variant === "csf" && pathname
+              ? `${pathname}?onboarding=complete`
+              : "/home?onboarding=complete",
+          );
         }, 1000);
       }
     } catch (error) {
@@ -264,14 +305,9 @@ export default function InitialOnboardingModal({
     }
   }
 
-
-
   return (
-    <Dialog open={isOpen} onOpenChange={() => { }}>
-      <DialogContent
-        className="w-full max-w-[95vw] sm:max-w-[480px] p-0 overflow-hidden gap-0 [&>button]:hidden"
-
-      >
+    <Dialog open={isOpen} onOpenChange={() => {}}>
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-[480px] p-0 overflow-hidden gap-0 [&>button]:hidden">
         <AnimatePresence>
           {mounted && (
             <motion.div
@@ -288,16 +324,28 @@ export default function InitialOnboardingModal({
                   className="flex items-center gap-3 mb-4"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Image src="/logo.png" alt="Let's Assist Logo" width={48} height={48} />
+                    <Image
+                      src="/logo.png"
+                      alt="Let's Assist Logo"
+                      width={48}
+                      height={48}
+                    />
                   </div>
                   <div>
-                    <DialogTitle className="text-xl font-semibold">Welcome to Let&apos;s Assist!</DialogTitle>
+                    <DialogTitle className="text-xl font-semibold">
+                      {variant === "csf"
+                        ? "Finish setting up your Let's Assist account"
+                        : "Welcome to Let's Assist!"}
+                    </DialogTitle>
                     <div className="space-y-1">
                       <DialogDescription className="text-sm">
-                        Let&apos;s set up your profile
+                        {variant === "csf"
+                          ? "Your CSF record is connected — choose a username to finish"
+                          : "Let's set up your profile"}
                       </DialogDescription>
                       <p className="text-xs text-muted-foreground/80">
-                        This will keep showing up until filled out and then go away forever.
+                        This will keep showing up until filled out and then go
+                        away forever.
                       </p>
                     </div>
                   </div>
@@ -312,14 +360,21 @@ export default function InitialOnboardingModal({
                     className="flex items-center gap-3 p-3 rounded-lg bg-background/80 backdrop-blur-xs border shadow-xs"
                   >
                     <Avatar className="h-10 w-10 border">
-                      <AvatarImage src={orgLogoUrl || undefined} alt={autoJoinedOrg.name} />
+                      <AvatarImage
+                        src={orgLogoUrl || undefined}
+                        alt={autoJoinedOrg.name}
+                      />
                       <AvatarFallback className="bg-primary/10">
                         <Building2 className="h-5 w-5 text-primary" />
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground">You&apos;ve been added to</p>
-                      <p className="font-medium text-sm truncate">{autoJoinedOrg.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        You&apos;ve been added to
+                      </p>
+                      <p className="font-medium text-sm truncate">
+                        {autoJoinedOrg.name}
+                      </p>
                     </div>
                     <CircleCheck className="h-5 w-5 text-primary shrink-0" />
                   </motion.div>
@@ -328,7 +383,10 @@ export default function InitialOnboardingModal({
 
               {/* Form content */}
               <div className="px-6 py-6">
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-5"
+                >
                   <motion.div
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -340,7 +398,12 @@ export default function InitialOnboardingModal({
                       render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
                           <div className="flex justify-between items-center">
-                            <FieldLabel className="text-sm font-medium" htmlFor={field.name}>Choose your username</FieldLabel>
+                            <FieldLabel
+                              className="text-sm font-medium"
+                              htmlFor={field.name}
+                            >
+                              Choose your username
+                            </FieldLabel>
                             <span
                               className={`text-xs tabular-nums ${usernameLength > USERNAME_MAX_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
                             >
@@ -356,7 +419,10 @@ export default function InitialOnboardingModal({
                               className="h-11 pr-10 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
                               aria-invalid={fieldState.invalid}
                               onChange={(e) => {
-                                const noSpaces = e.target.value.replace(/\s/g, "");
+                                const noSpaces = e.target.value.replace(
+                                  /\s/g,
+                                  "",
+                                );
                                 const lower = noSpaces.toLowerCase();
                                 field.onChange(lower);
                                 setUsernameLength(lower.length);
@@ -379,25 +445,33 @@ export default function InitialOnboardingModal({
                                   className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
                                 />
                               )}
-                              {usernameAvailable !== null && !checkingUsername && (
-                                <motion.div
-                                  initial={{ scale: 0 }}
-                                  animate={{ scale: 1 }}
-                                  transition={{ type: "spring", stiffness: 500, damping: 25 }}
-                                >
-                                  {usernameAvailable ? (
-                                    <CircleCheck className="h-5 w-5 text-primary" />
-                                  ) : (
-                                    <XCircle className="h-5 w-5 text-destructive" />
-                                  )}
-                                </motion.div>
-                              )}
+                              {usernameAvailable !== null &&
+                                !checkingUsername && (
+                                  <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{
+                                      type: "spring",
+                                      stiffness: 500,
+                                      damping: 25,
+                                    }}
+                                  >
+                                    {usernameAvailable ? (
+                                      <CircleCheck className="h-5 w-5 text-primary" />
+                                    ) : (
+                                      <XCircle className="h-5 w-5 text-destructive" />
+                                    )}
+                                  </motion.div>
+                                )}
                             </div>
                           </div>
                           <FieldDescription className="text-xs">
-                            Letters, numbers, underscores, dots, and hyphens only (3 characters min)
+                            Letters, numbers, underscores, dots, and hyphens
+                            only (3 characters min)
                           </FieldDescription>
-                          {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                          {fieldState.invalid && (
+                            <FormMessage errors={[fieldState.error]} />
+                          )}
                         </Field>
                       )}
                     />
@@ -414,8 +488,14 @@ export default function InitialOnboardingModal({
                       render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
                           <div className="flex justify-between items-center">
-                            <FieldLabel className="text-sm font-medium" htmlFor={field.name}>
-                              Phone Number <span className="text-muted-foreground font-normal">(optional)</span>
+                            <FieldLabel
+                              className="text-sm font-medium"
+                              htmlFor={field.name}
+                            >
+                              Phone Number{" "}
+                              <span className="text-muted-foreground font-normal">
+                                (optional)
+                              </span>
                             </FieldLabel>
                             <span
                               className={`text-xs tabular-nums ${phoneNumberLength > PHONE_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
@@ -431,9 +511,13 @@ export default function InitialOnboardingModal({
                             value={field.value || ""}
                             className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
                             onChange={(e) => {
-                              const formatted = formatPhoneNumber(e.target.value);
+                              const formatted = formatPhoneNumber(
+                                e.target.value,
+                              );
                               field.onChange(formatted);
-                              setPhoneNumberLength(formatted.replace(/-/g, "").length);
+                              setPhoneNumberLength(
+                                formatted.replace(/-/g, "").length,
+                              );
                             }}
                             maxLength={12}
                             aria-invalid={fieldState.invalid}
@@ -441,7 +525,9 @@ export default function InitialOnboardingModal({
                           <FieldDescription className="text-xs">
                             Used for project coordination and volunteer signups
                           </FieldDescription>
-                          {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                          {fieldState.invalid && (
+                            <FormMessage errors={[fieldState.error]} />
+                          )}
                         </Field>
                       )}
                     />
@@ -477,12 +563,11 @@ export default function InitialOnboardingModal({
                     </DialogFooter>
                   </motion.div>
                 </form>
-
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </DialogContent>
-    </Dialog >
+    </Dialog>
   );
 }

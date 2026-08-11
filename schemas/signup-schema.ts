@@ -5,14 +5,11 @@ export const signupSchema = z
     fullName: z.string().min(3, "Full name must be at least 3 characters"),
     email: z.string().email("Invalid email address"),
     password: z.string().min(8, "Password must be at least 8 characters"),
-    dateOfBirth: z.string().refine(
-      (date) => {
-        const dob = new Date(date);
-        const today = new Date();
-        return dob < today && dob > new Date("1900-01-01");
-      },
-      "Invalid date of birth"
-    ),
+    dateOfBirth: z.string().refine((date) => {
+      const dob = new Date(date);
+      const today = new Date();
+      return dob < today && dob > new Date("1900-01-01");
+    }, "Invalid date of birth"),
     parentEmail: z.string().email().optional(),
     turnstileToken: z.string().optional(),
   })
@@ -27,7 +24,7 @@ export const signupSchema = z
     {
       message: "Parent email is required for users under 13",
       path: ["parentEmail"],
-    }
+    },
   );
 
 export type SignupFormData = z.infer<typeof signupSchema>;
@@ -38,16 +35,16 @@ export type SignupFormData = z.infer<typeof signupSchema>;
 export function isUnder13(dateOfBirth: string): boolean {
   const dob = new Date(dateOfBirth);
   const today = new Date();
-  
+
   // Calculate age
   let age = today.getFullYear() - dob.getFullYear();
   const monthDiff = today.getMonth() - dob.getMonth();
-  
+
   // Adjust age if birthday hasn't occurred this year
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
     age--;
   }
-  
+
   return age < 13;
 }
 
@@ -57,13 +54,13 @@ export function isUnder13(dateOfBirth: string): boolean {
 export function calculateAge(dateOfBirth: string): number {
   const dob = new Date(dateOfBirth);
   const today = new Date();
-  
+
   let age = today.getFullYear() - dob.getFullYear();
   const monthDiff = today.getMonth() - dob.getMonth();
-  
+
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
     age--;
   }
-  
+
   return age;
 }

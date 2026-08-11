@@ -15,9 +15,15 @@ import {
   AlertCircle,
   Upload,
   X,
-  Info
 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,11 +35,18 @@ import {
 } from "@/components/ui/field";
 import { Controller } from "react-hook-form";
 import { Switch } from "@/components/ui/switch";
-import { updateOrganization, checkUsernameAvailability, checkDomainAvailability } from "./actions";
+import { updateOrganization, checkUsernameAvailability } from "./actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/shared/ImageCropper";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { Organization } from "@/types";
 
 // Constants
@@ -42,7 +55,6 @@ const NAME_MAX_LENGTH = 64;
 const WEBSITE_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 650;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
-const normalizeDomain = (value: string | null | undefined) => (value ?? "").toLowerCase().trim();
 
 const ORG_TYPE_LABELS: Record<string, string> = {
   nonprofit: "Nonprofit Organization",
@@ -52,26 +64,48 @@ const ORG_TYPE_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-const ORG_TYPE_OPTIONS = ["nonprofit", "school", "company", "government", "other"] as const;
+const ORG_TYPE_OPTIONS = [
+  "nonprofit",
+  "school",
+  "company",
+  "government",
+  "other",
+] as const;
 type OrganizationTypeOption = (typeof ORG_TYPE_OPTIONS)[number];
 
 // Form schema
 const orgUpdateSchema = z.object({
-  name: z.string()
+  name: z
+    .string()
     .min(2, "Name must be at least 2 characters")
     .max(NAME_MAX_LENGTH, `Name cannot exceed ${NAME_MAX_LENGTH} characters`),
 
-  username: z.string()
+  username: z
+    .string()
     .min(3, "Username must be at least 3 characters")
-    .max(USERNAME_MAX_LENGTH, `Username cannot exceed ${USERNAME_MAX_LENGTH} characters`)
-    .regex(USERNAME_REGEX, "Username can only contain letters, numbers, underscores, dots and hyphens"),
+    .max(
+      USERNAME_MAX_LENGTH,
+      `Username cannot exceed ${USERNAME_MAX_LENGTH} characters`,
+    )
+    .regex(
+      USERNAME_REGEX,
+      "Username can only contain letters, numbers, underscores, dots and hyphens",
+    ),
 
-  description: z.string()
-    .max(DESCRIPTION_MAX_LENGTH, `Description cannot exceed ${DESCRIPTION_MAX_LENGTH} characters`)
+  description: z
+    .string()
+    .max(
+      DESCRIPTION_MAX_LENGTH,
+      `Description cannot exceed ${DESCRIPTION_MAX_LENGTH} characters`,
+    )
     .optional(),
 
-  website: z.string()
-    .max(WEBSITE_MAX_LENGTH, `Website URL cannot exceed ${WEBSITE_MAX_LENGTH} characters`)
+  website: z
+    .string()
+    .max(
+      WEBSITE_MAX_LENGTH,
+      `Website URL cannot exceed ${WEBSITE_MAX_LENGTH} characters`,
+    )
     .url("Please enter a valid URL")
     .optional()
     .or(z.literal("")),
@@ -79,17 +113,6 @@ const orgUpdateSchema = z.object({
   type: z.enum(["nonprofit", "school", "company", "government", "other"]),
 
   logoUrl: z.string().optional().nullable(),
-
-  enableAutoJoin: z.boolean().optional(),
-
-  autoJoinDomain: z.string()
-    .optional()
-    .refine(
-      (val) =>
-        !val ||
-        /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/.test(val),
-      "Please enter a valid domain (e.g., example.org)"
-    ),
 
   showMembersPublicly: z.boolean().optional(),
 });
@@ -109,23 +132,26 @@ type OrganizationWithSettings = Organization & {
   show_members_publicly?: boolean | null;
 };
 
-export default function EditOrganizationForm({ organization, userId: _userId }: EditOrganizationFormProps) {
+export default function EditOrganizationForm({
+  organization,
+  userId: _userId,
+}: EditOrganizationFormProps) {
   const router = useRouter();
   const resolvedOrgType: OrganizationTypeOption = ORG_TYPE_OPTIONS.includes(
-    organization.type as OrganizationTypeOption
+    organization.type as OrganizationTypeOption,
   )
     ? (organization.type as OrganizationTypeOption)
     : "nonprofit";
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
+    null,
+  );
   const [checkingUsername, setCheckingUsername] = useState(false);
-  const [domainAvailable, setDomainAvailable] = useState<boolean | null>(null);
-  const [checkingDomain, setCheckingDomain] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string>("");
   const [showCropper, setShowCropper] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [descriptionLength, setDescriptionLength] = useState(
-    organization.description?.length || 0
+    organization.description?.length || 0,
   );
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -139,14 +165,9 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
       website: organization.website || "",
       type: resolvedOrgType,
       logoUrl: organization.logo_url || null,
-      enableAutoJoin: !!organization.auto_join_domain,
-      autoJoinDomain: organization.auto_join_domain || "",
       showMembersPublicly: organization.show_members_publicly !== false,
     },
   });
-
-  // Watch enableAutoJoin for conditional rendering
-  const enableAutoJoin = form.watch("enableAutoJoin");
 
   // Watch all form values and detect changes more reliably
   const formValues = form.watch();
@@ -154,8 +175,10 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
   useEffect(() => {
     const subscription = form.watch((value) => {
       // Check if any field has changed from initial values
-      const hasFormChanges = Object.keys(value).some(key => {
-        const orgKey = (key === "logoUrl" ? "logo_url" : key) as keyof OrganizationWithSettings;
+      const hasFormChanges = Object.keys(value).some((key) => {
+        const orgKey = (
+          key === "logoUrl" ? "logo_url" : key
+        ) as keyof OrganizationWithSettings;
         const initialValue = organization[orgKey];
         const currentValue = value[key as keyof OrganizationFormValues];
 
@@ -197,34 +220,6 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
       setUsernameAvailable(false);
     } finally {
       setCheckingUsername(false);
-    }
-  };
-
-  // Check if domain is available when changed
-  const currentDomain = organization.auto_join_domain;
-
-  const handleDomainBlur = async (value: string) => {
-    const normalizedValue = normalizeDomain(value);
-    if (!normalizedValue) {
-      setDomainAvailable(null);
-      return;
-    }
-
-    if (normalizedValue === normalizeDomain(currentDomain)) {
-      // Domain hasn't changed, so it's "available" (still belongs to this org)
-      setDomainAvailable(true);
-      return;
-    }
-
-    setCheckingDomain(true);
-    try {
-      const isAvailable = await checkDomainAvailability(normalizedValue, organization.id);
-      setDomainAvailable(isAvailable);
-    } catch (error) {
-      console.error("Error checking domain:", error);
-      setDomainAvailable(false);
-    } finally {
-      setCheckingDomain(false);
     }
   };
 
@@ -303,27 +298,14 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
         }
       }
 
-      // Check domain availability if auto-join is enabled and domain changed
-      const newDomain = data.enableAutoJoin ? normalizeDomain(data.autoJoinDomain) : null;
-      if (newDomain && newDomain !== normalizeDomain(currentDomain)) {
-        const isDomainAvailable = await checkDomainAvailability(newDomain, organization.id);
-        if (!isDomainAvailable) {
-          form.setError("autoJoinDomain", {
-            type: "manual",
-            message: "This domain is already in use by another organization",
-          });
-          setIsSubmitting(false);
-          return;
-        }
-      }
-
       const result = await updateOrganization({
         ...data,
         id: organization.id,
         description: data.description || "",
         website: data.website || "",
-        logoUrl: data.logoUrl === undefined ? organization.logo_url : data.logoUrl,
-        autoJoinDomain: newDomain || null,
+        logoUrl:
+          data.logoUrl === undefined ? organization.logo_url : data.logoUrl,
+        autoJoinDomain: organization.auto_join_domain ?? null,
         showMembersPublicly: data.showMembersPublicly,
       });
 
@@ -386,7 +368,9 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => document.getElementById('logo-upload')?.click()}
+                        onClick={() =>
+                          document.getElementById("logo-upload")?.click()
+                        }
                         disabled={isUploading}
                       >
                         {isUploading ? (
@@ -418,7 +402,9 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
                   <FieldDescription className="mt-2">
                     Recommended: Square image of at least 200×200px, max 5MB
                   </FieldDescription>
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -438,7 +424,9 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
               name="name"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Organization Name</FieldLabel>
+                  <FieldLabel htmlFor={field.name}>
+                    Organization Name
+                  </FieldLabel>
                   <Input
                     id={field.name}
                     {...field}
@@ -449,11 +437,12 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
                   <FieldDescription>
                     This is your organization&apos;s display name
                   </FieldDescription>
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
-
             <Controller
               control={form.control}
               name="username"
@@ -497,13 +486,18 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
                     )}
                   </div>
                   <FieldDescription>
-                    Used in your organization&apos;s URL: lets-assist.com/organization/<span className="font-mono">{field.value || "username"}</span>
+                    Used in your organization&apos;s URL:
+                    lets-assist.com/organization/
+                    <span className="font-mono">
+                      {field.value || "username"}
+                    </span>
                   </FieldDescription>
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
-
             <Controller
               control={form.control}
               name="description"
@@ -531,11 +525,12 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
                   <FieldDescription>
                     A brief description of your organization
                   </FieldDescription>
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
-
             <Controller
               control={form.control}
               name="website"
@@ -552,7 +547,11 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
                       maxLength={WEBSITE_MAX_LENGTH}
                       onBlur={(e) => {
                         const value = e.target.value.trim();
-                        if (value && !value.startsWith('https://') && !value.startsWith('http://')) {
+                        if (
+                          value &&
+                          !value.startsWith("https://") &&
+                          !value.startsWith("http://")
+                        ) {
                           field.onChange(`https://${value}`);
                         }
                       }}
@@ -562,26 +561,26 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
                   <FieldDescription>
                     Optional. Must start with https:// or http://
                   </FieldDescription>
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
-
             <Controller
               control={form.control}
               name="type"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Organization Type</FieldLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
+                  <FieldLabel htmlFor={field.name}>
+                    Organization Type
+                  </FieldLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger
                       id={field.name}
                       className={cn(
                         "w-full",
-                        !field.value && "text-muted-foreground"
+                        !field.value && "text-muted-foreground",
                       )}
                       aria-invalid={fieldState.invalid}
                     >
@@ -593,10 +592,18 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        <SelectItem value="nonprofit">Nonprofit Organization</SelectItem>
-                        <SelectItem value="school">Educational Institution</SelectItem>
-                        <SelectItem value="company">Company/Business</SelectItem>
-                        <SelectItem value="government">Government Agency</SelectItem>
+                        <SelectItem value="nonprofit">
+                          Nonprofit Organization
+                        </SelectItem>
+                        <SelectItem value="school">
+                          Educational Institution
+                        </SelectItem>
+                        <SelectItem value="company">
+                          Company/Business
+                        </SelectItem>
+                        <SelectItem value="government">
+                          Government Agency
+                        </SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectGroup>
                     </SelectContent>
@@ -604,82 +611,20 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
                   <FieldDescription>
                     Choose the type that best describes your organization
                   </FieldDescription>
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
-
-            {/* Auto-join by Email Domain Section */}
-            <div className="space-y-4 rounded-lg border p-4 bg-muted/30">
-              <Controller
-                control={form.control}
-                name="enableAutoJoin"
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid} className="flex flex-row items-center justify-between">
-                    <div className="space-y-0.5">
-                      <FieldLabel htmlFor={field.name} className="text-base">Auto-join by Email Domain</FieldLabel>
-                      <FieldDescription>
-                        Allow users with matching email domains to join automatically
-                      </FieldDescription>
-                    </div>
-                    <Switch
-                      id={field.name}
-                      checked={field.value}
-                      onCheckedChange={(checked) => {
-                        field.onChange(checked);
-                        if (!checked) {
-                          form.setValue("autoJoinDomain", "");
-                          setDomainAvailable(null);
-                        }
-                      }}
-                      aria-invalid={fieldState.invalid}
-                    />
-                  </Field>
-                )}
-              />
-
-              {enableAutoJoin && (
-                <Controller
-                  control={form.control}
-                  name="autoJoinDomain"
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor={field.name}>Email Domain</FieldLabel>
-                      <div className="relative">
-                        <Input
-                          id={field.name}
-                          placeholder="example.org"
-                          {...field}
-                          onBlur={(e) => handleDomainBlur(e.target.value)}
-                          className="pr-10"
-                          aria-invalid={fieldState.invalid}
-                        />
-                        {checkingDomain && (
-                          <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
-                        )}
-                        {!checkingDomain && domainAvailable === true && (
-                          <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-green-500" />
-                        )}
-                        {!checkingDomain && domainAvailable === false && (
-                          <AlertCircle className="absolute right-3 top-3 h-4 w-4 text-destructive" />
-                        )}
-                      </div>
-                      <FieldDescription className="flex items-start gap-1.5">
-                        <Info className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
-                        <span>
-                          Users with verified email addresses from this domain (e.g., @example.org) will be able to join your organization instantly without approval.
-                        </span>
-                      </FieldDescription>
-                      {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
-                      {!checkingDomain && domainAvailable === false && (
-                        <p className="text-sm text-destructive">
-                          This domain is already in use by another organization.
-                        </p>
-                      )}
-                    </Field>
-                  )}
-                />
-              )}
+            {/* Automatic domain membership is a verified support workflow. */}
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <p className="text-sm font-medium">Automatic domain membership</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {organization.auto_join_domain
+                  ? `Verified domain: ${organization.auto_join_domain}. Contact Let's Assist support to change or disable it.`
+                  : "No verified domain is configured. Contact Let&apos;s Assist support after organization verification to enable one."}
+              </p>
             </div>
             {/* Member Visibility Section */}
             <div className="space-y-4 rounded-lg border p-4 bg-muted/30">
@@ -687,9 +632,14 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
                 control={form.control}
                 name="showMembersPublicly"
                 render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid} className="flex flex-row items-center justify-between">
+                  <Field
+                    data-invalid={fieldState.invalid}
+                    className="flex flex-row items-center justify-between"
+                  >
                     <div className="space-y-0.5">
-                      <FieldLabel htmlFor={field.name} className="text-base">Show Members Publicly</FieldLabel>
+                      <FieldLabel htmlFor={field.name} className="text-base">
+                        Show Members Publicly
+                      </FieldLabel>
                       <FieldDescription>
                         Allow visitors to see the list of organization members
                       </FieldDescription>
@@ -703,7 +653,8 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
                   </Field>
                 )}
               />
-            </div>          </CardContent>
+            </div>{" "}
+          </CardContent>
           <CardFooter className="flex justify-between">
             <Button
               type="submit"
@@ -711,7 +662,8 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
               disabled={
                 isSubmitting ||
                 !hasChanges ||
-                (formValues.username !== organization.username && !usernameAvailable)
+                (formValues.username !== organization.username &&
+                  !usernameAvailable)
               }
             >
               {isSubmitting ? (

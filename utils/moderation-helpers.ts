@@ -1,9 +1,11 @@
-import words from 'profane-words';
+import words from "profane-words";
 
 /**
  * Fast profanity check using local word list and vector.profanity.dev as fallback
  */
-export async function checkOffensiveLanguage(text: string): Promise<{ isProfane: boolean; error?: string }> {
+export async function checkOffensiveLanguage(
+  text: string,
+): Promise<{ isProfane: boolean; error?: string }> {
   if (!text || text.trim() === "") {
     return { isProfane: false };
   }
@@ -11,21 +13,21 @@ export async function checkOffensiveLanguage(text: string): Promise<{ isProfane:
   const normalizedText = text.toLowerCase().trim();
 
   // 1. Check local word list (very fast, works for single words)
-  // We use word boundaries to allow names that might contain offensive 
+  // We use word boundaries to allow names that might contain offensive
   // substrings (the "Scunthorpe problem"), e.g., "toshitchowda".
-  const isLocalProfane = words.some(word => {
-    if (word.length < 3) return false; 
-    
+  const isLocalProfane = words.some((word) => {
+    if (word.length < 3) return false;
+
     // Check if the word exists as a standalone word or separated by non-letters
     // This blocks "shit", "shit123", "mr_shit", but allows "toshitchowda"
-    const regex = new RegExp(`(?:^|[^a-z])${word}(?:[^a-z]|$)`, 'i');
+    const regex = new RegExp(`(?:^|[^a-z])${word}(?:[^a-z]|$)`, "i");
     return regex.test(normalizedText);
   });
 
   if (isLocalProfane) {
-    return { 
-      isProfane: true, 
-      error: "This content contains inappropriate language" 
+    return {
+      isProfane: true,
+      error: "This content contains inappropriate language",
     };
   }
 
@@ -43,11 +45,11 @@ export async function checkOffensiveLanguage(text: string): Promise<{ isProfane:
     }
 
     const result = await response.json();
-    
+
     if (result.isProfanity) {
-      return { 
-        isProfane: true, 
-        error: "This content contains inappropriate language" 
+      return {
+        isProfane: true,
+        error: "This content contains inappropriate language",
       };
     }
 

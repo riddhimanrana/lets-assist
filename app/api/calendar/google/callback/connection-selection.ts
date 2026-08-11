@@ -1,80 +1,38 @@
 export type ExistingGoogleConnection = {
   id: string;
   refresh_token: string | null;
+  calendar_email: string | null;
   connection_type: string | null;
+  preferences?: unknown;
   updated_at?: string | null;
   connected_at?: string | null;
 };
 
-export type DesiredGoogleConnectionType = "calendar" | "sheets" | "both";
-
-const rankConnectionType = (
-  candidateType: string | null | undefined,
-  desiredType: DesiredGoogleConnectionType
-): number => {
-  const normalized = (candidateType || "").toLowerCase();
-
-  if (desiredType === "calendar") {
-    if (normalized === "calendar") return 0;
-    if (normalized === "both") return 1;
-    if (normalized === "sheets") return 2;
-    return 3;
-  }
-
-  if (desiredType === "sheets") {
-    if (normalized === "sheets") return 0;
-    if (normalized === "both") return 1;
-    if (normalized === "calendar") return 2;
-    return 3;
-  }
-
-  // desiredType === "both"
-  if (normalized === "both") return 0;
-  if (normalized === "calendar" || normalized === "sheets") return 1;
-  return 2;
-};
-
-const getConnectionTimestamp = (
-  connection: Pick<ExistingGoogleConnection, "updated_at" | "connected_at">
-): number => {
-  const rawTimestamp = connection.updated_at || connection.connected_at;
-  if (!rawTimestamp) return 0;
-  const parsed = Date.parse(rawTimestamp);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
+function normalizeGoogleIdentityEmail(
+  value: string | null | undefined,
+): string | null {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  return normalized || null;
+}
 
 /**
- * Pick the best existing Google connection to update during OAuth callback.
- *
- * We intentionally consider inactive rows to preserve preferences like
- * `volunteering_calendar_id` across disconnect/reconnect cycles.
+ * A refresh token is bound to the Google identity that issued it. Google does
+ * not return a new refresh token on every authorization response, so reconnects
+ * may reuse the stored encrypted token only when the newly authorized identity
+ * is the same one recorded on the existing connection.
  */
-export function pickBestExistingGoogleConnection(
-  connections: ExistingGoogleConnection[] | null | undefined,
-  desiredType: DesiredGoogleConnectionType
-): ExistingGoogleConnection | null {
-  if (!connections?.length) {
-    return null;
-  }
+export function canReuseExistingGoogleRefreshToken(
+  connection: Pick<
+    ExistingGoogleConnection,
+    "calendar_email" | "refresh_token"
+  > | null,
+  authorizedEmail: string | null | undefined,
+): boolean {
+  if (!connection?.refresh_token) return false;
 
-  let best: ExistingGoogleConnection | null = null;
-  let bestRank = Number.POSITIVE_INFINITY;
-  let bestTimestamp = 0;
-
-  for (const connection of connections) {
-    const rank = rankConnectionType(connection.connection_type, desiredType);
-    const timestamp = getConnectionTimestamp(connection);
-
-    if (
-      !best ||
-      rank < bestRank ||
-      (rank === bestRank && timestamp > bestTimestamp)
-    ) {
-      best = connection;
-      bestRank = rank;
-      bestTimestamp = timestamp;
-    }
-  }
-
-  return best;
+  const existingEmail = normalizeGoogleIdentityEmail(connection.calendar_email);
+  const currentEmail = normalizeGoogleIdentityEmail(authorizedEmail);
+  return Boolean(
+    existingEmail && currentEmail && existingEmail === currentEmail,
+  );
 }

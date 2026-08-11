@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardContent } from "@/components/ui/card";
+import { motion, AnimatePresence } from "motion/react";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -28,15 +27,11 @@ import {
   FileText,
   Mail,
   Building2,
-  GraduationCap,
-  Heart,
-  TrendingUp,
   MousePointer2,
   MapPin,
   CheckCircle,
   Scan,
 } from "lucide-react";
-import Link from "next/link";
 import Image from "next/image";
 
 // Words that flip in the header
@@ -65,7 +60,7 @@ function TextFlip({ words }: { words: string[] }) {
           animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
           exit={{ y: -20, opacity: 0, filter: "blur(8px)" }}
           transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-          className="text-orange-400 font-bold font-overusedgrotesk"
+          className="font-bold text-orange-400"
         >
           {words[currentIndex]}
         </motion.span>
@@ -156,27 +151,6 @@ const comparisonFeatures: ComparisonFeature[] = [
     letsAssist: true,
     signupGenius: false,
     icon: Shield,
-  },
-];
-
-const switchReasons = [
-  {
-    icon: GraduationCap,
-    title: "Perfect for schools",
-    description:
-      "Built-in COPPA compliance, student hour tracking, and certificate automation for service learning.",
-  },
-  {
-    icon: Building2,
-    title: "Nonprofit ready",
-    description:
-      "Audit-ready exports, verified attendance records, and organization-wide reporting at no cost.",
-  },
-  {
-    icon: Heart,
-    title: "Volunteer focused",
-    description:
-      "Personal dashboards, hour tracking, and certificates for applications and resumes.",
   },
 ];
 
@@ -446,7 +420,7 @@ function ModernDashboardMockup() {
                       className="w-full h-8 text-xs gap-1.5"
                     >
                       <Image
-                        src="/resources/google-calendar-logo.svg"
+                        src="/resources/google-calendar-logo-2026.png"
                         width={12}
                         height={12}
                         alt="GCal"
@@ -1024,10 +998,10 @@ export default function ComparisonSection() {
           className="text-center mx-auto max-w-4xl mb-12 sm:mb-16"
         >
           <div className="space-y-1 sm:space-y-2">
-            <h2 className="font-overusedgrotesk text-[1.7rem] sm:text-3xl md:text-4xl lg:text-5xl tracking-tight font-bold">
+            <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
               SignUpGenius is <TextFlip words={flipWords} />
             </h2>
-            <h2 className="font-overusedgrotesk text-[1.7rem] sm:text-3xl md:text-4xl lg:text-5xl tracking-tight font-bold">
+            <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
               <span className="text-transparent bg-linear-to-r from-primary via-chart-2 to-primary bg-clip-text bg-size-[200%_auto] animate-gradient">
                 Let&apos;s Assist is built for today.
               </span>
@@ -1163,143 +1137,6 @@ export default function ComparisonSection() {
               </div>
             )}
           </Card>
-        </motion.div>
-
-        {/* Why teams switch cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="mb-12 sm:mb-16"
-        >
-          <h3 className="text-center font-overusedgrotesk text-lg sm:text-xl md:text-2xl font-semibold mb-6 sm:mb-8 px-4">
-            Built for <span className="text-primary">real</span> volunteer
-            management
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 max-w-5xl mx-auto">
-            {switchReasons.map((reason, i) => (
-              <motion.div
-                key={reason.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1, duration: 0.4 }}
-                whileHover={{ y: -4, transition: { duration: 0.2 } }}
-              >
-                <Card className="h-full border-border/60 bg-background/80 backdrop-blur-xs hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
-                  <CardContent className="p-4 sm:p-5">
-                    <div className="mb-2 sm:mb-3 inline-flex rounded-lg sm:rounded-xl bg-linear-to-br from-primary/20 to-emerald-500/20 p-2 sm:p-3 text-primary">
-                      <reason.icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                    </div>
-                    <h4 className="text-sm sm:text-base font-semibold text-foreground mb-1.5 sm:mb-2">
-                      {reason.title}
-                    </h4>
-                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                      {reason.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Pricing comparison */}
-        {/* <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="max-w-2xl mx-auto mb-16"
-        >
-          <Card className="border-primary/30 bg-linear-to-br from-primary/5 via-background to-emerald-500/5 overflow-hidden shadow-xl">
-            <CardContent className="p-6 sm:p-8">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-primary" />
-                  Price comparison
-                </h3>
-                <Badge className="bg-primary text-primary-foreground">
-                  Save $335+/year
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Feature
-                </span>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm font-medium text-primary">
-                    Let&apos;s Assist
-                  </span>
-                  <span className="text-sm font-medium text-muted-foreground w-24 text-right">
-                    SignUpGenius
-                  </span>
-                </div>
-              </div>
-              {pricingComparison.map((item, i) => (
-                <PricingRow key={item.feature} item={item} index={i} />
-              ))}
-              <motion.div
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.5 }}
-                className="mt-6 p-4 rounded-xl bg-linear-to-r from-primary/15 to-emerald-500/15 border border-primary/20"
-              >
-                <p className="text-sm text-foreground font-medium">
-                  🎉 Everything you need for volunteer management,{" "}
-                  <span className="text-primary">completely free</span>. No
-                  hidden fees, no premium tiers, no ads.
-                </p>
-              </motion.div>
-            </CardContent>
-          </Card>
-        </motion.div> */}
-
-        {/* CTA */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="text-center px-4"
-        >
-          <div className="inline-flex flex-col sm:flex-row gap-2 sm:gap-3 items-center w-full sm:w-auto">
-            <Link
-              href="/signup"
-              className={cn(
-                buttonVariants({
-                  size: "lg",
-                  className:
-                    "gap-2 px-6 sm:px-8 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-shadow w-full sm:w-auto",
-                }),
-              )}
-            >
-              Start for free
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/projects"
-              className={cn(
-                buttonVariants({
-                  variant: "outline",
-                  size: "lg",
-                  className: "gap-2 hover:bg-primary/5 w-full sm:w-auto",
-                }),
-              )}
-            >
-              Explore opportunities
-            </Link>
-          </div>
-          <motion.p
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-            className="mt-4 sm:mt-6 text-xs sm:text-sm text-muted-foreground"
-          >
-            No credit card • Free forever • Switch in minutes
-          </motion.p>
         </motion.div>
       </div>
     </section>

@@ -1,8 +1,8 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import { Geist_Mono, Inter } from "next/font/google";
+import { GeistMono } from "geist/font/mono";
+import { GeistSans } from "geist/font/sans";
 import "./globals.css";
-import { ThemeProvider } from "next-themes";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Navbar from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -10,11 +10,10 @@ import localFont from "next/font/local";
 
 import { Toaster } from "@/components/ui/sonner";
 import { QueryMessageToast } from "@/components/shared/QueryMessageToast";
-import GlobalNotificationProvider from "@/components/providers/GlobalNotificationProvider";
 import CalendarOAuthCallbackHandler from "@/components/calendar/CalendarOAuthCallbackHandler";
-import { AuthProvider } from "@/components/providers/AuthProvider";
 import { Suspense } from "react";
 import SystemStickyBanner from "@/components/layout/SystemStickyBanner";
+import { AppProviders } from "@/components/providers/AppProviders";
 
 export const metadata: Metadata = {
   title: {
@@ -75,11 +74,6 @@ export const metadata: Metadata = {
   },
 };
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 const overusedgrotesk = localFont({
   src: "../public/fonts/OverusedGrotesk-VF.woff2",
   display: "swap",
@@ -88,10 +82,23 @@ const overusedgrotesk = localFont({
   style: "normal",
 });
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
+const nohemi = localFont({
+  src: "../public/fonts/Nohemi Font Family/Nohemi-VF-BF6438cc58ad63d.ttf",
+  display: "swap",
+  variable: "--font-nohemi",
+  weight: "100 900",
+  style: "normal",
 });
+
+const cheeseMilky = localFont({
+  src: "./fonts/cheese-milky.otf",
+  display: "swap",
+  variable: "--font-cheese-milky",
+  weight: "400",
+  style: "normal",
+});
+
+const enableSpeedInsights = process.env.VERCEL === "1";
 
 export default async function RootLayout({
   children,
@@ -99,36 +106,28 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.className} suppressHydrationWarning>
-      <head />
-      <body
-        className={`${geistMono.variable} ${overusedgrotesk.variable} antialiased`}
-      >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <AuthProvider>
-            <GlobalNotificationProvider>
-              <div className="bg-background text-foreground min-h-screen flex flex-col w-full">
-                <SystemStickyBanner />
-                <Navbar />
-                <Toaster richColors />
-                <main className="flex-1 w-full">{children}</main>
-                <Suspense fallback={null}>
-                  <QueryMessageToast />
-                </Suspense>
-                <Footer />
-                <SpeedInsights />
-                <Suspense fallback={null}>
-                  <CalendarOAuthCallbackHandler />
-                </Suspense>
-              </div>
-            </GlobalNotificationProvider>
-          </AuthProvider>
-        </ThemeProvider>
+    <html
+      lang="en"
+      className={`${GeistSans.className} ${GeistSans.variable} ${GeistMono.variable} ${overusedgrotesk.variable} ${nohemi.variable} ${cheeseMilky.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="antialiased">
+        <AppProviders>
+          <div className="bg-background text-foreground min-h-screen flex flex-col w-full">
+            <SystemStickyBanner />
+            <Navbar />
+            <Toaster richColors />
+            <main className="flex-1 w-full">{children}</main>
+            <Suspense fallback={null}>
+              <QueryMessageToast />
+            </Suspense>
+            <Footer />
+            {enableSpeedInsights ? <SpeedInsights /> : null}
+            <Suspense fallback={null}>
+              <CalendarOAuthCallbackHandler />
+            </Suspense>
+          </div>
+        </AppProviders>
       </body>
     </html>
   );

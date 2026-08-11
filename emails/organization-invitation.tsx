@@ -8,7 +8,7 @@ import {
   Heading,
   Preview,
   Link,
-} from "@react-email/components";
+} from "react-email";
 import * as React from "react";
 import EmailButton from "./_components/EmailButton";
 import EmailHeader from "./_components/EmailHeader";
@@ -67,7 +67,8 @@ export default function OrganizationInvitation({
         </style>
       </Head>
       <Preview>
-        You've been invited to join {organizationName} as a {roleDisplay.toLowerCase()}
+        You've been invited to join {organizationName} as a{" "}
+        {roleDisplay.toLowerCase()}
       </Preview>
       <Body style={main}>
         <Container style={container} className="container">
@@ -95,7 +96,8 @@ export default function OrganizationInvitation({
               </Section>
 
               <Text style={paragraph}>
-                Click the button below to accept your invitation and get started.
+                Click the button below to accept your invitation and get
+                started.
               </Text>
 
               {/* Action Button */}
@@ -106,7 +108,8 @@ export default function OrganizationInvitation({
               {/* Link fallback */}
               <Section style={linkSection}>
                 <Text style={smallText}>
-                  Having trouble with the button? Copy and paste this link into your browser:
+                  Having trouble with the button? Copy and paste this link into
+                  your browser:
                 </Text>
                 <Text style={linkText}>
                   <Link href={inviteUrl} style={link}>
@@ -118,7 +121,8 @@ export default function OrganizationInvitation({
               {/* Expiration notice */}
               <Section style={noticeBox}>
                 <Text style={noticeText}>
-                  ⏰ This invitation expires on <strong>{expiresAt}</strong>. Please accept it before then.
+                  ⏰ This invitation expires on <strong>{expiresAt}</strong>.
+                  Please accept it before then.
                 </Text>
               </Section>
 

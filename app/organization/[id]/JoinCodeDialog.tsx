@@ -21,10 +21,9 @@ import {
   RefreshCw,
   Share,
   CheckCircle2,
-  QrCode
+  QrCode,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { regenerateJoinCode } from "../create/actions";
+import { getOrganizationJoinCode, regenerateJoinCode } from "../create/actions";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { QRCode } from "react-qrcode-logo";
@@ -45,7 +44,7 @@ type OrganizationWithJoinCode = Organization & {
 export default function JoinCodeDialog({
   organization,
   open,
-  onOpenChange
+  onOpenChange,
 }: JoinCodeDialogProps) {
   const [joinCode, setJoinCode] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -61,22 +60,17 @@ export default function JoinCodeDialog({
 
       setLoading(true);
 
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("organizations")
-        .select("join_code")
-        .eq("id", organization.id)
-        .single();
+      const result = await getOrganizationJoinCode(organization.id);
 
-      if (error) {
-        console.error("Error fetching join code:", error);
+      if (result.error || !result.joinCode) {
+        console.error("Error fetching join code:", result.error);
         toast.error("Failed to load join code");
-      } else if (data) {
-        setJoinCode(data.join_code);
+      } else {
+        setJoinCode(result.joinCode);
 
         // Create join link
         const baseUrl = window.location.origin;
-        setJoinLink(`${baseUrl}/organization/join?code=${data.join_code}`);
+        setJoinLink(`${baseUrl}/organization/join?code=${result.joinCode}`);
       }
 
       setLoading(false);
@@ -100,7 +94,9 @@ export default function JoinCodeDialog({
     const success = await copyToClipboard(text);
     if (success) {
       setCopied(type);
-      toast.success(type === "code" ? "Join code copied" : "Invitation link copied");
+      toast.success(
+        type === "code" ? "Join code copied" : "Invitation link copied",
+      );
     } else {
       toast.error("Failed to copy to clipboard");
     }
@@ -108,7 +104,11 @@ export default function JoinCodeDialog({
 
   // Regenerate join code
   const handleRegenerateCode = async () => {
-    if (!confirm("Are you sure you want to regenerate the join code? The old code will no longer work.")) {
+    if (
+      !confirm(
+        "Are you sure you want to regenerate the join code? The old code will no longer work.",
+      )
+    ) {
       return;
     }
 
@@ -121,7 +121,9 @@ export default function JoinCodeDialog({
         toast.error(result.error);
       } else {
         setJoinCode(result.joinCode);
-        setJoinLink(`${window.location.origin}/organization/join?code=${result.joinCode}`);
+        setJoinLink(
+          `${window.location.origin}/organization/join?code=${result.joinCode}`,
+        );
         toast.success("Join code regenerated successfully");
       }
     } catch (error) {
@@ -143,7 +145,7 @@ export default function JoinCodeDialog({
       await navigator.share({
         title: `Join ${organization.name} on Let's Assist`,
         text: `You've been invited to join ${organization.name}. Use code: ${joinCode}`,
-        url: joinLink
+        url: joinLink,
       });
     } catch (err) {
       console.error("Error sharing:", err);
@@ -156,7 +158,8 @@ export default function JoinCodeDialog({
         <DialogHeader>
           <DialogTitle>Invite Members</DialogTitle>
           <DialogDescription>
-            Share this code or link with people you want to invite to {organization.name}.
+            Share this code or link with people you want to invite to{" "}
+            {organization.name}.
           </DialogDescription>
         </DialogHeader>
 
@@ -222,17 +225,19 @@ export default function JoinCodeDialog({
                   )}
                 </Button>
 
-                {isMobileDevice() && typeof navigator !== "undefined" && typeof navigator.share === "function" && (
-                  <Button
-                    onClick={shareInvitation}
-                    variant="secondary"
-                    disabled={loading}
-                    className="w-full gap-1.5"
-                  >
-                    <Share className="h-4 w-4" />
-                    <span>Share</span>
-                  </Button>
-                )}
+                {isMobileDevice() &&
+                  typeof navigator !== "undefined" &&
+                  typeof navigator.share === "function" && (
+                    <Button
+                      onClick={shareInvitation}
+                      variant="secondary"
+                      disabled={loading}
+                      className="w-full gap-1.5"
+                    >
+                      <Share className="h-4 w-4" />
+                      <span>Share</span>
+                    </Button>
+                  )}
               </div>
             </div>
           </TabsContent>
@@ -309,11 +314,14 @@ export default function JoinCodeDialog({
                     ecLevel="M"
                   />
                 )}
-                {loading && <div className="h-[180px] w-[180px] animate-pulse bg-muted" />}
+                {loading && (
+                  <div className="h-[180px] w-[180px] animate-pulse bg-muted" />
+                )}
               </div>
 
               <div className="text-sm text-muted-foreground text-center">
-                Scan this QR code to join <br /> <span className="font-semibold">{organization.name}</span>
+                Scan this QR code to join <br />{" "}
+                <span className="font-semibold">{organization.name}</span>
               </div>
 
               <Button
@@ -323,7 +331,7 @@ export default function JoinCodeDialog({
                   if (!canvas) return;
 
                   const link = document.createElement("a");
-                  link.download = `${organization.name.replace(/\s+/g, '-')}-join-qr.png`;
+                  link.download = `${organization.name.replace(/\s+/g, "-")}-join-qr.png`;
                   link.href = canvas.toDataURL("image/png");
                   link.click();
                 }}

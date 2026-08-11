@@ -8,7 +8,10 @@
  * Enhanced to support org/plugin context for granular analytics.
  */
 
-export type PostHogTelemetryMetadata = Record<string, string | number | boolean | null | undefined>;
+export type PostHogTelemetryMetadata = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
 
 type CreatePostHogTelemetryOptions = {
   /** Unique identifier for the AI function being called (e.g. 'content-moderation', 'dv-sd-judge-optimizer') */
@@ -27,7 +30,7 @@ type CreatePluginTelemetryOptions = CreatePostHogTelemetryOptions & {
   organizationId?: string;
   pluginKey?: string;
   /** The AI Gateway scope being used */
-  gatewayScope?: 'moderation' | 'platform' | 'plugin';
+  gatewayScope?: "moderation" | "platform" | "plugin";
   /** The specific feature within the plugin (e.g. 'judge-optimizer', 'membership-review') */
   feature?: string;
 };

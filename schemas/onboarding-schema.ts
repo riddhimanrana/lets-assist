@@ -11,17 +11,23 @@ export const initialOnboardingSchema = z.object({
   username: z
     .string()
     .min(USERNAME_MIN_LENGTH, "Username must be at least 3 characters")
-    .max(USERNAME_MAX_LENGTH, `Username cannot exceed ${USERNAME_MAX_LENGTH} characters`)
-    .regex(USERNAME_REGEX, "Username can only contain letters, numbers, underscores, hyphens, and periods")
+    .max(
+      USERNAME_MAX_LENGTH,
+      `Username cannot exceed ${USERNAME_MAX_LENGTH} characters`,
+    )
+    .regex(
+      USERNAME_REGEX,
+      "Username can only contain letters, numbers, underscores, hyphens, and periods",
+    )
     .transform((val) => val.toLowerCase()) // <-- force lowercase
-    .refine(value => value.trim().length > 0, {
+    .refine((value) => value.trim().length > 0, {
       message: "Username cannot be empty or just whitespace",
     }),
   phoneNumber: z
     .string()
     .refine(
       (val) => !val || val === "" || /^\d{3}-\d{3}-\d{4}$/.test(val),
-      "Phone number must be in format XXX-XXX-XXXX"
+      "Phone number must be in format XXX-XXX-XXXX",
     )
     .transform((val) => {
       if (!val || val === "") return undefined;

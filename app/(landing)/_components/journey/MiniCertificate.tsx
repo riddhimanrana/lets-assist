@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Award, BadgeCheck, Building2, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -57,7 +57,9 @@ export function MiniCertificate({
           className="space-y-3"
         >
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Certificate of Volunteer Service</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              Certificate of Volunteer Service
+            </p>
             <h3 className="text-lg font-bold leading-tight">{projectName}</h3>
           </div>
 

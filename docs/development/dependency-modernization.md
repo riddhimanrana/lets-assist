@@ -1,0 +1,136 @@
+# Dependency modernization ledger
+
+This ledger records compatibility decisions and validation evidence for the sequential dependency PRs. It is not a substitute for `bun.lock`; it explains why a package was upgraded, retained, or deferred.
+
+## Rules
+
+- Consult current official documentation through Context7 before each ecosystem change.
+- Use stable releases only unless the application already has a reviewed prerelease dependency with no stable replacement.
+- Keep `bun.lock` as the only generated dependency lockfile.
+- Validate frozen installation, formatting, lint, typecheck, separated tests, production build, dependency ancestry, and the production-tree audit after every group.
+- Treat an advisory as open until the affected installed version is removed, upgraded, explicitly isolated from production, or documented with evidence showing it is not reachable.
+
+## Platform group — 2026-08-05
+
+| Package family   | Previous                                       | Selected                                       | Decision                                                                                                                                            |
+| ---------------- | ---------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bun              | 1.3.14                                         | 1.3.14                                         | Already the latest stable registry release; CI and `packageManager` remain aligned.                                                                 |
+| Next.js          | 16.2.12                                        | 16.3.0                                         | Latest stable; requires Node 20.9 or newer and supports React 19.                                                                                   |
+| React            | 19.2.8                                         | 19.2.8                                         | Already latest stable.                                                                                                                              |
+| TypeScript       | 5.9.3                                          | 6.0.3                                          | Latest stable version compatible with the current `typescript-eslint` range. Bun ambient types are now explicit in `tsconfig.json`.                 |
+| ESLint           | 9.39.4                                         | 9.39.5                                         | Latest compatible 9.x. ESLint 10 is deferred because multiple plugins shipped with the current Next.js config do not yet declare ESLint 10 support. |
+| Tailwind CSS     | 4.3.1                                          | 4.3.3                                          | Latest stable; the existing CSS-first configuration and dedicated PostCSS plugin match the v4 contract.                                             |
+| shadcn CLI       | 4.11.0                                         | 4.16.1                                         | Latest stable CLI only; no application components were regenerated or overwritten.                                                                  |
+| Node/React types | Node 20.19.39, React 19.2.17, React DOM 19.2.3 | Node 20.19.43, React 19.2.18, React DOM 19.2.4 | Latest patches on the runtime-compatible major lines.                                                                                               |
+
+Next.js 16.3 enabled `@next/next/no-location-assign-relative-destination`. Ordinary internal transitions now use the Next router. OAuth, logout, account deletion, and the existing project-creation hard reload retain document navigation with narrow inline rationale because they cross a redirect or client-session boundary.
+
+The direct Next.js installation now resolves `next@16.3.0` and `sharp@0.35.3`. The audit still sees `next@16.1.7` and `sharp@0.34.5` exclusively through development-only `@react-email/preview-server@5.2.10`; that duplicate is assigned to the email/provider dependency group rather than hidden with an override.
+
+Validation completed for this group:
+
+- frozen Bun install
+- `bun run quality:static`
+- `bun run test`, including 2,426 private-plugin tests
+- preview-isolated `bun run build` with 80 generated routes
+- `bun why next` and `bun why sharp`
+- production dependency audit re-run; remaining findings stay open under `CLEAN-003`
+
+## Supabase group — 2026-08-05
+
+| Package family        | Previous | Selected | Decision                                                                                                                                                                                                   |
+| --------------------- | -------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Supabase JS/PostgREST | 2.108.2  | 2.112.1  | Latest stable, pinned exactly with one resolved family.                                                                                                                                                    |
+| Supabase SSR          | 0.12.0   | 0.12.4   | Latest stable; existing `getAll`/`setAll` adapters are retained, and proxy cookie writes preserve the SDK's private no-cache headers.                                                                      |
+| Supabase CLI          | 2.111.0  | 2.111.0  | Already the latest stable registry release; the isolated Docker identity oracle remains unchanged.                                                                                                         |
+| Node.js runtime       | implicit | 22.23.2  | Supabase client libraries now require Node 22 or newer. The application pins the current Node 22 LTS patch in `.node-version`, declares the supported 22.x engine range, and installs it explicitly in CI. |
+| Node types            | 20.19.43 | 22.20.1  | Latest stable typings for the selected Node 22 runtime line.                                                                                                                                               |
+
+Supabase JS now retries transient GET/HEAD requests automatically. This application already classifies and bounds idempotent read retries through `withRetryableSupabaseQuery`, so all four application client factories set `db.retry` to `false`. A source-boundary regression test prevents a future client factory from multiplying one logical attempt into nested SDK retries.
+
+Validation completed for this group:
+
+- current Supabase changelog review, including Node 20 support removal and automatic PostgREST retries
+- frozen Bun install and explicit Supabase dependency ancestry
+- `bun run quality:static`
+- `bun run test`, including the retry-policy regression and 2,426 private-plugin tests
+- preview-isolated production build under Node `22.23.2`, with 80 generated routes
+- pinned Supabase CLI `--help`, version, and existing exact-version contract tests
+- production dependency audit re-run; unrelated findings remain open under `CLEAN-003`
+
+## Playwright and test-tooling group — 2026-08-05
+
+| Package family           | Previous | Selected | Decision                                                                                                                      |
+| ------------------------ | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Playwright               | 1.61.0   | 1.62.1   | Latest stable runner and library, pinned to the same version; Chromium 151 browser binaries installed outside the repository. |
+| Faker                    | 10.4.0   | 10.5.0   | Latest stable patch compatible with the selected Node 22 runtime.                                                             |
+| Baseline browser mapping | 2.10.18  | 2.11.12  | Latest stable browser-support dataset.                                                                                        |
+
+Playwright 1.62 no longer supports Debian 11; CI uses `ubuntu-latest`, so no retained runner depends on the removed platform. The new config loader transformed the imported `.mjs` isolation validator through CommonJS until the repository declared its actual ESM package boundary. `package.json` now sets `type: module`, the sole CommonJS `.js` file (`next-sitemap.config.js`) now uses ESM, and `@next/env` is loaded through its CommonJS-compatible default export. Both browser configs now load the real isolated validator and fail closed at the expected missing-stack check when no generated stack is selected.
+
+Validation completed for this group:
+
+- frozen Bun install and Playwright `1.62.1` CLI version
+- current Chromium and headless-shell installation outside tracked source
+- `bun run quality:static`
+- `bun run test`, including the ESM config-loader regression and 2,426 private-plugin tests
+- both Playwright configs loaded through their real CLI path and reached the intended isolated-stack refusal
+- preview-isolated production build under Node `22.23.2`, including ESM sitemap generation and 80 routes
+- production dependency audit re-run; unrelated findings remain open under `CLEAN-003`
+
+## Observability and AI group — 2026-08-05
+
+| Package family  | Previous         | Selected  | Decision                                                                                                                                                                                                                               |
+| --------------- | ---------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AI SDK          | 6.0.158          | 6.0.244   | Latest stable 6.x release compatible with PostHog AI's declared AI-provider peer range. AI SDK 7 is intentionally deferred because it installs provider API 4, while PostHog AI 8.6.7 declares compatibility with provider API 2 or 3. |
+| PostHog AI      | 7.21.0           | 8.6.7     | Latest stable; removes unused provider/LangChain packages from the production tree and includes current stream, redaction, and failure-isolation fixes.                                                                                |
+| PostHog browser | 1.408.0          | 1.413.2   | Latest stable; includes current replay privacy and unhandled-request-failure fixes and resolves a fixed DOMPurify.                                                                                                                     |
+| OpenTelemetry   | 2.10.0 / 0.221.0 | unchanged | The installed stable/experimental pair is already the current matched release. Its accepted gRPC child is forced from 1.14.3 to the fixed 1.14.4 patch.                                                                                |
+
+PostHog AI 8 renamed the OTLP exporter credential option from `apiKey` to `projectToken`; the Node instrumentation now uses the new explicit name. The package also requires Node 22.22 or newer, so the declared engine floor is now `22.22.0` while CI and local setup remain pinned to `22.23.2`.
+
+AI SDK provider-utils still declares Undici 5 even though the fixed security line is 6.23 or newer. Its runtime fallback uses only the stable `Agent` and `fetch` surface. Bun therefore resolves one reviewed Undici `7.29.0` across provider-utils and shadcn, and a runtime contract loads Undici from provider-utils' own module boundary to prove the expected implementation and API are present.
+
+Validation completed for this group:
+
+- current Context7 documentation and official AI SDK/PostHog changelog review
+- frozen Bun install and explicit dependency ancestry for gRPC, LangChain, DOMPurify, UUID, and Undici
+- AI SDK 6 bundled documentation and source review for `generateText`, `streamText`, `Output.object`, gateway, and telemetry usage
+- `bun run quality:static`
+- `bun run test`, including the Undici runtime boundary and 2,426 private-plugin tests
+- preview-isolated production build under Node `22.23.2`
+- production dependency audit reduced from 94 findings before the dependency series to 36; remaining provider/general findings stay open under `CLEAN-003`
+
+## Providers and general utilities — 2026-08-05
+
+| Package family       | Previous                          | Selected                          | Decision                                                                                                                                                                                                            |
+| -------------------- | --------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stripe               | 22.0.1                            | 22.4.0                            | Latest stable SDK and API version `2026-07-29.dahlia`; webhook handling continues to verify the raw request body before any database mutation.                                                                      |
+| Resend / React Email | Resend 6.18.1, React Email 5.2.10 | Resend 6.18.1, React Email 6.9.1  | Resend was already current. React Email now uses the unified `react-email` runtime and `@react-email/ui` CLI, removing the stale preview-server Next.js tree.                                                       |
+| Google Maps          | two React wrappers                | `@vis.gl/react-google-maps` 1.9.0 | Removed the duplicate wrapper and migrated the map to one provider with explicit loading and failure states.                                                                                                        |
+| Motion               | Framer Motion / Motion 12.38      | Motion 13.0.0                     | Consolidated all React imports on the supported `motion/react` entrypoint.                                                                                                                                          |
+| TanStack Table       | 8.21.3                            | 9.0.0                             | Current package with one documented v8 compatibility boundary. Existing tables retain behavior while module refactors move them to native v9 features.                                                              |
+| PDF.js               | 5.6.205                           | 6.2.108                           | Current Node 22-compatible line. URL inputs now use document parameters, worker cleanup belongs to loading tasks, and the removed viewport rectangle helper has a tested two-corner replacement.                    |
+| DayPicker            | `react-day-picker` 9.14           | `@daypicker/react` 10.0.1         | Migrated to the current package name and removed the compatibility package.                                                                                                                                         |
+| UI/general           | mixed                             | current stable                    | Updated Base UI, Speed Insights, Lucide, Nano ID, React Easy Crop, Intersection Observer, Recharts, UUID, AJV, and all compatible direct utility lines. Removed unused Shadcn CLI and duplicate Base UI dependency. |
+
+The production audit now reports no vulnerabilities. `security:audit` is a required part of `quality:static`, so a newly disclosed or reintroduced production-tree advisory fails the standard local and CI gate.
+
+Four direct dependencies intentionally remain below the registry's newest major because the newer version is incompatible with the selected runtime or a declared peer contract:
+
+- AI SDK 7 installs provider API 4 while PostHog AI 8.6.7 declares provider API 2 or 3.
+- TypeScript 7 exceeds the current `typescript-eslint` peer range (`<6.1.0`).
+- ESLint 10 is not declared by the complete Next.js plugin matrix.
+- Node typings remain on 22.x because the application runtime is explicitly Node 22.
+
+Validation completed for this group:
+
+- frozen Bun install and one generated `bun.lock`
+- React Email CLI load
+- `bun run quality:static`, including the zero-finding production audit
+- `bun run test`, including 2,426 private-plugin tests and the PDF geometry regression
+- preview-isolated production build under Node `22.23.2`, with 80 generated routes
+- private plugin PR #6 merged before the root gitlink update
+- `bun outdated` reviewed line-by-line; only the four compatibility holds above remain
+
+The dependency-series completion condition is met locally: no critical/high or unreviewed lower-severity advisory, no stale compatible direct dependency, and no unexplained duplicate package family. Hosted Development remains a separately recorded account-access gate.

@@ -1,7 +1,8 @@
 import { compactVerify, createRemoteJWKSet, decodeProtectedHeader } from "jose";
 import { getAdminClient } from "@/lib/supabase/admin";
 
-const GOOGLE_RISC_CONFIG_URL = "https://accounts.google.com/.well-known/risc-configuration";
+const GOOGLE_RISC_CONFIG_URL =
+  "https://accounts.google.com/.well-known/risc-configuration";
 
 const EVENT_TYPES = {
   sessionsRevoked:
@@ -83,8 +84,7 @@ async function getRiscConfig(): Promise<RiscConfig> {
 }
 
 function getAllowedClientIds(): string[] {
-  const configured = process.env.GOOGLE_CAP_CLIENT_IDS
-    ?.split(",")
+  const configured = process.env.GOOGLE_CAP_CLIENT_IDS?.split(",")
     .map((value) => value.trim())
     .filter(Boolean);
 
@@ -101,10 +101,14 @@ function audienceMatches(aud: string | string[], expectedAudiences: string[]) {
   return values.some((value) => expectedAudiences.includes(value));
 }
 
-export async function validateGoogleCapToken(token: string): Promise<DecodedGoogleCapToken> {
+export async function validateGoogleCapToken(
+  token: string,
+): Promise<DecodedGoogleCapToken> {
   const audiences = getAllowedClientIds();
   if (audiences.length === 0) {
-    throw new Error("GOOGLE_CAP_CLIENT_IDS (or GOOGLE_CLIENT_ID) is not configured");
+    throw new Error(
+      "GOOGLE_CAP_CLIENT_IDS (or GOOGLE_CLIENT_ID) is not configured",
+    );
   }
 
   const { issuer, jwks_uri: jwksUri } = await getRiscConfig();
@@ -115,9 +119,16 @@ export async function validateGoogleCapToken(token: string): Promise<DecodedGoog
 
   const jwks = createRemoteJWKSet(new URL(jwksUri));
   const { payload } = await compactVerify(token, jwks);
-  const decoded = JSON.parse(new TextDecoder().decode(payload)) as Partial<DecodedGoogleCapToken>;
+  const decoded = JSON.parse(
+    new TextDecoder().decode(payload),
+  ) as Partial<DecodedGoogleCapToken>;
 
-  if (!decoded.iss || !decoded.aud || !decoded.events || typeof decoded.events !== "object") {
+  if (
+    !decoded.iss ||
+    !decoded.aud ||
+    !decoded.events ||
+    typeof decoded.events !== "object"
+  ) {
     throw new Error("CAP token is missing required claims");
   }
 
@@ -132,7 +143,10 @@ export async function validateGoogleCapToken(token: string): Promise<DecodedGoog
   return decoded as DecodedGoogleCapToken;
 }
 
-function getEventSubjects(payload: DecodedGoogleCapToken, expectedIssuer: string): string[] {
+function getEventSubjects(
+  payload: DecodedGoogleCapToken,
+  expectedIssuer: string,
+): string[] {
   const subjects = new Set<string>();
 
   for (const details of Object.values(payload.events)) {
@@ -141,7 +155,10 @@ function getEventSubjects(payload: DecodedGoogleCapToken, expectedIssuer: string
       continue;
     }
 
-    if (subject.iss && normalizeIssuer(subject.iss) !== normalizeIssuer(expectedIssuer)) {
+    if (
+      subject.iss &&
+      normalizeIssuer(subject.iss) !== normalizeIssuer(expectedIssuer)
+    ) {
       continue;
     }
 
@@ -151,7 +168,9 @@ function getEventSubjects(payload: DecodedGoogleCapToken, expectedIssuer: string
   return [...subjects];
 }
 
-async function findUserByGoogleSubject(googleSub: string): Promise<CapUserRecord | null> {
+async function findUserByGoogleSubject(
+  googleSub: string,
+): Promise<CapUserRecord | null> {
   const admin = getAdminClient();
   const perPage = 100;
   const maxPages = 100;
@@ -203,7 +222,10 @@ async function terminateUserSessions(userId: string) {
 
   const signOut = (
     admin.auth.admin as unknown as {
-      signOut?: (userId: string, scope?: "global" | "local" | "others") => Promise<{ error?: { message: string } | null }>;
+      signOut?: (
+        userId: string,
+        scope?: "global" | "local" | "others",
+      ) => Promise<{ error?: { message: string } | null }>;
     }
   ).signOut;
 
@@ -267,9 +289,10 @@ export function getGoogleSigninCapRestriction(metadata: unknown): {
     return { disabled: false, reason: null };
   }
 
-  const reason = typeof security.google_signin_disabled_reason === "string"
-    ? security.google_signin_disabled_reason
-    : null;
+  const reason =
+    typeof security.google_signin_disabled_reason === "string"
+      ? security.google_signin_disabled_reason
+      : null;
 
   return { disabled: true, reason };
 }
@@ -318,10 +341,16 @@ export async function handleGoogleCapPayload(payload: DecodedGoogleCapToken) {
 
           if (reason === "hijacking") {
             await terminateUserSessions(user.id);
-            entry.actions.push("sessions_terminated:account-disabled-hijacking");
+            entry.actions.push(
+              "sessions_terminated:account-disabled-hijacking",
+            );
           }
 
-          await setGoogleSigninDisabled(user, true, `account_disabled:${reason}`);
+          await setGoogleSigninDisabled(
+            user,
+            true,
+            `account_disabled:${reason}`,
+          );
           entry.actions.push(`google_signin_disabled:${reason}`);
           continue;
         }

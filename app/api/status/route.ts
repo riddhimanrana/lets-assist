@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { isLocalSupabaseEndpoint } from "./status-utils";
 
 type CheckState = "pass" | "warn" | "fail";
 
@@ -22,7 +23,7 @@ function isDeepCheckEnabled(request: NextRequest): boolean {
 async function runCheck(
   name: string,
   critical: boolean,
-  fn: () => Promise<Omit<StatusCheck, "name" | "critical" | "durationMs">>
+  fn: () => Promise<Omit<StatusCheck, "name" | "critical" | "durationMs">>,
 ): Promise<StatusCheck> {
   const started = Date.now();
 
@@ -51,11 +52,14 @@ async function checkEnvironment(): Promise<StatusCheck> {
     const missing = required.filter((key) => !process.env[key]);
     const hasCronSecret = Boolean(
       process.env.CRON_TOKEN ??
-        process.env.CRON_SECRET ??
-        process.env.RECURRING_PROJECTS_SECRET_TOKEN
+      process.env.CRON_SECRET ??
+      process.env.RECURRING_PROJECTS_SECRET_TOKEN,
     );
 
-    if (missing.length > 0 || !hasCronSecret) {
+    if (
+      missing.length > 0 ||
+      (!hasCronSecret && process.env.NODE_ENV !== "development")
+    ) {
       return {
         state: "fail",
         message: "Required environment variables are missing",
@@ -67,9 +71,7 @@ async function checkEnvironment(): Promise<StatusCheck> {
     }
 
     const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const isLocalSupabaseUrl =
-      configuredSupabaseUrl.includes("127.0.0.1:54321") ||
-      configuredSupabaseUrl.includes("localhost:54321");
+    const isLocalSupabaseUrl = isLocalSupabaseEndpoint(configuredSupabaseUrl);
 
     if (process.env.NODE_ENV === "development" && !isLocalSupabaseUrl) {
       return {
@@ -79,6 +81,14 @@ async function checkEnvironment(): Promise<StatusCheck> {
           configuredSupabaseUrl,
           expectedLocalUrl: "http://127.0.0.1:54321",
         },
+      };
+    }
+
+    if (!hasCronSecret) {
+      return {
+        state: "warn",
+        message: "Local background-job secret is not configured",
+        details: { missingCronSecret: true },
       };
     }
 
@@ -117,9 +127,12 @@ async function checkWorkerConfiguration(): Promise<StatusCheck> {
   return runCheck("workers", false, async () => {
     const workerFlags = {
       autoPublishHours: process.env.AUTO_PUBLISH_ENABLED === "true",
-      organizationCalendarSync: process.env.ORG_CALENDAR_SYNC_WORKER_ENABLED !== "false",
-      organizationSheetSync: process.env.ORG_SHEET_SYNC_WORKER_ENABLED === "true",
-      projectCancellationWorker: process.env.PROJECT_CANCELLATION_WORKER_ENABLED === "true",
+      organizationCalendarSync:
+        process.env.ORG_CALENDAR_SYNC_WORKER_ENABLED !== "false",
+      organizationSheetSync:
+        process.env.ORG_SHEET_SYNC_WORKER_ENABLED === "true",
+      projectCancellationWorker:
+        process.env.PROJECT_CANCELLATION_WORKER_ENABLED === "true",
     };
 
     const enabledWorkers = Object.entries(workerFlags)
@@ -155,7 +168,8 @@ async function checkTablesDeep(): Promise<StatusCheck> {
       "certificates",
     ];
 
-    const tableStates: Record<string, { state: CheckState; message?: string }> = {};
+    const tableStates: Record<string, { state: CheckState; message?: string }> =
+      {};
     let failedCount = 0;
 
     for (const table of tables) {
@@ -197,7 +211,7 @@ export async function GET(request: NextRequest) {
   const envCheck = await checkEnvironment();
   checks.push(envCheck);
 
-  if (envCheck.state === "pass") {
+  if (envCheck.state !== "fail") {
     checks.push(await checkDatabase());
   } else {
     checks.push({
@@ -215,7 +229,9 @@ export async function GET(request: NextRequest) {
     checks.push(await checkTablesDeep());
   }
 
-  const criticalFailure = checks.some((check) => check.critical && check.state === "fail");
+  const criticalFailure = checks.some(
+    (check) => check.critical && check.state === "fail",
+  );
   const hasNonPass = checks.some((check) => check.state !== "pass");
 
   const status = criticalFailure
@@ -231,7 +247,8 @@ export async function GET(request: NextRequest) {
       service: "lets-assist",
       status,
       timestamp: new Date().toISOString(),
-      environment: process.env.VERCEL_ENV || process.env.NODE_ENV || "development",
+      environment:
+        process.env.VERCEL_ENV || process.env.NODE_ENV || "development",
       uptimeSeconds: Math.round(process.uptime()),
       version: process.env.VERCEL_GIT_COMMIT_SHA || null,
       deep,
@@ -243,7 +260,7 @@ export async function GET(request: NextRequest) {
       headers: {
         "Cache-Control": "no-store",
       },
-    }
+    },
   );
 }
 

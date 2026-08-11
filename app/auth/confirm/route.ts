@@ -1,16 +1,25 @@
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { syncPrimaryUserEmail } from "@/lib/auth/primary-email";
 import { redirect } from "next/navigation";
 import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
+import { resolveAuthRedirectOrigin } from "@/app/signup/request-origin";
 
+/**
+ * `origin` is the validated auth redirect origin, never `new URL(request.url)`:
+ * Next.js rebuilds `request.url` from the server's own binding, so on the
+ * loopback stack it reads `http://localhost:<port>` even when the browser
+ * confirmed on `http://127.0.0.1:<port>`. Redirecting there would hand the
+ * verified account to a different cookie origin than the one that just
+ * completed the PKCE exchange.
+ */
 async function redirectToSuccess(
-  request: NextRequest,
+  origin: string,
   email?: string,
   type: "signup" | "email_change" = "signup",
   redirectAfterAuth?: string | null,
 ) {
-  const origin = new URL(request.url).origin;
   const redirectUrl = new URL(`${origin}/auth/verification-success`);
   redirectUrl.searchParams.set("type", type);
   if (email) {
@@ -30,24 +39,37 @@ export async function GET(request: NextRequest) {
   const typeParam = (searchParams.get("type") as EmailOtpType | null) ?? null;
   const type: EmailOtpType = typeParam ?? "signup";
   const code = searchParams.get("code");
-  const redirectAfterAuth = normalizeRedirectPath(searchParams.get("redirectAfterAuth"));
+  const redirectAfterAuth = normalizeRedirectPath(
+    searchParams.get("redirectAfterAuth"),
+  );
+  const authOrigin = resolveAuthRedirectOrigin(request.headers.get("host"));
 
   const isExpiredLinkError = (message: string) => {
     const lowered = message.toLowerCase();
-    return lowered.includes("expired") || lowered.includes("otp") || lowered.includes("token");
+    return (
+      lowered.includes("expired") ||
+      lowered.includes("otp") ||
+      lowered.includes("token")
+    );
   };
 
   const redirectToExpiredLink = () => {
-    const url = new URL("/auth/email-expired", request.url);
+    const url = new URL("/auth/email-expired", authOrigin);
     if (email) {
       url.searchParams.set("email", email);
     }
     redirect(url.toString());
   };
 
-  const isPkceVerifierMissingError = (message?: string, code?: string | null) => {
+  const isPkceVerifierMissingError = (
+    message?: string,
+    code?: string | null,
+  ) => {
     const lowered = (message ?? "").toLowerCase();
-    return code === "pkce_code_verifier_not_found" || lowered.includes("pkce code verifier not found");
+    return (
+      code === "pkce_code_verifier_not_found" ||
+      lowered.includes("pkce code verifier not found")
+    );
   };
 
   const getTrustedUser = async () => {
@@ -71,7 +93,10 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Code exchange error:", error);
-      if (type === "signup" && isPkceVerifierMissingError(error.message, error.code)) {
+      if (
+        type === "signup" &&
+        isPkceVerifierMissingError(error.message, error.code)
+      ) {
         return redirectToExpiredLink();
       }
       if (type === "signup" && isExpiredLinkError(error.message ?? "")) {
@@ -80,10 +105,26 @@ export async function GET(request: NextRequest) {
       return redirect(`/error?message=${encodeURIComponent(error.message)}`);
     }
 
-    const userEmail = (await getTrustedUser())?.email;
+    const trustedUser = await getTrustedUser();
+    if (!trustedUser) {
+      return redirect("/error?message=Unable%20to%20load%20verified%20user");
+    }
+
+    const primarySync = await syncPrimaryUserEmail(trustedUser.id);
+    if (!primarySync.success) {
+      console.error(
+        "Primary email synchronization failed after code exchange:",
+        primarySync.status,
+      );
+      return redirect(
+        "/error?message=Unable%20to%20synchronize%20verified%20email",
+      );
+    }
+
+    const userEmail = trustedUser.email;
     await supabase.auth.signOut();
     return redirectToSuccess(
-      request,
+      authOrigin,
       userEmail,
       type === "email_change" ? "email_change" : "signup",
       redirectAfterAuth,
@@ -91,13 +132,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (!token_hash && !token && !code) {
-    console.warn("Confirmation hit without parameters, assuming success");
-    return redirectToSuccess(
-      request,
-      undefined,
-      type === "email_change" ? "email_change" : "signup",
-      redirectAfterAuth,
-    );
+    console.warn("Confirmation hit without a verification credential");
+    return redirect("/error?message=Missing%20verification%20credential");
   }
 
   const tokenValue = token_hash ?? token;
@@ -122,32 +158,31 @@ export async function GET(request: NextRequest) {
 
   const trustedUser = await getTrustedUser();
 
+  if (!trustedUser) {
+    return redirect("/error?message=Unable%20to%20load%20verified%20user");
+  }
+
+  const primarySync = await syncPrimaryUserEmail(trustedUser.id);
+  if (!primarySync.success) {
+    console.error(
+      "Primary email synchronization failed after confirmation:",
+      primarySync.status,
+    );
+    return redirect(
+      "/error?message=Unable%20to%20synchronize%20verified%20email",
+    );
+  }
+
   if (type === "email_change") {
-    if (!trustedUser) {
-      return redirect("/error?message=Unable%20to%20load%20verified%20user");
-    }
-
-    const { error: profileError } = (await supabase
-      .from("profiles")
-      .update({
-        email: trustedUser.email,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", trustedUser.id)) as { error: { message?: string } | null };
-
-    if (profileError) {
-      console.error("Profile update error:", profileError);
-    }
-
     return redirectToSuccess(
-      request,
+      authOrigin,
       trustedUser.email,
       "email_change",
       redirectAfterAuth,
     );
   }
 
-  const userEmail = trustedUser?.email;
+  const userEmail = trustedUser.email;
   await supabase.auth.signOut();
-  return redirectToSuccess(request, userEmail, "signup", redirectAfterAuth);
+  return redirectToSuccess(authOrigin, userEmail, "signup", redirectAfterAuth);
 }

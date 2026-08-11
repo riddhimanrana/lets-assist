@@ -13,11 +13,12 @@
     /*--page-foreground: 240 10% 3.9%;*/
     /* text */
 
-    --success: hsl(142.1 76.2% 36.3%);
-    /* green */
-    --warning: hsl(35 77% 49%);
-    /* yellow */
-    --info: hsl(220 91% 54%);
+    --success: hsl(142.1 76.2% 28%);
+    /* green — AA against white text and on white backgrounds */
+    --warning: hsl(35 77% 33%);
+    /* yellow — AA against the 10% warning tint */
+    --info: hsl(220 91% 51%);
+    /* blue — AA against the 10% info tint */
 
     --background: hsl(0 0% 100%);
     /* base */
@@ -31,8 +32,15 @@
     /* base */
     --popover-foreground: hsl(240 10% 3.9%);
     /* text */
-    --primary: hsl(142.1 76.2% 36.3%);
-    /* accent - green */
+    --primary: hsl(142.1 76.2% 28%);
+    /* accent - green — AA behind --primary-foreground (29% was 4.46:1) */
+    --brand: hsl(142.1 76.2% 36.3%);
+    /* green #16a34a — the identity green shipped in Production, emails, and the
+       OpenGraph card. Darkening --primary for AA also drained the decorative
+       brand washes, so those keep the identity hue here. Decorative only: never
+       put text, an icon that carries meaning, a filled control, or a focus ring
+       on --brand, because at full strength it is below AA behind
+       --primary-foreground. Interactive and status surfaces use --primary. */
     --primary-foreground: hsl(355.7 100% 97.3%);
     /* base */
     --secondary: hsl(240 4.8% 95.9%);
@@ -41,22 +49,23 @@
     /* text */
     --muted: hsl(240 4.8% 95.9%);
     /* surface0 */
-    --muted-foreground: hsl(240 3.8% 46.1%);
-    /* subtext1 */
+    --muted-foreground: hsl(240 3.8% 43%);
+    /* subtext1 — AA on --muted, not only on white */
     --accent: hsl(240 4.8% 95.9%);
     /* surface0 */
     --accent-foreground: hsl(240 5.9% 10%);
     /* text */
-    --destructive: hsl(0 84.2% 60.2%);
-    /* red */
+    --destructive: hsl(0 84.2% 44%);
+    /* red — AA on white, behind --destructive-foreground, and against the 10%
+       destructive tint it is paired with in alerts (47% was 4.24:1 there) */
     --destructive-foreground: hsl(0 0% 98%);
     /* mantle */
     --border: hsl(240 5.9% 90%);
     /* surface1 */
     --input: hsl(240 5.9% 90%);
     /* surface1 */
-    --ring: hsl(142.1 76.2% 36.3%);
-    /* text */
+    --ring: hsl(142.1 76.2% 28%);
+    /* text — kept in step with --primary */
     --radius: 1rem;
     --chart-1: hsl(12 76% 61%);
     /* red */
@@ -77,18 +86,29 @@
     --chart-9: hsl(220 21% 89%);
     /* base */
 
-    --mantle:hsl(0 0% 100%);
+    --mantle: hsl(0 0% 100%);
 
     --toast-normal-bg: color-mix(in srgb, var(--mantle) 10%, var(--background));
     --toast-info-bg: color-mix(in srgb, var(--info) 10%, var(--background));
     --toast-info-fg: color-mix(in srgb, var(--info) 10%, transparent);
-    --toast-success-bg: color-mix(in srgb, var(--success) 10%, var(--background));
+    --toast-success-bg: color-mix(
+      in srgb,
+      var(--success) 10%,
+      var(--background)
+    );
     --toast-success-fg: color-mix(in srgb, var(--success) 10%, transparent);
-    --toast-error-bg: color-mix(in srgb, var(--destructive) 10%, var(--background));
+    --toast-error-bg: color-mix(
+      in srgb,
+      var(--destructive) 10%,
+      var(--background)
+    );
     --toast-error-fg: color-mix(in srgb, var(--destructive) 10%, transparent);
-    --toast-warning-bg: color-mix(in srgb, var(--warning) 10%, var(--background));
+    --toast-warning-bg: color-mix(
+      in srgb,
+      var(--warning) 10%,
+      var(--background)
+    );
     --toast-warning-fg: color-mix(in srgb, var(--warning) 10%, transparent);
-
   }
 
   .dark {
@@ -125,6 +145,11 @@
     /* surface1 */
     --primary: hsl(115 54% 76%);
     /* accent - Green */
+    --brand: hsl(115 54% 76%);
+    /* Pinned to the dark --primary so the decorative washes render exactly as
+       they did before --brand existed. The light-theme split exists because AA
+       forced --primary away from the identity green; dark mode never had that
+       conflict, so it needs no second hue. */
     --primary-foreground: hsl(240 21% 15%);
     /* base */
     --secondary: hsl(237 16% 23%);
@@ -165,11 +190,23 @@
     --toast-normal-bg: color-mix(in srgb, var(--mantle) 10%, var(--background));
     --toast-info-bg: color-mix(in srgb, var(--info) 10%, var(--background));
     --toast-info-fg: color-mix(in srgb, var(--info) 10%, transparent);
-    --toast-success-bg: color-mix(in srgb, var(--success) 10%, var(--background));
+    --toast-success-bg: color-mix(
+      in srgb,
+      var(--success) 10%,
+      var(--background)
+    );
     --toast-success-fg: color-mix(in srgb, var(--success) 10%, transparent);
-    --toast-error-bg: color-mix(in srgb, var(--destructive) 10%, var(--background));
+    --toast-error-bg: color-mix(
+      in srgb,
+      var(--destructive) 10%,
+      var(--background)
+    );
     --toast-error-fg: color-mix(in srgb, var(--destructive) 10%, transparent);
-    --toast-warning-bg: color-mix(in srgb, var(--warning) 10%, var(--background));
+    --toast-warning-bg: color-mix(
+      in srgb,
+      var(--warning) 10%,
+      var(--background)
+    );
     --toast-warning-fg: color-mix(in srgb, var(--warning) 10%, transparent);
   }
 }
@@ -190,6 +227,8 @@
 
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+
+  --color-brand: var(--brand);
 
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -240,7 +279,9 @@
   --radius-sm: calc(var(--radius) - 4px);
 
   --font-overusedgrotesk: var(--font-overusedgrotesk), sans-serif;
-  --font-sans: var(--font-sans), sans-serif;
+  --font-nohemi: var(--font-nohemi), sans-serif;
+  --font-cheese-milky: var(--font-cheese-milky), cursive;
+  --font-sans: var(--font-geist-sans), sans-serif;
   --font-mono: var(--font-geist-mono), sans-serif;
 
   --animate-accordion-down: accordion-down 0.2s ease-out;
@@ -268,7 +309,6 @@
   }
 
   @keyframes gradient {
-
     0%,
     100% {
       background-position: 0% 50%;
@@ -283,6 +323,39 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  .la-text-reveal-item {
+    opacity: 0;
+    filter: blur(var(--la-reveal-blur, 12px));
+    transform: translate3d(0, var(--la-reveal-y, 28px), 0)
+      scale(var(--la-scale, 1)) rotateX(var(--la-rotate-x, 0deg));
+    transform-origin: 50% 85%;
+    will-change: transform, opacity, filter;
+    transition:
+      opacity var(--la-duration, 0.62s) cubic-bezier(0.16, 1, 0.3, 1),
+      transform var(--la-duration, 0.62s) cubic-bezier(0.16, 1, 0.3, 1),
+      filter var(--la-duration, 0.62s) cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: var(--la-delay, 0s);
+  }
+
+  .la-text-reveal[data-visible="true"] .la-text-reveal-item {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1) rotateX(0deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .la-text-reveal-item {
+      transition: none !important;
+      opacity: 1;
+      filter: none;
+      transform: none;
+    }
   }
 
   body {
@@ -310,6 +383,14 @@
     pointer-events: none;
   }
 
+  .la-demo-scroll-region {
+    scrollbar-width: none;
+  }
+
+  .la-demo-scroll-region::-webkit-scrollbar {
+    display: none;
+  }
+
   button:not(:disabled),
   /* bring back pointer cursor from tailwind css v3*/
   [role="button"]:not(:disabled) {
@@ -318,12 +399,27 @@
 }
 
 @layer utilities {
-
   html .font-overusedgrotesk {
+    font-family: var(--font-overusedgrotesk), sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-synthesis: none;
     text-rendering: geometricPrecision;
+  }
+
+  html .font-nohemi {
+    font-family: var(--font-nohemi), sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-synthesis: none;
+    text-rendering: geometricPrecision;
+  }
+
+  html .font-cheese-milky {
+    font-family: var(--font-cheese-milky), cursive;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-synthesis: none;
   }
 
   @media (max-width: 639.98px) {
@@ -362,7 +458,11 @@
   }
 
   .bg-dot-pattern {
-    background-image: radial-gradient(circle, var(--muted-foreground) 1px, transparent 1px);
+    background-image: radial-gradient(
+      circle,
+      var(--muted-foreground) 1px,
+      transparent 1px
+    );
     background-size: 24px 24px;
     opacity: 0.2;
   }

@@ -23,7 +23,11 @@ export function isStaleSupabaseAuthUserError(
     return true;
   }
 
-  if (status === 404 && message.includes("user") && message.includes("not found")) {
+  if (
+    status === 404 &&
+    message.includes("user") &&
+    message.includes("not found")
+  ) {
     return true;
   }
 

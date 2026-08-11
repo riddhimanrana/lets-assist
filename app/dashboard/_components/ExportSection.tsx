@@ -1,19 +1,20 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { DateRange } from "react-day-picker";
-import {
-  Download,
-  Calendar,
-  CircleCheck,
-  UserCheck,
-} from "lucide-react";
+import { DateRange } from "@daypicker/react";
+import { Download, Calendar, CircleCheck, UserCheck } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -68,7 +69,7 @@ export function ExportSection({
   verifiedCount: _verifiedCount = 0,
   unverifiedCount: _unverifiedCount = 0,
   totalCertificates: _totalCertificates = 0,
-  certificatesData = []
+  certificatesData = [],
 }: ExportSectionProps) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
@@ -77,41 +78,56 @@ export function ExportSection({
   const [isExporting, setIsExporting] = useState(false);
 
   // Convert certificates data to export format
-  const convertCertificateToExportData = (cert: CertificateRecord): ExportData => {
-    const isVerified = (cert.type || 'platform') === 'platform';
+  const convertCertificateToExportData = (
+    cert: CertificateRecord,
+  ): ExportData => {
+    const isVerified = (cert.type || "platform") === "platform";
     return {
       id: cert.id,
       projectTitle: cert.project_title || cert.title || "Unknown Project",
-      organizationName: cert.organization_name || cert.creator_name || "Unknown Organization",
+      organizationName:
+        cert.organization_name || cert.creator_name || "Unknown Organization",
       volunteerName: cert.volunteer_name || "Unknown Volunteer",
       volunteerEmail: cert.volunteer_email || userEmail,
-      date: cert.event_start ? format(new Date(cert.event_start), "yyyy-MM-dd") : "Unknown Date",
-      startTime: cert.event_start ? (() => {
-        const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
-        const timeStr = format(new Date(cert.event_start), "h:mm a");
-        try {
-          const tzAbbr = new Intl.DateTimeFormat('en-US', {
-            timeZone: timezone,
-            timeZoneName: 'short'
-          }).formatToParts(new Date(cert.event_start)).find(part => part.type === 'timeZoneName')?.value;
-          return tzAbbr ? `${timeStr} ${tzAbbr}` : timeStr;
-        } catch {
-          return timeStr;
-        }
-      })() : "Unknown",
-      endTime: cert.event_end ? (() => {
-        const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
-        const timeStr = format(new Date(cert.event_end), "h:mm a");
-        try {
-          const tzAbbr = new Intl.DateTimeFormat('en-US', {
-            timeZone: timezone,
-            timeZoneName: 'short'
-          }).formatToParts(new Date(cert.event_end)).find(part => part.type === 'timeZoneName')?.value;
-          return tzAbbr ? `${timeStr} ${tzAbbr}` : timeStr;
-        } catch {
-          return timeStr;
-        }
-      })() : "Unknown",
+      date: cert.event_start
+        ? format(new Date(cert.event_start), "yyyy-MM-dd")
+        : "Unknown Date",
+      startTime: cert.event_start
+        ? (() => {
+            const timezone =
+              cert.projects?.project_timezone || "America/Los_Angeles";
+            const timeStr = format(new Date(cert.event_start), "h:mm a");
+            try {
+              const tzAbbr = new Intl.DateTimeFormat("en-US", {
+                timeZone: timezone,
+                timeZoneName: "short",
+              })
+                .formatToParts(new Date(cert.event_start))
+                .find((part) => part.type === "timeZoneName")?.value;
+              return tzAbbr ? `${timeStr} ${tzAbbr}` : timeStr;
+            } catch {
+              return timeStr;
+            }
+          })()
+        : "Unknown",
+      endTime: cert.event_end
+        ? (() => {
+            const timezone =
+              cert.projects?.project_timezone || "America/Los_Angeles";
+            const timeStr = format(new Date(cert.event_end), "h:mm a");
+            try {
+              const tzAbbr = new Intl.DateTimeFormat("en-US", {
+                timeZone: timezone,
+                timeZoneName: "short",
+              })
+                .formatToParts(new Date(cert.event_end))
+                .find((part) => part.type === "timeZoneName")?.value;
+              return tzAbbr ? `${timeStr} ${tzAbbr}` : timeStr;
+            } catch {
+              return timeStr;
+            }
+          })()
+        : "Unknown",
       duration: cert.hours ? cert.hours.toString() : "0",
       location: cert.project_location || "Unknown Location",
       supervisorContact: cert.creator_name || "Unknown Supervisor",
@@ -119,7 +135,9 @@ export function ExportSection({
       type: isVerified ? "platform" : "self-reported", // Use lowercase to match DB values
       certificationStatus: cert.is_certified ? "Certified" : "Participated",
       checkInMethod: cert.check_in_method || "Unknown",
-      issuedDate: cert.issued_at ? format(new Date(cert.issued_at), "yyyy-MM-dd") : "Unknown Date"
+      issuedDate: cert.issued_at
+        ? format(new Date(cert.issued_at), "yyyy-MM-dd")
+        : "Unknown Date",
     };
   };
 
@@ -129,24 +147,31 @@ export function ExportSection({
   }, [certificatesData, userEmail]);
 
   // Calculate actual counts from processed data
-  const actualVerifiedCount = allExportData.filter(item => item.isVerified).length;
-  const actualUnverifiedCount = allExportData.filter(item => !item.isVerified).length;
+  const actualVerifiedCount = allExportData.filter(
+    (item) => item.isVerified,
+  ).length;
+  const actualUnverifiedCount = allExportData.filter(
+    (item) => !item.isVerified,
+  ).length;
 
   // Filter data based on date range and type selection
   const filteredData = useMemo(() => {
     // If no date range is selected, show all data
     if (!dateRange?.from || !dateRange?.to) {
-      return allExportData.filter(item => {
-        const typeIncluded = (item.isVerified && includeVerified) ||
+      return allExportData.filter((item) => {
+        const typeIncluded =
+          (item.isVerified && includeVerified) ||
           (!item.isVerified && includeUnverified);
         return typeIncluded;
       });
     }
 
-    return allExportData.filter(item => {
+    return allExportData.filter((item) => {
       const itemDate = new Date(item.date);
-      const inDateRange = itemDate >= dateRange.from! && itemDate <= dateRange.to!;
-      const typeIncluded = (item.isVerified && includeVerified) ||
+      const inDateRange =
+        itemDate >= dateRange.from! && itemDate <= dateRange.to!;
+      const typeIncluded =
+        (item.isVerified && includeVerified) ||
         (!item.isVerified && includeUnverified);
       return inDateRange && typeIncluded;
     });
@@ -176,10 +201,10 @@ export function ExportSection({
         "Check In Method",
         "Volunteer Name",
         "Volunteer Email",
-        "Issued Date"
+        "Issued Date",
       ];
 
-      const rows = filteredData.map(item => [
+      const rows = filteredData.map((item) => [
         item.id, // Certificate ID
         item.projectTitle, // Project Title
         item.organizationName, // Organization Name
@@ -193,12 +218,12 @@ export function ExportSection({
         item.checkInMethod, // Check In Method
         item.volunteerName, // Volunteer Name
         item.volunteerEmail, // Volunteer Email
-        item.issuedDate // Issued Date
+        item.issuedDate, // Issued Date
       ]);
 
       // Generate CSV
       const csvContent = [headers, ...rows]
-        .map(row => row.map(field => `"${field}"`).join(","))
+        .map((row) => row.map((field) => `"${field}"`).join(","))
         .join("\n");
 
       // Download file
@@ -243,7 +268,8 @@ export function ExportSection({
             Date Range
           </CardTitle>
           <CardDescription>
-            Select a time period for your export, or leave blank for all-time data
+            Select a time period for your export, or leave blank for all-time
+            data
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -298,8 +324,11 @@ export function ExportSection({
         <CardHeader>
           <CardTitle>Export Preview</CardTitle>
           <CardDescription>
-            Preview of data that will be exported ({filteredData.length} entries)
-            {!dateRange?.from || !dateRange?.to ? " - All time data" : ` - ${dateRange.from ? format(dateRange.from, "MMM d") : ""} to ${dateRange.to ? format(new Date(dateRange.to.getTime() - 24 * 60 * 60 * 1000), "MMM d") : ""}`}
+            Preview of data that will be exported ({filteredData.length}{" "}
+            entries)
+            {!dateRange?.from || !dateRange?.to
+              ? " - All time data"
+              : ` - ${dateRange.from ? format(dateRange.from, "MMM d") : ""} to ${dateRange.to ? format(new Date(dateRange.to.getTime() - 24 * 60 * 60 * 1000), "MMM d") : ""}`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -309,9 +338,13 @@ export function ExportSection({
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 sticky top-0">
                     <tr className="border-b">
-                      <th className="text-left p-3 font-medium">Certificate ID</th>
+                      <th className="text-left p-3 font-medium">
+                        Certificate ID
+                      </th>
                       <th className="text-left p-3 font-medium">Project</th>
-                      <th className="text-left p-3 font-medium">Organization</th>
+                      <th className="text-left p-3 font-medium">
+                        Organization
+                      </th>
                       <th className="text-left p-3 font-medium">Date</th>
                       <th className="text-left p-3 font-medium">Duration</th>
                       <th className="text-left p-3 font-medium">Type</th>
@@ -319,14 +352,21 @@ export function ExportSection({
                   </thead>
                   <tbody>
                     {filteredData.map((item, index) => (
-                      <tr key={item.id} className={index % 2 === 0 ? "bg-background" : "bg-muted/25"}>
+                      <tr
+                        key={item.id}
+                        className={
+                          index % 2 === 0 ? "bg-background" : "bg-muted/25"
+                        }
+                      >
                         <td className="p-3 font-mono text-xs">{item.id}</td>
                         <td className="p-3">{item.projectTitle}</td>
                         <td className="p-3">{item.organizationName}</td>
                         <td className="p-3">{item.date}</td>
                         <td className="p-3">{item.duration}h</td>
                         <td className="p-3">
-                          <Badge variant={item.isVerified ? "default" : "secondary"}>
+                          <Badge
+                            variant={item.isVerified ? "default" : "secondary"}
+                          >
                             {item.isVerified ? "Verified" : "Self-Reported"}
                           </Badge>
                         </td>

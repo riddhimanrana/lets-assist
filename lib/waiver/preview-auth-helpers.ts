@@ -1,6 +1,6 @@
 /**
  * Phase 7: Waiver Preview Authorization Helpers
- * 
+ *
  * Extracted authorization logic for waiver preview/download routes.
  * Supports three authorization paths with proper priority:
  * 1. Organizer access (project creator or org admin/staff)
@@ -20,6 +20,7 @@ export interface AuthCheckParams {
   project: {
     creator_id: string | null;
     organization_id: string | null;
+    can_be_managed_by_staff: boolean;
   };
   /** Organization member record if user is in org, or null */
   orgMember?: {
@@ -35,14 +36,14 @@ export interface AuthCheckResult {
   /** Whether the user/request has permission to access the waiver */
   hasPermission: boolean;
   /** The authorization path that granted permission, or reason for denial */
-  reason: 'organizer' | 'signer' | 'anonymous' | 'unauthorized';
+  reason: "organizer" | "signer" | "anonymous" | "unauthorized";
   /** Additional context for debugging */
   details?: string;
 }
 
 /**
  * Check if a user/request is authorized to access a waiver signature.
- * 
+ *
  * Authorization paths (in order of priority):
  * 1. Organizer: project creator or org admin/staff
  * 2. Signer self-access: authenticated user owns the signature
@@ -62,17 +63,22 @@ export function checkWaiverAccess(params: AuthCheckParams): AuthCheckResult {
   if (currentUserId && project.creator_id === currentUserId) {
     return {
       hasPermission: true,
-      reason: 'organizer',
-      details: 'User is project creator',
+      reason: "organizer",
+      details: "User is project creator",
     };
   }
 
-  // Path 1: Organizer access (org admin/staff)
+  // Path 1: Organization admins always manage org projects. Staff only inherit
+  // that access when the creator explicitly enabled staff management.
   if (currentUserId && project.organization_id && orgMember) {
-    if (['admin', 'staff'].includes(orgMember.role)) {
+    const isAuthorizedOrgManager =
+      orgMember.role === "admin" ||
+      (orgMember.role === "staff" && project.can_be_managed_by_staff);
+
+    if (isAuthorizedOrgManager) {
       return {
         hasPermission: true,
-        reason: 'organizer',
+        reason: "organizer",
         details: `User is org ${orgMember.role}`,
       };
     }
@@ -82,8 +88,8 @@ export function checkWaiverAccess(params: AuthCheckParams): AuthCheckResult {
   if (currentUserId && signature.user_id === currentUserId) {
     return {
       hasPermission: true,
-      reason: 'signer',
-      details: 'User owns this signature',
+      reason: "signer",
+      details: "User owns this signature",
     };
   }
 
@@ -95,54 +101,60 @@ export function checkWaiverAccess(params: AuthCheckParams): AuthCheckResult {
         if (!anonymousAccessValidated) {
           return {
             hasPermission: false,
-            reason: 'unauthorized',
-            details: 'Anonymous signature access requires a valid anonymous access token',
+            reason: "unauthorized",
+            details:
+              "Anonymous signature access requires a valid anonymous access token",
           };
         }
 
         return {
           hasPermission: true,
-          reason: 'anonymous',
-          details: 'Valid anonymous access (with matching anonymousSignupId and token)',
+          reason: "anonymous",
+          details:
+            "Valid anonymous access (with matching anonymousSignupId and token)",
         };
       } else {
         return {
           hasPermission: false,
-          reason: 'unauthorized',
-          details: 'Invalid anonymousSignupId parameter (mismatch)',
+          reason: "unauthorized",
+          details: "Invalid anonymousSignupId parameter (mismatch)",
         };
       }
     }
 
     return {
       hasPermission: false,
-      reason: 'unauthorized',
-      details: 'Anonymous signature access requires anonymousSignupId parameter',
+      reason: "unauthorized",
+      details:
+        "Anonymous signature access requires anonymousSignupId parameter",
     };
-    
-    // Fallback: if user is logged in, but signed anonymously, we don't have a 
+
+    // Fallback: if user is logged in, but signed anonymously, we don't have a
     // direct link unless it was explicitly linked later or they have the token.
   }
 
   // No authorization path matched
   return {
     hasPermission: false,
-    reason: 'unauthorized',
-    details: 'No authorization path matched',
+    reason: "unauthorized",
+    details: "No authorization path matched",
   };
 }
 
 /**
  * Get Content-Disposition header value for waiver responses.
- * 
+ *
  * @param inline - If true, returns 'inline' (for preview), otherwise 'attachment' (for download)
  * @param signatureId - The signature ID for filename
  */
-export function getContentDisposition(inline: boolean, signatureId: string): string {
-  const disposition = inline ? 'inline' : 'attachment';
-  const filename = inline 
+export function getContentDisposition(
+  inline: boolean,
+  signatureId: string,
+): string {
+  const disposition = inline ? "inline" : "attachment";
+  const filename = inline
     ? `waiver-${signatureId}.pdf`
     : `signed-waiver-${signatureId}.pdf`;
-  
+
   return `${disposition}; filename="${filename}"`;
 }

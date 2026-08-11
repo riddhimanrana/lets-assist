@@ -20,7 +20,11 @@ export async function generateMetadata({
   };
 }
 
-export default function SignupsPage({ params }: { params: Promise<{ id: string }> }) {
+export default function SignupsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const resolvedParams = use(params);
   return <SignupsClient projectId={resolvedParams.id} />;
 }

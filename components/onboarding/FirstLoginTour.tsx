@@ -4,14 +4,9 @@ import * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, usePathname } from "next/navigation";
-import { Dialog } from "@base-ui-components/react/dialog";
+import { Dialog } from "@base-ui/react/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { FIRST_LOGIN_TOUR_STEPS } from "@/components/onboarding/first-login-tour-steps";
 import type { Step, Tour } from "nextstepjs";
@@ -35,7 +30,8 @@ const waitForPathname = async (
   expectedPathname: string,
   timeout = 4000,
 ) => {
-  const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+  const now = () =>
+    typeof performance !== "undefined" ? performance.now() : Date.now();
   const deadline = now() + timeout;
 
   await new Promise<void>((resolve) => {
@@ -58,12 +54,16 @@ const waitForPathname = async (
   });
 };
 
-const waitForSelector = async (selector: string | undefined, timeout = 4000) => {
+const waitForSelector = async (
+  selector: string | undefined,
+  timeout = 4000,
+) => {
   if (!selector) {
     return;
   }
 
-  const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+  const now = () =>
+    typeof performance !== "undefined" ? performance.now() : Date.now();
   const deadline = now() + timeout;
 
   await new Promise<void>((resolve) => {
@@ -90,15 +90,22 @@ const waitForSelector = async (selector: string | undefined, timeout = 4000) => 
   });
 };
 
-export default function FirstLoginTour({ isOpen, onComplete, onSkip }: FirstLoginTourProps) {
+export default function FirstLoginTour({
+  isOpen,
+  onComplete,
+  onSkip,
+}: FirstLoginTourProps) {
   const router = useRouter();
   const pathname = usePathname();
   const pathnameRef = useRef<string | null>(pathname);
   const [currentStep, setCurrentStep] = useState(0);
-  const [highlightStyle, setHighlightStyle] = useState<HighlightStyle | null>(null);
+  const [highlightStyle, setHighlightStyle] = useState<HighlightStyle | null>(
+    null,
+  );
   const [isNavigating, setIsNavigating] = useState(false);
   const navigationHistory = useRef<string[]>([]);
-  const [highlightPortalRoot, setHighlightPortalRoot] = useState<HTMLElement | null>(null);
+  const [highlightPortalRoot, setHighlightPortalRoot] =
+    useState<HTMLElement | null>(null);
 
   useEffect(() => {
     pathnameRef.current = pathname;
@@ -118,7 +125,10 @@ export default function FirstLoginTour({ isOpen, onComplete, onSkip }: FirstLogi
     return FIRST_LOGIN_TOUR_STEPS as unknown as Step[];
   }, []);
 
-  const step = useMemo<Step>(() => flattenedSteps[currentStep], [currentStep, flattenedSteps]);
+  const step = useMemo<Step>(
+    () => flattenedSteps[currentStep],
+    [currentStep, flattenedSteps],
+  );
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -269,9 +279,18 @@ body[data-first-login-tour='true'] .base-Dialog-backdrop {
       const width = Math.min(rect.width + padding * 2, maxWidth);
       const height = Math.min(rect.height + padding * 2, maxHeight);
 
-      const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-      const top = clamp(rect.top - padding, viewportPadding, viewportHeight - height - viewportPadding);
-      const left = clamp(rect.left - padding, viewportPadding, viewportWidth - width - viewportPadding);
+      const clamp = (value: number, min: number, max: number) =>
+        Math.min(Math.max(value, min), max);
+      const top = clamp(
+        rect.top - padding,
+        viewportPadding,
+        viewportHeight - height - viewportPadding,
+      );
+      const left = clamp(
+        rect.left - padding,
+        viewportPadding,
+        viewportWidth - width - viewportPadding,
+      );
 
       setHighlightStyle({
         top,
@@ -326,64 +345,66 @@ body[data-first-login-tour='true'] .base-Dialog-backdrop {
   const highlightLayer =
     highlightPortalRoot && isOpen
       ? createPortal(
-        <div className="pointer-events-none fixed inset-0 z-90">
-          {highlightStyle ? (
-            <>
-              {/* Use a single div with a massive box-shadow to create the overlay with a clear cutout */}
-              <div
-                className="absolute transition-all duration-300 ease-out"
-                style={{
-                  top: highlightStyle.top,
-                  left: highlightStyle.left,
-                  width: highlightStyle.width,
-                  height: highlightStyle.height,
-                  borderRadius: highlightStyle.borderRadius,
-                  boxShadow: "0 0 0 9999px rgba(2, 6, 23, 0.75)",
-                }}
-              />
-              {/* Border highlight around the cutout */}
-              <div
-                className="absolute border-2 border-primary/70 transition-[top,left,width,height] duration-300 ease-out ring-2 ring-primary/30"
-                style={{
-                  top: highlightStyle.top,
-                  left: highlightStyle.left,
-                  width: highlightStyle.width,
-                  height: highlightStyle.height,
-                  borderRadius: highlightStyle.borderRadius,
-                }}
-              />
-            </>
-          ) : (
-            <div className="absolute inset-0 bg-slate-950/75" />
-          )}
-        </div>,
-        highlightPortalRoot
-      )
+          <div className="pointer-events-none fixed inset-0 z-90">
+            {highlightStyle ? (
+              <>
+                {/* Use a single div with a massive box-shadow to create the overlay with a clear cutout */}
+                <div
+                  className="absolute transition-all duration-300 ease-out"
+                  style={{
+                    top: highlightStyle.top,
+                    left: highlightStyle.left,
+                    width: highlightStyle.width,
+                    height: highlightStyle.height,
+                    borderRadius: highlightStyle.borderRadius,
+                    boxShadow: "0 0 0 9999px rgba(2, 6, 23, 0.75)",
+                  }}
+                />
+                {/* Border highlight around the cutout */}
+                <div
+                  className="absolute border-2 border-primary/70 transition-[top,left,width,height] duration-300 ease-out ring-2 ring-primary/30"
+                  style={{
+                    top: highlightStyle.top,
+                    left: highlightStyle.left,
+                    width: highlightStyle.width,
+                    height: highlightStyle.height,
+                    borderRadius: highlightStyle.borderRadius,
+                  }}
+                />
+              </>
+            ) : (
+              <div className="absolute inset-0 bg-slate-950/75" />
+            )}
+          </div>,
+          highlightPortalRoot,
+        )
       : null;
 
   return (
     <>
       {highlightLayer}
-      <Dialog.Root open={isOpen} onOpenChange={() => { }} modal={false}>
+      <Dialog.Root open={isOpen} onOpenChange={() => {}} modal={false}>
         <Dialog.Portal>
-          <Dialog.Popup
-            className="m-0 h-screen w-screen max-w-none border-none bg-transparent p-0 shadow-none z-100 fixed inset-0 outline-none"
-          >
-            <Dialog.Title className="sr-only">First login tour walkthrough</Dialog.Title>
+          <Dialog.Popup className="m-0 h-screen w-screen max-w-none border-none bg-transparent p-0 shadow-none z-100 fixed inset-0 outline-none">
+            <Dialog.Title className="sr-only">
+              First login tour walkthrough
+            </Dialog.Title>
             <div className="relative flex h-full w-full items-end justify-end p-4 sm:p-8 pointer-events-none">
               <Card className="relative z-20 w-full max-w-lg shadow-2xl pointer-events-auto">
                 <CardHeader className="space-y-3">
                   <div className="flex items-center gap-3">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                       {/**
-                         * step.icon may be either a Lucide icon component (function) or a JSX element
-                         * (depending on which steps file is resolved). Support both.
-                         */}
+                       * step.icon may be either a Lucide icon component (function) or a JSX element
+                       * (depending on which steps file is resolved). Support both.
+                       */}
                       {(() => {
                         const Icon = step?.icon;
                         if (!Icon) return null;
                         if (typeof Icon === "function") {
-                          return React.createElement(Icon, { className: "h-6 w-6" });
+                          return React.createElement(Icon, {
+                            className: "h-6 w-6",
+                          });
                         }
                         // If Icon is already a JSX element, render it directly (but override size if possible).
                         return Icon;
@@ -404,7 +425,7 @@ body[data-first-login-tour='true'] .base-Dialog-backdrop {
                         key={index}
                         className={cn(
                           "h-1 flex-1 rounded-full bg-muted transition-colors duration-200",
-                          index <= currentStep && "bg-primary"
+                          index <= currentStep && "bg-primary",
                         )}
                       />
                     ))}
@@ -434,7 +455,9 @@ body[data-first-login-tour='true'] .base-Dialog-backdrop {
                         onClick={handleNext}
                         disabled={isNavigating}
                       >
-                        {currentStep === flattenedSteps.length - 1 ? "Continue" : "Next"}
+                        {currentStep === flattenedSteps.length - 1
+                          ? "Continue"
+                          : "Next"}
                       </Button>
                     </div>
                   </div>

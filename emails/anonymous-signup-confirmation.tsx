@@ -9,7 +9,7 @@ import {
   Link,
   Row,
   Column,
-} from "@react-email/components";
+} from "react-email";
 import * as React from "react";
 import EmailButton from "./_components/EmailButton";
 import EmailHeader from "./_components/EmailHeader";
@@ -65,12 +65,16 @@ export default function AnonymousSignupConfirmation({
               <Heading style={heading1}>Confirm your signup</Heading>
               <Text style={paragraph}>Hi {userName},</Text>
               <Text style={paragraph}>
-                Thanks for signing up to volunteer for <strong>{projectName}</strong>. Please confirm your email to complete your registration.
+                Thanks for signing up to volunteer for{" "}
+                <strong>{projectName}</strong>. Please confirm your email to
+                complete your registration.
               </Text>
 
               {isMultiSlotSignup && (
                 <Text style={paragraph}>
-                  You selected <strong>{selectedSlotCount} slots</strong>. Confirming once will activate all selected signups tied to this anonymous profile.
+                  You selected <strong>{selectedSlotCount} slots</strong>.
+                  Confirming once will activate all selected signups tied to
+                  this anonymous profile.
                 </Text>
               )}
 
@@ -112,7 +116,9 @@ export default function AnonymousSignupConfirmation({
 
               <Row style={buttonContainer}>
                 <Column>
-                  <EmailButton href={confirmationUrl}>Confirm your signup</EmailButton>
+                  <EmailButton href={confirmationUrl}>
+                    Confirm your signup
+                  </EmailButton>
                 </Column>
               </Row>
 
@@ -129,7 +135,8 @@ export default function AnonymousSignupConfirmation({
               <Section style={infoBox}>
                 <Text style={infoTitle}>Your anonymous profile</Text>
                 <Text style={smallText}>
-                  We've created a profile for you to track volunteer hours and certificates.
+                  We've created a profile for you to track volunteer hours and
+                  certificates.
                 </Text>
                 <Link style={link} href={anonymousProfileUrl}>
                   {anonymousProfileUrl}

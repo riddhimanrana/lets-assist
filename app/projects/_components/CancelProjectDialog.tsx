@@ -23,7 +23,8 @@ interface CancelProjectDialogProps {
   onConfirm: (reason: string) => Promise<void>;
 }
 
-type EmailJoin = { email: string | null } | { email: string | null }[] | null | undefined;
+type EmailJoin =
+  { email: string | null } | { email: string | null }[] | null | undefined;
 
 interface SignupEmailRow {
   user?: EmailJoin;
@@ -95,7 +96,7 @@ export function CancelProjectDialog({
               id,
               user:profiles!user_id(email),
               anonymous_signup:anonymous_signups!anonymous_id(email)
-            `
+            `,
           )
           .eq("project_id", project.id)
           .eq("status", "approved");
@@ -104,7 +105,9 @@ export function CancelProjectDialog({
           throw error;
         }
 
-        const count = ((data as unknown) as SignupEmailRow[] | null ?? []).filter((signup) => {
+        const count = (
+          (data as unknown as SignupEmailRow[] | null) ?? []
+        ).filter((signup) => {
           const userEmail = Array.isArray(signup.user)
             ? signup.user[0]?.email
             : signup.user?.email;
@@ -121,7 +124,9 @@ export function CancelProjectDialog({
         console.error("Error fetching cancellation recipient count:", error);
         if (isActive) {
           setRecipientCount(null);
-          setRecipientError("Unable to estimate cancellation email recipients right now.");
+          setRecipientError(
+            "Unable to estimate cancellation email recipients right now.",
+          );
         }
       } finally {
         if (isActive) {
@@ -166,7 +171,10 @@ export function CancelProjectDialog({
             <DialogTitle className="text-warning">Cancel Project</DialogTitle>
           </div>
           <DialogDescription>
-            This action cannot be undone. The project will be marked as cancelled and approved volunteers will be notified by email. Anonymous volunteers with an email address will only receive the email notice.
+            This action cannot be undone. The project will be marked as
+            cancelled and approved volunteers will be notified by email.
+            Anonymous volunteers with an email address will only receive the
+            email notice.
           </DialogDescription>
         </DialogHeader>
 
@@ -194,7 +202,7 @@ export function CancelProjectDialog({
             <span
               className={cn(
                 "text-xs transition-colors float-right",
-                getCounterColor(reason.length, CHARACTER_LIMIT)
+                getCounterColor(reason.length, CHARACTER_LIMIT),
               )}
             >
               {reason.length}/{CHARACTER_LIMIT}
@@ -213,7 +221,9 @@ export function CancelProjectDialog({
           <Button
             variant="default"
             onClick={handleConfirm}
-            disabled={isSubmitting || !reason.trim() || reason.length > CHARACTER_LIMIT}
+            disabled={
+              isSubmitting || !reason.trim() || reason.length > CHARACTER_LIMIT
+            }
             className="bg-warning hover:bg-warning/90"
           >
             {isSubmitting ? (

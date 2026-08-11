@@ -6,7 +6,13 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -84,7 +90,18 @@ const ENTITLEMENT_STATUS_ITEMS: Array<{
   { label: "Inactive", value: "inactive" },
 ];
 
-function getPluginHighlights(plugin: PluginControlPlaneData["plugins"][number]) {
+function getBoundaryBadgeVariant(
+  status: PluginControlPlaneData["dataBoundaries"][number]["boundary_status"],
+) {
+  if (status === "active") return "default";
+  if (status === "migration_pending") return "info";
+  if (status === "archived") return "secondary";
+  return "outline";
+}
+
+function getPluginHighlights(
+  plugin: PluginControlPlaneData["plugins"][number],
+) {
   const items: string[] = [];
 
   if (plugin.key === "dv-speech-debate") {
@@ -117,7 +134,10 @@ function emptyPluginForm(): PluginFormState {
   };
 }
 
-function formatEntitlementWindowLabel(startsAt: string | null, endsAt: string | null): string {
+function formatEntitlementWindowLabel(
+  startsAt: string | null,
+  endsAt: string | null,
+): string {
   const startLabel = startsAt || "—";
   const endLabel = endsAt || "—";
   return `${startLabel} → ${endLabel}`;
@@ -126,20 +146,25 @@ function formatEntitlementWindowLabel(startsAt: string | null, endsAt: string | 
 export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [pluginForm, setPluginForm] = useState<PluginFormState>(emptyPluginForm());
+  const [pluginForm, setPluginForm] =
+    useState<PluginFormState>(emptyPluginForm());
   const [pluginBrowserOpen, setPluginBrowserOpen] = useState(false);
   const [pluginSearch, setPluginSearch] = useState("");
   const [pluginBrowserFilter, setPluginBrowserFilter] =
     useState<PluginBrowserFilter>("all");
 
-  const [entitlementOrgId, setEntitlementOrgId] = useState(data.organizations[0]?.id ?? "");
+  const [entitlementOrgId, setEntitlementOrgId] = useState(
+    data.organizations[0]?.id ?? "",
+  );
   const [entitlementPluginKey, setEntitlementPluginKey] = useState(
     data.plugins.find((plugin) => plugin.visibility === "private")?.key ??
       data.plugins[0]?.key ??
       "",
   );
-  
-  const [entitlementStatus, setEntitlementStatus] = useState<"active" | "inactive">("active");
+
+  const [entitlementStatus, setEntitlementStatus] = useState<
+    "active" | "inactive"
+  >("active");
   const [entitlementIsForced, setEntitlementIsForced] = useState(false);
   const [entitlementStartsAt, setEntitlementStartsAt] = useState("");
   const [entitlementEndsAt, setEntitlementEndsAt] = useState("");
@@ -148,16 +173,25 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
   const [bulkEntitlementPluginKey, setBulkEntitlementPluginKey] = useState(
     data.plugins.find((plugin) => plugin.visibility === "private")?.key ?? "",
   );
-  const [bulkEntitlementStatus, setBulkEntitlementStatus] =
-    useState<"active" | "inactive">("active");
+  const [bulkEntitlementStatus, setBulkEntitlementStatus] = useState<
+    "active" | "inactive"
+  >("active");
   const [bulkEntitlementIsForced, setBulkEntitlementIsForced] = useState(false);
   const [bulkEntitlementStartsAt, setBulkEntitlementStartsAt] = useState("");
   const [bulkEntitlementEndsAt, setBulkEntitlementEndsAt] = useState("");
-  const [bulkEntitlementIdentifiers, setBulkEntitlementIdentifiers] = useState("");
+  const [bulkEntitlementIdentifiers, setBulkEntitlementIdentifiers] =
+    useState("");
 
-  const [forceUpdateOrgId, setForceUpdateOrgId] = useState(data.organizations[0]?.id ?? "");
-  const [forceUpdatePluginKey, setForceUpdatePluginKey] = useState(data.plugins[0]?.key ?? "");
-  const [forceInstallActivatesEntitlement, setForceInstallActivatesEntitlement] = useState(true);
+  const [forceUpdateOrgId, setForceUpdateOrgId] = useState(
+    data.organizations[0]?.id ?? "",
+  );
+  const [forceUpdatePluginKey, setForceUpdatePluginKey] = useState(
+    data.plugins[0]?.key ?? "",
+  );
+  const [
+    forceInstallActivatesEntitlement,
+    setForceInstallActivatesEntitlement,
+  ] = useState(true);
 
   const [configOrganizationId, setConfigOrganizationId] = useState(
     data.organizations[0]?.id ?? "",
@@ -176,7 +210,8 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
   }
 }`);
   const pluginOptions = useMemo(
-    () => data.plugins.map((plugin) => ({ key: plugin.key, name: plugin.name })),
+    () =>
+      data.plugins.map((plugin) => ({ key: plugin.key, name: plugin.name })),
     [data.plugins],
   );
 
@@ -219,7 +254,8 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
     const term = pluginSearch.trim().toLowerCase();
     return data.plugins.filter((plugin) => {
       const visibilityMatch =
-        pluginBrowserFilter === "all" || plugin.visibility === pluginBrowserFilter;
+        pluginBrowserFilter === "all" ||
+        plugin.visibility === pluginBrowserFilter;
       if (!visibilityMatch) return false;
 
       if (!term) return true;
@@ -371,8 +407,12 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
     setEntitlementPluginKey(entitlement.plugin_key);
     setEntitlementStatus(entitlement.status);
     setEntitlementIsForced(entitlement.is_forced);
-    setEntitlementStartsAt(entitlement.starts_at ? entitlement.starts_at.slice(0, 16) : "");
-    setEntitlementEndsAt(entitlement.ends_at ? entitlement.ends_at.slice(0, 16) : "");
+    setEntitlementStartsAt(
+      entitlement.starts_at ? entitlement.starts_at.slice(0, 16) : "",
+    );
+    setEntitlementEndsAt(
+      entitlement.ends_at ? entitlement.ends_at.slice(0, 16) : "",
+    );
     toast.success("Loaded entitlement into form");
   };
 
@@ -403,7 +443,10 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
       }
 
       toast.success(result.message || "Bulk entitlement update applied");
-      if (result.unmatchedIdentifiers && result.unmatchedIdentifiers.length > 0) {
+      if (
+        result.unmatchedIdentifiers &&
+        result.unmatchedIdentifiers.length > 0
+      ) {
         toast.info(`Unmatched: ${result.unmatchedIdentifiers.join(", ")}`);
       }
       router.refresh();
@@ -491,26 +534,29 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
       <TabsList className="w-full justify-start">
         <TabsTrigger value="catalog">Catalog</TabsTrigger>
         <TabsTrigger value="entitlements">Access</TabsTrigger>
+        <TabsTrigger value="boundaries">Data Boundaries</TabsTrigger>
         <TabsTrigger value="deployments">Rollouts</TabsTrigger>
         <TabsTrigger value="configuration">Config</TabsTrigger>
       </TabsList>
 
       <TabsContent value="catalog" className="mt-0 flex flex-col gap-4">
-      <Card className="border-border/60 shadow-sm">
-        <CardHeader className="space-y-2 border-b bg-muted/20">
-          <CardTitle>Catalog source of truth</CardTitle>
-          <CardDescription>
-            Each row represents one plugin in the private repo-backed catalog. Version, visibility, and rollout floor should be edited here.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="space-y-3">
-            <div className="flex flex-col gap-1">
-              <Label className="text-sm font-medium">Plugin browser</Label>
-              <p className="text-xs text-muted-foreground">
-                Pick a plugin to edit. Use search to quickly jump to the plugin you need.
-              </p>
-            </div>
+        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="space-y-2 border-b bg-muted/20">
+            <CardTitle>Catalog source of truth</CardTitle>
+            <CardDescription>
+              Each row represents one plugin in the private repo-backed catalog.
+              Version, visibility, and rollout floor should be edited here.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="space-y-3">
+              <div className="flex flex-col gap-1">
+                <Label className="text-sm font-medium">Plugin browser</Label>
+                <p className="text-xs text-muted-foreground">
+                  Pick a plugin to edit. Use search to quickly jump to the
+                  plugin you need.
+                </p>
+              </div>
 
               <div className="rounded-xl border bg-muted/20 p-3">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -521,7 +567,10 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                     </p>
                   </div>
 
-                  <Dialog open={pluginBrowserOpen} onOpenChange={setPluginBrowserOpen}>
+                  <Dialog
+                    open={pluginBrowserOpen}
+                    onOpenChange={setPluginBrowserOpen}
+                  >
                     <DialogTrigger
                       render={
                         <Button type="button" variant="outline">
@@ -540,24 +589,34 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                       <div className="space-y-3">
                         <div className="grid gap-2 sm:grid-cols-2">
                           <div className="space-y-1">
-                            <Label htmlFor="plugin-browser-filter" className="text-xs">
+                            <Label
+                              htmlFor="plugin-browser-filter"
+                              className="text-xs"
+                            >
                               Visibility filter
                             </Label>
                             <Select
                               items={PLUGIN_BROWSER_FILTER_ITEMS}
                               value={pluginBrowserFilter}
                               onValueChange={(value) =>
-                                setPluginBrowserFilter(value as PluginBrowserFilter)
+                                setPluginBrowserFilter(
+                                  value as PluginBrowserFilter,
+                                )
                               }
                             >
-                              <SelectTrigger id="plugin-browser-filter" className="w-full">
+                              <SelectTrigger
+                                id="plugin-browser-filter"
+                                className="w-full"
+                              >
                                 <SelectValue placeholder="Filter by visibility" />
                               </SelectTrigger>
                               <SelectContent alignItemWithTrigger={false}>
                                 <SelectGroup>
                                   <SelectItem value="all">All</SelectItem>
                                   <SelectItem value="global">Global</SelectItem>
-                                  <SelectItem value="private">Private</SelectItem>
+                                  <SelectItem value="private">
+                                    Private
+                                  </SelectItem>
                                 </SelectGroup>
                               </SelectContent>
                             </Select>
@@ -567,7 +626,9 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                         <Input
                           placeholder="Search by name, key, or description..."
                           value={pluginSearch}
-                          onChange={(event) => setPluginSearch(event.target.value)}
+                          onChange={(event) =>
+                            setPluginSearch(event.target.value)
+                          }
                         />
 
                         <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
@@ -577,7 +638,9 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                             </p>
                           ) : (
                             filteredPlugins.map((plugin) => {
-                              const sourceLabel = plugin.private_codebase ? "Private repo" : "Platform managed";
+                              const sourceLabel = plugin.private_codebase
+                                ? "Private repo"
+                                : "Platform managed";
                               const rolloutLabel = plugin.force_update_version
                                 ? `Force ≥ ${plugin.force_update_version}`
                                 : "No forced rollout";
@@ -592,30 +655,51 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                                   }}
                                   className={cn(
                                     "w-full rounded-xl border p-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/40",
-                                    pluginForm.key === plugin.key && "border-primary bg-primary/5",
+                                    pluginForm.key === plugin.key &&
+                                      "border-primary bg-primary/5",
                                   )}
                                 >
                                   <div className="flex items-start justify-between gap-2">
                                     <div className="space-y-1">
-                                      <p className="text-sm font-semibold">{plugin.name}</p>
+                                      <p className="text-sm font-semibold">
+                                        {plugin.name}
+                                      </p>
                                       <p className="line-clamp-2 text-xs text-muted-foreground">
-                                        {plugin.description || "No description available yet."}
+                                        {plugin.description ||
+                                          "No description available yet."}
                                       </p>
                                     </div>
-                                    <Badge variant={plugin.is_active ? "default" : "secondary"} className="text-[10px] uppercase">
+                                    <Badge
+                                      variant={
+                                        plugin.is_active
+                                          ? "default"
+                                          : "secondary"
+                                      }
+                                      className="text-[10px] uppercase"
+                                    >
                                       {plugin.is_active ? "Active" : "Paused"}
                                     </Badge>
                                   </div>
 
                                   <div className="mt-3 grid gap-2 text-[11px] text-muted-foreground sm:grid-cols-3">
-                                    <div className="rounded-md bg-muted/40 px-2.5 py-1.5">{sourceLabel}</div>
-                                    <div className="rounded-md bg-muted/40 px-2.5 py-1.5">v{plugin.latest_version}</div>
-                                    <div className="rounded-md bg-muted/40 px-2.5 py-1.5">{rolloutLabel}</div>
+                                    <div className="rounded-md bg-muted/40 px-2.5 py-1.5">
+                                      {sourceLabel}
+                                    </div>
+                                    <div className="rounded-md bg-muted/40 px-2.5 py-1.5">
+                                      v{plugin.latest_version}
+                                    </div>
+                                    <div className="rounded-md bg-muted/40 px-2.5 py-1.5">
+                                      {rolloutLabel}
+                                    </div>
                                   </div>
 
                                   <div className="mt-2 flex flex-wrap gap-1.5">
                                     {getPluginHighlights(plugin).map((item) => (
-                                      <Badge key={item} variant="secondary" className="text-[10px] font-normal">
+                                      <Badge
+                                        key={item}
+                                        variant="secondary"
+                                        className="text-[10px] font-normal"
+                                      >
                                         {item}
                                       </Badge>
                                     ))}
@@ -630,484 +714,703 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                   </Dialog>
                 </div>
               </div>
-          </div>
+            </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="plugin-key">Plugin key</Label>
-              <Input
-                id="plugin-key"
-                value={pluginForm.key}
-                onChange={(event) => setPluginForm((prev) => ({ ...prev, key: event.target.value }))}
-                placeholder="dv-members"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="plugin-name">Plugin name</Label>
-              <Input
-                id="plugin-name"
-                value={pluginForm.name}
-                onChange={(event) => setPluginForm((prev) => ({ ...prev, name: event.target.value }))}
-                placeholder="DV Members"
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="plugin-description">Description</Label>
-              <Input
-                id="plugin-description"
-                value={pluginForm.description}
-                onChange={(event) =>
-                  setPluginForm((prev) => ({ ...prev, description: event.target.value }))
-                }
-                placeholder="Private workflow automation for DV Speech & Debate"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="plugin-visibility">Visibility</Label>
-              <Select
-                items={PLUGIN_VISIBILITY_ITEMS}
-                value={pluginForm.visibility}
-                onValueChange={(value) =>
-                  setPluginForm((prev) => ({
-                    ...prev,
-                    visibility: value as "global" | "private",
-                  }))
-                }
-              >
-                <SelectTrigger id="plugin-visibility" className="w-full">
-                  <SelectValue placeholder="Select visibility" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="private">Private</SelectItem>
-                    <SelectItem value="global">Global</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="plugin-latest-version">Latest version</Label>
-              <Input
-                id="plugin-latest-version"
-                value={pluginForm.latestVersion}
-                onChange={(event) =>
-                  setPluginForm((prev) => ({ ...prev, latestVersion: event.target.value }))
-                }
-                placeholder="1.4.0"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="plugin-force-version">Force-update version (optional)</Label>
-              <Input
-                id="plugin-force-version"
-                value={pluginForm.forceUpdateVersion}
-                onChange={(event) =>
-                  setPluginForm((prev) => ({ ...prev, forceUpdateVersion: event.target.value }))
-                }
-                placeholder="1.3.0"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="plugin-repository">Code repository</Label>
-              <Input
-                id="plugin-repository"
-                value={pluginForm.codeRepository}
-                onChange={(event) =>
-                  setPluginForm((prev) => ({ ...prev, codeRepository: event.target.value }))
-                }
-                placeholder="github.com/your-org/private-plugin-repo"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="plugin-reference">Code reference</Label>
-              <Input
-                id="plugin-reference"
-                value={pluginForm.codeReference}
-                onChange={(event) =>
-                  setPluginForm((prev) => ({ ...prev, codeReference: event.target.value }))
-                }
-                placeholder="main"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                id="plugin-private-codebase"
-                checked={pluginForm.privateCodebase}
-                onCheckedChange={(checked) =>
-                  setPluginForm((prev) => ({ ...prev, privateCodebase: checked }))
-                }
-              />
-              <Label htmlFor="plugin-private-codebase">Private (not open-source) codebase</Label>
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                id="plugin-is-active"
-                checked={pluginForm.isActive}
-                onCheckedChange={(checked) =>
-                  setPluginForm((prev) => ({ ...prev, isActive: checked }))
-                }
-              />
-              <Label htmlFor="plugin-is-active">Plugin active in catalog</Label>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={handleSavePlugin} disabled={isPending}>
-              Save plugin controls
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setPluginForm(emptyPluginForm())}
-              disabled={isPending}
-            >
-              New plugin draft
-            </Button>
-          </div>
-
-          {data.plugins.length > 0 ? (
-            <>
-              <div className="grid gap-3 md:hidden">
-                {data.plugins.map((plugin) => (
-                  <div key={plugin.key} className="rounded-xl border p-3">
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-medium">{plugin.name}</p>
-                        <p className="text-xs text-muted-foreground">{plugin.key}</p>
-                      </div>
-                      <Badge variant={plugin.visibility === "global" ? "info" : "outline"}>
-                        {plugin.visibility}
-                      </Badge>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="rounded-md bg-muted/40 px-2 py-1.5">Latest: {plugin.latest_version}</div>
-                      <div className="rounded-md bg-muted/40 px-2 py-1.5">Installs: {plugin.installed_count}</div>
-                      <div className="rounded-md bg-muted/40 px-2 py-1.5">
-                        Force floor: {plugin.force_update_version || "—"}
-                      </div>
-                      <div className="rounded-md bg-muted/40 px-2 py-1.5">
-                        Pending: {plugin.force_pending_count}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="plugin-key">Plugin key</Label>
+                <Input
+                  id="plugin-key"
+                  value={pluginForm.key}
+                  onChange={(event) =>
+                    setPluginForm((prev) => ({
+                      ...prev,
+                      key: event.target.value,
+                    }))
+                  }
+                  placeholder="dv-members"
+                />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="plugin-name">Plugin name</Label>
+                <Input
+                  id="plugin-name"
+                  value={pluginForm.name}
+                  onChange={(event) =>
+                    setPluginForm((prev) => ({
+                      ...prev,
+                      name: event.target.value,
+                    }))
+                  }
+                  placeholder="DV Members"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="plugin-description">Description</Label>
+                <Input
+                  id="plugin-description"
+                  value={pluginForm.description}
+                  onChange={(event) =>
+                    setPluginForm((prev) => ({
+                      ...prev,
+                      description: event.target.value,
+                    }))
+                  }
+                  placeholder="Private workflow automation for DV Speech & Debate"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="plugin-visibility">Visibility</Label>
+                <Select
+                  items={PLUGIN_VISIBILITY_ITEMS}
+                  value={pluginForm.visibility}
+                  onValueChange={(value) =>
+                    setPluginForm((prev) => ({
+                      ...prev,
+                      visibility: value as "global" | "private",
+                    }))
+                  }
+                >
+                  <SelectTrigger id="plugin-visibility" className="w-full">
+                    <SelectValue placeholder="Select visibility" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="private">Private</SelectItem>
+                      <SelectItem value="global">Global</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="plugin-latest-version">Latest version</Label>
+                <Input
+                  id="plugin-latest-version"
+                  value={pluginForm.latestVersion}
+                  onChange={(event) =>
+                    setPluginForm((prev) => ({
+                      ...prev,
+                      latestVersion: event.target.value,
+                    }))
+                  }
+                  placeholder="1.4.0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="plugin-force-version">
+                  Force-update version (optional)
+                </Label>
+                <Input
+                  id="plugin-force-version"
+                  value={pluginForm.forceUpdateVersion}
+                  onChange={(event) =>
+                    setPluginForm((prev) => ({
+                      ...prev,
+                      forceUpdateVersion: event.target.value,
+                    }))
+                  }
+                  placeholder="1.3.0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="plugin-repository">Code repository</Label>
+                <Input
+                  id="plugin-repository"
+                  value={pluginForm.codeRepository}
+                  onChange={(event) =>
+                    setPluginForm((prev) => ({
+                      ...prev,
+                      codeRepository: event.target.value,
+                    }))
+                  }
+                  placeholder="github.com/your-org/private-plugin-repo"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="plugin-reference">Code reference</Label>
+                <Input
+                  id="plugin-reference"
+                  value={pluginForm.codeReference}
+                  onChange={(event) =>
+                    setPluginForm((prev) => ({
+                      ...prev,
+                      codeReference: event.target.value,
+                    }))
+                  }
+                  placeholder="main"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="plugin-private-codebase"
+                  checked={pluginForm.privateCodebase}
+                  onCheckedChange={(checked) =>
+                    setPluginForm((prev) => ({
+                      ...prev,
+                      privateCodebase: checked,
+                    }))
+                  }
+                />
+                <Label htmlFor="plugin-private-codebase">
+                  Private (not open-source) codebase
+                </Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="plugin-is-active"
+                  checked={pluginForm.isActive}
+                  onCheckedChange={(checked) =>
+                    setPluginForm((prev) => ({ ...prev, isActive: checked }))
+                  }
+                />
+                <Label htmlFor="plugin-is-active">
+                  Plugin active in catalog
+                </Label>
+              </div>
+            </div>
 
-              <div className="hidden overflow-hidden rounded-xl border md:block">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                onClick={handleSavePlugin}
+                disabled={isPending}
+              >
+                Save plugin controls
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPluginForm(emptyPluginForm())}
+                disabled={isPending}
+              >
+                New plugin draft
+              </Button>
+            </div>
+
+            {data.plugins.length > 0 ? (
+              <>
+                <div className="grid gap-3 md:hidden">
+                  {data.plugins.map((plugin) => (
+                    <div key={plugin.key} className="rounded-xl border p-3">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium">{plugin.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {plugin.key}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={
+                            plugin.visibility === "global" ? "info" : "outline"
+                          }
+                        >
+                          {plugin.visibility}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-md bg-muted/40 px-2 py-1.5">
+                          Latest: {plugin.latest_version}
+                        </div>
+                        <div className="rounded-md bg-muted/40 px-2 py-1.5">
+                          Installs: {plugin.installed_count}
+                        </div>
+                        <div className="rounded-md bg-muted/40 px-2 py-1.5">
+                          Force floor: {plugin.force_update_version || "—"}
+                        </div>
+                        <div className="rounded-md bg-muted/40 px-2 py-1.5">
+                          Pending: {plugin.force_pending_count}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="hidden overflow-hidden rounded-xl border md:block">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50 text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">
+                          Plugin
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium">
+                          Latest
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium">
+                          Force floor
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium">
+                          Installs
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium">
+                          Pending force
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.plugins.map((plugin) => (
+                        <tr key={plugin.key} className="border-t">
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{plugin.name}</span>
+                              <Badge
+                                variant={
+                                  plugin.visibility === "global"
+                                    ? "info"
+                                    : "outline"
+                                }
+                              >
+                                {plugin.visibility}
+                              </Badge>
+                            </div>
+                            <p className="text-muted-foreground">
+                              {plugin.key}
+                            </p>
+                          </td>
+                          <td className="px-3 py-2">{plugin.latest_version}</td>
+                          <td className="px-3 py-2">
+                            {plugin.force_update_version || "—"}
+                          </td>
+                          <td className="px-3 py-2">
+                            {plugin.installed_count}
+                          </td>
+                          <td className="px-3 py-2">
+                            {plugin.force_pending_count}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : null}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="boundaries" className="mt-0 flex flex-col gap-4">
+        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="space-y-2 border-b bg-muted/20">
+            <CardTitle>Plugin data boundaries</CardTitle>
+            <CardDescription>
+              Every installed plugin should have an explicit org/plugin
+              boundary. Shared mode is the normal path; enterprise customers can
+              be marked for dedicated schema, dedicated project, or external
+              data handling.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {data.dataBoundaries.length === 0 ? (
+              <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                No plugin data boundaries exist yet. Run the latest Supabase
+                migrations and fixture sync.
+              </p>
+            ) : (
+              <div className="overflow-hidden rounded-xl border">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50 text-muted-foreground">
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium">Plugin</th>
-                      <th className="px-3 py-2 text-left font-medium">Latest</th>
-                      <th className="px-3 py-2 text-left font-medium">Force floor</th>
-                      <th className="px-3 py-2 text-left font-medium">Installs</th>
-                      <th className="px-3 py-2 text-left font-medium">Pending force</th>
+                      <th className="px-3 py-2 text-left font-medium">
+                        Organization
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium">
+                        Plugin
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium">
+                        Boundary
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium">
+                        Isolation
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium">
+                        Client access
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium">
+                        Data target
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.plugins.map((plugin) => (
-                      <tr key={plugin.key} className="border-t">
+                    {data.dataBoundaries.map((boundary) => (
+                      <tr key={boundary.id} className="border-t">
                         <td className="px-3 py-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{plugin.name}</span>
-                            <Badge variant={plugin.visibility === "global" ? "info" : "outline"}>
-                              {plugin.visibility}
-                            </Badge>
+                          <div className="font-medium">
+                            {boundary.organization_name}
                           </div>
-                          <p className="text-muted-foreground">{plugin.key}</p>
+                          <div className="text-muted-foreground">
+                            {boundary.organization_slug ??
+                              boundary.organization_id}
+                          </div>
                         </td>
-                        <td className="px-3 py-2">{plugin.latest_version}</td>
-                        <td className="px-3 py-2">{plugin.force_update_version || "—"}</td>
-                        <td className="px-3 py-2">{plugin.installed_count}</td>
-                        <td className="px-3 py-2">{plugin.force_pending_count}</td>
+                        <td className="px-3 py-2">{boundary.plugin_key}</td>
+                        <td className="px-3 py-2">
+                          <Badge
+                            variant={getBoundaryBadgeVariant(
+                              boundary.boundary_status,
+                            )}
+                          >
+                            {boundary.boundary_status.replaceAll("_", " ")}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2">
+                          {boundary.isolation_mode.replaceAll("_", " ")}
+                        </td>
+                        <td className="px-3 py-2">
+                          {boundary.direct_client_access.replaceAll("_", " ")}
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {boundary.data_schema}
+                          {boundary.data_prefix
+                            ? ` / ${boundary.data_prefix}`
+                            : ""}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </>
-          ) : null}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
       </TabsContent>
-      
+
       <TabsContent value="entitlements" className="mt-0 flex flex-col gap-4">
-      <Card className="border-border/60 shadow-sm">
-        <CardHeader className="space-y-2 border-b bg-muted/20">
-          <CardTitle>Organization access</CardTitle>
-          <CardDescription>
-            Grant or revoke plugin access for one organization with optional activation windows.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="entitlement-org">Organization</Label>
-              <Select
-                items={organizationSelectItems}
-                value={entitlementOrgId}
-                onValueChange={(value) => setEntitlementOrgId(value as string)}
-              >
-                <SelectTrigger id="entitlement-org" className="w-full">
-                  <SelectValue placeholder="Select organization" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {data.organizations.map((organization) => (
-                      <SelectItem key={organization.id} value={organization.id}>
-                        {organization.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="entitlement-plugin">Plugin</Label>
-              <Select
-                items={pluginSelectItems}
-                value={entitlementPluginKey}
-                onValueChange={(value) => setEntitlementPluginKey(value as string)}
-              >
-                <SelectTrigger id="entitlement-plugin" className="w-full">
-                  <SelectValue placeholder="Select plugin" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {pluginOptions.map((plugin) => (
-                      <SelectItem key={plugin.key} value={plugin.key}>
-                        {plugin.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="entitlement-status">Status</Label>
-              <Select
-                items={ENTITLEMENT_STATUS_ITEMS}
-                value={entitlementStatus}
-                onValueChange={(value) =>
-                  setEntitlementStatus(value as "active" | "inactive")
-                }
-              >
-                <SelectTrigger id="entitlement-status" className="w-full">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                id="entitlement-is-forced"
-                checked={entitlementIsForced}
-                onCheckedChange={setEntitlementIsForced}
-              />
-              <Label htmlFor="entitlement-is-forced">
-                Force plugin for organization (managed install)
-              </Label>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="entitlement-start">Starts at (optional)</Label>
-              <Input
-                id="entitlement-start"
-                type="datetime-local"
-                value={entitlementStartsAt}
-                onChange={(event) => setEntitlementStartsAt(event.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="entitlement-end">Ends at (optional)</Label>
-              <Input
-                id="entitlement-end"
-                type="datetime-local"
-                value={entitlementEndsAt}
-                onChange={(event) => setEntitlementEndsAt(event.target.value)}
-              />
-            </div>
-          </div>
-
-          <Button type="button" onClick={handleSaveEntitlement} disabled={isPending}>
-            Save entitlement
-          </Button>
-
-          <div className="space-y-2">
-            <Label htmlFor="entitlement-search">Search configured entitlements</Label>
-            <Input
-              id="entitlement-search"
-              placeholder="Search by organization, slug, plugin key, or status"
-              value={entitlementSearch}
-              onChange={(event) => setEntitlementSearch(event.target.value)}
-            />
-          </div>
-
-          <div className="rounded-xl border overflow-hidden">
-            <table className="w-full text-xs">
-              <thead className="bg-muted/50 text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium">Organization</th>
-                  <th className="px-3 py-2 text-left font-medium">Plugin</th>
-                  <th className="px-3 py-2 text-left font-medium">Status</th>
-                  <th className="px-3 py-2 text-left font-medium">Window</th>
-                  <th className="px-3 py-2 text-left font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredEntitlements.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
-                      No entitlements matched your current filter.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredEntitlements.map((entitlement) => (
-                    <tr key={entitlement.id} className="border-t">
-                      <td className="px-3 py-2">{entitlement.organization_name}</td>
-                      <td className="px-3 py-2">{entitlement.plugin_key}</td>
-                      <td className="px-3 py-2 space-y-1">
-                        <Badge variant={entitlement.status === "active" ? "default" : "secondary"}>
-                          {entitlement.status}
-                        </Badge>
-                        {entitlement.is_forced && (
-                          <div className="block">
-                            <Badge variant="destructive" className="text-[10px]">Forced</Badge>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground">
-                        {formatEntitlementWindowLabel(
-                          entitlement.starts_at,
-                          entitlement.ends_at,
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleLoadEntitlementForEdit(entitlement)}
-                          disabled={isPending}
+        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="space-y-2 border-b bg-muted/20">
+            <CardTitle>Organization access</CardTitle>
+            <CardDescription>
+              Grant or revoke plugin access for one organization with optional
+              activation windows.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="entitlement-org">Organization</Label>
+                <Select
+                  items={organizationSelectItems}
+                  value={entitlementOrgId}
+                  onValueChange={(value) =>
+                    setEntitlementOrgId(value as string)
+                  }
+                >
+                  <SelectTrigger id="entitlement-org" className="w-full">
+                    <SelectValue placeholder="Select organization" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {data.organizations.map((organization) => (
+                        <SelectItem
+                          key={organization.id}
+                          value={organization.id}
                         >
-                          Edit in form
-                        </Button>
+                          {organization.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="entitlement-plugin">Plugin</Label>
+                <Select
+                  items={pluginSelectItems}
+                  value={entitlementPluginKey}
+                  onValueChange={(value) =>
+                    setEntitlementPluginKey(value as string)
+                  }
+                >
+                  <SelectTrigger id="entitlement-plugin" className="w-full">
+                    <SelectValue placeholder="Select plugin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {pluginOptions.map((plugin) => (
+                        <SelectItem key={plugin.key} value={plugin.key}>
+                          {plugin.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="entitlement-status">Status</Label>
+                <Select
+                  items={ENTITLEMENT_STATUS_ITEMS}
+                  value={entitlementStatus}
+                  onValueChange={(value) =>
+                    setEntitlementStatus(value as "active" | "inactive")
+                  }
+                >
+                  <SelectTrigger id="entitlement-status" className="w-full">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="entitlement-is-forced"
+                  checked={entitlementIsForced}
+                  onCheckedChange={setEntitlementIsForced}
+                />
+                <Label htmlFor="entitlement-is-forced">
+                  Force plugin for organization (managed install)
+                </Label>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="entitlement-start">Starts at (optional)</Label>
+                <Input
+                  id="entitlement-start"
+                  type="datetime-local"
+                  value={entitlementStartsAt}
+                  onChange={(event) =>
+                    setEntitlementStartsAt(event.target.value)
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="entitlement-end">Ends at (optional)</Label>
+                <Input
+                  id="entitlement-end"
+                  type="datetime-local"
+                  value={entitlementEndsAt}
+                  onChange={(event) => setEntitlementEndsAt(event.target.value)}
+                />
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              onClick={handleSaveEntitlement}
+              disabled={isPending}
+            >
+              Save entitlement
+            </Button>
+
+            <div className="space-y-2">
+              <Label htmlFor="entitlement-search">
+                Search configured entitlements
+              </Label>
+              <Input
+                id="entitlement-search"
+                placeholder="Search by organization, slug, plugin key, or status"
+                value={entitlementSearch}
+                onChange={(event) => setEntitlementSearch(event.target.value)}
+              />
+            </div>
+
+            <div className="rounded-xl border overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/50 text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium">
+                      Organization
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium">Plugin</th>
+                    <th className="px-3 py-2 text-left font-medium">Status</th>
+                    <th className="px-3 py-2 text-left font-medium">Window</th>
+                    <th className="px-3 py-2 text-left font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEntitlements.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-3 py-6 text-center text-muted-foreground"
+                      >
+                        No entitlements matched your current filter.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                  ) : (
+                    filteredEntitlements.map((entitlement) => (
+                      <tr key={entitlement.id} className="border-t">
+                        <td className="px-3 py-2">
+                          {entitlement.organization_name}
+                        </td>
+                        <td className="px-3 py-2">{entitlement.plugin_key}</td>
+                        <td className="px-3 py-2 space-y-1">
+                          <Badge
+                            variant={
+                              entitlement.status === "active"
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
+                            {entitlement.status}
+                          </Badge>
+                          {entitlement.is_forced && (
+                            <div className="block">
+                              <Badge
+                                variant="destructive"
+                                className="text-[10px]"
+                              >
+                                Forced
+                              </Badge>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {formatEntitlementWindowLabel(
+                            entitlement.starts_at,
+                            entitlement.ends_at,
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleLoadEntitlementForEdit(entitlement)
+                            }
+                            disabled={isPending}
+                          >
+                            Edit in form
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
 
-      <Card className="border-border/60 shadow-sm">
-        <CardHeader className="space-y-2 border-b bg-muted/20">
-          <CardTitle>Bulk private plugin assignment</CardTitle>
-          <CardDescription>
-            Assign one private plugin to many organizations in one operation.
-            Use organization IDs or usernames separated by comma/newline/space.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="bulk-entitlement-plugin">Private plugin</Label>
-              <Select
-                items={privatePluginSelectItems}
-                value={bulkEntitlementPluginKey}
-                onValueChange={(value) => setBulkEntitlementPluginKey(value as string)}
-              >
-                <SelectTrigger id="bulk-entitlement-plugin" className="w-full">
-                  <SelectValue placeholder="Select private plugin" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {privatePluginOptions.map((plugin) => (
-                      <SelectItem key={plugin.key} value={plugin.key}>
-                        {plugin.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="space-y-2 border-b bg-muted/20">
+            <CardTitle>Bulk private plugin assignment</CardTitle>
+            <CardDescription>
+              Assign one private plugin to many organizations in one operation.
+              Use organization IDs or usernames separated by
+              comma/newline/space.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="bulk-entitlement-plugin">Private plugin</Label>
+                <Select
+                  items={privatePluginSelectItems}
+                  value={bulkEntitlementPluginKey}
+                  onValueChange={(value) =>
+                    setBulkEntitlementPluginKey(value as string)
+                  }
+                >
+                  <SelectTrigger
+                    id="bulk-entitlement-plugin"
+                    className="w-full"
+                  >
+                    <SelectValue placeholder="Select private plugin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {privatePluginOptions.map((plugin) => (
+                        <SelectItem key={plugin.key} value={plugin.key}>
+                          {plugin.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bulk-entitlement-status">Status</Label>
+                <Select
+                  items={ENTITLEMENT_STATUS_ITEMS}
+                  value={bulkEntitlementStatus}
+                  onValueChange={(value) =>
+                    setBulkEntitlementStatus(value as "active" | "inactive")
+                  }
+                >
+                  <SelectTrigger
+                    id="bulk-entitlement-status"
+                    className="w-full"
+                  >
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="bulk-entitlement-is-forced"
+                  checked={bulkEntitlementIsForced}
+                  onCheckedChange={setBulkEntitlementIsForced}
+                />
+                <Label htmlFor="bulk-entitlement-is-forced">
+                  Force plugin for these organizations
+                </Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bulk-entitlement-start">
+                  Starts at (optional)
+                </Label>
+                <Input
+                  id="bulk-entitlement-start"
+                  type="datetime-local"
+                  value={bulkEntitlementStartsAt}
+                  onChange={(event) =>
+                    setBulkEntitlementStartsAt(event.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bulk-entitlement-end">Ends at (optional)</Label>
+                <Input
+                  id="bulk-entitlement-end"
+                  type="datetime-local"
+                  value={bulkEntitlementEndsAt}
+                  onChange={(event) =>
+                    setBulkEntitlementEndsAt(event.target.value)
+                  }
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bulk-entitlement-status">Status</Label>
-              <Select
-                items={ENTITLEMENT_STATUS_ITEMS}
-                value={bulkEntitlementStatus}
-                onValueChange={(value) =>
-                  setBulkEntitlementStatus(value as "active" | "inactive")
-                }
-              >
-                <SelectTrigger id="bulk-entitlement-status" className="w-full">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Switch
-                id="bulk-entitlement-is-forced"
-                checked={bulkEntitlementIsForced}
-                onCheckedChange={setBulkEntitlementIsForced}
-              />
-              <Label htmlFor="bulk-entitlement-is-forced">
-                Force plugin for these organizations
+              <Label htmlFor="bulk-entitlement-identifiers">
+                Organization IDs / usernames
               </Label>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bulk-entitlement-start">Starts at (optional)</Label>
-              <Input
-                id="bulk-entitlement-start"
-                type="datetime-local"
-                value={bulkEntitlementStartsAt}
-                onChange={(event) => setBulkEntitlementStartsAt(event.target.value)}
+              <Textarea
+                id="bulk-entitlement-identifiers"
+                className="min-h-32 font-mono text-xs"
+                value={bulkEntitlementIdentifiers}
+                onChange={(event) =>
+                  setBulkEntitlementIdentifiers(event.target.value)
+                }
+                placeholder={
+                  "kofc6043\norganization-slug\ncb728d0e-1234-4ab7-8fde-ec18f04b1e12"
+                }
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="bulk-entitlement-end">Ends at (optional)</Label>
-              <Input
-                id="bulk-entitlement-end"
-                type="datetime-local"
-                value={bulkEntitlementEndsAt}
-                onChange={(event) => setBulkEntitlementEndsAt(event.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="bulk-entitlement-identifiers">Organization IDs / usernames</Label>
-            <Textarea
-              id="bulk-entitlement-identifiers"
-              className="min-h-32 font-mono text-xs"
-              value={bulkEntitlementIdentifiers}
-              onChange={(event) => setBulkEntitlementIdentifiers(event.target.value)}
-              placeholder={"kofc6043\norganization-slug\ncb728d0e-1234-4ab7-8fde-ec18f04b1e12"}
-            />
-          </div>
-
-          <Button type="button" onClick={handleBulkSaveEntitlements} disabled={isPending}>
-            Apply bulk entitlement update
-          </Button>
-        </CardContent>
-      </Card>
+            <Button
+              type="button"
+              onClick={handleBulkSaveEntitlements}
+              disabled={isPending}
+            >
+              Apply bulk entitlement update
+            </Button>
+          </CardContent>
+        </Card>
       </TabsContent>
 
       <TabsContent value="deployments" className="mt-0 flex flex-col gap-4">
@@ -1115,7 +1418,8 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
           <CardHeader className="space-y-2 border-b bg-muted/20">
             <CardTitle>Rollout execution</CardTitle>
             <CardDescription>
-              Override installs and force updates when a catalog change needs immediate rollout.
+              Override installs and force updates when a catalog change needs
+              immediate rollout.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -1125,7 +1429,9 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                 <Select
                   items={organizationSelectItems}
                   value={forceUpdateOrgId}
-                  onValueChange={(value) => setForceUpdateOrgId(value as string)}
+                  onValueChange={(value) =>
+                    setForceUpdateOrgId(value as string)
+                  }
                 >
                   <SelectTrigger id="force-update-org" className="w-full">
                     <SelectValue placeholder="Select organization" />
@@ -1133,7 +1439,10 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                   <SelectContent>
                     <SelectGroup>
                       {data.organizations.map((organization) => (
-                        <SelectItem key={organization.id} value={organization.id}>
+                        <SelectItem
+                          key={organization.id}
+                          value={organization.id}
+                        >
                           {organization.name}
                         </SelectItem>
                       ))}
@@ -1146,7 +1455,9 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                 <Select
                   items={pluginSelectItems}
                   value={forceUpdatePluginKey}
-                  onValueChange={(value) => setForceUpdatePluginKey(value as string)}
+                  onValueChange={(value) =>
+                    setForceUpdatePluginKey(value as string)
+                  }
                 >
                   <SelectTrigger id="force-update-plugin" className="w-full">
                     <SelectValue placeholder="Select plugin" />
@@ -1171,7 +1482,8 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                 onCheckedChange={setForceInstallActivatesEntitlement}
               />
               <Label htmlFor="force-install-entitlement">
-                Auto-activate entitlement for private plugins during force install
+                Auto-activate entitlement for private plugins during force
+                install
               </Label>
             </div>
 
@@ -1210,8 +1522,8 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
           <CardHeader className="space-y-2 border-b bg-muted/20">
             <CardTitle>Install targeting</CardTitle>
             <CardDescription>
-              Save per-organization plugin JSON, including targeting rules for signups, users,
-              and projects.
+              Save per-organization plugin JSON, including targeting rules for
+              signups, users, and projects.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -1221,7 +1533,9 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                 <Select
                   items={organizationSelectItems}
                   value={configOrganizationId}
-                  onValueChange={(value) => setConfigOrganizationId(value as string)}
+                  onValueChange={(value) =>
+                    setConfigOrganizationId(value as string)
+                  }
                 >
                   <SelectTrigger id="config-org" className="w-full">
                     <SelectValue placeholder="Select organization" />
@@ -1229,7 +1543,10 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                   <SelectContent>
                     <SelectGroup>
                       {data.organizations.map((organization) => (
-                        <SelectItem key={organization.id} value={organization.id}>
+                        <SelectItem
+                          key={organization.id}
+                          value={organization.id}
+                        >
                           {organization.name}
                         </SelectItem>
                       ))}
@@ -1267,10 +1584,13 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                 id="install-config-json"
                 className="min-h-56 font-mono text-xs"
                 value={installConfigurationJson}
-                onChange={(event) => setInstallConfigurationJson(event.target.value)}
+                onChange={(event) =>
+                  setInstallConfigurationJson(event.target.value)
+                }
               />
               <p className="text-xs text-muted-foreground">
-                Example: {`{"targeting":{"mode":"any","anonymousSignupIds":[],"userProfileIds":[],"userIds":[],"projectIds":[],"anonymousEmails":[]}}`}
+                Example:{" "}
+                {`{"targeting":{"mode":"any","anonymousSignupIds":[],"userProfileIds":[],"userIds":[],"projectIds":[],"anonymousEmails":[]}}`}
               </p>
             </div>
 

@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogTrigger
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -23,7 +23,7 @@ interface LeaveOrganizationDialogProps {
 
 export default function LeaveOrganizationDialog({
   organizationId,
-  organizationName
+  organizationName,
 }: LeaveOrganizationDialogProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -51,22 +51,25 @@ export default function LeaveOrganizationDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger render={
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-destructive border-destructive/30 hover:bg-destructive/10"
-        >
-          <LogOut className="h-3.5 w-3.5 mr-1.5" />
-          Leave Organization
-        </Button>
-      } />
+      <DialogTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+          >
+            <LogOut className="h-3.5 w-3.5 mr-1.5" />
+            Leave Organization
+          </Button>
+        }
+      />
 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Leave Organization</DialogTitle>
           <DialogDescription>
-            Are you sure you want to leave this organization? You will lose access to all organization resources.
+            Are you sure you want to leave this organization? You will lose
+            access to all organization resources.
           </DialogDescription>
         </DialogHeader>
 

@@ -5,7 +5,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { createGoogleCalendarEvent } from "@/services/calendar";
+import {
+  createGoogleCalendarEvent,
+  markPersonalCalendarConnectionSynced,
+} from "@/services/calendar";
 import { syncProjectSchema } from "@/schemas/calendar-schema";
 
 export async function POST(request: Request) {
@@ -19,38 +22,42 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Validate request body
     const body = await request.json();
-    
+
     // Support both camelCase (legacy) and snake_case
     const normalizedBody = {
       project_id: body.project_id || body.projectId,
       schedule_id: body.schedule_id || body.scheduleId,
     };
-    
+
     const validation = syncProjectSchema.safeParse(normalizedBody);
 
     if (!validation.success) {
       console.error("Sync project validation failed:", validation.error.issues);
       return NextResponse.json(
-        { 
-          error: "Invalid request data", 
+        {
+          error: "Invalid request data",
           details: validation.error.issues,
-          hint: "project_id is required"
+          hint: "project_id is required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const { project_id, schedule_id } = validation.data;
-    
-    console.log("[Sync Project] Syncing project:", project_id, "schedule:", schedule_id, "for user:", user.id);
+
+    console.log(
+      "[Sync Project] Syncing project:",
+      project_id,
+      "schedule:",
+      schedule_id,
+      "for user:",
+      user.id,
+    );
 
     // Get the project
     const { data: project, error: projectError } = await supabase
@@ -60,17 +67,14 @@ export async function POST(request: Request) {
       .single();
 
     if (projectError || !project) {
-      return NextResponse.json(
-        { error: "Project not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
     // Check if user is the creator
     if (project.creator_id !== user.id) {
       return NextResponse.json(
         { error: "Only the project creator can sync to calendar" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -78,7 +82,7 @@ export async function POST(request: Request) {
     if (project.creator_calendar_event_id) {
       return NextResponse.json(
         { error: "Project is already synced to calendar" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -87,13 +91,13 @@ export async function POST(request: Request) {
     const eventId = await createGoogleCalendarEvent(
       user.id,
       project,
-      schedule_id // undefined will create all events for multi-day/multi-area
+      schedule_id, // undefined will create all events for multi-day/multi-area
     );
 
     if (!eventId) {
       return NextResponse.json(
         { error: "Failed to create calendar event" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -110,16 +114,12 @@ export async function POST(request: Request) {
       console.error("Failed to update project:", updateError);
       return NextResponse.json(
         { error: "Failed to save sync status" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Update last_synced_at in calendar connection
-    await supabase
-      .from("user_calendar_connections")
-      .update({ last_synced_at: new Date().toISOString() })
-      .eq("user_id", user.id)
-      .eq("is_active", true);
+    await markPersonalCalendarConnectionSynced(user.id);
 
     return NextResponse.json({
       success: true,
@@ -133,14 +133,14 @@ export async function POST(request: Request) {
       if (error.message.includes("No valid calendar connection")) {
         return NextResponse.json(
           { error: "Please connect your Google Calendar first" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
 
     return NextResponse.json(
       { error: "Failed to sync project to calendar" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

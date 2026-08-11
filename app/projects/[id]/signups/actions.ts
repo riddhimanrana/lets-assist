@@ -1,14 +1,16 @@
-'use server';
+"use server";
 
-import { createClient } from '@/lib/supabase/server';
-import { getAuthUser } from '@/lib/supabase/auth-helpers';
-import { getAdminClient } from '@/lib/supabase/admin';
-import { buildSignaturePreviewSummary } from '@/lib/waiver/signature-preview';
-import type { SignaturePayload, SignaturePreviewSummary } from '@/types/waiver-definitions';
+import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { getAdminClient } from "@/lib/supabase/admin";
+import { buildSignaturePreviewSummary } from "@/lib/waiver/signature-preview";
+import type {
+  SignaturePayload,
+  SignaturePreviewSummary,
+} from "@/types/waiver-definitions";
 
 type OrganizerSignupsResult<T> =
-  | { signups: T[]; error?: undefined }
-  | { signups?: undefined; error: string };
+  { signups: T[]; error?: undefined } | { signups?: undefined; error: string };
 
 type OrganizerWaiverSignatureRow = {
   id: string;
@@ -24,14 +26,15 @@ type OrganizerWaiverSignatureRow = {
 
 type OrganizerWaiverSignatureSummaryRow = Omit<
   OrganizerWaiverSignatureRow,
-  'signature_payload'
+  "signature_payload"
 > & {
   signature_payload: null;
   signature_summary: SignaturePreviewSummary | null;
 };
 
 type OrganizerSignupRow = {
-  waiver_signature?: OrganizerWaiverSignatureRow[] | OrganizerWaiverSignatureRow | null;
+  waiver_signature?:
+    OrganizerWaiverSignatureRow[] | OrganizerWaiverSignatureRow | null;
   [key: string]: unknown;
 };
 
@@ -41,12 +44,18 @@ function summarizeWaiverSignature(
   return {
     ...signature,
     signature_payload: null,
-    signature_summary: buildSignaturePreviewSummary(signature.signature_payload),
+    signature_summary: buildSignaturePreviewSummary(
+      signature.signature_payload,
+    ),
   };
 }
 
 function summarizeNestedWaiverSignature(
-  waiverSignature: OrganizerWaiverSignatureRow[] | OrganizerWaiverSignatureRow | null | undefined,
+  waiverSignature:
+    | OrganizerWaiverSignatureRow[]
+    | OrganizerWaiverSignatureRow
+    | null
+    | undefined,
 ) {
   if (Array.isArray(waiverSignature)) {
     return waiverSignature.map(summarizeWaiverSignature);
@@ -66,56 +75,60 @@ function summarizeNestedWaiverSignature(
  * but client-side joins can be blocked by RLS, causing false "waiver missing" badges.
  */
 export async function getOrganizerSignupsWithWaiverStatus(
-  projectId: string
+  projectId: string,
 ): Promise<OrganizerSignupsResult<unknown>> {
   const supabase = await createClient();
   const { user } = await getAuthUser();
 
   if (!user) {
-    return { error: 'Unauthorized' };
+    return { error: "Unauthorized" };
   }
 
   const admin = getAdminClient();
 
   const { data: project, error: projectError } = await admin
-    .from('projects')
-    .select('id, creator_id, organization_id')
-    .eq('id', projectId)
+    .from("projects")
+    .select("id, creator_id, organization_id")
+    .eq("id", projectId)
     .limit(1)
     .maybeSingle();
 
   if (projectError || !project) {
-    console.error('Error loading project for signups authorization:', projectError);
-    return { error: 'Project not found' };
+    console.error(
+      "Error loading project for signups authorization:",
+      projectError,
+    );
+    return { error: "Project not found" };
   }
 
   let hasPermission = project.creator_id === user.id;
 
   if (!hasPermission && project.organization_id) {
     const { data: orgMember, error: orgError } = await supabase
-      .from('organization_members')
-      .select('role')
-      .eq('organization_id', project.organization_id)
-      .eq('user_id', user.id)
+      .from("organization_members")
+      .select("role")
+      .eq("organization_id", project.organization_id)
+      .eq("user_id", user.id)
       .limit(1)
       .maybeSingle();
 
     if (orgError) {
-      console.error('Error checking organizer org membership:', orgError);
+      console.error("Error checking organizer org membership:", orgError);
     }
 
-    if (orgMember && ['admin', 'staff'].includes(orgMember.role)) {
+    if (orgMember && ["admin", "staff"].includes(orgMember.role)) {
       hasPermission = true;
     }
   }
 
   if (!hasPermission) {
-    return { error: 'Unauthorized' };
+    return { error: "Unauthorized" };
   }
 
   const { data, error } = await admin
-    .from('project_signups')
-    .select(`
+    .from("project_signups")
+    .select(
+      `
       id,
       created_at,
       status,
@@ -148,19 +161,22 @@ export async function getOrganizerSignupsWithWaiverStatus(
         phone_number,
         confirmed_at
       )
-    `)
-    .eq('project_id', projectId)
-    .order('created_at', { ascending: false });
+    `,
+    )
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error('Error loading organizer signups (admin):', error);
-    return { error: 'Failed to load signups' };
+    console.error("Error loading organizer signups (admin):", error);
+    return { error: "Failed to load signups" };
   }
 
-  const summarizedSignups = ((data as OrganizerSignupRow[] | null) ?? []).map((signup) => ({
-    ...signup,
-    waiver_signature: summarizeNestedWaiverSignature(signup.waiver_signature),
-  }));
+  const summarizedSignups = ((data as OrganizerSignupRow[] | null) ?? []).map(
+    (signup) => ({
+      ...signup,
+      waiver_signature: summarizeNestedWaiverSignature(signup.waiver_signature),
+    }),
+  );
 
   return { signups: summarizedSignups };
 }

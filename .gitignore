@@ -8,11 +8,18 @@
 
 # testing
 /coverage
+/playwright-report/
+/test-results/
+/.artifacts/
+/artifacts/
 
-/docs/
+# Real CSF source data (student PII) — local only, never committed.
+# Layout and semantics are documented in docs/csf/source-data.md.
+/docs/csf/source-data/
 
 # next.js
 /.next/
+/.next-csf-isolated/
 /out/
 
 # production
@@ -21,6 +28,14 @@
 # misc
 .DS_Store
 *.pem
+*.log
+*.bak
+*.orig
+*.swp
+*~
+/.cache/
+/.turbo/
+/.claude/
 
 # debug
 npm-debug.log*
@@ -47,6 +62,8 @@ next-env.d.ts
 !/supabase/templates/**
 !/supabase/migrations/
 !/supabase/migrations/**
+!/supabase/tests/
+!/supabase/tests/**
 !/supabase/snippets/
 !/supabase/snippets/**
 
@@ -76,9 +93,18 @@ lib/plugins/private/*
 # scripts/local-dev/
 
 playwright.config.ts
-
 # Pending plugin data migrations (not yet ready for deploy)
 supabase/migrations/.pending-plugin-data/
 
 .gemini/
 gha-creds-*.json
+
+# design-sync (claude.ai/design)
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+.design-sync/.compiled/
+.design-sync/.componentSrcMap.generated.json
+.design-sync/.manual-entry.mjs

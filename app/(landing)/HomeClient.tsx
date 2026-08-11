@@ -4,7 +4,6 @@ import { CallToAction } from "./_components/CallToAction";
 import { Hero } from "./_components/Hero";
 import BayAreaExamples from "./_components/BayAreaExamples";
 import VolunteerJourneySection from "./_components/VolunteerJourneySection";
-import PlatformFeaturesSection from "./_components/PlatformFeaturesSection";
 import OrgToolingSection from "./_components/OrgToolingSection";
 import ComparisonSection from "./_components/ComparisonSection";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -48,13 +47,15 @@ function HomeContent() {
   if (error && errorDescription) {
     // Decode URL-encoded error description
     const decodedDescription = decodeURIComponent(errorDescription);
-    
+
     // Show different messages based on error code
     let message = decodedDescription;
     if (errorCode === "otp_expired") {
-      message = "Email link is invalid or has expired. Please request a new confirmation email.";
+      message =
+        "Email link is invalid or has expired. Please request a new confirmation email.";
     } else if (errorCode === "invalid_grant") {
-      message = "This link is no longer valid. Please request a new confirmation email.";
+      message =
+        "This link is no longer valid. Please request a new confirmation email.";
     }
 
     return (
@@ -80,14 +81,13 @@ function HomeContent() {
       </div>
     );
   }
-  
+
   return (
     <main className="flex flex-col min-h-screen overflow-x-hidden">
       <Hero />
       <BayAreaExamples />
       <ComparisonSection />
       <VolunteerJourneySection />
-      <PlatformFeaturesSection />
       <OrgToolingSection />
       <CallToAction />
     </main>

@@ -32,7 +32,11 @@ import { Textarea } from "@/components/ui/textarea";
 import type { AccountAccessStatus } from "@/lib/auth/account-access";
 
 import { UserSearch } from "../notifications/components/UserSearch";
-import { getUserAccessControl, updateUserAccessControl, deleteAndBlacklistUser } from "../actions";
+import {
+  getUserAccessControl,
+  updateUserAccessControl,
+  deleteAndBlacklistUser,
+} from "../actions";
 
 const BAN_DURATIONS: Array<{ label: string; hours: string }> = [
   { label: "1 day", hours: "24h" },
@@ -60,7 +64,9 @@ type AccessControlUser = {
   };
 };
 
-function statusBadgeVariant(status: AccountAccessStatus): "default" | "destructive" {
+function statusBadgeVariant(
+  status: AccountAccessStatus,
+): "default" | "destructive" {
   if (status === "banned") return "destructive";
   return "default";
 }
@@ -81,9 +87,10 @@ export default function UserAccessClient() {
   const [selectedUserId, setSelectedUserId] = useState("");
   const [targetUser, setTargetUser] = useState<AccessControlUser | null>(null);
   const [status, setStatus] = useState<AccountAccessStatus>("active");
-  const [banDurationEntry, setBanDurationEntry] = useState<{ label: string; hours: string }>(
-    BAN_DURATIONS[BAN_DURATIONS.length - 1],
-  );
+  const [banDurationEntry, setBanDurationEntry] = useState<{
+    label: string;
+    hours: string;
+  }>(BAN_DURATIONS[BAN_DURATIONS.length - 1]);
   const [reason, setReason] = useState("");
   const [sendEmail, setSendEmail] = useState(true);
   const [sendNotification, setSendNotification] = useState(true);
@@ -140,8 +147,12 @@ export default function UserAccessClient() {
         userId: selectedUserId,
         status,
         reason,
-        banDurationLabel: status === "banned" ? banDurationEntry.label.toLowerCase() : undefined,
-        banDurationHours: status === "banned" ? banDurationEntry.hours : undefined,
+        banDurationLabel:
+          status === "banned"
+            ? banDurationEntry.label.toLowerCase()
+            : undefined,
+        banDurationHours:
+          status === "banned" ? banDurationEntry.hours : undefined,
         sendEmail,
         sendNotification,
       });
@@ -214,9 +225,11 @@ export default function UserAccessClient() {
   };
 
   const isBusy = isFetchingUser || isSaving || isDeleting;
-  const displayName = targetUser?.fullName || targetUser?.username || "this user";
+  const displayName =
+    targetUser?.fullName || targetUser?.username || "this user";
   const deleteEmailMatch =
-    deleteConfirmInput.trim().toLowerCase() === (targetUser?.email ?? "").toLowerCase();
+    deleteConfirmInput.trim().toLowerCase() ===
+    (targetUser?.email ?? "").toLowerCase();
 
   return (
     <div className="space-y-6">
@@ -263,13 +276,15 @@ export default function UserAccessClient() {
               Permanently delete &amp; blacklist {displayName}?
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
-                <span className="block">
-                  This will <strong>permanently delete all of their data</strong> (projects,
-                  sign-ups, certificates, org memberships, etc.) and{" "}
-                  <strong>blacklist their email address</strong> so they can never create a new
-                  account with it.
-                </span>
-                <span className="block font-medium text-destructive">This cannot be undone.</span>
+              <span className="block">
+                This will <strong>permanently delete all of their data</strong>{" "}
+                (projects, sign-ups, certificates, org memberships, etc.) and{" "}
+                <strong>blacklist their email address</strong> so they can never
+                create a new account with it.
+              </span>
+              <span className="block font-medium text-destructive">
+                This cannot be undone.
+              </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3">
@@ -330,7 +345,8 @@ export default function UserAccessClient() {
               </p>
             </div>
             <Badge variant={statusBadgeVariant(targetUser.access.status)}>
-              Current: {targetUser.access.status === "banned" ? "Banned" : "Active"}
+              Current:{" "}
+              {targetUser.access.status === "banned" ? "Banned" : "Active"}
             </Badge>
           </div>
           {targetUser.access.reason ? (
@@ -362,7 +378,9 @@ export default function UserAccessClient() {
               <div className="flex items-center gap-1 font-medium">
                 <ShieldCheck className="h-4 w-4 text-emerald-600" /> Active
               </div>
-              <p className="text-xs text-muted-foreground">Restore sign-in access</p>
+              <p className="text-xs text-muted-foreground">
+                Restore sign-in access
+              </p>
             </div>
           </Label>
 
@@ -372,7 +390,9 @@ export default function UserAccessClient() {
               <div className="flex items-center gap-1 font-medium">
                 <Ban className="h-4 w-4 text-destructive" /> Banned
               </div>
-              <p className="text-xs text-muted-foreground">Block sign-in (data kept)</p>
+              <p className="text-xs text-muted-foreground">
+                Block sign-in (data kept)
+              </p>
             </div>
           </Label>
         </RadioGroup>
@@ -437,7 +457,9 @@ export default function UserAccessClient() {
         <Label className="flex items-center justify-between rounded-lg border p-3">
           <div>
             <p className="text-sm font-medium">Send email</p>
-            <p className="text-xs text-muted-foreground">Notify the user with a styled email</p>
+            <p className="text-xs text-muted-foreground">
+              Notify the user with a styled email
+            </p>
           </div>
           <Switch
             checked={sendEmail}
@@ -485,10 +507,13 @@ export default function UserAccessClient() {
             <div className="flex items-start gap-3">
               <Trash2 className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
               <div>
-                <p className="font-semibold text-destructive">Delete &amp; Blacklist</p>
+                <p className="font-semibold text-destructive">
+                  Delete &amp; Blacklist
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  Permanently delete all of this user&apos;s data and block their email from ever
-                  creating a new account. This action <strong>cannot be undone</strong>.
+                  Permanently delete all of this user&apos;s data and block
+                  their email from ever creating a new account. This action{" "}
+                  <strong>cannot be undone</strong>.
                 </p>
               </div>
             </div>

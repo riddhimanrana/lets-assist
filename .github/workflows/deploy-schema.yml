@@ -5,9 +5,18 @@ on:
     branches:
       - main
     paths:
-      - 'supabase/migrations/**'
-      - 'supabase/config.toml'
-  workflow_dispatch: {}
+      - "supabase/migrations/**"
+      - "supabase/config.toml"
+  workflow_dispatch:
+    inputs:
+      production_confirmation:
+        description: "Type deploy-production:fotdmeakexgrkronxlof to deploy from main"
+        required: true
+        type: string
+
+concurrency:
+  group: production-schema-deployment
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -23,10 +32,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          bun-version: latest
+          bun-version: 1.3.14
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -63,7 +77,7 @@ jobs:
           echo "✓ Validating SQL syntax..."
           # Install postgresql-client for psql syntax validation
           sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null 2>&1
-          
+
           for file in supabase/migrations/*.sql; do
             if [[ $(basename "$file") == ".gitkeep" ]]; then
               continue
@@ -98,17 +112,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          bun-version: latest
+          bun-version: 1.3.14
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v2
         with:
-          version: 2.84.2
+          version: 2.111.0
 
       - name: Start Supabase local instance
         run: |
@@ -145,6 +164,24 @@ jobs:
             exit 1
           fi
 
+      - name: Run pgTAP database tests
+        run: |
+          echo "Running the pgTAP suite against the replayed schema..."
+          # The production deploy job depends on this job, so this is what makes
+          # the database tests an actual production gate. Before this step they
+          # ran only in ci.yml behind a paths filter, and a workflow_dispatch
+          # deploy never re-ran them -- nothing verified that a green CI run
+          # existed for the commit being deployed.
+          #
+          # These files are pure SQL and exercise tables created by public-repo
+          # migrations, so they need no private submodule.
+          if supabase test db --local supabase/tests/database; then
+            echo "✓ pgTAP suite passed"
+          else
+            echo "❌ pgTAP suite failed — refusing to continue toward production"
+            exit 1
+          fi
+
       - name: Verify schema integrity
         run: |
           echo "✓ Verifying schema integrity..."
@@ -163,17 +200,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          bun-version: latest
+          bun-version: 1.3.14
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v2
         with:
-          version: 2.84.2
+          version: 2.111.0
 
       - name: Start Supabase local instance
         run: bun run supabase:start
@@ -194,19 +236,7 @@ jobs:
         run: bun run supabase:reset
 
       - name: Run security advisors
-        continue-on-error: false
-        run: |
-          echo "Running security advisors..."
-          # Note: Advisors require Supabase CLI 2.81.3+
-          # If advisors are not available, we'll check in a future CLI version
-          if supabase db advisors --help > /dev/null 2>&1; then
-            supabase db advisors --linked=false || {
-              echo "⚠️  Advisors check completed with warnings"
-            }
-          else
-            echo "⚠️  Advisors feature not available in this CLI version"
-            echo "   Install CLI 2.81.3+ for full security checks"
-          fi
+        run: supabase db advisors --local --output-format json --fail-on warn
 
       - name: Stop local Supabase
         if: always()
@@ -217,65 +247,94 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: [validate-migrations, test-local-reset, run-advisors]
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.production_confirmation == 'deploy-production:fotdmeakexgrkronxlof'
     environment: production
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          bun-version: latest
+          bun-version: 1.3.14
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v2
         with:
-          version: 2.84.2
+          version: 2.111.0
+
+      - name: Require exact production deployment authorization
+        env:
+          PRODUCTION_DEPLOY_CONFIRMATION: ${{ inputs.production_confirmation }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        run: node scripts/verify-production-schema-deployment.mjs
 
       - name: Link to production database
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
         run: |
           echo "Linking to production Supabase project..."
-          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+          supabase link --project-ref "${SUPABASE_PROJECT_ID}"
+
+      - name: Verify linked production project ref
+        env:
+          PRODUCTION_DEPLOY_CONFIRMATION: ${{ inputs.production_confirmation }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [[ ! -f supabase/.temp/project-ref ]]; then
+            echo "Supabase link did not create supabase/.temp/project-ref." >&2
+            exit 1
+          fi
+          export LINKED_SUPABASE_PROJECT_REF="$(tr -d '[:space:]' < supabase/.temp/project-ref)"
+          node scripts/verify-production-schema-deployment.mjs
 
       - name: Show pending migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           echo "Migrations to be applied:"
-          supabase db diff-remote --exit-code || echo "No remote diff detected"
+          supabase db push --linked --dry-run
 
       - name: Push schema to production
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
+          set -euo pipefail
           echo "Pushing migrations to production..."
           echo "⚠️  This will modify the production database - ensure all checks passed above"
           echo ""
-          if supabase db push --linked --dry-run 2>/dev/null; then
-            echo "✓ Dry-run successful, proceeding with deployment..."
-          fi
-          
+          supabase db push --linked --dry-run
+          echo "✓ Dry-run successful, proceeding with deployment..."
+
           supabase db push --linked --yes 2>&1 | tee deploy.log
-          
-          # Check for errors in the log
-          if grep -i "ERROR\|FATAL" deploy.log; then
-            echo ""
-            echo "❌ Deployment failed - check errors above"
-            exit 1
-          fi
-          
+
           echo ""
           echo "✓ Deployment to production completed successfully"
 
       - name: Verify production deployment
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          echo "Verifying production deployment..."
-          echo "✓ Schema changes have been applied to production"
+          set -euo pipefail
+          echo "Verifying production migration parity..."
+          supabase migration list --linked --output-format json > migration-list.json
+          node scripts/verify-supabase-migration-parity.mjs migration-list.json
+          echo "✓ Production migration history matches the repository"
 
       - name: Post deployment summary
         if: success()
@@ -293,4 +352,5 @@ jobs:
         run: |
           echo "## ❌ Production Deployment Failed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Check the logs above for details. Production database was NOT modified." >> $GITHUB_STEP_SUMMARY
+          echo "Check the logs and production migration ledger before retrying." >> $GITHUB_STEP_SUMMARY
+          echo "If the failure occurred during or after schema push, production may already contain some or all pending migrations." >> $GITHUB_STEP_SUMMARY

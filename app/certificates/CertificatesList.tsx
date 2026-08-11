@@ -1,15 +1,45 @@
 "use client";
 
 import { useState } from "react";
-import { format, parseISO, differenceInMinutes, endOfDay, startOfDay } from "date-fns";
-import { Award, Calendar, ChevronRight, Clock, BadgeCheck, Filter, MapPin, Search, SlidersHorizontal, Printer, X, Trash2, Loader2 } from "lucide-react";
+import {
+  format,
+  parseISO,
+  differenceInMinutes,
+  endOfDay,
+  startOfDay,
+} from "date-fns";
+import {
+  Award,
+  Calendar,
+  ChevronRight,
+  Clock,
+  BadgeCheck,
+  Filter,
+  MapPin,
+  Search,
+  SlidersHorizontal,
+  Printer,
+  X,
+  Trash2,
+  Loader2,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { escapeHtml } from "@/lib/security/html";
 import Link from "next/link";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -97,7 +127,10 @@ function formatTotalDuration(totalHours: number): string {
 }
 
 // Helper to calculate duration in decimal hours
-function calculateDecimalHours(startTimeISO: string, endTimeISO: string): number {
+function calculateDecimalHours(
+  startTimeISO: string,
+  endTimeISO: string,
+): number {
   try {
     const start = parseISO(startTimeISO);
     const end = parseISO(endTimeISO);
@@ -109,12 +142,17 @@ function calculateDecimalHours(startTimeISO: string, endTimeISO: string): number
   }
 }
 
-export function CertificatesList({ certificates, user }: CertificatesListProps) {
+export function CertificatesList({
+  certificates,
+  user,
+}: CertificatesListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"date" | "hours" | "name">("date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   // Date filter state: all, last 6 months, last year, or custom range
-  const [dateFilter, setDateFilter] = useState<"all" | "6months" | "year" | "custom">("all");
+  const [dateFilter, setDateFilter] = useState<
+    "all" | "6months" | "year" | "custom"
+  >("all");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -136,13 +174,14 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
       }
 
       // Remove from display
-      setDisplayCertificates(prev => prev.filter(cert => cert.id !== id));
-      
+      setDisplayCertificates((prev) => prev.filter((cert) => cert.id !== id));
+
       toast.success("Self-reported hours deleted", {
         description: `${deletingTitle || "Certificate"} has been removed.`,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Please try again";
+      const message =
+        error instanceof Error ? error.message : "Please try again";
       toast.error("Failed to delete hours", {
         description: message,
       });
@@ -158,27 +197,27 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
     try {
       const start = parseISO(startTime);
       const end = parseISO(endTime);
-      return Math.round(differenceInMinutes(end, start) / 60 * 10) / 10; // Round to 1 decimal place
+      return Math.round((differenceInMinutes(end, start) / 60) * 10) / 10; // Round to 1 decimal place
     } catch {
       return 0;
     }
   };
 
   // Add hours property to certificates
-  const certificatesWithHours = displayCertificates.map(cert => ({
+  const certificatesWithHours = displayCertificates.map((cert) => ({
     ...cert,
-    hours: calculateHours(cert.event_start, cert.event_end)
+    hours: calculateHours(cert.event_start, cert.event_end),
   }));
 
   // Apply search filter
-  const filteredCertificates = certificatesWithHours.filter(cert => {
+  const filteredCertificates = certificatesWithHours.filter((cert) => {
     // Search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       if (
         !cert.project_title.toLowerCase().includes(searchLower) &&
-        !(cert.organization_name?.toLowerCase().includes(searchLower)) &&
-        !(cert.project_location?.toLowerCase().includes(searchLower))
+        !cert.organization_name?.toLowerCase().includes(searchLower) &&
+        !cert.project_location?.toLowerCase().includes(searchLower)
       ) {
         return false;
       }
@@ -220,7 +259,8 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
     let comparison = 0;
 
     if (sortBy === "date") {
-      comparison = new Date(a.issued_at).getTime() - new Date(b.issued_at).getTime();
+      comparison =
+        new Date(a.issued_at).getTime() - new Date(b.issued_at).getTime();
     } else if (sortBy === "hours") {
       comparison = a.hours - b.hours;
     } else if (sortBy === "name") {
@@ -243,16 +283,23 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
   // Print all certificates in a clean, styled container
   const printCertificates = () => {
     // Calculate total hours on filtered results
-    const totalHours = filteredCertificates.reduce((sum, cert) => sum + cert.hours, 0);
+    const totalHours = filteredCertificates.reduce(
+      (sum, cert) => sum + cert.hours,
+      0,
+    );
     const totalDuration = formatTotalDuration(totalHours);
     const printedAt = `${new Date().toLocaleString()} ${(() => {
       try {
-        return new Intl.DateTimeFormat('en-US', {
-          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          timeZoneName: 'short'
-        }).formatToParts(new Date()).find(part => part.type === 'timeZoneName')?.value || '';
+        return (
+          new Intl.DateTimeFormat("en-US", {
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            timeZoneName: "short",
+          })
+            .formatToParts(new Date())
+            .find((part) => part.type === "timeZoneName")?.value || ""
+        );
       } catch {
-        return '';
+        return "";
       }
     })()}`.trim();
     // prepare container
@@ -294,52 +341,62 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
         </thead>
         <tbody>
           ${certificatesWithHours
-        .filter(cert => {
-          // apply same date filtering
-          const issued = new Date(cert.issued_at);
-          const now = new Date();
-          switch (dateFilter) {
-            case "6months": {
-              const cut = new Date(now);
-              cut.setMonth(cut.getMonth() - 6);
-              if (issued < cut) return false;
-              break;
-            }
-            case "year": {
-              const cut = new Date(now);
-              cut.setFullYear(cut.getFullYear() - 1);
-              if (issued < cut) return false;
-              break;
-            }
-            case "custom": {
-              if (startDate && issued < startOfDay(startDate)) return false;
-              if (endDate && issued > endOfDay(endDate)) return false;
-              break;
-            }
-          }
-          return true;
-        })
-        .map(cert => `
+            .filter((cert) => {
+              // apply same date filtering
+              const issued = new Date(cert.issued_at);
+              const now = new Date();
+              switch (dateFilter) {
+                case "6months": {
+                  const cut = new Date(now);
+                  cut.setMonth(cut.getMonth() - 6);
+                  if (issued < cut) return false;
+                  break;
+                }
+                case "year": {
+                  const cut = new Date(now);
+                  cut.setFullYear(cut.getFullYear() - 1);
+                  if (issued < cut) return false;
+                  break;
+                }
+                case "custom": {
+                  if (startDate && issued < startOfDay(startDate)) return false;
+                  if (endDate && issued > endOfDay(endDate)) return false;
+                  break;
+                }
+              }
+              return true;
+            })
+            .map(
+              (cert) => `
               <tr>
                 <td>${escapeHtml(cert.project_title)}</td>
                 <td>${escapeHtml(cert.organization_name || cert.creator_name || "-")}</td>
-                <td>${escapeHtml(`${format(parseISO(cert.issued_at), "MMM d, yyyy")} ${(() => {
-            const date = parseISO(cert.issued_at);
-            const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
-            try {
-              return new Intl.DateTimeFormat('en-US', {
-                timeZone: timezone,
-                timeZoneName: 'short'
-              }).formatToParts(date).find(part => part.type === 'timeZoneName')?.value || '';
-            } catch {
-              return '';
-            }
-          })()}`)}</td>
+                <td>${escapeHtml(
+                  `${format(parseISO(cert.issued_at), "MMM d, yyyy")} ${(() => {
+                    const date = parseISO(cert.issued_at);
+                    const timezone =
+                      cert.projects?.project_timezone || "America/Los_Angeles";
+                    try {
+                      return (
+                        new Intl.DateTimeFormat("en-US", {
+                          timeZone: timezone,
+                          timeZoneName: "short",
+                        })
+                          .formatToParts(date)
+                          .find((part) => part.type === "timeZoneName")
+                          ?.value || ""
+                      );
+                    } catch {
+                      return "";
+                    }
+                  })()}`,
+                )}</td>
                 <td>${escapeHtml(formatTotalDuration(calculateDecimalHours(cert.event_start, cert.event_end)))}</td>
                 <td>${escapeHtml(cert.is_certified ? "Yes" : "No")}</td>
               </tr>
-            `)
-        .join("")}
+            `,
+            )
+            .join("")}
         </tbody>
       </table>
       <p style="margin-top:12px;font-size:12px;color:#555;">
@@ -356,16 +413,21 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
         <Award className="h-12 w-12 text-muted-foreground/30 mb-4" />
         <h3 className="font-medium text-lg">No Certificates Yet</h3>
         <p className="text-muted-foreground max-w-md mt-1">
-          Your certificates will appear here once you&apos;ve completed volunteer events and organizers have finalized your hours.
+          Your certificates will appear here once you&apos;ve completed
+          volunteer events and organizers have finalized your hours.
         </p>
-        <Link href="/home" className={cn(buttonVariants({ className: "mt-6" }))}>Find Opportunities</Link>
+        <Link
+          href="/home"
+          className={cn(buttonVariants({ className: "mt-6" }))}
+        >
+          Find Opportunities
+        </Link>
       </div>
     );
   }
 
   return (
     <>
-
       {/* Search and Filter */}
       <div className="w-full space-y-4 sm:space-y-8 mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
@@ -378,7 +440,10 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
         </div>
         <div className="flex flex-row flex-wrap gap-2 items-center justify-between">
           <div className="relative w-auto sm:flex-1 min-w-[100px]">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            <Search
+              className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
+              aria-hidden="true"
+            />
             <Input
               placeholder="Search..."
               aria-label="Search certificates"
@@ -390,47 +455,66 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
           <div className="flex flex-row flex-wrap gap-1 sm:gap-3 shrink-0">
             {/* Date range filter */}
             <DropdownMenu>
-              <DropdownMenuTrigger render={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1 h-9"
-                  aria-label="Filter by date range"
-                >
-                  <Filter className="h-4 w-4" aria-hidden="true" />
-                  <span className="hidden sm:inline ml-1">
-                    Date: {dateFilter === 'all' ? 'All' : dateFilter === '6months' ? '6mo' : dateFilter === 'year' ? '1yr' : 'Custom'}
-                  </span>
-                </Button>
-              } />
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 h-9"
+                    aria-label="Filter by date range"
+                  >
+                    <Filter className="h-4 w-4" aria-hidden="true" />
+                    <span className="hidden sm:inline ml-1">
+                      Date:{" "}
+                      {dateFilter === "all"
+                        ? "All"
+                        : dateFilter === "6months"
+                          ? "6mo"
+                          : dateFilter === "year"
+                            ? "1yr"
+                            : "Custom"}
+                    </span>
+                  </Button>
+                }
+              />
               <DropdownMenuContent align="end">
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>Date Range</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setDateFilter('all')}>All</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setDateFilter('6months')}>Last 6 Months</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setDateFilter('year')}>Last Year</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setDateFilter('custom')}>Custom Range</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setDateFilter("all")}>
+                    All
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setDateFilter("6months")}>
+                    Last 6 Months
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setDateFilter("year")}>
+                    Last Year
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setDateFilter("custom")}>
+                    Custom Range
+                  </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
-            {dateFilter === 'custom' && (
+            {dateFilter === "custom" && (
               <div className="flex flex-row flex-wrap items-center gap-1 sm:gap-2">
                 <Popover>
-                  <PopoverTrigger render={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={cn(
-                        "w-auto p-4 justify-start text-left font-normal h-9",
-                        !startDate && "text-muted-foreground"
-                      )}
-                      aria-label="Select start date"
-                    >
-                      <Calendar className="mr-1 h-3 w-3" />
-                      {startDate ? format(startDate, "MM/dd/yy") : "Start"}
-                    </Button>
-                  } />
+                  <PopoverTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          "w-auto p-4 justify-start text-left font-normal h-9",
+                          !startDate && "text-muted-foreground",
+                        )}
+                        aria-label="Select start date"
+                      >
+                        <Calendar className="mr-1 h-3 w-3" />
+                        {startDate ? format(startDate, "MM/dd/yy") : "Start"}
+                      </Button>
+                    }
+                  />
                   <PopoverContent className="w-auto p-0" align="start">
                     <CalendarComponent
                       mode="single"
@@ -443,20 +527,22 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                 <span className="hidden sm:inline text-sm">to</span>
                 <span className="inline sm:hidden text-xs">-</span>
                 <Popover>
-                  <PopoverTrigger render={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={cn(
-                        "w-auto p-4 justify-start text-left font-normal h-9",
-                        !endDate && "text-muted-foreground"
-                      )}
-                      aria-label="Select end date"
-                    >
-                      <Calendar className="mr-1 h-3 w-3" />
-                      {endDate ? format(endDate, "MM/dd/yy") : "End"}
-                    </Button>
-                  } />
+                  <PopoverTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          "w-auto p-4 justify-start text-left font-normal h-9",
+                          !endDate && "text-muted-foreground",
+                        )}
+                        aria-label="Select end date"
+                      >
+                        <Calendar className="mr-1 h-3 w-3" />
+                        {endDate ? format(endDate, "MM/dd/yy") : "End"}
+                      </Button>
+                    }
+                  />
                   <PopoverContent className="w-auto p-0" align="start">
                     <CalendarComponent
                       mode="single"
@@ -485,32 +571,46 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
             )}
             {/* Sort certificates */}
             <DropdownMenu>
-              <DropdownMenuTrigger render={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1 h-9"
-                  aria-label="Sort certificates"
-                >
-                  <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-                  <span className="hidden sm:inline ml-1">Sort</span>
-                </Button>
-              } />
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 h-9"
+                    aria-label="Sort certificates"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                    <span className="hidden sm:inline ml-1">Sort</span>
+                  </Button>
+                }
+              />
               <DropdownMenuContent align="end">
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>Sort Certificates</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => handleSortChange("date")}>
                     <Calendar className="h-4 w-4 mr-2" aria-hidden="true" />
-                    <span>Date {sortBy === "date" && (sortDirection === "desc" ? "↓" : "↑")}</span>
+                    <span>
+                      Date{" "}
+                      {sortBy === "date" &&
+                        (sortDirection === "desc" ? "↓" : "↑")}
+                    </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleSortChange("hours")}>
                     <Clock className="h-4 w-4 mr-2" aria-hidden="true" />
-                    <span>Hours {sortBy === "hours" && (sortDirection === "desc" ? "↓" : "↑")}</span>
+                    <span>
+                      Hours{" "}
+                      {sortBy === "hours" &&
+                        (sortDirection === "desc" ? "↓" : "↑")}
+                    </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleSortChange("name")}>
                     <Award className="h-4 w-4 mr-2" aria-hidden="true" />
-                    <span>Project Name {sortBy === "name" && (sortDirection === "desc" ? "↓" : "↑")}</span>
+                    <span>
+                      Project Name{" "}
+                      {sortBy === "name" &&
+                        (sortDirection === "desc" ? "↓" : "↑")}
+                    </span>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>
@@ -532,7 +632,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedCertificates.map((cert) => {
             const isSelfReported = cert.type === "self-reported";
-            
+
             return (
               <div key={cert.id} className="relative">
                 <Link href={`/certificates/${cert.id}`} passHref>
@@ -562,15 +662,18 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                         )}
                         <TooltipProvider>
                           <Tooltip>
-                            <TooltipTrigger render={
-                              <BadgeCheck className={`h-5 w-5 ${cert.is_certified ? 'text-primary' : 'text-muted-foreground/30'}`} />
-                            } />
+                            <TooltipTrigger
+                              render={
+                                <BadgeCheck
+                                  className={`h-5 w-5 ${cert.is_certified ? "text-primary" : "text-muted-foreground/30"}`}
+                                />
+                              }
+                            />
                             <TooltipContent>
                               <p>
                                 {cert.is_certified
                                   ? "Certificate comes from a verified organization"
-                                  : "Certificate does not come from a verified organization"
-                                }
+                                  : "Certificate does not come from a verified organization"}
                               </p>
                             </TooltipContent>
                           </Tooltip>
@@ -580,95 +683,109 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                         {cert.project_title}
                       </CardTitle>
                       {isSelfReported && (
-                        <Badge variant="secondary" className="w-fit mt-2 text-xs bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning">
+                        <Badge
+                          variant="secondary"
+                          className="w-fit mt-2 text-xs bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning"
+                        >
                           Self-Reported
                         </Badge>
                       )}
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
                         {cert.organization_name && (
                           <div className="flex items-center gap-2 max-w-full">
-                            <span className="truncate">{cert.organization_name}</span>
+                            <span className="truncate">
+                              {cert.organization_name}
+                            </span>
                             <span className="text-muted-foreground/50">•</span>
                           </div>
                         )}
-                        <span className="shrink-0">{format(parseISO(cert.issued_at), "MMM d, yyyy")}</span>
-                    </div>
-                  </CardHeader>
+                        <span className="shrink-0">
+                          {format(parseISO(cert.issued_at), "MMM d, yyyy")}
+                        </span>
+                      </div>
+                    </CardHeader>
 
-                  <CardContent className="pb-4">
-                    <div className="flex flex-wrap gap-2">
-                      <Badge
-                        variant="outline"
-                        className="bg-warning/5 border-warning/20 text-warning hover:bg-warning/10 transition-colors"
-                      >
-                        <Clock className="h-3 w-3 mr-1" />
-                        {cert.hours} hours
-                      </Badge>
-                      {cert.is_certified && (
+                    <CardContent className="pb-4">
+                      <div className="flex flex-wrap gap-2">
                         <Badge
                           variant="outline"
-                          className="bg-success/5 border-success/20 text-success hover:bg-success/10 transition-colors"
+                          className="bg-warning/5 border-warning/20 text-warning hover:bg-warning/10 transition-colors"
                         >
-                          <BadgeCheck className="h-3 w-3 mr-1" />
-                          Certified
+                          <Clock className="h-3 w-3 mr-1" />
+                          {cert.hours} hours
                         </Badge>
-                      )}
-                      {cert.project_location && (
-                        <Badge
-                          variant="outline"
-                          className="bg-muted/50 hover:bg-muted transition-colors"
-                        >
-                          <MapPin className="h-3 w-3 mr-1" />
-                          {cert.project_location}
-                        </Badge>
-                      )}
-                    </div>
-                  </CardContent>
-
-                  <CardFooter className="mt-auto pt-3 pb-4 px-4 border-t">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-between"
-                    >
-                      <span>View Certificate</span>
-                      <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </Link>
-
-              {/* Delete Confirmation Dialog */}
-              {confirmDeleteId === cert.id && isSelfReported && (
-                <AlertDialog open={confirmDeleteId === cert.id} onOpenChange={(open) => !open && setConfirmDeleteId(null)}>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Self-Reported Hours?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will permanently delete &quot;{cert.project_title}&quot; and its associated certificate. This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => handleDeleteSelfReported(cert.id)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        disabled={deletingId === cert.id}
-                      >
-                        {deletingId === cert.id ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Deleting...
-                          </>
-                        ) : (
-                          "Delete"
+                        {cert.is_certified && (
+                          <Badge
+                            variant="outline"
+                            className="bg-success/5 border-success/20 text-success hover:bg-success/10 transition-colors"
+                          >
+                            <BadgeCheck className="h-3 w-3 mr-1" />
+                            Certified
+                          </Badge>
                         )}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </div>
+                        {cert.project_location && (
+                          <Badge
+                            variant="outline"
+                            className="bg-muted/50 hover:bg-muted transition-colors"
+                          >
+                            <MapPin className="h-3 w-3 mr-1" />
+                            {cert.project_location}
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+
+                    <CardFooter className="mt-auto pt-3 pb-4 px-4 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-between"
+                      >
+                        <span>View Certificate</span>
+                        <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                </Link>
+
+                {/* Delete Confirmation Dialog */}
+                {confirmDeleteId === cert.id && isSelfReported && (
+                  <AlertDialog
+                    open={confirmDeleteId === cert.id}
+                    onOpenChange={(open) => !open && setConfirmDeleteId(null)}
+                  >
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Delete Self-Reported Hours?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete &quot;
+                          {cert.project_title}&quot; and its associated
+                          certificate. This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteSelfReported(cert.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          disabled={deletingId === cert.id}
+                        >
+                          {deletingId === cert.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Deleting...
+                            </>
+                          ) : (
+                            "Delete"
+                          )}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
             );
           })}
         </div>
@@ -676,7 +793,9 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
         {/* Show message if no results found */}
         {filteredCertificates.length === 0 && (
           <div className="text-center py-8">
-            <p className="text-muted-foreground">No certificates match your search.</p>
+            <p className="text-muted-foreground">
+              No certificates match your search.
+            </p>
           </div>
         )}
       </div>

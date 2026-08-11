@@ -1,6 +1,7 @@
 export type InvitationDuration = "1_week" | "1_month";
 
-export type InvitationDeliveryStatus = "pending" | "sent" | "failed" | "skipped";
+export type InvitationDeliveryStatus =
+  "pending" | "sent" | "failed" | "skipped";
 
 export const DEFAULT_INVITATION_DURATION: InvitationDuration = "1_month";
 
@@ -9,18 +10,24 @@ const DURATION_DAYS: Record<InvitationDuration, number> = {
   "1_month": 30,
 };
 
-export function normalizeInvitationDuration(value: unknown): InvitationDuration {
+export function normalizeInvitationDuration(
+  value: unknown,
+): InvitationDuration {
   if (value === "1_week" || value === "1_month") {
     return value as InvitationDuration;
   }
   return DEFAULT_INVITATION_DURATION;
 }
 
-export function getInvitationDurationDays(duration: InvitationDuration): number {
+export function getInvitationDurationDays(
+  duration: InvitationDuration,
+): number {
   return DURATION_DAYS[duration];
 }
 
-export function getInvitationDurationLabel(duration: InvitationDuration): string {
+export function getInvitationDurationLabel(
+  duration: InvitationDuration,
+): string {
   return duration === "1_month" ? "1 month" : "1 week";
 }
 
@@ -30,7 +37,9 @@ export function getInvitationExpirationDetails(duration: InvitationDuration): {
   expiresAtDisplay: string;
 } {
   const expiresAtDate = new Date();
-  expiresAtDate.setDate(expiresAtDate.getDate() + getInvitationDurationDays(duration));
+  expiresAtDate.setDate(
+    expiresAtDate.getDate() + getInvitationDurationDays(duration),
+  );
 
   return {
     expiresAtDate,
@@ -44,13 +53,20 @@ export function getInvitationExpirationDetails(duration: InvitationDuration): {
 }
 
 export function getInvitationBaseUrl(): string {
-  const explicitSiteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "").trim();
+  const explicitSiteUrl = (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.SITE_URL ||
+    ""
+  ).trim();
   if (explicitSiteUrl) {
     return explicitSiteUrl.replace(/\/$/, "");
   }
 
   const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
-  if (supabaseUrl.startsWith("http://127.0.0.1") || supabaseUrl.startsWith("http://localhost")) {
+  if (
+    supabaseUrl.startsWith("http://127.0.0.1") ||
+    supabaseUrl.startsWith("http://localhost")
+  ) {
     return "http://localhost:3000";
   }
 

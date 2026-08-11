@@ -1,7 +1,8 @@
 "use client";
 
 import { REGEXP_ONLY_DIGITS } from "input-otp";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
+import Image from "next/image";
 import {
   Copy,
   KeyRound,
@@ -168,7 +169,10 @@ function AuthenticationContent() {
       }
 
       if (claimsError) {
-        console.error("Failed to load auth claims for MFA settings:", claimsError);
+        console.error(
+          "Failed to load auth claims for MFA settings:",
+          claimsError,
+        );
       }
 
       const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
@@ -189,13 +193,13 @@ function AuthenticationContent() {
       }
 
       const assuranceData = deriveAuthenticatorAssurance(
-        typeof claimsData?.claims?.aal === "string" ? claimsData.claims.aal : null,
+        typeof claimsData?.claims?.aal === "string"
+          ? claimsData.claims.aal
+          : null,
         factorData,
       );
 
-      setMfaFactors(
-        getVerifiedTotpFactors(factorData),
-      );
+      setMfaFactors(getVerifiedTotpFactors(factorData));
       setAalState({
         currentLevel: assuranceData?.currentLevel ?? null,
         nextLevel: assuranceData?.nextLevel ?? null,
@@ -329,9 +333,8 @@ function AuthenticationContent() {
         return;
       }
 
-      const { error: unlinkError } = await supabase.auth.unlinkIdentity(
-        googleIdentity,
-      );
+      const { error: unlinkError } =
+        await supabase.auth.unlinkIdentity(googleIdentity);
 
       if (unlinkError) {
         throw unlinkError;
@@ -363,7 +366,9 @@ function AuthenticationContent() {
 
   const handleStartEnrollment = async () => {
     if (!user) {
-      toast.error("You need to be signed in to configure an authenticator app.");
+      toast.error(
+        "You need to be signed in to configure an authenticator app.",
+      );
       return;
     }
 
@@ -377,7 +382,9 @@ function AuthenticationContent() {
       });
 
       if (error || !data) {
-        throw error ?? new Error("Supabase did not return an authenticator factor.");
+        throw (
+          error ?? new Error("Supabase did not return an authenticator factor.")
+        );
       }
 
       setPendingEnrollment({
@@ -413,7 +420,9 @@ function AuthenticationContent() {
       await navigator.clipboard.writeText(pendingEnrollment.secret);
       toast.success("Setup key copied to your clipboard.");
     } catch {
-      toast.error("Couldn't copy the setup key. You can still copy it manually.");
+      toast.error(
+        "Couldn't copy the setup key. You can still copy it manually.",
+      );
     }
   };
 
@@ -499,7 +508,9 @@ function AuthenticationContent() {
     }
 
     if (aalState?.currentLevel !== "aal2") {
-      toast.info("Please verify your identity before removing an authenticator.");
+      toast.info(
+        "Please verify your identity before removing an authenticator.",
+      );
       router.push(buildMfaRedirectPath("/account/authentication"));
       setFactorToDisable(null);
       return;
@@ -553,7 +564,8 @@ function AuthenticationContent() {
             Authentication
           </h1>
           <p className="mt-1 text-muted-foreground">
-            Manage your connected accounts, sign-in methods, and authenticator app.
+            Manage your connected accounts, sign-in methods, and authenticator
+            app.
           </p>
         </div>
 
@@ -567,21 +579,13 @@ function AuthenticationContent() {
           <CardContent>
             <div className="flex flex-col gap-4 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
               <div className="flex items-center space-x-4">
-                <svg
-                  className="h-5 w-5 sm:h-6 sm:w-6"
-                  aria-hidden="true"
-                  focusable="false"
-                  data-prefix="fab"
-                  data-icon="google"
-                  role="img"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 488 512"
-                >
-                  <path
-                    fill="currentColor"
-                    d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
-                  />
-                </svg>
+                <Image
+                  src="/resources/google-logo-2026.png"
+                  alt=""
+                  width={24}
+                  height={24}
+                  className="h-5 w-5 object-contain sm:h-6 sm:w-6"
+                />
                 <div>
                   <h4 className="text-sm font-semibold">Google Account</h4>
                   <p className="text-xs text-muted-foreground sm:text-sm">
@@ -620,7 +624,8 @@ function AuthenticationContent() {
           <CardHeader>
             <CardTitle className="text-xl">Two-Factor Authentication</CardTitle>
             <CardDescription>
-              Use an authenticator app for a second sign-in step on your account.
+              Use an authenticator app for a second sign-in step on your
+              account.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -680,15 +685,21 @@ function AuthenticationContent() {
                 {requiresStepUpVerification && mfaEnabled && (
                   <Alert>
                     <ShieldAlert className="h-4 w-4" />
-                    <AlertTitle>Verify this session before changing MFA</AlertTitle>
+                    <AlertTitle>
+                      Verify this session before changing MFA
+                    </AlertTitle>
                     <AlertDescription>
-                      This session still needs a recent two-factor check before you can remove an authenticator. Use the button below to confirm your code and come right back here.
+                      This session still needs a recent two-factor check before
+                      you can remove an authenticator. Use the button below to
+                      confirm your code and come right back here.
                     </AlertDescription>
                     <div className="pt-3">
                       <Button
                         variant="outline"
                         onClick={() =>
-                          router.push(buildMfaRedirectPath("/account/authentication"))
+                          router.push(
+                            buildMfaRedirectPath("/account/authentication"),
+                          )
                         }
                       >
                         Verify now
@@ -696,7 +707,6 @@ function AuthenticationContent() {
                     </div>
                   </Alert>
                 )}
-
 
                 {pendingEnrollment && (
                   <div className="grid gap-4 rounded-xl border p-4 lg:grid-cols-[220px_1fr]">
@@ -725,16 +735,22 @@ function AuthenticationContent() {
                     <div className="space-y-4">
                       <Alert>
                         <ShieldCheck className="h-4 w-4" />
-                        <AlertTitle>Finish setup with one verification code</AlertTitle>
+                        <AlertTitle>
+                          Finish setup with one verification code
+                        </AlertTitle>
                         <AlertDescription>
-                          After you confirm the code, this factor becomes active immediately and your other sessions may be signed out for safety.
+                          After you confirm the code, this factor becomes active
+                          immediately and your other sessions may be signed out
+                          for safety.
                         </AlertDescription>
                       </Alert>
 
                       <div className="rounded-lg border bg-muted/30 p-3">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <p className="text-sm font-medium">Manual setup key</p>
+                            <p className="text-sm font-medium">
+                              Manual setup key
+                            </p>
                             <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
                               {pendingEnrollment.secret}
                             </p>
@@ -795,7 +811,9 @@ function AuthenticationContent() {
                           type="button"
                           variant="ghost"
                           onClick={handleCancelEnrollment}
-                          disabled={isVerifyingEnrollment || isCancellingEnrollment}
+                          disabled={
+                            isVerifyingEnrollment || isCancellingEnrollment
+                          }
                           className="sm:w-auto"
                         >
                           {isCancellingEnrollment

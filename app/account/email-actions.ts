@@ -2,10 +2,46 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
-import crypto from "crypto";
+import { getAdminClient } from "@/lib/supabase/admin";
+import {
+  EMAIL_ALIAS_CODE_TTL_MS,
+  generateEmailAliasVerificationCode,
+  hashEmailAliasVerificationCode,
+  normalizeEmailAlias,
+} from "@/lib/auth/email-alias-verification";
+import { syncPrimaryUserEmail } from "@/lib/auth/primary-email";
 import { sendEmail } from "@/services/email";
 import EmailVerificationCode from "@/emails/email-verification-code";
 import * as React from "react";
+import { z } from "zod";
+
+const emailAliasSchema = z.string().trim().email().max(320);
+const emailAliasCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/u);
+const GENERIC_ALIAS_ERROR =
+  "Unable to verify this email or code. Request a new code and try again.";
+
+async function discardUndeliveredAliasChallenge(input: {
+  challengeId: string;
+  userId: string;
+  tokenHash: string;
+}) {
+  const admin = getAdminClient();
+  const { error } = await admin.rpc("discard_user_email_alias_verification", {
+    p_challenge_id: input.challengeId,
+    p_user_id: input.userId,
+    p_token_hash: input.tokenHash,
+  });
+
+  if (error) {
+    console.error(
+      "Failed to discard undelivered email-alias challenge:",
+      error,
+    );
+  }
+}
 
 /**
  * Send verification email for EMAIL ALIAS (not primary email change).
@@ -14,84 +50,94 @@ import * as React from "react";
  * This function manages secondary/backup emails stored in the user_emails table.
  */
 export async function sendVerificationEmail(email: string) {
-    const { user, error: authError } = await getAuthUser();
+  const parsedEmail = emailAliasSchema.safeParse(email);
+  if (!parsedEmail.success) {
+    return { success: false, error: "Enter a valid email address." };
+  }
 
-    if (authError || !user) {
-        return { success: false, error: "Not authenticated" };
+  const { user, error: authError } = await getAuthUser({
+    sensitive: true,
+    checkMfa: true,
+  });
+
+  if (authError || !user) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  const admin = getAdminClient();
+  const normalizedEmail = normalizeEmailAlias(parsedEmail.data);
+
+  const token = generateEmailAliasVerificationCode();
+  const tokenHash = hashEmailAliasVerificationCode(token);
+  const now = new Date();
+  const { data: issueRows, error: issueError } = await admin.rpc(
+    "issue_user_email_alias_verification",
+    {
+      p_user_id: user.id,
+      p_email: normalizedEmail,
+      p_token_hash: tokenHash,
+      p_expires_at: new Date(
+        now.getTime() + EMAIL_ALIAS_CODE_TTL_MS,
+      ).toISOString(),
+    },
+  );
+  const issue = Array.isArray(issueRows) ? issueRows[0] : issueRows;
+
+  if (issueError || !issue) {
+    console.error("Error preparing email verification:", issueError);
+    return { error: "Unable to send a verification code." };
+  }
+
+  if (issue.status === "unavailable") {
+    return { error: "Unable to use this email address." };
+  }
+
+  if (issue.status === "already_verified") {
+    return { success: true, alreadyVerified: true };
+  }
+
+  if (issue.status === "cooldown" || issue.status === "locked") {
+    return {
+      error: "Please wait before requesting another verification code.",
+      retryAfterSeconds: Math.max(Number(issue.retry_after_seconds ?? 1), 1),
+    };
+  }
+
+  if (issue.status !== "issued" || typeof issue.challenge_id !== "string") {
+    return { error: "Unable to send a verification code." };
+  }
+
+  try {
+    const { error } = await sendEmail({
+      to: normalizedEmail,
+      subject: "Verify your email address",
+      react: React.createElement(EmailVerificationCode, {
+        code: token,
+        expiresInHours: 0.5,
+      }),
+      type: "transactional",
+    });
+
+    if (error) {
+      console.error("Email service error:", error);
+      await discardUndeliveredAliasChallenge({
+        challengeId: issue.challenge_id,
+        userId: user.id,
+        tokenHash,
+      });
+      return { error: "Unable to send a verification code." };
     }
+  } catch (error: unknown) {
+    console.error("Email sending exception:", error);
+    await discardUndeliveredAliasChallenge({
+      challengeId: issue.challenge_id,
+      userId: user.id,
+      tokenHash,
+    });
+    return { error: "Unable to send a verification code." };
+  }
 
-    const supabase = await createClient();
-
-    // Check if email already exists as a primary account in profiles table
-    const { data: existingProfile } = await supabase
-        .from("profiles")
-        .select("id, email")
-        .eq("email", email.toLowerCase())
-        .maybeSingle();
-
-    if (existingProfile && existingProfile.id !== user.id) {
-        return { error: "This email is already associated with another Let's Assist account. Please use a different email.", warning: true };
-    }
-
-    // Check if email already exists in user_emails (globally unique)
-    const { data: existingEmail } = await supabase
-        .from("user_emails")
-        .select("id, user_id")
-        .eq("email", email.toLowerCase())
-        .maybeSingle();
-
-    if (existingEmail) {
-        if (existingEmail.user_id === user.id) {
-            // User already has this email, resending code
-            // Continue to update token
-        } else {
-            return { error: "Email already linked to another account" };
-        }
-    }
-
-    // Generate 6-digit code
-    const token = crypto.randomInt(100000, 999999).toString();
-
-    // Insert/Update user_emails with token
-    const { error: insertError } = (await supabase
-        .from("user_emails")
-        .upsert({
-            user_id: user.id,
-            email: email.toLowerCase(),
-            verification_token: token,
-            verified_at: null, // Reset verification if re-adding/verifying
-            is_primary: false
-        }, { onConflict: 'email' })) as { error: { message?: string } | null }; // Use email as conflict target since it's unique
-
-    if (insertError) {
-        console.error("Error inserting email:", insertError);
-        return { error: "Failed to add email. Please try again." };
-    }
-
-    // Send email
-    try {
-        console.log("Attempting to send verification email to:", email);
-        const { error } = await sendEmail({
-            to: email,
-            subject: 'Verify your email address',
-            react: React.createElement(EmailVerificationCode, { code: token, expiresInHours: 24 }),
-            type: 'transactional'
-        });
-
-        if (error) {
-            console.error("Email service error:", error);
-            return { error: `Failed to send verification email: ${error}` };
-        }
-
-        console.log("Verification email sent successfully");
-    } catch (e: unknown) {
-        const error = e as Error;
-        console.error("Email sending exception:", e);
-        console.error("Exception details:", error.message, error.stack);
-        return { error: `Failed to send verification email: ${error.message || 'Unknown error'}` };
-    }
-
-    return { success: true };
+  return { success: true };
 }
 
 /**
@@ -99,50 +145,41 @@ export async function sendVerificationEmail(email: string) {
  * This verifies secondary/backup emails, not primary authentication email changes.
  */
 export async function verifyEmailToken(email: string, token: string) {
-    const { user, error: authError } = await getAuthUser();
+  const parsedEmail = emailAliasSchema.safeParse(email);
+  const parsedToken = emailAliasCodeSchema.safeParse(token);
+  if (!parsedEmail.success || !parsedToken.success) {
+    return { success: false, error: GENERIC_ALIAS_ERROR };
+  }
 
-    if (authError || !user) {
-        return { success: false, error: "Not authenticated" };
-    }
+  const { user, error: authError } = await getAuthUser({
+    sensitive: true,
+    checkMfa: true,
+  });
 
-    const supabase = await createClient();
+  if (authError || !user) {
+    return { success: false, error: "Not authenticated" };
+  }
 
-    const { data: emailRecord, error: fetchError } = await supabase
-        .from("user_emails")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("email", email)
-        .single();
+  const admin = getAdminClient();
+  const { data, error } = await admin.rpc("verify_user_email_alias", {
+    p_user_id: user.id,
+    p_email: normalizeEmailAlias(parsedEmail.data),
+    p_token_hash: hashEmailAliasVerificationCode(parsedToken.data),
+  });
 
-    if (fetchError || !emailRecord) {
-        return { error: "Email request not found" };
-    }
+  if (error || data !== "verified") {
+    if (error) console.error("Email alias verification failed:", error);
+    return { success: false, error: GENERIC_ALIAS_ERROR };
+  }
 
-    if (emailRecord.verification_token !== token) {
-        return { error: "Invalid verification code" };
-    }
-
-    // Mark as verified
-    const { error: updateError } = (await supabase
-        .from("user_emails")
-        .update({
-            verified_at: new Date().toISOString(),
-            verification_token: null // Clear token
-        })
-        .eq("id", emailRecord.id)) as { error: { message?: string } | null };
-
-    if (updateError) {
-        return { error: "Failed to verify email" };
-    }
-
-    return { success: true };
+  return { success: true };
 }
 
 export type SetPrimaryEmailResponse = {
-    success: boolean;
-    error?: string;
-    needsConfirmation?: boolean;
-    pendingEmail?: string;
+  success: boolean;
+  error?: string;
+  needsConfirmation?: boolean;
+  pendingEmail?: string;
 };
 
 /**
@@ -155,113 +192,129 @@ export type SetPrimaryEmailResponse = {
  *
  * This function is kept for backward compatibility but should not be used in new code.
  */
-export async function setPrimaryEmailAction(email: string): Promise<SetPrimaryEmailResponse> {
-    const normalizedEmail = email.trim().toLowerCase();
-    const { user, error: authError } = await getAuthUser();
+export async function setPrimaryEmailAction(
+  email: string,
+): Promise<SetPrimaryEmailResponse> {
+  const parsedEmail = emailAliasSchema.safeParse(email);
+  if (!parsedEmail.success) {
+    return { success: false, error: "Enter a valid email address." };
+  }
+  const normalizedEmail = normalizeEmailAlias(parsedEmail.data);
+  const { user, error: authError } = await getAuthUser({
+    sensitive: true,
+    checkMfa: true,
+  });
 
-    if (authError || !user) {
-        return { success: false, error: "Not authenticated" };
-    }
+  if (authError || !user) {
+    return { success: false, error: "Not authenticated" };
+  }
 
-    const supabase = await createClient();
+  const supabase = await createClient();
+  const admin = getAdminClient();
 
-    const { data: aliasRecord, error: aliasError } = await supabase
-        .from("user_emails")
-        .select("id, verified_at")
-        .eq("user_id", user.id)
-        .eq("email", normalizedEmail)
-        .maybeSingle();
+  const { data: aliasRecord, error: aliasError } = await admin
+    .from("user_emails")
+    .select("id, verified_at")
+    .eq("user_id", user.id)
+    .eq("email", normalizedEmail)
+    .maybeSingle();
 
-    if (aliasError && aliasError.code !== "PGRST116") {
-        console.error("Error fetching alias:", aliasError);
-        return { success: false, error: "Unable to look up email" };
-    }
+  if (aliasError && aliasError.code !== "PGRST116") {
+    console.error("Error fetching alias:", aliasError);
+    return { success: false, error: "Unable to look up email" };
+  }
 
-    if (!aliasRecord) {
-        return { success: false, error: "Email not linked to your account" };
-    }
+  if (!aliasRecord) {
+    return { success: false, error: "Email not linked to your account" };
+  }
 
-    if (!aliasRecord.verified_at) {
-        return { success: false, error: "Verify this email before setting it as primary" };
-    }
+  if (!aliasRecord.verified_at) {
+    return {
+      success: false,
+      error: "Verify this email before setting it as primary",
+    };
+  }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-    const redirectUrl = `${siteUrl.replace(/\/$/, "")}/auth/confirm?type=email_change`;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const redirectUrl = `${siteUrl.replace(/\/$/, "")}/auth/confirm?type=email_change`;
 
-    const { data: updateData, error: updateError } = await supabase.auth.updateUser(
-        {
-            email: normalizedEmail,
-            data: {
-                ...(user.user_metadata || {}),
-                primary_email: normalizedEmail,
-            },
-        },
-        {
-            emailRedirectTo: redirectUrl,
-        },
+  const { data: updateData, error: updateError } =
+    await supabase.auth.updateUser(
+      {
+        email: normalizedEmail,
+      },
+      {
+        emailRedirectTo: redirectUrl,
+      },
     );
 
-    if (updateError) {
-        console.error("auth.updateUser failed:", updateError);
-        return { success: false, error: updateError.message || "Failed to update primary email" };
-    }
-
-    const confirmedEmail = updateData?.user?.email?.toLowerCase?.();
-    const pendingEmail = (updateData?.user as { new_email?: string })?.new_email?.toLowerCase?.();
-    const needsConfirmation = confirmedEmail !== normalizedEmail && pendingEmail === normalizedEmail;
-
-    if (needsConfirmation) {
-        return {
-            success: true,
-            needsConfirmation: true,
-            pendingEmail: normalizedEmail,
-        };
-    }
-
-        const { error: profileError } = (await supabase
-            .from("profiles")
-            .update({
-                email: normalizedEmail,
-                updated_at: new Date().toISOString(),
-            })
-            .eq("id", user.id)) as { error: { message?: string } | null };
-
-    if (profileError) {
-        console.error("Profile update error:", profileError);
-        return { success: false, error: "Failed to sync profile email" };
-    }
-
-    const { error: demoteError } = (await supabase
-        .from("user_emails")
-        .update({
-            is_primary: false,
-            updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user.id)
-        .neq("email", normalizedEmail)) as { error: { message?: string } | null };
-
-    if (demoteError) {
-        console.error("Failed to demote aliases:", demoteError);
-        return { success: false, error: "Failed to update existing emails" };
-    }
-
-    const { error: promoteError } = (await supabase
-        .from("user_emails")
-        .update({
-            is_primary: true,
-            verified_at: new Date().toISOString(),
-            verification_token: null,
-            updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user.id)
-        .eq("email", normalizedEmail)) as { error: { message?: string } | null };
-
-    if (promoteError) {
-        console.error("Failed to promote alias:", promoteError);
-        return { success: false, error: "Failed to set email as primary" };
-    }
-
+  if (updateError) {
+    console.error("auth.updateUser failed:", updateError);
     return {
-        success: true,
+      success: false,
+      error: updateError.message || "Failed to update primary email",
     };
+  }
+
+  const confirmedEmail = updateData?.user?.email?.toLowerCase?.();
+  const pendingEmail = (
+    updateData?.user as { new_email?: string }
+  )?.new_email?.toLowerCase?.();
+  const needsConfirmation =
+    confirmedEmail !== normalizedEmail && pendingEmail === normalizedEmail;
+
+  if (needsConfirmation) {
+    return {
+      success: true,
+      needsConfirmation: true,
+      pendingEmail: normalizedEmail,
+    };
+  }
+
+  const primarySync = await syncPrimaryUserEmail(user.id);
+  if (!primarySync.success) {
+    return { success: false, error: "Failed to synchronize the primary email" };
+  }
+
+  return {
+    success: true,
+  };
+}
+
+export async function getLinkedIdentitiesAction() {
+  const { user, error: authError } = await getAuthUser({
+    sensitive: true,
+    checkMfa: true,
+  });
+  if (authError || !user) {
+    return { success: false as const, error: "Not authenticated", emails: [] };
+  }
+
+  const primarySync = await syncPrimaryUserEmail(user.id);
+  if (!primarySync.success) {
+    return {
+      success: false as const,
+      error: "Unable to synchronize primary email",
+      emails: [],
+    };
+  }
+
+  const admin = getAdminClient();
+  const { data, error } = await admin
+    .from("user_emails")
+    .select(
+      "id, user_id, email, is_primary, verified_at, created_at, updated_at",
+    )
+    .eq("user_id", user.id)
+    .order("is_primary", { ascending: false });
+
+  if (error) {
+    return {
+      success: false as const,
+      error: "Unable to load email aliases",
+      emails: [],
+    };
+  }
+
+  return { success: true as const, emails: data ?? [] };
 }

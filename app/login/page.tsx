@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
+import { cookies } from "next/headers";
 import LoginClient from "./LoginClient";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { applyStaffInviteForUser } from "@/lib/organization/staff-invite";
 import { buildStaffInviteRedirectPath } from "@/lib/organization/staff-invite-outcome";
 import { resolvePostAuthRedirectPath } from "@/lib/auth/mfa";
+import { DEV_PREVIEW_SOURCE_COOKIE } from "@/lib/supabase/preview-source";
 
 export const metadata: Metadata = {
   title: "Login",
@@ -25,12 +27,34 @@ interface LoginPageProps {
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { redirect: redirectPath, staff_token, org, email, invite_token, member_token, token } = await searchParams;
-  
+  const {
+    redirect: redirectPath,
+    staff_token,
+    org,
+    email,
+    invite_token,
+    member_token,
+    token,
+  } = await searchParams;
+
   // Resolve invite token: prefer invite_token, fallback to member_token, then token
   const inviteToken = invite_token || member_token || token;
 
   const defaultRedirectPath = resolvePostAuthRedirectPath(redirectPath);
+
+  // In development: always reset preview mode to "local" on the login page
+  // so the cookie can never get stuck on "remote" while logged out.
+  if (process.env.NODE_ENV === "development") {
+    try {
+      (await cookies()).set(DEV_PREVIEW_SOURCE_COOKIE, "local", {
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+        sameSite: "lax",
+      });
+    } catch {
+      // Ignore if cookies aren't writable (static render context)
+    }
+  }
 
   const { user } = await getAuthUser({ allowMfaPending: true });
 
@@ -66,6 +90,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       orgUsername={org}
       inviteToken={inviteToken}
       prefilledEmail={email}
+      localFixtureMode={process.env.CSF_LOCAL_FIXTURE_MODE === "1"}
     />
   );
 }

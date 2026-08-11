@@ -51,8 +51,10 @@ export async function logAiUsage(record: AiUsageRecord): Promise<void> {
   try {
     const supabase = await createClient();
 
-    const { error } = await supabase.rpc("execute_sql" as never, {
-      query: `
+    const { error } = await supabase.rpc(
+      "execute_sql" as never,
+      {
+        query: `
         INSERT INTO plugin_data.ai_usage_log (
           organization_id, user_id, plugin_key, gateway_scope,
           model_id, feature, input_tokens, output_tokens,
@@ -61,26 +63,30 @@ export async function logAiUsage(record: AiUsageRecord): Promise<void> {
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
         )
       `,
-      args: [
-        record.organizationId ?? null,
-        record.userId ?? null,
-        record.pluginKey ?? null,
-        record.gatewayScope,
-        record.modelId,
-        record.feature ?? null,
-        record.inputTokens ?? 0,
-        record.outputTokens ?? 0,
-        record.estimatedCostUsd ?? null,
-        record.latencyMs ?? null,
-        record.success ?? true,
-        record.errorMessage ?? null,
-        JSON.stringify(record.metadata ?? {}),
-      ],
-    } as never);
+        args: [
+          record.organizationId ?? null,
+          record.userId ?? null,
+          record.pluginKey ?? null,
+          record.gatewayScope,
+          record.modelId,
+          record.feature ?? null,
+          record.inputTokens ?? 0,
+          record.outputTokens ?? 0,
+          record.estimatedCostUsd ?? null,
+          record.latencyMs ?? null,
+          record.success ?? true,
+          record.errorMessage ?? null,
+          JSON.stringify(record.metadata ?? {}),
+        ],
+      } as never,
+    );
 
     if (error) {
       // Log but don't throw — billing logging should never break features
-      console.error("[ai-usage-tracker] Failed to log AI usage:", error.message);
+      console.error(
+        "[ai-usage-tracker] Failed to log AI usage:",
+        error.message,
+      );
     }
   } catch (err) {
     console.error(

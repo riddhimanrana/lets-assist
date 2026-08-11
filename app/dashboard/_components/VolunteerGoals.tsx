@@ -6,10 +6,22 @@ import { Input } from "@/components/ui/input";
 import { ProgressCircle } from "./ProgressCircle";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { PencilIcon, SaveIcon, CheckCircle, Target, Calendar } from "lucide-react";
-import { DateRange } from "react-day-picker";
+import {
+  PencilIcon,
+  SaveIcon,
+  CheckCircle,
+  Target,
+  Calendar,
+} from "lucide-react";
+import { DateRange } from "@daypicker/react";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 // Import the type for the goals data
 import { VolunteerGoalsData } from "@/types";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
@@ -49,7 +61,7 @@ interface GoalsProps {
 }
 
 // Use the imported type
-interface Goals extends VolunteerGoalsData { }
+interface Goals extends VolunteerGoalsData {}
 
 // Define semester periods
 const getSemesterPeriods = () => {
@@ -57,45 +69,76 @@ const getSemesterPeriods = () => {
   const currentMonth = new Date().getMonth();
 
   // Determine current semester
-  let currentSemester = '';
-  if (currentMonth >= 7 && currentMonth <= 11) { // Aug-Dec
-    currentSemester = 'fall';
-  } else if (currentMonth >= 0 && currentMonth <= 4) { // Jan-May
-    currentSemester = 'spring';
-  } else { // May-Aug
-    currentSemester = 'summer';
+  let currentSemester = "";
+  if (currentMonth >= 7 && currentMonth <= 11) {
+    // Aug-Dec
+    currentSemester = "fall";
+  } else if (currentMonth >= 0 && currentMonth <= 4) {
+    // Jan-May
+    currentSemester = "spring";
+  } else {
+    // May-Aug
+    currentSemester = "summer";
   }
 
   return {
-    'current-year': {
+    "current-year": {
       label: `Academic Year ${currentYear}`,
       from: new Date(currentYear, 7, 1), // August 1st
-      to: new Date(currentYear + 1, 6, 31) // July 31st next year
+      to: new Date(currentYear + 1, 6, 31), // July 31st next year
     },
-    'fall-semester': {
-      label: `Fall ${currentSemester === 'fall' ? currentYear : currentYear - 1}`,
-      from: new Date(currentSemester === 'fall' ? currentYear : currentYear - 1, 7, 1), // August 1st
-      to: new Date(currentSemester === 'fall' ? currentYear : currentYear - 1, 11, 31) // December 31st
+    "fall-semester": {
+      label: `Fall ${currentSemester === "fall" ? currentYear : currentYear - 1}`,
+      from: new Date(
+        currentSemester === "fall" ? currentYear : currentYear - 1,
+        7,
+        1,
+      ), // August 1st
+      to: new Date(
+        currentSemester === "fall" ? currentYear : currentYear - 1,
+        11,
+        31,
+      ), // December 31st
     },
-    'spring-semester': {
-      label: `Spring ${currentSemester === 'spring' ? currentYear : currentYear + 1}`,
-      from: new Date(currentSemester === 'spring' ? currentYear : currentYear + 1, 0, 1), // January 1st
-      to: new Date(currentSemester === 'spring' ? currentYear : currentYear + 1, 4, 31) // May 31st
+    "spring-semester": {
+      label: `Spring ${currentSemester === "spring" ? currentYear : currentYear + 1}`,
+      from: new Date(
+        currentSemester === "spring" ? currentYear : currentYear + 1,
+        0,
+        1,
+      ), // January 1st
+      to: new Date(
+        currentSemester === "spring" ? currentYear : currentYear + 1,
+        4,
+        31,
+      ), // May 31st
     },
-    'summer-semester': {
-      label: `Summer ${currentSemester === 'summer' ? currentYear : currentYear + 1}`,
-      from: new Date(currentSemester === 'summer' ? currentYear : currentYear + 1, 5, 1), // June 1st
-      to: new Date(currentSemester === 'summer' ? currentYear : currentYear + 1, 7, 31) // August 31st
+    "summer-semester": {
+      label: `Summer ${currentSemester === "summer" ? currentYear : currentYear + 1}`,
+      from: new Date(
+        currentSemester === "summer" ? currentYear : currentYear + 1,
+        5,
+        1,
+      ), // June 1st
+      to: new Date(
+        currentSemester === "summer" ? currentYear : currentYear + 1,
+        7,
+        31,
+      ), // August 31st
     },
-    'lifetime': {
-      label: 'Lifetime',
+    lifetime: {
+      label: "Lifetime",
       from: undefined,
-      to: undefined
-    }
+      to: undefined,
+    },
   };
 };
 
-export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) {
+export function VolunteerGoals({
+  userId,
+  totalHours,
+  totalEvents,
+}: GoalsProps) {
   const [goals, setGoals] = useState<Goals>({
     hours_goal: 0,
     events_goal: 0,
@@ -108,14 +151,22 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
   const [loading, setLoading] = useState(true);
 
   // Date range state
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('lifetime');
-  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("lifetime");
+  const [customDateRange, setCustomDateRange] = useState<
+    DateRange | undefined
+  >();
   const [filteredHours, setFilteredHours] = useState(totalHours);
   const [filteredEvents, setFilteredEvents] = useState(totalEvents);
 
   // Calculate percentages using filtered data
-  const hoursPercentage = goals.hours_goal > 0 ? Math.min(100, (filteredHours / goals.hours_goal) * 100) : 0;
-  const eventsPercentage = goals.events_goal > 0 ? Math.min(100, (filteredEvents / goals.events_goal) * 100) : 0;
+  const hoursPercentage =
+    goals.hours_goal > 0
+      ? Math.min(100, (filteredHours / goals.hours_goal) * 100)
+      : 0;
+  const eventsPercentage =
+    goals.events_goal > 0
+      ? Math.min(100, (filteredEvents / goals.events_goal) * 100)
+      : 0;
 
   // Function to filter data based on selected period
   const filterDataByPeriod = async (period: string, dateRange?: DateRange) => {
@@ -124,10 +175,10 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
       let startDate: Date | undefined;
       let endDate: Date | undefined;
 
-      if (period === 'custom' && dateRange) {
+      if (period === "custom" && dateRange) {
         startDate = dateRange.from;
         endDate = dateRange.to;
-      } else if (period !== 'lifetime') {
+      } else if (period !== "lifetime") {
         const periods = getSemesterPeriods();
         const selectedPeriodData = periods[period as keyof typeof periods];
         startDate = selectedPeriodData.from;
@@ -135,7 +186,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
       }
 
       // If lifetime is selected, use all data
-      if (period === 'lifetime') {
+      if (period === "lifetime") {
         setFilteredHours(totalHours);
         setFilteredEvents(totalEvents);
         return;
@@ -143,15 +194,15 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
 
       // Fetch filtered certificates based on date range
       let query = supabase
-        .from('certificates')
-        .select('event_start, event_end')
-        .eq('user_id', userId);
+        .from("certificates")
+        .select("event_start, event_end")
+        .eq("user_id", userId);
 
       if (startDate) {
-        query = query.gte('event_start', startDate.toISOString());
+        query = query.gte("event_start", startDate.toISOString());
       }
       if (endDate) {
-        query = query.lte('event_end', endDate.toISOString());
+        query = query.lte("event_end", endDate.toISOString());
       }
 
       const certificatesResult = await withRetryableSupabaseQuery(() => query);
@@ -161,7 +212,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
       };
 
       if (error) {
-        console.error('Error filtering certificates:', error);
+        console.error("Error filtering certificates:", error);
         return;
       }
 
@@ -178,10 +229,9 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
 
       setFilteredHours(totalFilteredHours);
       setFilteredEvents(certificates?.length || 0);
-
     } catch (error) {
-      console.error('Error filtering data:', error);
-      toast.error('Failed to filter data by date range');
+      console.error("Error filtering data:", error);
+      toast.error("Failed to filter data by date range");
     }
   };
 
@@ -189,7 +239,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
   const handlePeriodChange = (period: string | null) => {
     if (!period) return;
     setSelectedPeriod(period);
-    if (period !== 'custom') {
+    if (period !== "custom") {
       setCustomDateRange(undefined);
       filterDataByPeriod(period);
     }
@@ -199,7 +249,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
   const handleDateRangeChange = (dateRange: DateRange | undefined) => {
     setCustomDateRange(dateRange);
     if (dateRange && dateRange.from && dateRange.to) {
-      filterDataByPeriod('custom', dateRange);
+      filterDataByPeriod("custom", dateRange);
     }
   };
 
@@ -209,11 +259,13 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
         const supabase = createClient();
 
         // Fetch the volunteer_goals JSONB field from the profiles table
-        const profileResult = await withRetryableSupabaseQuery(() => supabase
-          .from("profiles")
-          .select("volunteer_goals") // Select the JSONB column
-          .eq("id", userId)
-          .maybeSingle());
+        const profileResult = await withRetryableSupabaseQuery(() =>
+          supabase
+            .from("profiles")
+            .select("volunteer_goals") // Select the JSONB column
+            .eq("id", userId)
+            .maybeSingle(),
+        );
 
         const { data: profileData, error } = profileResult as {
           data: { volunteer_goals: VolunteerGoalsData | null } | null;
@@ -231,13 +283,12 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
           const goalsData = profileData.volunteer_goals as VolunteerGoalsData;
           setGoals({
             hours_goal: goalsData.hours_goal || 0,
-            events_goal: goalsData.events_goal || 0
+            events_goal: goalsData.events_goal || 0,
           });
         } else {
           // If volunteer_goals is null or undefined, set default goals
           setGoals({ hours_goal: 0, events_goal: 0 });
         }
-
       } catch (error) {
         console.error("Error in fetchGoals:", error);
       } finally {
@@ -250,22 +301,22 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
     }
   }, [userId]);
 
-  const saveGoal = async (type: 'hours' | 'events') => {
+  const saveGoal = async (type: "hours" | "events") => {
     try {
       const supabase = createClient();
 
       // Parse the temporary input values
-      const newHoursGoal = type === 'hours'
-        ? parseInt(tempHoursGoal) || 0
-        : goals.hours_goal;
+      const newHoursGoal =
+        type === "hours" ? parseInt(tempHoursGoal) || 0 : goals.hours_goal;
 
-      const newEventsGoal = type === 'events'
-        ? parseInt(tempEventsGoal) || 0
-        : goals.events_goal;
+      const newEventsGoal =
+        type === "events" ? parseInt(tempEventsGoal) || 0 : goals.events_goal;
 
       // Validate the input (no negative numbers)
-      if ((type === 'hours' && newHoursGoal < 0) ||
-        (type === 'events' && newEventsGoal < 0)) {
+      if (
+        (type === "hours" && newHoursGoal < 0) ||
+        (type === "events" && newEventsGoal < 0)
+      ) {
         toast.error("Goals cannot be negative numbers");
         return;
       }
@@ -290,13 +341,14 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
       setGoals(updatedGoalsData);
 
       // Exit editing mode
-      if (type === 'hours') {
+      if (type === "hours") {
         setEditingHours(false);
       } else {
         setEditingEvents(false);
       }
-      toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} goal updated`);
-
+      toast.success(
+        `${type.charAt(0).toUpperCase() + type.slice(1)} goal updated`,
+      );
     } catch (error) {
       console.error(`Error saving ${type} goal:`, error);
       toast.error(`Failed to update your ${type} goal`);
@@ -304,8 +356,8 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
   };
 
   // Handle start editing
-  const startEditing = (type: 'hours' | 'events') => {
-    if (type === 'hours') {
+  const startEditing = (type: "hours" | "events") => {
+    if (type === "hours") {
       setTempHoursGoal(goals.hours_goal.toString());
       setEditingHours(true);
     } else {
@@ -315,8 +367,8 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
   };
 
   // Handle cancel editing
-  const cancelEditing = (type: 'hours' | 'events') => {
-    if (type === 'hours') {
+  const cancelEditing = (type: "hours" | "events") => {
+    if (type === "hours") {
       setEditingHours(false);
     } else {
       setEditingEvents(false);
@@ -344,9 +396,13 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
           <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select time period">
-                {selectedPeriod === 'custom'
+                {selectedPeriod === "custom"
                   ? "Custom Date Range"
-                  : getSemesterPeriods()[selectedPeriod as keyof ReturnType<typeof getSemesterPeriods>]?.label || "Select time period"}
+                  : getSemesterPeriods()[
+                      selectedPeriod as keyof ReturnType<
+                        typeof getSemesterPeriods
+                      >
+                    ]?.label || "Select time period"}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -359,7 +415,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
             </SelectContent>
           </Select>
 
-          {selectedPeriod === 'custom' && (
+          {selectedPeriod === "custom" && (
             <DateRangePicker
               value={customDateRange}
               onChange={handleDateRangeChange}
@@ -369,7 +425,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
           )}
         </div>
 
-        {selectedPeriod !== 'lifetime' && (
+        {selectedPeriod !== "lifetime" && (
           <div className="text-xs text-muted-foreground">
             Showing progress for selected period only
           </div>
@@ -383,7 +439,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
           <div className="text-sm text-muted-foreground">
             {goals.hours_goal > 0
               ? // Use formatTotalDuration for both current and goal hours
-              `${formatTotalDuration(Math.min(filteredHours, goals.hours_goal))} / ${formatTotalDuration(goals.hours_goal)} completed`
+                `${formatTotalDuration(Math.min(filteredHours, goals.hours_goal))} / ${formatTotalDuration(goals.hours_goal)} completed`
               : "Set a target for volunteer hours"}
           </div>
 
@@ -401,7 +457,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => saveGoal('hours')}
+                onClick={() => saveGoal("hours")}
                 className="h-8 w-8"
               >
                 <SaveIcon className="h-4 w-4" />
@@ -409,17 +465,18 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => cancelEditing('hours')}
+                onClick={() => cancelEditing("hours")}
                 className="h-8 w-8"
               >
-                <Target className="h-4 w-4" /> {/* Changed X to Target for consistency */}
+                <Target className="h-4 w-4" />{" "}
+                {/* Changed X to Target for consistency */}
               </Button>
             </div>
           ) : (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => startEditing('hours')}
+              onClick={() => startEditing("hours")}
               className="mt-1 h-8 px-2 text-xs"
             >
               <PencilIcon className="h-3 w-3 mr-1" />
@@ -463,7 +520,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => saveGoal('events')}
+                onClick={() => saveGoal("events")}
                 className="h-8 w-8"
               >
                 <SaveIcon className="h-4 w-4" />
@@ -471,17 +528,18 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => cancelEditing('events')}
+                onClick={() => cancelEditing("events")}
                 className="h-8 w-8"
               >
-                <Target className="h-4 w-4" /> {/* Changed X to Target for consistency */}
+                <Target className="h-4 w-4" />{" "}
+                {/* Changed X to Target for consistency */}
               </Button>
             </div>
           ) : (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => startEditing('events')}
+              onClick={() => startEditing("events")}
               className="mt-1 h-8 px-2 text-xs"
             >
               <PencilIcon className="h-3 w-3 mr-1" />
@@ -508,8 +566,8 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
           <div>
             <p className="font-medium text-sm">Goal achieved!</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Congratulations on reaching your volunteering goal!
-              Consider setting a new target to continue your impact.
+              Congratulations on reaching your volunteering goal! Consider
+              setting a new target to continue your impact.
             </p>
           </div>
         </div>

@@ -8,7 +8,12 @@ export const VOLUNTEER_DASHBOARD_SIGNUP_STATUSES = [
 
 type VolunteerDashboardSignup = Pick<
   Signup,
-  "id" | "schedule_id" | "status" | "check_in_time" | "check_out_time" | "created_at"
+  | "id"
+  | "schedule_id"
+  | "status"
+  | "check_in_time"
+  | "check_out_time"
+  | "created_at"
 >;
 
 export function buildVolunteerDashboardSlotState(

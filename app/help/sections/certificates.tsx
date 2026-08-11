@@ -1,11 +1,30 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Award, Download, Eye, Share2, Printer, BadgeCheck, MapPin } from "lucide-react";
+import {
+  Award,
+  Download,
+  Eye,
+  Share2,
+  Printer,
+  BadgeCheck,
+  MapPin,
+} from "lucide-react";
 import Link from "next/link";
 
 export function CertificatesSection() {
@@ -48,15 +67,22 @@ export function CertificatesSection() {
               <h4 className="font-semibold">Certificate Types</h4>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="bg-success/5 border-success/20 text-success">
+                  <Badge
+                    variant="outline"
+                    className="bg-success/5 border-success/20 text-success"
+                  >
                     <BadgeCheck className="h-3 w-3 mr-1" />
                     Certified
                   </Badge>
-                  <span className="text-sm text-muted-foreground">From verified organizations</span>
+                  <span className="text-sm text-muted-foreground">
+                    From verified organizations
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline">Participated</Badge>
-                  <span className="text-sm text-muted-foreground">Individual or unverified projects</span>
+                  <span className="text-sm text-muted-foreground">
+                    Individual or unverified projects
+                  </span>
                 </div>
               </div>
             </div>
@@ -65,7 +91,10 @@ export function CertificatesSection() {
       </Card>
 
       <Accordion className="w-full space-y-4">
-        <AccordionItem value="viewing-certificates" className="border rounded-lg px-4">
+        <AccordionItem
+          value="viewing-certificates"
+          className="border rounded-lg px-4"
+        >
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2">
               <Eye className="h-4 w-4" />
@@ -94,11 +123,19 @@ export function CertificatesSection() {
                 </ol>
               </div>
             </div>
-            <Link href="/certificates" className={cn(buttonVariants({ size: "sm", className: "mt-2" }))}>View My Certificates</Link>
+            <Link
+              href="/certificates"
+              className={cn(buttonVariants({ size: "sm", className: "mt-2" }))}
+            >
+              View My Certificates
+            </Link>
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="certificate-details" className="border rounded-lg px-4">
+        <AccordionItem
+          value="certificate-details"
+          className="border rounded-lg px-4"
+        >
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2">
               <Award className="h-4 w-4" />
@@ -106,7 +143,10 @@ export function CertificatesSection() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="space-y-3 text-sm pt-4">
-            <p>Each certificate contains detailed information about your volunteer work:</p>
+            <p>
+              Each certificate contains detailed information about your
+              volunteer work:
+            </p>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <h6 className="font-medium mb-2">Basic Information:</h6>
@@ -130,12 +170,18 @@ export function CertificatesSection() {
               </div>
             </div>
             <div className="bg-muted/50 p-3 rounded-lg">
-              <p className="text-xs"><strong>Note:</strong> Certificates from verified organizations carry more weight for academic and scholarship applications.</p>
+              <p className="text-xs">
+                <strong>Note:</strong> Certificates from verified organizations
+                carry more weight for academic and scholarship applications.
+              </p>
             </div>
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="sharing-certificates" className="border rounded-lg px-4">
+        <AccordionItem
+          value="sharing-certificates"
+          className="border rounded-lg px-4"
+        >
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2">
               <Share2 className="h-4 w-4" />
@@ -149,28 +195,40 @@ export function CertificatesSection() {
                 <Share2 className="h-4 w-4 mt-1 text-primary" />
                 <div>
                   <h6 className="font-medium text-xs">Direct Links</h6>
-                  <p className="text-xs text-muted-foreground">Each certificate has a unique URL that can be shared with schools, employers, or scholarship committees</p>
+                  <p className="text-xs text-muted-foreground">
+                    Each certificate has a unique URL that can be shared with
+                    schools, employers, or scholarship committees
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-2 border rounded">
                 <Download className="h-4 w-4 mt-1 text-primary" />
                 <div>
                   <h6 className="font-medium text-xs">PDF Downloads</h6>
-                  <p className="text-xs text-muted-foreground">Download individual certificates as PDF files for printing or email attachments</p>
+                  <p className="text-xs text-muted-foreground">
+                    Download individual certificates as PDF files for printing
+                    or email attachments
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-2 border rounded">
                 <Printer className="h-4 w-4 mt-1 text-primary" />
                 <div>
                   <h6 className="font-medium text-xs">Print Options</h6>
-                  <p className="text-xs text-muted-foreground">Print single certificates or bulk print multiple certificates for physical submission</p>
+                  <p className="text-xs text-muted-foreground">
+                    Print single certificates or bulk print multiple
+                    certificates for physical submission
+                  </p>
                 </div>
               </div>
             </div>
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="exporting-certificates" className="border rounded-lg px-4">
+        <AccordionItem
+          value="exporting-certificates"
+          className="border rounded-lg px-4"
+        >
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2">
               <Download className="h-4 w-4" />
@@ -178,7 +236,10 @@ export function CertificatesSection() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="space-y-3 text-sm pt-4">
-            <p>Export your certificates in various formats for different purposes:</p>
+            <p>
+              Export your certificates in various formats for different
+              purposes:
+            </p>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <h6 className="font-medium mb-2">From Dashboard:</h6>
@@ -213,7 +274,10 @@ export function CertificatesSection() {
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="certificate-verification" className="border rounded-lg px-4">
+        <AccordionItem
+          value="certificate-verification"
+          className="border rounded-lg px-4"
+        >
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2">
               <BadgeCheck className="h-4 w-4" />
@@ -225,7 +289,10 @@ export function CertificatesSection() {
             <div className="space-y-3">
               <div className="p-3 border rounded-lg">
                 <h6 className="font-medium text-xs mb-2 flex items-center gap-1">
-                  <Badge variant="outline" className="bg-success/5 border-success/20 text-success">
+                  <Badge
+                    variant="outline"
+                    className="bg-success/5 border-success/20 text-success"
+                  >
                     <BadgeCheck className="h-3 w-3 mr-1" />
                     Verified Organizations
                   </Badge>
@@ -238,7 +305,9 @@ export function CertificatesSection() {
                 </ul>
               </div>
               <div className="p-3 border rounded-lg">
-                <h6 className="font-medium text-xs mb-2">All Certificates Include:</h6>
+                <h6 className="font-medium text-xs mb-2">
+                  All Certificates Include:
+                </h6>
                 <ul className="text-xs text-muted-foreground space-y-1">
                   <li>• Unique certificate ID for tracking</li>
                   <li>• QR codes for instant verification</li>
@@ -249,12 +318,17 @@ export function CertificatesSection() {
               </div>
             </div>
             <div className="mt-3 p-2 bg-muted/50 rounded text-xs">
-              <strong>For Verifiers:</strong> Anyone can verify a certificate by visiting the unique URL or scanning the QR code to see full details and confirm authenticity.
+              <strong>For Verifiers:</strong> Anyone can verify a certificate by
+              visiting the unique URL or scanning the QR code to see full
+              details and confirm authenticity.
             </div>
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="certificate-tips" className="border rounded-lg px-4">
+        <AccordionItem
+          value="certificate-tips"
+          className="border rounded-lg px-4"
+        >
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4" />
@@ -286,7 +360,11 @@ export function CertificatesSection() {
               </div>
             </div>
             <div className="bg-primary/10 p-3 rounded-lg">
-              <p className="text-xs"><strong>Remember:</strong> The more detailed and verified your volunteer work is, the more valuable your certificates become for school applications, scholarships, and future opportunities.</p>
+              <p className="text-xs">
+                <strong>Remember:</strong> The more detailed and verified your
+                volunteer work is, the more valuable your certificates become
+                for school applications, scholarships, and future opportunities.
+              </p>
             </div>
           </AccordionContent>
         </AccordionItem>

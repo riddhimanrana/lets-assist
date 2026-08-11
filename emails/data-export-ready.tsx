@@ -8,7 +8,7 @@ import {
   Preview,
   Section,
   Text,
-} from "@react-email/components";
+} from "react-email";
 import * as React from "react";
 
 import EmailFooter from "./_components/EmailFooter";
@@ -38,8 +38,13 @@ export default function DataExportReadyEmail({
   zipSizeBytes,
 }: DataExportReadyEmailProps) {
   const generatedDate = new Date(generatedAt).toLocaleString();
-  const expiresDate = linkExpiresAt ? new Date(linkExpiresAt).toLocaleString() : null;
-  const zipSizeMb = typeof zipSizeBytes === "number" ? (zipSizeBytes / (1024 * 1024)).toFixed(2) : null;
+  const expiresDate = linkExpiresAt
+    ? new Date(linkExpiresAt).toLocaleString()
+    : null;
+  const zipSizeMb =
+    typeof zipSizeBytes === "number"
+      ? (zipSizeBytes / (1024 * 1024)).toFixed(2)
+      : null;
 
   return (
     <Html lang="en">
@@ -87,17 +92,21 @@ export default function DataExportReadyEmail({
                     </Link>
                   </Text>
                   {expiresDate && (
-                    <Text style={smallText}>This link expires on {expiresDate}.</Text>
+                    <Text style={smallText}>
+                      This link expires on {expiresDate}.
+                    </Text>
                   )}
                 </Section>
               )}
 
               <Text style={smallText}>
-                For security, sensitive token-like fields are redacted in the exported file.
+                For security, sensitive token-like fields are redacted in the
+                exported file.
               </Text>
 
               <Text style={smallText}>
-                You can always generate a fresh copy from your account security page: {" "}
+                You can always generate a fresh copy from your account security
+                page:{" "}
                 <Link href={accountUrl} style={link}>
                   {accountUrl}
                 </Link>

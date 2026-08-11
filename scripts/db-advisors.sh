@@ -14,6 +14,11 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
+LINKED=false
+if [[ "${1:-}" == "--linked" ]]; then
+  LINKED=true
+fi
+
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}  Supabase Advisors Check${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -35,66 +40,82 @@ if ! supabase db advisors --help > /dev/null 2>&1; then
   exit 0
 fi
 
-# Check if local Supabase is running
-echo -e "${YELLOW}Checking local Supabase instance...${NC}"
-if ! bun run supabase:status > /dev/null 2>&1; then
-  echo -e "${YELLOW}⚠  Local Supabase is not running${NC}"
-  echo ""
-  read -p "Start local Supabase and reset to current migrations? (y/n) " -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "Starting Supabase..."
-    bun run supabase:start
-    echo "Waiting for database to be ready..."
-    sleep 5
-    
-    echo "Resetting database to current migrations..."
-    bun run supabase:reset
-  else
+if [[ "$LINKED" == "false" ]]; then
+  # Check if local Supabase is running
+  echo -e "${YELLOW}Checking local Supabase instance...${NC}"
+  if ! bun run supabase:status > /dev/null 2>&1; then
+    echo -e "${YELLOW}⚠  Local Supabase is not running${NC}"
     echo ""
-    echo -e "${YELLOW}Advisors check requires a running local database${NC}"
-    echo "Run: bun run supabase:start && bun run supabase:reset"
-    exit 1
+    read -p "Start local Supabase and reset to current migrations? (y/n) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      echo "Starting Supabase..."
+      bun run supabase:start
+      echo "Waiting for database to be ready..."
+      sleep 5
+
+      echo "Resetting database to current migrations..."
+      bun run supabase:reset
+    else
+      echo ""
+      echo -e "${YELLOW}Advisors check requires a running local database${NC}"
+      echo "Run: bun run supabase:start && bun run supabase:reset"
+      exit 1
+    fi
   fi
+
+  echo -e "${GREEN}✓ Local Supabase is ready${NC}"
+  echo ""
 fi
 
-echo -e "${GREEN}✓ Local Supabase is ready${NC}"
+echo -e "${YELLOW}Running advisors...${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+ADVISOR_JSON="$(mktemp)"
+trap 'rm -f "$ADVISOR_JSON"' EXIT
+
+if [[ "$LINKED" == "true" ]]; then
+  supabase db advisors --linked --output-format json > "$ADVISOR_JSON"
+else
+  supabase db advisors --local --output-format json > "$ADVISOR_JSON"
+fi
+
+TOTAL_ISSUES=$(jq '.results | length' "$ADVISOR_JSON")
+SECURITY_ISSUES=$(jq '[.results[] | select(.categories[]? == "SECURITY")] | length' "$ADVISOR_JSON")
+PERF_ISSUES=$(jq '[.results[] | select(.categories[]? == "PERFORMANCE")] | length' "$ADVISOR_JSON")
+
+echo "Target: $([[ "$LINKED" == "true" ]] && echo "linked remote" || echo "local")"
+echo "Total issues: $TOTAL_ISSUES"
+echo "Security issues: $SECURITY_ISSUES"
+echo "Performance issues: $PERF_ISSUES"
 echo ""
 
-# Run security advisors
-echo -e "${YELLOW}Running Security Advisors...${NC}"
-echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-SECURITY_ISSUES=0
+if [ "$TOTAL_ISSUES" -gt 0 ]; then
+  echo -e "${YELLOW}Issue counts by advisor:${NC}"
+  jq -r '
+    .results
+    | group_by(.name)
+    | map({ name: .[0].name, categories: (.[0].categories | join(",")), count: length })
+    | sort_by(-.count, .name)
+    | .[]
+    | "  \(.count)x \(.name) [\(.categories)]"
+  ' "$ADVISOR_JSON"
+  echo ""
 
-if supabase db advisors --linked=false | grep -q "SECURITY"; then
-  SECURITY_ISSUES=1
-  supabase db advisors --linked=false | grep -A 2 "SECURITY" || true
-fi
-
-if [ $SECURITY_ISSUES -eq 0 ]; then
-  echo -e "${GREEN}✓ No security issues detected${NC}"
-fi
-echo ""
-
-# Run performance advisors
-echo -e "${YELLOW}Running Performance Advisors...${NC}"
-echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-PERF_ISSUES=0
-
-if supabase db advisors --linked=false | grep -q "PERFORMANCE"; then
-  PERF_ISSUES=1
-  supabase db advisors --linked=false | grep -A 2 "PERFORMANCE" || true
-fi
-
-if [ $PERF_ISSUES -eq 0 ]; then
-  echo -e "${GREEN}✓ No performance issues detected${NC}"
+  echo -e "${YELLOW}Advisor details:${NC}"
+  jq -r '
+    .results[]
+    | "• [\(.level)] \(.name): \(.detail)"
+  ' "$ADVISOR_JSON"
+else
+  echo -e "${GREEN}✓ No advisor issues detected${NC}"
 fi
 echo ""
 
 # Summary
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
-if [ $SECURITY_ISSUES -eq 0 ] && [ $PERF_ISSUES -eq 0 ]; then
+if [ "$SECURITY_ISSUES" -eq 0 ] && [ "$PERF_ISSUES" -eq 0 ]; then
   echo -e "${GREEN}✓ All advisors checks passed${NC}"
   echo ""
   echo "Your schema appears to be secure and performant."

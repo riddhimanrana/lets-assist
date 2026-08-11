@@ -1,23 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { DateRange } from "react-day-picker";
-import { addDays, endOfDay, format, startOfDay, startOfMonth, subMonths } from "date-fns";
+import { DateRange } from "@daypicker/react";
+import {
+  endOfDay,
+  format,
+  startOfDay,
+  startOfMonth,
+  subMonths,
+} from "date-fns";
 import { toast } from "sonner";
 import {
   BarChart,
   Clock,
-  Download,
   FileSpreadsheet,
   FolderKanban,
   RefreshCw,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,7 +49,15 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { Bar, BarChart as RechartsBarChart, XAxis, YAxis, CartesianGrid } from "recharts";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart as RechartsBarChart,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -56,16 +75,12 @@ import {
 } from "@/components/ui/accordion";
 
 import {
-  exportOrganizationReport,
   getOrganizationReportData,
   type OrganizationReportData,
   type ReportType,
 } from "./reports/actions";
 import { ReportLayoutCustomizer } from "./reports/ReportLayoutCustomizer";
-import {
-  getDefaultLayout,
-  type ReportLayoutConfig,
-} from "./reports/report-layouts";
+import { type ReportLayoutConfig } from "./reports/report-layouts";
 import {
   createSheetSync,
   connectExistingSheet,
@@ -106,7 +121,9 @@ type GooglePickerBuilder = {
   setOAuthToken: (token: string) => GooglePickerBuilder;
   setDeveloperKey: (key: string) => GooglePickerBuilder;
   setOrigin: (origin: string) => GooglePickerBuilder;
-  setCallback: (callback: (data: PickerCallbackData) => void) => GooglePickerBuilder;
+  setCallback: (
+    callback: (data: PickerCallbackData) => void,
+  ) => GooglePickerBuilder;
   build: () => { setVisible: (visible: boolean) => void };
 };
 
@@ -123,14 +140,6 @@ type GoogleApiWindow = Window & {
   gapi?: { load: (name: string, options: { callback: () => void }) => void };
   google?: GooglePickerNamespace;
 };
-
-const presetRanges = [
-  { id: "fiscal", label: "This Fiscal Year" },
-  { id: "last-fiscal", label: "Last Fiscal Year" },
-  { id: "ytd", label: "Year to Date" },
-  { id: "last-30", label: "Last 30 Days" },
-  { id: "lifetime", label: "Lifetime" },
-] as const;
 
 const reportTypeLabels: Record<ReportType, string> = {
   "member-hours": "Member Hours Summary",
@@ -158,50 +167,59 @@ const getSyncIntervalLabel = (value: string | number | null | undefined) => {
   );
 };
 
-const buildExclusiveRange = (from: Date, toInclusive: Date) => ({
-  from,
-  to: addDays(toInclusive, 1),
-});
-
-const getFiscalYearRange = (reference: Date, offsetYears = 0) => {
-  const startYear = reference.getMonth() >= 6 ? reference.getFullYear() : reference.getFullYear() - 1;
-  const from = new Date(startYear + offsetYears, 6, 1);
-  const to = new Date(startYear + offsetYears + 1, 5, 30);
-  return buildExclusiveRange(from, to);
-};
-
-export default function ReportsTab({ 
-  organizationId, 
+export default function ReportsTab({
+  organizationId,
   organizationSlug,
-  organizationName, 
-  userRole 
+  userRole,
 }: ReportsTabProps) {
   const searchParams = useSearchParams();
-  const chartConfig = useMemo(() => ({
-    total: {
-      label: "Hours",
-      color: "var(--chart-3)",
-    },
-  } satisfies ChartConfig), []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        total: {
+          label: "Hours",
+          color: "var(--chart-3)",
+        },
+        verified: {
+          label: "Verified",
+          color: "var(--chart-1)",
+        },
+        pending: {
+          label: "Pending",
+          color: "var(--chart-4)",
+        },
+        volunteers: {
+          label: "Volunteers",
+          color: "var(--chart-2)",
+        },
+      }) satisfies ChartConfig,
+    [],
+  );
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => ({
     from: startOfMonth(subMonths(new Date(), 11)),
     to: new Date(),
   }));
-  const [reportData, setReportData] = useState<OrganizationReportData | null>(null);
+  const [reportData, setReportData] = useState<OrganizationReportData | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
-  const [exporting, setExporting] = useState<ReportType | null>(null);
-  const [sheetStatus, setSheetStatus] = useState<Awaited<ReturnType<typeof getSheetSyncStatus>> | null>(null);
+  const [sheetStatus, setSheetStatus] = useState<Awaited<
+    ReturnType<typeof getSheetSyncStatus>
+  > | null>(null);
   const [syncingSheet, setSyncingSheet] = useState(false);
   const [creatingSheet, setCreatingSheet] = useState(false);
   const [sheetTabName, setSheetTabName] = useState("Member Hours");
-  const [sheetReportType, setSheetReportType] = useState<ReportType>("member-hours");
+  const [sheetReportType, setSheetReportType] =
+    useState<ReportType>("member-hours");
   const [rangeMode, setRangeMode] = useState<"full" | "custom">("full");
   const [rangeStartColumn, setRangeStartColumn] = useState("A");
   const [rangeStartRow, setRangeStartRow] = useState("1");
   const [rangeEndColumn, setRangeEndColumn] = useState("H");
   const [rangeEndRow, setRangeEndRow] = useState("20");
-  const [layoutConfig, setLayoutConfig] = useState<ReportLayoutConfig | null>(null);
+  const [layoutConfig, setLayoutConfig] = useState<ReportLayoutConfig | null>(
+    null,
+  );
   const [setupMode, setSetupMode] = useState<"create" | "existing">("create");
   const [sheetInput, setSheetInput] = useState("");
   const [sheetMetadata, setSheetMetadata] = useState<{
@@ -212,14 +230,16 @@ export default function ReportsTab({
   } | null>(null);
   const [previewRows, setPreviewRows] = useState<string[][] | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewRequested, setPreviewRequested] = useState(false);
+  const [, setPreviewRequested] = useState(false);
   const [setupError, setSetupError] = useState<string | null>(null);
   const [pickerReady, setPickerReady] = useState(false);
   const [pickerLoading, setPickerLoading] = useState(false);
   const [connectingSheet, setConnectingSheet] = useState(false);
   const [unlinkingSheet, setUnlinkingSheet] = useState(false);
   const [showUnlinkDialog, setShowUnlinkDialog] = useState(false);
-  const [unlinkIntent, setUnlinkIntent] = useState<"unlink" | "switch">("unlink");
+  const [unlinkIntent, setUnlinkIntent] = useState<"unlink" | "switch">(
+    "unlink",
+  );
   const [sheetConfigSections, setSheetConfigSections] = useState<string[]>([]);
   const [availableOwners, setAvailableOwners] = useState<
     Array<{
@@ -253,17 +273,22 @@ export default function ReportsTab({
   const viewerScopesOk = sheetStatus?.viewerScopesOk ?? false;
   const viewerNeedsSheets = isAdmin && viewerConnected && !viewerScopesOk;
   const viewerMissingConnection = isAdmin && !viewerConnected;
-  const ownerNeedsSheets = sheetStatus?.connected && sheetStatus?.scopesOk === false;
-  const needsSheetScopes = viewerNeedsSheets || ownerNeedsSheets;
+  const ownerNeedsSheets =
+    sheetStatus?.connected && sheetStatus?.scopesOk === false;
   const connectedByLabel =
     sheetStatus?.connectedBy?.name || sheetStatus?.connectedBy?.email || null;
   const hasSheetOwner = Boolean(sheetStatus?.connectedBy);
   const hasSyncConfig = Boolean(sheetStatus?.syncConfig);
   const canReconnect = isAdmin; // Any admin can reconnect/take over a broken or existing sync
   const orgSlugOrId = organizationSlug || organizationId;
-  const connectUrl = `/api/calendar/google/connect?scopes=sheets&sheets_sync=1&force=1&org_id=${organizationId}&return_to=${encodeURIComponent(
-    `/organization/${orgSlugOrId}?tab=reports`
+  const connectUrl = `/api/calendar/google/connect?purpose=organization_sheets&scopes=sheets&sheets_sync=1&force=1&org_id=${organizationId}&return_to=${encodeURIComponent(
+    `/organization/${orgSlugOrId}?tab=reports`,
   )}`;
+  const startGoogleConnection = () => {
+    // OAuth begins with a redirect response, so this must be a document navigation.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = connectUrl;
+  };
   const pickerApiKey = process.env.NEXT_PUBLIC_GOOGLE_PICKER_API_KEY;
   const setupBlockedReason = viewerMissingConnection
     ? "Connect your Google account to set up Sheets sync."
@@ -271,12 +296,13 @@ export default function ReportsTab({
       ? "Sheets permissions are missing. Reconnect with Sheets access to continue."
       : null;
   const managedByAnotherAdmin = Boolean(
-    sheetStatus?.syncConfig && hasSheetOwner && !sheetStatus?.viewerIsOwner
+    sheetStatus?.syncConfig && hasSheetOwner && !sheetStatus?.viewerIsOwner,
   );
 
   const columnOptions = useMemo(
-    () => Array.from({ length: 26 }, (_, index) => String.fromCharCode(65 + index)),
-    []
+    () =>
+      Array.from({ length: 26 }, (_, index) => String.fromCharCode(65 + index)),
+    [],
   );
 
   const rangeA1 = useMemo(() => {
@@ -290,7 +316,7 @@ export default function ReportsTab({
 
   const selectedOwner = useMemo(
     () => availableOwners.find((owner) => owner.id === selectedOwnerId) || null,
-    [availableOwners, selectedOwnerId]
+    [availableOwners, selectedOwnerId],
   );
 
   const dateRangeParam = useMemo(() => {
@@ -303,7 +329,10 @@ export default function ReportsTab({
 
   const loadReport = useCallback(async () => {
     setLoading(true);
-    const result = await getOrganizationReportData(organizationId, dateRangeParam);
+    const result = await getOrganizationReportData(
+      organizationId,
+      dateRangeParam,
+    );
     if (result.error || !result.data) {
       toast.error(result.error || "Failed to load reports");
     } else {
@@ -343,11 +372,24 @@ export default function ReportsTab({
     } else {
       toast.error(result.error || "Failed to update configuration");
     }
-  }, [organizationId, sheetTabName, sheetReportType, rangeA1, layoutConfig, sheetStatus?.syncConfig, handleLoadSheetStatus]);
+  }, [
+    organizationId,
+    sheetTabName,
+    sheetReportType,
+    rangeA1,
+    layoutConfig,
+    sheetStatus?.syncConfig,
+    handleLoadSheetStatus,
+  ]);
 
   const handlePreviewReport = useCallback(async () => {
     setPreviewLoading(true);
-    const result = await getSheetReportPreview(organizationId, sheetReportType, 12, layoutConfig);
+    const result = await getSheetReportPreview(
+      organizationId,
+      sheetReportType,
+      12,
+      layoutConfig,
+    );
     if (result.error || !result.rows) {
       toast.error(result.error || "Failed to generate preview");
     } else {
@@ -359,7 +401,13 @@ export default function ReportsTab({
 
   const handleCreateSheet = useCallback(async () => {
     setCreatingSheet(true);
-    const result = await createSheetSync(organizationId, sheetReportType, sheetTabName, rangeA1, layoutConfig);
+    const result = await createSheetSync(
+      organizationId,
+      sheetReportType,
+      sheetTabName,
+      rangeA1,
+      layoutConfig,
+    );
     if (result.success) {
       toast.success("Sheet created successfully");
       handleLoadSheetStatus();
@@ -367,7 +415,14 @@ export default function ReportsTab({
       setSetupError(result.error || "Failed to create sheet");
     }
     setCreatingSheet(false);
-  }, [organizationId, sheetReportType, sheetTabName, rangeA1, layoutConfig, handleLoadSheetStatus]);
+  }, [
+    organizationId,
+    sheetReportType,
+    sheetTabName,
+    rangeA1,
+    layoutConfig,
+    handleLoadSheetStatus,
+  ]);
 
   const handleUpdateOwner = useCallback(async () => {
     if (!selectedOwnerId) return;
@@ -382,23 +437,33 @@ export default function ReportsTab({
     setUpdatingOwner(false);
   }, [organizationId, selectedOwnerId, handleLoadSheetStatus]);
 
-  const handleToggleAutoSync = useCallback(async (checked: boolean) => {
-    const result = await updateSheetSyncSettings(organizationId, { autoSync: checked });
-    if (result.success) {
-      handleLoadSheetStatus();
-    } else {
-      toast.error(result.error || "Failed to update auto-sync");
-    }
-  }, [organizationId, handleLoadSheetStatus]);
+  const handleToggleAutoSync = useCallback(
+    async (checked: boolean) => {
+      const result = await updateSheetSyncSettings(organizationId, {
+        autoSync: checked,
+      });
+      if (result.success) {
+        handleLoadSheetStatus();
+      } else {
+        toast.error(result.error || "Failed to update auto-sync");
+      }
+    },
+    [organizationId, handleLoadSheetStatus],
+  );
 
-  const handleIntervalChange = useCallback(async (val: string) => {
-    const result = await updateSheetSyncSettings(organizationId, { syncIntervalMinutes: parseInt(val, 10) });
-    if (result.success) {
-      handleLoadSheetStatus();
-    } else {
-      toast.error(result.error || "Failed to update interval");
-    }
-  }, [organizationId, handleLoadSheetStatus]);
+  const handleIntervalChange = useCallback(
+    async (val: string) => {
+      const result = await updateSheetSyncSettings(organizationId, {
+        syncIntervalMinutes: parseInt(val, 10),
+      });
+      if (result.success) {
+        handleLoadSheetStatus();
+      } else {
+        toast.error(result.error || "Failed to update interval");
+      }
+    },
+    [organizationId, handleLoadSheetStatus],
+  );
 
   const handleConfirmUnlinkSheet = useCallback(async () => {
     setUnlinkingSheet(true);
@@ -413,7 +478,7 @@ export default function ReportsTab({
     toast.success(
       unlinkIntent === "switch"
         ? "Current sheet unlinked. Set up a new destination below."
-        : "Spreadsheet disconnected"
+        : "Spreadsheet disconnected",
     );
 
     setSetupError(null);
@@ -423,7 +488,10 @@ export default function ReportsTab({
     if (unlinkIntent === "switch") {
       setSheetConfigSections(["destination"]);
       requestAnimationFrame(() => {
-        sheetConfigRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        sheetConfigRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
       });
     }
 
@@ -434,7 +502,10 @@ export default function ReportsTab({
   const handleLoadSheetMetadata = useCallback(async () => {
     if (!sheetInput.trim()) return;
     setPickerLoading(true);
-    const result = await getSpreadsheetSetupMetadata(organizationId, sheetInput.trim());
+    const result = await getSpreadsheetSetupMetadata(
+      organizationId,
+      sheetInput.trim(),
+    );
     if (!result.success || result.error) {
       setSheetMetadata(null);
       setSetupError(result.error ?? null);
@@ -455,16 +526,13 @@ export default function ReportsTab({
   const handleConnectExistingSheet = useCallback(async () => {
     if (!sheetMetadata) return;
     setConnectingSheet(true);
-    const result = await connectExistingSheet(
-      organizationId,
-      {
-        sheetId: sheetMetadata.sheetId,
-        reportType: sheetReportType,
-        tabName: sheetTabName,
-        rangeA1,
-        layoutConfig
-      }
-    );
+    const result = await connectExistingSheet(organizationId, {
+      sheetId: sheetMetadata.sheetId,
+      reportType: sheetReportType,
+      tabName: sheetTabName,
+      rangeA1,
+      layoutConfig,
+    });
     if (result.success) {
       toast.success("Sheet connected successfully");
       handleLoadSheetStatus();
@@ -472,17 +540,29 @@ export default function ReportsTab({
       setSetupError(result.error || "Failed to connect sheet");
     }
     setConnectingSheet(false);
-  }, [organizationId, sheetMetadata, sheetReportType, sheetTabName, rangeA1, layoutConfig, handleLoadSheetStatus]);
+  }, [
+    organizationId,
+    sheetMetadata,
+    sheetReportType,
+    sheetTabName,
+    rangeA1,
+    layoutConfig,
+    handleLoadSheetStatus,
+  ]);
 
   const loadGoogleApi = useCallback(() => {
-    const win = window as any as GoogleApiWindow;
+    const win = window as unknown as GoogleApiWindow;
     if (win.gapi?.load) return Promise.resolve(true);
 
     return new Promise<boolean>((resolve, reject) => {
-      const existing = document.querySelector('script[data-google-picker="true"]');
+      const existing = document.querySelector(
+        'script[data-google-picker="true"]',
+      );
       if (existing) {
         existing.addEventListener("load", () => resolve(true));
-        existing.addEventListener("error", () => reject(new Error("Failed to load Google API")));
+        existing.addEventListener("error", () =>
+          reject(new Error("Failed to load Google API")),
+        );
         return;
       }
 
@@ -498,7 +578,7 @@ export default function ReportsTab({
   }, []);
 
   const initPicker = useCallback(async () => {
-    const win = window as any as GoogleApiWindow;
+    const win = window as unknown as GoogleApiWindow;
     if (win.google?.picker) {
       setPickerReady(true);
       return true;
@@ -506,7 +586,7 @@ export default function ReportsTab({
 
     try {
       await loadGoogleApi();
-    } catch (err) {
+    } catch {
       return false;
     }
 
@@ -526,16 +606,22 @@ export default function ReportsTab({
 
     try {
       const tokenResult = await getSheetsAccessTokenForPicker(organizationId);
-      if (!tokenResult.success || tokenResult.error || !tokenResult.accessToken) {
+      if (
+        !tokenResult.success ||
+        tokenResult.error ||
+        !tokenResult.accessToken
+      ) {
         setSetupError(
           tokenResult.error ||
-            "Unable to open Google Picker. Please reconnect with Sheets access and try again."
+            "Unable to open Google Picker. Please reconnect with Sheets access and try again.",
         );
         return;
       }
 
       if (!pickerApiKey) {
-        setSetupError("Google Picker is not configured. Missing NEXT_PUBLIC_GOOGLE_PICKER_API_KEY.");
+        setSetupError(
+          "Google Picker is not configured. Missing NEXT_PUBLIC_GOOGLE_PICKER_API_KEY.",
+        );
         return;
       }
 
@@ -544,14 +630,16 @@ export default function ReportsTab({
         return;
       }
 
-      const win = window as any as GoogleApiWindow;
+      const win = window as unknown as GoogleApiWindow;
       const google = win.google;
       if (!google?.picker) {
         setSetupError("Google Picker is not available.");
         return;
       }
 
-      const view = new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS);
+      const view = new google.picker.DocsView(
+        google.picker.ViewId.SPREADSHEETS,
+      );
       view.setMimeTypes("application/vnd.google-apps.spreadsheet");
 
       const picker = new google.picker.PickerBuilder()
@@ -572,10 +660,20 @@ export default function ReportsTab({
           setSheetInput(doc.id);
 
           try {
-            const metadataResult = await getSpreadsheetSetupMetadata(organizationId, doc.id);
-            if (!metadataResult.success || metadataResult.error || !metadataResult.metadata) {
+            const metadataResult = await getSpreadsheetSetupMetadata(
+              organizationId,
+              doc.id,
+            );
+            if (
+              !metadataResult.success ||
+              metadataResult.error ||
+              !metadataResult.metadata
+            ) {
               setSheetMetadata(null);
-              setSetupError(metadataResult.error || "Unable to load selected spreadsheet metadata.");
+              setSetupError(
+                metadataResult.error ||
+                  "Unable to load selected spreadsheet metadata.",
+              );
               return;
             }
 
@@ -615,13 +713,36 @@ export default function ReportsTab({
   }, [isAdmin, organizationId, sheetStatus?.connectedBy?.id]);
 
   const topProjects = useMemo(
-    () => (reportData?.projects || [])
-      .filter((project) => (project.totalHours ?? 0) > 0)
-      .sort((a, b) => (b.totalHours ?? 0) - (a.totalHours ?? 0))
-      .slice(0, 3),
-    [reportData?.projects]
+    () =>
+      (reportData?.projects || [])
+        .filter((project) => (project.totalHours ?? 0) > 0)
+        .sort((a, b) => (b.totalHours ?? 0) - (a.totalHours ?? 0))
+        .slice(0, 3),
+    [reportData?.projects],
   );
   const monthlyData = reportData?.monthlyHours || [];
+  const activeVolunteerCount = reportData?.metrics?.totalVolunteers ?? 0;
+  const registeredVolunteerCount =
+    reportData?.metrics?.registeredVolunteers ?? 0;
+  const anonymousVolunteerCount = reportData?.metrics?.anonymousVolunteers ?? 0;
+  const verifiedHours = reportData?.metrics?.verifiedHours ?? 0;
+  const pendingHours = reportData?.metrics?.pendingHours ?? 0;
+  const verifiedShare =
+    reportData?.metrics?.totalHours && reportData.metrics.totalHours > 0
+      ? Math.round((verifiedHours / reportData.metrics.totalHours) * 100)
+      : 0;
+  const volunteerMixData = [
+    {
+      type: "Registered",
+      volunteers: registeredVolunteerCount,
+      fill: "var(--color-volunteers)",
+    },
+    {
+      type: "Anonymous",
+      volunteers: anonymousVolunteerCount,
+      fill: "var(--color-pending)",
+    },
+  ];
 
   if (loading && !reportData) {
     return (
@@ -636,16 +757,15 @@ export default function ReportsTab({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">Organization Reports</h2>
+          <h2 className="text-2xl font-bold tracking-tight">
+            Organization Reports
+          </h2>
           <p className="text-muted-foreground">
             View impact metrics and sync data to Google Sheets
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <DateRangePicker
-            value={dateRange}
-            onChange={setDateRange}
-          />
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
           <Button
             variant="outline"
             size="icon"
@@ -657,7 +777,7 @@ export default function ReportsTab({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <SummaryCard
           title="Total Hours"
           value={(reportData?.metrics?.totalHours ?? 0).toFixed(1)}
@@ -667,7 +787,7 @@ export default function ReportsTab({
         />
         <SummaryCard
           title="Active Members"
-          value={reportData?.metrics?.totalVolunteers ?? 0}
+          value={activeVolunteerCount}
           description="Members with hours"
           icon={Users}
           loading={loading}
@@ -680,52 +800,129 @@ export default function ReportsTab({
           loading={loading}
         />
         <SummaryCard
-          title="Avg Per Active Member"
+          title="Avg / Active Member"
           value={
             reportData?.metrics && reportData.metrics.totalVolunteers > 0
-              ? ((reportData.metrics.totalHours ?? 0) / reportData.metrics.totalVolunteers).toFixed(1)
+              ? (
+                  (reportData.metrics.totalHours ?? 0) /
+                  reportData.metrics.totalVolunteers
+                ).toFixed(1)
               : "0.0"
           }
           description="Average hours per active member"
           icon={BarChart}
           loading={loading}
         />
+        <SummaryCard
+          title="Verified"
+          value={`${verifiedShare}%`}
+          description={`${verifiedHours.toFixed(1)} verified hours`}
+          icon={ShieldCheck}
+          loading={loading}
+        />
+        <SummaryCard
+          title="Pending"
+          value={pendingHours.toFixed(1)}
+          description="Hours awaiting review"
+          icon={RefreshCw}
+          loading={loading}
+        />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            Monthly Hours Breakdown
-          </CardTitle>
-          <CardDescription>Hours logged month by month for the selected range</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-50 w-full" />
-          ) : (
-            <ChartContainer config={chartConfig} className="h-50 w-full">
-              <RechartsBarChart accessibilityLayer data={monthlyData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={10}
-                  tick={{ fontSize: 10 }}
-                />
-                <YAxis hide />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar
-                  dataKey="total"
-                  fill="var(--color-total)"
-                  radius={[4, 4, 0, 0]}
-                />
-              </RechartsBarChart>
-            </ChartContainer>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              Monthly Hours Breakdown
+            </CardTitle>
+            <CardDescription>
+              Verified and pending hours month by month for the selected range
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-60 w-full" />
+            ) : (
+              <ChartContainer config={chartConfig} className="h-60 w-full">
+                <AreaChart
+                  accessibilityLayer
+                  data={monthlyData}
+                  margin={{ left: 8, right: 12, top: 10, bottom: 0 }}
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={10}
+                    tick={{ fontSize: 10 }}
+                  />
+                  <YAxis hide />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Area
+                    dataKey="verified"
+                    type="natural"
+                    fill="var(--color-verified)"
+                    fillOpacity={0.25}
+                    stroke="var(--color-verified)"
+                    stackId="a"
+                  />
+                  <Area
+                    dataKey="pending"
+                    type="natural"
+                    fill="var(--color-pending)"
+                    fillOpacity={0.2}
+                    stroke="var(--color-pending)"
+                    stackId="a"
+                  />
+                </AreaChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              Volunteer Mix
+            </CardTitle>
+            <CardDescription>
+              Registered and anonymous participation
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-60 w-full" />
+            ) : (
+              <ChartContainer config={chartConfig} className="h-60 w-full">
+                <RechartsBarChart
+                  accessibilityLayer
+                  data={volunteerMixData}
+                  layout="vertical"
+                  margin={{ left: 0, right: 12, top: 10, bottom: 0 }}
+                >
+                  <CartesianGrid horizontal={false} />
+                  <XAxis type="number" hide />
+                  <YAxis
+                    dataKey="type"
+                    type="category"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11 }}
+                    width={74}
+                  />
+                  <ChartTooltip
+                    content={<ChartTooltipContent nameKey="type" />}
+                  />
+                  <Bar dataKey="volunteers" radius={[0, 5, 5, 0]} />
+                </RechartsBarChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
@@ -739,875 +936,1063 @@ export default function ReportsTab({
         </CardHeader>
         <CardContent className="space-y-4">
           {!isAdmin ? (
-              <div className="rounded-xl border border-dashed border-border/60 bg-muted/40 p-4 text-sm text-muted-foreground">
-                Google Sheets sync is managed by organization admins.
-              </div>
-            ) : (
-              <>
-                {!sheetStatus?.connected ? (
-                  <div className="space-y-3 rounded-xl border border-dashed border-border/60 bg-muted/40 p-4">
-                    {hasSyncConfig ? (
-                      <>
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Sheets connection needed
+            <div className="rounded-xl border border-dashed border-border/60 bg-muted/40 p-4 text-sm text-muted-foreground">
+              Google Sheets sync is managed by organization admins.
+            </div>
+          ) : (
+            <>
+              {!sheetStatus?.connected ? (
+                <div className="space-y-3 rounded-xl border border-dashed border-border/60 bg-muted/40 p-4">
+                  {hasSyncConfig ? (
+                    <>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Sheets connection needed
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        This organization already has a linked Google Sheet.
+                        {connectedByLabel
+                          ? ` Connected by ${connectedByLabel}.`
+                          : ""}
+                      </p>
+                      {canReconnect ? (
+                        <div className="space-y-2">
+                          <Button
+                            variant="outline"
+                            onClick={startGoogleConnection}
+                          >
+                            {sheetStatus?.viewerIsOwner
+                              ? "Reconnect Google Sheets"
+                              : "Connect & Take Over Sync"}
+                          </Button>
+                          {!sheetStatus?.viewerIsOwner && (
+                            <p className="text-[10px] text-muted-foreground italic">
+                              You can take over the sync responsibility for this
+                              organization.
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Ask the sheet owner to reconnect their Google account.
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          This organization already has a linked Google Sheet.
-                          {connectedByLabel ? ` Connected by ${connectedByLabel}.` : ""}
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Connect to start syncing
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Connect Google Sheets to create and sync organization
+                        reports.
+                      </p>
+                      <Button variant="outline" onClick={startGoogleConnection}>
+                        Connect Google Sheets
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3 rounded-xl border border-border/60 bg-muted/30 p-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-foreground">
+                        Google Sheets connected
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {sheetStatus.connectedEmail || "Google account"}
+                      </p>
+                      {sheetStatus.syncConfig?.sheetTitle && (
+                        <p className="text-xs text-muted-foreground">
+                          Sheet: {sheetStatus.syncConfig.sheetTitle}
                         </p>
-                        {canReconnect ? (
-                          <div className="space-y-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                window.location.href = connectUrl;
-                              }}
-                            >
-                              {sheetStatus?.viewerIsOwner ? "Reconnect Google Sheets" : "Connect & Take Over Sync"}
-                            </Button>
-                            {!sheetStatus?.viewerIsOwner && (
-                              <p className="text-[10px] text-muted-foreground italic">
-                                You can take over the sync responsibility for this organization.
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            Ask the sheet owner to reconnect their Google account.
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Connect to start syncing
+                      )}
+                      {sheetStatus.syncConfig?.lastSyncedAt && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Last synced{" "}
+                          {format(
+                            new Date(sheetStatus.syncConfig.lastSyncedAt),
+                            "MMM d, yyyy h:mm a",
+                          )}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          Connect Google Sheets to create and sync organization reports.
+                      )}
+                      {sheetStatus.syncConfig && connectedByLabel && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Connected by {connectedByLabel}
                         </p>
+                      )}
+                      {managedByAnotherAdmin && (
+                        <p className="text-[11px] text-muted-foreground">
+                          This sync is managed by another admin. Ask them to
+                          disconnect it, or connect your Google account with
+                          Sheets access to take over.
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {sheetStatus.syncConfig?.sheetUrl && (
+                        <Button variant="outline" size="sm" asChild>
+                          <a
+                            href={sheetStatus.syncConfig.sheetUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Open sheet
+                          </a>
+                        </Button>
+                      )}
+                      {sheetStatus.syncConfig && (
                         <Button
+                          size="sm"
                           variant="outline"
+                          onClick={handleSyncSheetNow}
+                          disabled={
+                            !canSyncSheets || syncingSheet || ownerNeedsSheets
+                          }
+                        >
+                          {syncingSheet ? "Syncing..." : "Sync now"}
+                        </Button>
+                      )}
+                      {managedByAnotherAdmin && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={startGoogleConnection}
+                        >
+                          {viewerConnected && viewerScopesOk
+                            ? "Take over with my Google account"
+                            : viewerMissingConnection
+                              ? "Connect & Take Over Sync"
+                              : "Reconnect & Take Over Sync"}
+                        </Button>
+                      )}
+                      {sheetStatus.syncConfig && (
+                        <Button
+                          size="sm"
                           onClick={() => {
-                            window.location.href = connectUrl;
+                            setSheetConfigSections(["destination"]);
+                            requestAnimationFrame(() => {
+                              sheetConfigRef.current?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "start",
+                              });
+                            });
                           }}
                         >
-                          Connect Google Sheets
+                          Configure
                         </Button>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-3 rounded-xl border border-border/60 bg-muted/30 p-4">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-foreground">Google Sheets connected</p>
-                        <p className="text-xs text-muted-foreground">
-                          {sheetStatus.connectedEmail || "Google account"}
-                        </p>
-                        {sheetStatus.syncConfig?.sheetTitle && (
-                          <p className="text-xs text-muted-foreground">
-                            Sheet: {sheetStatus.syncConfig.sheetTitle}
-                          </p>
-                        )}
-                        {sheetStatus.syncConfig?.lastSyncedAt && (
-                          <p className="text-[11px] text-muted-foreground">
-                            Last synced {format(new Date(sheetStatus.syncConfig.lastSyncedAt), "MMM d, yyyy h:mm a")}
-                          </p>
-                        )}
-                        {sheetStatus.syncConfig && connectedByLabel && (
-                          <p className="text-[11px] text-muted-foreground">Connected by {connectedByLabel}</p>
-                        )}
-                        {managedByAnotherAdmin && (
-                          <p className="text-[11px] text-muted-foreground">
-                            This sync is managed by another admin. Ask them to disconnect it, or connect your Google account with Sheets access to take over.
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {sheetStatus.syncConfig?.sheetUrl && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                          >
-                            <a
-                              href={sheetStatus.syncConfig.sheetUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Open sheet
-                            </a>
-                          </Button>
-                        )}
-                        {sheetStatus.syncConfig && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleSyncSheetNow}
-                            disabled={!canSyncSheets || syncingSheet || ownerNeedsSheets}
-                          >
-                            {syncingSheet ? "Syncing..." : "Sync now"}
-                          </Button>
-                        )}
-                        {managedByAnotherAdmin && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              window.location.href = connectUrl;
-                            }}
-                          >
-                            {viewerConnected && viewerScopesOk
-                              ? "Take over with my Google account"
-                              : viewerMissingConnection
-                                ? "Connect & Take Over Sync"
-                                : "Reconnect & Take Over Sync"}
-                          </Button>
-                        )}
-                        {sheetStatus.syncConfig && (
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setSheetConfigSections(["destination"]);
-                              requestAnimationFrame(() => {
-                                sheetConfigRef.current?.scrollIntoView({
-                                  behavior: "smooth",
-                                  block: "start",
-                                });
-                              });
-                            }}
-                          >
-                            Configure
-                          </Button>
-                        )}
-                        {sheetStatus.syncConfig && (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            disabled={unlinkingSheet || !sheetStatus.viewerIsOwner}
-                            onClick={() => {
-                              setUnlinkIntent("unlink");
-                              setShowUnlinkDialog(true);
-                            }}
-                          >
-                            Disconnect
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    {ownerNeedsSheets && (
-                      <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                        Sheets permissions are missing for the connected account. Reconnect to restore syncing.
-                      </div>
-                    )}
-                    {sheetStatus.error && (
-                      <p className="text-xs text-muted-foreground">{sheetStatus.error}</p>
-                    )}
-                    {!sheetStatus.syncConfig && (
-                      <p className="text-xs text-muted-foreground">
-                        No sheet destination is configured yet. Complete setup below.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {sheetStatus?.connected && (
-                  <div id="sheet-config" ref={sheetConfigRef} className="space-y-4">
-                    {sheetStatus.syncConfig ? (
-                      <div className="space-y-4">
-                        <Accordion
-                          value={sheetConfigSections}
-                          onValueChange={(val) => val && setSheetConfigSections(val)}
+                      )}
+                      {sheetStatus.syncConfig && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={
+                            unlinkingSheet || !sheetStatus.viewerIsOwner
+                          }
+                          onClick={() => {
+                            setUnlinkIntent("unlink");
+                            setShowUnlinkDialog(true);
+                          }}
                         >
-                          <AccordionItem value="destination">
-                            <AccordionTrigger className="text-sm font-semibold">
-                              Destination
-                            </AccordionTrigger>
-                            <AccordionContent className="space-y-4">
-                              <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                  <p className="text-sm font-medium">Report Type</p>
-                                  <Select
-                                    value={sheetReportType}
-                                    onValueChange={(value) => setSheetReportType(value as ReportType)}
-                                  >
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="Select report">
-                                        {reportTypeLabels[sheetReportType]}
-                                      </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectGroup>
-                                        <SelectItem value="member-hours">Member Hours Summary</SelectItem>
-                                        <SelectItem value="project-summary">Project Summary</SelectItem>
-                                        <SelectItem value="monthly-summary">Monthly Hours</SelectItem>
-                                      </SelectGroup>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
+                          Disconnect
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  {ownerNeedsSheets && (
+                    <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                      Sheets permissions are missing for the connected account.
+                      Reconnect to restore syncing.
+                    </div>
+                  )}
+                  {sheetStatus.error && (
+                    <p className="text-xs text-muted-foreground">
+                      {sheetStatus.error}
+                    </p>
+                  )}
+                  {!sheetStatus.syncConfig && (
+                    <p className="text-xs text-muted-foreground">
+                      No sheet destination is configured yet. Complete setup
+                      below.
+                    </p>
+                  )}
+                </div>
+              )}
 
-                                <div className="space-y-2">
-                                  <p className="text-sm font-medium">Sheet Tab Name</p>
-                                  <Input
-                                    value={sheetTabName}
-                                    onChange={(event) => setSheetTabName(event.target.value)}
-                                    placeholder="Member Hours"
-                                  />
-                                </div>
-
-                                <div className="md:col-span-2 space-y-2">
-                                  <p className="text-sm font-medium">Range</p>
-                                  <RangeBuilder
-                                    columns={columnOptions}
-                                    mode={rangeMode}
-                                    onModeChange={setRangeMode}
-                                    startColumn={rangeStartColumn}
-                                    startRow={rangeStartRow}
-                                    endColumn={rangeEndColumn}
-                                    endRow={rangeEndRow}
-                                    onStartColumnChange={setRangeStartColumn}
-                                    onStartRowChange={setRangeStartRow}
-                                    onEndColumnChange={setRangeEndColumn}
-                                    onEndRowChange={setRangeEndRow}
-                                    helperText="Use this as the top-left anchor. Data expands to fit the report columns."
-                                  />
-                                  {sheetStatus.syncConfig.sheetUrl && (
-                                    <a
-                                      href={sheetStatus.syncConfig.sheetUrl}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-[11px] text-primary underline underline-offset-4"
-                                    >
-                                      Open the sheet to pick a range
-                                    </a>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                <Button variant="outline" size="sm" onClick={handleUpdateSheetConfig}>
-                                  Save destination changes
-                                </Button>
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-
-                          <AccordionItem value="layout">
-                            <AccordionTrigger className="text-sm font-semibold">
-                              Layout & preview
-                            </AccordionTrigger>
-                            <AccordionContent className="space-y-3">
-                              <ReportLayoutCustomizer
-                                reportType={sheetReportType}
-                                currentLayout={layoutConfig}
-                                onLayoutChange={(config) => setLayoutConfig(config)}
-                                isLoading={previewLoading}
-                                onReset={() => setPreviewRows(null)}
-                              />
-
-                              <div className="flex flex-wrap gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={handlePreviewReport}
-                                  disabled={previewLoading}
+              {sheetStatus?.connected && (
+                <div
+                  id="sheet-config"
+                  ref={sheetConfigRef}
+                  className="space-y-4"
+                >
+                  {sheetStatus.syncConfig ? (
+                    <div className="space-y-4">
+                      <Accordion
+                        value={sheetConfigSections}
+                        onValueChange={(val) =>
+                          val && setSheetConfigSections(val)
+                        }
+                      >
+                        <AccordionItem value="destination">
+                          <AccordionTrigger className="text-sm font-semibold">
+                            Destination
+                          </AccordionTrigger>
+                          <AccordionContent className="space-y-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <div className="space-y-2">
+                                <p className="text-sm font-medium">
+                                  Report Type
+                                </p>
+                                <Select
+                                  value={sheetReportType}
+                                  onValueChange={(value) =>
+                                    setSheetReportType(value as ReportType)
+                                  }
                                 >
-                                  {previewLoading ? "Loading preview..." : "Preview data"}
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={handleUpdateSheetConfig}>
-                                  Update layout
-                                </Button>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select report">
+                                      {reportTypeLabels[sheetReportType]}
+                                    </SelectValue>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectGroup>
+                                      <SelectItem value="member-hours">
+                                        Member Hours Summary
+                                      </SelectItem>
+                                      <SelectItem value="project-summary">
+                                        Project Summary
+                                      </SelectItem>
+                                      <SelectItem value="monthly-summary">
+                                        Monthly Hours
+                                      </SelectItem>
+                                    </SelectGroup>
+                                  </SelectContent>
+                                </Select>
                               </div>
 
-                              {previewRows && (
-                                <div className="space-y-3">
-                                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                                    <p className="text-xs font-medium text-muted-foreground mb-2">
-                                      Preview (first {Math.max(previewRows.length - 1, 0)} rows)
-                                    </p>
-                                    <div className="overflow-x-auto">
-                                      <table className="min-w-full text-xs">
-                                        <thead className="bg-muted/50">
-                                          <tr>
-                                            {previewRows[0]?.map((cell, index) => (
+                              <div className="space-y-2">
+                                <p className="text-sm font-medium">
+                                  Sheet Tab Name
+                                </p>
+                                <Input
+                                  value={sheetTabName}
+                                  onChange={(event) =>
+                                    setSheetTabName(event.target.value)
+                                  }
+                                  placeholder="Member Hours"
+                                />
+                              </div>
+
+                              <div className="md:col-span-2 space-y-2">
+                                <p className="text-sm font-medium">Range</p>
+                                <RangeBuilder
+                                  columns={columnOptions}
+                                  mode={rangeMode}
+                                  onModeChange={setRangeMode}
+                                  startColumn={rangeStartColumn}
+                                  startRow={rangeStartRow}
+                                  endColumn={rangeEndColumn}
+                                  endRow={rangeEndRow}
+                                  onStartColumnChange={setRangeStartColumn}
+                                  onStartRowChange={setRangeStartRow}
+                                  onEndColumnChange={setRangeEndColumn}
+                                  onEndRowChange={setRangeEndRow}
+                                  helperText="Use this as the top-left anchor. Data expands to fit the report columns."
+                                />
+                                {sheetStatus.syncConfig.sheetUrl && (
+                                  <a
+                                    href={sheetStatus.syncConfig.sheetUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[11px] text-primary underline underline-offset-4"
+                                  >
+                                    Open the sheet to pick a range
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleUpdateSheetConfig}
+                              >
+                                Save destination changes
+                              </Button>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+
+                        <AccordionItem value="layout">
+                          <AccordionTrigger className="text-sm font-semibold">
+                            Layout & preview
+                          </AccordionTrigger>
+                          <AccordionContent className="space-y-3">
+                            <ReportLayoutCustomizer
+                              reportType={sheetReportType}
+                              currentLayout={layoutConfig}
+                              onLayoutChange={(config) =>
+                                setLayoutConfig(config)
+                              }
+                              isLoading={previewLoading}
+                              onReset={() => setPreviewRows(null)}
+                            />
+
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handlePreviewReport}
+                                disabled={previewLoading}
+                              >
+                                {previewLoading
+                                  ? "Loading preview..."
+                                  : "Preview data"}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleUpdateSheetConfig}
+                              >
+                                Update layout
+                              </Button>
+                            </div>
+
+                            {previewRows && (
+                              <div className="space-y-3">
+                                <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                                    Preview (first{" "}
+                                    {Math.max(previewRows.length - 1, 0)} rows)
+                                  </p>
+                                  <div className="overflow-x-auto">
+                                    <table className="min-w-full text-xs">
+                                      <thead className="bg-muted/50">
+                                        <tr>
+                                          {previewRows[0]?.map(
+                                            (cell, index) => (
                                               <th
                                                 key={index}
                                                 className="px-2 py-1 text-left font-medium text-muted-foreground"
                                               >
                                                 {cell}
                                               </th>
-                                            ))}
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {previewRows.slice(1).map((row, rowIndex) => (
-                                            <tr key={rowIndex} className="border-t">
+                                            ),
+                                          )}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {previewRows
+                                          .slice(1)
+                                          .map((row, rowIndex) => (
+                                            <tr
+                                              key={rowIndex}
+                                              className="border-t"
+                                            >
                                               {row.map((cell, cellIndex) => (
-                                                <td key={cellIndex} className="px-2 py-1 text-muted-foreground">
+                                                <td
+                                                  key={cellIndex}
+                                                  className="px-2 py-1 text-muted-foreground"
+                                                >
                                                   {cell || "-"}
                                                 </td>
                                               ))}
                                             </tr>
                                           ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
+                                      </tbody>
+                                    </table>
                                   </div>
-                                  <MiniSheetPreview
-                                    rangeA1={rangeA1}
-                                    previewRows={previewRows}
-                                    columns={columnOptions}
-                                  />
                                 </div>
-                              )}
-                            </AccordionContent>
-                          </AccordionItem>
+                                <MiniSheetPreview
+                                  rangeA1={rangeA1}
+                                  previewRows={previewRows}
+                                  columns={columnOptions}
+                                />
+                              </div>
+                            )}
+                          </AccordionContent>
+                        </AccordionItem>
 
-                          <AccordionItem value="automation">
-                            <AccordionTrigger className="text-sm font-semibold">
-                              Owner & automation
-                            </AccordionTrigger>
-                            <AccordionContent className="space-y-4">
-                              <div className="space-y-2">
-                                <p className="text-sm font-medium">Sheet Owner</p>
-                                <div className="flex flex-col gap-2 sm:flex-row">
-                                  <Select
-                                    value={selectedOwnerId ?? ""}
-                                    onValueChange={(value) => setSelectedOwnerId(value || null)}
-                                    disabled={ownersLoading}
-                                  >
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="Select owner" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectGroup>
-                                        {ownersLoading && (
-                                          <SelectItem value="loading" disabled>
-                                            Loading connected members...
-                                          </SelectItem>
-                                        )}
-                                        {!ownersLoading && availableOwners.length === 0 && (
+                        <AccordionItem value="automation">
+                          <AccordionTrigger className="text-sm font-semibold">
+                            Owner & automation
+                          </AccordionTrigger>
+                          <AccordionContent className="space-y-4">
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium">Sheet Owner</p>
+                              <div className="flex flex-col gap-2 sm:flex-row">
+                                <Select
+                                  value={selectedOwnerId ?? ""}
+                                  onValueChange={(value) =>
+                                    setSelectedOwnerId(value || null)
+                                  }
+                                  disabled={ownersLoading}
+                                >
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select owner" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectGroup>
+                                      {ownersLoading && (
+                                        <SelectItem value="loading" disabled>
+                                          Loading connected members...
+                                        </SelectItem>
+                                      )}
+                                      {!ownersLoading &&
+                                        availableOwners.length === 0 && (
                                           <SelectItem value="none" disabled>
                                             No connected admins found
                                           </SelectItem>
                                         )}
-                                        {availableOwners.map((owner) => (
-                                          <SelectItem key={owner.id} value={owner.id}>
-                                            {owner.name || owner.email || "Member"}
-                                            {owner.connectedEmail ? ` • ${owner.connectedEmail}` : ""}
-                                            {owner.hasSheetsAccess ? "" : " (needs Sheets access)"}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectGroup>
-                                    </SelectContent>
-                                  </Select>
-                                  <Button
-                                    variant="outline"
-                                    onClick={handleUpdateOwner}
-                                    disabled={updatingOwner || !selectedOwnerId}
-                                  >
-                                    {updatingOwner ? "Updating..." : "Update owner"}
-                                  </Button>
-                                </div>
-                                <p className="text-[11px] text-muted-foreground">
-                                  The owner account supplies Sheets credentials for sync jobs.
-                                </p>
-                                {selectedOwner && !selectedOwner.hasSheetsAccess && (
-                                  <p className="text-[11px] text-destructive">
-                                    This admin must reconnect Google with Sheets access before becoming the owner.
-                                  </p>
-                                )}
-                              </div>
-
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-sm font-medium">Auto Sync</p>
-                                  <p className="text-xs text-muted-foreground">Run background refresh jobs</p>
-                                </div>
-                                <Switch
-                                  checked={sheetStatus.syncConfig.autoSync}
-                                  onCheckedChange={handleToggleAutoSync}
-                                />
-                              </div>
-
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-sm font-medium">Sync Interval</p>
-                                  <p className="text-xs text-muted-foreground">How often to refresh</p>
-                                </div>
-                                <Select
-                                  value={String(sheetStatus.syncConfig.syncIntervalMinutes)}
-                                  onValueChange={(val) => val && handleIntervalChange(val)}
-                                >
-                                  <SelectTrigger className="w-35">
-                                    <SelectValue placeholder="Interval">
-                                      {getSyncIntervalLabel(sheetStatus.syncConfig.syncIntervalMinutes)}
-                                    </SelectValue>
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectGroup>
-                                      {syncIntervalOptions.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {option.label}
+                                      {availableOwners.map((owner) => (
+                                        <SelectItem
+                                          key={owner.id}
+                                          value={owner.id}
+                                        >
+                                          {owner.name ||
+                                            owner.email ||
+                                            "Member"}
+                                          {owner.connectedEmail
+                                            ? ` • ${owner.connectedEmail}`
+                                            : ""}
+                                          {owner.hasSheetsAccess
+                                            ? ""
+                                            : " (needs Sheets access)"}
                                         </SelectItem>
                                       ))}
                                     </SelectGroup>
                                   </SelectContent>
                                 </Select>
-                              </div>
-
-                              <div className="flex flex-col gap-2 sm:flex-row">
-                                {sheetStatus.viewerIsOwner ? (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={unlinkingSheet}
-                                      onClick={() => {
-                                        setUnlinkIntent("switch");
-                                        setShowUnlinkDialog(true);
-                                      }}
-                                    >
-                                      Switch sheet
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      size="sm"
-                                      disabled={unlinkingSheet}
-                                      onClick={() => {
-                                        setUnlinkIntent("unlink");
-                                        setShowUnlinkDialog(true);
-                                      }}
-                                    >
-                                      Unlink sheet
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <p className="text-xs text-muted-foreground">
-                                      Only the connected owner can disconnect this sync directly.
-                                    </p>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => {
-                                        window.location.href = connectUrl;
-                                      }}
-                                    >
-                                      {viewerConnected && viewerScopesOk
-                                        ? "Take over with my Google account"
-                                        : viewerMissingConnection
-                                          ? "Connect & Take Over Sync"
-                                          : "Reconnect & Take Over Sync"}
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        </Accordion>
-                      </div>
-                    ) : (
-                      <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
-                        <p className="text-sm text-muted-foreground">
-                          Set up a Google Sheet to sync organization reports.
-                        </p>
-                        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-foreground">
-                          <span className="font-medium text-primary">Only admins can manage Sheets sync.</span>
-                          <span className="text-muted-foreground"> Connect with Sheets permissions to continue.</span>
-                        </div>
-                        {setupBlockedReason && (
-                          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                            {setupBlockedReason}
-                            <div className="mt-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  window.location.href = connectUrl;
-                                }}
-                              >
-                                {viewerMissingConnection ? "Connect Google Sheets" : "Reconnect with Sheets access"}
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                        <div className="space-y-4">
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            <Button
-                              variant={setupMode === "create" ? "default" : "outline"}
-                              onClick={() => handleSetupModeChange("create")}
-                              disabled={Boolean(setupBlockedReason)}
-                            >
-                              Create new sheet
-                            </Button>
-                            <Button
-                              variant={setupMode === "existing" ? "default" : "outline"}
-                              onClick={() => handleSetupModeChange("existing")}
-                              disabled={Boolean(setupBlockedReason)}
-                            >
-                              Connect existing sheet
-                            </Button>
-                          </div>
-
-                          {setupMode === "create" ? (
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <p className="text-sm font-medium">Report Type</p>
-                                <Select
-                                  value={sheetReportType}
-                                  onValueChange={(value) => setSheetReportType(value as ReportType)}
+                                <Button
+                                  variant="outline"
+                                  onClick={handleUpdateOwner}
+                                  disabled={updatingOwner || !selectedOwnerId}
                                 >
-                                  <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select report">
-                                      {reportTypeLabels[sheetReportType]}
-                                    </SelectValue>
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectGroup>
-                                      <SelectItem value="member-hours">Member Hours Summary</SelectItem>
-                                      <SelectItem value="project-summary">Project Summary</SelectItem>
-                                      <SelectItem value="monthly-summary">Monthly Hours</SelectItem>
-                                    </SelectGroup>
-                                  </SelectContent>
-                                </Select>
+                                  {updatingOwner
+                                    ? "Updating..."
+                                    : "Update owner"}
+                                </Button>
                               </div>
-                              <div className="space-y-2">
-                                <p className="text-sm font-medium">Sheet Tab Name</p>
-                                <Input
-                                  value={sheetTabName}
-                                  onChange={(event) => setSheetTabName(event.target.value)}
-                                  placeholder="Member Hours"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <p className="text-sm font-medium">Range</p>
-                                <RangeBuilder
-                                  columns={columnOptions}
-                                  mode={rangeMode}
-                                  onModeChange={setRangeMode}
-                                  startColumn={rangeStartColumn}
-                                  startRow={rangeStartRow}
-                                  endColumn={rangeEndColumn}
-                                  endRow={rangeEndRow}
-                                  onStartColumnChange={setRangeStartColumn}
-                                  onStartRowChange={setRangeStartRow}
-                                  onEndColumnChange={setRangeEndColumn}
-                                  onEndRowChange={setRangeEndRow}
-                                  helperText="Pick the top-left anchor. The report will expand to fit the data."
-                                />
-                              </div>
-
-                              <Accordion>
-                                <AccordionItem value="layout">
-                                  <AccordionTrigger className="text-sm font-semibold">
-                                    Layout & preview
-                                  </AccordionTrigger>
-                                  <AccordionContent className="space-y-3">
-                                    <ReportLayoutCustomizer
-                                      reportType={sheetReportType}
-                                      currentLayout={layoutConfig}
-                                      onLayoutChange={(config) => setLayoutConfig(config)}
-                                      isLoading={previewLoading}
-                                      onReset={() => setPreviewRows(null)}
-                                    />
-                                    <div className="flex flex-wrap gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handlePreviewReport}
-                                        disabled={previewLoading || Boolean(setupBlockedReason)}
-                                      >
-                                        {previewLoading ? "Loading preview..." : "Preview data"}
-                                      </Button>
-                                      <Button
-                                        onClick={handleCreateSheet}
-                                        disabled={creatingSheet || Boolean(setupBlockedReason)}
-                                      >
-                                        {creatingSheet ? "Creating..." : "Create Sheet"}
-                                      </Button>
-                                    </div>
-                                    {previewRows && (
-                                      <div className="space-y-3">
-                                        <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                                          <p className="text-xs font-medium text-muted-foreground mb-2">
-                                            Preview (first {Math.max(previewRows.length - 1, 0)} rows)
-                                          </p>
-                                          <div className="overflow-x-auto">
-                                            <table className="min-w-full text-xs">
-                                              <thead className="bg-muted/50">
-                                                <tr>
-                                                  {previewRows[0]?.map((cell, index) => (
-                                                    <th
-                                                      key={index}
-                                                      className="px-2 py-1 text-left font-medium text-muted-foreground"
-                                                    >
-                                                      {cell}
-                                                    </th>
-                                                  ))}
-                                                </tr>
-                                              </thead>
-                                              <tbody>
-                                                {previewRows.slice(1).map((row, rowIndex) => (
-                                                  <tr key={rowIndex} className="border-t">
-                                                    {row.map((cell, cellIndex) => (
-                                                      <td key={cellIndex} className="px-2 py-1 text-muted-foreground">
-                                                        {cell || "-"}
-                                                      </td>
-                                                    ))}
-                                                  </tr>
-                                                ))}
-                                              </tbody>
-                                            </table>
-                                          </div>
-                                        </div>
-                                        <MiniSheetPreview
-                                          rangeA1={rangeA1}
-                                          previewRows={previewRows}
-                                          columns={columnOptions}
-                                        />
-                                      </div>
-                                    )}
-                                  </AccordionContent>
-                                </AccordionItem>
-                              </Accordion>
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <p className="text-sm font-medium">Spreadsheet</p>
-                                <div className="flex flex-col gap-2 sm:flex-row">
-                                  <Input
-                                    value={sheetInput}
-                                    onChange={(event) => {
-                                      setSheetInput(event.target.value);
-                                      setSheetMetadata(null);
-                                    }}
-                                    placeholder="Paste a Google Sheets URL or ID"
-                                  />
-                                  <Button
-                                    variant="outline"
-                                    onClick={() => handleLoadSheetMetadata()}
-                                    disabled={!sheetInput.trim() || Boolean(setupBlockedReason)}
-                                  >
-                                    Load
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    onClick={handleOpenPicker}
-                                    disabled={pickerLoading || Boolean(setupBlockedReason)}
-                                  >
-                                    {pickerLoading ? "Opening..." : "Pick from Drive"}
-                                  </Button>
-                                </div>
-                                {!pickerReady && (
-                                  <p className="text-[11px] text-muted-foreground">
-                                    Google Picker will open in a new window. Allow pop-ups if blocked.
+                              <p className="text-[11px] text-muted-foreground">
+                                The owner account supplies Sheets credentials
+                                for sync jobs.
+                              </p>
+                              {selectedOwner &&
+                                !selectedOwner.hasSheetsAccess && (
+                                  <p className="text-[11px] text-destructive">
+                                    This admin must reconnect Google with Sheets
+                                    access before becoming the owner.
                                   </p>
                                 )}
-                              </div>
+                            </div>
 
-                              {sheetMetadata && (
-                                <div className="rounded-md border p-3 text-xs">
-                                  <p className="font-medium">Selected sheet</p>
-                                  <p className="text-muted-foreground mt-1">{sheetMetadata.sheetTitle}</p>
-                                  <a
-                                    href={sheetMetadata.sheetUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-primary underline text-[11px]"
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium">Auto Sync</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Run background refresh jobs
+                                </p>
+                              </div>
+                              <Switch
+                                checked={sheetStatus.syncConfig.autoSync}
+                                onCheckedChange={handleToggleAutoSync}
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium">
+                                  Sync Interval
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  How often to refresh
+                                </p>
+                              </div>
+                              <Select
+                                value={String(
+                                  sheetStatus.syncConfig.syncIntervalMinutes,
+                                )}
+                                onValueChange={(val) =>
+                                  val && handleIntervalChange(val)
+                                }
+                              >
+                                <SelectTrigger className="w-35">
+                                  <SelectValue placeholder="Interval">
+                                    {getSyncIntervalLabel(
+                                      sheetStatus.syncConfig
+                                        .syncIntervalMinutes,
+                                    )}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectGroup>
+                                    {syncIntervalOptions.map((option) => (
+                                      <SelectItem
+                                        key={option.value}
+                                        value={option.value}
+                                      >
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                              {sheetStatus.viewerIsOwner ? (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={unlinkingSheet}
+                                    onClick={() => {
+                                      setUnlinkIntent("switch");
+                                      setShowUnlinkDialog(true);
+                                    }}
                                   >
-                                    Open in Google Sheets
-                                  </a>
-                                  {sheetMetadata.tabs.length > 0 && (
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                      {sheetMetadata.tabs.map((tab) => (
-                                        <Button
-                                          key={tab}
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() => setSheetTabName(tab)}
-                                        >
-                                          {tab}
-                                        </Button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
+                                    Switch sheet
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    disabled={unlinkingSheet}
+                                    onClick={() => {
+                                      setUnlinkIntent("unlink");
+                                      setShowUnlinkDialog(true);
+                                    }}
+                                  >
+                                    Unlink sheet
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="text-xs text-muted-foreground">
+                                    Only the connected owner can disconnect this
+                                    sync directly.
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={startGoogleConnection}
+                                  >
+                                    {viewerConnected && viewerScopesOk
+                                      ? "Take over with my Google account"
+                                      : viewerMissingConnection
+                                        ? "Connect & Take Over Sync"
+                                        : "Reconnect & Take Over Sync"}
+                                  </Button>
+                                </>
                               )}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
+                      <p className="text-sm text-muted-foreground">
+                        Set up a Google Sheet to sync organization reports.
+                      </p>
+                      <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-foreground">
+                        <span className="font-medium text-primary">
+                          Only admins can manage Sheets sync.
+                        </span>
+                        <span className="text-muted-foreground">
+                          {" "}
+                          Connect with Sheets permissions to continue.
+                        </span>
+                      </div>
+                      {setupBlockedReason && (
+                        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                          {setupBlockedReason}
+                          <div className="mt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={startGoogleConnection}
+                            >
+                              {viewerMissingConnection
+                                ? "Connect Google Sheets"
+                                : "Reconnect with Sheets access"}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      <div className="space-y-4">
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <Button
+                            variant={
+                              setupMode === "create" ? "default" : "outline"
+                            }
+                            onClick={() => handleSetupModeChange("create")}
+                            disabled={Boolean(setupBlockedReason)}
+                          >
+                            Create new sheet
+                          </Button>
+                          <Button
+                            variant={
+                              setupMode === "existing" ? "default" : "outline"
+                            }
+                            onClick={() => handleSetupModeChange("existing")}
+                            disabled={Boolean(setupBlockedReason)}
+                          >
+                            Connect existing sheet
+                          </Button>
+                        </div>
 
-                              <div className="space-y-2">
-                                <p className="text-sm font-medium">Report Type</p>
-                                <Select
-                                  value={sheetReportType}
-                                  onValueChange={(value) => setSheetReportType(value as ReportType)}
-                                >
-                                  <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select report">
-                                      {reportTypeLabels[sheetReportType]}
-                                    </SelectValue>
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectGroup>
-                                      <SelectItem value="member-hours">Member Hours Summary</SelectItem>
-                                      <SelectItem value="project-summary">Project Summary</SelectItem>
-                                      <SelectItem value="monthly-summary">Monthly Hours</SelectItem>
-                                    </SelectGroup>
-                                  </SelectContent>
-                                </Select>
-                              </div>
+                        {setupMode === "create" ? (
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium">Report Type</p>
+                              <Select
+                                value={sheetReportType}
+                                onValueChange={(value) =>
+                                  setSheetReportType(value as ReportType)
+                                }
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select report">
+                                    {reportTypeLabels[sheetReportType]}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectGroup>
+                                    <SelectItem value="member-hours">
+                                      Member Hours Summary
+                                    </SelectItem>
+                                    <SelectItem value="project-summary">
+                                      Project Summary
+                                    </SelectItem>
+                                    <SelectItem value="monthly-summary">
+                                      Monthly Hours
+                                    </SelectItem>
+                                  </SelectGroup>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium">
+                                Sheet Tab Name
+                              </p>
+                              <Input
+                                value={sheetTabName}
+                                onChange={(event) =>
+                                  setSheetTabName(event.target.value)
+                                }
+                                placeholder="Member Hours"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium">Range</p>
+                              <RangeBuilder
+                                columns={columnOptions}
+                                mode={rangeMode}
+                                onModeChange={setRangeMode}
+                                startColumn={rangeStartColumn}
+                                startRow={rangeStartRow}
+                                endColumn={rangeEndColumn}
+                                endRow={rangeEndRow}
+                                onStartColumnChange={setRangeStartColumn}
+                                onStartRowChange={setRangeStartRow}
+                                onEndColumnChange={setRangeEndColumn}
+                                onEndRowChange={setRangeEndRow}
+                                helperText="Pick the top-left anchor. The report will expand to fit the data."
+                              />
+                            </div>
 
-                              <div className="space-y-2">
-                                <p className="text-sm font-medium">Sheet Tab Name</p>
-                                <Input
-                                  value={sheetTabName}
-                                  onChange={(event) => setSheetTabName(event.target.value)}
-                                  placeholder="Member Hours"
-                                />
-                                <p className="text-[11px] text-muted-foreground">Use an existing tab name or type a new one.</p>
-                              </div>
-
-                              <div className="space-y-2">
-                                <p className="text-sm font-medium">Range</p>
-                                <RangeBuilder
-                                  columns={columnOptions}
-                                  mode={rangeMode}
-                                  onModeChange={setRangeMode}
-                                  startColumn={rangeStartColumn}
-                                  startRow={rangeStartRow}
-                                  endColumn={rangeEndColumn}
-                                  endRow={rangeEndRow}
-                                  onStartColumnChange={setRangeStartColumn}
-                                  onStartRowChange={setRangeStartRow}
-                                  onEndColumnChange={setRangeEndColumn}
-                                  onEndRowChange={setRangeEndRow}
-                                  helperText="Pick the top-left anchor. The report will expand to fit the data."
-                                />
-                              </div>
-
-                              <Accordion>
-                                <AccordionItem value="layout">
-                                  <AccordionTrigger className="text-sm font-semibold">
-                                    Layout & preview
-                                  </AccordionTrigger>
-                                  <AccordionContent className="space-y-3">
-                                    <ReportLayoutCustomizer
-                                      reportType={sheetReportType}
-                                      currentLayout={layoutConfig}
-                                      onLayoutChange={(config) => setLayoutConfig(config)}
-                                      isLoading={previewLoading}
-                                      onReset={() => setPreviewRows(null)}
-                                    />
-
-                                    <div className="flex flex-wrap gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handlePreviewReport}
-                                        disabled={previewLoading || Boolean(setupBlockedReason)}
-                                      >
-                                        {previewLoading ? "Loading preview..." : "Preview data"}
-                                      </Button>
-                                      <Button
-                                        onClick={handleConnectExistingSheet}
-                                        disabled={connectingSheet || !sheetMetadata || Boolean(setupBlockedReason)}
-                                      >
-                                        {connectingSheet ? "Connecting..." : "Connect Sheet"}
-                                      </Button>
-                                    </div>
-
-                                    {previewRows && (
-                                      <div className="space-y-3">
-                                        <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                                          <p className="text-xs font-medium text-muted-foreground mb-2">
-                                            Preview (first {Math.max(previewRows.length - 1, 0)} rows)
-                                          </p>
-                                          <div className="overflow-x-auto">
-                                            <table className="min-w-full text-xs">
-                                              <thead className="bg-muted/50">
-                                                <tr>
-                                                  {previewRows[0]?.map((cell, index) => (
+                            <Accordion>
+                              <AccordionItem value="layout">
+                                <AccordionTrigger className="text-sm font-semibold">
+                                  Layout & preview
+                                </AccordionTrigger>
+                                <AccordionContent className="space-y-3">
+                                  <ReportLayoutCustomizer
+                                    reportType={sheetReportType}
+                                    currentLayout={layoutConfig}
+                                    onLayoutChange={(config) =>
+                                      setLayoutConfig(config)
+                                    }
+                                    isLoading={previewLoading}
+                                    onReset={() => setPreviewRows(null)}
+                                  />
+                                  <div className="flex flex-wrap gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={handlePreviewReport}
+                                      disabled={
+                                        previewLoading ||
+                                        Boolean(setupBlockedReason)
+                                      }
+                                    >
+                                      {previewLoading
+                                        ? "Loading preview..."
+                                        : "Preview data"}
+                                    </Button>
+                                    <Button
+                                      onClick={handleCreateSheet}
+                                      disabled={
+                                        creatingSheet ||
+                                        Boolean(setupBlockedReason)
+                                      }
+                                    >
+                                      {creatingSheet
+                                        ? "Creating..."
+                                        : "Create Sheet"}
+                                    </Button>
+                                  </div>
+                                  {previewRows && (
+                                    <div className="space-y-3">
+                                      <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                                        <p className="text-xs font-medium text-muted-foreground mb-2">
+                                          Preview (first{" "}
+                                          {Math.max(previewRows.length - 1, 0)}{" "}
+                                          rows)
+                                        </p>
+                                        <div className="overflow-x-auto">
+                                          <table className="min-w-full text-xs">
+                                            <thead className="bg-muted/50">
+                                              <tr>
+                                                {previewRows[0]?.map(
+                                                  (cell, index) => (
                                                     <th
                                                       key={index}
                                                       className="px-2 py-1 text-left font-medium text-muted-foreground"
                                                     >
                                                       {cell}
                                                     </th>
-                                                  ))}
-                                                </tr>
-                                              </thead>
-                                              <tbody>
-                                                {previewRows.slice(1).map((row, rowIndex) => (
-                                                  <tr key={rowIndex} className="border-t">
-                                                    {row.map((cell, cellIndex) => (
-                                                      <td key={cellIndex} className="px-2 py-1 text-muted-foreground">
-                                                        {cell || "-"}
-                                                      </td>
-                                                    ))}
+                                                  ),
+                                                )}
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {previewRows
+                                                .slice(1)
+                                                .map((row, rowIndex) => (
+                                                  <tr
+                                                    key={rowIndex}
+                                                    className="border-t"
+                                                  >
+                                                    {row.map(
+                                                      (cell, cellIndex) => (
+                                                        <td
+                                                          key={cellIndex}
+                                                          className="px-2 py-1 text-muted-foreground"
+                                                        >
+                                                          {cell || "-"}
+                                                        </td>
+                                                      ),
+                                                    )}
                                                   </tr>
                                                 ))}
-                                              </tbody>
-                                            </table>
-                                          </div>
+                                            </tbody>
+                                          </table>
                                         </div>
-                                        <MiniSheetPreview
-                                          rangeA1={rangeA1}
-                                          previewRows={previewRows}
-                                          columns={columnOptions}
-                                        />
                                       </div>
-                                    )}
-                                  </AccordionContent>
-                                </AccordionItem>
-                              </Accordion>
+                                      <MiniSheetPreview
+                                        rangeA1={rangeA1}
+                                        previewRows={previewRows}
+                                        columns={columnOptions}
+                                      />
+                                    </div>
+                                  )}
+                                </AccordionContent>
+                              </AccordionItem>
+                            </Accordion>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium">Spreadsheet</p>
+                              <div className="flex flex-col gap-2 sm:flex-row">
+                                <Input
+                                  value={sheetInput}
+                                  onChange={(event) => {
+                                    setSheetInput(event.target.value);
+                                    setSheetMetadata(null);
+                                  }}
+                                  placeholder="Paste a Google Sheets URL or ID"
+                                />
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handleLoadSheetMetadata()}
+                                  disabled={
+                                    !sheetInput.trim() ||
+                                    Boolean(setupBlockedReason)
+                                  }
+                                >
+                                  Load
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={handleOpenPicker}
+                                  disabled={
+                                    pickerLoading || Boolean(setupBlockedReason)
+                                  }
+                                >
+                                  {pickerLoading
+                                    ? "Opening..."
+                                    : "Pick from Drive"}
+                                </Button>
+                              </div>
+                              {!pickerReady && (
+                                <p className="text-[11px] text-muted-foreground">
+                                  Google Picker will open in a new window. Allow
+                                  pop-ups if blocked.
+                                </p>
+                              )}
                             </div>
-                          )}
 
-                          {setupError && (
-                            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                              {setupError}
+                            {sheetMetadata && (
+                              <div className="rounded-md border p-3 text-xs">
+                                <p className="font-medium">Selected sheet</p>
+                                <p className="text-muted-foreground mt-1">
+                                  {sheetMetadata.sheetTitle}
+                                </p>
+                                <a
+                                  href={sheetMetadata.sheetUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-primary underline text-[11px]"
+                                >
+                                  Open in Google Sheets
+                                </a>
+                                {sheetMetadata.tabs.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {sheetMetadata.tabs.map((tab) => (
+                                      <Button
+                                        key={tab}
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setSheetTabName(tab)}
+                                      >
+                                        {tab}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium">Report Type</p>
+                              <Select
+                                value={sheetReportType}
+                                onValueChange={(value) =>
+                                  setSheetReportType(value as ReportType)
+                                }
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select report">
+                                    {reportTypeLabels[sheetReportType]}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectGroup>
+                                    <SelectItem value="member-hours">
+                                      Member Hours Summary
+                                    </SelectItem>
+                                    <SelectItem value="project-summary">
+                                      Project Summary
+                                    </SelectItem>
+                                    <SelectItem value="monthly-summary">
+                                      Monthly Hours
+                                    </SelectItem>
+                                  </SelectGroup>
+                                </SelectContent>
+                              </Select>
                             </div>
-                          )}
-                        </div>
+
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium">
+                                Sheet Tab Name
+                              </p>
+                              <Input
+                                value={sheetTabName}
+                                onChange={(event) =>
+                                  setSheetTabName(event.target.value)
+                                }
+                                placeholder="Member Hours"
+                              />
+                              <p className="text-[11px] text-muted-foreground">
+                                Use an existing tab name or type a new one.
+                              </p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium">Range</p>
+                              <RangeBuilder
+                                columns={columnOptions}
+                                mode={rangeMode}
+                                onModeChange={setRangeMode}
+                                startColumn={rangeStartColumn}
+                                startRow={rangeStartRow}
+                                endColumn={rangeEndColumn}
+                                endRow={rangeEndRow}
+                                onStartColumnChange={setRangeStartColumn}
+                                onStartRowChange={setRangeStartRow}
+                                onEndColumnChange={setRangeEndColumn}
+                                onEndRowChange={setRangeEndRow}
+                                helperText="Pick the top-left anchor. The report will expand to fit the data."
+                              />
+                            </div>
+
+                            <Accordion>
+                              <AccordionItem value="layout">
+                                <AccordionTrigger className="text-sm font-semibold">
+                                  Layout & preview
+                                </AccordionTrigger>
+                                <AccordionContent className="space-y-3">
+                                  <ReportLayoutCustomizer
+                                    reportType={sheetReportType}
+                                    currentLayout={layoutConfig}
+                                    onLayoutChange={(config) =>
+                                      setLayoutConfig(config)
+                                    }
+                                    isLoading={previewLoading}
+                                    onReset={() => setPreviewRows(null)}
+                                  />
+
+                                  <div className="flex flex-wrap gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={handlePreviewReport}
+                                      disabled={
+                                        previewLoading ||
+                                        Boolean(setupBlockedReason)
+                                      }
+                                    >
+                                      {previewLoading
+                                        ? "Loading preview..."
+                                        : "Preview data"}
+                                    </Button>
+                                    <Button
+                                      onClick={handleConnectExistingSheet}
+                                      disabled={
+                                        connectingSheet ||
+                                        !sheetMetadata ||
+                                        Boolean(setupBlockedReason)
+                                      }
+                                    >
+                                      {connectingSheet
+                                        ? "Connecting..."
+                                        : "Connect Sheet"}
+                                    </Button>
+                                  </div>
+
+                                  {previewRows && (
+                                    <div className="space-y-3">
+                                      <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                                        <p className="text-xs font-medium text-muted-foreground mb-2">
+                                          Preview (first{" "}
+                                          {Math.max(previewRows.length - 1, 0)}{" "}
+                                          rows)
+                                        </p>
+                                        <div className="overflow-x-auto">
+                                          <table className="min-w-full text-xs">
+                                            <thead className="bg-muted/50">
+                                              <tr>
+                                                {previewRows[0]?.map(
+                                                  (cell, index) => (
+                                                    <th
+                                                      key={index}
+                                                      className="px-2 py-1 text-left font-medium text-muted-foreground"
+                                                    >
+                                                      {cell}
+                                                    </th>
+                                                  ),
+                                                )}
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {previewRows
+                                                .slice(1)
+                                                .map((row, rowIndex) => (
+                                                  <tr
+                                                    key={rowIndex}
+                                                    className="border-t"
+                                                  >
+                                                    {row.map(
+                                                      (cell, cellIndex) => (
+                                                        <td
+                                                          key={cellIndex}
+                                                          className="px-2 py-1 text-muted-foreground"
+                                                        >
+                                                          {cell || "-"}
+                                                        </td>
+                                                      ),
+                                                    )}
+                                                  </tr>
+                                                ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                      <MiniSheetPreview
+                                        rangeA1={rangeA1}
+                                        previewRows={previewRows}
+                                        columns={columnOptions}
+                                      />
+                                    </div>
+                                  )}
+                                </AccordionContent>
+                              </AccordionItem>
+                            </Accordion>
+                          </div>
+                        )}
+
+                        {setupError && (
+                          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                            {setupError}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
-        <AlertDialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {unlinkIntent === "switch" ? "Switch spreadsheet destination?" : "Disconnect spreadsheet sync?"}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {unlinkIntent === "switch"
-                  ? "This will unlink the current sheet destination while keeping your Google account connected. You can choose a new destination right after."
-                  : "This will unlink the current sheet destination and stop all automatic sheet sync jobs for this organization."}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={unlinkingSheet}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={(event) => {
-                  event.preventDefault();
-                  void handleConfirmUnlinkSheet();
-                }}
-                disabled={unlinkingSheet}
-              >
-                {unlinkingSheet
-                  ? "Processing..."
-                  : unlinkIntent === "switch"
-                    ? "Unlink & switch"
-                    : "Disconnect"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {unlinkIntent === "switch"
+                ? "Switch spreadsheet destination?"
+                : "Disconnect spreadsheet sync?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {unlinkIntent === "switch"
+                ? "This will unlink the current sheet destination while keeping your Google account connected. You can choose a new destination right after."
+                : "This will unlink the current sheet destination and stop all automatic sheet sync jobs for this organization."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={unlinkingSheet}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmUnlinkSheet();
+              }}
+              disabled={unlinkingSheet}
+            >
+              {unlinkingSheet
+                ? "Processing..."
+                : unlinkIntent === "switch"
+                  ? "Unlink & switch"
+                  : "Disconnect"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Card>
         <CardHeader>
@@ -1615,31 +2000,43 @@ export default function ReportsTab({
             <BarChart className="h-4 w-4 text-muted-foreground" />
             Projects with Most Hours
           </CardTitle>
-          <CardDescription>Top 3 projects by total hours logged</CardDescription>
+          <CardDescription>
+            Top 3 projects by total hours logged
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <Skeleton className="h-32 w-full" />
           ) : topProjects.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No project hours yet.</div>
+            <div className="text-sm text-muted-foreground">
+              No project hours yet.
+            </div>
           ) : (
             <div className="space-y-3">
               {topProjects.map((project) => (
-                <div key={project.id} className="flex items-center justify-between">
+                <div
+                  key={project.id}
+                  className="flex items-center justify-between"
+                >
                   <div className="min-w-0 space-y-1">
-                    <p className="text-sm font-medium truncate">{project.title}</p>
-                    <Badge variant={getProjectStatusBadgeVariant(project.status)}>
+                    <p className="text-sm font-medium truncate">
+                      {project.title}
+                    </p>
+                    <Badge
+                      variant={getProjectStatusBadgeVariant(project.status)}
+                    >
                       {formatProjectStatusLabel(project.status)}
                     </Badge>
                   </div>
-                  <Badge variant="secondary">{(project.totalHours ?? 0).toFixed(1)}h</Badge>
+                  <Badge variant="secondary">
+                    {(project.totalHours ?? 0).toFixed(1)}h
+                  </Badge>
                 </div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
-
     </div>
   );
 }
@@ -1668,7 +2065,9 @@ function SummaryCard({
             ) : (
               <div className="text-xl font-semibold mt-1">{value}</div>
             )}
-            <p className="text-[10px] text-muted-foreground mt-1">{description}</p>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {description}
+            </p>
           </div>
           <div className="p-2 rounded-md bg-muted">
             <Icon className="h-4 w-4 text-muted-foreground" />
@@ -1687,7 +2086,9 @@ function formatProjectStatusLabel(status: string | null | undefined) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function getProjectStatusBadgeVariant(status: string | null | undefined): "default" | "secondary" | "destructive" | "outline" {
+function getProjectStatusBadgeVariant(
+  status: string | null | undefined,
+): "default" | "secondary" | "destructive" | "outline" {
   switch ((status || "").toLowerCase()) {
     case "completed":
       return "secondary";
@@ -1699,34 +2100,6 @@ function getProjectStatusBadgeVariant(status: string | null | undefined): "defau
     default:
       return "outline";
   }
-}
-
-function ExportButton({
-  label,
-  type,
-  exporting,
-  onExport,
-}: {
-  label: string;
-  type: ReportType;
-  exporting: ReportType | null;
-  onExport: (type: ReportType) => void;
-}) {
-  const isLoading = exporting === type;
-  return (
-    <Button
-      variant="outline"
-      onClick={() => onExport(type)}
-      disabled={isLoading}
-      className="justify-between"
-    >
-      <span className="text-sm">{label}</span>
-      <span className="flex items-center gap-2 text-xs text-muted-foreground">
-        {isLoading ? "Exporting..." : "CSV"}
-        <Download className="h-4 w-4" />
-      </span>
-    </Button>
-  );
 }
 
 function RangeBuilder({
@@ -1779,7 +2152,10 @@ function RangeBuilder({
   const endColumnIndex = columnToIndex(endColumn || startColumn || "A");
   const columnSpan = Math.max(endColumnIndex - startColumnIndex + 1, 1);
   const startRowNumber = Math.max(Number.parseInt(startRow || "1", 10) || 1, 1);
-  const endRowNumber = Math.max(Number.parseInt(endRow || startRow || "1", 10) || 1, 1);
+  const endRowNumber = Math.max(
+    Number.parseInt(endRow || startRow || "1", 10) || 1,
+    1,
+  );
   const rowSpan = Math.max(endRowNumber - startRowNumber + 1, 1);
 
   useEffect(() => {
@@ -1815,8 +2191,8 @@ function RangeBuilder({
     mode === "full"
       ? "A1"
       : `${startColumn}${startRowNumber}:${indexToColumn(
-        startColumnIndex + columnSpan - 1
-      )}${startRowNumber + rowSpan - 1}`;
+          startColumnIndex + columnSpan - 1,
+        )}${startRowNumber + rowSpan - 1}`;
 
   return (
     <div className="space-y-2">
@@ -1848,7 +2224,11 @@ function RangeBuilder({
               Anchor (top-left)
             </p>
             <div className="mt-2 flex items-center gap-2">
-              <Select value={startColumn} onValueChange={(val) => val && onStartColumnChange(val)} disabled={disabled}>
+              <Select
+                value={startColumn}
+                onValueChange={(val) => val && onStartColumnChange(val)}
+                disabled={disabled}
+              >
                 <SelectTrigger className="w-22.5">
                   <SelectValue placeholder="Col" />
                 </SelectTrigger>
@@ -1866,7 +2246,9 @@ function RangeBuilder({
                 type="number"
                 min={1}
                 value={startRow}
-                onChange={(event) => onStartRowChange(sanitizeRow(event.target.value))}
+                onChange={(event) =>
+                  onStartRowChange(sanitizeRow(event.target.value))
+                }
                 className="h-9"
                 disabled={disabled}
               />
@@ -1881,19 +2263,25 @@ function RangeBuilder({
             </p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[11px] text-muted-foreground">Columns</label>
+                <label className="text-[11px] text-muted-foreground">
+                  Columns
+                </label>
                 <Input
                   type="number"
                   min={1}
                   max={26}
                   value={columnSpan}
-                  onChange={(event) => handleColumnSpanChange(event.target.value)}
+                  onChange={(event) =>
+                    handleColumnSpanChange(event.target.value)
+                  }
                   className="h-9"
                   disabled={disabled}
                 />
               </div>
               <div>
-                <label className="text-[11px] text-muted-foreground">Rows</label>
+                <label className="text-[11px] text-muted-foreground">
+                  Rows
+                </label>
                 <Input
                   type="number"
                   min={1}
@@ -1911,7 +2299,9 @@ function RangeBuilder({
         </div>
       )}
 
-      {helperText && <p className="text-[11px] text-muted-foreground">{helperText}</p>}
+      {helperText && (
+        <p className="text-[11px] text-muted-foreground">{helperText}</p>
+      )}
     </div>
   );
 }
@@ -1930,7 +2320,7 @@ function MiniSheetPreview({
   const dataRows = previewRows?.length || 4;
   const dataColumns = Math.max(
     previewRows?.reduce((max, row) => Math.max(max, row.length), 0) || 4,
-    1
+    1,
   );
 
   const parseCell = (cell: string) => {
@@ -1960,7 +2350,8 @@ function MiniSheetPreview({
   return (
     <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
       <p className="text-[11px] font-medium text-muted-foreground mb-2">
-        Overlay preview (top-left at {startCell.column}{startCell.row})
+        Overlay preview (top-left at {startCell.column}
+        {startCell.row})
       </p>
       <div className="overflow-x-auto">
         <table className="min-w-full text-[10px]">
@@ -1996,8 +2387,9 @@ function MiniSheetPreview({
                     return (
                       <td
                         key={`${col}-${rowNumber}`}
-                        className={`h-5 w-10 border-l text-center ${isOverlay ? "bg-primary/15" : "bg-transparent"
-                          }`}
+                        className={`h-5 w-10 border-l text-center ${
+                          isOverlay ? "bg-primary/15" : "bg-transparent"
+                        }`}
                       ></td>
                     );
                   })}

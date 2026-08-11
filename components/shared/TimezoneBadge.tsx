@@ -1,5 +1,5 @@
-import { Badge } from '@/components/ui/badge';
-import { getTimezoneAbbreviation } from '@/utils/timezone';
+import { Badge } from "@/components/ui/badge";
+import { getTimezoneAbbreviation } from "@/utils/timezone";
 
 interface TimezoneBadgeProps {
   timezone: string;
@@ -10,12 +10,15 @@ interface TimezoneBadgeProps {
  * Display timezone abbreviation badge (e.g., PST, EST)
  * Shows the timezone in a small, subtle badge
  */
-export function TimezoneBadge({ timezone, className = '' }: TimezoneBadgeProps) {
+export function TimezoneBadge({
+  timezone,
+  className = "",
+}: TimezoneBadgeProps) {
   const abbreviation = getTimezoneAbbreviation(timezone);
-  
+
   return (
-    <Badge 
-      variant="secondary" 
+    <Badge
+      variant="secondary"
       className={`text-xs font-normal px-1.5 py-0.5 ${className}`}
     >
       {abbreviation}

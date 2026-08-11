@@ -1,13 +1,17 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
@@ -24,7 +28,7 @@ interface JoinCodeDisplayProps {
 
 export default function JoinCodeDisplay({
   organizationId,
-  joinCode
+  joinCode,
 }: JoinCodeDisplayProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -55,7 +59,11 @@ export default function JoinCodeDisplay({
 
   // Regenerate join code
   const handleRegenerateJoinCode = async () => {
-    if (!confirm("Are you sure you want to regenerate the join code? The old code will no longer work.")) {
+    if (
+      !confirm(
+        "Are you sure you want to regenerate the join code? The old code will no longer work.",
+      )
+    ) {
       return;
     }
 
@@ -106,7 +114,11 @@ export default function JoinCodeDisplay({
                 className="h-8 w-8"
                 onClick={handleCopyCode}
               >
-                {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {isCopied ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
               </Button>
             </div>
 
@@ -158,12 +170,12 @@ export default function JoinCodeDisplay({
                   readOnly
                   className="font-mono text-center text-lg tracking-widest"
                 />
-                <Button
-                  size="icon"
-                  variant="outline"
-                  onClick={handleCopyCode}
-                >
-                  {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                <Button size="icon" variant="outline" onClick={handleCopyCode}>
+                  {isCopied ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>

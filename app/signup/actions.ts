@@ -1,93 +1,44 @@
 "use server";
 
 import { z } from "zod";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "crypto";
-import { buildAuthConfirmRedirectUrl, normalizeRedirectPath } from "./redirect-utils";
 import {
-  applyStaffInviteForUser,
-  type StaffInviteOutcome,
-} from "@/lib/organization/staff-invite";
+  buildAuthConfirmRedirectUrl,
+  isCsfConnectRedirect,
+  normalizeRedirectPath,
+} from "./redirect-utils";
+import {
+  resolveAuthRequestOrigin,
+  resolveConfiguredSiteOrigin,
+} from "./request-origin";
+import { passwordSchema } from "@/lib/auth/password-policy";
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
   phone: z.string().optional(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: passwordSchema,
   turnstileToken: z.string().nullish(),
   staffToken: z.string().nullish(),
   orgUsername: z.string().nullish(),
 });
 
-const getSiteUrl = () => {
-  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  const vercelSiteUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : undefined;
+const getSiteUrl = () => resolveConfiguredSiteOrigin();
 
-  return (configuredSiteUrl || vercelSiteUrl || "http://localhost:3000").replace(/\/+$/u, "");
-};
-
-type SignupStatus = 
-  | { type: 'confirmed'; message: string }
-  | { type: 'unconfirmed'; message: string }
-  | { type: 'new'; message: string };
-
-export async function checkEmailStatus(email: string): Promise<SignupStatus> {
-  if (process.env.E2E_TEST_MODE === "true") {
-    return { type: 'new', message: 'E2E test mode: email is new' };
-  }
-
-  try {
-    const adminClient = getAdminClient();
-    const normalizedEmail = email.trim().toLowerCase();
-    const perPage = 100;
-    const maxPages = 100;
-    let existingUser: { email?: string | null; email_confirmed_at?: string | null } | null = null;
-
-    for (let page = 1; page <= maxPages; page += 1) {
-      const { data, error } = await adminClient.auth.admin.listUsers({
-        page,
-        perPage,
-      });
-
-      if (error) {
-        console.error("Error checking email status:", error);
-        throw error;
-      }
-
-      const users = data?.users ?? [];
-      existingUser = users.find((u) => u.email?.toLowerCase() === normalizedEmail) ?? null;
-
-      if (existingUser || users.length < perPage) {
-        break;
-      }
-    }
-
-    if (!existingUser) {
-      return { type: 'new', message: 'Email is available for signup' };
-    }
-    
-    // Check if email is confirmed - use explicit truthy check
-    const isConfirmed = !!existingUser.email_confirmed_at;
-    
-    if (isConfirmed) {
-      return { 
-        type: 'confirmed', 
-        message: 'An account with this email already exists and is verified. Please log in to access your account.' 
-      };
-    } else {
-      return { 
-        type: 'unconfirmed', 
-        message: 'It looks like you already signed up but haven\'t confirmed your email yet. Would you like us to resend the verification link?' 
-      };
-    }
-  } catch (error) {
-    console.error("Error in checkEmailStatus:", error);
-    throw error;
-  }
-}
+/**
+ * The origin used for links that depend on the PKCE verifier this request
+ * stores. Loopback development may keep the spelling the developer actually
+ * opened (127.0.0.1 vs localhost) because those are separate cookie origins;
+ * every other deployment keeps the trusted configured origin.
+ */
+const getAuthLinkOrigin = async () =>
+  resolveAuthRequestOrigin({
+    configuredOrigin: getSiteUrl(),
+    requestHost: (await headers()).get("host"),
+  });
 
 function getResendErrorCode(message: string, status?: number) {
   const lowered = message.toLowerCase();
@@ -101,7 +52,11 @@ function getResendErrorCode(message: string, status?: number) {
     return "captcha_required";
   }
 
-  if (lowered.includes("expired") || lowered.includes("otp") || lowered.includes("token")) {
+  if (
+    lowered.includes("expired") ||
+    lowered.includes("otp") ||
+    lowered.includes("token")
+  ) {
     return "link_expired";
   }
 
@@ -112,7 +67,9 @@ export async function signup(formData: FormData) {
   const turnstileToken = formData.get("turnstileToken") as string;
   const staffToken = formData.get("staffToken") as string | undefined;
   const orgUsername = formData.get("orgUsername") as string | undefined;
-  const redirectUrl = normalizeRedirectPath(formData.get("redirectUrl")?.toString() ?? null);
+  const redirectUrl = normalizeRedirectPath(
+    formData.get("redirectUrl")?.toString() ?? null,
+  );
 
   const validatedFields = signupSchema.safeParse({
     fullName: formData.get("fullName"),
@@ -139,29 +96,13 @@ export async function signup(formData: FormData) {
   const supabase = await createClient();
 
   try {
-    const origin = getSiteUrl();
-    
-    // Check email status first
-    const emailStatus = await checkEmailStatus(validatedFields.data.email);
-    
-    if (emailStatus.type === 'confirmed') {
-      return { 
-        error: { server: [emailStatus.message] },
-        emailStatus: 'confirmed'
-      };
-    }
-    
-    if (emailStatus.type === 'unconfirmed') {
-      return { 
-        error: { server: [emailStatus.message] },
-        emailStatus: 'unconfirmed',
-        email: validatedFields.data.email
-      };
-    }
+    const origin = await getAuthLinkOrigin();
 
     // Check if this email is blacklisted
     const adminClient = getAdminClient();
-    const normalizedSignupEmail = validatedFields.data.email.trim().toLowerCase();
+    const normalizedSignupEmail = validatedFields.data.email
+      .trim()
+      .toLowerCase();
     const { data: blacklisted } = await adminClient
       .from("banned_emails")
       .select("email")
@@ -170,7 +111,9 @@ export async function signup(formData: FormData) {
 
     if (blacklisted) {
       return {
-        error: { server: ["This email address is not eligible for registration."] },
+        error: {
+          server: ["This email address is not eligible for registration."],
+        },
       };
     }
 
@@ -184,6 +127,10 @@ export async function signup(formData: FormData) {
           username: string;
           phone?: string;
           created_at: string;
+          pending_staff_token?: string;
+          pending_staff_org_username?: string;
+          signup_flow?: string;
+          has_completed_intro_tour?: boolean;
         };
         emailRedirectTo: string;
         captchaToken?: string;
@@ -198,6 +145,21 @@ export async function signup(formData: FormData) {
           phone: validatedFields.data.phone,
           username: `user_${randomUUID().slice(0, 8)}`,
           created_at: new Date().toISOString(),
+          ...(validatedFields.data.staffToken &&
+          validatedFields.data.orgUsername
+            ? {
+                pending_staff_token: validatedFields.data.staffToken,
+                pending_staff_org_username: validatedFields.data.orgUsername,
+              }
+            : {}),
+          // Students arriving from a CSF cohort onboarding link skip the
+          // generic platform tour; the CSF plugin runs its own welcome tour.
+          ...(isCsfConnectRedirect(redirectUrl)
+            ? {
+                signup_flow: "csf_connect",
+                has_completed_intro_tour: true,
+              }
+            : {}),
         },
         emailRedirectTo: buildAuthConfirmRedirectUrl(origin, redirectUrl),
       },
@@ -215,7 +177,12 @@ export async function signup(formData: FormData) {
 
     if (authError) {
       if (authError.message.includes("User already registered")) {
-        return { error: { server: ["An account with this email already exists. Please log in."] } };
+        return {
+          success: true,
+          email: validatedFields.data.email,
+          message:
+            "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
+        };
       }
       throw authError;
     }
@@ -224,108 +191,32 @@ export async function signup(formData: FormData) {
       throw new Error("No user returned");
     }
 
-    const profileEmail = user.email || validatedFields.data.email;
-    const profileFullName = validatedFields.data.fullName.trim() || null;
-    const profilePhone = validatedFields.data.phone?.trim() || null;
-
-    const { error: profileUpsertError } = await adminClient
-      .from("profiles")
-      .upsert(
-        {
-          id: user.id,
-          email: profileEmail,
-          full_name: profileFullName,
-          phone: profilePhone,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" },
-      );
-
-    if (profileUpsertError) {
-      console.warn("Profile upsert after signup failed:", profileUpsertError.message);
+    // With email confirmation enabled, Supabase deliberately returns an
+    // obfuscated user with no identities for an existing address. Stop before
+    // any service-role profile, invite, or organization side effects and keep
+    // the public response indistinguishable from a new signup.
+    if (Array.isArray(user.identities) && user.identities.length === 0) {
+      return {
+        success: true,
+        email: validatedFields.data.email,
+        message:
+          "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
+      };
     }
 
-    // Profile row will be created/updated by DB trigger using user metadata
+    // public.handle_new_user() creates or updates public.profiles from the
+    // metadata supplied to auth.signUp. Keep profile creation inside that auth
+    // transaction instead of issuing a second service-role write here.
 
-    // Handle staff token - add user to organization as staff
-    let inviteOutcome: StaffInviteOutcome | undefined;
-    if (staffToken && orgUsername) {
-      inviteOutcome = await applyStaffInviteForUser({
-        userId: user.id,
-        staffToken,
-        orgUsername,
-      });
-    } else {
-      // Check for auto-affiliation based on email domain
-      try {
-        await handleEmailDomainAffiliation(user.id, validatedFields.data.email);
-      } catch (affiliationError) {
-        console.error("Error processing email affiliation:", affiliationError);
-        // Don't fail signup if affiliation processing fails
-      }
-    }
-
-    return { 
-      success: true, 
+    return {
+      success: true,
       email: validatedFields.data.email,
-      message: "Successfully signed up! Please check your email (and junk folder) to confirm your account.",
-      inviteOutcome,
+      message:
+        "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
     };
   } catch (error) {
     return { error: { server: [(error as Error).message] } };
   }
-}
-
-/**
- * Handle email domain affiliation - auto-add user to organization based on email domain
- * Returns the organization ID if the user was auto-added, null otherwise
- */
-async function handleEmailDomainAffiliation(userId: string, email: string): Promise<string | null> {
-  const adminClient = getAdminClient();
-  
-  const domain = email.split("@")[1]?.toLowerCase();
-  if (!domain) return null;
-
-  // Check if any organization has auto_join_domain set to this domain
-  const { data: org, error: orgError } = await adminClient
-    .from("organizations")
-    .select("id, name")
-    .eq("auto_join_domain", domain)
-    .single();
-
-  if (orgError || !org) {
-    // No organization with this auto-join domain
-    return null;
-  }
-
-  // Add user to the organization as a member
-  const { error: memberError } = await adminClient
-    .from("organization_members")
-    .insert({
-      organization_id: org.id,
-      user_id: userId,
-      role: "member",
-      joined_at: new Date().toISOString(),
-    });
-
-  if (memberError) {
-    // Skip if already a member (duplicate key)
-    if (memberError.code !== "23505") {
-      console.error(`Error adding user to org ${org.id}:`, memberError);
-    }
-    return null;
-  }
-
-  // Store the auto-joined organization info in user metadata for display after onboarding
-  await adminClient.auth.admin.updateUserById(userId, {
-    user_metadata: {
-      auto_joined_org_id: org.id,
-      auto_joined_org_name: org.name,
-    }
-  });
-
-  console.log(`User ${userId} auto-affiliated with organization ${org.id} via domain ${domain}`);
-  return org.id;
 }
 
 export async function resendVerificationEmail(
@@ -335,8 +226,8 @@ export async function resendVerificationEmail(
 ) {
   try {
     const supabase = await createClient();
-    const origin = getSiteUrl();
-    
+    const origin = await getAuthLinkOrigin();
+
     const options: Record<string, string> = {
       emailRedirectTo: buildAuthConfirmRedirectUrl(origin, redirectAfterAuth),
     };
@@ -346,30 +237,31 @@ export async function resendVerificationEmail(
     }
 
     const { error } = await supabase.auth.resend({
-      type: 'signup',
+      type: "signup",
       email: email,
       options,
     });
-    
+
     if (error) {
       console.error("Error resending verification email:", error);
       const message = error.message || "Failed to resend verification email";
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: message,
         code: getResendErrorCode(message, error.status),
       };
     }
-    
-    return { 
-      success: true, 
-      message: "Verification email has been resent. Please check your inbox." 
+
+    return {
+      success: true,
+      message: "Verification email has been resent. Please check your inbox.",
     };
   } catch (error) {
     console.error("Exception in resendVerificationEmail:", error);
-    const message = (error as Error).message || "An error occurred while resending the email";
-    return { 
-      success: false, 
+    const message =
+      (error as Error).message || "An error occurred while resending the email";
+    return {
+      success: false,
       error: message,
       code: getResendErrorCode(message),
     };
@@ -378,28 +270,28 @@ export async function resendVerificationEmail(
 
 export async function signInWithGoogle(
   redirectAfterAuth?: string | null,
-  inviteContext?: { staffToken?: string; orgUsername?: string } | null
+  inviteContext?: { staffToken?: string; orgUsername?: string } | null,
 ) {
   const origin = getSiteUrl();
 
   const supabase = await createClient();
-  
+
   // Build callback URL with query params for redirect and staff invite context
   let redirectTo = `${origin}/auth/callback`;
   const params = new URLSearchParams();
-  
+
   if (redirectAfterAuth) {
-    params.set('redirectAfterAuth', redirectAfterAuth);
+    params.set("redirectAfterAuth", redirectAfterAuth);
   }
-  
+
   if (inviteContext?.staffToken) {
-    params.set('staffToken', inviteContext.staffToken);
+    params.set("staffToken", inviteContext.staffToken);
   }
-  
+
   if (inviteContext?.orgUsername) {
-    params.set('orgUsername', inviteContext.orgUsername);
+    params.set("orgUsername", inviteContext.orgUsername);
   }
-  
+
   const queryString = params.toString();
   if (queryString) {
     redirectTo += `?${queryString}`;
@@ -418,11 +310,11 @@ export async function signInWithGoogle(
       redirectTo,
     },
   });
-  
+
   if (error) {
     console.error("Google OAuth error:", error);
     return { error: { server: [error.message] } };
   }
-  
+
   return { url };
 }

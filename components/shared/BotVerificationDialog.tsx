@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Shield, Loader2 } from "lucide-react";
 import { TurnstileComponent } from "@/components/ui/turnstile";
+import { SecureCheckPanel } from "@/components/auth/SecureCheckPanel";
 import { useBotVerification } from "@/hooks/useBotVerification";
 
 interface BotVerificationDialogProps {
@@ -77,17 +78,27 @@ export function BotVerificationDialog({
         </DialogHeader>
 
         <div className="flex justify-center py-6">
-          <TurnstileComponent
-            ref={verification.ref}
-            onVerify={verification.onVerify}
-            onError={verification.onError}
-            onLoad={verification.onLoad}
-            theme="auto"
-          />
+          <SecureCheckPanel
+            phase={verification.phase}
+            onRetry={verification.retry}
+            className="w-75"
+            fallbackClassName="w-75"
+          >
+            <TurnstileComponent
+              key={verification.widgetKey}
+              ref={verification.ref}
+              onVerify={verification.onVerify}
+              onError={verification.onError}
+              onLoad={verification.onLoad}
+              theme="auto"
+            />
+          </SecureCheckPanel>
         </div>
 
         {verification.error && (
-          <p className="text-sm text-destructive text-center">{verification.error}</p>
+          <p className="text-sm text-destructive text-center">
+            {verification.error}
+          </p>
         )}
 
         <DialogFooter>

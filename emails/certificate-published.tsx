@@ -9,7 +9,7 @@ import {
   Row,
   Section,
   Text,
-} from "@react-email/components";
+} from "react-email";
 import * as React from "react";
 
 import EmailButton from "./_components/EmailButton";
@@ -123,7 +123,8 @@ export default function CertificatePublished({
               <Text style={paragraph}>Hi {volunteerName},</Text>
 
               <Text style={paragraph}>
-                Great news! Your volunteer certificate for <strong>{projectTitle}</strong>{" "}
+                Great news! Your volunteer certificate for{" "}
+                <strong>{projectTitle}</strong>{" "}
                 {isAutoPublished
                   ? "has been automatically published and is now available to view."
                   : "has been published and is now available to view."}
@@ -133,9 +134,13 @@ export default function CertificatePublished({
                 <Section style={autoPublishBox}>
                   <Row>
                     <Column style={autoPublishContent}>
-                      <Heading style={autoPublishTitle}>📅 Automatic Publishing</Heading>
+                      <Heading style={autoPublishTitle}>
+                        📅 Automatic Publishing
+                      </Heading>
                       <Text style={autoPublishText}>
-                        This certificate was automatically generated 48 hours after the event ended, as no manual adjustments were needed.
+                        This certificate was automatically generated 48 hours
+                        after the event ended, as no manual adjustments were
+                        needed.
                       </Text>
                     </Column>
                   </Row>
@@ -185,7 +190,9 @@ export default function CertificatePublished({
               </Section>
 
               <Section style={buttonContainer}>
-                <EmailButton href={certificateUrl}>View My Certificate</EmailButton>
+                <EmailButton href={certificateUrl}>
+                  View My Certificate
+                </EmailButton>
               </Section>
 
               <Section style={gettingStarted}>
@@ -199,7 +206,9 @@ export default function CertificatePublished({
               </Section>
 
               <Text style={helpText}>
-                You can view, download, and share your certificate using the link above. This certificate serves as official recognition of your volunteer contribution.
+                You can view, download, and share your certificate using the
+                link above. This certificate serves as official recognition of
+                your volunteer contribution.
               </Text>
             </Section>
 

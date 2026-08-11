@@ -1,0 +1,48 @@
+/* Brand fonts this app loads via next/font — next/font injects these as
+   inline @font-face at build time, so they don't appear in globals.css.
+   Sourced here for the design-sync bundle. See app/layout.tsx.
+
+   The --font-* variable bindings that map these families onto the vars
+   Tailwind's font-family utilities reference live in compile-tailwind.mjs's
+   output instead — extractFonts (lib/css.mjs) only pulls @font-face rules
+   out of this file, dropping anything else. */
+
+@font-face {
+  font-family: "GeistSansVar";
+  src: url("../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GeistMonoVar";
+  src: url("../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "OverusedGrotesk";
+  src: url("../public/fonts/OverusedGrotesk-VF.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nohemi";
+  src: url("../public/fonts/Nohemi Font Family/Nohemi-VF-BF6438cc58ad63d.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CheeseMilky";
+  src: url("../app/fonts/cheese-milky.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

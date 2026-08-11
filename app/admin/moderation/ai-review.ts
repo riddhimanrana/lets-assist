@@ -1,10 +1,10 @@
-import { z } from 'zod';
+import { z } from "zod";
 import {
   generateModerationObject,
   sanitizeModerationText,
-} from './ai-generation';
+} from "./ai-generation";
 
-type ReportStatus = 'pending' | 'under_review' | 'resolved' | 'dismissed';
+type ReportStatus = "pending" | "under_review" | "resolved" | "dismissed";
 
 type ReportAiMetadata = {
   triagedAt: string;
@@ -23,61 +23,108 @@ type ReportAiMetadata = {
     severityAssessment: number;
     contextClarity: number;
   };
-  priority: 'low' | 'normal' | 'high' | 'critical';
+  priority: "low" | "normal" | "high" | "critical";
   suggestedStatus: ReportStatus;
-  recommendedAction: 'none' | 'warn_user' | 'remove_content' | 'block_content' | 'escalate_to_legal';
+  recommendedAction:
+    | "none"
+    | "warn_user"
+    | "remove_content"
+    | "block_content"
+    | "escalate_to_legal";
   actionJustification?: string;
   tags: string[];
   toolsUsed: string[];
 };
 
 const detailedReportModerationSchema = z.object({
-  verdict: z.string().describe('Final triage verdict - concise summary of the decision'),
-  shortSummary: z.string().describe('2-3 sentence overview of the situation for quick scanning in a table view'),
+  verdict: z
+    .string()
+    .describe("Final triage verdict - concise summary of the decision"),
+  shortSummary: z
+    .string()
+    .describe(
+      "2-3 sentence overview of the situation for quick scanning in a table view",
+    ),
   reasoningSteps: z
     .array(
       z.object({
         step: z.number(),
-        title: z.string().describe('Title of this reasoning step'),
-        analysis: z.string().describe('Detailed analysis for this step'),
-        conclusion: z.string().describe('Conclusion from this step'),
-      })
+        title: z.string().describe("Title of this reasoning step"),
+        analysis: z.string().describe("Detailed analysis for this step"),
+        conclusion: z.string().describe("Conclusion from this step"),
+      }),
     )
-    .describe('Step-by-step chain of thought reasoning'),
+    .describe("Step-by-step chain of thought reasoning"),
   confidenceScore: z.number().min(0).max(1),
   confidenceBreakdown: z.object({
-    evidenceStrength: z.number().min(0).max(1).describe('How strong is the evidence in the report?'),
-    severityAssessment: z.number().min(0).max(1).describe('How severe is the potential violation?'),
-    contextClarity: z.number().min(0).max(1).describe('How clear is the context provided?'),
+    evidenceStrength: z
+      .number()
+      .min(0)
+      .max(1)
+      .describe("How strong is the evidence in the report?"),
+    severityAssessment: z
+      .number()
+      .min(0)
+      .max(1)
+      .describe("How severe is the potential violation?"),
+    contextClarity: z
+      .number()
+      .min(0)
+      .max(1)
+      .describe("How clear is the context provided?"),
   }),
-  recommendedPriority: z.enum(['low', 'normal', 'high', 'critical']),
-  recommendedStatus: z.enum(['pending', 'under_review', 'resolved', 'dismissed']),
-  recommendedAction: z.enum(['none', 'warn_user', 'remove_content', 'block_content', 'escalate_to_legal']),
-  actionJustification: z.string().describe('Why this specific action is recommended'),
+  recommendedPriority: z.enum(["low", "normal", "high", "critical"]),
+  recommendedStatus: z.enum([
+    "pending",
+    "under_review",
+    "resolved",
+    "dismissed",
+  ]),
+  recommendedAction: z.enum([
+    "none",
+    "warn_user",
+    "remove_content",
+    "block_content",
+    "escalate_to_legal",
+  ]),
+  actionJustification: z
+    .string()
+    .describe("Why this specific action is recommended"),
   tags: z
     .array(
       z.enum([
-        'spam',
-        'harassment',
-        'inappropriate_content',
-        'misinformation',
-        'copyright',
-        'privacy_violation',
-        'violence',
-        'hate_speech',
-        'other',
-      ])
+        "spam",
+        "harassment",
+        "inappropriate_content",
+        "misinformation",
+        "copyright",
+        "privacy_violation",
+        "violence",
+        "hate_speech",
+        "other",
+      ]),
     )
     .default([]),
-  toolsUsed: z.array(z.string()).default([]).describe('List of conceptual tools/checks performed'),
+  toolsUsed: z
+    .array(z.string())
+    .default([])
+    .describe("List of conceptual tools/checks performed"),
 });
 
 const detailedProjectModerationSchema = z.object({
   isFlagged: z.boolean(),
   flagType: z
-    .enum(['spam', 'harassment', 'inappropriate', 'violence', 'hate_speech', 'sexual', 'other'])
+    .enum([
+      "spam",
+      "harassment",
+      "inappropriate",
+      "violence",
+      "hate_speech",
+      "sexual",
+      "other",
+    ])
     .optional(),
-  shortSummary: z.string().describe('2-3 sentence overview for quick scanning'),
+  shortSummary: z.string().describe("2-3 sentence overview for quick scanning"),
   confidenceScore: z.number().min(0).max(1),
   reasoningSteps: z.array(
     z.object({
@@ -85,7 +132,7 @@ const detailedProjectModerationSchema = z.object({
       title: z.string(),
       analysis: z.string(),
       conclusion: z.string(),
-    })
+    }),
   ),
   verdict: z.string(),
   toolsUsed: z.array(z.string()).default([]),
@@ -109,13 +156,20 @@ type ProjectInput = {
 };
 
 function normalizeReportStatus(value: string): ReportStatus {
-  const allowed: ReportStatus[] = ['pending', 'under_review', 'resolved', 'dismissed'];
-  return allowed.includes(value as ReportStatus) ? (value as ReportStatus) : 'pending';
+  const allowed: ReportStatus[] = [
+    "pending",
+    "under_review",
+    "resolved",
+    "dismissed",
+  ];
+  return allowed.includes(value as ReportStatus)
+    ? (value as ReportStatus)
+    : "pending";
 }
 
 function clampReportStatus(value: ReportStatus): ReportStatus {
-  if (value === 'resolved' || value === 'dismissed') {
-    return 'under_review';
+  if (value === "resolved" || value === "dismissed") {
+    return "under_review";
   }
   return value;
 }
@@ -124,13 +178,15 @@ function buildReportReasoning(decision: DetailedReportDecision) {
   if (!decision.reasoningSteps?.length) {
     return decision.verdict;
   }
-  return decision.reasoningSteps.map((step) => `${step.title}: ${step.conclusion}`).join(' → ');
+  return decision.reasoningSteps
+    .map((step) => `${step.title}: ${step.conclusion}`)
+    .join(" → ");
 }
 
 function buildReportAiMetadata(
   decision: DetailedReportDecision,
   triagedAt: string,
-  suggestedStatus: ReportStatus
+  suggestedStatus: ReportStatus,
 ): ReportAiMetadata {
   return {
     triagedAt,
@@ -159,9 +215,12 @@ function buildProjectFlagDetails(decision: DetailedProjectDecision) {
   };
 }
 
-async function analyzeReportWithAi(report: ReportInput, contentDetails: string) {
+async function analyzeReportWithAi(
+  report: ReportInput,
+  contentDetails: string,
+) {
   const decision = await generateModerationObject({
-    label: 'ai-moderation-report-review',
+    label: "ai-moderation-report-review",
     schema: detailedReportModerationSchema,
     prompt: `You are an expert content moderation AI for a volunteer platform. Analyze this user report with detailed step-by-step reasoning.
 
@@ -172,7 +231,7 @@ async function analyzeReportWithAi(report: ReportInput, contentDetails: string) 
 - Content Type: ${report.content_type}
 
 ## Content Being Reported
-${sanitizeModerationText(contentDetails, 2500) || 'Content details not available'}
+${sanitizeModerationText(contentDetails, 2500) || "Content details not available"}
 
 ## Your Task
 1. Understand the context of what's being reported
@@ -203,7 +262,7 @@ Include "toolsUsed" with conceptual tools like: "content_analysis", "policy_chec
 
 async function analyzeProjectWithAi(project: ProjectInput) {
   const decision = await generateModerationObject({
-    label: 'ai-moderation-project-review',
+    label: "ai-moderation-project-review",
     schema: detailedProjectModerationSchema,
     prompt: `You are an expert content moderation AI for a volunteer platform. Analyze this project with detailed step-by-step reasoning.
 
@@ -238,4 +297,9 @@ export {
   normalizeReportStatus,
 };
 
-export type { DetailedProjectDecision, DetailedReportDecision, ReportAiMetadata, ReportStatus };
+export type {
+  DetailedProjectDecision,
+  DetailedReportDecision,
+  ReportAiMetadata,
+  ReportStatus,
+};

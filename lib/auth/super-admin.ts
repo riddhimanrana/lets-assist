@@ -29,43 +29,41 @@ export function getRole(metadata: MetadataRecord): string | null {
   return normalizedRole.length > 0 ? normalizedRole : null;
 }
 
-export function hasSuperAdminMetadata(user: SuperAdminUserLike | null | undefined): boolean {
+export function hasSuperAdminMetadata(
+  user: SuperAdminUserLike | null | undefined,
+): boolean {
   if (!user) {
     return false;
   }
 
+  // Authorization claims must only come from app_metadata. Supabase users can
+  // edit their own user_metadata, so accepting role flags from it would let any
+  // authenticated user promote themselves into service-role admin actions.
   return (
-    getBooleanFlag(user.user_metadata, "is_super_admin") ||
     getBooleanFlag(user.app_metadata, "is_super_admin") ||
-    getRole(user.user_metadata) === "super_admin" ||
     getRole(user.app_metadata) === "super_admin"
   );
 }
 
-export function isSuperAdminUser(user: SuperAdminUserLike | null | undefined): boolean {
+export function isSuperAdminUser(
+  user: SuperAdminUserLike | null | undefined,
+): boolean {
   return hasSuperAdminMetadata(user);
 }
 
-export function buildSuperAdminMetadataPatch(user: SuperAdminUserLike | null | undefined): {
+export function buildSuperAdminMetadataPatch(
+  user: SuperAdminUserLike | null | undefined,
+): {
   app_metadata: Record<string, unknown>;
-  user_metadata: Record<string, unknown>;
 } {
   const appMetadata = isRecord(user?.app_metadata)
     ? { ...user.app_metadata }
-    : {};
-
-  const userMetadata = isRecord(user?.user_metadata)
-    ? { ...user.user_metadata }
     : {};
 
   return {
     app_metadata: {
       ...appMetadata,
       role: getRole(appMetadata) ?? "super_admin",
-      is_super_admin: true,
-    },
-    user_metadata: {
-      ...userMetadata,
       is_super_admin: true,
     },
   };

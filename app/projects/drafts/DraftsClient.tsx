@@ -36,7 +36,7 @@ import {
   FileText,
   Plus,
   Clock,
-  Send
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { ProjectSchedule, EventType } from "@/types";
@@ -64,7 +64,9 @@ interface DraftsClientProps {
   drafts: Draft[];
 }
 
-export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProps) {
+export default function DraftsClient({
+  drafts: initialDrafts,
+}: DraftsClientProps) {
   const router = useRouter();
   const [drafts, setDrafts] = useState(initialDrafts);
   const [isPublishing, setIsPublishing] = useState<string | null>(null);
@@ -77,7 +79,7 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
         toast.error(result.error);
       } else {
         toast.success("Draft deleted");
-        setDrafts(drafts.filter(d => d.id !== draftId));
+        setDrafts(drafts.filter((d) => d.id !== draftId));
       }
     } catch {
       toast.error("Failed to delete draft");
@@ -87,11 +89,10 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
   const handlePublish = async (draftId: string) => {
     setIsPublishing(draftId);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await publishDraft(draftId) as any;
-      if (result.error) {
+      const result = await publishDraft(draftId);
+      if ("error" in result && result.error) {
         toast.error(result.error);
-      } else if (result.success && result.id) {
+      } else if ("success" in result && result.success && result.id) {
         toast.success("Project published successfully!");
         router.push(`/projects/${result.id}`);
       }
@@ -113,7 +114,10 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
       const days = schedule.multiDay?.length ?? 0;
       return days > 0 ? `${days} day(s)` : "Schedule incomplete";
     }
-    if (draft.event_type === "sameDayMultiArea" && schedule.sameDayMultiArea?.date) {
+    if (
+      draft.event_type === "sameDayMultiArea" &&
+      schedule.sameDayMultiArea?.date
+    ) {
       return format(new Date(schedule.sameDayMultiArea.date), "MMMM d, yyyy");
     }
     return "Schedule incomplete";
@@ -142,7 +146,9 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
             <p className="text-muted-foreground mb-4">
               Start creating a project and save it as a draft to continue later.
             </p>
-            <Link href="/projects/create" className={cn(buttonVariants())}>Create Your First Project</Link>
+            <Link href="/projects/create" className={cn(buttonVariants())}>
+              Create Your First Project
+            </Link>
           </CardContent>
         </Card>
       </div>
@@ -222,12 +228,15 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
                       {draft.location && (
                         <div className="flex items-center gap-1">
                           <MapPin className="h-4 w-4" />
-                          <span className="truncate max-w-[200px]">{draft.location}</span>
+                          <span className="truncate max-w-[200px]">
+                            {draft.location}
+                          </span>
                         </div>
                       )}
                       <div className="flex items-center gap-1">
                         <Clock className="h-4 w-4" />
-                        Saved {format(new Date(draft.created_at), "MMM d, yyyy")}
+                        Saved{" "}
+                        {format(new Date(draft.created_at), "MMM d, yyyy")}
                       </div>
                     </div>
 
@@ -239,12 +248,20 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
                   {/* Actions */}
                   {/* Actions */}
                   <DropdownMenu>
-                    <DropdownMenuTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "shrink-0")}>
+                    <DropdownMenuTrigger
+                      className={cn(
+                        buttonVariants({ variant: "ghost", size: "icon" }),
+                        "shrink-0",
+                      )}
+                    >
                       <MoreVertical className="h-4 w-4" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem>
-                        <Link href={`/projects/${draft.id}/edit`} className="flex w-full items-center">
+                        <Link
+                          href={`/projects/${draft.id}/edit`}
+                          className="flex w-full items-center"
+                        >
                           <Edit className="h-4 w-4 mr-2" />
                           Continue Editing
                         </Link>
@@ -254,7 +271,9 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
                         disabled={isPublishing === draft.id}
                       >
                         <Send className="h-4 w-4 mr-2" />
-                        {isPublishing === draft.id ? "Publishing..." : "Publish Now"}
+                        {isPublishing === draft.id
+                          ? "Publishing..."
+                          : "Publish Now"}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -271,7 +290,13 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
 
               {/* Quick action buttons for mobile */}
               <div className="flex gap-2 mt-4 sm:hidden">
-                <Link href={`/projects/${draft.id}/edit`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex-1")}>
+                <Link
+                  href={`/projects/${draft.id}/edit`}
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "sm" }),
+                    "flex-1",
+                  )}
+                >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
                 </Link>
@@ -290,12 +315,16 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
         ))}
       </div>
 
-      <AlertDialog open={!!draftToDelete} onOpenChange={(open) => !open && setDraftToDelete(null)}>
+      <AlertDialog
+        open={!!draftToDelete}
+        onOpenChange={(open) => !open && setDraftToDelete(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this draft?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the draft. This action cannot be undone.
+              This will permanently delete the draft. This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

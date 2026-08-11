@@ -25,18 +25,21 @@ type MemberRow = {
   profiles?: MemberProfile | MemberProfile[] | null;
 };
 
-export default function MemberExporter({ organizationId }: MemberExporterProps) {
+export default function MemberExporter({
+  organizationId,
+}: MemberExporterProps) {
   const [isExporting, setIsExporting] = useState(false);
-  
+
   const exportMembers = async () => {
     setIsExporting(true);
     const supabase = createClient();
-    
+
     try {
       // Fetch all members with their profile data
       const { data, error } = (await supabase
         .from("organization_members")
-        .select(`
+        .select(
+          `
           id,
           role,
           joined_at,
@@ -47,22 +50,25 @@ export default function MemberExporter({ organizationId }: MemberExporterProps) 
             email,
             avatar_url
           )
-        `)
+        `,
+        )
         .eq("organization_id", organizationId)) as {
         data: MemberRow[] | null;
         error: { message: string } | null;
       };
-      
+
       if (error) throw error;
-      
+
       if (!data || data.length === 0) {
         toast.info("No members to export.");
         return;
       }
-      
+
       // Format data for CSV
-      const formattedData = data.map(member => {
-        const profile = Array.isArray(member.profiles) ? member.profiles[0] : member.profiles;
+      const formattedData = data.map((member) => {
+        const profile = Array.isArray(member.profiles)
+          ? member.profiles[0]
+          : member.profiles;
         return {
           id: member.id,
           user_id: profile?.id || "",
@@ -73,34 +79,41 @@ export default function MemberExporter({ organizationId }: MemberExporterProps) 
           joined_at: new Date(member.joined_at).toISOString(),
         };
       });
-      
+
       // Convert to CSV
       const headers = Object.keys(formattedData[0]);
       const csvRows = [
-        headers.join(','), // header row
-        ...formattedData.map(row => 
-          headers.map(header => {
-            let value = row[header as keyof typeof row];
-            // Escape quotes and wrap in quotes if the value contains a comma
-            value = String(value).includes(",") ? `"${String(value).replace(/"/g, '""')}"` : String(value);
-            return value;
-          }).join(',')
-        )
+        headers.join(","), // header row
+        ...formattedData.map((row) =>
+          headers
+            .map((header) => {
+              let value = row[header as keyof typeof row];
+              // Escape quotes and wrap in quotes if the value contains a comma
+              value = String(value).includes(",")
+                ? `"${String(value).replace(/"/g, '""')}"`
+                : String(value);
+              return value;
+            })
+            .join(","),
+        ),
       ];
-      
-      const csvString = csvRows.join('\n');
-      
+
+      const csvString = csvRows.join("\n");
+
       // Create and trigger download
-      const blob = new Blob([csvString], { type: 'text/csv' });
+      const blob = new Blob([csvString], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.setAttribute('hidden', '');
-      a.setAttribute('href', url);
-      a.setAttribute('download', `organization-members-${new Date().toISOString().slice(0, 10)}.csv`);
+      const a = document.createElement("a");
+      a.setAttribute("hidden", "");
+      a.setAttribute("href", url);
+      a.setAttribute(
+        "download",
+        `organization-members-${new Date().toISOString().slice(0, 10)}.csv`,
+      );
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      
+
       toast.success("Member data exported successfully");
     } catch (error) {
       console.error("Error exporting members:", error);
@@ -109,13 +122,9 @@ export default function MemberExporter({ organizationId }: MemberExporterProps) 
       setIsExporting(false);
     }
   };
-  
+
   return (
-    <Button
-      variant="outline"
-      onClick={exportMembers}
-      disabled={isExporting}
-    >
+    <Button variant="outline" onClick={exportMembers} disabled={isExporting}>
       {isExporting ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />

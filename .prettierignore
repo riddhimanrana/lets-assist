@@ -1,0 +1,18 @@
+# Separate repository and independently reviewed history.
+lib/plugins/private/
+
+# Immutable or generated database artifacts.
+supabase/migrations/
+supabase/schemas/
+
+# Curated evidence is retained byte-for-byte.
+docs/csf/evidence/
+
+# Generated output (also ignored by Git).
+.artifacts/
+.next/
+.next-csf-isolated/
+artifacts/
+coverage/
+playwright-report/
+test-results/

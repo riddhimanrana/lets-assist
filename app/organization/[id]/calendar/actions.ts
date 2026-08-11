@@ -3,17 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { deactivateGoogleConnection } from "@/services/calendar";
+import { organizationCalendarGoogleBinding } from "@/services/calendar";
+import { getGoogleOAuthConnectionForBinding } from "@/lib/auth/google-oauth-connection-store";
 import {
-  createGoogleCalendarEventForCalendar,
-  deleteGoogleCalendarEventForCalendar,
-  ensureOrganizationCalendar,
-  getGoogleAccessTokenForUser,
-  deactivateGoogleConnection,
-  updateGoogleCalendarEventForCalendar,
-} from "@/services/calendar";
-import type { Project } from "@/types";
-
-const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
+  syncOrganizationCalendarInternal,
+  type OrganizationCalendarSyncResult,
+} from "@/lib/organization/calendar-sync";
 
 type OrgCalendarStatus = {
   connected: boolean;
@@ -41,13 +37,7 @@ type OrgAccess = {
 async function assertOrgAccess(
   organizationId: string,
   requireAdmin = false,
-  skipAuth = false
 ): Promise<OrgAccess> {
-  // When skipAuth is true, we're in admin-only context (e.g., cron job)
-  if (skipAuth) {
-    return { userId: "system", role: "admin" };
-  }
-
   const supabase = await createClient();
   const {
     data: { user },
@@ -59,9 +49,10 @@ async function assertOrgAccess(
 
   const { data: membership } = await supabase
     .from("organization_members")
-    .select("role")
+    .select("role,status")
     .eq("organization_id", organizationId)
     .eq("user_id", user.id)
+    .eq("status", "active")
     .single();
 
   if (!membership?.role) {
@@ -69,39 +60,18 @@ async function assertOrgAccess(
   }
 
   if (requireAdmin && membership.role !== "admin") {
-    return { userId: user.id, role: membership.role, error: "Admin access required" };
+    return {
+      userId: user.id,
+      role: membership.role,
+      error: "Admin access required",
+    };
   }
 
   return { userId: user.id, role: membership.role };
 }
 
-function getProjectScheduleIds(project: Project): string[] {
-  if (project.event_type === "oneTime") {
-    return ["oneTime"];
-  }
-
-  if (project.event_type === "multiDay" && project.schedule.multiDay) {
-    const scheduleIds: string[] = [];
-    project.schedule.multiDay.forEach((day) => {
-      day.slots.forEach((slot, slotIndex) => {
-        scheduleIds.push(`${day.date}-${slotIndex}`);
-      });
-    });
-    return scheduleIds;
-  }
-
-  if (
-    project.event_type === "sameDayMultiArea" &&
-    project.schedule.sameDayMultiArea
-  ) {
-    return project.schedule.sameDayMultiArea.roles.map((role) => role.name);
-  }
-
-  return [];
-}
-
 export async function getOrganizationCalendarStatus(
-  organizationId: string
+  organizationId: string,
 ): Promise<OrgCalendarStatus> {
   const access = await assertOrgAccess(organizationId);
   if (access.error) {
@@ -116,7 +86,7 @@ export async function getOrganizationCalendarStatus(
   const { data: syncConfig, error: syncError } = await serviceSupabase
     .from("organization_calendar_syncs")
     .select(
-      "calendar_id, calendar_email, created_by, auto_sync, last_synced_at"
+      "calendar_id, calendar_email, created_by, auto_sync, last_synced_at",
     )
     .eq("organization_id", organizationId)
     .maybeSingle();
@@ -144,16 +114,17 @@ export async function getOrganizationCalendarStatus(
     .eq("id", syncConfig.created_by)
     .maybeSingle();
 
-  const { data: ownerConnection } = await serviceSupabase
-    .from("user_calendar_connections")
-    .select("calendar_email")
-    .eq("user_id", syncConfig.created_by)
-    .eq("provider", "google")
-    .eq("is_active", true)
-    .maybeSingle();
+  const ownerConnection = syncConfig.created_by
+    ? await getGoogleOAuthConnectionForBinding(
+        syncConfig.created_by,
+        organizationCalendarGoogleBinding(organizationId),
+        { useServiceRole: true },
+      )
+    : null;
 
   const connected = !!ownerConnection;
-  const connectedEmail = ownerConnection?.calendar_email ?? syncConfig.calendar_email;
+  const connectedEmail =
+    ownerConnection?.calendar_email ?? syncConfig.calendar_email ?? null;
 
   return {
     connected,
@@ -175,7 +146,7 @@ export async function getOrganizationCalendarStatus(
 }
 
 export async function disconnectOrganizationCalendarConnection(
-  organizationId: string
+  organizationId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId, true);
   if (access.error) {
@@ -190,7 +161,10 @@ export async function disconnectOrganizationCalendarConnection(
     .maybeSingle();
 
   if (syncError) {
-    console.error("Failed to load org calendar sync before disconnect:", syncError);
+    console.error(
+      "Failed to load org calendar sync before disconnect:",
+      syncError,
+    );
     return { success: false, error: "Failed to verify calendar owner" };
   }
 
@@ -201,33 +175,41 @@ export async function disconnectOrganizationCalendarConnection(
   if (syncConfig.created_by !== access.userId) {
     return {
       success: false,
-      error: "Only the connected Google account owner can remove this connection.",
+      error:
+        "Only the connected Google account owner can remove this connection.",
     };
   }
 
-  const deactivateResult = await deactivateGoogleConnection(access.userId);
-  if (!deactivateResult.success) {
-    return { success: false, error: deactivateResult.error || "Failed to disconnect Google account" };
-  }
-
-  const { error: eventsError } = await serviceSupabase
-    .from("organization_calendar_events")
-    .delete()
-    .eq("organization_id", organizationId);
-
-  if (eventsError) {
-    console.error("Failed to delete org calendar events during account disconnect:", eventsError);
-    return { success: false, error: "Failed to remove calendar events" };
-  }
-
-  const { error: syncErrorDelete } = await serviceSupabase
+  // Pause before removing the local purpose-bound credential. The configured
+  // calendar identity and event bindings remain authoritative reconciliation
+  // state; deleting them without confirmed remote cleanup could duplicate
+  // events after reconnect.
+  const { error: pauseError } = await serviceSupabase
     .from("organization_calendar_syncs")
-    .delete()
+    .update({
+      auto_sync: false,
+      updated_at: new Date().toISOString(),
+    })
     .eq("organization_id", organizationId);
 
-  if (syncErrorDelete) {
-    console.error("Failed to delete org calendar sync during account disconnect:", syncErrorDelete);
-    return { success: false, error: "Failed to disconnect calendar" };
+  if (pauseError) {
+    console.error(
+      "Failed to pause org calendar sync before account disconnect:",
+      pauseError,
+    );
+    return { success: false, error: "Failed to pause calendar sync" };
+  }
+
+  const deactivateResult = await deactivateGoogleConnection(access.userId, {
+    expectedBinding: organizationCalendarGoogleBinding(organizationId),
+    useServiceRole: true,
+    revokeAccess: false,
+  });
+  if (!deactivateResult.success) {
+    return {
+      success: false,
+      error: deactivateResult.error || "Failed to disconnect Google account",
+    };
   }
 
   revalidatePath(`/organization/${organizationId}/settings`);
@@ -236,7 +218,7 @@ export async function disconnectOrganizationCalendarConnection(
 
 export async function updateOrganizationCalendarSettings(
   organizationId: string,
-  updates: { autoSync?: boolean }
+  updates: { autoSync?: boolean },
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId, true);
   if (access.error) {
@@ -262,7 +244,7 @@ export async function updateOrganizationCalendarSettings(
 }
 
 export async function disconnectOrganizationCalendar(
-  organizationId: string
+  organizationId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId, true);
   if (access.error) {
@@ -270,23 +252,19 @@ export async function disconnectOrganizationCalendar(
   }
 
   const serviceSupabase = getAdminClient();
-  const { error: eventsError } = await serviceSupabase
-    .from("organization_calendar_events")
-    .delete()
-    .eq("organization_id", organizationId);
-
-  if (eventsError) {
-    console.error("Failed to delete org calendar events:", eventsError);
-    return { success: false, error: "Failed to remove calendar events" };
-  }
-
+  // "Disconnect" is a reversible local pause. Preserve the calendar ID and
+  // event bindings until a separately confirmed remote-cleanup workflow has
+  // removed the Google resources they describe.
   const { error: syncError } = await serviceSupabase
     .from("organization_calendar_syncs")
-    .delete()
+    .update({
+      auto_sync: false,
+      updated_at: new Date().toISOString(),
+    })
     .eq("organization_id", organizationId);
 
   if (syncError) {
-    console.error("Failed to delete org calendar sync:", syncError);
+    console.error("Failed to pause org calendar sync:", syncError);
     return { success: false, error: "Failed to disconnect calendar" };
   }
 
@@ -296,185 +274,11 @@ export async function disconnectOrganizationCalendar(
 
 export async function syncOrganizationCalendarNow(
   organizationId: string,
-  isFromCron = false
-): Promise<{
-  success: boolean;
-  createdCount?: number;
-  updatedCount?: number;
-  removedCount?: number;
-  error?: string;
-}> {
-  // Skip auth when called from cron (admin-only context)
-  const access = await assertOrgAccess(organizationId, true, isFromCron);
+): Promise<OrganizationCalendarSyncResult> {
+  const access = await assertOrgAccess(organizationId, true);
   if (access.error) {
     return { success: false, error: access.error };
   }
 
-  const serviceSupabase = getAdminClient();
-  const { data: org } = await serviceSupabase
-    .from("organizations")
-    .select("name, username")
-    .eq("id", organizationId)
-    .single();
-
-  const { data: syncConfig } = await serviceSupabase
-    .from("organization_calendar_syncs")
-    .select("calendar_id, created_by, calendar_email, auto_sync")
-    .eq("organization_id", organizationId)
-    .maybeSingle();
-
-  if (!syncConfig?.created_by) {
-    return { success: false, error: "Organization calendar not connected" };
-  }
-
-  const accessToken = await getGoogleAccessTokenForUser(
-    syncConfig.created_by,
-    true,
-    { requiredScopes: [CALENDAR_SCOPE], connectionType: "calendar" }
-  );
-
-  if (!accessToken) {
-    return {
-      success: false,
-      error: "Google connection missing. Ask the calendar owner to reconnect.",
-    };
-  }
-
-  const calendarName = org?.name
-    ? `Let's Assist — ${org.name} Volunteering`
-    : "Let's Assist Organization Volunteering";
-
-  const ensured = await ensureOrganizationCalendar(
-    accessToken,
-    syncConfig.calendar_id,
-    calendarName
-  );
-
-  if (!ensured) {
-    return { success: false, error: "Failed to access organization calendar" };
-  }
-
-  if (ensured.calendarId !== syncConfig.calendar_id) {
-    await serviceSupabase
-      .from("organization_calendar_syncs")
-      .update({
-        calendar_id: ensured.calendarId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("organization_id", organizationId);
-  }
-
-  const { data: projects } = await serviceSupabase
-    .from("projects")
-    .select("*")
-    .eq("organization_id", organizationId)
-    .neq("status", "cancelled");
-
-  const { data: existingEvents } = await serviceSupabase
-    .from("organization_calendar_events")
-    .select("id, project_id, schedule_id, event_id")
-    .eq("organization_id", organizationId);
-
-  const existingMap = new Map<string, {
-    id: string;
-    eventId: string;
-  }>();
-  (existingEvents || []).forEach((event) => {
-    existingMap.set(`${event.project_id}:${event.schedule_id}`, {
-      id: event.id,
-      eventId: event.event_id,
-    });
-  });
-
-  const desiredKeys = new Set<string>();
-  let createdCount = 0;
-  let updatedCount = 0;
-  let removedCount = 0;
-
-  for (const project of projects || []) {
-    const scheduleIds = getProjectScheduleIds(project as Project);
-    for (const scheduleId of scheduleIds) {
-      const key = `${project.id}:${scheduleId}`;
-      desiredKeys.add(key);
-      const existing = existingMap.get(key);
-
-      if (existing) {
-        try {
-          const updated = await updateGoogleCalendarEventForCalendar(
-            accessToken,
-            ensured.calendarId,
-            existing.eventId,
-            project as Project,
-            scheduleId
-          );
-          if (updated) {
-            updatedCount += 1;
-            await serviceSupabase
-              .from("organization_calendar_events")
-              .update({ updated_at: new Date().toISOString() })
-              .eq("id", existing.id);
-          }
-        } catch (error) {
-          console.warn("Failed to update org calendar event:", error);
-        }
-        continue;
-      }
-
-      try {
-        const eventId = await createGoogleCalendarEventForCalendar(
-          accessToken,
-          ensured.calendarId,
-          project as Project,
-          scheduleId
-        );
-
-        if (eventId) {
-          createdCount += 1;
-          await serviceSupabase
-            .from("organization_calendar_events")
-            .insert({
-              organization_id: organizationId,
-              project_id: project.id,
-              schedule_id: scheduleId,
-              event_id: eventId,
-            });
-        }
-      } catch (error) {
-        console.warn("Failed to create org calendar event:", error);
-      }
-    }
-  }
-
-  for (const event of existingEvents || []) {
-    const key = `${event.project_id}:${event.schedule_id}`;
-    if (desiredKeys.has(key)) continue;
-
-    try {
-      const removed = await deleteGoogleCalendarEventForCalendar(
-        accessToken,
-        ensured.calendarId,
-        event.event_id
-      );
-
-      if (removed) {
-        removedCount += 1;
-        await serviceSupabase
-          .from("organization_calendar_events")
-          .delete()
-          .eq("id", event.id);
-      }
-    } catch (error) {
-      console.warn("Failed to remove org calendar event:", error);
-    }
-  }
-
-  await serviceSupabase
-    .from("organization_calendar_syncs")
-    .update({ last_synced_at: new Date().toISOString() })
-    .eq("organization_id", organizationId);
-
-  revalidatePath(`/organization/${organizationId}`);
-  revalidatePath(`/organization/${organizationId}/settings`);
-
-  return { success: true, createdCount, updatedCount, removedCount };
+  return syncOrganizationCalendarInternal(organizationId);
 }

@@ -73,31 +73,76 @@ const PrivacyPage = () => {
             <li>Send you important service notifications and updates.</li>
           </ul>
 
-          <h2 className="text-2xl font-semibold">4. Google Integrations (Optional)</h2>
+          <h2 className="text-2xl font-semibold">
+            4. Google Integrations (Optional)
+          </h2>
           <p className="mt-2 leading-relaxed">
-            If you choose to connect your Google account for Calendar or Sheets integrations:
+            If you choose to connect your Google account for Calendar or Sheets
+            integrations:
           </p>
           <ul className="list-disc pl-5 mt-2 space-y-2">
             <li>
-              <strong>What We Access:</strong> We request the following Google permissions to enable features like calendar sync and spreadsheet management:
+              <strong>What We Access:</strong> We request the following Google
+              permissions to enable features like calendar sync and spreadsheet
+              management:
               <ul className="list-disc pl-5 mt-2 space-y-2">
-                <li><strong>Email and Profile (userinfo.email, userinfo.profile):</strong> To identify and link your Google account to your Let's Assist profile.</li>
-                <li><strong>Google Drive Files (drive.file):</strong> To access only the specific Google Drive files you select or create through our app, such as spreadsheets.</li>
-                <li><strong>Google Sheets access via Drive Files (https://www.googleapis.com/auth/drive.file):</strong> To create spreadsheets and access only the spreadsheets you explicitly select or create through Let&apos;s Assist for reporting and sync workflows.</li>
-                <li><strong>Google Calendar (https://www.googleapis.com/auth/calendar):</strong> To create, update, share, and remove calendars and events for scheduling features and sync.</li>
+                <li>
+                  <strong>
+                    Email and Profile (userinfo.email, userinfo.profile):
+                  </strong>{" "}
+                  To identify and link your Google account to your Let's Assist
+                  profile.
+                </li>
+                <li>
+                  <strong>Google Drive Files (drive.file):</strong> To access
+                  only the specific Google Drive files you select or create
+                  through our app, such as spreadsheets.
+                </li>
+                <li>
+                  <strong>
+                    Google Sheets access via Drive Files
+                    (https://www.googleapis.com/auth/drive.file):
+                  </strong>{" "}
+                  To create spreadsheets and access only the spreadsheets you
+                  explicitly select or create through Let&apos;s Assist for
+                  reporting and sync workflows.
+                </li>
+                <li>
+                  <strong>
+                    Google Calendar
+                    (https://www.googleapis.com/auth/calendar.app.created):
+                  </strong>{" "}
+                  To create, update, and remove only the calendars and events
+                  Let&apos;s Assist creates. Existing connections that
+                  previously granted the full Calendar scope remain compatible
+                  while ownership migration is verified; we do not expand a new
+                  connection to that legacy scope.
+                </li>
               </ul>
             </li>
             <li>
-              <strong>How We Use It:</strong> We use these permissions to add volunteering events to your calendar, manage spreadsheets for data import/export, and enable two-way synchronization. We store encrypted OAuth tokens securely and do not access other Google data.
+              <strong>How We Use It:</strong> We use these permissions to add
+              volunteering events to your calendar, manage spreadsheets for data
+              import/export, and enable two-way synchronization. We store
+              encrypted OAuth tokens securely and do not access other Google
+              data.
             </li>
             <li>
-              <strong>Data Retention:</strong> OAuth tokens are retained only as long as you maintain the connection. Upon disconnection or account deletion, we delete tokens and associated data within 30 days.
+              <strong>Data Retention:</strong> OAuth tokens are retained only as
+              long as you maintain the connection. Upon disconnection or account
+              deletion, we delete tokens and associated data within 30 days.
             </li>
             <li>
-              <strong>No Sharing:</strong> We do not share your Google data with third parties. It is used only within Let's Assist.
+              <strong>No Sharing:</strong> We do not share your Google data with
+              third parties. It is used only within Let's Assist.
             </li>
             <li>
-              <strong>How to Disconnect:</strong> You can revoke access at any time via your Google Account (Security → Third-party apps with account access) or in your Let's Assist account settings. This deletes our stored tokens. Events or spreadsheets already created will remain in your Google account unless you delete them manually.
+              <strong>How to Disconnect:</strong> You can revoke access at any
+              time via your Google Account (Security → Third-party apps with
+              account access) or in your Let's Assist account settings. This
+              deletes our stored tokens. Events or spreadsheets already created
+              will remain in your Google account unless you delete them
+              manually.
             </li>
           </ul>
           <p className="mt-2 leading-relaxed">
@@ -114,9 +159,7 @@ const PrivacyPage = () => {
           </p>
 
           <h2 className="text-2xl font-semibold">5. Third-Party Services</h2>
-          <p className="mt-2 leading-relaxed">
-            We use the following services:
-          </p>
+          <p className="mt-2 leading-relaxed">We use the following services:</p>
           <ul className="list-disc pl-5 mt-2 space-y-2">
             <li>
               <strong>Supabase:</strong> Secure database hosting and management.
@@ -149,12 +192,9 @@ const PrivacyPage = () => {
             <li>Request corrections or deletions of inaccurate information.</li>
             <li>Opt out of PostHog analytics in your account settings.</li>
             <li>
-              Delete your account and all associated data at any time. You can do
-              this in your account settings or by contacting{" "}
-              <Link
-                href="mailto:legal@lets-assist.com"
-                className="text-info"
-              >
+              Delete your account and all associated data at any time. You can
+              do this in your account settings or by contacting{" "}
+              <Link href="mailto:legal@lets-assist.com" className="text-info">
                 legal@lets-assist.com
               </Link>
               .
@@ -179,10 +219,7 @@ const PrivacyPage = () => {
           <h2 className="text-2xl font-semibold">10. Contact Us</h2>
           <p className="mt-2 leading-relaxed">
             For privacy-related inquiries, email us at{" "}
-            <Link
-              href="mailto:legal@lets-assist.com"
-              className="text-info"
-            >
+            <Link href="mailto:legal@lets-assist.com" className="text-info">
               legal@lets-assist.com
             </Link>
             .

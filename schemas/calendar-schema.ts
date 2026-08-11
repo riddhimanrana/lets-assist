@@ -121,7 +121,7 @@ export const calendarEventDataSchema = z.object({
           z.object({
             method: z.enum(["email", "popup"]),
             minutes: z.number().int().min(0),
-          })
+          }),
         )
         .optional(),
     })
@@ -146,7 +146,9 @@ export type OAuthCallback = z.infer<typeof oauthCallbackSchema>;
 export type SyncProject = z.infer<typeof syncProjectSchema>;
 export type SyncSignup = z.infer<typeof syncSignupSchema>;
 export type RemoveCalendarEvent = z.infer<typeof removeCalendarEventSchema>;
-export type UpdateCalendarPreferences = z.infer<typeof updateCalendarPreferencesSchema>;
+export type UpdateCalendarPreferences = z.infer<
+  typeof updateCalendarPreferencesSchema
+>;
 export type DisconnectCalendar = z.infer<typeof disconnectCalendarSchema>;
 export type GenerateICal = z.infer<typeof generateICalSchema>;
 export type GoogleCalendarEvent = z.infer<typeof googleCalendarEventSchema>;

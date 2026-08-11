@@ -51,7 +51,7 @@ import { getMemberVolunteerHours } from "./member-hours-actions";
 import MemberDetailsDialog from "./MemberDetailsDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { DateRange } from "react-day-picker";
+import { DateRange } from "@daypicker/react";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -64,7 +64,7 @@ import {
   getSortedRowModel,
   useReactTable,
   FilterFn,
-} from "@tanstack/react-table";
+} from "@/lib/table/legacy";
 
 interface MembersTabProps {
   members: OrganizationMember[];
@@ -72,6 +72,24 @@ interface MembersTabProps {
   organizationId: string;
   currentUserId: string | undefined;
   canViewMembers?: boolean;
+  demoMemberHours?: Record<
+    string,
+    { totalHours: number; eventCount: number; lastEventDate?: string }
+  >;
+  demoMemberDetails?: Record<
+    string,
+    {
+      events: Array<{
+        id: string;
+        projectTitle: string;
+        eventDate: string;
+        hours: number;
+        isCertified: boolean;
+        organizationName: string;
+      }>;
+      totalHours: number;
+    }
+  >;
 }
 
 type MemberProfile = {
@@ -91,10 +109,16 @@ type OrganizationMember = {
 };
 
 const getMemberProfile = (member: OrganizationMember): MemberProfile | null =>
-  Array.isArray(member.profiles) ? member.profiles[0] ?? null : member.profiles ?? null;
+  Array.isArray(member.profiles)
+    ? (member.profiles[0] ?? null)
+    : (member.profiles ?? null);
 
 // Custom filter function for searching multiple fields
-const globalFilterFn: FilterFn<OrganizationMember> = (row, columnId, filterValue) => {
+const globalFilterFn: FilterFn<OrganizationMember> = (
+  row,
+  columnId,
+  filterValue,
+) => {
   const search = filterValue.toLowerCase();
   const profile = getMemberProfile(row.original);
   const fullName = profile?.full_name?.toLowerCase() || "";
@@ -108,6 +132,8 @@ export default function MembersTab({
   organizationId,
   currentUserId,
   canViewMembers = true,
+  demoMemberHours,
+  demoMemberDetails,
 }: MembersTabProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -116,10 +142,19 @@ export default function MembersTab({
   const [rowSelection, setRowSelection] = useState({});
 
   const [processingMember, setProcessingMember] = useState<string | null>(null);
-  const [removingMember, setRemovingMember] = useState<{ id: string; name: string } | null>(null);
-  const [memberHours, setMemberHours] = useState<Record<string, { totalHours: number; eventCount: number; lastEventDate?: string }>>({});
+  const [removingMember, setRemovingMember] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [memberHours, setMemberHours] = useState<
+    Record<
+      string,
+      { totalHours: number; eventCount: number; lastEventDate?: string }
+    >
+  >({});
   const [loadingHours, setLoadingHours] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<OrganizationMember | null>(null);
+  const [selectedMember, setSelectedMember] =
+    useState<OrganizationMember | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -139,18 +174,28 @@ export default function MembersTab({
 
   // Load member hours for admins and staff
   useEffect(() => {
+    if (demoMemberHours) {
+      setMemberHours(demoMemberHours);
+      setLoadingHours(false);
+      return;
+    }
+
     if (canViewHours && organizationId) {
       loadMemberHours();
     }
-  }, [userRole, organizationId, dateRange]);
+  }, [demoMemberHours, canViewHours, organizationId, dateRange]);
 
   const loadMemberHours = async () => {
     setLoadingHours(true);
     try {
-      const dateRangeParam = dateRange?.from && dateRange?.to
-        ? { from: dateRange.from, to: dateRange.to }
-        : undefined;
-      const result = await getMemberVolunteerHours(organizationId, dateRangeParam);
+      const dateRangeParam =
+        dateRange?.from && dateRange?.to
+          ? { from: dateRange.from, to: dateRange.to }
+          : undefined;
+      const result = await getMemberVolunteerHours(
+        organizationId,
+        dateRangeParam,
+      );
       if (!result.error) {
         setMemberHours(result.memberHours);
       }
@@ -170,10 +215,12 @@ export default function MembersTab({
     memberId: string,
     userId: string,
     userName: string,
-    newRole: OrganizationMember["role"]
+    newRole: OrganizationMember["role"],
   ) => {
     if (userId === currentUserId && newRole !== "admin") {
-      toast.error("You cannot demote yourself. Another admin must change your role.");
+      toast.error(
+        "You cannot demote yourself. Another admin must change your role.",
+      );
       return;
     }
 
@@ -207,7 +254,9 @@ export default function MembersTab({
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success(`${removingMember.name} has been removed from the organization`);
+        toast.success(
+          `${removingMember.name} has been removed from the organization`,
+        );
         window.location.reload();
       }
     } catch (error) {
@@ -224,10 +273,12 @@ export default function MembersTab({
     try {
       // Create simple hours export data
       // We use table.getFilteredRowModel().rows to export what matches current filters if desired,
-      // but usually exports are for the full dataset or current view. 
+      // but usually exports are for the full dataset or current view.
       // Using 'table.getCoreRowModel().rows' would export all.
       // Let's export what's currently filtered/sorted in the table view for consistency
-      const rowsToExport = table.getFilteredRowModel().rows.map(r => r.original);
+      const rowsToExport = table
+        .getFilteredRowModel()
+        .rows.map((r) => r.original);
 
       const exportData = [];
 
@@ -244,40 +295,48 @@ export default function MembersTab({
           role: member.role,
           joinedDate: `"${format(new Date(member.joined_at), "MMM d, yyyy")}"`,
           totalHours: formatHours(totalHours),
-          eventCount
+          eventCount,
         });
       }
 
       // Generate CSV
       const headers = [
-        "Member Name", "Username", "Role", "Joined Date", "Total Hours", "Events Attended"
+        "Member Name",
+        "Username",
+        "Role",
+        "Joined Date",
+        "Total Hours",
+        "Events Attended",
       ];
       const csvRows = [headers.join(",")];
 
-      exportData.forEach(row => {
+      exportData.forEach((row) => {
         const csvRow = [
           `"${row.memberName}"`,
           row.username,
           row.role,
           row.joinedDate,
           row.totalHours,
-          row.eventCount
+          row.eventCount,
         ].join(",");
         csvRows.push(csvRow);
       });
 
       const csvData = csvRows.join("\n");
-      const blob = new Blob([csvData], { type: 'text/csv' });
+      const blob = new Blob([csvData], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
 
       // Create filename with date range if applicable
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split("T")[0];
       let filename = `member-hours-${today}`;
       if (dateRange?.from && dateRange?.to) {
         const fromDate = format(dateRange.from, "yyyy-MM-dd");
-        const toDate = format(new Date(dateRange.to.getTime() - 24 * 60 * 60 * 1000), "yyyy-MM-dd");
+        const toDate = format(
+          new Date(dateRange.to.getTime() - 24 * 60 * 60 * 1000),
+          "yyyy-MM-dd",
+        );
         filename = `member-hours-${fromDate}-to-${toDate}`;
       } else {
         filename = `member-hours-lifetime-${today}`;
@@ -296,7 +355,6 @@ export default function MembersTab({
       setIsExporting(false);
     }
   };
-
 
   const columns = useMemo<ColumnDef<OrganizationMember>[]>(() => {
     const cols: ColumnDef<OrganizationMember>[] = [
@@ -323,7 +381,7 @@ export default function MembersTab({
               </Avatar>
               <div className="min-w-0 flex flex-col">
                 <Link
-                  href={`/profile/${profile?.username || ''}`}
+                  href={`/profile/${profile?.username || ""}`}
                   className="font-medium hover:text-primary transition-colors truncate text-sm"
                 >
                   {profile?.full_name || "Unknown User"}
@@ -345,20 +403,22 @@ export default function MembersTab({
             <Button
               variant="ghost"
               className="-ml-4 h-8 data-[state=open]:bg-accent"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
             >
               Role
               <ArrowUpDown className="ml-2 h-4 w-4" />
             </Button>
-          )
+          );
         },
         cell: ({ row }) => <RoleBadge role={row.original.role} />,
-        sortingFn: (rowA, rowB, columnId) => {
+        sortFn: (rowA, rowB, columnId) => {
           const roleOrder = { admin: 3, staff: 2, member: 1 };
           const roleA = rowA.getValue(columnId) as keyof typeof roleOrder;
           const roleB = rowB.getValue(columnId) as keyof typeof roleOrder;
           return roleOrder[roleA] - roleOrder[roleB];
-        }
+        },
       },
       {
         accessorKey: "joined_at",
@@ -367,12 +427,14 @@ export default function MembersTab({
             <Button
               variant="ghost"
               className="-ml-4 h-8 data-[state=open]:bg-accent"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
             >
               Joined
               <ArrowUpDown className="ml-2 h-4 w-4" />
             </Button>
-          )
+          );
         },
         cell: ({ row }) => (
           <div className="text-sm text-muted-foreground whitespace-nowrap">
@@ -396,15 +458,19 @@ export default function MembersTab({
           </Button>
         ),
         accessorFn: (row) => memberHours[row.user_id]?.totalHours || 0,
-        cell: ({ row }) => (
+        cell: ({ row }) =>
           loadingHours ? (
             <Skeleton className="h-4 w-12 rounded-full" />
           ) : (
             <div className="flex items-center gap-2">
               <span className="font-medium text-primary tabular-nums text-sm">
-                {formatHours(memberHours[row.original.user_id]?.totalHours || 0)}
+                {formatHours(
+                  memberHours[row.original.user_id]?.totalHours || 0,
+                )}
               </span>
-              {(isAdmin || userRole === "staff" || row.original.user_id === currentUserId) && (
+              {(isAdmin ||
+                userRole === "staff" ||
+                row.original.user_id === currentUserId) && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -415,8 +481,7 @@ export default function MembersTab({
                 </Button>
               )}
             </div>
-          )
-        ),
+          ),
       });
 
       cols.splice(3, 0, {
@@ -432,15 +497,14 @@ export default function MembersTab({
           </Button>
         ),
         accessorFn: (row) => memberHours[row.user_id]?.eventCount || 0,
-        cell: ({ row }) => (
+        cell: ({ row }) =>
           loadingHours ? (
             <Skeleton className="h-4 w-8 rounded-full" />
           ) : (
             <span className="font-medium tabular-nums text-sm">
               {memberHours[row.original.user_id]?.eventCount || 0}
             </span>
-          )
-        ),
+          ),
       });
     }
 
@@ -452,7 +516,10 @@ export default function MembersTab({
           const member = row.original;
           const profile = getMemberProfile(member);
 
-          if (!((isAdmin || (userRole === "staff" && member.role === "member")) && member.user_id !== currentUserId)) {
+          if (!(
+            (isAdmin || (userRole === "staff" && member.role === "member")) &&
+            member.user_id !== currentUserId
+          )) {
             return <div className="w-8 h-8" />;
           }
 
@@ -475,7 +542,10 @@ export default function MembersTab({
                     </Button>
                   }
                 />
-                <DropdownMenuContent align="end" className="w-56 rounded-xl shadow-lg border-muted/40">
+                <DropdownMenuContent
+                  align="end"
+                  className="w-56 rounded-xl shadow-lg border-muted/40"
+                >
                   <div className="px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     Modify Member Permissions
                   </div>
@@ -484,12 +554,14 @@ export default function MembersTab({
                     <>
                       <DropdownMenuItem
                         className="gap-2 py-2"
-                        onClick={() => handleUpdateRole(
-                          member.id,
-                          member.user_id,
-                          profile?.full_name || "Member",
-                          "admin"
-                        )}
+                        onClick={() =>
+                          handleUpdateRole(
+                            member.id,
+                            member.user_id,
+                            profile?.full_name || "Member",
+                            "admin",
+                          )
+                        }
                         disabled={member.role === "admin"}
                       >
                         <Shield className="h-4 w-4 text-primary" />
@@ -497,12 +569,14 @@ export default function MembersTab({
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="gap-2 py-2"
-                        onClick={() => handleUpdateRole(
-                          member.id,
-                          member.user_id,
-                          profile?.full_name || "Member",
-                          "staff"
-                        )}
+                        onClick={() =>
+                          handleUpdateRole(
+                            member.id,
+                            member.user_id,
+                            profile?.full_name || "Member",
+                            "staff",
+                          )
+                        }
                         disabled={member.role === "staff"}
                       >
                         <UserRoundCog className="h-4 w-4 text-info" />
@@ -510,12 +584,14 @@ export default function MembersTab({
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="gap-2 py-2"
-                        onClick={() => handleUpdateRole(
-                          member.id,
-                          member.user_id,
-                          profile?.full_name || "Member",
-                          "member"
-                        )}
+                        onClick={() =>
+                          handleUpdateRole(
+                            member.id,
+                            member.user_id,
+                            profile?.full_name || "Member",
+                            "member",
+                          )
+                        }
                         disabled={member.role === "member"}
                       >
                         <UserRound className="h-4 w-4 text-muted-foreground" />
@@ -527,12 +603,14 @@ export default function MembersTab({
                   {userRole === "staff" && member.role === "member" && (
                     <DropdownMenuItem
                       className="gap-2 py-2"
-                      onClick={() => handleUpdateRole(
-                        member.id,
-                        member.user_id,
-                        profile?.full_name || "Member",
-                        "staff"
-                      )}
+                      onClick={() =>
+                        handleUpdateRole(
+                          member.id,
+                          member.user_id,
+                          profile?.full_name || "Member",
+                          "staff",
+                        )
+                      }
                     >
                       <UserRoundCog className="h-4 w-4 text-info" />
                       <span className="font-medium">Make Staff</span>
@@ -546,10 +624,12 @@ export default function MembersTab({
 
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive focus:bg-destructive/10 gap-2 py-2"
-                    onClick={() => setRemovingMember({
-                      id: member.id,
-                      name: profile?.full_name || "Member"
-                    })}
+                    onClick={() =>
+                      setRemovingMember({
+                        id: member.id,
+                        name: profile?.full_name || "Member",
+                      })
+                    }
                   >
                     <X className="h-4 w-4" />
                     <span className="font-medium">Remove Member</span>
@@ -563,7 +643,16 @@ export default function MembersTab({
     }
 
     return cols;
-  }, [canViewHours, canManageMembers, memberHours, userRole, isAdmin, currentUserId, processingMember, loadingHours]);
+  }, [
+    canViewHours,
+    canManageMembers,
+    memberHours,
+    userRole,
+    isAdmin,
+    currentUserId,
+    processingMember,
+    loadingHours,
+  ]);
 
   const table = useReactTable({
     data: members,
@@ -593,7 +682,9 @@ export default function MembersTab({
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           <p className="font-medium">Members are not publicly visible</p>
           <p className="text-amber-700 mt-1">
-            This organization has chosen not to display its member list publicly. As a member, you can see this list, but visitors will not be able to view it.
+            This organization has chosen not to display its member list
+            publicly. As a member, you can see this list, but visitors will not
+            be able to view it.
           </p>
         </div>
       )}
@@ -602,7 +693,9 @@ export default function MembersTab({
         <div>
           <h2 className="text-xl font-bold tracking-tight">Members</h2>
           <p className="text-sm text-muted-foreground">
-            {table.getFilteredRowModel().rows.length} member{table.getFilteredRowModel().rows.length === 1 ? "" : "s"} in this organization
+            {table.getFilteredRowModel().rows.length} member
+            {table.getFilteredRowModel().rows.length === 1 ? "" : "s"} in this
+            organization
           </p>
         </div>
 
@@ -657,11 +750,11 @@ export default function MembersTab({
                         {header.isPlaceholder
                           ? null
                           : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
                       </TableHead>
-                    )
+                    );
                   })}
                 </TableRow>
               ))}
@@ -676,14 +769,20 @@ export default function MembersTab({
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className="py-4 px-4">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
                       </TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-32 text-center">
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-32 text-center"
+                  >
                     {globalFilter ? (
                       <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                         <Search className="h-8 w-8 opacity-20" />
@@ -738,7 +837,6 @@ export default function MembersTab({
         </div>
       </div>
 
-
       {/* Remove Member Dialog */}
       <Dialog
         open={!!removingMember}
@@ -748,8 +846,8 @@ export default function MembersTab({
           <DialogHeader>
             <DialogTitle>Remove Member</DialogTitle>
             <DialogDescription>
-              Are you sure you want to remove {removingMember?.name} from this organization?
-              They will lose access to all organization resources.
+              Are you sure you want to remove {removingMember?.name} from this
+              organization? They will lose access to all organization resources.
             </DialogDescription>
           </DialogHeader>
 
@@ -766,7 +864,9 @@ export default function MembersTab({
               onClick={handleRemoveConfirm}
               disabled={processingMember === removingMember?.id}
             >
-              {processingMember === removingMember?.id ? "Removing..." : "Remove Member"}
+              {processingMember === removingMember?.id
+                ? "Removing..."
+                : "Remove Member"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -781,6 +881,7 @@ export default function MembersTab({
         }}
         member={selectedMember}
         organizationId={organizationId}
+        demoMemberDetails={demoMemberDetails}
       />
     </div>
   );
@@ -789,14 +890,14 @@ export default function MembersTab({
 // Helper component for role badges
 function RoleBadge({ role }: { role: string }) {
   switch (role) {
-    case 'admin':
+    case "admin":
       return (
         <Badge variant="default" className="gap-1 rounded-full px-2.5 py-0.5">
           <Shield className="h-3 w-3" />
           Admin
         </Badge>
       );
-    case 'staff':
+    case "staff":
       return (
         <Badge variant="info" className="gap-1 rounded-full px-2.5 py-0.5">
           <UserRoundCog className="h-3 w-3" />
@@ -805,7 +906,10 @@ function RoleBadge({ role }: { role: string }) {
       );
     default:
       return (
-        <Badge variant="outline" className="gap-1 rounded-full px-2.5 py-0.5 text-muted-foreground">
+        <Badge
+          variant="outline"
+          className="gap-1 rounded-full px-2.5 py-0.5 text-muted-foreground"
+        >
           <UserRound className="h-3 w-3" />
           Member
         </Badge>

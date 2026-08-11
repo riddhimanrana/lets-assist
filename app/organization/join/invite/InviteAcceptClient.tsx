@@ -4,11 +4,24 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, CheckCircle2, XCircle, Building2, Clock, User } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Building2,
+  Clock,
+  User,
+} from "lucide-react";
 import { acceptInvitation } from "@/app/organization/[id]/admin/actions";
 import type { OrganizationInvitationWithDetails } from "@/types/invitation";
 import { createClient } from "@/lib/supabase/client";
@@ -18,15 +31,20 @@ interface InviteAcceptClientProps {
   token: string;
 }
 
-export default function InviteAcceptClient({ invitation, token }: InviteAcceptClientProps) {
+export default function InviteAcceptClient({
+  invitation,
+  token,
+}: InviteAcceptClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
-  const org = invitation.organization as { name: string; username: string; logo_url: string | null } | undefined;
-  const inviter = invitation.inviter as { full_name: string | null; email: string | null } | undefined;
+  const org = invitation.organization as
+    { name: string; username: string; logo_url: string | null } | undefined;
+  const inviter = invitation.inviter as
+    { full_name: string | null; email: string | null } | undefined;
   const invitedEmail = invitation.email?.trim() || "";
 
   const authLinks = useMemo(() => {
@@ -57,14 +75,18 @@ export default function InviteAcceptClient({ invitation, token }: InviteAcceptCl
   useEffect(() => {
     const checkAuth = async () => {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       setIsAuthenticated(!!user);
     };
     checkAuth();
 
     // Listen for auth changes
     const supabase = createClient();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setIsAuthenticated(!!session?.user);
     });
 
@@ -118,7 +140,9 @@ export default function InviteAcceptClient({ invitation, token }: InviteAcceptCl
           <p className="text-muted-foreground mb-4">
             You've successfully joined as a {invitation.role}.
           </p>
-          <p className="text-sm text-muted-foreground">Redirecting you now...</p>
+          <p className="text-sm text-muted-foreground">
+            Redirecting you now...
+          </p>
         </div>
       </div>
     );
@@ -166,16 +190,21 @@ export default function InviteAcceptClient({ invitation, token }: InviteAcceptCl
           )}
           <CardTitle className="text-2xl">You're Invited!</CardTitle>
           <CardDescription>
-            {inviter?.full_name || inviter?.email || "Someone"} invited you to join{" "}
-            <strong>{org?.name}</strong>
+            {inviter?.full_name || inviter?.email || "Someone"} invited you to
+            join <strong>{org?.name}</strong>
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6">
           {/* Role Badge */}
           <div className="flex items-center justify-center gap-2">
-            <span className="text-sm text-muted-foreground">You'll join as:</span>
-            <Badge variant={invitation.role === "staff" ? "default" : "secondary"} className="capitalize">
+            <span className="text-sm text-muted-foreground">
+              You'll join as:
+            </span>
+            <Badge
+              variant={invitation.role === "staff" ? "default" : "secondary"}
+              className="capitalize"
+            >
               {invitation.role}
             </Badge>
           </div>
@@ -202,13 +231,14 @@ export default function InviteAcceptClient({ invitation, token }: InviteAcceptCl
           <div className="bg-muted/50 rounded-lg p-4 text-sm">
             {invitation.role === "staff" ? (
               <p>
-                As a <strong>staff member</strong>, you'll have elevated permissions including the
-                ability to verify volunteer hours and help manage organization activities.
+                As a <strong>staff member</strong>, you'll have elevated
+                permissions including the ability to verify volunteer hours and
+                help manage organization activities.
               </p>
             ) : (
               <p>
-                As a <strong>member</strong>, you'll be able to participate in volunteer
-                opportunities and track your community service hours.
+                As a <strong>member</strong>, you'll be able to participate in
+                volunteer opportunities and track your community service hours.
               </p>
             )}
           </div>
@@ -222,7 +252,12 @@ export default function InviteAcceptClient({ invitation, token }: InviteAcceptCl
           {/* Actions */}
           {isAuthenticated ? (
             <div className="space-y-3">
-              <Button onClick={handleAccept} disabled={isPending} className="w-full" size="lg">
+              <Button
+                onClick={handleAccept}
+                disabled={isPending}
+                className="w-full"
+                size="lg"
+              >
                 {isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -240,19 +275,16 @@ export default function InviteAcceptClient({ invitation, token }: InviteAcceptCl
             <div className="space-y-4">
               <Alert>
                 <AlertDescription>
-                  Please sign in or create an account with <strong>{invitedEmail}</strong> to accept this invitation.
+                  Please sign in or create an account with{" "}
+                  <strong>{invitedEmail}</strong> to accept this invitation.
                 </AlertDescription>
               </Alert>
               <div className="grid grid-cols-2 gap-3">
                 <Button asChild>
-                  <Link href={authLinks.login}>
-                    Sign In
-                  </Link>
+                  <Link href={authLinks.login}>Sign In</Link>
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link href={authLinks.signup}>
-                    Sign Up
-                  </Link>
+                  <Link href={authLinks.signup}>Sign Up</Link>
                 </Button>
               </div>
             </div>

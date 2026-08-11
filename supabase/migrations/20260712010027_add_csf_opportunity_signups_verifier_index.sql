@@ -1,0 +1,1 @@
+CREATE INDEX CONCURRENTLY IF NOT EXISTS csf_opportunity_signups_attendance_verified_by_idx ON plugin_data.csf_opportunity_signups (attendance_verified_by);

@@ -30,13 +30,15 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [searchEmail, setSearchEmail] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<{
-    id: string;
-    email: string;
-    full_name?: string | null;
-    avatar_url?: string | null;
-    username?: string | null;
-  }[]>([]);
+  const [searchResults, setSearchResults] = useState<
+    {
+      id: string;
+      email: string;
+      full_name?: string | null;
+      avatar_url?: string | null;
+      username?: string | null;
+    }[]
+  >([]);
   const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
@@ -73,10 +75,18 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
     }
   };
 
-  const handleAddMember = async (user: { id: string; email: string; full_name?: string | null }) => {
+  const handleAddMember = async (user: {
+    id: string;
+    email: string;
+    full_name?: string | null;
+  }) => {
     setIsAdding(true);
     try {
-      const res = await addTrustedMember(user.id, user.email, user.full_name || user.email);
+      const res = await addTrustedMember(
+        user.id,
+        user.email,
+        user.full_name || user.email,
+      );
       if (res.error) {
         toast.error(res.error);
       } else {
@@ -98,15 +108,19 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-bold tracking-tight">Trusted Members</h2>
-          <p className="text-sm text-muted-foreground">Manage and approve trusted member applications.</p>
+          <p className="text-sm text-muted-foreground">
+            Manage and approve trusted member applications.
+          </p>
         </div>
         <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
-          <DialogTrigger render={
-            <Button className="w-full sm:w-auto">
-              <ShieldCheck className="mr-2 h-4 w-4" />
-              Add Trusted Member
-            </Button>
-          } />
+          <DialogTrigger
+            render={
+              <Button className="w-full sm:w-auto">
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                Add Trusted Member
+              </Button>
+            }
+          />
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add Trusted Member</DialogTitle>
@@ -129,15 +143,27 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
                     }
                   }}
                 />
-                <Button onClick={handleSearch} disabled={isSearching || !searchEmail.trim()} size="icon" variant="secondary">
-                  {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                <Button
+                  onClick={handleSearch}
+                  disabled={isSearching || !searchEmail.trim()}
+                  size="icon"
+                  variant="secondary"
+                >
+                  {isSearching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
 
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
               {searchResults.map((user) => (
-                <div key={user.id} className="flex items-center justify-between p-3 border rounded-xl hover:bg-muted/50 transition-colors">
+                <div
+                  key={user.id}
+                  className="flex items-center justify-between p-3 border rounded-xl hover:bg-muted/50 transition-colors"
+                >
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
                       <AvatarImage
@@ -145,28 +171,51 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
                         alt={user.full_name || "User"}
                       />
                       <AvatarFallback>
-                        <NoAvatar fullName={user.full_name || user.email.split("@")[0]} />
+                        <NoAvatar
+                          fullName={user.full_name || user.email.split("@")[0]}
+                        />
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <p className="font-medium truncate">{user.full_name || user.email.split("@")[0]}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                      <p className="font-medium truncate">
+                        {user.full_name || user.email.split("@")[0]}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {user.email}
+                      </p>
                     </div>
                   </div>
-                  <Button size="sm" onClick={() => handleAddMember(user)} disabled={isAdding} className="ml-2 shrink-0">
-                    {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+                  <Button
+                    size="sm"
+                    onClick={() => handleAddMember(user)}
+                    disabled={isAdding}
+                    className="ml-2 shrink-0"
+                  >
+                    {isAdding ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Add"
+                    )}
                   </Button>
                 </div>
               ))}
               {searchResults.length === 0 && searchEmail && !isSearching && (
                 <div className="text-center py-8">
-                  <p className="text-sm text-muted-foreground">No users found.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No users found.
+                  </p>
                 </div>
               )}
             </div>
 
             <DialogFooter>
-              <Button variant="ghost" onClick={() => setAddMemberOpen(false)} className="w-full sm:w-auto">Cancel</Button>
+              <Button
+                variant="ghost"
+                onClick={() => setAddMemberOpen(false)}
+                className="w-full sm:w-auto"
+              >
+                Cancel
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

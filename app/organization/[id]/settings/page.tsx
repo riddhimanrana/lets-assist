@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { Separator } from "@/components/ui/separator";
 import EditOrganizationForm from "./EditOrganizationForm";
 import { Metadata } from "next";
@@ -12,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardContent
+  CardContent,
 } from "@/components/ui/card";
 import JoinCodeAdminDisplay from "./JoinCodeAdminDisplay";
 import StaffLinkDisplay from "./StaffLinkDisplay";
@@ -21,14 +22,10 @@ import OrganizationCalendarSettings from "./OrganizationCalendarSettings";
 import BulkImportSection from "./BulkImportSection";
 import OrganizationSheetsSettings from "./OrganizationSheetsSettings";
 import OrganizationPluginSettings from "./OrganizationPluginSettings";
+import MemberExporter from "./MemberExporter";
 
 type Props = {
   params: Promise<{ id: string }>;
-};
-
-type OrganizationMember = {
-  user_id: string;
-  role: string;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -44,11 +41,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   // If not found by username, try by ID
   const { data: orgById } = !orgByUsername
-    ? await supabase
-      .from("organizations")
-      .select("name")
-      .eq("id", id)
-      .single()
+    ? await supabase.from("organizations").select("name").eq("id", id).single()
     : { data: null };
 
   const org = orgByUsername || orgById;
@@ -77,52 +70,65 @@ export default async function OrganizationSettingsPage({ params }: Props) {
   }
 
   // Check if ID is a username or UUID
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const isUUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-  // Try to fetch organization by username or ID depending on the format
-  const { data: organization } = isUUID
+  // Resolve only public-safe fields first, then prove admin membership before
+  // loading capability fields such as join/staff tokens with the server client.
+  const { data: organizationIdentity } = isUUID
     ? await supabase
-      .from("organizations")
-      .select("*, organization_members!inner(user_id, role)")
-      .eq("id", id)
-      .single()
+        .from("organizations")
+        .select("id, username, name")
+        .eq("id", id)
+        .single()
     : await supabase
-      .from("organizations")
-      .select("*, organization_members!inner(user_id, role)")
-      .eq("username", id)
-      .single();
+        .from("organizations")
+        .select("id, username, name")
+        .eq("username", id)
+        .single();
 
-  if (!organization) {
+  if (!organizationIdentity) {
     notFound();
   }
 
-  // Check if user is an admin
-  const isAdmin = (organization.organization_members as OrganizationMember[]).some(
-    (member) => member.user_id === user.id && member.role === 'admin'
-  );
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("user_id, role")
+    .eq("organization_id", organizationIdentity.id)
+    .eq("user_id", user.id)
+    .eq("role", "admin")
+    .maybeSingle();
 
   // If not admin, redirect to organization page
-  if (!isAdmin) {
+  if (!membership) {
     redirect(`/organization/${id}`);
+  }
+
+  const admin = getAdminClient();
+  const { data: organization } = await admin
+    .from("organizations")
+    .select("*")
+    .eq("id", organizationIdentity.id)
+    .single();
+
+  if (!organization) {
+    notFound();
   }
 
   return (
     <div className="flex justify-center w-full">
       <div className="container max-w-4xl py-4 sm:py-8 px-4 sm:px-6">
         <div className="mb-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mb-4"
-            asChild
-          >
+          <Button variant="ghost" size="sm" className="mb-4" asChild>
             <Link href={`/organization/${organization.username}`}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Organization
             </Link>
           </Button>
 
-          <h1 className="text-3xl font-bold tracking-tight">Organization Settings</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Organization Settings
+          </h1>
           <p className="text-muted-foreground mt-1">
             Manage settings and details for {organization.name}
           </p>
@@ -132,10 +138,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
 
         <div className="space-y-8">
           {/* Basic Details Section */}
-          <EditOrganizationForm
-            organization={organization}
-            userId={user.id}
-          />
+          <EditOrganizationForm organization={organization} userId={user.id} />
 
           {/* Join Code Management */}
           <Card>
@@ -147,7 +150,8 @@ export default async function OrganizationSettingsPage({ params }: Props) {
             </CardHeader>
             <CardContent>
               <p className="mb-4 text-sm text-muted-foreground">
-                Use this code to invite new members to your organization. You can regenerate the code at any time.
+                Use this code to invite new members to your organization. You
+                can regenerate the code at any time.
               </p>
               <JoinCodeAdminDisplay
                 organizationId={organization.id}
@@ -161,7 +165,8 @@ export default async function OrganizationSettingsPage({ params }: Props) {
             <CardHeader>
               <CardTitle>Staff Invite Link</CardTitle>
               <CardDescription>
-                Generate a special link for teachers and staff to join with elevated permissions
+                Generate a special link for teachers and staff to join with
+                elevated permissions
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -191,7 +196,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
             organizationName={organization.name}
           />
 
-          <OrganizationSheetsSettings 
+          <OrganizationSheetsSettings
             organizationId={organization.id}
             organizationSlug={organization.username || organization.id}
             organizationName={organization.name}
@@ -200,7 +205,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
           <OrganizationPluginSettings organizationId={organization.id} />
 
           {/* Member Data Management */}
-          {/* <Card>
+          <Card>
             <CardHeader>
               <CardTitle>Member Data</CardTitle>
               <CardDescription>
@@ -209,11 +214,12 @@ export default async function OrganizationSettingsPage({ params }: Props) {
             </CardHeader>
             <CardContent>
               <p className="mb-4 text-sm text-muted-foreground">
-                Download your organization&apos;s member data for record-keeping or offline management.
+                Download your organization&apos;s member data for record-keeping
+                or offline management.
               </p>
               <MemberExporter organizationId={organization.id} />
             </CardContent>
-          </Card> */}
+          </Card>
 
           {/* Danger Zone */}
           <Card className="border-destructive/50">
@@ -227,9 +233,12 @@ export default async function OrganizationSettingsPage({ params }: Props) {
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h3 className="font-medium text-base">Delete Organization</h3>
+                    <h3 className="font-medium text-base">
+                      Delete Organization
+                    </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Permanently delete this organization and all associated data
+                      Permanently delete this organization and all associated
+                      data
                     </p>
                   </div>
                   <DeleteOrganizationDialog organization={organization} />

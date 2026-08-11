@@ -7,7 +7,7 @@ import {
   Preview,
   Section,
   Text,
-} from "@react-email/components";
+} from "react-email";
 import * as React from "react";
 
 import type { AccountAccessStatus } from "@/lib/auth/account-access";
@@ -98,8 +98,8 @@ export default function AccountAccessUpdateEmail({
               </Section>
 
               <Text style={smallText}>
-                If you think this was applied in error, contact support and include any relevant
-                details so our team can review your case.
+                If you think this was applied in error, contact support and
+                include any relevant details so our team can review your case.
               </Text>
 
               <Section style={buttonWrap}>

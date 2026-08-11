@@ -2,12 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -20,7 +26,8 @@ type NotificationSettings = {
 export function NotificationSettings() {
   const { user } = useAuth(); // Use cached auth instead of getUser() calls
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
-  const [originalSettings, setOriginalSettings] = useState<NotificationSettings | null>(null);
+  const [originalSettings, setOriginalSettings] =
+    useState<NotificationSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
@@ -38,9 +45,9 @@ export function NotificationSettings() {
           .from("notification_settings")
           .select("*")
           .eq("user_id", userId)) as {
-            data: NotificationSettings[] | null;
-            error: { message?: string } | null;
-          };
+          data: NotificationSettings[] | null;
+          error: { message?: string } | null;
+        };
 
         if (error) {
           console.error("Error loading notification settings:", error);
@@ -110,7 +117,8 @@ export function NotificationSettings() {
             Notifications
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage your notification preferences and control how you receive alerts
+            Manage your notification preferences and control how you receive
+            alerts
           </p>
         </div>
 
@@ -137,17 +145,23 @@ export function NotificationSettings() {
                 <div className="space-y-5">
                   <div className="flex items-center justify-between border p-4 rounded-md">
                     <div className="space-y-0.5">
-                      <Label htmlFor="email-notifications" className="text-base">
+                      <Label
+                        htmlFor="email-notifications"
+                        className="text-base"
+                      >
                         Email Notifications
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        Receive notifications via email when important updates occur
+                        Receive notifications via email when important updates
+                        occur
                       </p>
                     </div>
                     <Switch
                       id="email-notifications"
                       checked={settings.email_notifications}
-                      onCheckedChange={(checked) => handleChange("email_notifications", checked)}
+                      onCheckedChange={(checked) =>
+                        handleChange("email_notifications", checked)
+                      }
                     />
                   </div>
 
@@ -157,13 +171,16 @@ export function NotificationSettings() {
                         Project Updates
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        Receive helpful notifications about project updates and changes (may also send over email)
+                        Receive helpful notifications about project updates and
+                        changes (may also send over email)
                       </p>
                     </div>
                     <Switch
                       id="project-updates"
                       checked={settings.project_updates}
-                      onCheckedChange={(checked) => handleChange("project_updates", checked)}
+                      onCheckedChange={(checked) =>
+                        handleChange("project_updates", checked)
+                      }
                     />
                   </div>
 
@@ -173,13 +190,16 @@ export function NotificationSettings() {
                         General
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        General system notifications about login items and other such stuff.
+                        General system notifications about login items and other
+                        such stuff.
                       </p>
                     </div>
                     <Switch
                       id="general"
                       checked={settings.general}
-                      onCheckedChange={(checked) => handleChange("general", checked)}
+                      onCheckedChange={(checked) =>
+                        handleChange("general", checked)
+                      }
                     />
                   </div>
                 </div>

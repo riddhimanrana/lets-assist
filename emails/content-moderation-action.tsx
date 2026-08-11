@@ -8,7 +8,7 @@ import {
   Heading,
   Link,
   Preview,
-} from "@react-email/components";
+} from "react-email";
 import * as React from "react";
 import EmailHeader from "./_components/EmailHeader";
 import EmailFooter from "./_components/EmailFooter";
@@ -69,7 +69,8 @@ export default function ContentModerationActionEmail({
               <Heading style={heading}>Content moderation update</Heading>
               <Text style={paragraph}>Hi {userName},</Text>
               <Text style={paragraph}>
-                We reviewed your {contentTypeLabel} <strong>{contentTitle}</strong> and {actionLabel} it.
+                We reviewed your {contentTypeLabel}{" "}
+                <strong>{contentTitle}</strong> and {actionLabel} it.
               </Text>
 
               <Section style={reasonBox}>
@@ -80,7 +81,8 @@ export default function ContentModerationActionEmail({
               <Section style={subtleBox}>
                 <Text style={label}>What happens next</Text>
                 <Text style={smallText}>
-                  If you believe this was in error, reply to this email or contact support and we’ll take another look.
+                  If you believe this was in error, reply to this email or
+                  contact support and we’ll take another look.
                 </Text>
               </Section>
 
@@ -91,7 +93,10 @@ export default function ContentModerationActionEmail({
               {contentUrl && (
                 <Section style={linkBox}>
                   <Text style={smallText}>
-                    You can review the content details here: <Link style={link} href={contentUrl}>{contentUrl}</Link>
+                    You can review the content details here:{" "}
+                    <Link style={link} href={contentUrl}>
+                      {contentUrl}
+                    </Link>
                   </Text>
                 </Section>
               )}

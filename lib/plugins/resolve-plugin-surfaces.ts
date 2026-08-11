@@ -1,6 +1,5 @@
-import type { ReactNode } from "react";
-
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
+import { loadAccessibleOrganizationPluginAccess } from "@/lib/plugins/organization-plugin-access";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -20,42 +19,6 @@ export interface ResolveOrganizationPluginSurfacesOptions {
   useAdminClient?: boolean;
 }
 
-
-type PluginInstallRow = {
-  plugin_key: string;
-  enabled: boolean;
-  configuration: Record<string, unknown> | null;
-};
-
-type PluginAccessRow = {
-  plugin_key: string;
-  enabled: boolean;
-  is_accessible: boolean;
-  configuration: Record<string, unknown> | null;
-};
-
-type SupabaseLikeError = {
-  code?: string;
-  message?: string;
-};
-
-function isMissingPluginTableError(error: SupabaseLikeError | null): boolean {
-  if (!error) return false;
-
-  const message =
-    typeof error.message === "string" ? error.message.toLowerCase() : "";
-
-  return (
-    error.code === "42P01" ||
-    error.code === "42703" ||
-    error.code === "PGRST205" ||
-    message.includes("does not exist") ||
-    message.includes("schema cache") ||
-    message.includes("could not find the table") ||
-    message.includes("could not find the relation")
-  );
-}
-
 const ROLE_ORDER: Record<OrganizationPluginAccessRole, number> = {
   member: 1,
   staff: 2,
@@ -70,7 +33,9 @@ function isNonEmptyArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.length > 0;
 }
 
-function normalizeOptionalString(value: string | null | undefined): string | null {
+function normalizeOptionalString(
+  value: string | null | undefined,
+): string | null {
   const normalized = value?.trim();
   return normalized && normalized.length > 0 ? normalized : null;
 }
@@ -80,8 +45,10 @@ function normalizeTargeting(
 ): OrganizationPluginTargetingConfig | undefined {
   if (!isRecord(value)) return undefined;
 
-  const modeRaw = typeof value.mode === "string" ? value.mode.toLowerCase() : undefined;
-  const mode = modeRaw === "any" ? "any" : modeRaw === "all" ? "all" : undefined;
+  const modeRaw =
+    typeof value.mode === "string" ? value.mode.toLowerCase() : undefined;
+  const mode =
+    modeRaw === "any" ? "any" : modeRaw === "all" ? "all" : undefined;
 
   const targeting: OrganizationPluginTargetingConfig = {
     ...(mode ? { mode } : {}),
@@ -92,7 +59,9 @@ function normalizeTargeting(
       ? { userProfileIds: value.userProfileIds }
       : {}),
     ...(isNonEmptyArray(value.userIds) ? { userIds: value.userIds } : {}),
-    ...(isNonEmptyArray(value.projectIds) ? { projectIds: value.projectIds } : {}),
+    ...(isNonEmptyArray(value.projectIds)
+      ? { projectIds: value.projectIds }
+      : {}),
     ...(isNonEmptyArray(value.anonymousEmails)
       ? { anonymousEmails: value.anonymousEmails }
       : {}),
@@ -128,12 +97,16 @@ export function matchesPluginTargeting(
 
   if (isNonEmptyArray(targeting.anonymousSignupIds)) {
     const candidate = normalizeOptionalString(context?.anonymousSignupId);
-    checks.push(Boolean(candidate && targeting.anonymousSignupIds.includes(candidate)));
+    checks.push(
+      Boolean(candidate && targeting.anonymousSignupIds.includes(candidate)),
+    );
   }
 
   if (isNonEmptyArray(targeting.userProfileIds)) {
     const candidate = normalizeOptionalString(context?.userProfileId);
-    checks.push(Boolean(candidate && targeting.userProfileIds.includes(candidate)));
+    checks.push(
+      Boolean(candidate && targeting.userProfileIds.includes(candidate)),
+    );
   }
 
   if (isNonEmptyArray(targeting.userIds)) {
@@ -147,11 +120,15 @@ export function matchesPluginTargeting(
   }
 
   if (isNonEmptyArray(targeting.anonymousEmails)) {
-    const candidate = normalizeOptionalString(context?.anonymousEmail)?.toLowerCase();
+    const candidate = normalizeOptionalString(
+      context?.anonymousEmail,
+    )?.toLowerCase();
     checks.push(
       Boolean(
         candidate &&
-          targeting.anonymousEmails.some((email) => email.toLowerCase() === candidate),
+        targeting.anonymousEmails.some(
+          (email) => email.toLowerCase() === candidate,
+        ),
       ),
     );
   }
@@ -167,47 +144,13 @@ export function matchesPluginTargeting(
 export async function resolveOrganizationPluginSurfaces(
   options: ResolveOrganizationPluginSurfacesOptions,
 ): Promise<ResolvedOrganizationPluginSurface[]> {
-  const supabase = options.useAdminClient ? getAdminClient() : await createClient();
-
-  const pluginAccessResult = await supabase
-    .from("organization_plugin_access")
-    .select("plugin_key, enabled, is_accessible, configuration")
-    .eq("organization_id", options.organizationId)
-    .eq("enabled", true);
-
-  let installRows: PluginInstallRow[] = [];
-
-  if (!isMissingPluginTableError(pluginAccessResult.error)) {
-    if (pluginAccessResult.error) {
-      throw new Error(
-        `Failed to load consolidated plugin access: ${pluginAccessResult.error.message}`,
-      );
-    }
-
-    installRows = ((pluginAccessResult.data ?? []) as PluginAccessRow[])
-      .filter((row) => row.is_accessible)
-      .map((row) => ({
-        plugin_key: row.plugin_key,
-        enabled: row.enabled,
-        configuration: row.configuration,
-      }));
-  } else {
-    const { data: installs, error } = await supabase
-      .from("organization_plugin_installs")
-      .select("plugin_key, enabled, configuration")
-      .eq("organization_id", options.organizationId)
-      .eq("enabled", true);
-
-    if (isMissingPluginTableError(error)) {
-      return [];
-    }
-
-    if (error) {
-      throw new Error(`Failed to load plugin installs: ${error.message}`);
-    }
-
-    installRows = (installs ?? []) as PluginInstallRow[];
-  }
+  const supabase = options.useAdminClient
+    ? getAdminClient()
+    : await createClient();
+  const installRows = await loadAccessibleOrganizationPluginAccess({
+    supabase,
+    organizationIds: [options.organizationId],
+  });
 
   const results: ResolvedOrganizationPluginSurface[] = [];
 

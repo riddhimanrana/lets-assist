@@ -44,6 +44,12 @@ export type RuntimePluginInfo = {
   detailedDescription?: OrganizationPluginAdminSetting["detailedDescription"];
   capabilityHighlights?: OrganizationPluginAdminSetting["capabilityHighlights"];
   dataAccess?: OrganizationPluginAdminSetting["dataAccess"];
+  routes?: Array<{ path: string; label: string }>;
+  backendCapabilities?: Array<{
+    key: string;
+    kind: string;
+    description: string;
+  }>;
   configSchema?: OrganizationPluginAdminSetting["configSchema"];
   requiredScopes?: OrganizationPluginAdminSetting["requiredScopes"];
 };
@@ -56,8 +62,12 @@ export function buildOrganizationPluginAdminSettings(input: {
   now?: Date;
 }): OrganizationPluginAdminSetting[] {
   const now = input.now ?? new Date();
-  const runtimeByKey = new Map(input.runtimePlugins.map((plugin) => [plugin.key, plugin]));
-  const installByKey = new Map(input.installs.map((install) => [install.plugin_key, install]));
+  const runtimeByKey = new Map(
+    input.runtimePlugins.map((plugin) => [plugin.key, plugin]),
+  );
+  const installByKey = new Map(
+    input.installs.map((install) => [install.plugin_key, install]),
+  );
   const entitledPrivateKeys = new Set(
     input.entitlements
       .filter((entitlement) => isEntitlementActive(entitlement, now))
@@ -65,7 +75,10 @@ export function buildOrganizationPluginAdminSettings(input: {
   );
   const forcedPrivateKeys = new Set(
     input.entitlements
-      .filter((entitlement) => entitlement.is_forced && isEntitlementActive(entitlement, now))
+      .filter(
+        (entitlement) =>
+          entitlement.is_forced && isEntitlementActive(entitlement, now),
+      )
       .map((entitlement) => entitlement.plugin_key),
   );
 
@@ -90,7 +103,8 @@ export function buildOrganizationPluginAdminSettings(input: {
       if (!runtimePlugin) {
         blockedReason = "Plugin package is not loaded in this deployment.";
       } else if (!entitled) {
-        blockedReason = "This organization does not currently have an active entitlement.";
+        blockedReason =
+          "This organization does not currently have an active entitlement.";
       }
 
       const installedVersion = coalescePluginVersion(
@@ -100,7 +114,10 @@ export function buildOrganizationPluginAdminSettings(input: {
       const forceUpdateRequired =
         Boolean(plugin.force_update_version) &&
         isPluginVersionBehind(installedVersion, plugin.force_update_version);
-      const updateAvailable = isPluginVersionBehind(installedVersion, plugin.latest_version);
+      const updateAvailable = isPluginVersionBehind(
+        installedVersion,
+        plugin.latest_version,
+      );
 
       if (!blockedReason && forceUpdateRequired) {
         blockedReason =
@@ -115,7 +132,15 @@ export function buildOrganizationPluginAdminSettings(input: {
         ownerName,
         ownerType,
         capabilityHighlights: runtimePlugin?.capabilityHighlights ?? [],
-        dataAccess: runtimePlugin?.dataAccess ?? [],
+        dataAccess: runtimePlugin?.dataAccess ?? [
+          ...(runtimePlugin?.routes ?? []).map(
+            (route) =>
+              `Route: ${route.label} (/plugins/${plugin.key}/${route.path})`,
+          ),
+          ...(runtimePlugin?.backendCapabilities ?? []).map(
+            (capability) => `${capability.kind}: ${capability.description}`,
+          ),
+        ],
         visibility: plugin.visibility,
         navLabel: runtimePlugin?.navLabel ?? plugin.name,
         version: runtimePlugin?.version ?? "unregistered",

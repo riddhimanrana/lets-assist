@@ -10,7 +10,10 @@
 
 import type { AiWorkloadScope } from "./gateway";
 import { gatewayModel } from "./gateway";
-import { createPluginTelemetry, createPostHogTelemetry } from "./posthog-telemetry";
+import {
+  createPluginTelemetry,
+  createPostHogTelemetry,
+} from "./posthog-telemetry";
 import { logAiUsage } from "./usage-tracker";
 
 // Re-export for convenience
@@ -97,7 +100,9 @@ export interface TrackedAiResult {
  * });
  * ```
  */
-export function prepareTrackedAiCall(options: TrackedAiOptions): TrackedAiResult {
+export function prepareTrackedAiCall(
+  options: TrackedAiOptions,
+): TrackedAiResult {
   const { context, modelId } = options;
   const { scope, userId, organizationId, pluginKey, feature } = context;
 

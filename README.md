@@ -20,7 +20,18 @@ This project is built using the following technologies:
 - [Supabase](https://supabase.com/): Open-source Firebase alternative with PostgreSQL database.
 - [Catpuccin](https://catppuccin.com/): Soothing color palette for consistent theming.
 - [Cloudflare](https://www.cloudflare.com/): Security, domain and performance optimization.
-And many other libraries...
+  And many other libraries...
+
+## Development environments
+
+This repository has two intentionally separate local database workflows:
+
+- **Platform/shared local:** run `bun run supabase`, then `bun run dev:next` in a second terminal. This seeds fictional platform data and does not seed DVHS CSF.
+- **Isolated DVHS CSF local:** run `bun run dev`. The launcher creates the dedicated namespaced CSF Supabase/Docker stack, seeds fictional CSF data, and starts Next.js.
+
+Hosted `development` previews and Production are separate environments with separate proof requirements. A local green run is not evidence that either hosted environment is ready, and normal development work must not touch Production.
+
+Start with the [documentation index](docs/README.md), [environment guide](docs/development/environments.md), and [testing guide](docs/development/testing.md). The detailed launcher safety rules remain in [`scripts/local-dev/README.md`](scripts/local-dev/README.md).
 
 ## Private Plugin Model (Not Open Source)
 
@@ -35,16 +46,13 @@ Core Let&apos;s Assist application code in this repository is open-source under 
 - Per-person targeting is configured from `/admin/plugins` via install configuration JSON (`organization_plugin_installs.configuration.targeting`).
 - Organization admins control local install/update state from `/organization/[org]/settings`.
 
-Reference example included in this repository:
-
-- `lib/plugins/private/dv-speech-debate/` (specialized codebase for DV Speech & Debate organization)
-- [`docs/DV_SPEECH_DEBATE_SYSTEM.md`](docs/DV_SPEECH_DEBATE_SYSTEM.md) (Full system specification, status report, and roadmap)
+Private implementations are checked out through the `lib/plugins/private` submodule. Public architecture documentation includes the [DV Speech & Debate system](docs/architecture/dv-speech-debate.md).
 
 Production client-specific logic should remain in private repos and be imported into this app runtime, not developed directly in public source.
 
 For implementation details and update/force-update operations, see:
 
-- [`docs/private-plugin-development-guide.md`](docs/private-plugin-development-guide.md)
+- [`docs/development/private-plugins.md`](docs/development/private-plugins.md)
 
 ## FAQ
 

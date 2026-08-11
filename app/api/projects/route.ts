@@ -12,10 +12,17 @@ export async function GET(request: Request) {
   const searchTerm = searchParams.get("search")?.trim() || undefined;
   const eventType = searchParams.get("eventType")?.trim() || undefined;
 
-  const projects = await getActiveProjects(limit, offset, status, undefined, undefined, {
-    searchTerm,
-    eventType: eventType as Project["event_type"] | undefined,
-  });
+  const projects = await getActiveProjects(
+    limit,
+    offset,
+    status,
+    undefined,
+    undefined,
+    {
+      searchTerm,
+      eventType: eventType as Project["event_type"] | undefined,
+    },
+  );
 
   return NextResponse.json(projects);
 }

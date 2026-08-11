@@ -8,6 +8,7 @@ import { getAdminClient } from "./admin";
 import { createUserDataExportArchive } from "./user-data-export";
 
 const EXPORT_BUCKET = "data-exports";
+const EXPORT_BUCKET_FILE_SIZE_LIMIT = "50MB";
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const DEFAULT_ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024; // 8MB
 
@@ -41,22 +42,30 @@ function getAttachmentMaxBytes(): number {
 
 async function ensureExportBucket() {
   const supabase = getAdminClient();
-  const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+  const { data: buckets, error: listError } =
+    await supabase.storage.listBuckets();
 
   if (listError) {
     throw new Error(`Unable to list storage buckets: ${listError.message}`);
   }
 
-  const exists = (buckets ?? []).some((bucket) => bucket.name === EXPORT_BUCKET);
+  const exists = (buckets ?? []).some(
+    (bucket) => bucket.name === EXPORT_BUCKET,
+  );
   if (exists) return;
 
-  const { error: createError } = await supabase.storage.createBucket(EXPORT_BUCKET, {
-    public: false,
-    fileSizeLimit: "100MB",
-  });
+  const { error: createError } = await supabase.storage.createBucket(
+    EXPORT_BUCKET,
+    {
+      public: false,
+      fileSizeLimit: EXPORT_BUCKET_FILE_SIZE_LIMIT,
+    },
+  );
 
   if (createError) {
-    throw new Error(`Unable to create storage bucket '${EXPORT_BUCKET}': ${createError.message}`);
+    throw new Error(
+      `Unable to create storage bucket '${EXPORT_BUCKET}': ${createError.message}`,
+    );
   }
 }
 
@@ -70,14 +79,16 @@ async function writeAuditEvent(params: {
 }) {
   const supabase = getAdminClient();
 
-  const { error } = await supabase.from("account_data_export_audit_logs").insert({
-    job_id: params.jobId,
-    user_id: params.userId,
-    event_type: params.eventType,
-    status: params.status,
-    source: params.source,
-    details: params.details ?? {},
-  });
+  const { error } = await supabase
+    .from("account_data_export_audit_logs")
+    .insert({
+      job_id: params.jobId,
+      user_id: params.userId,
+      event_type: params.eventType,
+      status: params.status,
+      source: params.source,
+      details: params.details ?? {},
+    });
 
   if (error) {
     logWarn("Failed to write data export audit event", {
@@ -101,7 +112,9 @@ async function completeJob(jobId: string, updates: Record<string, unknown>) {
   }
 }
 
-async function claimPendingJob(job: ExportJobRecord): Promise<ExportJobRecord | null> {
+async function claimPendingJob(
+  job: ExportJobRecord,
+): Promise<ExportJobRecord | null> {
   const supabase = getAdminClient();
   const now = new Date().toISOString();
 
@@ -116,7 +129,9 @@ async function claimPendingJob(job: ExportJobRecord): Promise<ExportJobRecord | 
     })
     .eq("id", job.id)
     .eq("status", "pending")
-    .select("id, user_id, requested_by, status, delivery_email, attempt_count, request_metadata")
+    .select(
+      "id, user_id, requested_by, status, delivery_email, attempt_count, request_metadata",
+    )
     .maybeSingle();
 
   if (error) {
@@ -162,7 +177,9 @@ async function processSingleJob(job: ExportJobRecord) {
     .createSignedUrl(storagePath, signedUrlTtl);
 
   if (signedError || !signedData?.signedUrl) {
-    throw new Error(`Failed to create signed URL: ${signedError?.message || "Unknown error"}`);
+    throw new Error(
+      `Failed to create signed URL: ${signedError?.message || "Unknown error"}`,
+    );
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -204,12 +221,13 @@ async function processSingleJob(job: ExportJobRecord) {
       : undefined,
   });
 
-  if (!emailResponse.success) {
+  if (!emailResponse.success && !emailResponse.skipped) {
     const errorMessage =
       "error" in emailResponse && emailResponse.error
         ? typeof emailResponse.error === "string"
           ? emailResponse.error
-          : (emailResponse.error as { message?: string }).message || "Email send failed"
+          : (emailResponse.error as { message?: string }).message ||
+            "Email send failed"
         : "Email send failed";
 
     throw new Error(errorMessage);
@@ -227,6 +245,8 @@ async function processSingleJob(job: ExportJobRecord) {
     export_metadata: {
       manifest: archive.manifest,
       deliveryMode: shouldAttach ? "attachment_and_link" : "link_only",
+      emailSkipped: emailResponse.skipped || false,
+      emailReason: emailResponse.reason || null,
     },
     error_message: null,
   });
@@ -258,13 +278,17 @@ export async function processPendingDataExportJobs(limit = 5) {
 
   const { data: pendingJobs, error: pendingError } = await supabase
     .from("account_data_export_jobs")
-    .select("id, user_id, requested_by, status, delivery_email, attempt_count, request_metadata")
+    .select(
+      "id, user_id, requested_by, status, delivery_email, attempt_count, request_metadata",
+    )
     .eq("status", "pending")
     .order("requested_at", { ascending: true })
     .limit(limit);
 
   if (pendingError) {
-    throw new Error(`Failed to fetch pending export jobs: ${pendingError.message}`);
+    throw new Error(
+      `Failed to fetch pending export jobs: ${pendingError.message}`,
+    );
   }
 
   const jobs = (pendingJobs as ExportJobRecord[] | null) ?? [];
@@ -290,7 +314,10 @@ export async function processPendingDataExportJobs(limit = 5) {
       completed += 1;
     } catch (error) {
       failed += 1;
-      const message = error instanceof Error ? error.message : "Unknown export processing error";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unknown export processing error";
 
       logError("Data export job failed", error, {
         job_id: pendingJob.id,

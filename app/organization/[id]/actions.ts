@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -9,16 +10,18 @@ import { revalidatePath } from "next/cache";
 export async function updateMemberRole(
   organizationId: string,
   membershipId: string,
-  newRole: string
+  newRole: string,
 ) {
   const supabase = await createClient();
-  
+
   // Authenticate the user
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     return { error: "You must be logged in" };
   }
-  
+
   // Verify the user has permission to update roles
   const { data: currentUserMembership } = await supabase
     .from("organization_members")
@@ -26,11 +29,11 @@ export async function updateMemberRole(
     .eq("organization_id", organizationId)
     .eq("user_id", user.id)
     .single();
-  
+
   if (!currentUserMembership) {
     return { error: "You are not a member of this organization" };
   }
-  
+
   // Only admins can make other users admins
   // Staff can only change regular members to staff or back
   if (
@@ -39,7 +42,7 @@ export async function updateMemberRole(
   ) {
     return { error: "You don't have permission to assign this role" };
   }
-  
+
   // Get the membership details
   const { data: membership } = await supabase
     .from("organization_members")
@@ -47,16 +50,16 @@ export async function updateMemberRole(
     .eq("id", membershipId)
     .eq("organization_id", organizationId)
     .single();
-  
+
   if (!membership) {
     return { error: "Member not found" };
   }
-  
+
   // Staff members can't modify admins
   if (currentUserMembership.role === "staff" && membership.role === "admin") {
     return { error: "You don't have permission to modify admins" };
   }
-  
+
   // Don't allow the last admin to be demoted
   if (membership.role === "admin" && newRole !== "admin") {
     // Count other admins
@@ -69,48 +72,56 @@ export async function updateMemberRole(
       count: number | null;
       error: { message?: string } | null;
     };
-      
+
     if (countError) {
       return { error: "Failed to verify admin status" };
     }
-    
+
     if (count === 0) {
-      return { 
-        error: "Cannot demote the last admin. Promote another member to admin first."
+      return {
+        error:
+          "Cannot demote the last admin. Promote another member to admin first.",
       };
     }
   }
-  
+
   // Update the member's role
   const { error: updateError } = (await supabase
     .from("organization_members")
     .update({ role: newRole })
     .eq("id", membershipId)
-    .eq("organization_id", organizationId)) as { error: { message?: string } | null };
-  
+    .eq("organization_id", organizationId)) as {
+    error: { message?: string } | null;
+  };
+
   if (updateError) {
     console.error("Error updating member role:", updateError);
     return { error: "Failed to update member role" };
   }
-  
+
   // Revalidate the organization page
   revalidatePath(`/organization/[id]`);
-  
+
   return { success: true };
 }
 
 /**
  * Remove a member from an organization
  */
-export async function removeMember(organizationId: string, membershipId: string) {
+export async function removeMember(
+  organizationId: string,
+  membershipId: string,
+) {
   const supabase = await createClient();
-  
+
   // Authenticate the user
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     return { error: "You must be logged in" };
   }
-  
+
   // Get the membership details
   const { data: membership } = await supabase
     .from("organization_members")
@@ -118,14 +129,14 @@ export async function removeMember(organizationId: string, membershipId: string)
     .eq("id", membershipId)
     .eq("organization_id", organizationId)
     .single();
-  
+
   if (!membership) {
     return { error: "Member not found" };
   }
-  
+
   // Allow users to remove themselves
   const isSelfRemoval = membership.user_id === user.id;
-  
+
   if (!isSelfRemoval) {
     // If not removing self, verify permissions
     const { data: currentUserMembership } = await supabase
@@ -134,11 +145,11 @@ export async function removeMember(organizationId: string, membershipId: string)
       .eq("organization_id", organizationId)
       .eq("user_id", user.id)
       .single();
-    
+
     if (!currentUserMembership) {
       return { error: "You are not a member of this organization" };
     }
-    
+
     // Only admins can remove admins
     // Staff can only remove regular members
     if (
@@ -147,7 +158,7 @@ export async function removeMember(organizationId: string, membershipId: string)
     ) {
       return { error: "You don't have permission to remove this member" };
     }
-    
+
     // Don't allow removing the last admin
     if (membership.role === "admin") {
       // Count other admins
@@ -160,14 +171,15 @@ export async function removeMember(organizationId: string, membershipId: string)
         count: number | null;
         error: { message?: string } | null;
       };
-        
+
       if (countError) {
         return { error: "Failed to verify admin status" };
       }
-      
+
       if (count === 0) {
-        return { 
-          error: "Cannot remove the last admin. Promote another member to admin first."
+        return {
+          error:
+            "Cannot remove the last admin. Promote another member to admin first.",
         };
       }
     }
@@ -182,32 +194,38 @@ export async function removeMember(organizationId: string, membershipId: string)
       count: number | null;
       error: { message?: string } | null;
     };
-      
+
     if (countError) {
       return { error: "Failed to verify admin status" };
     }
-    
+
     if (count === 0) {
-      return { 
-        error: "You are the last admin. Please promote another member to admin before leaving."
+      return {
+        error:
+          "You are the last admin. Please promote another member to admin before leaving.",
       };
     }
   }
-  
-  // Remove the member
-  const { error: removeError } = (await supabase
-    .from("organization_members")
-    .delete()
-    .eq("id", membershipId)
-    .eq("organization_id", organizationId)) as { error: { message?: string } | null };
-  
-  if (removeError) {
+
+  // Record the auto-join suppression and remove the membership atomically so a
+  // later login cannot silently recreate access that was explicitly removed.
+  const admin = getAdminClient();
+  const { data: removed, error: removeError } = await admin.rpc(
+    "remove_organization_member_with_autojoin_suppression",
+    {
+      p_organization_id: organizationId,
+      p_membership_id: membershipId,
+      p_removed_by: user.id,
+    },
+  );
+
+  if (removeError || removed !== true) {
     console.error("Error removing member:", removeError);
     return { error: "Failed to remove member" };
   }
-  
+
   // Revalidate the organization page
   revalidatePath(`/organization/[id]`);
-  
+
   return { success: true };
 }

@@ -55,10 +55,7 @@ const bannerFormSchema = z
       .max(255)
       .optional()
       .refine(
-        (url) =>
-          !url ||
-          url.startsWith("/") ||
-          /^https?:\/\//i.test(url),
+        (url) => !url || url.startsWith("/") || /^https?:\/\//i.test(url),
         "CTA URL must start with /, http://, or https://",
       ),
     startsAt: z.string().optional(),
@@ -211,12 +208,10 @@ export async function saveSystemBanner(
       return { success: false, error: error.message };
     }
   } else {
-    const { error } = await supabase
-      .from("system_banners")
-      .insert({
-        ...payload,
-        created_by: userId,
-      });
+    const { error } = await supabase.from("system_banners").insert({
+      ...payload,
+      created_by: userId,
+    });
 
     if (error) {
       return { success: false, error: error.message };

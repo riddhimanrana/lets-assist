@@ -25,7 +25,10 @@ function parseVersion(version: string | null | undefined): ParsedVersion {
   };
 }
 
-export function comparePluginVersions(a: string | null | undefined, b: string | null | undefined): number {
+export function comparePluginVersions(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): number {
   const left = parseVersion(a);
   const right = parseVersion(b);
 
@@ -36,11 +39,17 @@ export function comparePluginVersions(a: string | null | undefined, b: string | 
   return 0;
 }
 
-export function isPluginVersionBehind(current: string | null | undefined, target: string | null | undefined): boolean {
+export function isPluginVersionBehind(
+  current: string | null | undefined,
+  target: string | null | undefined,
+): boolean {
   return comparePluginVersions(current, target) < 0;
 }
 
-export function coalescePluginVersion(primary: string | null | undefined, fallback: string | null | undefined): string {
+export function coalescePluginVersion(
+  primary: string | null | undefined,
+  fallback: string | null | undefined,
+): string {
   const normalizedPrimary = normalizeVersion(primary);
   if (normalizedPrimary && normalizedPrimary !== "0.0.0") {
     return normalizedPrimary;

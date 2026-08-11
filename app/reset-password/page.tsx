@@ -8,22 +8,17 @@ export const metadata: Metadata = {
   description: "Reset your Let's Assist password.",
 };
 
-
 type Props = {
   searchParams: Promise<{ token?: string; error?: string }>;
 };
 
-export default async function ResetPasswordPage({
-  searchParams,
-}: Props) {
+export default async function ResetPasswordPage({ searchParams }: Props) {
   const supabase = await createClient();
 
-  // If user is authenticated, sign them out
-  // @ts-ignore - getClaims exists in GoTrueClient
+  // Visiting the reset page should never invalidate an active session.
   const { data: claimsData } = await supabase.auth.getClaims();
   if (claimsData?.claims) {
-    await supabase.auth.signOut();
-    redirect('/reset-password');
+    redirect("/account/security");
   }
 
   // Explicitly read the search param before passing it

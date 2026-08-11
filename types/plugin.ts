@@ -12,27 +12,30 @@ export interface OrganizationWithRole extends Organization {
   role: OrganizationPluginAccessRole;
 }
 
+export interface OrganizationPluginLifecycleOrganization {
+  id: string;
+  role: OrganizationPluginAccessRole;
+}
+
 /**
  * Plugin permission scopes for granular access control
  */
 export type OrganizationPluginScope =
-  | "org:read"           // Read organization data
-  | "org:write"          // Modify organization settings
-  | "members:read"       // Read member list
-  | "members:write"      // Modify member roles
-  | "projects:read"      // Read projects
-  | "projects:write"     // Create/modify projects
-  | "signups:read"       // Read anonymous signups
-  | "signups:write"      // Modify signups
+  | "org:read" // Read organization data
+  | "org:write" // Modify organization settings
+  | "members:read" // Read member list
+  | "members:write" // Modify member roles
+  | "projects:read" // Read projects
+  | "projects:write" // Create/modify projects
+  | "signups:read" // Read anonymous signups
+  | "signups:write" // Modify signups
   | "notifications:send" // Send notifications
-  | "storage:read"       // Read files
-  | "storage:write"      // Upload files
-  | "api:expose";        // Expose custom API endpoints
+  | "storage:read" // Read files
+  | "storage:write" // Upload files
+  | "api:expose"; // Expose custom API endpoints
 
 export type OrganizationPluginOwnerType =
-  | "platform-official"
-  | "partner"
-  | "community";
+  "platform-official" | "partner" | "community";
 
 export interface OrganizationPluginOwner {
   name: string;
@@ -43,34 +46,114 @@ export interface OrganizationPluginOwner {
  * Available surfaces where plugins can inject UI components
  */
 export type OrganizationPluginSurface =
-  | "organization.overview.cards"      // Cards on organization dashboard
-  | "organization.settings.cards"      // Cards in organization settings
-  | "anonymous.profile.cards"          // Cards on anonymous signup pages
-  | "project.detail.cards"             // Cards on project detail pages
-  | "project.detail.actions"           // Action buttons on project pages
-  | "user.profile.cards"               // Cards on user profile pages
-  | "dashboard.sidebar.items"          // Items in sidebar navigation
-  | "dashboard.header.actions";        // Actions in header area
+  | "organization.overview.cards" // Cards on organization dashboard
+  | "organization.settings.cards" // Cards in organization settings
+  | "anonymous.profile.cards" // Cards on anonymous signup pages
+  | "project.detail.cards" // Cards on project detail pages
+  | "project.detail.actions" // Action buttons on project pages
+  | "user.profile.cards" // Cards on user profile pages
+  | "dashboard.sidebar.items" // Items in sidebar navigation
+  | "dashboard.header.actions"; // Actions in header area
 
 /**
  * Available behavior hooks for modifying application behavior
  */
 export type OrganizationPluginBehaviorHook =
-  | "anonymous.profile.experience"     // Modify anonymous signup experience
-  | "organization.tabs"                // Add custom tabs to org dashboard
+  | "anonymous.profile.experience" // Modify anonymous signup experience
+  | "organization.tabs" // Add custom tabs to org dashboard
   | "organization.navigation.overrides" // Override core org navigation tabs
-  | "project.create.validation"        // Validate project creation
-  | "project.update.validation"        // Validate project updates
-  | "project.create.additional_steps"  // Add custom steps to project creation wizard
-  | "signup.form.fields"               // Add custom fields to signup forms
-  | "signup.submit.validation"         // Validate signup submissions
-  | "notification.send.intercept"      // Intercept outgoing notifications
-  | "organization.member.join"         // React to member joining
-  | "organization.member.leave";       // React to member leaving
+  | "project.create.validation" // Validate project creation
+  | "project.update.validation" // Validate project updates
+  | "project.create.additional_steps" // Add custom steps to project creation wizard
+  | "signup.form.fields" // Add custom fields to signup forms
+  | "signup.submit.validation" // Validate signup submissions
+  | "notification.send.intercept" // Intercept outgoing notifications
+  | "organization.member.join" // React to member joining
+  | "organization.member.leave"; // React to member leaving
+
+/**
+ * Platform-level surfaces where plugins contribute sanitized data DTOs.
+ * The platform owns rendering; plugins never return ReactNodes here.
+ */
+export type PlatformPluginSurface =
+  | "platform.home.feed" // Feed items on the signed-in /home page
+  | "platform.dashboard.card"; // Summary card on the volunteer /dashboard
 
 export type OrganizationPluginSurfaceAccessLevel =
-  | OrganizationPluginAccessRole
-  | "public";
+  OrganizationPluginAccessRole | "public";
+
+export type PlatformPluginSurfaceAccessPolicy = Partial<
+  Record<PlatformPluginSurface, OrganizationPluginSurfaceAccessLevel>
+>;
+
+export interface PlatformSurfaceContext {
+  organizationId: string;
+  organizationName: string;
+  organizationSlug: string | null;
+  userId: string;
+  viewerRole: OrganizationPluginAccessRole;
+  pluginConfiguration: Record<string, unknown> | null;
+  /** Maximum contributions the platform will keep from this plugin. */
+  limit: number;
+}
+
+export interface PlatformFeedItem {
+  id: string;
+  kind: "post" | "event";
+  title: string;
+  /** Plain text only; the platform resolver drops or truncates anything else. */
+  summary: string | null;
+  /** App-relative link; must start with "/". */
+  href: string;
+  /** ISO timestamp used for feed ordering. */
+  publishedAt: string;
+  pinned: boolean;
+  badgeLabel: string;
+  /**
+   * App-relative link to the organization the item came from, used by the
+   * host feed for its "View all" affordance. Stamped by the platform resolver
+   * from the viewer's membership — never read from plugin output.
+   */
+  sourceHref: string | null;
+}
+
+/**
+ * What a plugin returns for the host feed. `sourceHref` is deliberately absent:
+ * the platform stamps it so an organization link can never be plugin-supplied.
+ */
+export type PlatformFeedItemInput = Omit<PlatformFeedItem, "sourceHref">;
+
+/**
+ * A plugin the signed-in person could see platform content from, as offered by
+ * the account setting that controls it. Derived from their memberships,
+ * installed plugins and declared `platformSurfaces` — never a fixed list.
+ */
+export interface PlatformPluginSource {
+  pluginKey: string;
+  name: string;
+  description: string | null;
+  /** Organizations of theirs that supply this plugin, alphabetical. */
+  organizationNames: string[];
+}
+
+export interface PlatformDashboardCardStat {
+  label: string;
+  value: string;
+  hint?: string;
+}
+
+export interface PlatformDashboardCardStatus {
+  label: string;
+  tone: "positive" | "warning" | "neutral";
+}
+
+export interface PlatformDashboardCard {
+  title: string;
+  href: string;
+  /** Capped at 3 by the platform resolver. */
+  stats: PlatformDashboardCardStat[];
+  status: PlatformDashboardCardStatus | null;
+}
 
 export type OrganizationPluginSurfaceAccessPolicy = Partial<
   Record<OrganizationPluginSurface, OrganizationPluginSurfaceAccessLevel>
@@ -93,12 +176,15 @@ export interface OrganizationPluginSurfaceRenderTargetContext {
   anonymousSignupId?: string | null;
   userProfileId?: string | null;
   userId?: string | null;
+  userEmail?: string | null;
   projectId?: string | null;
   anonymousEmail?: string | null;
 }
 
 export interface OrganizationPluginSurfaceRenderContext {
   organizationId: string;
+  organizationSlug?: string;
+  organizationName?: string;
   pluginConfiguration: Record<string, unknown> | null;
   viewerRole?: OrganizationPluginAccessRole | null;
   target?: OrganizationPluginSurfaceRenderTargetContext;
@@ -109,6 +195,58 @@ export interface OrganizationPluginActionButton {
   href: string;
   variant?: "default" | "secondary" | "outline" | "destructive";
   external?: boolean;
+}
+
+export interface OrganizationPluginRouteDefinition {
+  /**
+   * Relative plugin route, for example `members`, `tournaments/import`,
+   * or `admin/data`. The host renders it below
+   * `/organization/[id]/plugins/[pluginKey]/...`.
+   */
+  path: string;
+  label: string;
+  title?: string;
+  description?: string;
+  minimumRole?: OrganizationPluginSurfaceAccessLevel;
+  navSection?: "plugin" | "organization" | "hidden";
+}
+
+export interface OrganizationPluginBackendCapability {
+  key: string;
+  kind:
+    | "server-action"
+    | "route-handler"
+    | "cron"
+    | "webhook"
+    | "external-api"
+    | "ai"
+    | "workflow";
+  description: string;
+  route?: string;
+  minimumRole?: OrganizationPluginSurfaceAccessLevel;
+  idempotencyRequired?: boolean;
+}
+
+export interface OrganizationPluginDataAccessDeclaration {
+  schema: "public" | "plugin_data" | "private" | string;
+  relation: string;
+  access:
+    | "server-only"
+    | "rls-client"
+    | "public-read-model"
+    | "rpc"
+    | "background-job";
+  purpose: string;
+  containsPersonalData?: boolean;
+  containsSensitiveData?: boolean;
+  tenantColumn?: string;
+}
+
+export interface OrganizationPluginStorageAccessDeclaration {
+  bucket: string;
+  pathPattern: string;
+  access: "public-read" | "authenticated-read" | "staff-only" | "server-only";
+  purpose: string;
 }
 
 export interface AnonymousProfileExperienceBehavior {
@@ -124,11 +262,23 @@ export interface OrganizationTabBehavior {
   label: string;
   icon?: ReactNode;
   content: ReactNode;
+  navigationSection?: "primary" | "more" | "hidden";
+  parentValue?: string;
 }
 
 export interface ResolvedOrganizationPluginSurface {
   pluginKey: string;
   node: ReactNode;
+}
+
+export type OrganizationCoreTabKey =
+  "overview" | "members" | "projects" | "reports";
+
+export interface OrganizationCoreTabReplacement {
+  pluginKey: string;
+  routePath?: string;
+  label: string;
+  minimumRole?: OrganizationPluginSurfaceAccessLevel;
 }
 
 /**
@@ -144,11 +294,13 @@ export interface ProjectValidationResult {
  */
 export interface SignupFormField {
   key: string;
-  type: "text" | "email" | "tel" | "select" | "checkbox" | "textarea" | "number";
+  type:
+    "text" | "email" | "tel" | "select" | "checkbox" | "textarea" | "number";
   label: string;
   placeholder?: string;
+  helpText?: string;
   required?: boolean;
-  options?: Array<{ value: string; label: string }>;  // For select type
+  options?: Array<{ value: string; label: string }>; // For select type
   validation?: {
     pattern?: string;
     min?: number;
@@ -170,7 +322,7 @@ export interface SignupValidationResult {
  * Notification interception result
  */
 export interface NotificationInterceptResult {
-  suppress?: boolean;      // Don't send the notification
+  suppress?: boolean; // Don't send the notification
   modify?: {
     subject?: string;
     body?: string;
@@ -182,15 +334,47 @@ export interface NotificationInterceptResult {
  * Member event reaction (no return needed, side-effect only)
  */
 export interface MemberEventResult {
-  handled?: boolean;  // Acknowledge processing
+  handled?: boolean; // Acknowledge processing
 }
 
 export interface OrganizationNavigationBehavior {
+  defaultTab?: OrganizationCoreTabKey | string;
+  coreTabReplacements?: Partial<
+    Record<OrganizationCoreTabKey, OrganizationCoreTabReplacement>
+  >;
   hideMembersTab?: boolean;
   hideProjectsTab?: boolean;
   hideOverviewTab?: boolean;
+  hideReportsTab?: boolean;
+  pluginSurfaceAllowlist?: string[];
   projectsTabLabel?: string;
   membersTabLabel?: string;
+  hideMemberCount?: boolean;
+  hideInviteAction?: boolean;
+  hideProjectAction?: boolean;
+  /**
+   * Opts the organization into the compact workspace chrome. On phones this
+   * also replaces the horizontal category strip with a single full-section
+   * switcher that lists every permitted top-level destination. Organizations
+   * that do not set this keep the horizontal strip at every width.
+   */
+  compactHeader?: boolean;
+  /** Label for the desktop utility/overflow menu trigger. */
+  utilityMenuLabel?: string;
+  /**
+   * Group label for workspace destinations inside the phone section switcher.
+   * Defaults to `Workspace`.
+   */
+  sectionMenuLabel?: string;
+  /**
+   * Group label for administration/utility destinations inside the phone
+   * section switcher. Defaults to `Administration`.
+   */
+  utilityMenuGroupLabel?: string;
+  /** Legacy organization tab values mapped to their canonical replacement. */
+  tabAliases?: Record<string, string>;
+  /** Query parameters that should be cleared when the host navigation changes tabs. */
+  transientQueryParams?: string[];
 }
 
 export interface ProjectCreateAdditionalStep {
@@ -198,7 +382,10 @@ export interface ProjectCreateAdditionalStep {
   title: string;
   description?: string;
   content: ReactNode;
-  validate?: () => Promise<{ valid: boolean; errors?: any }>;
+  validate?: () => Promise<{
+    valid: boolean;
+    errors?: Array<{ field?: string; message: string }>;
+  }>;
   onComplete?: () => Promise<void>;
 }
 
@@ -216,8 +403,7 @@ export interface OrganizationPluginBehaviorHookResultMap {
   "organization.member.leave": MemberEventResult;
 }
 
-export interface OrganizationPluginBehaviorHookContext
-  extends OrganizationPluginSurfaceRenderContext {
+export interface OrganizationPluginBehaviorHookContext extends OrganizationPluginSurfaceRenderContext {
   hookInput?: Record<string, unknown>;
 }
 
@@ -247,6 +433,15 @@ export interface OrganizationPluginConfigProperty {
   properties?: Record<string, OrganizationPluginConfigProperty>;
 }
 
+export interface OrganizationPluginExperience {
+  publicPage: "core" | "plugin" | "private";
+  publicRoute?: string;
+  members: "public" | "hidden";
+  projects: "public" | "hidden";
+  profileMembership: "public" | "hidden";
+  joinMode: "open" | "request" | "plugin" | "disabled";
+}
+
 export interface OrganizationPluginManifest {
   key: string;
   name: string;
@@ -258,8 +453,15 @@ export interface OrganizationPluginManifest {
   visibility: OrganizationPluginVisibility;
   minimumRole?: OrganizationPluginAccessRole;
   navLabel?: string;
+  organizationPageChrome?: "default" | "workspace";
+  organizationExperience?: OrganizationPluginExperience;
   surfaceAccess?: OrganizationPluginSurfaceAccessPolicy;
   behaviorAccess?: OrganizationPluginBehaviorAccessPolicy;
+  /**
+   * Platform surfaces (home feed, volunteer dashboard) this plugin
+   * contributes data DTOs to, with the minimum org role per surface.
+   */
+  platformSurfaces?: PlatformPluginSurfaceAccessPolicy;
   /**
    * JSON Schema for configuration validation
    */
@@ -268,6 +470,24 @@ export interface OrganizationPluginManifest {
    * Required permission scopes
    */
   requiredScopes?: OrganizationPluginScope[];
+  /**
+   * Custom routes owned by this plugin under
+   * /organization/[id]/plugins/[pluginKey]/...
+   */
+  routes?: OrganizationPluginRouteDefinition[];
+  /**
+   * Server-side capabilities this plugin depends on or exposes.
+   */
+  backendCapabilities?: OrganizationPluginBackendCapability[];
+  /**
+   * Structured data access contract used for privacy review and API exposure
+   * reduction. This supersedes string-only dataScope documentation.
+   */
+  dataAccess?: OrganizationPluginDataAccessDeclaration[];
+  /**
+   * Storage buckets/path patterns used by this plugin.
+   */
+  storageAccess?: OrganizationPluginStorageAccessDeclaration[];
   /**
    * Tables/data this plugin manages (for documentation/cleanup)
    */
@@ -286,7 +506,7 @@ export interface OrganizationPluginPageProps {
  * Context passed to lifecycle hooks
  */
 export interface OrganizationPluginLifecycleContext {
-  organization: OrganizationWithRole;
+  organization: OrganizationPluginLifecycleOrganization;
   pluginKey: string;
   config?: Record<string, unknown>;
   previousConfig?: Record<string, unknown>;
@@ -323,7 +543,9 @@ export interface OrganizationPluginLifecycleHooks {
   /**
    * Called when plugin configuration is updated
    */
-  onConfigUpdate?: (context: OrganizationPluginLifecycleContext) => Promise<void>;
+  onConfigUpdate?: (
+    context: OrganizationPluginLifecycleContext,
+  ) => Promise<void>;
 
   /**
    * Called when the plugin version is updated
@@ -349,7 +571,7 @@ export interface OrganizationPluginLifecycleHooks {
   onProjectCreate?: (
     context: OrganizationPluginLifecycleContext & {
       projectId: string;
-      pluginData?: Record<string, any>;
+      pluginData?: Record<string, unknown>;
     },
   ) => Promise<void>;
 
@@ -374,7 +596,7 @@ export interface OrganizationPluginLifecycleHooks {
       signupId: string;
       userId?: string | null;
       anonymousId?: string | null;
-      formData?: Record<string, any> | null;
+      formData?: Record<string, unknown> | null;
     },
   ) => Promise<void>;
 }
@@ -388,10 +610,28 @@ export interface OrganizationPluginDefinition {
   renderOrganizationPage?: (
     props: OrganizationPluginPageProps,
   ) => ReactNode | Promise<ReactNode>;
+  renderOrganizationRoute?: (
+    routePath: string,
+    props: OrganizationPluginPageProps,
+  ) => ReactNode | null | Promise<ReactNode | null>;
   renderSurface?: (
     surface: OrganizationPluginSurface,
     context: OrganizationPluginSurfaceRenderContext,
   ) => ReactNode | null | Promise<ReactNode | null>;
+  /**
+   * Sanitized data contributions for the platform /home feed. The platform
+   * renders the items; plugins only return `PlatformFeedItemInput` DTOs.
+   */
+  resolvePlatformFeedItems?: (
+    context: PlatformSurfaceContext,
+  ) => Promise<PlatformFeedItemInput[]>;
+  /**
+   * Sanitized summary card for the platform /dashboard, or null when the
+   * viewer has nothing to show.
+   */
+  resolvePlatformDashboardCard?: (
+    context: PlatformSurfaceContext,
+  ) => Promise<PlatformDashboardCard | null>;
   resolveBehaviorHook?: (
     hook: OrganizationPluginBehaviorHook,
     context: OrganizationPluginBehaviorHookContext,

@@ -1,239 +1,516 @@
-import { Resend } from 'resend';
-import { createClient } from '@/lib/supabase/server';
-import { render } from '@react-email/components';
-import * as React from 'react';
-import { logError, logInfo, logWarn } from '@/lib/logger';
+import { Resend } from "resend";
+import * as React from "react";
 
-function getResendClient(): Resend | null {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey || apiKey.trim().length === 0) return null;
-    return new Resend(apiKey);
+/**
+ * Construct the provider client, or say precisely why not.
+ *
+ * `new Resend(...)` throws on a missing key, and it used to be called bare: with
+ * the constructor inside the send try/catch that failure was classified as
+ * `unknown_outcome`, i.e. "a real person may already have been mailed" -- for a
+ * client that was never built and a socket that was never opened. Outside that
+ * catch it would instead have escaped as a raw throw. Neither is true or useful.
+ *
+ * A setup result is a bounded discriminant, not an exception.
+ */
+type ResendSetup =
+  | { ok: true; client: Resend }
+  | { ok: false; configured: false }
+  | { ok: false; configured: true; code: string };
+
+export function getResendClient(): ResendSetup {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey || apiKey.trim().length === 0) {
+    return { ok: false, configured: false };
+  }
+
+  try {
+    return { ok: true, client: new Resend(apiKey) };
+  } catch {
+    // The key is present but the SDK refused it. Nothing was sent, so this is a
+    // pre-send fault the operator can fix -- never provider ambiguity.
+    return { ok: false, configured: true, code: "resend_client_setup_failed" };
+  }
 }
 
-export type EmailType = 'project_updates' | 'general' | 'transactional';
+export type EmailType = "project_updates" | "general" | "transactional";
 
-interface EmailAttachment {
-    filename: string;
-    content: string;
+export interface EmailAttachment {
+  filename: string;
+  content: string;
 }
 
-interface SendEmailParams {
-    to: string | string[];
-    subject: string;
-    html?: string;
-    react?: React.ReactElement;
-    userId?: string; // Optional: if provided, checks user preferences
-    type: EmailType;
-    attachments?: EmailAttachment[];
-}
-
-export type SendEmailResult = {
-    success: boolean;
-    data?: { id: string; transport?: string };
-    skipped?: boolean;
-    reason?: string;
-    error?: string | Error;
+export type EmailTag = {
+  name: string;
+  value: string;
 };
 
-function shouldUseMailpitTransport(resendClient: Resend | null): boolean {
-    const configured = process.env.EMAIL_TRANSPORT?.trim().toLowerCase();
-    if (configured === 'mailpit') return true;
-    if (configured === 'resend') return false;
-
-    // Local convenience fallback: always route emails to local Mailpit/Inbucket 
-    // in development, unless EMAIL_TRANSPORT=resend is explicitly set.
-    return process.env.NODE_ENV !== 'production';
+export interface SendEmailParams {
+  to: string | string[];
+  subject: string;
+  html?: string;
+  text?: string;
+  react?: React.ReactElement;
+  userId?: string; // Optional: if provided, checks user preferences
+  type: EmailType;
+  attachments?: EmailAttachment[];
+  from?: string;
+  replyTo?: string | string[];
+  tags?: EmailTag[];
+  /**
+   * Extra provider headers.
+   *
+   * The DVHS CSF ledger hashes the COMPLETE canonical provider request --
+   * headers included -- and derives each attempt's idempotency key from that
+   * digest. Without a passthrough here a campaign that declares headers could
+   * not actually transmit them, so the request the worker sent would differ
+   * from the one the stored key was allocated against.
+   */
+  headers?: Record<string, string>;
+  /**
+   * Provider topic for a broadcast, which is what puts a working one-click
+   * unsubscribe in the recipient's mail client. The installed SDK forwards it to
+   * the API as `topic_id`.
+   *
+   * OMITTED MEANS THE KEY IS ABSENT, NOT NULL. The CSF ledger hashes the exact
+   * transmitted request, so emitting `topicId: null` on a transactional send would
+   * change what the provider receives relative to the request the stored digest
+   * describes. Transactional mail carries no topic at all: offering an
+   * unsubscribe from an application decision would let one click suppress mail the
+   * chapter is obliged to send.
+   */
+  topicId?: string;
+  idempotencyKey?: string;
 }
 
-async function sendViaMailpit({
-    to,
-    subject,
-    html,
-    attachments,
-}: {
-    to: string | string[];
-    subject: string;
-    html: string;
-    attachments?: EmailAttachment[];
-}) {
-    const nodemailer = await import('nodemailer');
+/**
+ * Where in the send a result was decided. The distinction that matters is
+ * `provider_request` versus everything before it: nothing before it can possibly
+ * have reached the provider, and anything at or after it might have.
+ */
+export type EmailDispatchPhase =
+  | "local_validation"
+  | "preference_check"
+  | "transport_setup"
+  | "provider_request"
+  | "provider_response";
 
-    const host = process.env.MAILPIT_HOST?.trim() || '127.0.0.1';
-    const port = Number(process.env.MAILPIT_SMTP_PORT || '54325');
-    const from = process.env.MAILPIT_FROM_EMAIL?.trim() || "Let's Assist <no-reply@local.lets-assist.test>";
+/**
+ * The legacy-compatible summary carried in `SendEmailResult.error`.
+ *
+ * AT RUNTIME THIS IS ALWAYS A BOUNDED, SANITIZED STRING. Nothing in this module
+ * ever produces an `Error` here: the provider's own message is where the recipient
+ * address and occasionally the API key live, and it is never propagated.
+ * `services/email-contract.test.ts` asserts that invariant directly rather than
+ * leaving it to the type.
+ *
+ * The `Error` arm exists purely so existing call sites that narrow with
+ * `typeof === 'string'` / `instanceof Error` keep compiling -- including one in the
+ * private plugin that this pass is not permitted to edit. Removing the arm would
+ * break their build without making a single runtime value safer.
+ */
+export type SendEmailErrorSummary = string | Error;
 
-    const transporter = nodemailer.createTransport({
-        host,
-        port,
-        secure: false,
-    });
-
-    const response = await transporter.sendMail({
-        from,
-        to,
-        subject,
-        html,
-        attachments: attachments?.map((attachment) => ({
-            filename: attachment.filename,
-            content: attachment.content,
-            encoding: 'base64',
-        })),
-    });
-
-    return {
-        success: true,
-        data: {
-            id: response.messageId,
-            transport: 'mailpit',
-        },
+/**
+ * The honest set of things that can happen to a send.
+ *
+ * The previous shape was `{ success: boolean; error?: string | Error }`, which
+ * cannot express the one distinction that decides whether retrying is safe. A
+ * validation rejection and a socket that died mid-request both arrived as
+ * `success: false`, so a caller had exactly two options: never retry (and lose
+ * mail to transient faults) or always retry (and mail people twice). It also
+ * returned the raw `Error`, which for Resend routinely contains the recipient
+ * address and sometimes the API key, straight into whatever logged it.
+ *
+ *   accepted           -- the provider acknowledged and named the message.
+ *   definitive_failure -- rejected on its merits. An identical retry fails identically.
+ *   retryable_pre_send -- refused outright BEFORE acceptance. Nothing was sent; retry is safe.
+ *   unknown_outcome    -- the request may or may not have been accepted. NEVER retry automatically.
+ *   skipped            -- deliberately not sent (recipient preference, transport off).
+ *
+ * Every member carries only bounded, sanitized fields. `code` comes from a closed
+ * set, `error` is a short constructed sentence, and the provider's own message --
+ * which is where the PII lives -- is never propagated.
+ *
+ * `success`, `skipped`, `reason`, `error`, and `data` are retained so the existing
+ * call sites across the app keep compiling and behaving. `error` is now a bounded
+ * string rather than an Error, which is strictly safer for the call sites that log
+ * it. The inapplicable ones are declared as optional-undefined on each member so
+ * unnarrowed property access still type-checks while `outcome` remains a real
+ * discriminant.
+ */
+export type SendEmailResult =
+  | {
+      outcome: "accepted";
+      success: true;
+      skipped: false;
+      phase: "provider_response";
+      messageId: string;
+      transport: "resend" | "mailpit";
+      data: { id: string; transport?: string };
+      code?: undefined;
+      status?: undefined;
+      error?: undefined;
+      reason?: undefined;
+    }
+  | {
+      outcome: "definitive_failure" | "retryable_pre_send";
+      success: false;
+      skipped: false;
+      phase: EmailDispatchPhase;
+      code: string;
+      status: number | null;
+      error: SendEmailErrorSummary;
+      messageId?: undefined;
+      transport?: undefined;
+      data?: undefined;
+      reason?: undefined;
+    }
+  | {
+      outcome: "unknown_outcome";
+      success: false;
+      skipped: false;
+      phase: "provider_request" | "provider_response";
+      code: string;
+      status: number | null;
+      error: SendEmailErrorSummary;
+      messageId?: undefined;
+      transport?: undefined;
+      data?: undefined;
+      reason?: undefined;
+    }
+  | {
+      outcome: "skipped";
+      success: false;
+      skipped: true;
+      phase: "preference_check" | "transport_setup";
+      code: string;
+      reason: string;
+      status?: undefined;
+      messageId?: undefined;
+      transport?: undefined;
+      data?: undefined;
+      error?: undefined;
     };
+
+/**
+ * Resend's error names, sorted by what they let us conclude about acceptance.
+ *
+ * This is the whole safety argument, so it is a table rather than a heuristic:
+ *
+ *   rejected  -- the API evaluated the request and refused it. Nothing was queued,
+ *                so a corrected retry is safe and an identical retry is pointless.
+ *   throttled -- refused before acceptance for capacity reasons. Nothing was sent;
+ *                the SAME request may be retried later.
+ *   ambiguous -- a server-side fault. The request may have been accepted before the
+ *                failure, so retrying can double-send.
+ *
+ * An unrecognized name is treated as ambiguous on purpose. A new provider error
+ * code must not silently become "safe to retry".
+ */
+const PROVIDER_ERROR_CLASSIFICATION: Record<
+  string,
+  "rejected" | "throttled" | "ambiguous"
+> = {
+  invalid_idempotency_key: "rejected",
+  validation_error: "rejected",
+  missing_api_key: "rejected",
+  restricted_api_key: "rejected",
+  invalid_api_key: "rejected",
+  not_found: "rejected",
+  method_not_allowed: "rejected",
+  invalid_attachment: "rejected",
+  invalid_from_address: "rejected",
+  invalid_access: "rejected",
+  invalid_parameter: "rejected",
+  invalid_region: "rejected",
+  missing_required_field: "rejected",
+  security_error: "rejected",
+
+  rate_limit_exceeded: "throttled",
+  daily_quota_exceeded: "throttled",
+  monthly_quota_exceeded: "throttled",
+
+  application_error: "ambiguous",
+  internal_server_error: "ambiguous",
+  // NOT THROTTLING. Resend returns this when ANOTHER REQUEST CARRYING THE SAME
+  // IDEMPOTENCY KEY IS CURRENTLY IN PROGRESS -- not when it refused this one for
+  // capacity. The in-flight request may be accepted immediately after this
+  // response is written, and nothing observable from here distinguishes that
+  // from a request that will fail.
+  //
+  // Calling it throttled made it `retryable_pre_send`, which asserts "nothing
+  // was sent". The CSF ledger believes that assertion: it settles
+  // `retryable_failure` and inserts a SUCCESSOR attempt, whose provider
+  // idempotency key is derived from attempt_number + 1 and is therefore
+  // DIFFERENT from the key already in flight. Resend's own deduplication cannot
+  // catch the successor, so the concurrent request and the retry both land and
+  // a real person is mailed twice.
+  concurrent_idempotent_requests: "ambiguous",
+  // The same idempotency key was presented with a different payload, which means
+  // Resend already holds a request under that key. Whether THAT request was
+  // accepted is exactly what we cannot tell from here.
+  invalid_idempotent_request: "ambiguous",
+};
+
+const PROVIDER_ERROR_NAME_PATTERN = /^[a-z0-9_]{1,64}$/;
+
+/** A bounded, PII-free code. An unrecognized provider name is not echoed back. */
+function safeProviderCode(name: unknown): string {
+  if (typeof name !== "string" || !PROVIDER_ERROR_NAME_PATTERN.test(name)) {
+    return "unclassified_provider_error";
+  }
+  return name;
 }
 
-export async function sendEmail({ to, subject, html, react, userId, type, attachments }: SendEmailParams): Promise<SendEmailResult> {
-    const shouldLog = process.env.NODE_ENV !== "test";
-
-    // Validate that either html or react is provided
-    if (!html && !react) {
-        if (shouldLog) {
-            logError('Email validation failed: Neither html nor react provided', new Error('Invalid email parameters'), {
-                to: Array.isArray(to) ? to.join(',') : to,
-                subject,
-                type,
-            });
-        }
-        return { success: false, error: 'Either html or react must be provided' };
-    }
-
-    // 1. Check preferences if userId is provided and type is not transactional
-    if (userId && type !== 'transactional') {
-        const supabase = await createClient();
-
-        // Fetch user's notification settings
-        const { data: settings, error } = await supabase
-            .from('notification_settings')
-            .select('*')
-            .eq('user_id', userId)
-            .single();
-
-        if (error && error.code !== 'PGRST116') {
-            if (shouldLog) {
-                logError('Failed to fetch notification settings', error, {
-                    user_id: userId,
-                    type,
-                    error_code: error.code,
-                });
-            }
-            // If error fetching settings, default to sending (fail open) or skipping?
-            // Safest to probably send if it's important, but let's log it.
-        }
-
-        if (settings) {
-            // Check global email switch
-            if (settings.email_notifications === false) {
-                if (shouldLog) {
-                    logInfo('Email skipped due to user preferences', {
-                        user_id: userId,
-                        reason: 'global_email_disabled',
-                        type,
-                    });
-                }
-                return { success: false, skipped: true, reason: 'Global email notifications disabled' };
-            }
-
-            // Check specific type switch
-            // Assuming the column names match the EmailType (except transactional)
-            if (type === 'project_updates' && settings.project_updates === false) {
-                if (shouldLog) {
-                    logInfo('Email skipped due to user preferences', {
-                        user_id: userId,
-                        reason: 'project_updates_disabled',
-                        type,
-                    });
-                }
-                return { success: false, skipped: true, reason: 'Project updates disabled' };
-            }
-
-            if (type === 'general' && settings.general === false) {
-                if (shouldLog) {
-                    logInfo('Email skipped due to user preferences', {
-                        user_id: userId,
-                        reason: 'general_notifications_disabled',
-                        type,
-                    });
-                }
-                return { success: false, skipped: true, reason: 'General notifications disabled' };
-            }
-        }
-    }
-
-    // 2. Send email via Resend
-    try {
-        const resend = getResendClient();
-        // Render React component to HTML if provided
-        const emailHtml = react ? await render(react) : html!;
-
-        if (shouldUseMailpitTransport(resend)) {
-            const mailpitResult = await sendViaMailpit({
-                to,
-                subject,
-                html: emailHtml,
-                attachments,
-            });
-
-            if (shouldLog) {
-                logInfo('Email delivered via local Mailpit transport', {
-                    to: Array.isArray(to) ? to.join(',') : to,
-                    subject,
-                    type,
-                    user_id: userId,
-                });
-            }
-
-            return mailpitResult;
-        }
-
-        if (!resend) {
-            if (shouldLog) {
-                logWarn('Email transport unavailable (set EMAIL_TRANSPORT=mailpit locally or configure RESEND_API_KEY)', {
-                    to: Array.isArray(to) ? to.join(',') : to,
-                    subject,
-                    type,
-                    user_id: userId,
-                });
-            }
-            return { success: false, skipped: true, reason: 'Email service not configured' };
-        }
-
-        const { data, error } = await resend.emails.send({
-            from: "Let's Assist <projects@notifications.lets-assist.com>",
-            to,
-            subject,
-            html: emailHtml,
-            attachments,
-        });
-
-        if (error) {
-            if (shouldLog) {
-                logError('Failed to send email via Resend', error, {
-                    to: Array.isArray(to) ? to.join(',') : to,
-                    subject,
-                    type,
-                    user_id: userId,
-                });
-            }
-            return { success: false, error };
-        }
-
-        return { success: true, data };
-    } catch (error) {
-        if (shouldLog) {
-            logError('Exception while sending email', error, {
-                to: Array.isArray(to) ? to.join(',') : to,
-                subject,
-                type,
-                user_id: userId,
-            });
-        }
-        return { success: false, error: error as Error };
-    }
+function providerStatus(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
+
+/**
+ * Classify one Resend `{ error }` response.
+ *
+ * Reaching this function at all means the API answered, so the request definitely
+ * arrived. What remains is whether it was accepted.
+ */
+export function classifyProviderError(error: {
+  name?: unknown;
+  statusCode?: unknown;
+}): SendEmailResult & {
+  outcome: "definitive_failure" | "retryable_pre_send" | "unknown_outcome";
+} {
+  const code = safeProviderCode(error?.name);
+  const status = providerStatus(error?.statusCode);
+  const classification = PROVIDER_ERROR_CLASSIFICATION[code] ?? "ambiguous";
+
+  if (classification === "rejected") {
+    return {
+      outcome: "definitive_failure",
+      success: false,
+      skipped: false,
+      phase: "provider_response",
+      code,
+      status,
+      error: `provider rejected the request (${code})`,
+    };
+  }
+
+  if (classification === "throttled") {
+    return {
+      outcome: "retryable_pre_send",
+      success: false,
+      skipped: false,
+      phase: "provider_response",
+      code,
+      status,
+      error: `provider refused the request before acceptance (${code})`,
+    };
+  }
+
+  return {
+    outcome: "unknown_outcome",
+    success: false,
+    skipped: false,
+    phase: "provider_response",
+    code,
+    status,
+    error: `provider outcome could not be determined (${code})`,
+  };
+}
+
+type EmailLogAttributes = {
+  type: EmailType;
+  recipient_count: number;
+  has_user_context: boolean;
+};
+
+export function emailLogAttributes({
+  to,
+  type,
+  userId,
+}: Pick<SendEmailParams, "to" | "type" | "userId">): EmailLogAttributes {
+  return {
+    type,
+    recipient_count: Array.isArray(to) ? to.length : 1,
+    has_user_context: Boolean(userId),
+  };
+}
+
+export function safeLogToken(value: unknown): string {
+  if (typeof value !== "string") return "unknown";
+  return /^[a-z0-9_.:-]{1,64}$/iu.test(value) ? value : "unknown";
+}
+
+export function shouldUseMailpitTransport(): boolean {
+  const configured = process.env.EMAIL_TRANSPORT?.trim().toLowerCase();
+  if (configured === "mailpit") return true;
+  if (configured === "resend") return false;
+
+  // Local convenience fallback: always route emails to local Mailpit/Inbucket
+  // in development, unless EMAIL_TRANSPORT=resend is explicitly set.
+  return process.env.NODE_ENV !== "production";
+}
+
+export async function sendViaMailpit({
+  to,
+  subject,
+  html,
+  text,
+  attachments,
+  from,
+  replyTo,
+  tags,
+  headers: providerHeaders,
+  topicId,
+  idempotencyKey,
+}: {
+  to: string | string[];
+  subject: string;
+  html?: string;
+  text?: string;
+  attachments?: EmailAttachment[];
+  from?: string;
+  replyTo?: string | string[];
+  tags?: EmailTag[];
+  headers?: Record<string, string>;
+  topicId?: string;
+  idempotencyKey?: string;
+}): Promise<SendEmailResult> {
+  // SETUP IS NOT DISPATCH, AND ITS FAILURES ARE NOT AMBIGUOUS.
+  //
+  // The dynamic import and createTransport() both sat outside any catch. A missing
+  // module, a bad MAILPIT_SMTP_PORT, or an option nodemailer rejects therefore
+  // escaped sendEmail() as a raw throw -- past every classification this module
+  // exists to provide. Whatever caught it upstream had a raw Error carrying
+  // whatever the transport chose to put in it, and the CSF worker would have had to
+  // guess whether anything was sent.
+  //
+  // Nothing here has opened a socket yet, so these are provably pre-send. They are
+  // retryable: the operator fixes the configuration and the same send is valid.
+  let nodemailer: typeof import("nodemailer");
+  try {
+    nodemailer = await import("nodemailer");
+  } catch {
+    return {
+      outcome: "retryable_pre_send",
+      success: false,
+      skipped: false,
+      phase: "transport_setup",
+      code: "mailpit_module_unavailable",
+      status: null,
+      error: "the local transport module could not be loaded",
+    };
+  }
+
+  const host = process.env.MAILPIT_HOST?.trim() || "127.0.0.1";
+  const port = Number(process.env.MAILPIT_SMTP_PORT || "54325");
+
+  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+    // A misconfigured port is a local configuration fault, definitively.
+    return {
+      outcome: "definitive_failure",
+      success: false,
+      skipped: false,
+      phase: "transport_setup",
+      code: "mailpit_port_invalid",
+      status: null,
+      error: "the local transport port is not a valid TCP port",
+    };
+  }
+
+  const localFrom =
+    from ??
+    process.env.MAILPIT_FROM_EMAIL?.trim() ??
+    "Let's Assist <no-reply@local.lets-assist.test>";
+  // Local evidence only. A header named after the topic is NOT provider consent
+  // enforcement -- Mailpit has no topics and no unsubscribe machinery. It exists so
+  // a developer can see in the sink that the topic was carried, and so the Mailpit
+  // path proves the same fields reached the transport that Resend would have got.
+  const headers = Object.fromEntries([
+    ...Object.entries(providerHeaders ?? {}),
+    ...(idempotencyKey
+      ? [["X-Lets-Assist-Idempotency-Key", idempotencyKey] as const]
+      : []),
+    ...(topicId ? [["X-Lets-Assist-Topic-Id", topicId] as const] : []),
+    ...(tags ?? []).map(
+      (tag) => [`X-Lets-Assist-Tag-${tag.name}`, tag.value] as const,
+    ),
+  ]);
+
+  let transporter: ReturnType<typeof nodemailer.createTransport>;
+  try {
+    transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: false,
+      // CONTENT ACCESS IS DISABLED BECAUSE THIS WRAPPER NEEDS NEITHER.
+      //
+      // Nodemailer will, by default, read a local file or fetch a URL when a
+      // message part supplies `path`/`href` -- and 9.0.1 patched a bypass where
+      // a raw path or href slipped past earlier guards (GHSA-p6gq-j5cr-w38f).
+      // Every caller here supplies inline text/HTML and base64 attachment
+      // content, so there is nothing legitimate to lose and an
+      // SSRF/local-file-read primitive to remove. Attachment content below
+      // stays inline base64.
+      disableFileAccess: true,
+      disableUrlAccess: true,
+    });
+  } catch {
+    // Constructing a transport opens nothing. Still pre-send, still retryable.
+    return {
+      outcome: "retryable_pre_send",
+      success: false,
+      skipped: false,
+      phase: "transport_setup",
+      code: "mailpit_transport_setup_failed",
+      status: null,
+      error: "the local transport could not be constructed",
+    };
+  }
+
+  let response: { messageId: string };
+  try {
+    response = await transporter.sendMail({
+      from: localFrom,
+      to,
+      subject,
+      html,
+      text,
+      replyTo,
+      headers,
+      attachments: attachments?.map((attachment) => ({
+        filename: attachment.filename,
+        content: attachment.content,
+        encoding: "base64",
+      })),
+    });
+  } catch {
+    // Mailpit IS the transport on this path, so a throw part-way through an SMTP
+    // dispatch is genuinely ambiguous -- the message may already be in the sink.
+    // Classifying it as a definitive failure would be a convenient lie, and the
+    // CSF ledger would then happily enqueue a retry.
+    return {
+      outcome: "unknown_outcome",
+      success: false,
+      skipped: false,
+      phase: "provider_request",
+      code: "mailpit_transport_exception",
+      status: null,
+      error: "the local transport request may or may not have been accepted",
+    };
+  }
+
+  return {
+    outcome: "accepted",
+    success: true,
+    skipped: false,
+    phase: "provider_response",
+    messageId: response.messageId,
+    transport: "mailpit",
+    data: {
+      id: response.messageId,
+      transport: "mailpit",
+    },
+  };
+}
+
+export { sendEmail } from "./email-send";

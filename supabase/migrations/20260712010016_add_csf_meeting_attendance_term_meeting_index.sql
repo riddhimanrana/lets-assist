@@ -1,0 +1,1 @@
+CREATE INDEX CONCURRENTLY IF NOT EXISTS csf_meeting_attendance_term_meeting_id_idx ON plugin_data.csf_meeting_attendance (term_meeting_id);

@@ -47,7 +47,10 @@ export function OrganizationsTab({ organizations }: OrganizationsTabProps) {
   const handleToggle = (organizationId: string, nextValue: boolean) => {
     startTransition(async () => {
       setUpdatingId(organizationId);
-      const result = await updateOrganizationVerifiedStatus(organizationId, nextValue);
+      const result = await updateOrganizationVerifiedStatus(
+        organizationId,
+        nextValue,
+      );
 
       if (result?.error) {
         toast.error(result.error);
@@ -66,7 +69,11 @@ export function OrganizationsTab({ organizations }: OrganizationsTabProps) {
         ),
       );
 
-      toast.success(nextValue ? "Organization marked as verified" : "Organization verification removed");
+      toast.success(
+        nextValue
+          ? "Organization marked as verified"
+          : "Organization verification removed",
+      );
       setUpdatingId(null);
       router.refresh();
     });
@@ -82,7 +89,8 @@ export function OrganizationsTab({ organizations }: OrganizationsTabProps) {
           className="max-w-xl"
         />
         <p className="text-sm text-muted-foreground whitespace-nowrap">
-          {filteredRows.length} organization{filteredRows.length === 1 ? "" : "s"}
+          {filteredRows.length} organization
+          {filteredRows.length === 1 ? "" : "s"}
         </p>
       </div>
 
@@ -91,7 +99,9 @@ export function OrganizationsTab({ organizations }: OrganizationsTabProps) {
           <table className="w-full text-sm">
             <thead className="bg-muted/30">
               <tr>
-                <th className="px-4 py-3 text-left font-medium">Organization</th>
+                <th className="px-4 py-3 text-left font-medium">
+                  Organization
+                </th>
                 <th className="px-4 py-3 text-left font-medium">Type</th>
                 <th className="px-4 py-3 text-left font-medium">Created</th>
                 <th className="px-4 py-3 text-left font-medium">Verified</th>
@@ -100,7 +110,10 @@ export function OrganizationsTab({ organizations }: OrganizationsTabProps) {
             <tbody>
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
+                  <td
+                    colSpan={4}
+                    className="px-4 py-12 text-center text-muted-foreground"
+                  >
                     No organizations match your search.
                   </td>
                 </tr>
@@ -116,18 +129,26 @@ export function OrganizationsTab({ organizations }: OrganizationsTabProps) {
                     : "—";
 
                   return (
-                    <tr key={org.id} className="border-t hover:bg-muted/10 transition-colors">
+                    <tr
+                      key={org.id}
+                      className="border-t hover:bg-muted/10 transition-colors"
+                    >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9 border">
-                            <AvatarImage src={org.logo_url || undefined} alt={org.name} />
+                            <AvatarImage
+                              src={org.logo_url || undefined}
+                              alt={org.name}
+                            />
                             <AvatarFallback>
                               <NoAvatar fullName={org.name} />
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
                             <p className="font-medium truncate">{org.name}</p>
-                            <p className="text-xs text-muted-foreground truncate">@{org.username}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              @{org.username}
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -136,17 +157,25 @@ export function OrganizationsTab({ organizations }: OrganizationsTabProps) {
                           {org.type}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{createdAtText}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {createdAtText}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <Switch
                             checked={org.verified === true}
-                            onCheckedChange={(checked) => handleToggle(org.id, checked)}
+                            onCheckedChange={(checked) =>
+                              handleToggle(org.id, checked)
+                            }
                             disabled={isPending || isUpdatingThisRow}
                             aria-label={`Toggle verification for ${org.name}`}
                           />
                           <span className="text-xs text-muted-foreground">
-                            {isUpdatingThisRow ? "Saving..." : org.verified ? "Verified" : "Unverified"}
+                            {isUpdatingThisRow
+                              ? "Saving..."
+                              : org.verified
+                                ? "Verified"
+                                : "Unverified"}
                           </span>
                         </div>
                       </td>

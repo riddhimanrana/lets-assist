@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer, Reducer } from 'react';
+import { useReducer, Reducer } from "react";
 import {
   EventType,
   VerificationMethod,
@@ -9,16 +9,17 @@ import {
   RecurrenceEndType,
   RecurrenceWeekday,
   LocationData,
-} from '@/types';
-import { DetectedPdfField } from '@/lib/waiver/pdf-field-detect';
-import { WaiverDefinitionInput } from '@/components/waiver/WaiverBuilderDialog';
+} from "@/types";
+import { DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
+import { WaiverDefinitionInput } from "@/components/waiver/WaiverBuilderDialog";
+import type { FormSchema } from "@/lib/forms/engine";
 
-// --- Helper Functions --- 
+// --- Helper Functions ---
 
 // Helper to convert HH:MM time string to minutes since midnight
 const timeToMinutes = (timeStr: string): number => {
-  if (!timeStr || !timeStr.includes(':')) return -1; // Return invalid value if format is wrong
-  const [hours, minutes] = timeStr.split(':').map(Number);
+  if (!timeStr || !timeStr.includes(":")) return -1; // Return invalid value if format is wrong
+  const [hours, minutes] = timeStr.split(":").map(Number);
   if (isNaN(hours) || isNaN(minutes)) return -1;
   return hours * 60 + minutes;
 };
@@ -28,19 +29,21 @@ const minutesToTime = (minutes: number): string => {
   if (minutes < 0 || minutes >= 24 * 60) return "00:00"; // Handle invalid input
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
-  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
 };
 
 // Helper to calculate overall start/end times based on roles
-const calculateOverallTimes = (roles: EventFormState['schedule']['sameDayMultiArea']['roles']) => {
+const calculateOverallTimes = (
+  roles: EventFormState["schedule"]["sameDayMultiArea"]["roles"],
+) => {
   if (!roles || roles.length === 0) {
-    return { overallStart: '09:00', overallEnd: '17:00' }; // Default if no roles
+    return { overallStart: "09:00", overallEnd: "17:00" }; // Default if no roles
   }
 
   let minStart = Infinity;
   let maxEnd = -Infinity;
 
-  roles.forEach(role => {
+  roles.forEach((role) => {
     const startMins = timeToMinutes(role.startTime);
     const endMins = timeToMinutes(role.endTime);
 
@@ -54,7 +57,7 @@ const calculateOverallTimes = (roles: EventFormState['schedule']['sameDayMultiAr
 
   // If no valid times found, return default
   if (minStart === Infinity || maxEnd === -Infinity) {
-    return { overallStart: '09:00', overallEnd: '17:00' };
+    return { overallStart: "09:00", overallEnd: "17:00" };
   }
 
   return {
@@ -63,7 +66,7 @@ const calculateOverallTimes = (roles: EventFormState['schedule']['sameDayMultiAr
   };
 };
 
-// --- State Interface and Action Types --- 
+// --- State Interface and Action Types ---
 
 export interface EventFormState {
   step: number;
@@ -130,110 +133,127 @@ export interface EventFormState {
     endOccurrences?: number;
     weekdays: RecurrenceWeekday[];
   };
-  signupFormSchema: any | null;
-  pluginData: Record<string, any>;
+  signupFormSchema: FormSchema | null;
+  pluginData: Record<string, unknown>;
 }
 
 type EventFormAction =
-  | { type: 'NEXT_STEP' }
-  | { type: 'PREV_STEP' }
-  | { type: 'SET_EVENT_TYPE'; payload: EventType }
-  | { type: 'UPDATE_BASIC_INFO'; payload: { field: string; value: string | number | boolean | LocationData | null | undefined } }
-  | { type: 'UPDATE_SIGNUP_FORM_SCHEMA'; payload: any }
-  | { type: 'UPDATE_PLUGIN_DATA'; payload: { field: string; value: any } }
-  | { type: 'UPDATE_ONE_TIME_SCHEDULE'; payload: { field: string; value: string | number } }
+  | { type: "NEXT_STEP" }
+  | { type: "PREV_STEP" }
+  | { type: "SET_EVENT_TYPE"; payload: EventType }
   | {
-    type: 'UPDATE_MULTI_DAY_SCHEDULE';
-    payload: { dayIndex: number; field: string; value: string | number; slotIndex?: number };
-  }
-  | {
-    type: 'UPDATE_MULTI_ROLE_SCHEDULE';
-    payload: { field: string; value: string | number; roleIndex?: number };
-  }
-  | { type: 'ADD_MULTI_DAY_SLOT'; payload: { dayIndex: number } }
-  | { type: 'ADD_MULTI_DAY_EVENT' }
-  | { type: 'ADD_ROLE' }
-  | { type: 'UPDATE_VERIFICATION_METHOD'; payload: VerificationMethod }
-  | { type: 'UPDATE_REQUIRE_LOGIN'; payload: boolean }
-  | { type: 'UPDATE_VISIBILITY'; payload: ProjectVisibility }
-  | { type: 'UPDATE_RESTRICT_TO_ORG_DOMAINS'; payload: boolean }
-  | { type: 'UPDATE_ENABLE_VOLUNTEER_COMMENTS'; payload: boolean }
-  | { type: 'UPDATE_SHOW_ATTENDEES_PUBLICLY'; payload: boolean }
-  | { type: 'UPDATE_WAIVER_REQUIRED'; payload: boolean }
-  | { type: 'UPDATE_WAIVER_ALLOW_UPLOAD'; payload: boolean }
-  | { type: 'UPDATE_WAIVER_DISABLE_ESIGNATURE'; payload: boolean }
-  | { type: 'UPDATE_WAIVER_PDF_FILE'; payload: File | null }
-  | { type: 'UPDATE_WAIVER_PDF_URL'; payload: string | null }
-  | { type: 'UPDATE_WAIVER_PDF_VALIDATION'; payload: { hasSignatureFields: boolean; warnings: string[] } | null }
-  | { type: 'UPDATE_WAIVER_DEFINITION'; payload: WaiverDefinitionInput | null }
-  | { type: 'UPDATE_DETECTED_FIELDS'; payload: DetectedPdfField[] | null }
-  | { type: 'CLEAR_WAIVER_PDF' }
-  | {
-      type: 'UPDATE_RECURRENCE';
+      type: "UPDATE_BASIC_INFO";
       payload: {
-        field: keyof EventFormState['recurrence'];
-        value: EventFormState['recurrence'][keyof EventFormState['recurrence']];
+        field: string;
+        value: string | number | boolean | LocationData | null | undefined;
       };
     }
-  | { type: 'REMOVE_DAY'; payload: { dayIndex: number } }
-  | { type: 'REMOVE_SLOT'; payload: { dayIndex: number; slotIndex: number } }
-  | { type: 'REMOVE_ROLE'; payload: { roleIndex: number } }
-  | { type: 'LOAD_DRAFT'; payload: Partial<EventFormState> };
+  | { type: "UPDATE_SIGNUP_FORM_SCHEMA"; payload: FormSchema | null }
+  | { type: "UPDATE_PLUGIN_DATA"; payload: { field: string; value: unknown } }
+  | {
+      type: "UPDATE_ONE_TIME_SCHEDULE";
+      payload: { field: string; value: string | number };
+    }
+  | {
+      type: "UPDATE_MULTI_DAY_SCHEDULE";
+      payload: {
+        dayIndex: number;
+        field: string;
+        value: string | number;
+        slotIndex?: number;
+      };
+    }
+  | {
+      type: "UPDATE_MULTI_ROLE_SCHEDULE";
+      payload: { field: string; value: string | number; roleIndex?: number };
+    }
+  | { type: "ADD_MULTI_DAY_SLOT"; payload: { dayIndex: number } }
+  | { type: "ADD_MULTI_DAY_EVENT" }
+  | { type: "ADD_ROLE" }
+  | { type: "UPDATE_VERIFICATION_METHOD"; payload: VerificationMethod }
+  | { type: "UPDATE_REQUIRE_LOGIN"; payload: boolean }
+  | { type: "UPDATE_VISIBILITY"; payload: ProjectVisibility }
+  | { type: "UPDATE_RESTRICT_TO_ORG_DOMAINS"; payload: boolean }
+  | { type: "UPDATE_ENABLE_VOLUNTEER_COMMENTS"; payload: boolean }
+  | { type: "UPDATE_SHOW_ATTENDEES_PUBLICLY"; payload: boolean }
+  | { type: "UPDATE_WAIVER_REQUIRED"; payload: boolean }
+  | { type: "UPDATE_WAIVER_ALLOW_UPLOAD"; payload: boolean }
+  | { type: "UPDATE_WAIVER_DISABLE_ESIGNATURE"; payload: boolean }
+  | { type: "UPDATE_WAIVER_PDF_FILE"; payload: File | null }
+  | { type: "UPDATE_WAIVER_PDF_URL"; payload: string | null }
+  | {
+      type: "UPDATE_WAIVER_PDF_VALIDATION";
+      payload: { hasSignatureFields: boolean; warnings: string[] } | null;
+    }
+  | { type: "UPDATE_WAIVER_DEFINITION"; payload: WaiverDefinitionInput | null }
+  | { type: "UPDATE_DETECTED_FIELDS"; payload: DetectedPdfField[] | null }
+  | { type: "CLEAR_WAIVER_PDF" }
+  | {
+      type: "UPDATE_RECURRENCE";
+      payload: {
+        field: keyof EventFormState["recurrence"];
+        value: EventFormState["recurrence"][keyof EventFormState["recurrence"]];
+      };
+    }
+  | { type: "REMOVE_DAY"; payload: { dayIndex: number } }
+  | { type: "REMOVE_SLOT"; payload: { dayIndex: number; slotIndex: number } }
+  | { type: "REMOVE_ROLE"; payload: { roleIndex: number } }
+  | { type: "LOAD_DRAFT"; payload: Partial<EventFormState> };
 
 const defaultMultiRoleEvent = {
-  name: '',
-  startTime: '14:00',
-  endTime: '16:00',
+  name: "",
+  startTime: "14:00",
+  endTime: "16:00",
   volunteers: 0,
 };
 
 const defaultMultiDaySlot = {
-  name: '',
-  startTime: '09:00',
-  endTime: '17:00',
+  name: "",
+  startTime: "09:00",
+  endTime: "17:00",
   volunteers: 0,
 };
 
 const initialState: EventFormState = {
   step: 1,
-  eventType: 'oneTime',
+  eventType: "oneTime",
   basicInfo: {
-    title: '',
-    location: '',
+    title: "",
+    location: "",
     locationData: undefined,
-    description: '',
+    description: "",
     organizationId: undefined as unknown as string | null,
   },
   schedule: {
     oneTime: {
-      date: '',
-      startTime: '09:00',
-      endTime: '17:00',
+      date: "",
+      startTime: "09:00",
+      endTime: "17:00",
       volunteers: 0,
     },
     multiDay: [
       {
-        date: '',
+        date: "",
         slots: [{ ...defaultMultiDaySlot }],
       },
     ],
     sameDayMultiArea: {
-      date: '',
-      overallStart: '09:00',
-      overallEnd: '17:00',
+      date: "",
+      overallStart: "09:00",
+      overallEnd: "17:00",
       roles: [
         {
-          name: '',
-          startTime: '09:00',
-          endTime: '17:00',
+          name: "",
+          startTime: "09:00",
+          endTime: "17:00",
           volunteers: 0,
         },
       ],
     },
   },
-  verificationMethod: 'qr-code',
+  verificationMethod: "qr-code",
   requireLogin: true,
-  visibility: 'unlisted',
+  visibility: "unlisted",
   restrictToOrgDomains: false,
   enableVolunteerComments: false,
   showAttendeesPublicly: false,
@@ -247,9 +267,9 @@ const initialState: EventFormState = {
   detectedFields: null,
   recurrence: {
     enabled: false,
-    frequency: 'weekly',
+    frequency: "weekly",
     interval: 1,
-    endType: 'never',
+    endType: "never",
     endDate: undefined,
     endOccurrences: undefined,
     weekdays: [],
@@ -263,26 +283,26 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
   action,
 ) => {
   switch (action.type) {
-    case 'NEXT_STEP':
+    case "NEXT_STEP":
       return {
         ...state,
         step: state.step + 1,
       };
-    case 'PREV_STEP':
+    case "PREV_STEP":
       return {
         ...state,
         step: state.step - 1,
       };
-    case 'SET_EVENT_TYPE':
+    case "SET_EVENT_TYPE":
       return {
         ...state,
         eventType: action.payload,
         recurrence:
-          action.payload === 'multiDay'
+          action.payload === "multiDay"
             ? { ...state.recurrence, enabled: false }
             : state.recurrence,
       };
-    case 'UPDATE_BASIC_INFO':
+    case "UPDATE_BASIC_INFO":
       return {
         ...state,
         basicInfo: {
@@ -290,12 +310,12 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
           [action.payload.field]: action.payload.value,
         },
       };
-    case 'UPDATE_SIGNUP_FORM_SCHEMA':
+    case "UPDATE_SIGNUP_FORM_SCHEMA":
       return {
         ...state,
         signupFormSchema: action.payload,
       };
-    case 'UPDATE_PLUGIN_DATA':
+    case "UPDATE_PLUGIN_DATA":
       return {
         ...state,
         pluginData: {
@@ -303,7 +323,7 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
           [action.payload.field]: action.payload.value,
         },
       };
-    case 'UPDATE_ONE_TIME_SCHEDULE':
+    case "UPDATE_ONE_TIME_SCHEDULE":
       return {
         ...state,
         schedule: {
@@ -314,7 +334,7 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
           },
         },
       };
-    case 'UPDATE_MULTI_DAY_SCHEDULE': {
+    case "UPDATE_MULTI_DAY_SCHEDULE": {
       const { dayIndex, field, value, slotIndex } = action.payload;
       const updatedMultiDay = [...state.schedule.multiDay];
 
@@ -340,7 +360,7 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         updatedDay.slots = updatedSlots;
       } else {
         // Update a day field directly
-        if (field === 'date') {
+        if (field === "date") {
           updatedDay.date = String(value);
         }
       }
@@ -355,7 +375,7 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         },
       };
     }
-    case 'UPDATE_MULTI_ROLE_SCHEDULE': {
+    case "UPDATE_MULTI_ROLE_SCHEDULE": {
       const { field, value, roleIndex } = action.payload;
       const updatedRoles = [...state.schedule.sameDayMultiArea.roles];
       let updatedSameDayMultiArea = { ...state.schedule.sameDayMultiArea };
@@ -369,8 +389,9 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         updatedSameDayMultiArea.roles = updatedRoles;
 
         // Recalculate overall times if a role's time changed
-        if (field === 'startTime' || field === 'endTime') {
-          const { overallStart, overallEnd } = calculateOverallTimes(updatedRoles);
+        if (field === "startTime" || field === "endTime") {
+          const { overallStart, overallEnd } =
+            calculateOverallTimes(updatedRoles);
           updatedSameDayMultiArea.overallStart = overallStart;
           updatedSameDayMultiArea.overallEnd = overallEnd;
         }
@@ -390,7 +411,7 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         },
       };
     }
-    case 'ADD_MULTI_DAY_SLOT': {
+    case "ADD_MULTI_DAY_SLOT": {
       const { dayIndex } = action.payload;
       const updatedMultiDay = [...state.schedule.multiDay];
       // Deep clone day to avoid mutation
@@ -408,7 +429,7 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         },
       };
     }
-    case 'ADD_MULTI_DAY_EVENT': {
+    case "ADD_MULTI_DAY_EVENT": {
       return {
         ...state,
         schedule: {
@@ -416,14 +437,14 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
           multiDay: [
             ...state.schedule.multiDay,
             {
-              date: '',
+              date: "",
               slots: [{ ...defaultMultiDaySlot }],
             },
           ],
         },
       };
     }
-    case 'ADD_ROLE': {
+    case "ADD_ROLE": {
       const updatedRoles = [
         ...state.schedule.sameDayMultiArea.roles,
         { ...defaultMultiRoleEvent },
@@ -439,96 +460,99 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
             ...state.schedule.sameDayMultiArea,
             roles: updatedRoles,
             overallStart, // Update overall times
-            overallEnd,   // Update overall times
+            overallEnd, // Update overall times
           },
         },
       };
     }
-    case 'UPDATE_VERIFICATION_METHOD': {
+    case "UPDATE_VERIFICATION_METHOD": {
       return {
         ...state,
         verificationMethod: action.payload,
+        requireLogin:
+          action.payload === "signup-only" ? false : state.requireLogin,
       };
     }
-    case 'UPDATE_REQUIRE_LOGIN': {
+    case "UPDATE_REQUIRE_LOGIN": {
       return {
         ...state,
-        requireLogin: action.payload,
+        requireLogin:
+          state.verificationMethod === "signup-only" ? false : action.payload,
       };
     }
-    case 'UPDATE_VISIBILITY': {
+    case "UPDATE_VISIBILITY": {
       return {
         ...state,
         visibility: action.payload,
       };
     }
-    case 'UPDATE_RESTRICT_TO_ORG_DOMAINS': {
+    case "UPDATE_RESTRICT_TO_ORG_DOMAINS": {
       return {
         ...state,
         restrictToOrgDomains: action.payload,
       };
     }
-    case 'UPDATE_ENABLE_VOLUNTEER_COMMENTS': {
+    case "UPDATE_ENABLE_VOLUNTEER_COMMENTS": {
       return {
         ...state,
         enableVolunteerComments: action.payload,
       };
     }
-    case 'UPDATE_SHOW_ATTENDEES_PUBLICLY': {
+    case "UPDATE_SHOW_ATTENDEES_PUBLICLY": {
       return {
         ...state,
         showAttendeesPublicly: action.payload,
       };
     }
-    case 'UPDATE_WAIVER_REQUIRED': {
+    case "UPDATE_WAIVER_REQUIRED": {
       return {
         ...state,
         waiverRequired: action.payload,
       };
     }
-    case 'UPDATE_WAIVER_ALLOW_UPLOAD': {
+    case "UPDATE_WAIVER_ALLOW_UPLOAD": {
       return {
         ...state,
         waiverAllowUpload: action.payload,
       };
     }
-    case 'UPDATE_WAIVER_DISABLE_ESIGNATURE': {
+    case "UPDATE_WAIVER_DISABLE_ESIGNATURE": {
       return {
         ...state,
         waiverDisableEsignature: action.payload,
       };
     }
-    case 'UPDATE_WAIVER_PDF_FILE': {
+    case "UPDATE_WAIVER_PDF_FILE": {
       return {
         ...state,
         waiverPdfFile: action.payload,
       };
     }
-    case 'UPDATE_WAIVER_PDF_URL': {
+    case "UPDATE_WAIVER_PDF_URL": {
       return {
         ...state,
         waiverPdfUrl: action.payload,
       };
     }
-    case 'UPDATE_WAIVER_PDF_VALIDATION': {
+    case "UPDATE_WAIVER_PDF_VALIDATION": {
       return {
         ...state,
         waiverPdfValidation: action.payload,
       };
     }
-    case 'UPDATE_WAIVER_DEFINITION': {
+    case "UPDATE_WAIVER_DEFINITION": {
       return {
         ...state,
         waiverDefinition: action.payload,
       };
     }
-    case 'UPDATE_DETECTED_FIELDS': {
+    case "UPDATE_DETECTED_FIELDS": {
       return {
         ...state,
         detectedFields: action.payload,
       };
     }
-    case 'CLEAR_WAIVER_PDF': {
+    case "CLEAR_WAIVER_PDF": {
       return {
         ...state,
         waiverPdfFile: null,
@@ -538,7 +562,7 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         detectedFields: null,
       };
     }
-    case 'UPDATE_RECURRENCE': {
+    case "UPDATE_RECURRENCE": {
       const { field, value } = action.payload;
       return {
         ...state,
@@ -548,7 +572,7 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         },
       };
     }
-    case 'REMOVE_DAY': {
+    case "REMOVE_DAY": {
       const { dayIndex } = action.payload;
       // Make a copy of the multi-day array
       const updatedMultiDay = [...state.schedule.multiDay];
@@ -563,7 +587,7 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         },
       };
     }
-    case 'REMOVE_SLOT': {
+    case "REMOVE_SLOT": {
       const { dayIndex, slotIndex } = action.payload;
       // Make a deep copy to avoid mutations
       const updatedMultiDay = [...state.schedule.multiDay];
@@ -583,7 +607,7 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         },
       };
     }
-    case 'REMOVE_ROLE': {
+    case "REMOVE_ROLE": {
       const { roleIndex } = action.payload;
       const updatedRoles = [...state.schedule.sameDayMultiArea.roles];
       updatedRoles.splice(roleIndex, 1);
@@ -599,12 +623,12 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
             ...state.schedule.sameDayMultiArea,
             roles: updatedRoles,
             overallStart, // Update overall times
-            overallEnd,   // Update overall times
+            overallEnd, // Update overall times
           },
         },
       };
     }
-    case 'LOAD_DRAFT': {
+    case "LOAD_DRAFT": {
       const payload = action.payload;
       const normalizedMultiDay = payload.schedule?.multiDay
         ? payload.schedule.multiDay.map((day) => ({
@@ -612,7 +636,7 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
             slots: day.slots.map((slot) => ({
               ...defaultMultiDaySlot,
               ...slot,
-              name: slot.name ?? '',
+              name: slot.name ?? "",
             })),
           }))
         : state.schedule.multiDay;
@@ -636,13 +660,18 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
             ...state.schedule.sameDayMultiArea,
             ...(payload.schedule?.sameDayMultiArea ?? {}),
             roles:
-              payload.schedule?.sameDayMultiArea?.roles ?? state.schedule.sameDayMultiArea.roles,
+              payload.schedule?.sameDayMultiArea?.roles ??
+              state.schedule.sameDayMultiArea.roles,
           },
         },
         recurrence: {
           ...state.recurrence,
           ...(payload.recurrence ?? {}),
         },
+        requireLogin:
+          payload.verificationMethod === "signup-only"
+            ? false
+            : (payload.requireLogin ?? state.requireLogin),
         // Drafts intentionally never restore uploaded waiver files/URLs.
         // We keep waiver configuration data, but users must re-upload the PDF.
         waiverPdfFile: null,
@@ -655,28 +684,30 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
   }
 };
 
-// --- Hook Export --- 
+// --- Hook Export ---
 
 export const useEventForm = () => {
   const [state, dispatch] = useReducer(eventFormReducer, initialState);
 
-  const nextStep = () => dispatch({ type: 'NEXT_STEP' });
-  const prevStep = () => dispatch({ type: 'PREV_STEP' });
+  const nextStep = () => dispatch({ type: "NEXT_STEP" });
+  const prevStep = () => dispatch({ type: "PREV_STEP" });
 
   const setEventType = (eventType: EventType) =>
-    dispatch({ type: 'SET_EVENT_TYPE', payload: eventType });
+    dispatch({ type: "SET_EVENT_TYPE", payload: eventType });
 
-  const updateBasicInfo = (field: string, value: string | number | boolean | LocationData | null | undefined) =>
-    dispatch({ type: 'UPDATE_BASIC_INFO', payload: { field, value } });
+  const updateBasicInfo = (
+    field: string,
+    value: string | number | boolean | LocationData | null | undefined,
+  ) => dispatch({ type: "UPDATE_BASIC_INFO", payload: { field, value } });
 
-  const updateSignupFormSchema = (schema: any) =>
-    dispatch({ type: 'UPDATE_SIGNUP_FORM_SCHEMA', payload: schema });
+  const updateSignupFormSchema = (schema: FormSchema | null) =>
+    dispatch({ type: "UPDATE_SIGNUP_FORM_SCHEMA", payload: schema });
 
-  const updatePluginData = (field: string, value: any) =>
-    dispatch({ type: 'UPDATE_PLUGIN_DATA', payload: { field, value } });
+  const updatePluginData = (field: string, value: unknown) =>
+    dispatch({ type: "UPDATE_PLUGIN_DATA", payload: { field, value } });
 
   const updateOneTimeSchedule = (field: string, value: string | number) =>
-    dispatch({ type: 'UPDATE_ONE_TIME_SCHEDULE', payload: { field, value } });
+    dispatch({ type: "UPDATE_ONE_TIME_SCHEDULE", payload: { field, value } });
 
   const updateMultiDaySchedule = (
     dayIndex: number,
@@ -685,7 +716,7 @@ export const useEventForm = () => {
     slotIndex?: number,
   ) =>
     dispatch({
-      type: 'UPDATE_MULTI_DAY_SCHEDULE',
+      type: "UPDATE_MULTI_DAY_SCHEDULE",
       payload: { dayIndex, field, value, slotIndex },
     });
 
@@ -695,78 +726,78 @@ export const useEventForm = () => {
     roleIndex?: number,
   ) =>
     dispatch({
-      type: 'UPDATE_MULTI_ROLE_SCHEDULE',
+      type: "UPDATE_MULTI_ROLE_SCHEDULE",
       payload: { field, value, roleIndex },
     });
 
   const addMultiDaySlot = (dayIndex: number) =>
-    dispatch({ type: 'ADD_MULTI_DAY_SLOT', payload: { dayIndex } });
+    dispatch({ type: "ADD_MULTI_DAY_SLOT", payload: { dayIndex } });
 
-  const addMultiDayEvent = () => dispatch({ type: 'ADD_MULTI_DAY_EVENT' });
+  const addMultiDayEvent = () => dispatch({ type: "ADD_MULTI_DAY_EVENT" });
 
-  const addRole = () => dispatch({ type: 'ADD_ROLE' });
+  const addRole = () => dispatch({ type: "ADD_ROLE" });
 
   const updateVerificationMethod = (method: VerificationMethod) =>
-    dispatch({ type: 'UPDATE_VERIFICATION_METHOD', payload: method });
+    dispatch({ type: "UPDATE_VERIFICATION_METHOD", payload: method });
 
   const updateRequireLogin = (requireLogin: boolean) =>
-    dispatch({ type: 'UPDATE_REQUIRE_LOGIN', payload: requireLogin });
+    dispatch({ type: "UPDATE_REQUIRE_LOGIN", payload: requireLogin });
 
   const updateVisibility = (visibility: ProjectVisibility) =>
-    dispatch({ type: 'UPDATE_VISIBILITY', payload: visibility });
+    dispatch({ type: "UPDATE_VISIBILITY", payload: visibility });
 
   const updateRestrictToOrgDomains = (restrict: boolean) =>
-    dispatch({ type: 'UPDATE_RESTRICT_TO_ORG_DOMAINS', payload: restrict });
+    dispatch({ type: "UPDATE_RESTRICT_TO_ORG_DOMAINS", payload: restrict });
 
   const updateEnableVolunteerComments = (enabled: boolean) =>
-    dispatch({ type: 'UPDATE_ENABLE_VOLUNTEER_COMMENTS', payload: enabled });
+    dispatch({ type: "UPDATE_ENABLE_VOLUNTEER_COMMENTS", payload: enabled });
 
   const updateShowAttendeesPublicly = (enabled: boolean) =>
-    dispatch({ type: 'UPDATE_SHOW_ATTENDEES_PUBLICLY', payload: enabled });
+    dispatch({ type: "UPDATE_SHOW_ATTENDEES_PUBLICLY", payload: enabled });
 
   const updateWaiverRequired = (enabled: boolean) =>
-    dispatch({ type: 'UPDATE_WAIVER_REQUIRED', payload: enabled });
+    dispatch({ type: "UPDATE_WAIVER_REQUIRED", payload: enabled });
 
   const updateWaiverAllowUpload = (enabled: boolean) =>
-    dispatch({ type: 'UPDATE_WAIVER_ALLOW_UPLOAD', payload: enabled });
+    dispatch({ type: "UPDATE_WAIVER_ALLOW_UPLOAD", payload: enabled });
 
   const updateWaiverDisableEsignature = (disabled: boolean) =>
-    dispatch({ type: 'UPDATE_WAIVER_DISABLE_ESIGNATURE', payload: disabled });
+    dispatch({ type: "UPDATE_WAIVER_DISABLE_ESIGNATURE", payload: disabled });
 
   const updateWaiverPdfFile = (file: File | null) =>
-    dispatch({ type: 'UPDATE_WAIVER_PDF_FILE', payload: file });
+    dispatch({ type: "UPDATE_WAIVER_PDF_FILE", payload: file });
 
   const updateWaiverPdfUrl = (url: string | null) =>
-    dispatch({ type: 'UPDATE_WAIVER_PDF_URL', payload: url });
+    dispatch({ type: "UPDATE_WAIVER_PDF_URL", payload: url });
 
-  const updateWaiverPdfValidation = (validation: { hasSignatureFields: boolean; warnings: string[] } | null) =>
-    dispatch({ type: 'UPDATE_WAIVER_PDF_VALIDATION', payload: validation });
+  const updateWaiverPdfValidation = (
+    validation: { hasSignatureFields: boolean; warnings: string[] } | null,
+  ) => dispatch({ type: "UPDATE_WAIVER_PDF_VALIDATION", payload: validation });
 
   const updateWaiverDefinition = (definition: WaiverDefinitionInput | null) =>
-    dispatch({ type: 'UPDATE_WAIVER_DEFINITION', payload: definition });
+    dispatch({ type: "UPDATE_WAIVER_DEFINITION", payload: definition });
 
   const updateDetectedFields = (fields: DetectedPdfField[] | null) =>
-    dispatch({ type: 'UPDATE_DETECTED_FIELDS', payload: fields });
+    dispatch({ type: "UPDATE_DETECTED_FIELDS", payload: fields });
 
-  const clearWaiverPdf = () =>
-    dispatch({ type: 'CLEAR_WAIVER_PDF' });
+  const clearWaiverPdf = () => dispatch({ type: "CLEAR_WAIVER_PDF" });
 
   const updateRecurrence = (
-    field: keyof EventFormState['recurrence'],
-    value: EventFormState['recurrence'][keyof EventFormState['recurrence']],
-  ) => dispatch({ type: 'UPDATE_RECURRENCE', payload: { field, value } });
+    field: keyof EventFormState["recurrence"],
+    value: EventFormState["recurrence"][keyof EventFormState["recurrence"]],
+  ) => dispatch({ type: "UPDATE_RECURRENCE", payload: { field, value } });
 
   const removeDay = (dayIndex: number) =>
-    dispatch({ type: 'REMOVE_DAY', payload: { dayIndex } });
+    dispatch({ type: "REMOVE_DAY", payload: { dayIndex } });
 
   const removeSlot = (dayIndex: number, slotIndex: number) =>
-    dispatch({ type: 'REMOVE_SLOT', payload: { dayIndex, slotIndex } });
+    dispatch({ type: "REMOVE_SLOT", payload: { dayIndex, slotIndex } });
 
   const removeRole = (roleIndex: number) =>
-    dispatch({ type: 'REMOVE_ROLE', payload: { roleIndex } });
+    dispatch({ type: "REMOVE_ROLE", payload: { roleIndex } });
 
   const loadDraftState = (draftData: Partial<EventFormState>) =>
-    dispatch({ type: 'LOAD_DRAFT', payload: draftData });
+    dispatch({ type: "LOAD_DRAFT", payload: draftData });
 
   return {
     state,

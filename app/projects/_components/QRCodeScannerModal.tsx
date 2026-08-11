@@ -2,9 +2,20 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 // Import Scanner and necessary types
-import { Scanner, IDetectedBarcode, boundingBox } from "@yudiel/react-qr-scanner";
+import {
+  Scanner,
+  IDetectedBarcode,
+  boundingBox,
+} from "@yudiel/react-qr-scanner";
 import { toast } from "sonner";
 import { AlertCircle, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,7 +47,12 @@ export function QRCodeScannerModal({
       if (!AudioContextConstructor) return;
       const audioCtx = new AudioContextConstructor();
 
-      const playTone = (freq: number, startTime: number, duration: number, volume: number) => {
+      const playTone = (
+        freq: number,
+        startTime: number,
+        duration: number,
+        volume: number,
+      ) => {
         const osc = audioCtx.createOscillator();
         const g = audioCtx.createGain();
         osc.type = "sine";
@@ -85,15 +101,18 @@ export function QRCodeScannerModal({
     // Check if the error is an instance of Error to safely access properties
     if (error instanceof Error) {
       if (error.name === "NotAllowedError") {
-        friendlyMessage += "Please grant camera permission in your browser settings.";
+        friendlyMessage +=
+          "Please grant camera permission in your browser settings.";
       } else if (error.name === "NotFoundError") {
-        friendlyMessage += "No camera found. Ensure a camera is connected and enabled.";
+        friendlyMessage +=
+          "No camera found. Ensure a camera is connected and enabled.";
       } else {
         friendlyMessage += `An unexpected error occurred: ${error.message}. Please ensure your browser supports camera access.`;
       }
     } else {
       // Handle cases where the error might not be an Error object
-      friendlyMessage += "An unknown error occurred. Please ensure your browser supports camera access and permissions are granted.";
+      friendlyMessage +=
+        "An unknown error occurred. Please ensure your browser supports camera access and permissions are granted.";
       console.error("Received non-Error object:", error);
     }
 
@@ -109,7 +128,6 @@ export function QRCodeScannerModal({
       onClose();
     }
   };
-
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -169,7 +187,11 @@ export function QRCodeScannerModal({
           </p>
         </div>
         <DialogFooter className="p-4 bg-muted/20 border-t sm:hidden">
-          <Button variant="ghost" onClick={onClose} className="w-full h-12 rounded-xl text-base font-semibold">
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            className="w-full h-12 rounded-xl text-base font-semibold"
+          >
             Cancel
           </Button>
         </DialogFooter>

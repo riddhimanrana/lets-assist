@@ -1,19 +1,26 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { addDays, addWeeks, addMonths, addYears, format, isAfter, isBefore, parseISO } from "date-fns";
+import {
+  addDays,
+  addWeeks,
+  addMonths,
+  addYears,
+  format,
+  isAfter,
+  isBefore,
+  parseISO,
+} from "date-fns";
 
 function createServiceClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
+  const supabaseKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     throw new Error("Supabase service credentials are required.");
   }
 
-  return createClient(
-    supabaseUrl,
-    supabaseKey
-  );
+  return createClient(supabaseUrl, supabaseKey);
 }
 
 function getAllowedCronTokens(): string[] {
@@ -25,7 +32,7 @@ function getAllowedCronTokens(): string[] {
 }
 
 function authorizeCronRequest(
-  request: NextRequest
+  request: NextRequest,
 ): { ok: true } | { ok: false; response: NextResponse } {
   const authHeader = request.headers.get("authorization") || "";
   const token = authHeader.replace("Bearer ", "");
@@ -36,13 +43,16 @@ function authorizeCronRequest(
       ok: false,
       response: NextResponse.json(
         { error: "Cron auth not configured" },
-        { status: 500 }
+        { status: 500 },
       ),
     };
   }
 
   if (!token || !allowedTokens.includes(token)) {
-    return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
   }
 
   return { ok: true };
@@ -97,7 +107,8 @@ function isMultipleRowsError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
 
   const pgError = error as PostgrestErrorLike;
-  const combined = `${pgError.message ?? ""} ${pgError.details ?? ""}`.toLowerCase();
+  const combined =
+    `${pgError.message ?? ""} ${pgError.details ?? ""}`.toLowerCase();
   return combined.includes("multiple") && combined.includes("rows");
 }
 
@@ -112,7 +123,8 @@ function isMissingRecurrenceOccurrenceDateColumnError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
 
   const pgError = error as PostgrestErrorLike;
-  const combined = `${pgError.message ?? ""} ${pgError.details ?? ""} ${pgError.hint ?? ""}`.toLowerCase();
+  const combined =
+    `${pgError.message ?? ""} ${pgError.details ?? ""} ${pgError.hint ?? ""}`.toLowerCase();
   const referencesColumn = combined.includes("recurrence_occurrence_date");
   const missingColumn =
     pgError.code === "42703" ||
@@ -125,7 +137,7 @@ function isMissingRecurrenceOccurrenceDateColumnError(error: unknown): boolean {
 
 function calculateNextDate(
   currentDate: Date,
-  rule: RecurrenceRule
+  rule: RecurrenceRule,
 ): Date | null {
   const interval = rule.interval || 1;
 
@@ -149,7 +161,7 @@ function calculateNextDate(
 function findNextWeekday(
   currentDate: Date,
   weekdays: string[],
-  interval: number
+  interval: number,
 ): Date {
   const dayMap: Record<string, number> = {
     sunday: 0,
@@ -180,7 +192,7 @@ function findNextWeekday(
 function shouldGenerateOccurrence(
   rule: RecurrenceRule,
   nextDate: Date,
-  currentSequence: number
+  currentSequence: number,
 ): boolean {
   if (rule.end_type === "never") {
     return true;
@@ -208,7 +220,10 @@ function getProjectDate(project: Project): Date | null {
     return parseISO(schedule.oneTime.date);
   }
 
-  if (project.event_type === "sameDayMultiArea" && schedule.sameDayMultiArea?.date) {
+  if (
+    project.event_type === "sameDayMultiArea" &&
+    schedule.sameDayMultiArea?.date
+  ) {
     return parseISO(schedule.sameDayMultiArea.date);
   }
 
@@ -222,7 +237,7 @@ function canLegacyDateCheck(eventType: string): boolean {
 async function hasExistingOccurrence(
   supabase: ReturnType<typeof createServiceClient>,
   parent: Project,
-  formattedNextDate: string
+  formattedNextDate: string,
 ): Promise<{ exists: boolean; errorMessage?: string }> {
   const byDateResult = await supabase
     .from("projects")
@@ -258,13 +273,13 @@ async function hasExistingOccurrence(
     legacyQuery = legacyQuery.filter(
       "schedule->oneTime->>date",
       "eq",
-      formattedNextDate
+      formattedNextDate,
     );
   } else if (parent.event_type === "sameDayMultiArea") {
     legacyQuery = legacyQuery.filter(
       "schedule->sameDayMultiArea->>date",
       "eq",
-      formattedNextDate
+      formattedNextDate,
     );
   }
 
@@ -288,7 +303,11 @@ async function hasExistingOccurrence(
   return { exists: !!legacyResult.data };
 }
 
-function updateScheduleDate(schedule: Record<string, unknown>, eventType: string, newDate: Date) {
+function updateScheduleDate(
+  schedule: Record<string, unknown>,
+  eventType: string,
+  newDate: Date,
+) {
   const formattedDate = format(newDate, "yyyy-MM-dd");
   const newSchedule = JSON.parse(JSON.stringify(schedule)) as {
     oneTime?: { date?: string };
@@ -304,13 +323,18 @@ function updateScheduleDate(schedule: Record<string, unknown>, eventType: string
   return newSchedule;
 }
 
-function initializePublishedState(eventType: string, schedule: Record<string, unknown>): Record<string, boolean> {
+function initializePublishedState(
+  eventType: string,
+  schedule: Record<string, unknown>,
+): Record<string, boolean> {
   const publishedState: Record<string, boolean> = {};
 
   if (eventType === "oneTime") {
     publishedState.oneTime = false;
   } else if (eventType === "sameDayMultiArea") {
-    const typedSchedule = schedule as { sameDayMultiArea?: { roles?: Array<{ name: string }> } };
+    const typedSchedule = schedule as {
+      sameDayMultiArea?: { roles?: Array<{ name: string }> };
+    };
     typedSchedule.sameDayMultiArea?.roles?.forEach((role) => {
       publishedState[role.name] = false;
     });
@@ -337,7 +361,11 @@ async function processRecurringProjects(): Promise<{
     .not("status", "eq", "cancelled");
 
   if (fetchError) {
-    return { processedProjects: 0, createdOccurrences: 0, errors: [fetchError.message] };
+    return {
+      processedProjects: 0,
+      createdOccurrences: 0,
+      errors: [fetchError.message],
+    };
   }
 
   if (!parentProjects || parentProjects.length === 0) {
@@ -353,7 +381,9 @@ async function processRecurringProjects(): Promise<{
 
   for (const parent of parentProjects as Project[]) {
     if (parentsProcessed >= MAX_PARENTS) {
-      console.log(`Reached limit of ${MAX_PARENTS} parent projects per run. Skipping remaining.`);
+      console.log(
+        `Reached limit of ${MAX_PARENTS} parent projects per run. Skipping remaining.`,
+      );
       break;
     }
     parentsProcessed++;
@@ -370,8 +400,13 @@ async function processRecurringProjects(): Promise<{
         .limit(1)
         .maybeSingle();
 
-      if (latestOccurrenceResult.error && !isNoRowsError(latestOccurrenceResult.error)) {
-        errors.push(`Failed loading latest occurrence for ${parent.title}: ${latestOccurrenceResult.error.message}`);
+      if (
+        latestOccurrenceResult.error &&
+        !isNoRowsError(latestOccurrenceResult.error)
+      ) {
+        errors.push(
+          `Failed loading latest occurrence for ${parent.title}: ${latestOccurrenceResult.error.message}`,
+        );
         continue;
       }
 
@@ -405,14 +440,25 @@ async function processRecurringProjects(): Promise<{
         if (isBefore(today, nextDate)) {
           const formattedNextDate = format(nextDate, "yyyy-MM-dd");
 
-          const existingCheck = await hasExistingOccurrence(supabase, parent, formattedNextDate);
+          const existingCheck = await hasExistingOccurrence(
+            supabase,
+            parent,
+            formattedNextDate,
+          );
           if (existingCheck.errorMessage) {
             errors.push(existingCheck.errorMessage);
           }
 
           if (!existingCheck.exists) {
-            const newSchedule = updateScheduleDate(parent.schedule, parent.event_type, nextDate);
-            const publishedState = initializePublishedState(parent.event_type, newSchedule);
+            const newSchedule = updateScheduleDate(
+              parent.schedule,
+              parent.event_type,
+              nextDate,
+            );
+            const publishedState = initializePublishedState(
+              parent.event_type,
+              newSchedule,
+            );
 
             const insertPayload = {
               creator_id: parent.creator_id,
@@ -438,36 +484,49 @@ async function processRecurringProjects(): Promise<{
               recurrence_occurrence_date: formattedNextDate,
             };
 
-            let insertResult = await supabase.from("projects").insert(insertPayload);
+            let insertResult = await supabase
+              .from("projects")
+              .insert(insertPayload);
 
-            if (insertResult.error && isMissingRecurrenceOccurrenceDateColumnError(insertResult.error)) {
-              const legacyInsertPayload = { ...insertPayload } as Record<string, unknown>;
+            if (
+              insertResult.error &&
+              isMissingRecurrenceOccurrenceDateColumnError(insertResult.error)
+            ) {
+              const legacyInsertPayload = { ...insertPayload } as Record<
+                string,
+                unknown
+              >;
               delete legacyInsertPayload.recurrence_occurrence_date;
-              insertResult = await supabase.from("projects").insert(legacyInsertPayload);
+              insertResult = await supabase
+                .from("projects")
+                .insert(legacyInsertPayload);
             }
 
             const insertError = insertResult.error;
 
             if (insertError) {
               if (!isUniqueViolation(insertError)) {
-                errors.push(`Failed to create occurrence for ${parent.title}: ${insertError.message}`);
+                errors.push(
+                  `Failed to create occurrence for ${parent.title}: ${insertError.message}`,
+                );
               }
             } else {
               createdOccurrences++;
             }
           }
           // Small delay after each check/insert inside a parent to stay under rate limits
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
         currentSequence++;
         nextDate = calculateNextDate(nextDate, rule);
       }
-      
+
       // Delay between different parent projects
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       errors.push(`Error processing ${parent.title}: ${errorMessage}`);
     }
   }
@@ -496,13 +555,13 @@ export async function POST(request: NextRequest) {
         executionTimeMs: executionTime,
         errors: result.errors,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
       { error: "Internal server error", message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

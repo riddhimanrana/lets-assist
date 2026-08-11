@@ -1,6 +1,12 @@
 "use client";
 
-import { Project, ProjectSchedule, RecurrenceFrequency, RecurrenceEndType, RecurrenceWeekday } from "@/types";
+import {
+  Project,
+  ProjectSchedule,
+  RecurrenceFrequency,
+  RecurrenceEndType,
+  RecurrenceWeekday,
+} from "@/types";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { cn, stripHtml } from "@/lib/utils";
@@ -54,13 +60,19 @@ import {
   Download,
   Eye,
   ImageIcon,
-  X
+  X,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
-import { updateProject, deleteProject, updateProjectStatus, uploadProjectWaiverPdf, removeProjectWaiverPdf } from "../actions";
+import {
+  updateProject,
+  deleteProject,
+  updateProjectStatus,
+  uploadProjectWaiverPdf,
+  removeProjectWaiverPdf,
+} from "../actions";
 import LocationAutocomplete from "@/components/ui/location-autocomplete";
 import {
   AlertDialog,
@@ -73,7 +85,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { CancelProjectDialog } from "@/app/projects/_components/CancelProjectDialog";
-import { canDeleteProject, isWithinDeletionRestrictionWindow } from "@/utils/project";
+import {
+  canDeleteProject,
+  isWithinDeletionRestrictionWindow,
+} from "@/utils/project";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import {
@@ -88,8 +103,14 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Image from "next/image";
 import { formatBytes } from "@/lib/utils";
 import FilePreview from "@/app/projects/_components/FilePreview";
-import { detectPdfWidgets, DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
-import { WaiverBuilderDialog, WaiverDefinitionInput } from "@/components/waiver/WaiverBuilderDialog";
+import {
+  detectPdfWidgets,
+  DetectedPdfField,
+} from "@/lib/waiver/pdf-field-detect";
+import {
+  WaiverBuilderDialog,
+  WaiverDefinitionInput,
+} from "@/components/waiver/WaiverBuilderDialog";
 import { WaiverDefinitionFull } from "@/types/waiver-definitions";
 import { getWaiverDefinition, saveWaiverDefinition } from "../actions";
 import { Settings } from "lucide-react";
@@ -107,24 +128,29 @@ const MAX_DOCUMENTS_COUNT = 5;
 const MAX_WAIVER_PDF_SIZE = 10 * 1024 * 1024; // 10MB
 
 // Allowed file types
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/jpg",
+];
 const ALLOWED_DOCUMENT_TYPES = [
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/jpg',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'text/plain',
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/jpg",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
 ];
 
 // File type icon mapping
 const getFileIcon = (type: string) => {
-  if (type.includes('pdf')) return <FileText className="h-5 w-5" />;
-  if (type.includes('image')) return <FileImage className="h-5 w-5" />;
-  if (type.includes('text')) return <FileText className="h-5 w-5" />;
-  if (type.includes('word')) return <FileText className="h-5 w-5" />;
+  if (type.includes("pdf")) return <FileText className="h-5 w-5" />;
+  if (type.includes("image")) return <FileImage className="h-5 w-5" />;
+  if (type.includes("text")) return <FileText className="h-5 w-5" />;
+  if (type.includes("word")) return <FileText className="h-5 w-5" />;
   return <File className="h-5 w-5" />;
 };
 
@@ -134,23 +160,36 @@ interface Props {
 
 // Define the form schema based on Project type
 const formSchema = z.object({
-  title: z.string()
+  title: z
+    .string()
     .min(1, "Title is required")
     .max(TITLE_LIMIT, `Title must be less than ${TITLE_LIMIT} characters`),
-  description: z.string()
+  description: z
+    .string()
     .min(1, "Description is required")
-    .max(DESCRIPTION_LIMIT, `Description must be less than ${DESCRIPTION_LIMIT} characters`),
-  location: z.string()
+    .max(
+      DESCRIPTION_LIMIT,
+      `Description must be less than ${DESCRIPTION_LIMIT} characters`,
+    ),
+  location: z
+    .string()
     .min(1, "Location is required")
-    .max(LOCATION_LIMIT, `Location must be less than ${LOCATION_LIMIT} characters`),
-  location_data: z.object({
-    text: z.string(),
-    display_name: z.string().optional(),
-    coordinates: z.object({
-      latitude: z.number(),
-      longitude: z.number()
-    }).optional()
-  }).optional(),
+    .max(
+      LOCATION_LIMIT,
+      `Location must be less than ${LOCATION_LIMIT} characters`,
+    ),
+  location_data: z
+    .object({
+      text: z.string(),
+      display_name: z.string().optional(),
+      coordinates: z
+        .object({
+          latitude: z.number(),
+          longitude: z.number(),
+        })
+        .optional(),
+    })
+    .optional(),
   require_login: z.boolean(),
   enable_volunteer_comments: z.boolean(),
   show_attendees_publicly: z.boolean(),
@@ -175,7 +214,12 @@ function initializeScheduleState(project: Project) {
         endTime: project.schedule.oneTime.endTime,
         volunteers: project.schedule.oneTime.volunteers,
       },
-      multiDay: [{ date: "", slots: [{ name: "", startTime: "", endTime: "", volunteers: 0 }] }],
+      multiDay: [
+        {
+          date: "",
+          slots: [{ name: "", startTime: "", endTime: "", volunteers: 0 }],
+        },
+      ],
       sameDayMultiArea: {
         date: "",
         overallStart: "",
@@ -186,9 +230,9 @@ function initializeScheduleState(project: Project) {
   } else if (eventType === "multiDay" && project.schedule.multiDay) {
     return {
       oneTime: { date: "", startTime: "", endTime: "", volunteers: 0 },
-      multiDay: project.schedule.multiDay.map(day => ({
+      multiDay: project.schedule.multiDay.map((day) => ({
         date: day.date,
-        slots: day.slots.map(slot => ({
+        slots: day.slots.map((slot) => ({
           name: slot.name || "",
           startTime: slot.startTime,
           endTime: slot.endTime,
@@ -202,15 +246,23 @@ function initializeScheduleState(project: Project) {
         roles: [{ name: "", startTime: "", endTime: "", volunteers: 0 }],
       },
     };
-  } else if (eventType === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+  } else if (
+    eventType === "sameDayMultiArea" &&
+    project.schedule.sameDayMultiArea
+  ) {
     return {
       oneTime: { date: "", startTime: "", endTime: "", volunteers: 0 },
-      multiDay: [{ date: "", slots: [{ name: "", startTime: "", endTime: "", volunteers: 0 }] }],
+      multiDay: [
+        {
+          date: "",
+          slots: [{ name: "", startTime: "", endTime: "", volunteers: 0 }],
+        },
+      ],
       sameDayMultiArea: {
         date: project.schedule.sameDayMultiArea.date,
         overallStart: project.schedule.sameDayMultiArea.overallStart,
         overallEnd: project.schedule.sameDayMultiArea.overallEnd,
-        roles: project.schedule.sameDayMultiArea.roles.map(role => ({
+        roles: project.schedule.sameDayMultiArea.roles.map((role) => ({
           name: role.name,
           startTime: role.startTime,
           endTime: role.endTime,
@@ -222,7 +274,12 @@ function initializeScheduleState(project: Project) {
 
   return {
     oneTime: { date: "", startTime: "", endTime: "", volunteers: 0 },
-    multiDay: [{ date: "", slots: [{ name: "", startTime: "", endTime: "", volunteers: 0 }] }],
+    multiDay: [
+      {
+        date: "",
+        slots: [{ name: "", startTime: "", endTime: "", volunteers: 0 }],
+      },
+    ],
     sameDayMultiArea: {
       date: "",
       overallStart: "",
@@ -260,8 +317,12 @@ export default function EditProjectClient({ project }: Props) {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   // Schedule editing state
-  const [scheduleState, setScheduleState] = useState(() => initializeScheduleState(project));
-  const [recurrenceState, setRecurrenceState] = useState(() => initializeRecurrenceState(project));
+  const [scheduleState, setScheduleState] = useState(() =>
+    initializeScheduleState(project),
+  );
+  const [recurrenceState, setRecurrenceState] = useState(() =>
+    initializeRecurrenceState(project),
+  );
   const [scheduleErrors, setScheduleErrors] = useState<z.ZodIssue[]>([]);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
 
@@ -273,20 +334,27 @@ export default function EditProjectClient({ project }: Props) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewDocName, setPreviewDocName] = useState<string>("Document");
   const [previewDocType, setPreviewDocType] = useState<string>("");
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_dragActive, _setDragActive] = useState<"cover" | "docs" | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [totalDocumentsSize, setTotalDocumentsSize] = useState<number>(0);
   const [waiverPdfUploading, setWaiverPdfUploading] = useState(false);
   const [waiverPdfError, setWaiverPdfError] = useState<string | null>(null);
-  const [waiverPdfValidation, setWaiverPdfValidation] = useState<{ hasSignatureFields: boolean; warnings: string[] } | null>(null);
+  const [waiverPdfValidation, setWaiverPdfValidation] = useState<{
+    hasSignatureFields: boolean;
+    warnings: string[];
+  } | null>(null);
   const waiverPdfInputRef = useRef<HTMLInputElement | null>(null);
 
   // Waiver Builder State
   const [waiverBuilderOpen, setWaiverBuilderOpen] = useState(false);
-  const [waiverDefinition, setWaiverDefinition] = useState<WaiverDefinitionFull | null>(null);
-  const [lastDetectedFields, setLastDetectedFields] = useState<DetectedPdfField[]>([]);
-  const [waiverPdfUrl, setWaiverPdfUrl] = useState<string | null>(project.waiver_pdf_url ?? null);
+  const [waiverDefinition, setWaiverDefinition] =
+    useState<WaiverDefinitionFull | null>(null);
+  const [lastDetectedFields, setLastDetectedFields] = useState<
+    DetectedPdfField[]
+  >([]);
+  const [waiverPdfUrl, setWaiverPdfUrl] = useState<string | null>(
+    project.waiver_pdf_url ?? null,
+  );
 
   // Fetch waiver definition if exists
   useEffect(() => {
@@ -343,7 +411,10 @@ export default function EditProjectClient({ project }: Props) {
     return !text;
   };
 
-  const verificationMethodLabels: Record<FormValues["verification_method"], string> = {
+  const verificationMethodLabels: Record<
+    FormValues["verification_method"],
+    string
+  > = {
     "qr-code": "QR Code Check-in",
     manual: "Manual Check-in",
     auto: "Automatic Check-in",
@@ -364,7 +435,7 @@ export default function EditProjectClient({ project }: Props) {
       location: project.location,
       location_data: project.location_data || {
         text: project.location,
-        display_name: project.location
+        display_name: project.location,
       },
       require_login: project.require_login,
       enable_volunteer_comments: project.enable_volunteer_comments ?? false,
@@ -386,20 +457,28 @@ export default function EditProjectClient({ project }: Props) {
   }, [form]);
 
   // Schedule update handlers
-  const updateOneTimeSchedule = (field: keyof typeof scheduleState.oneTime, value: string | number) => {
-    setScheduleState(prev => ({
+  const updateOneTimeSchedule = (
+    field: keyof typeof scheduleState.oneTime,
+    value: string | number,
+  ) => {
+    setScheduleState((prev) => ({
       ...prev,
-      oneTime: { ...prev.oneTime, [field]: value }
+      oneTime: { ...prev.oneTime, [field]: value },
     }));
   };
 
-  const updateMultiDaySchedule = (dayIndex: number, field: string, value: string | number, slotIndex?: number) => {
-    setScheduleState(prev => {
+  const updateMultiDaySchedule = (
+    dayIndex: number,
+    field: string,
+    value: string | number,
+    slotIndex?: number,
+  ) => {
+    setScheduleState((prev) => {
       const newMultiDay = [...prev.multiDay];
       if (slotIndex !== undefined) {
         newMultiDay[dayIndex].slots[slotIndex] = {
           ...newMultiDay[dayIndex].slots[slotIndex],
-          [field]: value
+          [field]: value,
         };
       } else {
         newMultiDay[dayIndex] = { ...newMultiDay[dayIndex], [field]: value };
@@ -408,81 +487,101 @@ export default function EditProjectClient({ project }: Props) {
     });
   };
 
-  const updateMultiRoleSchedule = (field: string, value: string | number, roleIndex?: number) => {
-    setScheduleState(prev => {
+  const updateMultiRoleSchedule = (
+    field: string,
+    value: string | number,
+    roleIndex?: number,
+  ) => {
+    setScheduleState((prev) => {
       if (roleIndex !== undefined) {
         const newRoles = [...prev.sameDayMultiArea.roles];
         newRoles[roleIndex] = { ...newRoles[roleIndex], [field]: value };
         return {
           ...prev,
-          sameDayMultiArea: { ...prev.sameDayMultiArea, roles: newRoles }
+          sameDayMultiArea: { ...prev.sameDayMultiArea, roles: newRoles },
         };
       } else {
         return {
           ...prev,
-          sameDayMultiArea: { ...prev.sameDayMultiArea, [field]: value }
+          sameDayMultiArea: { ...prev.sameDayMultiArea, [field]: value },
         };
       }
     });
   };
 
   const addMultiDaySlot = (dayIndex: number) => {
-    setScheduleState(prev => {
+    setScheduleState((prev) => {
       const newMultiDay = [...prev.multiDay];
-      newMultiDay[dayIndex].slots.push({ name: "", startTime: "", endTime: "", volunteers: 0 });
+      newMultiDay[dayIndex].slots.push({
+        name: "",
+        startTime: "",
+        endTime: "",
+        volunteers: 0,
+      });
       return { ...prev, multiDay: newMultiDay };
     });
   };
 
   const addMultiDayEvent = () => {
-    setScheduleState(prev => ({
+    setScheduleState((prev) => ({
       ...prev,
-      multiDay: [...prev.multiDay, { date: "", slots: [{ name: "", startTime: "", endTime: "", volunteers: 0 }] }]
+      multiDay: [
+        ...prev.multiDay,
+        {
+          date: "",
+          slots: [{ name: "", startTime: "", endTime: "", volunteers: 0 }],
+        },
+      ],
     }));
   };
 
   const addRole = () => {
-    setScheduleState(prev => ({
+    setScheduleState((prev) => ({
       ...prev,
       sameDayMultiArea: {
         ...prev.sameDayMultiArea,
-        roles: [...prev.sameDayMultiArea.roles, { name: "", startTime: "", endTime: "", volunteers: 0 }]
-      }
+        roles: [
+          ...prev.sameDayMultiArea.roles,
+          { name: "", startTime: "", endTime: "", volunteers: 0 },
+        ],
+      },
     }));
   };
 
   const removeDay = (dayIndex: number) => {
-    setScheduleState(prev => ({
+    setScheduleState((prev) => ({
       ...prev,
-      multiDay: prev.multiDay.filter((_, i) => i !== dayIndex)
+      multiDay: prev.multiDay.filter((_, i) => i !== dayIndex),
     }));
   };
 
   const removeSlot = (dayIndex: number, slotIndex: number) => {
-    setScheduleState(prev => {
+    setScheduleState((prev) => {
       const newMultiDay = [...prev.multiDay];
-      newMultiDay[dayIndex].slots = newMultiDay[dayIndex].slots.filter((_, i) => i !== slotIndex);
+      newMultiDay[dayIndex].slots = newMultiDay[dayIndex].slots.filter(
+        (_, i) => i !== slotIndex,
+      );
       return { ...prev, multiDay: newMultiDay };
     });
   };
 
   const removeRole = (roleIndex: number) => {
-    setScheduleState(prev => ({
+    setScheduleState((prev) => ({
       ...prev,
       sameDayMultiArea: {
         ...prev.sameDayMultiArea,
-        roles: prev.sameDayMultiArea.roles.filter((_, i) => i !== roleIndex)
-      }
+        roles: prev.sameDayMultiArea.roles.filter((_, i) => i !== roleIndex),
+      },
     }));
   };
 
   const updateRecurrence = (
     field: keyof typeof recurrenceState,
-    value: typeof recurrenceState[keyof typeof recurrenceState]
+    value: (typeof recurrenceState)[keyof typeof recurrenceState],
   ) => {
-    setRecurrenceState(prev => ({
+    setRecurrenceState((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -494,20 +593,27 @@ export default function EditProjectClient({ project }: Props) {
         formValues.title !== project.title ||
         formValues.description !== project.description ||
         formValues.location !== project.location ||
-        JSON.stringify(formValues.location_data) !== JSON.stringify(project.location_data) ||
+        JSON.stringify(formValues.location_data) !==
+          JSON.stringify(project.location_data) ||
         formValues.require_login !== project.require_login ||
-        formValues.enable_volunteer_comments !== (project.enable_volunteer_comments ?? false) ||
-        formValues.show_attendees_publicly !== (project.show_attendees_publicly ?? false) ||
+        formValues.enable_volunteer_comments !==
+          (project.enable_volunteer_comments ?? false) ||
+        formValues.show_attendees_publicly !==
+          (project.show_attendees_publicly ?? false) ||
         formValues.waiver_required !== (project.waiver_required ?? false) ||
-        formValues.waiver_allow_upload !== (project.waiver_allow_upload ?? true) ||
-        formValues.waiver_disable_esignature !== (project.waiver_disable_esignature ?? false) ||
+        formValues.waiver_allow_upload !==
+          (project.waiver_allow_upload ?? true) ||
+        formValues.waiver_disable_esignature !==
+          (project.waiver_disable_esignature ?? false) ||
         formValues.verification_method !== project.verification_method ||
         formValues.visibility !== project.visibility;
 
       const initialSchedule = initializeScheduleState(project);
       const initialRecurrence = initializeRecurrenceState(project);
-      const scheduleChanged = JSON.stringify(scheduleState) !== JSON.stringify(initialSchedule);
-      const recurrenceChanged = JSON.stringify(recurrenceState) !== JSON.stringify(initialRecurrence);
+      const scheduleChanged =
+        JSON.stringify(scheduleState) !== JSON.stringify(initialSchedule);
+      const recurrenceChanged =
+        JSON.stringify(recurrenceState) !== JSON.stringify(initialRecurrence);
 
       setHasChanges(basicInfoChanged || scheduleChanged || recurrenceChanged);
     });
@@ -518,21 +624,28 @@ export default function EditProjectClient({ project }: Props) {
   useEffect(() => {
     const initialSchedule = initializeScheduleState(project);
     const initialRecurrence = initializeRecurrenceState(project);
-    const scheduleChanged = JSON.stringify(scheduleState) !== JSON.stringify(initialSchedule);
-    const recurrenceChanged = JSON.stringify(recurrenceState) !== JSON.stringify(initialRecurrence);
+    const scheduleChanged =
+      JSON.stringify(scheduleState) !== JSON.stringify(initialSchedule);
+    const recurrenceChanged =
+      JSON.stringify(recurrenceState) !== JSON.stringify(initialRecurrence);
 
     const formValues = form.getValues();
     const basicInfoChanged =
       formValues.title !== project.title ||
       formValues.description !== project.description ||
       formValues.location !== project.location ||
-      JSON.stringify(formValues.location_data) !== JSON.stringify(project.location_data) ||
+      JSON.stringify(formValues.location_data) !==
+        JSON.stringify(project.location_data) ||
       formValues.require_login !== project.require_login ||
-      formValues.enable_volunteer_comments !== (project.enable_volunteer_comments ?? false) ||
-      formValues.show_attendees_publicly !== (project.show_attendees_publicly ?? false) ||
+      formValues.enable_volunteer_comments !==
+        (project.enable_volunteer_comments ?? false) ||
+      formValues.show_attendees_publicly !==
+        (project.show_attendees_publicly ?? false) ||
       formValues.waiver_required !== (project.waiver_required ?? false) ||
-      formValues.waiver_allow_upload !== (project.waiver_allow_upload ?? true) ||
-      formValues.waiver_disable_esignature !== (project.waiver_disable_esignature ?? false) ||
+      formValues.waiver_allow_upload !==
+        (project.waiver_allow_upload ?? true) ||
+      formValues.waiver_disable_esignature !==
+        (project.waiver_disable_esignature ?? false) ||
       formValues.verification_method !== project.verification_method ||
       formValues.visibility !== project.visibility;
 
@@ -541,7 +654,10 @@ export default function EditProjectClient({ project }: Props) {
 
   // Calculate total documents size
   useEffect(() => {
-    const totalSize = (project.documents || []).reduce((sum, doc) => sum + (doc.size || 0), 0);
+    const totalSize = (project.documents || []).reduce(
+      (sum, doc) => sum + (doc.size || 0),
+      0,
+    );
     setTotalDocumentsSize(totalSize);
   }, [project.documents]);
 
@@ -552,7 +668,9 @@ export default function EditProjectClient({ project }: Props) {
       return false;
     }
     if (file.size > MAX_COVER_IMAGE_SIZE) {
-      toast.error(`Image too large. Maximum size is ${formatBytes(MAX_COVER_IMAGE_SIZE)}`);
+      toast.error(
+        `Image too large. Maximum size is ${formatBytes(MAX_COVER_IMAGE_SIZE)}`,
+      );
       return false;
     }
     return true;
@@ -563,7 +681,10 @@ export default function EditProjectClient({ project }: Props) {
       toast.error("Invalid file type");
       return false;
     }
-    const currentTotalSize = (project.documents || []).reduce((sum, doc) => sum + (doc.size || 0), 0);
+    const currentTotalSize = (project.documents || []).reduce(
+      (sum, doc) => sum + (doc.size || 0),
+      0,
+    );
     if (currentTotalSize + file.size > MAX_DOCUMENT_SIZE) {
       toast.error("Total document size limit exceeded");
       return false;
@@ -584,7 +705,9 @@ export default function EditProjectClient({ project }: Props) {
     }
 
     if (file.size > MAX_WAIVER_PDF_SIZE) {
-      setWaiverPdfError(`File size must be less than ${formatBytes(MAX_WAIVER_PDF_SIZE)}.`);
+      setWaiverPdfError(
+        `File size must be less than ${formatBytes(MAX_WAIVER_PDF_SIZE)}.`,
+      );
       return null;
     }
 
@@ -600,7 +723,7 @@ export default function EditProjectClient({ project }: Props) {
 
       // Use PDF.js-based widget detection
       const detectionResult = await detectPdfWidgets(file);
-      
+
       // Store detected fields for builder
       if (detectionResult.success) {
         setLastDetectedFields(detectionResult.fields);
@@ -609,23 +732,32 @@ export default function EditProjectClient({ project }: Props) {
       }
 
       const warnings: string[] = [];
-      
+
       if (!detectionResult.success) {
         // PDF.js failed, but we have fallback detection result
-        warnings.push('Could not fully analyze PDF structure.');
+        warnings.push("Could not fully analyze PDF structure.");
         if (detectionResult.errors) {
           warnings.push(...detectionResult.errors);
         }
       }
 
       if (!detectionResult.hasSignatureFields) {
-        warnings.push("No signature fields detected. Volunteers will sign electronically alongside the PDF.");
+        warnings.push(
+          "No signature fields detected. Volunteers will sign electronically alongside the PDF.",
+        );
       } else if (detectionResult.success && detectionResult.fields.length > 0) {
-        const sigFields = detectionResult.fields.filter(f => f.fieldType === 'signature');
-        warnings.push(`Detected ${sigFields.length} signature field(s) and ${detectionResult.fields.length - sigFields.length} other form field(s) across ${detectionResult.pageCount} page(s).`);
+        const sigFields = detectionResult.fields.filter(
+          (f) => f.fieldType === "signature",
+        );
+        warnings.push(
+          `Detected ${sigFields.length} signature field(s) and ${detectionResult.fields.length - sigFields.length} other form field(s) across ${detectionResult.pageCount} page(s).`,
+        );
       }
 
-      const validation = { hasSignatureFields: detectionResult.hasSignatureFields, warnings };
+      const validation = {
+        hasSignatureFields: detectionResult.hasSignatureFields,
+        warnings,
+      };
       setWaiverPdfValidation(validation);
       return validation;
     } catch (error) {
@@ -635,7 +767,9 @@ export default function EditProjectClient({ project }: Props) {
     }
   };
 
-  const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverImageChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (!validateImage(file)) return;
@@ -645,22 +779,22 @@ export default function EditProjectClient({ project }: Props) {
 
       try {
         const supabase = createClient();
-        const fileExt = file.name.split('.').pop();
+        const fileExt = file.name.split(".").pop();
         const timestamp = Date.now();
         const fileName = `project_${project.id}_cover_${timestamp}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
-          .from('project-images')
+          .from("project-images")
           .upload(fileName, file);
 
         if (uploadError) throw uploadError;
 
         const { data: urlData } = supabase.storage
-          .from('project-images')
+          .from("project-images")
           .getPublicUrl(fileName);
 
         const result = await updateProject(project.id, {
-          cover_image_url: urlData.publicUrl
+          cover_image_url: urlData.publicUrl,
         });
 
         if (result.error) throw new Error(result.error);
@@ -669,7 +803,7 @@ export default function EditProjectClient({ project }: Props) {
         toast.success("Cover image uploaded successfully");
         router.refresh();
       } catch (error) {
-        console.error('Upload error:', error);
+        console.error("Upload error:", error);
         toast.dismiss(loadingToast);
         toast.error("Failed to upload cover image");
       } finally {
@@ -688,13 +822,13 @@ export default function EditProjectClient({ project }: Props) {
       const fileName = pathParts[pathParts.length - 1];
 
       const { error: deleteError } = await supabase.storage
-        .from('project-images')
+        .from("project-images")
         .remove([fileName]);
 
-      if (deleteError) console.warn('Storage delete error:', deleteError);
+      if (deleteError) console.warn("Storage delete error:", deleteError);
 
       const result = await updateProject(project.id, {
-        cover_image_url: null
+        cover_image_url: null,
       });
 
       if (result.error) throw new Error(result.error);
@@ -702,12 +836,14 @@ export default function EditProjectClient({ project }: Props) {
       toast.success("Cover image removed");
       router.refresh();
     } catch (error) {
-      console.error('Delete error:', error);
+      console.error("Delete error:", error);
       toast.error("Failed to remove cover image");
     }
   };
 
-  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDocumentUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     if (!e.target.files || e.target.files.length === 0) return;
 
     const files = Array.from(e.target.files);
@@ -718,7 +854,10 @@ export default function EditProjectClient({ project }: Props) {
       return;
     }
 
-    const currentTotalSize = (project.documents || []).reduce((sum, doc) => sum + (doc.size || 0), 0);
+    const currentTotalSize = (project.documents || []).reduce(
+      (sum, doc) => sum + (doc.size || 0),
+      0,
+    );
     const newFilesTotalSize = files.reduce((sum, file) => sum + file.size, 0);
 
     if (currentTotalSize + newFilesTotalSize > MAX_DOCUMENT_SIZE) {
@@ -727,7 +866,9 @@ export default function EditProjectClient({ project }: Props) {
     }
 
     setUploadingDocuments(true);
-    const loadingToast = toast.loading(`Uploading ${files.length} document(s)...`);
+    const loadingToast = toast.loading(
+      `Uploading ${files.length} document(s)...`,
+    );
 
     try {
       const supabase = createClient();
@@ -736,19 +877,19 @@ export default function EditProjectClient({ project }: Props) {
       for (const file of files) {
         if (!validateDocument(file)) continue;
 
-        const fileExt = file.name.split('.').pop();
+        const fileExt = file.name.split(".").pop();
         const timestamp = Date.now();
         const random = Math.random().toString(36).substring(2, 8);
         const fileName = `project_${project.id}_doc_${timestamp}_${random}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
-          .from('project-documents')
+          .from("project-documents")
           .upload(fileName, file);
 
         if (uploadError) throw uploadError;
 
         const { data: urlData } = supabase.storage
-          .from('project-documents')
+          .from("project-documents")
           .getPublicUrl(fileName);
 
         uploadedDocs.push({
@@ -771,7 +912,7 @@ export default function EditProjectClient({ project }: Props) {
       toast.success(`${uploadedDocs.length} document(s) uploaded successfully`);
       router.refresh();
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error("Upload error:", error);
       toast.dismiss(loadingToast);
       toast.error("Failed to upload documents");
     } finally {
@@ -779,7 +920,9 @@ export default function EditProjectClient({ project }: Props) {
     }
   };
 
-  const handleWaiverPdfUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleWaiverPdfUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -797,7 +940,11 @@ export default function EditProjectClient({ project }: Props) {
         reader.readAsDataURL(file);
       });
 
-      const result = await uploadProjectWaiverPdf(project.id, dataUrl, file.name);
+      const result = await uploadProjectWaiverPdf(
+        project.id,
+        dataUrl,
+        file.name,
+      );
       if (result.error) {
         throw new Error(result.error);
       }
@@ -858,12 +1005,14 @@ export default function EditProjectClient({ project }: Props) {
       const fileName = pathParts[pathParts.length - 1];
 
       const { error: storageError } = await supabase.storage
-        .from('project-documents')
+        .from("project-documents")
         .remove([fileName]);
 
-      if (storageError) console.warn('Storage delete error:', storageError);
+      if (storageError) console.warn("Storage delete error:", storageError);
 
-      const updatedDocs = (project.documents || []).filter(doc => doc.url !== docUrl);
+      const updatedDocs = (project.documents || []).filter(
+        (doc) => doc.url !== docUrl,
+      );
       const result = await updateProject(project.id, {
         documents: updatedDocs,
       });
@@ -873,12 +1022,16 @@ export default function EditProjectClient({ project }: Props) {
       toast.success("Document deleted");
       router.refresh();
     } catch (error) {
-      console.error('Delete error:', error);
+      console.error("Delete error:", error);
       toast.error("Failed to delete document");
     }
   };
 
-  const openPreview = (url: string, fileName: string = "Document", fileType: string = "") => {
+  const openPreview = (
+    url: string,
+    fileName: string = "Document",
+    fileType: string = "",
+  ) => {
     setPreviewDoc(url);
     setPreviewDocName(fileName);
     setPreviewDocType(fileType);
@@ -886,7 +1039,7 @@ export default function EditProjectClient({ project }: Props) {
   };
 
   const isPreviewable = (type: string) => {
-    return type.includes('pdf') || type.includes('image');
+    return type.includes("pdf") || type.includes("image");
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -921,8 +1074,13 @@ export default function EditProjectClient({ project }: Props) {
         toast.error(result.error);
       } else {
         if (result.endedRecurringSeries) {
-          const cancelled = typeof result.cancelledOccurrences === "number" ? result.cancelledOccurrences : 0;
-          toast.success(`Recurring series ended. ${cancelled} upcoming occurrence${cancelled === 1 ? "" : "s"} cancelled.`);
+          const cancelled =
+            typeof result.cancelledOccurrences === "number"
+              ? result.cancelledOccurrences
+              : 0;
+          toast.success(
+            `Recurring series ended. ${cancelled} upcoming occurrence${cancelled === 1 ? "" : "s"} cancelled.`,
+          );
         } else {
           toast.success("Project updated successfully");
         }
@@ -946,10 +1104,11 @@ export default function EditProjectClient({ project }: Props) {
   };
 
   // Check if form is valid and has all required fields
-  const isFormValid = form.formState.isValid &&
+  const isFormValid =
+    form.formState.isValid &&
     form.getValues().title?.trim() &&
     form.getValues().location?.trim() &&
-    !isHTMLEmpty(form.getValues().description || '');
+    !isHTMLEmpty(form.getValues().description || "");
 
   // Add handlers for cancel and delete project
   const handleCancelProject = async (reason: string) => {
@@ -960,7 +1119,9 @@ export default function EditProjectClient({ project }: Props) {
       } else {
         const notificationStatus = result.cancellationNotifications;
         if (notificationStatus?.enqueued) {
-          toast.success("Project cancelled successfully. Approved volunteers will be emailed shortly.");
+          toast.success(
+            "Project cancelled successfully. Approved volunteers will be emailed shortly.",
+          );
           if (notificationStatus.error) {
             toast.warning(notificationStatus.error);
           }
@@ -968,7 +1129,7 @@ export default function EditProjectClient({ project }: Props) {
           toast.success("Project cancelled successfully.");
           toast.warning(
             notificationStatus?.error ||
-            "We couldn't queue cancellation emails. Please try again shortly."
+              "We couldn't queue cancellation emails. Please try again shortly.",
           );
         }
         setShowCancelDialog(false);
@@ -982,7 +1143,9 @@ export default function EditProjectClient({ project }: Props) {
 
   const handleDeleteProject = async () => {
     if (!canDeleteProject(project)) {
-      toast.error("Projects cannot be deleted within 24 hours before start until 48 hours after end");
+      toast.error(
+        "Projects cannot be deleted within 24 hours before start until 48 hours after end",
+      );
       setShowDeleteDialog(false);
       return;
     }
@@ -1005,18 +1168,15 @@ export default function EditProjectClient({ project }: Props) {
     }
   };
 
-  const isInDeletionRestrictionPeriod = isWithinDeletionRestrictionWindow(project);
+  const isInDeletionRestrictionPeriod =
+    isWithinDeletionRestrictionWindow(project);
   const canDelete = canDeleteProject(project);
   const isCancelled = project.status === "cancelled";
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-3xl">
       <div className="mb-6">
-        <Button
-          variant="ghost"
-          className="gap-2"
-          onClick={() => router.back()}
-        >
+        <Button variant="ghost" className="gap-2" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
           Back to Project
         </Button>
@@ -1025,12 +1185,9 @@ export default function EditProjectClient({ project }: Props) {
       <Card>
         <CardHeader>
           <CardTitle>Edit Project</CardTitle>
-          <CardDescription>
-            Update the details of your project
-          </CardDescription>
+          <CardDescription>Update the details of your project</CardDescription>
         </CardHeader>
         <CardContent>
-
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <Controller
               control={form.control}
@@ -1039,10 +1196,12 @@ export default function EditProjectClient({ project }: Props) {
                 <Field data-invalid={fieldState.invalid}>
                   <div className="flex items-center justify-between">
                     <FieldLabel htmlFor={field.name}>Project Title</FieldLabel>
-                    <span className={cn(
-                      "text-xs transition-colors",
-                      getCounterColor(titleChars, TITLE_LIMIT)
-                    )}>
+                    <span
+                      className={cn(
+                        "text-xs transition-colors",
+                        getCounterColor(titleChars, TITLE_LIMIT),
+                      )}
+                    >
                       {titleChars}/{TITLE_LIMIT}
                     </span>
                   </div>
@@ -1050,14 +1209,16 @@ export default function EditProjectClient({ project }: Props) {
                     id={field.name}
                     placeholder="Enter project title"
                     {...field}
-                    onChange={e => {
+                    onChange={(e) => {
                       field.onChange(e);
                       setTitleChars(e.target.value.length);
                     }}
                     maxLength={TITLE_LIMIT}
                     aria-invalid={fieldState.invalid}
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -1074,7 +1235,9 @@ export default function EditProjectClient({ project }: Props) {
                     placeholder="Enter project description..."
                     maxLength={DESCRIPTION_LIMIT}
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -1086,10 +1249,12 @@ export default function EditProjectClient({ project }: Props) {
                 <Field data-invalid={fieldState.invalid}>
                   <div className="flex items-center justify-between">
                     <FieldLabel htmlFor="location">Location</FieldLabel>
-                    <span className={cn(
-                      "text-xs transition-colors",
-                      getCounterColor(locationChars, LOCATION_LIMIT)
-                    )}>
+                    <span
+                      className={cn(
+                        "text-xs transition-colors",
+                        getCounterColor(locationChars, LOCATION_LIMIT),
+                      )}
+                    >
                       {locationChars}/{LOCATION_LIMIT}
                     </span>
                   </div>
@@ -1113,9 +1278,13 @@ export default function EditProjectClient({ project }: Props) {
                     error={!!fieldState.error}
                     errorMessage={fieldState.error?.message?.toString()}
                     aria-invalid={fieldState.invalid}
-                    aria-errormessage={fieldState.error ? "location-error" : undefined}
+                    aria-errormessage={
+                      fieldState.error ? "location-error" : undefined
+                    }
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -1124,9 +1293,14 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="require_login"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                <Field
+                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4"
+                  data-invalid={fieldState.invalid}
+                >
                   <div className="space-y-0.5 min-w-0">
-                    <FieldLabel htmlFor={field.name}>Require Account</FieldLabel>
+                    <FieldLabel htmlFor={field.name}>
+                      Require Account
+                    </FieldLabel>
                     <FieldDescription className="wrap-break-word">
                       Require volunteers to create an account to sign up
                     </FieldDescription>
@@ -1137,7 +1311,9 @@ export default function EditProjectClient({ project }: Props) {
                     onCheckedChange={field.onChange}
                     aria-invalid={fieldState.invalid}
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -1146,11 +1322,17 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="waiver_required"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                <Field
+                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4"
+                  data-invalid={fieldState.invalid}
+                >
                   <div className="space-y-0.5 min-w-0">
-                    <FieldLabel htmlFor={field.name}>Require Waiver Signature</FieldLabel>
+                    <FieldLabel htmlFor={field.name}>
+                      Require Waiver Signature
+                    </FieldLabel>
                     <FieldDescription className="wrap-break-word">
-                      Volunteers must sign your waiver PDF or the active global waiver definition before signing up.
+                      Volunteers must sign your waiver PDF or the active global
+                      waiver definition before signing up.
                     </FieldDescription>
                   </div>
                   <Switch
@@ -1159,7 +1341,9 @@ export default function EditProjectClient({ project }: Props) {
                     onCheckedChange={field.onChange}
                     aria-invalid={fieldState.invalid}
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -1168,11 +1352,17 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="waiver_disable_esignature"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                <Field
+                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4"
+                  data-invalid={fieldState.invalid}
+                >
                   <div className="space-y-0.5 min-w-0">
-                    <FieldLabel htmlFor={field.name}>Enable E-Signatures</FieldLabel>
+                    <FieldLabel htmlFor={field.name}>
+                      Enable E-Signatures
+                    </FieldLabel>
                     <FieldDescription className="wrap-break-word">
-                      Let volunteers draw or type signatures. Print &amp; upload remains available as a backup.
+                      Let volunteers draw or type signatures. Print &amp; upload
+                      remains available as a backup.
                     </FieldDescription>
                   </div>
                   <Switch
@@ -1182,7 +1372,9 @@ export default function EditProjectClient({ project }: Props) {
                     disabled={!waiverRequired}
                     aria-invalid={fieldState.invalid}
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -1191,11 +1383,17 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="waiver_allow_upload"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                <Field
+                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4"
+                  data-invalid={fieldState.invalid}
+                >
                   <div className="space-y-0.5 min-w-0">
-                    <FieldLabel htmlFor={field.name}>Print &amp; Upload (Backup)</FieldLabel>
+                    <FieldLabel htmlFor={field.name}>
+                      Print &amp; Upload (Backup)
+                    </FieldLabel>
                     <FieldDescription className="wrap-break-word">
-                      Print &amp; upload is always available as a backup option for volunteers.
+                      Print &amp; upload is always available as a backup option
+                      for volunteers.
                     </FieldDescription>
                   </div>
                   <Switch
@@ -1205,7 +1403,9 @@ export default function EditProjectClient({ project }: Props) {
                     disabled
                     aria-invalid={fieldState.invalid}
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -1214,14 +1414,16 @@ export default function EditProjectClient({ project }: Props) {
               <div className="rounded-lg border p-4 space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <Label className="text-sm font-medium">Project Waiver PDF</Label>
+                    <Label className="text-sm font-medium">
+                      Project Waiver PDF
+                    </Label>
                     <CardDescription>
                       Upload a PDF waiver to show volunteers during signup.
                     </CardDescription>
                   </div>
                   {(waiverPdfUrl || project.waiver_pdf_url) && (
                     <div className="flex flex-wrap gap-2">
-                      {!form.watch('waiver_disable_esignature') && (
+                      {!form.watch("waiver_disable_esignature") && (
                         <Button
                           type="button"
                           variant="outline"
@@ -1236,7 +1438,13 @@ export default function EditProjectClient({ project }: Props) {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => openPreview((waiverPdfUrl || project.waiver_pdf_url)!, "Waiver PDF", "application/pdf")}
+                        onClick={() =>
+                          openPreview(
+                            (waiverPdfUrl || project.waiver_pdf_url)!,
+                            "Waiver PDF",
+                            "application/pdf",
+                          )
+                        }
                       >
                         <Eye className="h-4 w-4 mr-1" />
                         Preview
@@ -1244,7 +1452,9 @@ export default function EditProjectClient({ project }: Props) {
                       <a
                         href={waiverPdfUrl || project.waiver_pdf_url || "#"}
                         download
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                        className={cn(
+                          buttonVariants({ variant: "outline", size: "sm" }),
+                        )}
                       >
                         <Download className="h-4 w-4 mr-1" />
                         Download
@@ -1275,7 +1485,7 @@ export default function EditProjectClient({ project }: Props) {
                   <div
                     className={cn(
                       "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors",
-                      waiverPdfUploading && "opacity-50 pointer-events-none"
+                      waiverPdfUploading && "opacity-50 pointer-events-none",
                     )}
                     onClick={() => waiverPdfInputRef.current?.click()}
                   >
@@ -1286,9 +1496,13 @@ export default function EditProjectClient({ project }: Props) {
                         <Upload className="h-8 w-8 text-muted-foreground" />
                       )}
                       <p className="text-sm font-medium">
-                        {waiverPdfUploading ? "Uploading waiver..." : "Click to upload waiver PDF"}
+                        {waiverPdfUploading
+                          ? "Uploading waiver..."
+                          : "Click to upload waiver PDF"}
                       </p>
-                      <p className="text-xs text-muted-foreground">Max size: {formatBytes(MAX_WAIVER_PDF_SIZE)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Max size: {formatBytes(MAX_WAIVER_PDF_SIZE)}
+                      </p>
                     </div>
                   </div>
                 ) : (
@@ -1311,11 +1525,13 @@ export default function EditProjectClient({ project }: Props) {
                 )}
 
                 {waiverPdfValidation && (
-                  <Alert className={cn(
-                    waiverPdfValidation.hasSignatureFields
-                      ? "border-green-200 bg-green-50 dark:bg-green-950/20"
-                      : "border-amber-200 bg-amber-50 dark:bg-amber-950/20"
-                  )}>
+                  <Alert
+                    className={cn(
+                      waiverPdfValidation.hasSignatureFields
+                        ? "border-green-200 bg-green-50 dark:bg-green-950/20"
+                        : "border-amber-200 bg-amber-50 dark:bg-amber-950/20",
+                    )}
+                  >
                     <AlertDescription className="text-xs">
                       {waiverPdfValidation.hasSignatureFields
                         ? "Signature fields detected. Volunteers can sign directly on the PDF."
@@ -1327,7 +1543,9 @@ export default function EditProjectClient({ project }: Props) {
                 {!(waiverPdfUrl || project.waiver_pdf_url) && (
                   <Alert className="bg-info/20 border-info">
                     <AlertDescription className="text-xs text-info">
-                      If you don&apos;t upload a custom waiver, we&apos;ll use the active global waiver definition (or the default Let&apos;s Assist waiver text if none is configured yet).
+                      If you don&apos;t upload a custom waiver, we&apos;ll use
+                      the active global waiver definition (or the default
+                      Let&apos;s Assist waiver text if none is configured yet).
                     </AlertDescription>
                   </Alert>
                 )}
@@ -1338,9 +1556,14 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="enable_volunteer_comments"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                <Field
+                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4"
+                  data-invalid={fieldState.invalid}
+                >
                   <div className="space-y-0.5 min-w-0">
-                    <FieldLabel htmlFor={field.name}>Enable Volunteer Comments</FieldLabel>
+                    <FieldLabel htmlFor={field.name}>
+                      Enable Volunteer Comments
+                    </FieldLabel>
                     <FieldDescription className="wrap-break-word">
                       Allow volunteers to include a short note when signing up
                     </FieldDescription>
@@ -1351,7 +1574,9 @@ export default function EditProjectClient({ project }: Props) {
                     onCheckedChange={field.onChange}
                     aria-invalid={fieldState.invalid}
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -1360,9 +1585,14 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="show_attendees_publicly"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                <Field
+                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4"
+                  data-invalid={fieldState.invalid}
+                >
                   <div className="space-y-0.5 min-w-0">
-                    <FieldLabel htmlFor={field.name}>Show Attendees Publicly</FieldLabel>
+                    <FieldLabel htmlFor={field.name}>
+                      Show Attendees Publicly
+                    </FieldLabel>
                     <FieldDescription className="wrap-break-word">
                       Display attendee count on the public project page
                     </FieldDescription>
@@ -1373,7 +1603,9 @@ export default function EditProjectClient({ project }: Props) {
                     onCheckedChange={field.onChange}
                     aria-invalid={fieldState.invalid}
                   />
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -1383,14 +1615,17 @@ export default function EditProjectClient({ project }: Props) {
               name="verification_method"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Verification Method</FieldLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
-                    <SelectTrigger id={field.name} aria-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>
+                    Verification Method
+                  </FieldLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger
+                      id={field.name}
+                      aria-invalid={fieldState.invalid}
+                    >
                       <SelectValue placeholder="Select verification method">
-                        {verificationMethodLabels[field.value] ?? "Select verification method"}
+                        {verificationMethodLabels[field.value] ??
+                          "Select verification method"}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -1406,7 +1641,8 @@ export default function EditProjectClient({ project }: Props) {
                         <div className="flex flex-col group">
                           <span>Manual Check-in</span>
                           <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
-                            Project coordinators manually check in volunteers from the attendance page
+                            Project coordinators manually check in volunteers
+                            from the attendance page
                           </span>
                         </div>
                       </SelectItem>
@@ -1414,7 +1650,8 @@ export default function EditProjectClient({ project }: Props) {
                         <div className="flex flex-col group">
                           <span>Automatic Check-in</span>
                           <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
-                            System automatically checks in volunteers at their scheduled time
+                            System automatically checks in volunteers at their
+                            scheduled time
                           </span>
                         </div>
                       </SelectItem>
@@ -1428,7 +1665,9 @@ export default function EditProjectClient({ project }: Props) {
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -1438,15 +1677,18 @@ export default function EditProjectClient({ project }: Props) {
               name="visibility"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Project Visibility</FieldLabel>
+                  <FieldLabel htmlFor={field.name}>
+                    Project Visibility
+                  </FieldLabel>
                   <FieldDescription>
-                    Choose who can discover and view your project on the platform.
+                    Choose who can discover and view your project on the
+                    platform.
                   </FieldDescription>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
-                    <SelectTrigger id={field.name} aria-invalid={fieldState.invalid}>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger
+                      id={field.name}
+                      aria-invalid={fieldState.invalid}
+                    >
                       <SelectValue placeholder="Select visibility">
                         {visibilityLabels[field.value] ?? "Select visibility"}
                       </SelectValue>
@@ -1464,7 +1706,8 @@ export default function EditProjectClient({ project }: Props) {
                         <div className="flex flex-col group">
                           <span>Unlisted (Link Only)</span>
                           <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
-                            Only people with the direct link can view or sign up.
+                            Only people with the direct link can view or sign
+                            up.
                           </span>
                         </div>
                       </SelectItem>
@@ -1480,7 +1723,9 @@ export default function EditProjectClient({ project }: Props) {
                       )}
                     </SelectContent>
                   </Select>
-                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FormMessage errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -1490,7 +1735,10 @@ export default function EditProjectClient({ project }: Props) {
             {/* Schedule Section - Collapsible */}
             <Collapsible open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
               <CollapsibleTrigger
-                className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-between p-4 hover:bg-muted/50 h-auto")}
+                className={cn(
+                  buttonVariants({ variant: "ghost" }),
+                  "w-full justify-between p-4 hover:bg-muted/50 h-auto",
+                )}
               >
                 <div className="flex items-center gap-2">
                   <CalendarIconLucide className="h-5 w-5 text-muted-foreground" />
@@ -1507,19 +1755,21 @@ export default function EditProjectClient({ project }: Props) {
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Important</AlertTitle>
                   <AlertDescription>
-                    Changing dates or times may affect volunteers who have already signed up.
-                    Consider notifying them of any changes. Reducing volunteer capacity below
-                    current signups is not recommended.
+                    Changing dates or times may affect volunteers who have
+                    already signed up. Consider notifying them of any changes.
+                    Reducing volunteer capacity below current signups is not
+                    recommended.
                   </AlertDescription>
                 </Alert>
                 <p className="text-sm text-muted-foreground">
-                  Update the dates, times, and volunteer capacity for this project.
+                  Update the dates, times, and volunteer capacity for this
+                  project.
                 </p>
                 <Schedule
                   state={{
                     eventType: project.event_type,
                     schedule: scheduleState,
-                    recurrence: recurrenceState
+                    recurrence: recurrenceState,
                   }}
                   updateOneTimeScheduleAction={updateOneTimeSchedule}
                   updateMultiDayScheduleAction={updateMultiDaySchedule}
@@ -1541,7 +1791,10 @@ export default function EditProjectClient({ project }: Props) {
             {/* Media & Documents Section - Collapsible */}
             <Collapsible open={isMediaOpen} onOpenChange={setIsMediaOpen}>
               <CollapsibleTrigger
-                className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-between p-4 hover:bg-muted/50 h-auto")}
+                className={cn(
+                  buttonVariants({ variant: "ghost" }),
+                  "w-full justify-between p-4 hover:bg-muted/50 h-auto",
+                )}
               >
                 <div className="flex items-center gap-2">
                   <ImageIcon className="h-5 w-5 text-muted-foreground" />
@@ -1559,14 +1812,18 @@ export default function EditProjectClient({ project }: Props) {
                   <div>
                     <h4 className="font-medium text-sm">Cover Image</h4>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Upload a cover image for your project (JPEG, PNG, WebP, max {formatBytes(MAX_COVER_IMAGE_SIZE)})
+                      Upload a cover image for your project (JPEG, PNG, WebP,
+                      max {formatBytes(MAX_COVER_IMAGE_SIZE)})
                     </p>
                   </div>
 
                   <div className="border-2 border-dashed rounded-lg p-4 transition-colors hover:border-primary/50 hover:bg-primary/5">
                     {project.cover_image_url ? (
                       <div className="w-full max-w-md mx-auto">
-                        <AspectRatio ratio={16 / 9} className="bg-muted overflow-hidden rounded-md">
+                        <AspectRatio
+                          ratio={16 / 9}
+                          className="bg-muted overflow-hidden rounded-md"
+                        >
                           <div className="relative w-full h-full">
                             <Image
                               src={project.cover_image_url}
@@ -1593,10 +1850,14 @@ export default function EditProjectClient({ project }: Props) {
                           <ImageIcon className="h-6 w-6 text-muted-foreground" />
                         </div>
                         <p className="text-sm font-medium mb-1">
-                          {uploadingCoverImage ? "Uploading..." : "Click to upload cover image"}
+                          {uploadingCoverImage
+                            ? "Uploading..."
+                            : "Click to upload cover image"}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {uploadingCoverImage ? "Please wait..." : "or drag and drop"}
+                          {uploadingCoverImage
+                            ? "Please wait..."
+                            : "or drag and drop"}
                         </p>
                         <input
                           type="file"
@@ -1614,37 +1875,56 @@ export default function EditProjectClient({ project }: Props) {
                 <div className="space-y-3">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="font-medium text-sm">Supporting Documents</h4>
+                      <h4 className="font-medium text-sm">
+                        Supporting Documents
+                      </h4>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Upload non-waiver materials like instructions or reference docs (PDF, Word, Text, Images)
+                        Upload non-waiver materials like instructions or
+                        reference docs (PDF, Word, Text, Images)
                       </p>
                     </div>
                     <div className="text-xs text-muted-foreground text-right">
-                      <div>{(project.documents || []).length}/{MAX_DOCUMENTS_COUNT} files</div>
-                      <div>{formatBytes(totalDocumentsSize)}/{formatBytes(MAX_DOCUMENT_SIZE)}</div>
+                      <div>
+                        {(project.documents || []).length}/{MAX_DOCUMENTS_COUNT}{" "}
+                        files
+                      </div>
+                      <div>
+                        {formatBytes(totalDocumentsSize)}/
+                        {formatBytes(MAX_DOCUMENT_SIZE)}
+                      </div>
                     </div>
                   </div>
 
-                  <div className={`border-2 border-dashed rounded-lg p-4 transition-colors ${(project.documents || []).length >= MAX_DOCUMENTS_COUNT
-                    ? 'opacity-50 cursor-not-allowed'
-                    : 'hover:border-primary/50 hover:bg-primary/5'
-                    }`}>
-                    <label className={`flex flex-col items-center justify-center py-6 ${(project.documents || []).length >= MAX_DOCUMENTS_COUNT ? 'cursor-not-allowed' : 'cursor-pointer'
-                      }`}>
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
+                      (project.documents || []).length >= MAX_DOCUMENTS_COUNT
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:border-primary/50 hover:bg-primary/5"
+                    }`}
+                  >
+                    <label
+                      className={`flex flex-col items-center justify-center py-6 ${
+                        (project.documents || []).length >= MAX_DOCUMENTS_COUNT
+                          ? "cursor-not-allowed"
+                          : "cursor-pointer"
+                      }`}
+                    >
                       <div className="rounded-full bg-background p-3 shadow-xs mb-3">
                         <Upload className="h-6 w-6 text-muted-foreground" />
                       </div>
                       <p className="text-sm font-medium mb-1">
                         {(project.documents || []).length >= MAX_DOCUMENTS_COUNT
                           ? "Maximum files reached"
-                          : uploadingDocuments ? "Uploading..." : "Click to upload documents"
-                        }
+                          : uploadingDocuments
+                            ? "Uploading..."
+                            : "Click to upload documents"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {(project.documents || []).length >= MAX_DOCUMENTS_COUNT
                           ? `Limit of ${MAX_DOCUMENTS_COUNT} files reached`
-                          : uploadingDocuments ? "Please wait..." : "or drag and drop (multiple files allowed)"
-                        }
+                          : uploadingDocuments
+                            ? "Please wait..."
+                            : "or drag and drop (multiple files allowed)"}
                       </p>
                       <input
                         type="file"
@@ -1652,7 +1932,11 @@ export default function EditProjectClient({ project }: Props) {
                         accept={ALLOWED_DOCUMENT_TYPES.join(",")}
                         className="hidden"
                         onChange={handleDocumentUpload}
-                        disabled={uploadingDocuments || (project.documents || []).length >= MAX_DOCUMENTS_COUNT}
+                        disabled={
+                          uploadingDocuments ||
+                          (project.documents || []).length >=
+                            MAX_DOCUMENTS_COUNT
+                        }
                       />
                     </label>
                   </div>
@@ -1665,7 +1949,7 @@ export default function EditProjectClient({ project }: Props) {
                           key={index}
                           className={cn(
                             "flex items-center justify-between p-3 rounded-md transition-colors",
-                            hoverIndex === index ? "bg-muted" : "bg-muted/40"
+                            hoverIndex === index ? "bg-muted" : "bg-muted/40",
                           )}
                           onMouseEnter={() => setHoverIndex(index)}
                           onMouseLeave={() => setHoverIndex(null)}
@@ -1673,8 +1957,12 @@ export default function EditProjectClient({ project }: Props) {
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             {getFileIcon(doc.type)}
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium truncate">{doc.name}</p>
-                              <p className="text-xs text-muted-foreground">{formatBytes(doc.size)}</p>
+                              <p className="text-sm font-medium truncate">
+                                {doc.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatBytes(doc.size)}
+                              </p>
                             </div>
                           </div>
                           <div className="flex gap-1 shrink-0">
@@ -1684,14 +1972,18 @@ export default function EditProjectClient({ project }: Props) {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={() => openPreview(doc.url, doc.name, doc.type)}
+                                onClick={() =>
+                                  openPreview(doc.url, doc.name, doc.type)
+                                }
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
                             )}
                             <Button
                               type="button"
-                              variant={hoverIndex === index ? "destructive" : "ghost"}
+                              variant={
+                                hoverIndex === index ? "destructive" : "ghost"
+                              }
                               size="icon"
                               className="h-8 w-8 transition-colors"
                               onClick={() => handleDeleteDocument(doc.url)}
@@ -1724,13 +2016,14 @@ export default function EditProjectClient({ project }: Props) {
               </Button>
             </div>
           </form>
-
         </CardContent>
 
         {/* Add Danger Zone section */}
         <CardFooter className="flex flex-col border-t pt-6">
           <div className="w-full">
-            <h3 className="text-lg font-medium text-destructive mb-2">Danger Zone</h3>
+            <h3 className="text-lg font-medium text-destructive mb-2">
+              Danger Zone
+            </h3>
             <p className="text-sm text-muted-foreground mb-6">
               These actions can&apos;t be undone. Please proceed with caution.
             </p>
@@ -1740,14 +2033,26 @@ export default function EditProjectClient({ project }: Props) {
               <div className="mb-6 flex items-start gap-3 p-4 rounded-md border border-destructive bg-destructive/10">
                 <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                 <div className="text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground mb-1">This project has been cancelled</p>
+                  <p className="font-medium text-foreground mb-1">
+                    This project has been cancelled
+                  </p>
                   <p>
-                    You can still edit details, but new signups are disabled and the project is marked as cancelled.
-                    If this was a mistake, please contact <Link className="text-primary hover:underline" href="mailto:support@lets-assist.com">support@lets-assist.com</Link>
+                    You can still edit details, but new signups are disabled and
+                    the project is marked as cancelled. If this was a mistake,
+                    please contact{" "}
+                    <Link
+                      className="text-primary hover:underline"
+                      href="mailto:support@lets-assist.com"
+                    >
+                      support@lets-assist.com
+                    </Link>
                   </p>
                   {project.cancellation_reason && (
                     <p className="mt-2 font-medium">
-                      Reason: <span className="font-normal">{project.cancellation_reason}</span>
+                      Reason:{" "}
+                      <span className="font-normal">
+                        {project.cancellation_reason}
+                      </span>
                     </p>
                   )}
                 </div>
@@ -1763,7 +2068,9 @@ export default function EditProjectClient({ project }: Props) {
                     Cancel Project
                   </h4>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Cancels the project and emails approved volunteers (including anonymous signups with an email address). The project remains in the system but is marked as cancelled.
+                    Cancels the project and emails approved volunteers
+                    (including anonymous signups with an email address). The
+                    project remains in the system but is marked as cancelled.
                   </p>
                   <Button
                     onClick={() => setShowCancelDialog(true)}
@@ -1781,7 +2088,8 @@ export default function EditProjectClient({ project }: Props) {
                   Delete Project
                 </h4>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Permanently removes this project and all associated data. This action cannot be undone.
+                  Permanently removes this project and all associated data. This
+                  action cannot be undone.
                 </p>
                 <TooltipProvider>
                   <Tooltip>
@@ -1803,7 +2111,10 @@ export default function EditProjectClient({ project }: Props) {
                     />
                     {isInDeletionRestrictionPeriod && (
                       <TooltipContent className="max-w-62.5 text-center p-2">
-                        <p>Projects cannot be deleted during the 72-hour window around the event</p>
+                        <p>
+                          Projects cannot be deleted during the 72-hour window
+                          around the event
+                        </p>
                       </TooltipContent>
                     )}
                   </Tooltip>
@@ -1818,15 +2129,20 @@ export default function EditProjectClient({ project }: Props) {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent className="max-w-[95vw] sm:max-w-106.25">
           <AlertDialogHeader className="space-y-3">
-            <AlertDialogTitle className="text-lg sm:text-xl">Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle className="text-lg sm:text-xl">
+              Are you sure?
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-sm">
               This action cannot be undone. This will permanently delete your
-              project and remove all data associated with it, including volunteer
-              signups and documents. If you need to cancel or reschedule, we recommend you cancel the project instead.
+              project and remove all data associated with it, including
+              volunteer signups and documents. If you need to cancel or
+              reschedule, we recommend you cancel the project instead.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-3">
-            <AlertDialogCancel className="w-full sm:w-auto mt-0">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="w-full sm:w-auto mt-0">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteProject}
               className="w-full sm:w-auto bg-destructive/10 text-destructive hover:bg-destructive/20"

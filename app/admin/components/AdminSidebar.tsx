@@ -4,7 +4,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Menu, MessageSquare, ShieldAlert, Users, BellRing, BadgeCheck, UserX, Megaphone, Puzzle } from "lucide-react";
+import {
+  LayoutDashboard,
+  Menu,
+  MessageSquare,
+  ShieldAlert,
+  Users,
+  BellRing,
+  BadgeCheck,
+  UserX,
+  Megaphone,
+  Puzzle,
+} from "lucide-react";
 import {
   Sheet,
   SheetClose,
@@ -21,18 +32,62 @@ interface AdminSidebarProps {
 }
 
 const navItems = [
-  { id: "overview", href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
-  { id: "notifications", href: "/admin/notifications", label: "Notifications", icon: BellRing },
-  { id: "system-banner", href: "/admin/system-banner", label: "System Banner", icon: Megaphone },
-  { id: "user-access", href: "/admin/user-access", label: "User Access", icon: UserX },
-  { id: "organizations", href: "/admin/organizations", label: "Organizations", icon: BadgeCheck },
+  {
+    id: "overview",
+    href: "/admin",
+    label: "Overview",
+    icon: LayoutDashboard,
+    exact: true,
+  },
+  {
+    id: "notifications",
+    href: "/admin/notifications",
+    label: "Notifications",
+    icon: BellRing,
+  },
+  {
+    id: "system-banner",
+    href: "/admin/system-banner",
+    label: "System Banner",
+    icon: Megaphone,
+  },
+  {
+    id: "user-access",
+    href: "/admin/user-access",
+    label: "User Access",
+    icon: UserX,
+  },
+  {
+    id: "organizations",
+    href: "/admin/organizations",
+    label: "Organizations",
+    icon: BadgeCheck,
+  },
   { id: "plugins", href: "/admin/plugins", label: "Plugins", icon: Puzzle },
-  { id: "feedback", href: "/admin/feedback", label: "Feedback", icon: MessageSquare },
-  { id: "trusted-members", href: "/admin/trusted-members", label: "Trusted Members", icon: Users },
-  { id: "moderation", href: "/admin/moderation", label: "Moderation", icon: ShieldAlert },
+  {
+    id: "feedback",
+    href: "/admin/feedback",
+    label: "Feedback",
+    icon: MessageSquare,
+  },
+  {
+    id: "trusted-members",
+    href: "/admin/trusted-members",
+    label: "Trusted Members",
+    icon: Users,
+  },
+  {
+    id: "moderation",
+    href: "/admin/moderation",
+    label: "Moderation",
+    icon: ShieldAlert,
+  },
 ];
 
-export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps = {}) {
+export function AdminSidebar({
+  activeTab,
+  onTabChange,
+}: AdminSidebarProps = {}) {
   const pathname = usePathname();
 
   return (
@@ -43,20 +98,21 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps = {})
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
         {navItems.map((item) => {
-          const isActive = activeTab !== undefined
-            ? activeTab === item.id
-            : item.exact
-              ? pathname === item.href
-              : pathname.startsWith(item.href);
+          const isActive =
+            activeTab !== undefined
+              ? activeTab === item.id
+              : item.exact
+                ? pathname === item.href
+                : pathname.startsWith(item.href);
 
           const buttonProps = onTabChange
             ? {
-              onClick: () => onTabChange(item.id),
-              asChild: false,
-            }
+                onClick: () => onTabChange(item.id),
+                asChild: false,
+              }
             : {
-              asChild: true,
-            };
+                asChild: true,
+              };
 
           return (
             <Button
@@ -64,7 +120,7 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps = {})
               variant={isActive ? "secondary" : "ghost"}
               className={cn(
                 "w-full justify-start gap-2",
-                isActive && "bg-secondary"
+                isActive && "bg-secondary",
               )}
               {...buttonProps}
             >
@@ -87,12 +143,20 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps = {})
   );
 }
 
-export function AdminMobileNav({ activeTab, onTabChange }: AdminSidebarProps = {}) {
+export function AdminMobileNav({
+  activeTab,
+  onTabChange,
+}: AdminSidebarProps = {}) {
   const pathname = usePathname();
 
   return (
     <Sheet>
-      <SheetTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "md:hidden")}>
+      <SheetTrigger
+        className={cn(
+          buttonVariants({ variant: "ghost", size: "icon" }),
+          "md:hidden",
+        )}
+      >
         <Menu className="h-5 w-5" />
       </SheetTrigger>
       <SheetContent side="left" className="flex h-full w-72 flex-col p-4">
@@ -102,22 +166,29 @@ export function AdminMobileNav({ activeTab, onTabChange }: AdminSidebarProps = {
         </SheetHeader>
         <nav className="mt-6 flex-1 space-y-2 overflow-y-auto pr-1">
           {navItems.map((item) => {
-            const isActive = activeTab !== undefined
-              ? activeTab === item.id
-              : item.exact
-                ? pathname === item.href
-                : pathname.startsWith(item.href);
+            const isActive =
+              activeTab !== undefined
+                ? activeTab === item.id
+                : item.exact
+                  ? pathname === item.href
+                  : pathname.startsWith(item.href);
 
             if (onTabChange) {
               return (
                 <SheetClose
                   key={item.id}
-                  className={cn("w-full justify-start gap-2", isActive && "bg-secondary")}
+                  className={cn(
+                    "w-full justify-start gap-2",
+                    isActive && "bg-secondary",
+                  )}
                   render={
                     <Button
                       type="button"
                       variant={isActive ? "secondary" : "ghost"}
-                      className={cn("w-full justify-start gap-2", isActive && "bg-secondary")}
+                      className={cn(
+                        "w-full justify-start gap-2",
+                        isActive && "bg-secondary",
+                      )}
                       onClick={() => onTabChange(item.id)}
                     />
                   }
@@ -135,7 +206,9 @@ export function AdminMobileNav({ activeTab, onTabChange }: AdminSidebarProps = {
                   <Link
                     href={item.href}
                     className={cn(
-                      buttonVariants({ variant: isActive ? "secondary" : "ghost" }),
+                      buttonVariants({
+                        variant: isActive ? "secondary" : "ghost",
+                      }),
                       "w-full justify-start gap-2 flex items-center",
                       isActive && "bg-secondary",
                     )}

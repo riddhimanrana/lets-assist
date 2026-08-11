@@ -1,11 +1,19 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Building2, LogIn, UserPlus, ArrowRight, ShieldCheck, Sparkles, CheckCircle2 } from "lucide-react";
+import {
+  Building2,
+  LogIn,
+  UserPlus,
+  ArrowRight,
+  ShieldCheck,
+  Sparkles,
+  CheckCircle2,
+} from "lucide-react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "motion/react";
 
 interface AuthDialogProps {
   organization: {
@@ -16,7 +24,10 @@ interface AuthDialogProps {
   joinCode: string;
 }
 
-export default function AuthDialog({ organization, joinCode }: AuthDialogProps) {
+export default function AuthDialog({
+  organization,
+  joinCode,
+}: AuthDialogProps) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -38,12 +49,15 @@ export default function AuthDialog({ organization, joinCode }: AuthDialogProps) 
               <div className="absolute inset-0 bg-primary/20 rounded-[2rem] blur-2xl group-hover:bg-primary/30 transition-all duration-500" />
               <div className="relative">
                 <Avatar className="h-28 w-28 ring-8 ring-background/50 shadow-2xl relative z-10 rounded-[2.2rem] overflow-hidden">
-                  <AvatarImage src={organization.logo_url || undefined} className="object-cover" />
+                  <AvatarImage
+                    src={organization.logo_url || undefined}
+                    className="object-cover"
+                  />
                   <AvatarFallback className="bg-gradient-to-br from-primary/10 to-primary/5 text-primary rounded-[2.2rem]">
                     <Building2 className="h-12 w-12" />
                   </AvatarFallback>
                 </Avatar>
-                <motion.div 
+                <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.4, type: "spring" }}
@@ -65,19 +79,20 @@ export default function AuthDialog({ organization, joinCode }: AuthDialogProps) 
                 Join {organization.name}
               </CardTitle>
             </motion.div>
-            <motion.p 
+            <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
               className="text-muted-foreground font-medium text-balance px-4"
             >
-              You've been invited to join this community. Sign in or create an account to get started.
+              You've been invited to join this community. Sign in or create an
+              account to get started.
             </motion.p>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-8 pb-12 px-10">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
@@ -87,7 +102,9 @@ export default function AuthDialog({ organization, joinCode }: AuthDialogProps) 
               asChild
               className="w-full h-14 text-base font-bold rounded-2xl group relative overflow-hidden shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-[0.98]"
             >
-              <Link href={`/login?redirect=/organization/join?code=${joinCode}`}>
+              <Link
+                href={`/login?redirect=/organization/join?code=${joinCode}`}
+              >
                 <div className="relative z-10 flex items-center justify-center w-full">
                   <LogIn className="h-5 w-5 mr-3 group-hover:translate-x-0.5 transition-transform" />
                   Sign In to Join
@@ -112,7 +129,9 @@ export default function AuthDialog({ organization, joinCode }: AuthDialogProps) 
               asChild
               className="w-full h-14 text-base font-bold rounded-2xl border-2 border-primary/10 hover:bg-primary/5 hover:border-primary/20 transition-all group active:scale-[0.98]"
             >
-              <Link href={`/signup?redirect=/organization/join?code=${joinCode}`}>
+              <Link
+                href={`/signup?redirect=/organization/join?code=${joinCode}`}
+              >
                 <UserPlus className="h-5 w-5 mr-3 text-primary/70" />
                 Create Account
                 <Sparkles className="h-4 w-4 ml-auto text-primary/40 group-hover:text-primary group-hover:rotate-12 transition-all duration-300" />
@@ -120,7 +139,7 @@ export default function AuthDialog({ organization, joinCode }: AuthDialogProps) 
             </Button>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
@@ -133,7 +152,8 @@ export default function AuthDialog({ organization, joinCode }: AuthDialogProps) 
               <CheckCircle2 className="size-4 text-primary" />
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground/80 font-medium">
-              By joining, you'll gain access to private tournaments, roster management tools, and member-only resources.
+              By joining, you'll gain access to private tournaments, roster
+              management tools, and member-only resources.
             </p>
           </motion.div>
         </CardContent>

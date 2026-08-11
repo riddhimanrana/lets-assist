@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useInView } from "framer-motion";
+import { AnimatePresence, motion, useInView } from "motion/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Mail, QrCode, BarChart3, Award } from "lucide-react";
 import { MiniProjectCard } from "./journey/MiniProjectCard";
@@ -9,6 +9,7 @@ import { EmailNotification } from "./journey/EmailNotification";
 import { QRScannerPreview } from "./journey/QRScannerPreview";
 import { MiniDashboard } from "./journey/MiniDashboard";
 import { MiniCertificate } from "./journey/MiniCertificate";
+import { AnimatedText } from "./AnimatedText";
 
 const steps = [
   {
@@ -58,7 +59,7 @@ const mockProjectData = {
   creatorAvatarHeight: 40,
 };
 
-const mockDashboardData = { 
+const mockDashboardData = {
   totalHours: 24.5,
   totalProjects: 6,
   progressPercentage: 75,
@@ -81,7 +82,10 @@ export default function VolunteerJourneySection() {
       return;
     }
 
-    const id = setInterval(() => setActive((s) => (s + 1) % steps.length), 3000);
+    const id = setInterval(
+      () => setActive((s) => (s + 1) % steps.length),
+      3000,
+    );
     return () => clearInterval(id);
   }, [sectionInView]);
 
@@ -94,11 +98,12 @@ export default function VolunteerJourneySection() {
       ),
       signup: <EmailNotification />,
       qr: <QRScannerPreview shouldAnimate={sectionInView} />,
-      dashboard: (
-        <MiniDashboard {...mockDashboardData} />
-      ),
+      dashboard: <MiniDashboard {...mockDashboardData} />,
       certificate: (
-        <MiniCertificate {...mockCertificateData} shouldAnimate={sectionInView} />
+        <MiniCertificate
+          {...mockCertificateData}
+          shouldAnimate={sectionInView}
+        />
       ),
     }),
     [sectionInView],
@@ -115,15 +120,34 @@ export default function VolunteerJourneySection() {
           className="text-center mx-auto max-w-2xl mb-8 relative"
         >
           {/* Faint background lines behind heading */}
-          <svg aria-hidden="true" className="pointer-events-none absolute -z-10 inset-0 h-[120%] w-full opacity-[0.08] dark:opacity-[0.12]" viewBox="0 0 600 200" preserveAspectRatio="none">
-            <path d="M0,100 C150,80 300,120 450,100 C525,90 575,110 600,100" fill="none" stroke="currentColor" strokeWidth="1" />
-            <path d="M0,120 C150,100 300,140 450,120 C525,110 575,130 600,120" fill="none" stroke="currentColor" strokeWidth="1" />
+          <svg
+            aria-hidden="true"
+            className="pointer-events-none absolute -z-10 inset-0 h-[120%] w-full opacity-[0.08] dark:opacity-[0.12]"
+            viewBox="0 0 600 200"
+            preserveAspectRatio="none"
+          >
+            <path
+              d="M0,100 C150,80 300,120 450,100 C525,90 575,110 600,100"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+            />
+            <path
+              d="M0,120 C150,100 300,140 450,120 C525,110 575,130 600,120"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+            />
           </svg>
-          <h2 className="font-overusedgrotesk text-3xl sm:text-4xl tracking-tight">
-            From discovery to certified impact
+          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            <AnimatedText
+              text="From discovery to certified impact"
+              mode="words"
+            />
           </h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground">
-            The complete volunteer workflow — sign up, show up, track hours, share proof.
+            The complete volunteer workflow — sign up, show up, track hours,
+            share proof.
           </p>
         </motion.div>
 
@@ -168,14 +192,20 @@ export default function VolunteerJourneySection() {
                   aria-pressed={i === active}
                   className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-2xl"
                 >
-                  <Card className={`h-full border-border/60 bg-background/90 shadow-xs ${i === active ? "ring-2 ring-primary/30" : ""}`}>
+                  <Card
+                    className={`h-full border-border/60 bg-background/90 shadow-xs ${i === active ? "ring-2 ring-primary/30" : ""}`}
+                  >
                     <CardContent className="flex items-start gap-4 p-4">
                       <div className="rounded-full bg-primary/10 p-2 text-primary mt-1">
                         <step.icon className="h-4 w-4" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-foreground">{step.label}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{step.desc}</p>
+                        <p className="text-sm font-semibold text-foreground">
+                          {step.label}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {step.desc}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>

@@ -1,6 +1,6 @@
 // Signup-related types
-import type { SignupStatus } from './common';
-import type { WaiverSignature } from './waiver';
+import type { SignupStatus } from "./common";
+import type { WaiverSignature } from "./waiver";
 
 export interface AnonymousSignupData {
   name: string;
@@ -10,6 +10,8 @@ export interface AnonymousSignupData {
   captchaToken?: string;
   skipConfirmationEmail?: boolean;
   selectedSlotCount?: number;
+  /** Short-lived server-issued capability used only to continue a multi-slot signup. */
+  continuationToken?: string;
 }
 
 export interface ProjectSignup {
@@ -20,7 +22,7 @@ export interface ProjectSignup {
   status: SignupStatus;
   anonymous_id?: string | null;
   volunteer_comment?: string | null;
-  response_data?: Record<string, any> | null;
+  response_data?: Record<string, unknown> | null;
   waiver_signature?: WaiverSignature | WaiverSignature[] | null;
   anonymous_name?: string;
   anonymous_email?: string;
@@ -60,13 +62,13 @@ export interface Signup {
   project_id: string;
   user_id: string | null;
   schedule_id: string;
-  status: 'pending' | 'approved' | 'rejected' | 'attended';
+  status: "pending" | "approved" | "rejected" | "attended" | "cancelled";
   created_at: string;
   updated_at: string;
   check_in_time: string | null;
   check_out_time: string | null;
   volunteer_comment?: string | null;
-  response_data?: Record<string, any> | null;
+  response_data?: Record<string, unknown> | null;
   waiver_signature?: WaiverSignature | WaiverSignature[] | null;
   email?: string | null;
   full_name?: string | null;

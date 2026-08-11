@@ -1,11 +1,7 @@
 import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
 
 export type StaffInviteStatus =
-  | "success"
-  | "invalid_token"
-  | "expired_token"
-  | "org_not_found"
-  | "error";
+  "success" | "invalid_token" | "expired_token" | "org_not_found" | "error";
 
 export interface StaffInviteOutcome {
   status: StaffInviteStatus;

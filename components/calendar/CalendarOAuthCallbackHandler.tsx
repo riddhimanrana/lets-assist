@@ -16,15 +16,15 @@ export default function CalendarOAuthCallbackHandler() {
   useEffect(() => {
     type PendingSyncData =
       | {
-        type: "signup";
-        signupId: string;
-        projectId: string;
-        scheduleId: string;
-      }
+          type: "signup";
+          signupId: string;
+          projectId: string;
+          scheduleId: string;
+        }
       | {
-        type: "project";
-        projectId: string;
-      };
+          type: "project";
+          projectId: string;
+        };
 
     const sync = async (syncData: PendingSyncData) => {
       try {
@@ -37,7 +37,7 @@ export default function CalendarOAuthCallbackHandler() {
               body: JSON.stringify({
                 signup_id: signupId,
                 project_id: projectId,
-                schedule_id: scheduleId
+                schedule_id: scheduleId,
               }),
             });
 
@@ -80,11 +80,15 @@ export default function CalendarOAuthCallbackHandler() {
     };
 
     const handlePendingSync = async () => {
-      const pendingSyncDataString = sessionStorage.getItem("pendingCalendarSync");
+      const pendingSyncDataString = sessionStorage.getItem(
+        "pendingCalendarSync",
+      );
       const redirectUrl = sessionStorage.getItem("calendarRedirectUrl");
 
       if (pendingSyncDataString) {
-        const pendingSyncData = JSON.parse(pendingSyncDataString) as PendingSyncData;
+        const pendingSyncData = JSON.parse(
+          pendingSyncDataString,
+        ) as PendingSyncData;
         sessionStorage.removeItem("pendingCalendarSync");
         await sync(pendingSyncData);
       }

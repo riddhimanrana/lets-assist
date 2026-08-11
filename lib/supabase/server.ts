@@ -1,10 +1,14 @@
 /**
  * Server-side Supabase client for Server Components, Server Actions, and Route Handlers.
  *
- * ## Auth Guidelines (per Supabase Issue #40985)
+ * ## Auth Guidelines
  *
- * **DO NOT** call `supabase.auth.getUser()` or `supabase.auth.getSession()` directly.
- * Instead, use the auth helpers from `@/lib/supabase/auth-helpers`:
+ * Proxy code should call `supabase.auth.getClaims()` immediately after creating
+ * the request-scoped SSR client so tokens are validated and refresh cookies are
+ * written back before any other work runs.
+ *
+ * Server Components, Server Actions, and Route Handlers should use the auth
+ * helpers from `@/lib/supabase/auth-helpers`:
  *
  * ```typescript
  * import { getAuthUser, requireAuth } from "@/lib/supabase/auth-helpers";
@@ -20,39 +24,41 @@
  * ```
  *
  * @see /lib/supabase/auth-helpers.ts for the recommended auth patterns
- * @see https://github.com/supabase/supabase/issues/40985 for context
+ * @see https://supabase.com/docs/guides/auth/server-side/nextjs
  */
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { SUPABASE_DB_OPTIONS } from "./retry-policy";
 
 export async function createClient() {
-    let cookieStore: Awaited<ReturnType<typeof cookies>> | undefined;
-    try {
-        cookieStore = await cookies();
-    } catch {
-        // Not in a request scope (e.g. CLI script or cron)
-    }
+  let cookieStore: Awaited<ReturnType<typeof cookies>> | undefined;
+  try {
+    cookieStore = await cookies();
+  } catch {
+    // Not in a request scope (e.g. CLI script or cron)
+  }
 
-    return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore?.getAll() ?? [];
-                },
-                setAll(cookiesToSet) {
-                    if (!cookieStore) return;
-                    try {
-                        cookiesToSet.forEach(({ name, value, options }) =>
-                            cookieStore.set(name, value, options)
-                        );
-                    } catch {
-                        // The `setAll` method was called from a Server Component.
-                    }
-                },
-            },
-        }
-    );
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      db: SUPABASE_DB_OPTIONS,
+      cookies: {
+        getAll() {
+          return cookieStore?.getAll() ?? [];
+        },
+        setAll(cookiesToSet) {
+          if (!cookieStore) return;
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options),
+            );
+          } catch {
+            // The `setAll` method was called from a Server Component.
+          }
+        },
+      },
+    },
+  );
 }

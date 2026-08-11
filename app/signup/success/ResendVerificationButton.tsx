@@ -1,57 +1,76 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Loader2, Mail } from 'lucide-react';
-import { resendVerificationEmail } from '../actions';
-import { toast } from 'sonner';
-import { BotVerificationDialog } from '@/components/shared/BotVerificationDialog';
+import { useState, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Mail } from "lucide-react";
+import { resendVerificationEmail } from "../actions";
+import { toast } from "sonner";
+import { BotVerificationDialog } from "@/components/shared/BotVerificationDialog";
 
 interface ResendVerificationButtonProps {
   email: string;
   redirectPath?: string | null;
 }
 
-export function ResendVerificationButton({ email, redirectPath }: ResendVerificationButtonProps) {
+export function ResendVerificationButton({
+  email,
+  redirectPath,
+}: ResendVerificationButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const [isCaptchaOpen, setIsCaptchaOpen] = useState(false);
+  // Prevents double-fire: with bypass mode the Turnstile onVerify fires immediately
+  // on mount. We only want it to do something after the user intentionally clicks Resend.
+  const hasFiredRef = useRef(false);
 
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     }
-
     setCanResend(true);
   }, [countdown]);
 
   const handleVerified = async (token: string) => {
+    // Guard: only allow one call per dialog open cycle
+    if (hasFiredRef.current || isLoading) return;
+    hasFiredRef.current = true;
     setIsLoading(true);
 
     try {
-      const result = await resendVerificationEmail(email, token, redirectPath ?? null);
+      const result = await resendVerificationEmail(
+        email,
+        token,
+        redirectPath ?? null,
+      );
 
       if (result.success) {
-        toast.success(result.message || 'Verification email sent!');
+        toast.success(result.message || "Verification email sent!");
         setCountdown(60);
         setCanResend(false);
         setIsCaptchaOpen(false);
       } else {
-        toast.error(result.error || 'Failed to resend email');
+        toast.error(result.error || "Failed to resend email");
+        hasFiredRef.current = false;
       }
     } catch {
-      toast.error('An error occurred. Please try again.');
+      toast.error("An error occurred. Please try again.");
+      hasFiredRef.current = false;
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleOpen = () => {
+    hasFiredRef.current = false; // Reset guard each time dialog opens
+    setIsCaptchaOpen(true);
+  };
+
   return (
     <>
       <Button
-        onClick={() => setIsCaptchaOpen(true)}
+        onClick={handleOpen}
         disabled={!canResend || isLoading}
         variant="outline"
         className="w-full"

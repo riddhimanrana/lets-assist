@@ -1,93 +1,150 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { generateText, Output } from 'ai';
-import { z } from 'zod';
-import { getAuthUser } from '@/lib/supabase/auth-helpers';
-import { PDFDocument } from 'pdf-lib';
-import { extractPdfTextWithPositions } from '@/lib/waiver/pdf-text-extract';
-import { findLabels } from '@/lib/waiver/label-detection';
-import { detectCandidateAreas } from '@/lib/waiver/candidate-detection';
-import { detectPdfWidgets } from '@/lib/waiver/pdf-field-detect';
-import type { CandidateArea } from '@/lib/waiver/candidate-detection';
-import type { DetectedPdfField } from '@/lib/waiver/pdf-field-detect';
-import { gatewayModel } from '@/lib/ai/gateway';
-import { createPostHogTelemetry } from '@/lib/ai/posthog-telemetry';
+import { NextRequest, NextResponse } from "next/server";
+import { generateText, Output } from "ai";
+import { z } from "zod";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { PDFDocument } from "pdf-lib";
+import { extractPdfTextWithPositions } from "@/lib/waiver/pdf-text-extract";
+import { findLabels } from "@/lib/waiver/label-detection";
+import { detectCandidateAreas } from "@/lib/waiver/candidate-detection";
+import { detectPdfWidgets } from "@/lib/waiver/pdf-field-detect";
+import type { CandidateArea } from "@/lib/waiver/candidate-detection";
+import type { DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
+import { gatewayModel } from "@/lib/ai/gateway";
+import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
 
 const FIELD_TYPES = [
-  'signature',
-  'name',
-  'date',
-  'email',
-  'phone',
-  'address',
-  'text',
-  'checkbox',
-  'radio',
-  'dropdown',
-  'initial',
+  "signature",
+  "name",
+  "date",
+  "email",
+  "phone",
+  "address",
+  "text",
+  "checkbox",
+  "radio",
+  "dropdown",
+  "initial",
 ] as const;
 
 const ENABLE_VISION_FALLBACK = true;
 const DEFAULT_STRICT_HALLUCINATION_GUARD = true;
-const DEFAULT_AI_MODEL = 'google/gemini-2.5-flash-lite';
+const DEFAULT_AI_MODEL = "google/gemini-2.5-flash-lite";
 const ALLOWED_AI_MODELS = new Set([
-  'google/gemini-2.5-flash-lite',
-  'google/gemini-2.5-flash',
-  'google/gemini-3-flash',
+  "google/gemini-2.5-flash-lite",
+  "google/gemini-2.5-flash",
+  "google/gemini-3-flash",
 ]);
 
 // Phase 3: New schema for AI output with candidate selection
 const SelectedFieldSchema = z.object({
-  candidateId: z.string().describe('ID of the selected candidate area from the structured input data'),
-  fieldType: z.enum(FIELD_TYPES).describe('Type of form field'),
-  signerRole: z.string().describe('Who should fill this field (e.g., "volunteer", "parent", "guardian")'),
-  label: z.string().describe('Human-readable label for this field'),
-  required: z.boolean().describe('Whether this field is required'),
-  confidence: z.number().min(0).max(1).optional().describe('Confidence score for this classification (0-1)'),
-  reasoning: z.string().optional().describe('Brief explanation of why this candidate was selected'),
+  candidateId: z
+    .string()
+    .describe(
+      "ID of the selected candidate area from the structured input data",
+    ),
+  fieldType: z.enum(FIELD_TYPES).describe("Type of form field"),
+  signerRole: z
+    .string()
+    .describe(
+      'Who should fill this field (e.g., "volunteer", "parent", "guardian")',
+    ),
+  label: z.string().describe("Human-readable label for this field"),
+  required: z.boolean().describe("Whether this field is required"),
+  confidence: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .describe("Confidence score for this classification (0-1)"),
+  reasoning: z
+    .string()
+    .optional()
+    .describe("Brief explanation of why this candidate was selected"),
 });
 
 const WaiverClassificationSchema = z.object({
-  pageCount: z.number().finite().describe('Total number of pages in the PDF'),
-  selectedFields: z.array(SelectedFieldSchema).describe('Fields identified by selecting candidate IDs from the structured input'),
+  pageCount: z.number().finite().describe("Total number of pages in the PDF"),
+  selectedFields: z
+    .array(SelectedFieldSchema)
+    .describe(
+      "Fields identified by selecting candidate IDs from the structured input",
+    ),
   signerRoles: z.array(
     z.object({
-      roleKey: z.string().describe('Machine-readable key (e.g., "volunteer", "parent", "guardian")'),
-      label: z.string().describe('Human-readable label (e.g., "Volunteer", "Parent/Guardian")'),
-      required: z.boolean().describe('Whether this role must sign based on the waiver text'),
-      description: z.string().optional().describe('Context about when this signer is needed'),
-    })
+      roleKey: z
+        .string()
+        .describe(
+          'Machine-readable key (e.g., "volunteer", "parent", "guardian")',
+        ),
+      label: z
+        .string()
+        .describe(
+          'Human-readable label (e.g., "Volunteer", "Parent/Guardian")',
+        ),
+      required: z
+        .boolean()
+        .describe("Whether this role must sign based on the waiver text"),
+      description: z
+        .string()
+        .optional()
+        .describe("Context about when this signer is needed"),
+    }),
   ),
-  summary: z.string().describe('Brief summary of what the waiver covers'),
-  recommendations: z.array(z.string()).describe('Suggestions for setting up the waiver fields'),
-  reasoning: z.string().optional().describe('Overall reasoning about the document structure and field selections'),
+  summary: z.string().describe("Brief summary of what the waiver covers"),
+  recommendations: z
+    .array(z.string())
+    .describe("Suggestions for setting up the waiver fields"),
+  reasoning: z
+    .string()
+    .optional()
+    .describe(
+      "Overall reasoning about the document structure and field selections",
+    ),
 });
 
 const VisionDetectedFieldSchema = z.object({
-  fieldType: z.enum(FIELD_TYPES).describe('Type of form field'),
-  label: z.string().describe('Human-readable label for this field'),
-  signerRole: z.string().describe('Who should fill this field (e.g., volunteer, parent, guardian)'),
-  pageIndex: z.number().int().nonnegative().describe('Page index (prefer 0-based; 1-based accepted and normalized)'),
-  normalizedBoxTopLeft: z.object({
-    x: z.number().min(0),
-    y: z.number().min(0),
-    width: z.number().min(0),
-    height: z.number().min(0),
-  }).describe('Box using TOP-LEFT origin. Values may be normalized (0..1) OR absolute page units.'),
+  fieldType: z.enum(FIELD_TYPES).describe("Type of form field"),
+  label: z.string().describe("Human-readable label for this field"),
+  signerRole: z
+    .string()
+    .describe("Who should fill this field (e.g., volunteer, parent, guardian)"),
+  pageIndex: z
+    .number()
+    .int()
+    .nonnegative()
+    .describe("Page index (prefer 0-based; 1-based accepted and normalized)"),
+  normalizedBoxTopLeft: z
+    .object({
+      x: z.number().min(0),
+      y: z.number().min(0),
+      width: z.number().min(0),
+      height: z.number().min(0),
+    })
+    .describe(
+      "Box using TOP-LEFT origin. Values may be normalized (0..1) OR absolute page units.",
+    ),
   required: z.boolean(),
-  confidence: z.number().min(0).max(1).optional().describe('Confidence score for this placement (0-1)'),
+  confidence: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .describe("Confidence score for this placement (0-1)"),
   reasoning: z.string().optional(),
 });
 
 const VisionFallbackSchema = z.object({
   fields: z.array(VisionDetectedFieldSchema),
-  signerRoles: z.array(
-    z.object({
-      roleKey: z.string(),
-      label: z.string(),
-      required: z.boolean(),
-      description: z.string().optional(),
-    })
-  ).optional(),
+  signerRoles: z
+    .array(
+      z.object({
+        roleKey: z.string(),
+        label: z.string(),
+        required: z.boolean(),
+        description: z.string().optional(),
+      }),
+    )
+    .optional(),
   summary: z.string().optional(),
   recommendations: z.array(z.string()).optional(),
 });
@@ -103,11 +160,11 @@ interface PageDimension {
  * - Origin: bottom-left corner of each page
  * - Units: PDF points (1/72 inch)
  * - Y-axis: increases upward from page bottom
- * 
+ *
  * No coordinate system inference or y-axis flipping is performed.
  */
 interface ParsedField {
-  fieldType: typeof FIELD_TYPES[number];
+  fieldType: (typeof FIELD_TYPES)[number];
   label: string;
   signerRole: string;
   pageIndex: number;
@@ -120,7 +177,9 @@ interface ParsedField {
   required: boolean;
   notes?: string;
 }
-type ParsedRole = z.infer<typeof WaiverClassificationSchema>['signerRoles'][number];
+type ParsedRole = z.infer<
+  typeof WaiverClassificationSchema
+>["signerRoles"][number];
 export type AnalyzeWaiverNormalizedField = ParsedField;
 export type AnalyzeWaiverPageDimension = PageDimension;
 
@@ -135,7 +194,7 @@ export interface SelectableCandidate {
   };
   typeHint: string;
   score: number;
-  source: 'widget' | 'underscore' | 'right_of_label';
+  source: "widget" | "underscore" | "right_of_label";
   nearbyLabelTypes?: string[];
   required?: boolean;
   label?: string;
@@ -150,7 +209,10 @@ function safeNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function appendFieldNote(existing: string | undefined, addition: string): string {
+function appendFieldNote(
+  existing: string | undefined,
+  addition: string,
+): string {
   const trimmedExisting = existing?.trim();
   if (!trimmedExisting) return addition;
   if (trimmedExisting.includes(addition)) return trimmedExisting;
@@ -161,15 +223,15 @@ function normalizeRoleKey(raw: string): string {
   const cleaned = raw
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 
-  return cleaned || 'volunteer';
+  return cleaned || "volunteer";
 }
 
 function getIou(
   a: { x: number; y: number; width: number; height: number },
-  b: { x: number; y: number; width: number; height: number }
+  b: { x: number; y: number; width: number; height: number },
 ): number {
   const x1 = Math.max(a.x, b.x);
   const y1 = Math.max(a.y, b.y);
@@ -189,89 +251,95 @@ function getIou(
   return unionArea > 0 ? interArea / unionArea : 0;
 }
 
-function toFieldTypeHint(raw: string): typeof FIELD_TYPES[number] {
+function toFieldTypeHint(raw: string): (typeof FIELD_TYPES)[number] {
   const normalized = raw.toLowerCase();
 
-  if (normalized === 'printed_name') return 'name';
-  if (normalized === 'initials') return 'initial';
-  if (normalized === 'parent_guardian' || normalized === 'witness' || normalized === 'other') return 'text';
+  if (normalized === "printed_name") return "name";
+  if (normalized === "initials") return "initial";
+  if (
+    normalized === "parent_guardian" ||
+    normalized === "witness" ||
+    normalized === "other"
+  )
+    return "text";
 
   if ((FIELD_TYPES as readonly string[]).includes(normalized)) {
-    return normalized as typeof FIELD_TYPES[number];
+    return normalized as (typeof FIELD_TYPES)[number];
   }
 
-  return 'text';
+  return "text";
 }
 
-function inferWidgetFieldType(widget: DetectedPdfField): typeof FIELD_TYPES[number] {
+function inferWidgetFieldType(
+  widget: DetectedPdfField,
+): (typeof FIELD_TYPES)[number] {
   const base = toFieldTypeHint(widget.fieldType);
-  if (base !== 'text') {
+  if (base !== "text") {
     return base;
   }
 
-  const name = (widget.fieldName || '').toLowerCase();
+  const name = (widget.fieldName || "").toLowerCase();
 
-  if (/signature|sign_here|signer_sign|parent_sign|guardian_sign/.test(name)) return 'signature';
-  if (/initial/.test(name)) return 'initial';
-  if (/date|signed_on|dob/.test(name)) return 'date';
-  if (/name|print_name|printed_name/.test(name)) return 'name';
-  if (/email|e_mail/.test(name)) return 'email';
-  if (/phone|mobile|cell/.test(name)) return 'phone';
+  if (/signature|sign_here|signer_sign|parent_sign|guardian_sign/.test(name))
+    return "signature";
+  if (/initial/.test(name)) return "initial";
+  if (/date|signed_on|dob/.test(name)) return "date";
+  if (/name|print_name|printed_name/.test(name)) return "name";
+  if (/email|e_mail/.test(name)) return "email";
+  if (/phone|mobile|cell/.test(name)) return "phone";
 
-  return 'text';
+  return "text";
 }
 
 function toDefaultFieldLabel(fieldName: string, typeHint: string): string {
-  const cleaned = fieldName
-    .replace(/[_-]+/g, ' ')
-    .trim();
+  const cleaned = fieldName.replace(/[_-]+/g, " ").trim();
 
   if (cleaned.length > 0) {
     return cleaned
-      .split(' ')
+      .split(" ")
       .filter(Boolean)
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
+      .join(" ");
   }
 
   return `Field (${typeHint})`;
 }
 
-function defaultLabelForType(fieldType: typeof FIELD_TYPES[number]) {
+function defaultLabelForType(fieldType: (typeof FIELD_TYPES)[number]) {
   switch (fieldType) {
-    case 'signature':
-      return 'Signature';
-    case 'initial':
-      return 'Initials';
-    case 'date':
-      return 'Date';
-    case 'name':
-      return 'Name';
-    case 'email':
-      return 'Email';
-    case 'phone':
-      return 'Phone';
-    case 'address':
-      return 'Address';
+    case "signature":
+      return "Signature";
+    case "initial":
+      return "Initials";
+    case "date":
+      return "Date";
+    case "name":
+      return "Name";
+    case "email":
+      return "Email";
+    case "phone":
+      return "Phone";
+    case "address":
+      return "Address";
     default:
-      return 'Text';
+      return "Text";
   }
 }
 
 function shouldIncludeFallbackCandidate(candidate: SelectableCandidate) {
-  if (candidate.source === 'widget') return false;
+  if (candidate.source === "widget") return false;
 
-  const allowedTypes = new Set<typeof FIELD_TYPES[number]>([
-    'signature',
-    'initial',
-    'date',
-    'name',
-    'email',
-    'phone',
-    'address',
+  const allowedTypes = new Set<(typeof FIELD_TYPES)[number]>([
+    "signature",
+    "initial",
+    "date",
+    "name",
+    "email",
+    "phone",
+    "address",
   ]);
 
-  if (allowedTypes.has(candidate.typeHint as typeof FIELD_TYPES[number])) {
+  if (allowedTypes.has(candidate.typeHint as (typeof FIELD_TYPES)[number])) {
     return candidate.score >= 0.25;
   }
 
@@ -284,7 +352,7 @@ function shouldIncludeFallbackCandidate(candidate: SelectableCandidate) {
 
 function buildFallbackFieldsFromCandidates(
   candidates: SelectableCandidate[],
-  signerRoleKey: string
+  signerRoleKey: string,
 ): ParsedField[] {
   const filtered = candidates
     .filter(shouldIncludeFallbackCandidate)
@@ -304,35 +372,38 @@ function buildFallbackFieldsFromCandidates(
         width: candidate.rect.width,
         height: candidate.rect.height,
       },
-      required: candidate.required ?? fieldType === 'signature',
-      notes: 'Fallback from candidate detection (underscores/boxes)',
+      required: candidate.required ?? fieldType === "signature",
+      notes: "Fallback from candidate detection (underscores/boxes)",
     };
   });
 }
 
-const LABEL_TYPE_TO_FIELD_TYPE: Record<string, typeof FIELD_TYPES[number]> = {
-  signature: 'signature',
-  date: 'date',
-  printed_name: 'name',
-  name: 'name',
-  initials: 'initial',
-  email: 'email',
-  phone: 'phone',
-  address: 'address',
-  parent_guardian: 'signature',
-  witness: 'signature',
+const LABEL_TYPE_TO_FIELD_TYPE: Record<string, (typeof FIELD_TYPES)[number]> = {
+  signature: "signature",
+  date: "date",
+  printed_name: "name",
+  name: "name",
+  initials: "initial",
+  email: "email",
+  phone: "phone",
+  address: "address",
+  parent_guardian: "signature",
+  witness: "signature",
 };
 
 const MAX_FIELDS_PER_PAGE_TYPE = 3;
 
-const FIELD_TYPE_TO_LABEL_TYPES: Record<typeof FIELD_TYPES[number], string[]> = {
-  signature: ['signature', 'parent_guardian', 'witness'],
-  date: ['date'],
-  name: ['printed_name', 'name'],
-  initial: ['initials'],
-  email: ['email'],
-  phone: ['phone'],
-  address: ['address'],
+const FIELD_TYPE_TO_LABEL_TYPES: Record<
+  (typeof FIELD_TYPES)[number],
+  string[]
+> = {
+  signature: ["signature", "parent_guardian", "witness"],
+  date: ["date"],
+  name: ["printed_name", "name"],
+  initial: ["initials"],
+  email: ["email"],
+  phone: ["phone"],
+  address: ["address"],
   text: [],
   checkbox: [],
   radio: [],
@@ -351,7 +422,7 @@ interface VisionStabilizationStats {
 function getNormalizedCenterDistance(
   a: { x: number; y: number; width: number; height: number },
   b: { x: number; y: number; width: number; height: number },
-  page: PageDimension
+  page: PageDimension,
 ): number {
   const aCenterX = a.x + a.width / 2;
   const aCenterY = a.y + a.height / 2;
@@ -363,55 +434,59 @@ function getNormalizedCenterDistance(
   return distance / diagonal;
 }
 
-function getMaxVisionWidthRatio(fieldType: typeof FIELD_TYPES[number]): number {
+function getMaxVisionWidthRatio(
+  fieldType: (typeof FIELD_TYPES)[number],
+): number {
   switch (fieldType) {
-    case 'signature':
+    case "signature":
       return 0.82;
-    case 'name':
-    case 'email':
-    case 'address':
+    case "name":
+    case "email":
+    case "address":
       return 0.72;
-    case 'phone':
+    case "phone":
       return 0.55;
-    case 'date':
+    case "date":
       return 0.42;
-    case 'initial':
-    case 'checkbox':
+    case "initial":
+    case "checkbox":
       return 0.25;
     default:
       return 0.8;
   }
 }
 
-function getMaxVisionAreaRatio(fieldType: typeof FIELD_TYPES[number]): number {
+function getMaxVisionAreaRatio(
+  fieldType: (typeof FIELD_TYPES)[number],
+): number {
   switch (fieldType) {
-    case 'signature':
+    case "signature":
       return 0.16;
-    case 'name':
-    case 'email':
-    case 'address':
+    case "name":
+    case "email":
+    case "address":
       return 0.12;
-    case 'phone':
+    case "phone":
       return 0.08;
-    case 'date':
+    case "date":
       return 0.06;
-    case 'initial':
+    case "initial":
       return 0.03;
-    case 'checkbox':
+    case "checkbox":
       return 0.02;
     default:
       return 0.2;
   }
 }
 
-export function stabilizeVisionFallbackFields(
+function stabilizeVisionFallbackFields(
   fields: ParsedField[],
   selectableCandidates: SelectableCandidate[],
   pageDimensions: PageDimension[],
   options?: {
     strict?: boolean;
     minAnchorScore?: number;
-  }
+  },
 ): {
   fields: ParsedField[];
   stats: VisionStabilizationStats;
@@ -456,11 +531,21 @@ export function stabilizeVisionFallbackFields(
 
     for (const candidate of candidatesForPage) {
       const iou = getIou(field.boundingBox, candidate.rect);
-      const normalizedDistance = getNormalizedCenterDistance(field.boundingBox, candidate.rect, page);
+      const normalizedDistance = getNormalizedCenterDistance(
+        field.boundingBox,
+        candidate.rect,
+        page,
+      );
       const typeMatch = candidate.typeHint === field.fieldType;
-      const labelMatch = candidate.nearbyLabelTypes?.some((t) => labelTypes.includes(t)) ?? false;
+      const labelMatch =
+        candidate.nearbyLabelTypes?.some((t) => labelTypes.includes(t)) ??
+        false;
       const sourceBoost =
-        candidate.source === 'widget' ? 0.45 : candidate.source === 'underscore' ? 0.2 : 0.12;
+        candidate.source === "widget"
+          ? 0.45
+          : candidate.source === "underscore"
+            ? 0.2
+            : 0.12;
 
       const score =
         iou * 1.55 +
@@ -481,7 +566,11 @@ export function stabilizeVisionFallbackFields(
 
     if (
       bestCandidate &&
-      (bestScore >= minAnchorScore || (bestIou >= 0.22 && (bestTypeMatch || bestLabelMatch || bestCandidate.source === 'widget')))
+      (bestScore >= minAnchorScore ||
+        (bestIou >= 0.22 &&
+          (bestTypeMatch ||
+            bestLabelMatch ||
+            bestCandidate.source === "widget")))
     ) {
       stabilized.push({
         ...field,
@@ -491,16 +580,21 @@ export function stabilizeVisionFallbackFields(
           width: bestCandidate.rect.width,
           height: bestCandidate.rect.height,
         },
-        notes: appendFieldNote(field.notes, `Snapped to structural candidate ${bestCandidate.id}`),
+        notes: appendFieldNote(
+          field.notes,
+          `Snapped to structural candidate ${bestCandidate.id}`,
+        ),
       });
       stats.anchoredCount += 1;
       continue;
     }
 
-    const widthRatio = page.width > 0 ? field.boundingBox.width / page.width : 1;
+    const widthRatio =
+      page.width > 0 ? field.boundingBox.width / page.width : 1;
     const areaRatio =
       page.width > 0 && page.height > 0
-        ? (field.boundingBox.width * field.boundingBox.height) / (page.width * page.height)
+        ? (field.boundingBox.width * field.boundingBox.height) /
+          (page.width * page.height)
         : 1;
 
     const maxWidthRatio = getMaxVisionWidthRatio(field.fieldType);
@@ -508,11 +602,17 @@ export function stabilizeVisionFallbackFields(
     const oversize = widthRatio > maxWidthRatio || areaRatio > maxAreaRatio;
 
     const hasLocalSignal = candidatesForPage.some((candidate) => {
-      const normalizedDistance = getNormalizedCenterDistance(field.boundingBox, candidate.rect, page);
+      const normalizedDistance = getNormalizedCenterDistance(
+        field.boundingBox,
+        candidate.rect,
+        page,
+      );
       if (normalizedDistance > 0.2) return false;
 
       const typeMatch = candidate.typeHint === field.fieldType;
-      const labelMatch = candidate.nearbyLabelTypes?.some((t) => labelTypes.includes(t)) ?? false;
+      const labelMatch =
+        candidate.nearbyLabelTypes?.some((t) => labelTypes.includes(t)) ??
+        false;
       return typeMatch || labelMatch || candidate.score >= 0.7;
     });
 
@@ -525,7 +625,10 @@ export function stabilizeVisionFallbackFields(
 
     stabilized.push({
       ...field,
-      notes: appendFieldNote(field.notes, 'Unanchored vision fallback placement (review recommended)'),
+      notes: appendFieldNote(
+        field.notes,
+        "Unanchored vision fallback placement (review recommended)",
+      ),
     });
     stats.keptUnanchoredCount += 1;
   }
@@ -536,7 +639,10 @@ export function stabilizeVisionFallbackFields(
   };
 }
 
-function buildLabelCountsByPageType(labels: { type: string; pageIndex: number }[], pageCount: number) {
+function buildLabelCountsByPageType(
+  labels: { type: string; pageIndex: number }[],
+  pageCount: number,
+) {
   const labelCounts = new Map<string, number>();
 
   for (const label of labels) {
@@ -585,17 +691,18 @@ function pruneFieldsByLabelCoverage({
   const pruned: ParsedField[] = [];
 
   for (const [key, groupFields] of grouped.entries()) {
-    const [pageIndexRaw, fieldTypeRaw] = key.split(':');
+    const [pageIndexRaw, fieldTypeRaw] = key.split(":");
     const pageIndex = Number(pageIndexRaw);
-    const fieldType = fieldTypeRaw as typeof FIELD_TYPES[number];
+    const fieldType = fieldTypeRaw as (typeof FIELD_TYPES)[number];
     if (!Number.isFinite(pageIndex)) continue;
 
     const labelCount = labelCounts.get(key) ?? 0;
     const widgetFields = groupFields.filter((field) =>
-      field.notes?.includes('embedded PDF form widget')
+      field.notes?.includes("embedded PDF form widget"),
     );
 
-    let allowedCount = labelCount > 0 ? Math.min(labelCount, MAX_FIELDS_PER_PAGE_TYPE) : 0;
+    let allowedCount =
+      labelCount > 0 ? Math.min(labelCount, MAX_FIELDS_PER_PAGE_TYPE) : 0;
     if (widgetFields.length > allowedCount) {
       allowedCount = widgetFields.length;
     }
@@ -611,7 +718,7 @@ function pruneFieldsByLabelCoverage({
     const labelTypes = FIELD_TYPE_TO_LABEL_TYPES[fieldType] ?? [];
 
     const scored = groupFields.map((field) => {
-      if (field.notes?.includes('embedded PDF form widget')) {
+      if (field.notes?.includes("embedded PDF form widget")) {
         return { field, score: 1000 };
       }
 
@@ -623,7 +730,11 @@ function pruneFieldsByLabelCoverage({
         if (iou <= 0.1) continue;
 
         const typeMatch = candidate.typeHint === fieldType ? 0.6 : 0;
-        const labelMatch = candidate.nearbyLabelTypes?.some((t) => labelTypes.includes(t)) ? 0.3 : 0;
+        const labelMatch = candidate.nearbyLabelTypes?.some((t) =>
+          labelTypes.includes(t),
+        )
+          ? 0.3
+          : 0;
         const score = candidate.score + iou + typeMatch + labelMatch;
 
         if (score > bestScore) {
@@ -675,18 +786,28 @@ function ensurePageCoverageForLabels({
   const additions: ParsedField[] = [];
   const usedCandidateIds = new Set<string>();
 
-  const getExistingCount = (pageIndex: number, fieldType: typeof FIELD_TYPES[number]) =>
-    existingFields.filter((field) => field.pageIndex === pageIndex && field.fieldType === fieldType).length +
-    additions.filter((field) => field.pageIndex === pageIndex && field.fieldType === fieldType).length;
+  const getExistingCount = (
+    pageIndex: number,
+    fieldType: (typeof FIELD_TYPES)[number],
+  ) =>
+    existingFields.filter(
+      (field) => field.pageIndex === pageIndex && field.fieldType === fieldType,
+    ).length +
+    additions.filter(
+      (field) => field.pageIndex === pageIndex && field.fieldType === fieldType,
+    ).length;
 
-  const overlapsExisting = (pageIndex: number, candidate: SelectableCandidate) =>
+  const overlapsExisting = (
+    pageIndex: number,
+    candidate: SelectableCandidate,
+  ) =>
     [...existingFields, ...additions].some((field) => {
       if (field.pageIndex !== pageIndex) return false;
       return getIou(field.boundingBox, candidate.rect) > 0.35;
     });
 
   for (const [key, count] of labelCounts.entries()) {
-    const [pageIndexRaw, labelType] = key.split(':');
+    const [pageIndexRaw, labelType] = key.split(":");
     const pageIndex = Number(pageIndexRaw);
     const fieldType = LABEL_TYPE_TO_FIELD_TYPE[labelType];
     if (!fieldType || !Number.isFinite(pageIndex)) continue;
@@ -695,27 +816,37 @@ function ensurePageCoverageForLabels({
     let needed = targetCount - getExistingCount(pageIndex, fieldType);
     if (needed <= 0) continue;
 
-    const signerRole = getRelevantSignerRole(labelType, roles, defaultSignerRole);
+    const signerRole = getRelevantSignerRole(
+      labelType,
+      roles,
+      defaultSignerRole,
+    );
 
     const candidatesForPage = selectableCandidates
       .filter((candidate) => candidate.pageIndex === pageIndex)
       .map((candidate) => {
         const typeMatch = candidate.typeHint === fieldType ? 1 : 0;
-        const labelMatch = candidate.nearbyLabelTypes?.includes(labelType) ? 1 : 0;
+        const labelMatch = candidate.nearbyLabelTypes?.includes(labelType)
+          ? 1
+          : 0;
         const scoreBoost = typeMatch * 0.6 + labelMatch * 0.35;
         return {
           candidate,
           score: candidate.score + scoreBoost,
         };
       })
-      .sort((a, b) => b.score - a.score || a.candidate.id.localeCompare(b.candidate.id));
+      .sort(
+        (a, b) =>
+          b.score - a.score || a.candidate.id.localeCompare(b.candidate.id),
+      );
 
     for (const { candidate } of candidatesForPage) {
       if (needed <= 0) break;
       if (usedCandidateIds.has(candidate.id)) continue;
 
       const typeMatch = candidate.typeHint === fieldType;
-      const labelMatch = candidate.nearbyLabelTypes?.includes(labelType) ?? false;
+      const labelMatch =
+        candidate.nearbyLabelTypes?.includes(labelType) ?? false;
 
       if (!typeMatch && !labelMatch) continue;
       if (overlapsExisting(pageIndex, candidate)) continue;
@@ -731,7 +862,7 @@ function ensurePageCoverageForLabels({
           width: candidate.rect.width,
           height: candidate.rect.height,
         },
-        required: candidate.required ?? fieldType === 'signature',
+        required: candidate.required ?? fieldType === "signature",
         notes: `Auto-added for ${signerRole} to ensure per-page coverage from labels`,
       });
 
@@ -742,31 +873,56 @@ function ensurePageCoverageForLabels({
 
   if (additions.length === 0) return existingFields;
 
-  return normalizeFieldsForOverlay([...existingFields, ...additions], pageDimensions, pageCount);
+  return normalizeFieldsForOverlay(
+    [...existingFields, ...additions],
+    pageDimensions,
+    pageCount,
+  );
 }
 
-function getRelevantSignerRole(labelType: string, roles: ParsedRole[], defaultRole: string): string {
+function getRelevantSignerRole(
+  labelType: string,
+  roles: ParsedRole[],
+  defaultRole: string,
+): string {
   if (roles.length <= 1) return defaultRole;
 
   const normalizedType = labelType.toLowerCase();
-  
+
   // Parent/Guardian roles
-  const parentTriggers = ['parent', 'guardian', 'father', 'mother', 'representative', 'legal'];
-  const isParentLabel = parentTriggers.some(t => normalizedType.includes(t));
-  
+  const parentTriggers = [
+    "parent",
+    "guardian",
+    "father",
+    "mother",
+    "representative",
+    "legal",
+  ];
+  const isParentLabel = parentTriggers.some((t) => normalizedType.includes(t));
+
   if (isParentLabel) {
-    const parentRole = roles.find(r => 
-      parentTriggers.some(t => r.roleKey.toLowerCase().includes(t) || r.label.toLowerCase().includes(t))
+    const parentRole = roles.find((r) =>
+      parentTriggers.some(
+        (t) =>
+          r.roleKey.toLowerCase().includes(t) ||
+          r.label.toLowerCase().includes(t),
+      ),
     );
     if (parentRole) return parentRole.roleKey;
   }
-  
+
   // Witness roles
-  const witnessTriggers = ['witness'];
-  const isWitnessLabel = witnessTriggers.some(t => normalizedType.includes(t));
+  const witnessTriggers = ["witness"];
+  const isWitnessLabel = witnessTriggers.some((t) =>
+    normalizedType.includes(t),
+  );
   if (isWitnessLabel) {
-    const witnessRole = roles.find(r => 
-        witnessTriggers.some(t => r.roleKey.toLowerCase().includes(t) || r.label.toLowerCase().includes(t))
+    const witnessRole = roles.find((r) =>
+      witnessTriggers.some(
+        (t) =>
+          r.roleKey.toLowerCase().includes(t) ||
+          r.label.toLowerCase().includes(t),
+      ),
     );
     if (witnessRole) return witnessRole.roleKey;
   }
@@ -774,14 +930,14 @@ function getRelevantSignerRole(labelType: string, roles: ParsedRole[], defaultRo
   return defaultRole;
 }
 
-export function buildSelectableCandidates(
+function buildSelectableCandidates(
   candidates: CandidateArea[],
-  widgets: DetectedPdfField[]
+  widgets: DetectedPdfField[],
 ): SelectableCandidate[] {
   const widgetCandidates: SelectableCandidate[] = widgets
-    .filter((w) => w.fieldType !== 'unknown' && w.fieldType !== 'button')
+    .filter((w) => w.fieldType !== "unknown" && w.fieldType !== "button")
     .map((w, index) => ({
-      id: `widget:${w.pageIndex}:${index}:${w.fieldName || 'field'}`,
+      id: `widget:${w.pageIndex}:${index}:${w.fieldName || "field"}`,
       pageIndex: w.pageIndex,
       rect: {
         x: w.rect.x,
@@ -791,7 +947,7 @@ export function buildSelectableCandidates(
       },
       typeHint: inferWidgetFieldType(w),
       score: 1,
-      source: 'widget',
+      source: "widget",
       nearbyLabelTypes: [],
       required: w.required,
       label: toDefaultFieldLabel(w.fieldName, w.fieldType),
@@ -812,77 +968,78 @@ export function buildSelectableCandidates(
     if (byScore !== 0) return byScore;
 
     // Phase 5: deterministically prioritize widgets on score ties.
-    if (a.source === 'widget' && b.source !== 'widget') return -1;
-    if (b.source === 'widget' && a.source !== 'widget') return 1;
+    if (a.source === "widget" && b.source !== "widget") return -1;
+    if (b.source === "widget" && a.source !== "widget") return 1;
 
     return a.id.localeCompare(b.id);
   });
 }
 
-export function mapSelectionsToFields(
+function mapSelectionsToFields(
   selections: z.infer<typeof SelectedFieldSchema>[],
-  selectableCandidates: SelectableCandidate[]
+  selectableCandidates: SelectableCandidate[],
 ): ParsedField[] {
-  const shouldLogWarnings = process.env.NODE_ENV !== 'test';
+  const shouldLogWarnings = process.env.NODE_ENV !== "test";
   const candidateById = new Map(selectableCandidates.map((c) => [c.id, c]));
 
-  const mapped = selections
-    .map((selection) => {
-      const selected = candidateById.get(selection.candidateId);
-      if (!selected) {
-        if (shouldLogWarnings) {
-          console.warn(`Candidate ID not found: ${selection.candidateId}`);
-        }
-        return null;
+  const mapped = selections.map((selection) => {
+    const selected = candidateById.get(selection.candidateId);
+    if (!selected) {
+      if (shouldLogWarnings) {
+        console.warn(`Candidate ID not found: ${selection.candidateId}`);
       }
+      return null;
+    }
 
-      // Phase 6: Validate candidate has finite coordinates (reject NaN/Infinity)
-      // Note: Negative coordinates are allowed here - normalization will fix them
-      const hasValidCoordinates = (
-        Number.isFinite(selected.rect.x) &&
-        Number.isFinite(selected.rect.y) &&
-        Number.isFinite(selected.rect.width) &&
-        Number.isFinite(selected.rect.height)
-      );
+    // Phase 6: Validate candidate has finite coordinates (reject NaN/Infinity)
+    // Note: Negative coordinates are allowed here - normalization will fix them
+    const hasValidCoordinates =
+      Number.isFinite(selected.rect.x) &&
+      Number.isFinite(selected.rect.y) &&
+      Number.isFinite(selected.rect.width) &&
+      Number.isFinite(selected.rect.height);
 
-      if (!hasValidCoordinates) {
-        if (shouldLogWarnings) {
-          console.warn(`Candidate has invalid coordinates: ${selection.candidateId}`, selected.rect);
-        }
-        return null;
+    if (!hasValidCoordinates) {
+      if (shouldLogWarnings) {
+        console.warn(
+          `Candidate has invalid coordinates: ${selection.candidateId}`,
+          selected.rect,
+        );
       }
+      return null;
+    }
 
-      const field: ParsedField = {
-        fieldType: selection.fieldType,
-        label: selection.label,
-        signerRole: normalizeRoleKey(selection.signerRole),
-        pageIndex: selected.pageIndex,
-        boundingBox: {
-          x: selected.rect.x,
-          y: selected.rect.y,
-          width: selected.rect.width,
-          height: selected.rect.height,
-        },
-        required: selection.required,
-      };
+    const field: ParsedField = {
+      fieldType: selection.fieldType,
+      label: selection.label,
+      signerRole: normalizeRoleKey(selection.signerRole),
+      pageIndex: selected.pageIndex,
+      boundingBox: {
+        x: selected.rect.x,
+        y: selected.rect.y,
+        width: selected.rect.width,
+        height: selected.rect.height,
+      },
+      required: selection.required,
+    };
 
-      if (selection.reasoning) {
-        field.notes = selection.reasoning;
-      }
+    if (selection.reasoning) {
+      field.notes = selection.reasoning;
+    }
 
-      return field;
-    });
+    return field;
+  });
 
   return mapped.filter((f): f is ParsedField => f !== null);
 }
 
-export function mapWidgetsToFields(widgets: DetectedPdfField[]): ParsedField[] {
+function mapWidgetsToFields(widgets: DetectedPdfField[]): ParsedField[] {
   return widgets
-    .filter((w) => w.fieldType !== 'unknown' && w.fieldType !== 'button')
+    .filter((w) => w.fieldType !== "unknown" && w.fieldType !== "button")
     .map((w) => ({
       fieldType: inferWidgetFieldType(w),
       label: toDefaultFieldLabel(w.fieldName, w.fieldType),
-      signerRole: 'volunteer',
+      signerRole: "volunteer",
       pageIndex: w.pageIndex,
       boundingBox: {
         x: w.rect.x,
@@ -891,21 +1048,27 @@ export function mapWidgetsToFields(widgets: DetectedPdfField[]): ParsedField[] {
         height: w.rect.height,
       },
       required: Boolean(w.required),
-      notes: 'Detected from embedded PDF form widget',
+      notes: "Detected from embedded PDF form widget",
     }));
 }
 
-export function mapVisionFallbackFields(
+function mapVisionFallbackFields(
   fields: z.infer<typeof VisionDetectedFieldSchema>[],
   pageDimensions: PageDimension[],
-  pageCount: number
+  pageCount: number,
 ): ParsedField[] {
-  const rawIndexes = fields.map((field) => Math.round(safeNumber(field.pageIndex, 0)));
+  const rawIndexes = fields.map((field) =>
+    Math.round(safeNumber(field.pageIndex, 0)),
+  );
   const convertFromOneBased = shouldConvertFromOneBased(rawIndexes, pageCount);
 
   const mapped: ParsedField[] = fields.map((field) => {
     const rawIndex = Math.round(safeNumber(field.pageIndex, 0));
-    const clampedIndex = normalizePageIndex(rawIndex, pageCount, convertFromOneBased);
+    const clampedIndex = normalizePageIndex(
+      rawIndex,
+      pageCount,
+      convertFromOneBased,
+    );
     const page = pageDimensions[clampedIndex] ?? pageDimensions[0];
 
     const nx = safeNumber(field.normalizedBoxTopLeft.x, 0);
@@ -926,14 +1089,19 @@ export function mapVisionFallbackFields(
       pageIndex: clampedIndex,
       boundingBox: { x, y, width, height },
       required: field.required,
-      notes: appendFieldNote(field.reasoning, 'Vision fallback placement'),
+      notes: appendFieldNote(field.reasoning, "Vision fallback placement"),
     };
   });
 
-  return normalizeFieldsForOverlay(mapped, pageDimensions, pageCount, { convertFromOneBased: false });
+  return normalizeFieldsForOverlay(mapped, pageDimensions, pageCount, {
+    convertFromOneBased: false,
+  });
 }
 
-export function mergeFieldsPreferWidgets(widgetFields: ParsedField[], aiFields: ParsedField[]): ParsedField[] {
+function mergeFieldsPreferWidgets(
+  widgetFields: ParsedField[],
+  aiFields: ParsedField[],
+): ParsedField[] {
   const merged: ParsedField[] = [...widgetFields];
 
   for (const aiField of aiFields) {
@@ -945,8 +1113,8 @@ export function mergeFieldsPreferWidgets(widgetFields: ParsedField[], aiFields: 
       // Widget extraction often returns generic "text" fields for semantically specific inputs.
       const typeCompatible =
         widgetField.fieldType === aiField.fieldType ||
-        widgetField.fieldType === 'text' ||
-        aiField.fieldType === 'text';
+        widgetField.fieldType === "text" ||
+        aiField.fieldType === "text";
 
       return typeCompatible;
     });
@@ -972,13 +1140,16 @@ export function mergeFieldsPreferWidgets(widgetFields: ParsedField[], aiFields: 
 
 function toRoleLabel(roleKey: string): string {
   return roleKey
-    .split('_')
+    .split("_")
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+    .join(" ");
 }
 
-function shouldConvertFromOneBased(pageIndexes: number[], pageCount: number): boolean {
+function shouldConvertFromOneBased(
+  pageIndexes: number[],
+  pageCount: number,
+): boolean {
   if (pageIndexes.length === 0) return false;
 
   const hasZero = pageIndexes.some((idx) => idx === 0);
@@ -990,7 +1161,11 @@ function shouldConvertFromOneBased(pageIndexes: number[], pageCount: number): bo
   return min >= 1 && max <= pageCount;
 }
 
-function normalizePageIndex(rawPageIndex: number, pageCount: number, convertFromOneBased: boolean): number {
+function normalizePageIndex(
+  rawPageIndex: number,
+  pageCount: number,
+  convertFromOneBased: boolean,
+): number {
   const numeric = Math.round(safeNumber(rawPageIndex, 0));
   const base = convertFromOneBased ? numeric - 1 : numeric;
   return clamp(base, 0, Math.max(pageCount - 1, 0));
@@ -998,29 +1173,35 @@ function normalizePageIndex(rawPageIndex: number, pageCount: number, convertFrom
 
 /**
  * Phase 4: Normalizes field coordinates for overlay rendering.
- * 
+ *
  * CONTRACT:
  * - Input coordinates MUST be in PDF coordinate space (bottom-left origin, points)
  * - Output coordinates are in the same space (no y-axis flipping)
  * - Only performs: negative dimension fixes, page index normalization, bounds clamping, minimum size enforcement
- * 
+ *
  * No coordinate system inference or conversion is performed.
  */
-export function normalizeFieldsForOverlay(
+function normalizeFieldsForOverlay(
   fields: ParsedField[],
   pageDimensions: PageDimension[],
   pageCount: number,
   options?: {
     convertFromOneBased?: boolean;
-  }
+  },
 ): ParsedField[] {
   const pageIndexes = fields.map((f) => Math.round(safeNumber(f.pageIndex, 0)));
-  const convertFromOneBased = options?.convertFromOneBased ?? shouldConvertFromOneBased(pageIndexes, pageCount);
+  const convertFromOneBased =
+    options?.convertFromOneBased ??
+    shouldConvertFromOneBased(pageIndexes, pageCount);
 
   const normalized: ParsedField[] = [];
 
   for (const field of fields) {
-    const pageIndex = normalizePageIndex(field.pageIndex, pageCount, convertFromOneBased);
+    const pageIndex = normalizePageIndex(
+      field.pageIndex,
+      pageCount,
+      convertFromOneBased,
+    );
     const page = pageDimensions[pageIndex] ?? pageDimensions[0];
     if (!page) continue;
 
@@ -1040,8 +1221,18 @@ export function normalizeFieldsForOverlay(
 
     // Phase 4: No y-axis flipping - coordinates are already in bottom-left PDF space
 
-    const minWidth = field.fieldType === 'signature' ? 72 : field.fieldType === 'checkbox' ? 10 : 24;
-    const minHeight = field.fieldType === 'signature' ? 18 : field.fieldType === 'checkbox' ? 10 : 12;
+    const minWidth =
+      field.fieldType === "signature"
+        ? 72
+        : field.fieldType === "checkbox"
+          ? 10
+          : 24;
+    const minHeight =
+      field.fieldType === "signature"
+        ? 18
+        : field.fieldType === "checkbox"
+          ? 10
+          : 12;
 
     width = Math.max(width, minWidth);
     height = Math.max(height, minHeight);
@@ -1095,9 +1286,9 @@ function normalizeSignerRoles(roles: ParsedRole[]): ParsedRole[] {
   }
 
   if (roleMap.size === 0) {
-    roleMap.set('volunteer', {
-      roleKey: 'volunteer',
-      label: 'Volunteer',
+    roleMap.set("volunteer", {
+      roleKey: "volunteer",
+      label: "Volunteer",
       required: true,
       description: undefined,
     });
@@ -1109,15 +1300,15 @@ function normalizeSignerRoles(roles: ParsedRole[]): ParsedRole[] {
 export async function POST(request: NextRequest) {
   try {
     // E2E Test Auth Bypass: Only enabled in non-production when ENABLE_E2E_AUTH_BYPASS is set
-    const isE2EBypassEnabled = 
-      process.env.NODE_ENV !== 'production' && 
-      process.env.ENABLE_E2E_AUTH_BYPASS === 'true';
+    const isE2EBypassEnabled =
+      process.env.NODE_ENV !== "production" &&
+      process.env.ENABLE_E2E_AUTH_BYPASS === "true";
     let posthogDistinctId: string | undefined;
 
     if (!isE2EBypassEnabled) {
       const authResult = await getAuthUser();
       if (!authResult.user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       posthogDistinctId = authResult.user.id;
     }
@@ -1125,42 +1316,54 @@ export async function POST(request: NextRequest) {
     const MAX_PDF_BYTES = 20 * 1024 * 1024; // 20MB
 
     const formData = await request.formData();
-    const fileValue = formData.get('file');
-    const includeDiagnostics = formData.get('includeDiagnostics') === 'true';
-    const strictHallucinationGuardRaw = formData.get('strictHallucinationGuard');
-    const requestedModelRaw = formData.get('model');
-    const requestedModel = typeof requestedModelRaw === 'string' ? requestedModelRaw.trim() : '';
+    const fileValue = formData.get("file");
+    const includeDiagnostics = formData.get("includeDiagnostics") === "true";
+    const strictHallucinationGuardRaw = formData.get(
+      "strictHallucinationGuard",
+    );
+    const requestedModelRaw = formData.get("model");
+    const requestedModel =
+      typeof requestedModelRaw === "string" ? requestedModelRaw.trim() : "";
     const selectedModel = ALLOWED_AI_MODELS.has(requestedModel)
       ? requestedModel
       : DEFAULT_AI_MODEL;
-    const isLiteModel = selectedModel.includes('flash-lite');
+    const isLiteModel = selectedModel.includes("flash-lite");
     const strictHallucinationGuard =
       strictHallucinationGuardRaw === null
         ? DEFAULT_STRICT_HALLUCINATION_GUARD
-        : String(strictHallucinationGuardRaw).toLowerCase() !== 'false';
+        : String(strictHallucinationGuardRaw).toLowerCase() !== "false";
 
     if (!(fileValue instanceof File)) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
     const file = fileValue;
 
     if (file.size <= 0) {
-      return NextResponse.json({ error: 'Empty file provided' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Empty file provided" },
+        { status: 400 },
+      );
     }
 
     if (file.size > MAX_PDF_BYTES) {
       return NextResponse.json(
-        { error: `PDF too large. Max size is ${Math.round(MAX_PDF_BYTES / (1024 * 1024))}MB.` },
-        { status: 413 }
+        {
+          error: `PDF too large. Max size is ${Math.round(MAX_PDF_BYTES / (1024 * 1024))}MB.`,
+        },
+        { status: 413 },
       );
     }
 
-    const looksLikePdfByName = typeof file.name === 'string' && file.name.toLowerCase().endsWith('.pdf');
-    const looksLikePdfByMime = file.type === 'application/pdf';
+    const looksLikePdfByName =
+      typeof file.name === "string" && file.name.toLowerCase().endsWith(".pdf");
+    const looksLikePdfByMime = file.type === "application/pdf";
 
     if (!looksLikePdfByMime && !looksLikePdfByName) {
-      return NextResponse.json({ error: 'File must be a PDF' }, { status: 400 });
+      return NextResponse.json(
+        { error: "File must be a PDF" },
+        { status: 400 },
+      );
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -1170,7 +1373,10 @@ export async function POST(request: NextRequest) {
     try {
       pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
     } catch {
-      return NextResponse.json({ error: 'Invalid or corrupted PDF' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid or corrupted PDF" },
+        { status: 400 },
+      );
     }
     const pages = pdfDoc.getPages();
 
@@ -1182,22 +1388,25 @@ export async function POST(request: NextRequest) {
     const pageCount = pageDimensions.length;
 
     if (pageCount === 0) {
-      return NextResponse.json({ error: 'Unable to read PDF pages' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Unable to read PDF pages" },
+        { status: 400 },
+      );
     }
 
     // Phase 3: Extract structural data from PDF
     const pdfData = new Uint8Array(arrayBuffer.slice(0));
-    
+
     // Step 1: Extract text with coordinates
     const textExtraction = await extractPdfTextWithPositions(pdfData);
     const textItems = textExtraction.success ? textExtraction.textItems : [];
-    
+
     // Step 2: Detect labels (signature, date, name, etc.)
     const labels = findLabels(textItems);
-    
+
     // Step 3: Detect candidate writable areas
     const candidates = detectCandidateAreas(textItems, labels);
-    
+
     // Step 4: Detect AcroForm widgets (if any) - pass File directly
     const widgetDetection = await detectPdfWidgets(file);
     const widgets = widgetDetection.success ? widgetDetection.fields : [];
@@ -1233,8 +1442,11 @@ export async function POST(request: NextRequest) {
     // Cap text items to prevent payload bloat (max 500 items, ~150 chars each)
     const MAX_TEXT_ITEMS = 500;
     const MAX_TEXT_LENGTH = 150;
-    const cappedTextItems = textItems.slice(0, MAX_TEXT_ITEMS).map(item => ({
-      text: item.text.length > MAX_TEXT_LENGTH ? item.text.slice(0, MAX_TEXT_LENGTH) + '...' : item.text,
+    const cappedTextItems = textItems.slice(0, MAX_TEXT_ITEMS).map((item) => ({
+      text:
+        item.text.length > MAX_TEXT_LENGTH
+          ? item.text.slice(0, MAX_TEXT_LENGTH) + "..."
+          : item.text,
       pageIndex: item.pageIndex,
       rectInPoints: {
         x: Math.round(item.x),
@@ -1244,65 +1456,69 @@ export async function POST(request: NextRequest) {
       },
     }));
 
-    const structuredInput = JSON.stringify({
-      pages: pageDimensions.map(p => ({
-        pageIndex: p.pageIndex,
-        width: p.width,
-        height: p.height,
-      })),
-      textItems: cappedTextItems,
-      textItemsTotal: textItems.length,
-      labels: labels.map(l => ({
-        id: l.id,
-        text: l.text,
-        type: l.type,
-        pageIndex: l.pageIndex,
-        confidence: l.confidence,
-        rectInPoints: {
-          x: Math.round(l.rect.x),
-          y: Math.round(l.rect.y),
-          width: Math.round(l.rect.width),
-          height: Math.round(l.rect.height),
-        },
-      })),
-      candidates: selectableCandidates.map(c => ({
-        id: c.id,
-        pageIndex: c.pageIndex,
-        typeHint: c.typeHint,
-        nearbyLabelTypes: c.nearbyLabelTypes ?? [],
-        score: c.score,
-        source: c.source,
-        rectInPoints: {
-          x: Math.round(c.rect.x),
-          y: Math.round(c.rect.y),
-          width: Math.round(c.rect.width),
-          height: Math.round(c.rect.height),
-        },
-      })),
-      widgets: widgets.map(w => ({
-        name: w.fieldName,
-        type: w.fieldType,
-        pageIndex: w.pageIndex,
-        required: w.required,
-      })),
-    }, null, 2);
+    const structuredInput = JSON.stringify(
+      {
+        pages: pageDimensions.map((p) => ({
+          pageIndex: p.pageIndex,
+          width: p.width,
+          height: p.height,
+        })),
+        textItems: cappedTextItems,
+        textItemsTotal: textItems.length,
+        labels: labels.map((l) => ({
+          id: l.id,
+          text: l.text,
+          type: l.type,
+          pageIndex: l.pageIndex,
+          confidence: l.confidence,
+          rectInPoints: {
+            x: Math.round(l.rect.x),
+            y: Math.round(l.rect.y),
+            width: Math.round(l.rect.width),
+            height: Math.round(l.rect.height),
+          },
+        })),
+        candidates: selectableCandidates.map((c) => ({
+          id: c.id,
+          pageIndex: c.pageIndex,
+          typeHint: c.typeHint,
+          nearbyLabelTypes: c.nearbyLabelTypes ?? [],
+          score: c.score,
+          source: c.source,
+          rectInPoints: {
+            x: Math.round(c.rect.x),
+            y: Math.round(c.rect.y),
+            width: Math.round(c.rect.width),
+            height: Math.round(c.rect.height),
+          },
+        })),
+        widgets: widgets.map((w) => ({
+          name: w.fieldName,
+          type: w.fieldType,
+          pageIndex: w.pageIndex,
+          required: w.required,
+        })),
+      },
+      null,
+      2,
+    );
 
     const result = await generateText({
-      model: gatewayModel('platform', selectedModel),
+      model: gatewayModel("platform", selectedModel),
       experimental_telemetry: createPostHogTelemetry({
-        functionId: 'analyze-waiver',
+        functionId: "analyze-waiver",
         distinctId: posthogDistinctId,
         metadata: {
-          ai_feature: 'waiver-analysis',
+          ai_feature: "waiver-analysis",
         },
       }),
       output: Output.object({ schema: WaiverClassificationSchema }),
       messages: [
         {
-          role: 'user',
+          role: "user",
           content: [
             {
-              type: 'text',
+              type: "text",
               text: `You are analyzing a volunteer waiver/consent PDF to detect signature and form fields.
 
 **YOUR TASK**: Look at the PDF visually and select the best candidate IDs for signature fields, dates, names, and other form fields.
@@ -1355,9 +1571,9 @@ ${structuredInput}
 **Key Point**: Trust what you see in the PDF. Select candidates that visually match where fields should be placed and return comprehensive coverage, not minimal coverage.`,
             },
             {
-              type: 'file',
+              type: "file",
               data: pdfBytes,
-              mediaType: 'application/pdf',
+              mediaType: "application/pdf",
             },
           ],
         },
@@ -1367,79 +1583,111 @@ ${structuredInput}
     const structured = result.output;
 
     // Phase 5: map AI selections from unified candidates, then merge with deterministic widget extraction.
-    const aiFields = mapSelectionsToFields(structured.selectedFields, selectableCandidates);
+    const aiFields = mapSelectionsToFields(
+      structured.selectedFields,
+      selectableCandidates,
+    );
     const widgetFields = mapWidgetsToFields(widgets);
     diagnostics.aiSelectedFieldCount = structured.selectedFields.length;
     diagnostics.aiMappedFieldCount = aiFields.length;
     const mergedFields = mergeFieldsPreferWidgets(widgetFields, aiFields);
-    let normalizedFields = normalizeFieldsForOverlay(mergedFields, pageDimensions, pageCount);
+    let normalizedFields = normalizeFieldsForOverlay(
+      mergedFields,
+      pageDimensions,
+      pageCount,
+    );
     let normalizedSignerRoles = normalizeSignerRoles(structured.signerRoles);
-    const defaultSignerRole = normalizedSignerRoles[0]?.roleKey ?? 'volunteer';
+    const defaultSignerRole = normalizedSignerRoles[0]?.roleKey ?? "volunteer";
 
-    const hasParentGuardianSignals = labels.some((label) => label.type === 'parent_guardian');
-    const hasContactSignals = labels.some((label) => label.type === 'email' || label.type === 'phone');
-    const targetMinimumFields = Math.min(Math.max(selectableCandidates.length, 3), 10);
+    const hasParentGuardianSignals = labels.some(
+      (label) => label.type === "parent_guardian",
+    );
+    const hasContactSignals = labels.some(
+      (label) => label.type === "email" || label.type === "phone",
+    );
+    const targetMinimumFields = Math.min(
+      Math.max(selectableCandidates.length, 3),
+      10,
+    );
     const underDetected =
-      normalizedFields.length < Math.max(3, Math.floor(targetMinimumFields * 0.5)) ||
+      normalizedFields.length <
+        Math.max(3, Math.floor(targetMinimumFields * 0.5)) ||
       (hasParentGuardianSignals && normalizedSignerRoles.length < 2) ||
-      (hasContactSignals && !normalizedFields.some((field) => field.fieldType === 'email' || field.fieldType === 'phone'));
+      (hasContactSignals &&
+        !normalizedFields.some(
+          (field) => field.fieldType === "email" || field.fieldType === "phone",
+        ));
 
     if (normalizedFields.length === 0 && selectableCandidates.length > 0) {
-      const fallbackFields = buildFallbackFieldsFromCandidates(selectableCandidates, defaultSignerRole);
+      const fallbackFields = buildFallbackFieldsFromCandidates(
+        selectableCandidates,
+        defaultSignerRole,
+      );
       if (fallbackFields.length > 0) {
-        normalizedFields = normalizeFieldsForOverlay(fallbackFields, pageDimensions, pageCount);
+        normalizedFields = normalizeFieldsForOverlay(
+          fallbackFields,
+          pageDimensions,
+          pageCount,
+        );
       }
     }
 
     // Vision fallback: if no fields were produced from structural path, ask model to return boxes directly.
-    if (ENABLE_VISION_FALLBACK && (normalizedFields.length === 0 || underDetected)) {
+    if (
+      ENABLE_VISION_FALLBACK &&
+      (normalizedFields.length === 0 || underDetected)
+    ) {
       try {
         diagnostics.visionFallbackTriggered = true;
 
-        const visionSupportData = JSON.stringify({
-          labels: labels.slice(0, 120).map((label) => ({
-            type: label.type,
-            pageIndex: label.pageIndex,
-            rectInPoints: {
-              x: Math.round(label.rect.x),
-              y: Math.round(label.rect.y),
-              width: Math.round(label.rect.width),
-              height: Math.round(label.rect.height),
-            },
-          })),
-          candidates: selectableCandidates.slice(0, 180).map((candidate) => ({
-            id: candidate.id,
-            pageIndex: candidate.pageIndex,
-            typeHint: candidate.typeHint,
-            source: candidate.source,
-            score: Number(candidate.score.toFixed(3)),
-            nearbyLabelTypes: candidate.nearbyLabelTypes ?? [],
-            rectInPoints: {
-              x: Math.round(candidate.rect.x),
-              y: Math.round(candidate.rect.y),
-              width: Math.round(candidate.rect.width),
-              height: Math.round(candidate.rect.height),
-            },
-          })),
-        }, null, 2);
+        const visionSupportData = JSON.stringify(
+          {
+            labels: labels.slice(0, 120).map((label) => ({
+              type: label.type,
+              pageIndex: label.pageIndex,
+              rectInPoints: {
+                x: Math.round(label.rect.x),
+                y: Math.round(label.rect.y),
+                width: Math.round(label.rect.width),
+                height: Math.round(label.rect.height),
+              },
+            })),
+            candidates: selectableCandidates.slice(0, 180).map((candidate) => ({
+              id: candidate.id,
+              pageIndex: candidate.pageIndex,
+              typeHint: candidate.typeHint,
+              source: candidate.source,
+              score: Number(candidate.score.toFixed(3)),
+              nearbyLabelTypes: candidate.nearbyLabelTypes ?? [],
+              rectInPoints: {
+                x: Math.round(candidate.rect.x),
+                y: Math.round(candidate.rect.y),
+                width: Math.round(candidate.rect.width),
+                height: Math.round(candidate.rect.height),
+              },
+            })),
+          },
+          null,
+          2,
+        );
 
         const fallback = await generateText({
-          model: gatewayModel('platform', selectedModel),
+          model: gatewayModel("platform", selectedModel),
           experimental_telemetry: createPostHogTelemetry({
-            functionId: 'analyze-waiver-vision-fallback',
+            functionId: "analyze-waiver-vision-fallback",
             distinctId: posthogDistinctId,
             metadata: {
-              ai_feature: 'waiver-analysis',
-              ai_phase: 'vision-fallback',
+              ai_feature: "waiver-analysis",
+              ai_phase: "vision-fallback",
             },
           }),
           output: Output.object({ schema: VisionFallbackSchema }),
           messages: [
             {
-              role: 'user',
+              role: "user",
               content: [
                 {
-                  type: 'text',
+                  type: "text",
                   text: `You are analyzing a waiver PDF to detect exactly where signature fields, dates, and other form fields should be placed.
 
 **YOUR TASK**: Look at the PDF and return the bounding boxes for where each field should go.
@@ -1500,9 +1748,9 @@ ${JSON.stringify(pageDimensions)}
 Return only high-confidence fields that you can clearly see in the PDF.`,
                 },
                 {
-                  type: 'file',
+                  type: "file",
                   data: pdfBytes,
-                  mediaType: 'application/pdf',
+                  mediaType: "application/pdf",
                 },
               ],
             },
@@ -1511,14 +1759,19 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
         });
 
         const minVisionConfidence = strictHallucinationGuard
-          ? (isLiteModel ? 0.55 : 0.5)
+          ? isLiteModel
+            ? 0.55
+            : 0.5
           : 0.3;
         diagnostics.visionFieldsRaw = fallback.output.fields.length;
-        const confidenceFilteredVisionFields = fallback.output.fields.filter((field) => {
-          const confidence = safeNumber(field.confidence, 1);
-          return confidence >= minVisionConfidence;
-        });
-        diagnostics.visionFieldsAfterConfidence = confidenceFilteredVisionFields.length;
+        const confidenceFilteredVisionFields = fallback.output.fields.filter(
+          (field) => {
+            const confidence = safeNumber(field.confidence, 1);
+            return confidence >= minVisionConfidence;
+          },
+        );
+        diagnostics.visionFieldsAfterConfidence =
+          confidenceFilteredVisionFields.length;
 
         const mappedVisionFields = mapVisionFallbackFields(
           confidenceFilteredVisionFields,
@@ -1533,14 +1786,17 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
           {
             strict: strictHallucinationGuard,
             minAnchorScore: isLiteModel ? 0.95 : 1.1,
-          }
+          },
         );
 
         diagnostics.visionFieldsAnchored = stabilizedVision.stats.anchoredCount;
         diagnostics.visionFieldsRejected = stabilizedVision.stats.rejectedCount;
-        diagnostics.visionFieldsRejectedLowSignal = stabilizedVision.stats.rejectedLowSignalCount;
-        diagnostics.visionFieldsRejectedOversize = stabilizedVision.stats.rejectedOversizeCount;
-        diagnostics.visionFieldsKeptUnanchored = stabilizedVision.stats.keptUnanchoredCount;
+        diagnostics.visionFieldsRejectedLowSignal =
+          stabilizedVision.stats.rejectedLowSignalCount;
+        diagnostics.visionFieldsRejectedOversize =
+          stabilizedVision.stats.rejectedOversizeCount;
+        diagnostics.visionFieldsKeptUnanchored =
+          stabilizedVision.stats.keptUnanchoredCount;
 
         const visionFields = stabilizedVision.fields;
         if (visionFields.length > 0) {
@@ -1551,15 +1807,21 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
           );
         }
 
-        if (fallback.output.signerRoles && fallback.output.signerRoles.length > 0) {
+        if (
+          fallback.output.signerRoles &&
+          fallback.output.signerRoles.length > 0
+        ) {
           normalizedSignerRoles = normalizeSignerRoles([
             ...normalizedSignerRoles,
             ...fallback.output.signerRoles,
           ]);
         }
       } catch (fallbackError) {
-        if (process.env.NODE_ENV !== 'test') {
-          console.warn('Vision fallback failed, continuing without fallback fields:', fallbackError);
+        if (process.env.NODE_ENV !== "test") {
+          console.warn(
+            "Vision fallback failed, continuing without fallback fields:",
+            fallbackError,
+          );
         }
       }
     }
@@ -1586,7 +1848,7 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
     diagnostics.finalFieldCount = normalizedFields.length;
 
     const shouldIncludeDiagnostics =
-      includeDiagnostics && process.env.NODE_ENV !== 'production';
+      includeDiagnostics && process.env.NODE_ENV !== "production";
 
     return NextResponse.json({
       success: true,
@@ -1600,15 +1862,14 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
         ...(shouldIncludeDiagnostics ? { diagnostics } : {}),
       },
     });
-
   } catch (error) {
-    console.error('AI waiver analysis error:', error);
+    console.error("AI waiver analysis error:", error);
     return NextResponse.json(
       {
-        error: 'Failed to analyze waiver',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error: "Failed to analyze waiver",
+        details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

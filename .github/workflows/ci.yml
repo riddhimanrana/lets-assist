@@ -10,6 +10,9 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+  push:
+    branches:
+      - development
   workflow_dispatch:
 
 concurrency:
@@ -26,33 +29,99 @@ jobs:
       db: ${{ steps.filter.outputs.db }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
 
       - name: Detect DB-related changes
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             db:
               - 'supabase/**'
+              - '.github/workflows/**'
+              - 'app/api/calendar/google/**'
+              - 'app/api/cron/**'
+              - 'lib/cron/**'
+              - 'app/organization/**/calendar/**'
+              - 'app/organization/**/reports/sheets-actions.ts'
               - 'lib/supabase/**'
+              - 'lib/auth/**'
+              - 'lib/organization/calendar-sync.ts'
+              - 'lib/plugins/**'
+              - 'services/calendar.ts'
+              - 'services/google-drive-metadata*'
+              - 'services/google-sheets.ts'
+              - 'scripts/check-private-submodules.mjs'
+              - 'scripts/check-supabase-seed-safety*'
+              - 'scripts/sync-private-submodules.mjs'
+              - 'scripts/verify-*'
+              - 'scripts/local-dev/**'
+              - 'playwright.*.config.ts'
+              - 'tests/e2e/csf/**'
+              - 'tests/e2e/dv/**'
+              - 'package.json'
+              - 'bun.lock'
               - 'app/**/auth/**'
               - 'app/auth/**'
 
   quality:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Require private submodule access
+        env:
+          PRIVATE_SUBMODULE_SSH_KEY: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
+        run: |
+          if [[ -z "${PRIVATE_SUBMODULE_SSH_KEY}" ]]; then
+            echo "PRIVATE_SUBMODULE_SSH_KEY is required to validate the exact private plugin gitlink."
+            exit 1
+          fi
+
+      - name: Checkout root
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Resolve exact private plugin gitlink
+        id: private-plugin-gitlink
+        run: |
+          git submodule init
+          echo "sha=$(git rev-parse HEAD:lib/plugins/private)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact private plugin gitlink
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
+        with:
+          repository: riddhimanrana/lets-assist-plugins
+          ref: ${{ steps.private-plugin-gitlink.outputs.sha }}
+          path: lib/plugins/private
+          ssh-key: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
+          persist-credentials: false
+
+      - name: Normalize private plugin remote metadata
+        run: |
+          git -C lib/plugins/private remote set-url origin https://github.com/riddhimanrana/lets-assist-plugins.git
+          git submodule absorbgitdirs lib/plugins/private
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.3.14
+
+      - name: Validate exact private plugin gitlink
+        run: bun run plugin:submodules:check:strict
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Validate Supabase seed safety
+        run: |
+          bun run security:seeds
+          bun run test:security:seeds
 
       - name: Lint
         run: bun run lint
@@ -60,36 +129,266 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
+      # The orchestrator preserves a separate Bun process for each group that
+      # installs global module mocks because Bun's module registry is per-process.
+      # This is the same interface developers run.
+      - name: Root and plugin tests
+        run: bun run test
+
+      - name: Production build
+        run: bun run build
+        env:
+          VERCEL_ENV: preview
+          EXPECTED_NON_PRODUCTION_SUPABASE_HOST: ci-preview.invalid
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-preview.invalid
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-nonfunctional-publishable-key
+          SUPABASE_SECRET_KEY: ci-nonfunctional-secret-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-nonfunctional-service-role-key
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+
   db-replay-validation:
     needs: changes
     runs-on: ubuntu-latest
-    if: needs.changes.outputs.db == 'true' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false)
+    timeout-minutes: 40
+    if: needs.changes.outputs.db == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    env:
+      CSF_ISOLATED_BASE_PORT: "55320"
+      CSF_E2E_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Require private submodule access
+        env:
+          PRIVATE_SUBMODULE_SSH_KEY: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
+        run: |
+          if [[ -z "${PRIVATE_SUBMODULE_SSH_KEY}" ]]; then
+            echo "PRIVATE_SUBMODULE_SSH_KEY is required to validate the exact private plugin gitlink."
+            exit 1
+          fi
+
+      - name: Checkout root
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Resolve exact private plugin gitlink
+        id: private-plugin-gitlink
+        run: |
+          git submodule init
+          echo "sha=$(git rev-parse HEAD:lib/plugins/private)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact private plugin gitlink
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
+        with:
+          repository: riddhimanrana/lets-assist-plugins
+          ref: ${{ steps.private-plugin-gitlink.outputs.sha }}
+          path: lib/plugins/private
+          ssh-key: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
+          persist-credentials: false
+
+      - name: Normalize private plugin remote metadata
+        run: |
+          git -C lib/plugins/private remote set-url origin https://github.com/riddhimanrana/lets-assist-plugins.git
+          git submodule absorbgitdirs lib/plugins/private
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.3.14
+
+      - name: Validate exact private plugin gitlink
+        run: bun run plugin:submodules:check:strict
+
+      - name: Require DVHS CSF private plugin and browser suite
+        run: |
+          if [[ ! -f "lib/plugins/private/plugins/dvhs-csf/plugin.tsx" ]]; then
+            echo "DVHS CSF private plugin is required for database and browser validation."
+            exit 1
+          fi
+          if ! find tests/e2e/csf -type f -name '*.spec.ts' -print -quit | grep -q .; then
+            echo "DVHS CSF browser specs are required for lifecycle validation."
+            exit 1
+          fi
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v2
         with:
-          version: 2.84.2
+          version: 2.111.0
 
-      - name: Start local Supabase
-        run: bun run supabase:start
+      - name: Allocate one bounded isolated run identity
+        run: |
+          # The launcher caps run IDs at 16 characters, and a reused ID would
+          # reuse the derived Docker project and database volume. Generate a
+          # bounded, collision-resistant ID and require an absent work directory.
+          run_id="ci$(node -e 'process.stdout.write(require("node:crypto").randomBytes(7).toString("hex"));')"
+          if [[ ! "${run_id}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,15}$ ]]; then
+            echo "Generated isolated run ID does not satisfy the launcher contract: ${run_id}"
+            exit 1
+          fi
+          work_dir="/tmp/lets-assist-csf-browser-${run_id}"
+          if [[ -e "${work_dir}" || -L "${work_dir}" ]]; then
+            echo "Isolated work directory already exists: ${work_dir}"
+            exit 1
+          fi
+          printf 'CSF_ISOLATED_RUN_ID=%s\n' "${run_id}" >> "${GITHUB_ENV}"
+          printf 'CSF_ISOLATED_WORK_DIR=%s\n' "${work_dir}" >> "${GITHUB_ENV}"
 
-      - name: Validate DB reset replay
-        run: bun run supabase:reset
+      - name: Start one isolated Let’s Assist Supabase
+        id: start-isolated
+        run: |
+          # Exactly one launcher-owned stack. Its new database volume is what
+          # applies the current migrations and the configured SQL seed paths.
+          scripts/local-dev/start-dvhs-csf-isolated-stack.sh
 
-      - name: Show Supabase status
-        run: bun run supabase:status
+          # Load only the exact bytes that passed the non-executing validation.
+          # The loader re-reads its own held descriptor and rechecks
+          # inode/size/digest, so nothing here sources or re-opens the file.
+          validated_app_env="$(node scripts/local-dev/dv-local-env.mjs --print-app-env)"
+          while IFS= read -r assignment; do
+            [[ -n "${assignment}" ]] || continue
+            case "${assignment%%=*}" in
+              API_URL|ANON_KEY|SERVICE_ROLE_KEY|DB_URL|SUPABASE_URL|SUPABASE_ANON_KEY|\
+              SUPABASE_DB_URL|NEXT_PUBLIC_SUPABASE_URL|NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY|\
+              NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY|\
+              CSF_PROFILE_CLAIM_SECRET|NEXT_PUBLIC_SITE_URL|SITE_URL|NEXT_PUBLIC_VERCEL_URL|\
+              CSF_ISOLATED_WORK_DIR) ;;
+              *)
+                echo "Refusing an unexpected isolated app environment key: ${assignment%%=*}"
+                exit 1
+                ;;
+            esac
+            export "${assignment%%=*}=${assignment#*=}"
+          done <<< "${validated_app_env}"
 
-      - name: Stop local Supabase
+          printf '::add-mask::%s\n' \
+            "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-DvTest!" \
+            "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-CsfTest!"
+
+          for key in \
+            API_URL ANON_KEY SERVICE_ROLE_KEY DB_URL \
+            SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_DB_URL \
+            NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY \
+            NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SECRET_KEY \
+            SUPABASE_SERVICE_ROLE_KEY NEXT_PUBLIC_SITE_URL SITE_URL \
+            NEXT_PUBLIC_VERCEL_URL CSF_ISOLATED_WORK_DIR \
+            CSF_PROFILE_CLAIM_SECRET
+          do
+            case "${key}" in
+              ANON_KEY|SERVICE_ROLE_KEY|DB_URL|SUPABASE_ANON_KEY|SUPABASE_DB_URL|\
+              NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY|NEXT_PUBLIC_SUPABASE_ANON_KEY|\
+              SUPABASE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY|CSF_PROFILE_CLAIM_SECRET)
+                printf '::add-mask::%s\n' "${!key}"
+                ;;
+            esac
+            printf '%s=%s\n' "${key}" "${!key}" >> "${GITHUB_ENV}"
+          done
+
+          # Exact live identity: --csf-health requires the launcher marker,
+          # project, base port, and recorded database volume to agree.
+          node scripts/local-dev/dv-local-env.mjs --csf-health
+
+      - name: Validate database tests on the same running isolated stack
+        run: supabase test db --workdir "${CSF_ISOLATED_WORK_DIR}"
+
+      - name: Seed fictional platform and DV fixtures
+        run: |
+          # JavaScript-managed fictional records only. The migration and SQL-seed
+          # replay already happened when the launcher created its new volume.
+          #
+          # The isolated seed script carries PLATFORM_SEED_MODE=csf-isolated-v1,
+          # which refuses to run without a validated CSF_ISOLATED_WORK_DIR. The
+          # shared-local script must never appear in this job: it would select
+          # the shared 54321 stack and then reset-upsert its CSF tables.
+          bun run csf:seed:platform:isolated
+          bun run dv:fixtures
+        env:
+          DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
+          CSF_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-CsfTest!
+
+      - name: Validate DV fixtures and RLS
+        run: bun run dv:test:db
+        env:
+          DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
+
+      - name: Validate CSF database workflows
+        run: bun run csf:test:workflows
+
+      - name: Validate CSF scale and cleanup
+        run: bun run csf:test:scale
+
+      # After seeding and before any browser run: the six selected worker routes
+      # (auto-publish-hours, project-cancellations, organization-calendar-sync,
+      # organization-sheet-sync, data-exports, and csf-scheduled-post-publisher)
+      # must authenticate and return
+      # without dispatching on a stack that now has fixture rows in it. Running it
+      # before the seed would prove only that empty queues do nothing.
+      - name: Validate cron auth/shape on the seeded isolated stack
+        run: bun run dev:test:cron
+
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: Validate DV browser workflows
+        if: ${{ hashFiles('lib/plugins/private/plugins/dv-speech-debate/plugin.tsx') != '' }}
+        run: bun run dv:test:e2e
+        env:
+          DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
+
+      - name: Skip private DV browser workflows
+        if: ${{ hashFiles('lib/plugins/private/plugins/dv-speech-debate/plugin.tsx') == '' }}
+        run: echo "Private DV plugin submodule unavailable; skipping private DV browser workflows."
+
+      - name: Validate CSF browser workflows
+        run: bun run csf:test:e2e
+        env:
+          CSF_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-CsfTest!
+
+      - name: Verify isolated Supabase remains healthy
+        if: ${{ always() && steps.start-isolated.outcome == 'success' }}
+        run: |
+          # Reuses the values the start step already exported after their
+          # exact-byte validated handoff; no step re-opens or sources that file.
+          node scripts/local-dev/dv-local-env.mjs --csf-health
+
+      - name: Validate retained CSF browser traces
+        if: ${{ always() }}
+        run: |
+          artifact_dir=".artifacts/dvhs-csf-e2e/${CSF_E2E_RUN_ID}/playwright"
+          if [[ ! -d "${artifact_dir}" ]]; then
+            exit 0
+          fi
+
+          invalid_trace=0
+          while IFS= read -r -d '' trace_file; do
+            if ! unzip -tq "${trace_file}" >/dev/null; then
+              echo "::error file=${trace_file}::Playwright trace archive is incomplete."
+              invalid_trace=1
+            fi
+          done < <(find "${artifact_dir}" -type f -name 'trace.zip' -print0)
+          exit "${invalid_trace}"
+
+      - name: Upload CSF browser evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: csf-browser-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .artifacts/dvhs-csf-e2e/${{ env.CSF_E2E_RUN_ID }}/playwright/
+          if-no-files-found: warn
+          retention-days: 7
+          compression-level: 6
+          include-hidden-files: true
+
+      - name: Stop isolated Let’s Assist Supabase
         if: always()
-        run: bun run supabase:stop
+        run: |
+          if [[ -n "${CSF_ISOLATED_WORK_DIR:-}" && -d "${CSF_ISOLATED_WORK_DIR}" ]]; then
+            scripts/local-dev/stop-dvhs-csf-isolated-stack.sh \
+              --delete-workdir \
+              "${CSF_ISOLATED_WORK_DIR}"
+          fi

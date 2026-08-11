@@ -10,7 +10,11 @@ const ApplicationSchema = z.object({
   reason: z.string().min(10).max(500),
 });
 
-export async function submitTrustedMember(input: { name: string; email: string; reason: string }) {
+export async function submitTrustedMember(input: {
+  name: string;
+  email: string;
+  reason: string;
+}) {
   const supabase = await createClient();
 
   const parsed = ApplicationSchema.safeParse(input);
@@ -48,25 +52,26 @@ export async function submitTrustedMember(input: { name: string; email: string; 
   // If denied, keep the record but reset status to null if you want to allow re-apply; for now, keep as guidance
   if (existing && existing.status === false) {
     // We’ll not auto-reset denied; instruct the user via UI to contact support
-    return { error: "Your previous application was not approved. Please contact support@lets-assist.com." };
+    return {
+      error:
+        "Your previous application was not approved. Please contact support@lets-assist.com.",
+    };
   }
 
   // Insert new or update pending
   const isNewApplication = !existing;
   if (!existing) {
-    const { error: upsertError } = await supabase
-      .from("trusted_member")
-      .upsert(
-        {
-          id: userId,
-          user_id: userId,
-          name: parsed.data.name,
-          email: parsed.data.email,
-          reason: parsed.data.reason,
-          status: null,
-        },
-        { onConflict: "id" }
-      );
+    const { error: upsertError } = await supabase.from("trusted_member").upsert(
+      {
+        id: userId,
+        user_id: userId,
+        name: parsed.data.name,
+        email: parsed.data.email,
+        reason: parsed.data.reason,
+        status: null,
+      },
+      { onConflict: "id" },
+    );
     if (upsertError) {
       console.error("Error inserting application:", upsertError);
       return { error: "Failed to submit application" };
@@ -74,7 +79,11 @@ export async function submitTrustedMember(input: { name: string; email: string; 
   } else if (existing.status === null) {
     const { error: updateError } = await supabase
       .from("trusted_member")
-      .update({ name: parsed.data.name, email: parsed.data.email, reason: parsed.data.reason })
+      .update({
+        name: parsed.data.name,
+        email: parsed.data.email,
+        reason: parsed.data.reason,
+      })
       .eq("id", existing.id);
     if (updateError) {
       console.error("Error updating application:", updateError);
@@ -91,7 +100,10 @@ export async function submitTrustedMember(input: { name: string; email: string; 
         applicantEmail: parsed.data.email,
       });
     } catch (error) {
-      console.error("Error notifying admins of trusted member application:", error);
+      console.error(
+        "Error notifying admins of trusted member application:",
+        error,
+      );
     }
   }
 

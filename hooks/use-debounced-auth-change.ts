@@ -1,21 +1,21 @@
-'use client';
+"use client";
 
 /**
  * Hook: useDebouncedAuthChange
- * 
+ *
  * Debounces rapid auth state changes to prevent duplicate data fetches
- * 
+ *
  * Problem:
  * - When tabs regain focus, onAuthStateChange fires multiple times
  * - Each event triggers a profile fetch
  * - Multiple tabs = multiple redundant fetches
- * 
+ *
  * Solution:
  * - Debounce the listener callback with 1-second window
  * - Ignore duplicate events within debounce period
  * - Track last user ID to detect actual user changes
  * - Treat auth events as invalidation signals instead of trusting session.user
- * 
+ *
  * Usage:
  * ```typescript
  * const unsubscribe = useDebouncedAuthChange(async (user) => {
@@ -26,20 +26,20 @@
  * ```
  */
 
-import { useEffect, useRef, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import type { User } from '@supabase/supabase-js';
+import { useEffect, useRef, useCallback } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 const DEBOUNCE_DELAY_MS = 1000; // 1 second window
 
 /**
  * Hook that debounces auth state changes
- * 
+ *
  * Prevents duplicate data fetches when:
  * - Tab regains focus (fires onAuthStateChange multiple times)
  * - User stays same but token refreshes
  * - Multiple components subscribe to auth changes
- * 
+ *
  * @param onAuthChange Callback when user actually changes
  * @param deps Optional dependency array
  */
@@ -62,8 +62,8 @@ export function useDebouncedAuthChange(
       const userId = user?.id || null;
       const isUserChanged = userId !== lastUserIdRef.current;
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[DebouncedAuth] Event fired:', {
+      if (process.env.NODE_ENV === "development") {
+        console.log("[DebouncedAuth] Event fired:", {
           userId,
           isChanged: isUserChanged,
           isProcessing: isProcessingRef.current,
@@ -72,8 +72,8 @@ export function useDebouncedAuthChange(
 
       // If user didn't change and we're not processing, skip
       if (!isUserChanged && isProcessingRef.current) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[DebouncedAuth] Ignoring duplicate event');
+        if (process.env.NODE_ENV === "development") {
+          console.log("[DebouncedAuth] Ignoring duplicate event");
         }
         return;
       }
@@ -82,8 +82,8 @@ export function useDebouncedAuthChange(
       debounceTimerRef.current = setTimeout(async () => {
         if (isUserChanged) {
           lastUserIdRef.current = userId;
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[DebouncedAuth] User changed, fetching data:', userId);
+          if (process.env.NODE_ENV === "development") {
+            console.log("[DebouncedAuth] User changed, fetching data:", userId);
           }
         }
 
@@ -91,7 +91,7 @@ export function useDebouncedAuthChange(
           isProcessingRef.current = true;
           await onAuthChange(user);
         } catch (error) {
-          console.error('[DebouncedAuth] Error in callback:', error);
+          console.error("[DebouncedAuth] Error in callback:", error);
         } finally {
           isProcessingRef.current = false;
         }
@@ -103,22 +103,22 @@ export function useDebouncedAuthChange(
   useEffect(() => {
     const supabase = createClient();
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[DebouncedAuth] Setting up listener');
+    if (process.env.NODE_ENV === "development") {
+      console.log("[DebouncedAuth] Setting up listener");
     }
 
     // Subscribe to auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') {
+      if (event === "SIGNED_OUT") {
         handleAuthChange(null);
         return;
       }
 
       void supabase.auth.getUser().then(({ data, error }) => {
         if (error) {
-          console.error('[DebouncedAuth] Error resolving trusted user:', error);
+          console.error("[DebouncedAuth] Error resolving trusted user:", error);
           handleAuthChange(null);
           return;
         }
@@ -139,9 +139,9 @@ export function useDebouncedAuthChange(
 
 /**
  * Alternative: Manual debounce utility for existing listeners
- * 
+ *
  * Use this to wrap existing auth listeners without changing hook structure
- * 
+ *
  * @param callback The function to debounce
  * @param delayMs Debounce delay in milliseconds
  * @returns Debounced function
@@ -165,7 +165,7 @@ export function debounceAuthChange<T extends (...args: unknown[]) => unknown>(
         try {
           (callback as (...args: Parameters<T>) => void)(...lastArgs);
         } catch (error) {
-          console.error('[DebouncedAuth] Callback error:', error);
+          console.error("[DebouncedAuth] Callback error:", error);
         }
       }
       timeoutId = null;

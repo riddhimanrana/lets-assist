@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
 /**
  * AuthProvider: Global auth state initialization
- * 
+ *
  * Simplified provider that only handles auth state change logging.
  * Auth state is managed by individual hooks using getClaims().
  */
 
-import { useEffect, useMemo } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useEffect, useMemo } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 type AuthProviderProps = {
   children: React.ReactNode;
@@ -19,13 +19,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     // Set up global auth state listener for debugging/logging
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[AuthProvider] Auth state changed:', event);
-        }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (process.env.NODE_ENV === "development") {
+        console.log("[AuthProvider] Auth state changed:", event);
       }
-    );
+    });
 
     return () => {
       subscription.unsubscribe();

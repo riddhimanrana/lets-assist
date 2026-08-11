@@ -1,4 +1,3 @@
-
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getPublicProfilesByIds } from "@/lib/profile/public";
@@ -50,7 +49,11 @@ function formatRecurrenceSummary(rule: RecurrenceRule): string {
 
   let summary = `Repeats every ${frequencyLabel}`;
 
-  if (rule.frequency === "weekly" && rule.weekdays && rule.weekdays.length > 0) {
+  if (
+    rule.frequency === "weekly" &&
+    rule.weekdays &&
+    rule.weekdays.length > 0
+  ) {
     const dayNames = rule.weekdays
       .map((d) => WEEKDAY_LABELS[d])
       .filter(Boolean)
@@ -59,7 +62,7 @@ function formatRecurrenceSummary(rule: RecurrenceRule): string {
   }
 
   if (rule.end_type === "on_date" && rule.end_date) {
-    const [year, month, day] = rule.end_date.split('-').map(Number);
+    const [year, month, day] = rule.end_date.split("-").map(Number);
     summary += ` until ${format(new Date(year, month - 1, day), "MMM d, yyyy")}`;
   } else if (rule.end_type === "after_occurrences" && rule.end_occurrences) {
     summary += `, ${rule.end_occurrences} times`;
@@ -109,11 +112,13 @@ export default async function UserProjects() {
   // Get projects user has created
   const { data: createdProjects, error: createdError } = await supabase
     .from("projects")
-    .select(`
+    .select(
+      `
       *,
       organizations(name, logo_url, username),
       project_signups(id, user_id, status, schedule_id)
-    `)
+    `,
+    )
     .eq("creator_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -124,7 +129,8 @@ export default async function UserProjects() {
   // Get projects user has signed up for
   const { data: signups, error: signupsError } = await supabase
     .from("project_signups")
-    .select(`
+    .select(
+      `
       id,
       status,
       schedule_id,
@@ -133,7 +139,8 @@ export default async function UserProjects() {
         organizations(name, logo_url, username),
         published
       )
-    `)
+    `,
+    )
     .eq("user_id", user.id)
     .not("status", "eq", "rejected")
     .order("created_at", { ascending: false });
@@ -144,9 +151,11 @@ export default async function UserProjects() {
 
   // After getting the signups, fetch creator profiles separately if needed
   const projectCreatorIds = signups
-    ?.filter(signup => signup.projects)
-    .map(signup => {
-      const project = Array.isArray(signup.projects) ? signup.projects[0] : signup.projects;
+    ?.filter((signup) => signup.projects)
+    .map((signup) => {
+      const project = Array.isArray(signup.projects)
+        ? signup.projects[0]
+        : signup.projects;
       return project.creator_id;
     })
     .filter(Boolean);
@@ -157,78 +166,93 @@ export default async function UserProjects() {
     const { data: profiles } = await getPublicProfilesByIds(projectCreatorIds);
 
     if (profiles) {
-      creatorProfiles = profiles.reduce<Record<string, CreatorProfile>>((acc, profile) => {
-        acc[profile.id] = profile as CreatorProfile;
-        return acc;
-      }, {});
+      creatorProfiles = profiles.reduce<Record<string, CreatorProfile>>(
+        (acc, profile) => {
+          acc[profile.id] = profile as CreatorProfile;
+          return acc;
+        },
+        {},
+      );
     }
   }
 
   // Transform and process volunteer projects properly with creator info
-  const volunteeredProjects: ProjectWithCreator[] = signups?.filter(signup => signup.projects).map(signup => {
-    const projectData = Array.isArray(signup.projects) ? signup.projects[0] : signup.projects;
-    const creator = creatorProfiles[projectData.creator_id];
+  const volunteeredProjects: ProjectWithCreator[] =
+    signups
+      ?.filter((signup) => signup.projects)
+      .map((signup) => {
+        const projectData = Array.isArray(signup.projects)
+          ? signup.projects[0]
+          : signup.projects;
+        const creator = creatorProfiles[projectData.creator_id];
 
-    // Determine if hours are published for this specific signup's schedule_id
-    const areHoursPublished = projectData.published_hours && projectData.published_hours[signup.schedule_id] === true;
+        // Determine if hours are published for this specific signup's schedule_id
+        const areHoursPublished =
+          projectData.published_hours &&
+          projectData.published_hours[signup.schedule_id] === true;
 
-    return {
-      ...(projectData as unknown as Project),
-      creator,
-      signup_id: signup.id,
-      signup_status: signup.status,
-      signup_schedule_id: signup.schedule_id,
-      areHoursPublished, // Include this in the returned object
-    };
-  }) || [];
+        return {
+          ...(projectData as unknown as Project),
+          creator,
+          signup_id: signup.id,
+          signup_status: signup.status,
+          signup_schedule_id: signup.schedule_id,
+          areHoursPublished, // Include this in the returned object
+        };
+      }) || [];
 
   // Process projects to add status and creator info
   const processedCreatedProjects: ProjectWithSignups[] =
     (createdProjects as ProjectWithSignups[] | null)?.map((project) => ({
       ...project,
-      creator: userProfile ? {
-        id: userProfile.id,
-        full_name: userProfile.full_name,
-        avatar_url: userProfile.avatar_url,
-        username: userProfile.username
-      } : undefined,
+      creator: userProfile
+        ? {
+            id: userProfile.id,
+            full_name: userProfile.full_name,
+            avatar_url: userProfile.avatar_url,
+            username: userProfile.username,
+          }
+        : undefined,
       status: getProjectStatus(project),
     })) || [];
 
-  const processedVolunteeredProjects = volunteeredProjects.map(project => ({
+  const processedVolunteeredProjects = volunteeredProjects.map((project) => ({
     ...project,
-    status: getProjectStatus(project)
+    status: getProjectStatus(project),
   }));
 
   // Group volunteered projects by status
-  const upcomingVolunteered = processedVolunteeredProjects.filter(p =>
-    p.status === "upcoming"
+  const upcomingVolunteered = processedVolunteeredProjects.filter(
+    (p) => p.status === "upcoming",
   );
 
-  const inProgressVolunteered = processedVolunteeredProjects.filter(p =>
-    p.status === "in-progress"
+  const inProgressVolunteered = processedVolunteeredProjects.filter(
+    (p) => p.status === "in-progress",
   );
 
-  const pastVolunteered = processedVolunteeredProjects.filter(p =>
-    p.status === "completed" || p.status === "cancelled"
+  const pastVolunteered = processedVolunteeredProjects.filter(
+    (p) => p.status === "completed" || p.status === "cancelled",
   );
 
   // Group created projects by status
-  const upcomingCreated = processedCreatedProjects.filter(p =>
-    p.status === "upcoming"
+  const upcomingCreated = processedCreatedProjects.filter(
+    (p) => p.status === "upcoming",
   );
 
-  const inProgressCreated = processedCreatedProjects.filter(p =>
-    p.status === "in-progress"
+  const inProgressCreated = processedCreatedProjects.filter(
+    (p) => p.status === "in-progress",
   );
 
-  const pastCreated = processedCreatedProjects.filter(p =>
-    p.status === "completed" || p.status === "cancelled"
+  const pastCreated = processedCreatedProjects.filter(
+    (p) => p.status === "completed" || p.status === "cancelled",
   );
 
   // Filter recurring projects (those with recurrence_rule set and have frequency)
-  const recurringCreated = processedCreatedProjects.filter(p =>
-    p.recurrence_rule && p.recurrence_rule.frequency && p.status !== "cancelled"
+  const recurringCreated = processedCreatedProjects.filter(
+    (p) =>
+      p.recurrence_rule &&
+      p.recurrence_rule.frequency &&
+      p.status !== "cancelled",
   );
 
   return (
@@ -246,29 +270,42 @@ export default async function UserProjects() {
 
         {/* Projects you're volunteering for */}
         <TabsContent value="volunteering" className="space-y-6">
-          {upcomingVolunteered.length === 0 && inProgressVolunteered.length === 0 && pastVolunteered.length === 0 ? (
+          {upcomingVolunteered.length === 0 &&
+          inProgressVolunteered.length === 0 &&
+          pastVolunteered.length === 0 ? (
             <div className="text-center py-10">
               <div className="mx-auto w-14 h-14 bg-muted flex items-center justify-center rounded-full mb-3">
                 <Calendar className="h-7 w-7 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-medium mb-2">No volunteer signups yet</h3>
+              <h3 className="text-lg font-medium mb-2">
+                No volunteer signups yet
+              </h3>
               <p className="text-muted-foreground mb-5 max-w-md mx-auto text-sm">
                 You haven&apos;t signed up for any volunteer projects yet.
               </p>
-              <Link href="/projects" className={cn(buttonVariants({ size: "sm" }))}>Browse Projects</Link>
+              <Link
+                href="/projects"
+                className={cn(buttonVariants({ size: "sm" }))}
+              >
+                Browse Projects
+              </Link>
             </div>
           ) : (
             <>
               {/* Upcoming volunteer projects */}
               <section>
-                <h2 className="text-lg font-semibold mb-3">Upcoming ({upcomingVolunteered.length})</h2>
+                <h2 className="text-lg font-semibold mb-3">
+                  Upcoming ({upcomingVolunteered.length})
+                </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {upcomingVolunteered.map((project) => (
                     <ProjectCard
                       key={`volunteer-${project.id}`}
                       project={project}
                       href={`/projects/${project.id}`}
-                      topLeftBadge={<ProjectStatusBadge size="sm" status={project.status} />}
+                      topLeftBadge={
+                        <ProjectStatusBadge size="sm" status={project.status} />
+                      }
                     />
                   ))}
                 </div>
@@ -277,14 +314,21 @@ export default async function UserProjects() {
               {/* In progress volunteer projects */}
               {inProgressVolunteered.length > 0 && (
                 <section className="mt-6">
-                  <h2 className="text-lg font-semibold mb-3">In Progress ({inProgressVolunteered.length})</h2>
+                  <h2 className="text-lg font-semibold mb-3">
+                    In Progress ({inProgressVolunteered.length})
+                  </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {inProgressVolunteered.map((project) => (
                       <ProjectCard
                         key={`volunteer-progress-${project.id}`}
                         project={project}
                         href={`/projects/${project.id}`}
-                        topLeftBadge={<ProjectStatusBadge size="sm" status={project.status} />}
+                        topLeftBadge={
+                          <ProjectStatusBadge
+                            size="sm"
+                            status={project.status}
+                          />
+                        }
                         className="border-primary/30"
                       />
                     ))}
@@ -295,7 +339,9 @@ export default async function UserProjects() {
               {/* Past volunteer projects */}
               {pastVolunteered.length > 0 && (
                 <section>
-                  <h2 className="text-lg font-semibold mb-3">Past ({pastVolunteered.length})</h2>
+                  <h2 className="text-lg font-semibold mb-3">
+                    Past ({pastVolunteered.length})
+                  </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {pastVolunteered.map((project) => (
                       <ProjectCard
@@ -304,13 +350,21 @@ export default async function UserProjects() {
                         href={`/projects/${project.id}`}
                         topLeftBadge={
                           project.areHoursPublished ? (
-                            <Badge variant="default" className="text-xs bg-success text-success-foreground hover:bg-success/90">
+                            <Badge
+                              variant="default"
+                              className="text-xs bg-success text-success-foreground hover:bg-success/90"
+                            >
                               <Award className="h-3 w-3 mr-1" />
                               Hours Published
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="bg-muted text-xs">
-                              {project.status === 'cancelled' ? 'Cancelled' : 'Past Event'}
+                            <Badge
+                              variant="outline"
+                              className="bg-muted text-xs"
+                            >
+                              {project.status === "cancelled"
+                                ? "Cancelled"
+                                : "Past Event"}
                             </Badge>
                           )
                         }
@@ -327,16 +381,25 @@ export default async function UserProjects() {
 
         {/* Projects you've created */}
         <TabsContent value="created" className="space-y-6">
-          {upcomingCreated.length === 0 && inProgressCreated.length === 0 && pastCreated.length === 0 ? (
+          {upcomingCreated.length === 0 &&
+          inProgressCreated.length === 0 &&
+          pastCreated.length === 0 ? (
             <div className="text-center py-10">
               <div className="mx-auto w-14 h-14 bg-muted flex items-center justify-center rounded-full mb-3">
                 <Users className="h-7 w-7 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-medium mb-2">No projects created yet</h3>
+              <h3 className="text-lg font-medium mb-2">
+                No projects created yet
+              </h3>
               <p className="text-muted-foreground mb-5 max-w-md mx-auto text-sm">
                 You haven&apos;t created any volunteer projects yet.
               </p>
-              <Link href="/projects/create" className={cn(buttonVariants({ size: "sm" }))}>Create First Project</Link>
+              <Link
+                href="/projects/create"
+                className={cn(buttonVariants({ size: "sm" }))}
+              >
+                Create First Project
+              </Link>
             </div>
           ) : (
             <>
@@ -346,7 +409,9 @@ export default async function UserProjects() {
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <Repeat className="h-5 w-5 text-primary" />
-                      <h2 className="text-lg font-semibold">Recurring Events ({recurringCreated.length})</h2>
+                      <h2 className="text-lg font-semibold">
+                        Recurring Events ({recurringCreated.length})
+                      </h2>
                     </div>
                     <p className="text-xs text-muted-foreground hidden sm:block">
                       Auto-repeat schedule
@@ -371,15 +436,28 @@ export default async function UserProjects() {
                             </h3>
                             <div className="flex items-center gap-2 mt-0.5">
                               <p className="text-xs text-muted-foreground truncate">
-                                {project.recurrence_rule && formatRecurrenceSummary(project.recurrence_rule)}
+                                {project.recurrence_rule &&
+                                  formatRecurrenceSummary(
+                                    project.recurrence_rule,
+                                  )}
                               </p>
                             </div>
                           </div>
                           <div className="shrink-0 hidden sm:flex items-center gap-2">
                             <Badge variant="outline" className="text-xs">
-                              {(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers
+                              {
+                                (project.project_signups || []).filter(
+                                  (s) =>
+                                    s.status === "approved" ||
+                                    s.status === "attended",
+                                ).length
+                              }{" "}
+                              volunteers
                             </Badge>
-                            <ProjectStatusBadge size="sm" status={project.status} />
+                            <ProjectStatusBadge
+                              size="sm"
+                              status={project.status}
+                            />
                           </div>
                         </div>
                       </Link>
@@ -390,7 +468,9 @@ export default async function UserProjects() {
 
               {/* Upcoming created projects */}
               <section>
-                <h2 className="text-lg font-semibold mb-3">Upcoming ({upcomingCreated.length})</h2>
+                <h2 className="text-lg font-semibold mb-3">
+                  Upcoming ({upcomingCreated.length})
+                </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {upcomingCreated.map((project) => (
                     <ProjectCard
@@ -400,7 +480,14 @@ export default async function UserProjects() {
                       showIdentity={false}
                       topLeftBadge={
                         <Badge variant="outline" className="text-xs">
-                          {(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers
+                          {
+                            (project.project_signups || []).filter(
+                              (s) =>
+                                s.status === "approved" ||
+                                s.status === "attended",
+                            ).length
+                          }{" "}
+                          volunteers
                         </Badge>
                       }
                     />
@@ -411,7 +498,9 @@ export default async function UserProjects() {
               {/* In progress created projects */}
               {inProgressCreated.length > 0 && (
                 <section className="mt-6">
-                  <h2 className="text-lg font-semibold mb-3">In Progress ({inProgressCreated.length})</h2>
+                  <h2 className="text-lg font-semibold mb-3">
+                    In Progress ({inProgressCreated.length})
+                  </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {inProgressCreated.map((project) => (
                       <ProjectCard
@@ -421,7 +510,14 @@ export default async function UserProjects() {
                         showIdentity={false}
                         topLeftBadge={
                           <Badge variant="outline" className="text-xs">
-                            {(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers
+                            {
+                              (project.project_signups || []).filter(
+                                (s) =>
+                                  s.status === "approved" ||
+                                  s.status === "attended",
+                              ).length
+                            }{" "}
+                            volunteers
                           </Badge>
                         }
                         className="border-primary/30"
@@ -434,7 +530,9 @@ export default async function UserProjects() {
               {/* Past created projects */}
               {pastCreated.length > 0 && (
                 <section>
-                  <h2 className="text-lg font-semibold mb-3">Past ({pastCreated.length})</h2>
+                  <h2 className="text-lg font-semibold mb-3">
+                    Past ({pastCreated.length})
+                  </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {pastCreated.map((project) => (
                       <ProjectCard
@@ -442,13 +540,26 @@ export default async function UserProjects() {
                         project={project}
                         href={`/projects/${project.id}`}
                         showIdentity={false}
-                        topLeftBadge={<Badge variant="outline" className="bg-muted text-xs">Past Event</Badge>}
+                        topLeftBadge={
+                          <Badge variant="outline" className="bg-muted text-xs">
+                            Past Event
+                          </Badge>
+                        }
                         className="bg-muted/30"
                         actionVariant="outline"
                         footerContent={
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Users className="h-3 w-3" />
-                            <span>{(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers participated</span>
+                            <span>
+                              {
+                                (project.project_signups || []).filter(
+                                  (s) =>
+                                    s.status === "approved" ||
+                                    s.status === "attended",
+                                ).length
+                              }{" "}
+                              volunteers participated
+                            </span>
                           </div>
                         }
                       />

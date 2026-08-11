@@ -1,7 +1,11 @@
-import { Project as BaseProject, ProjectSignup as BaseProjectSignup, SignupStatus } from '@/types';
+import {
+  Project as BaseProject,
+  ProjectSignup as BaseProjectSignup,
+  SignupStatus,
+} from "@/types";
 
 // Extend the Project type to include cover_image_url and documents
-declare module '@/types' {
+declare module "@/types" {
   interface ProjectDocument {
     name: string;
     originalName: string;

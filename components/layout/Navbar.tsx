@@ -10,9 +10,6 @@ import {
   Settings,
   Heart,
   MessageSquare,
-  Sun,
-  Moon,
-  MonitorSmartphone,
   Loader2,
   LayoutDashboard,
   Palette,
@@ -22,14 +19,6 @@ import { NoAvatar } from "@/components/shared/NoAvatar";
 import { logout } from "@/app/logout/actions";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu"
 import {
   Sheet,
   SheetContent,
@@ -52,40 +41,13 @@ import { DonateDialog } from "@/components/feedback/DonateDialog";
 import { useState } from "react";
 import Image from "next/image";
 import { NotificationPopover } from "@/components/notifications/NotificationPopover";
-import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import {
-  DEV_PREVIEW_SOURCE_COOKIE,
-  DEV_PREVIEW_SOURCE_STORAGE_KEY,
-} from "@/lib/supabase/preview-source";
-
-const features: {
-  title: string;
-  href: string;
-  description: string;
-}[] = [
-    {
-      title: "Volunteer Journey",
-      href: "/#journey",
-      description:
-        "Browse opportunities, confirm attendance, and earn certificates.",
-    },
-    {
-      title: "Platform Features",
-      href: "/#features",
-      description:
-        "Calendar sync, dashboards, QR check-ins, and trusted event types.",
-    },
-    {
-      title: "Organization Tooling",
-      href: "/#org-tooling",
-      description:
-        "Role-based member management, certified reports, and QR verification.",
-    },
-  ];
+import { DesktopPrimaryNavigation } from "./navbar/DesktopPrimaryNavigation";
+import { NavbarThemeSelector } from "./navbar/NavbarThemeSelector";
+import { useDevPreviewSource } from "./navbar/useDevPreviewSource";
 
 export default function Navbar() {
   // Use centralized auth hook instead of manual state management
@@ -93,19 +55,27 @@ export default function Navbar() {
   // Use cached profile data instead of making a separate query
   const { profile, loading: isProfileLoading } = useUserProfile();
 
-  const authMetadata = (user?.user_metadata ?? null) as Record<string, unknown> | null;
+  const authMetadata = (user?.user_metadata ?? null) as Record<
+    string,
+    unknown
+  > | null;
 
   const displayName =
     profile?.full_name ||
-    (typeof authMetadata?.full_name === "string" ? authMetadata.full_name : null) ||
+    (typeof authMetadata?.full_name === "string"
+      ? authMetadata.full_name
+      : null) ||
     (typeof authMetadata?.name === "string" ? authMetadata.name : null) ||
-    (typeof authMetadata?.display_name === "string" ? authMetadata.display_name : null) ||
+    (typeof authMetadata?.display_name === "string"
+      ? authMetadata.display_name
+      : null) ||
     user?.email?.split("@")[0] ||
     "Let's Assist user";
 
   const identityAvatarUrl =
     user?.identities?.find((identity) => {
-      const avatar = identity.identity_data?.avatar_url || identity.identity_data?.picture;
+      const avatar =
+        identity.identity_data?.avatar_url || identity.identity_data?.picture;
       return typeof avatar === "string" && avatar.length > 0;
     })?.identity_data?.avatar_url ||
     user?.identities?.find((identity) => {
@@ -115,132 +85,38 @@ export default function Navbar() {
 
   const avatarUrl =
     profile?.avatar_url ||
-    (typeof authMetadata?.avatar_url === "string" ? authMetadata.avatar_url : null) ||
+    (typeof authMetadata?.avatar_url === "string"
+      ? authMetadata.avatar_url
+      : null) ||
     (typeof authMetadata?.picture === "string" ? authMetadata.picture : null) ||
     identityAvatarUrl ||
     undefined;
 
   const profileUsername =
     profile?.username ||
-    (typeof authMetadata?.username === "string" ? authMetadata.username : null) ||
+    (typeof authMetadata?.username === "string"
+      ? authMetadata.username
+      : null) ||
     null;
-  const profileHref = profileUsername ? `/profile/${profileUsername}` : "/account/profile";
+  const profileHref = profileUsername
+    ? `/profile/${profileUsername}`
+    : "/account/profile";
 
   const [showDonateDialog, setShowDonateDialog] = useState(false);
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
-  const [devPreviewSource, setDevPreviewSource] = useState<"local" | "remote">("local");
+  const {
+    source: devPreviewSource,
+    isLocalDevHost,
+    selectSource: handleDevSourceToggle,
+  } = useDevPreviewSource();
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
-  const { theme, setTheme } = useTheme();
   // Add loading state for logout
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const pathname = usePathname();
 
-  const isLocalDevHost = React.useMemo(() => {
-    if (typeof window === "undefined") return false;
-    const host = window.location.hostname;
-    return process.env.NODE_ENV !== "production" && (host === "localhost" || host === "127.0.0.1");
-  }, []);
-
-  React.useEffect(() => {
-    if (!isLocalDevHost || typeof window === "undefined") return;
-
-    const fromStorage = window.localStorage.getItem(DEV_PREVIEW_SOURCE_STORAGE_KEY);
-    if (fromStorage === "local" || fromStorage === "remote") {
-      setDevPreviewSource(fromStorage);
-    }
-  }, [isLocalDevHost]);
-
-  const handleDevSourceToggle = React.useCallback((next: "local" | "remote") => {
-    if (typeof window === "undefined") return;
-    setDevPreviewSource(next);
-    window.localStorage.setItem(DEV_PREVIEW_SOURCE_STORAGE_KEY, next);
-    document.cookie = `${DEV_PREVIEW_SOURCE_COOKIE}=${next}; Path=/; Max-Age=2592000; SameSite=Lax`;
-    window.location.reload();
-  }, []);
-
   const handleNavigation = () => {
     setIsSheetOpen(false);
   };
-
-  // Vercel-style theme selector component for dropdown menu
-  const ThemeSelector = () => (
-    <div className="relative flex items-center border rounded-lg p-0.5 space-x-1">
-      <Button
-        variant="ghost"
-        size="icon"
-        className={cn(
-          "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
-          theme === "light" && "text-primary bg-accent",
-        )}
-        onClick={() => setTheme("light")}
-      >
-        <Sun className="h-3 w-3" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className={cn(
-          "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
-          theme === "dark" && "text-primary bg-accent",
-        )}
-        onClick={() => setTheme("dark")}
-      >
-        <Moon className="h-3 w-3" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className={cn(
-          "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
-          theme === "system" && "text-primary bg-accent",
-        )}
-        onClick={() => setTheme("system")}
-      >
-        <MonitorSmartphone className="h-3 w-3" />
-      </Button>
-    </div>
-  );
-
-  // Mobile version of the theme selector with similar styling
-  const MobileThemeSelector = () => (
-    <div className="space-y-2">
-      <div className="relative flex items-center border rounded-lg space-x-1 p-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "relative z-10 h-8 w-8 flex items-center justify-center rounded-md",
-            theme === "light" && "text-primary bg-accent",
-          )}
-          onClick={() => setTheme("light")}
-        >
-          <Sun className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "relative z-10 h-8 w-8 flex items-center justify-center rounded-md",
-            theme === "dark" && "text-primary bg-accent",
-          )}
-          onClick={() => setTheme("dark")}
-        >
-          <Moon className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "relative z-10 h-8 w-8 flex items-center justify-center rounded-md",
-            theme === "system" && "text-primary bg-accent",
-          )}
-          onClick={() => setTheme("system")}
-        >
-          <MonitorSmartphone className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  );
 
   // Handle logout with loading state
   const handleLogout = async () => {
@@ -251,9 +127,9 @@ export default function Navbar() {
       const result = await logout();
 
       if (result.success) {
-        // useAuth hook will automatically handle cache clearing via auth listener
-        // Use a small delay before redirecting to ensure state updates are processed
         setTimeout(() => {
+          // Logout must reload the document so no authenticated client state survives.
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
           window.location.href = "/";
         }, 100);
       } else {
@@ -269,7 +145,10 @@ export default function Navbar() {
   return (
     <>
       <div className="w-full">
-        <nav className="flex items-center justify-between p-3 bg-background w-full">
+        <nav
+          aria-label="Primary"
+          className="flex items-center justify-between p-3 bg-background w-full"
+        >
           <Link href="/">
             <div className="flex items-center space-x-2">
               <Image
@@ -278,131 +157,23 @@ export default function Navbar() {
                 width={30}
                 height={30}
               />
-              <span className="text-lg font-overusedgrotesk font-semibold sm:font-[750]">
+              <span className="text-md font-semibold tracking-tight">
                 Let's Assist
               </span>
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center space-x-4 ml-auto">
-            {isAuthLoading ? (
-              null
-            ) : user ? (
-              <>
-                <Link
-                  className={cn(
-                    buttonVariants({ variant: "ghost" }),
-                    pathname === "/home"
-                      ? "text-primary font-semibold"
-                      : "text-muted-foreground",
-                  )}
-                  href="/home"
-                  prefetch={false}
-                >
-                  Home
-                </Link>
-                <Link
-                  className={cn(
-                    buttonVariants({ variant: "ghost" }),
-                    pathname === "/dashboard"
-                      ? "text-primary font-semibold"
-                      : "text-muted-foreground",
-                  )}
-                  href="/dashboard"
-                  prefetch={false}
-                >
-                  Volunteer Dashboard
-                </Link>
-                <Link
-                  className={cn(
-                    buttonVariants({ variant: "ghost" }),
-                    pathname === "/projects"
-                      ? "text-primary font-semibold"
-                      : "text-muted-foreground",
-                  )}
-                  href="/projects"
-                  prefetch={false}
-                >
-                  My Projects
-                </Link>
-                <Link
-                  className={cn(
-                    buttonVariants({ variant: "ghost" }),
-                    pathname === "/organization"
-                      ? "text-primary font-semibold"
-                      : "text-muted-foreground",
-                  )}
-                  href="/organization"
-                  prefetch={false}
-                >
-                  Organizations
-                </Link>
-              </>
-            ) : (
-              <>
-                <NavigationMenu>
-                  <NavigationMenuList>
-                    <NavigationMenuItem>
-                      <NavigationMenuTrigger className={cn(buttonVariants({ variant: "ghost" }), pathname == "/" ? "text-muted-foreground" : "text-muted-foreground")}>Features</NavigationMenuTrigger>
-                      <NavigationMenuContent>
-                        <ul className="w-130">
-                          {features.map((feature) => (
-                            <ListItem
-                              key={feature.title}
-                              title={feature.title}
-                              href={feature.href}
-                            >
-                              {feature.description}
-                            </ListItem>
-                          ))}
-                        </ul>
-                      </NavigationMenuContent>
-                    </NavigationMenuItem>
-                  </NavigationMenuList>
-                </NavigationMenu>
-                <Link
-                  href="/projects"
-                  className={cn(
-                    buttonVariants({ variant: "ghost" }),
-                    pathname === "/projects"
-                      ? "text-primary font-semibold"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  Volunteering Near Me
-                </Link>
-                <Link
-                  href="/organization"
-                  className={cn(
-                    buttonVariants({ variant: "ghost" }),
-                    pathname === "/organization"
-                      ? "text-primary font-semibold"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  Connected Organizations
-                </Link>
-                <Link
-                  href="/faq"
-                  className={cn(
-                    buttonVariants({ variant: "ghost" }),
-                    pathname === "/faq"
-                      ? "text-primary font-semibold"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  FAQ
-                </Link>
-              </>
-            )}
-          </div>
+          <DesktopPrimaryNavigation
+            isLoading={isAuthLoading}
+            isAuthenticated={Boolean(user)}
+            pathname={pathname}
+          />
           <div className="hidden lg:flex items-center space-x-4 ml-auto">
             {isAuthLoading ? (
               <Skeleton className="h-9 w-9 rounded-full" />
             ) : user ? (
               <div className="flex items-center gap-5">
-                <NotificationPopover key={user.id} />
+                <NotificationPopover key={user.id} viewport="desktop" />
                 <DropdownMenu modal={false}>
                   {isProfileLoading ? (
                     <div className="w-9 h-9 rounded-full bg-muted animate-pulse" />
@@ -411,10 +182,7 @@ export default function Navbar() {
                       nativeButton={false}
                       render={
                         <Avatar className="w-9 h-9 cursor-pointer hover:opacity-80 transition-opacity">
-                          <AvatarImage
-                            src={avatarUrl}
-                            alt={displayName}
-                          />
+                          <AvatarImage src={avatarUrl} alt={displayName} />
                           <AvatarFallback>
                             <NoAvatar fullName={displayName} />
                           </AvatarFallback>
@@ -422,9 +190,7 @@ export default function Navbar() {
                       }
                     />
                   )}
-                  <DropdownMenuContent
-                    className="w-64 pt-3 px-2 pb-2"
-                  >
+                  <DropdownMenuContent className="w-64 pt-3 px-2 pb-2">
                     <DropdownMenuGroup>
                       <DropdownMenuLabel className="font-normal mb-2">
                         <div className="flex flex-col space-y-2">
@@ -441,7 +207,11 @@ export default function Navbar() {
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       render={
-                        <Link href="/home" prefetch={false} className="flex items-center w-full">
+                        <Link
+                          href="/home"
+                          prefetch={false}
+                          className="flex items-center w-full"
+                        >
                           <LayoutDashboard className="mr-2 h-4 w-4" />
                           <span>Volunteer Dashboard</span>
                         </Link>
@@ -451,7 +221,11 @@ export default function Navbar() {
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       render={
-                        <Link href={profileHref} prefetch={false} className="flex items-center w-full">
+                        <Link
+                          href={profileHref}
+                          prefetch={false}
+                          className="flex items-center w-full"
+                        >
                           <UserRound className="mr-2 h-4 w-4" />
                           <span>My Profile</span>
                         </Link>
@@ -460,7 +234,11 @@ export default function Navbar() {
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       render={
-                        <Link href="/account/profile" prefetch={false} className="flex items-center w-full">
+                        <Link
+                          href="/account/profile"
+                          prefetch={false}
+                          className="flex items-center w-full"
+                        >
                           <Settings className="mr-2 h-4 w-4" />
                           <span>Account Settings</span>
                         </Link>
@@ -474,7 +252,7 @@ export default function Navbar() {
                         <Palette className="mr-2 h-4 w-4" />
                         Appearance
                       </span>
-                      <ThemeSelector />
+                      <NavbarThemeSelector />
                     </div>
 
                     <DropdownMenuSeparator className="my-2" />
@@ -509,7 +287,11 @@ export default function Navbar() {
                             <Button
                               type="button"
                               size="sm"
-                              variant={devPreviewSource === "local" ? "default" : "ghost"}
+                              variant={
+                                devPreviewSource === "local"
+                                  ? "default"
+                                  : "ghost"
+                              }
                               className="h-7 text-xs"
                               onClick={() => handleDevSourceToggle("local")}
                             >
@@ -518,7 +300,11 @@ export default function Navbar() {
                             <Button
                               type="button"
                               size="sm"
-                              variant={devPreviewSource === "remote" ? "default" : "ghost"}
+                              variant={
+                                devPreviewSource === "remote"
+                                  ? "default"
+                                  : "ghost"
+                              }
                               className="h-7 text-xs"
                               onClick={() => handleDevSourceToggle("remote")}
                             >
@@ -541,7 +327,9 @@ export default function Navbar() {
                         ) : (
                           <LogOut className="mr-2 h-4 w-4" />
                         )}
-                        <span>{isLoggingOut ? "Logging out..." : "Log Out"}</span>
+                        <span>
+                          {isLoggingOut ? "Logging out..." : "Log Out"}
+                        </span>
                       </div>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -569,7 +357,7 @@ export default function Navbar() {
               {isAuthLoading ? (
                 <Skeleton className="w-9 h-9 rounded-full" />
               ) : (
-                user && <NotificationPopover key={user.id} />
+                user && <NotificationPopover key={user.id} viewport="mobile" />
               )}
               {/* Show theme toggle for non-logged in users only */}
               {!isAuthLoading && !user && <ModeToggle />}
@@ -599,10 +387,7 @@ export default function Navbar() {
                         <Skeleton className="w-12 h-12 rounded-full" />
                       ) : (
                         <Avatar className="w-12 h-12">
-                          <AvatarImage
-                            src={avatarUrl}
-                            alt={displayName}
-                          />
+                          <AvatarImage src={avatarUrl} alt={displayName} />
                           <AvatarFallback>
                             <NoAvatar fullName={displayName} />
                           </AvatarFallback>
@@ -766,7 +551,7 @@ export default function Navbar() {
                   <span className="text-sm self-center text-muted-foreground block">
                     Appearance
                   </span>
-                  <MobileThemeSelector />
+                  <NavbarThemeSelector mobile />
                 </div>
                 <Separator className="my-4" />
                 <div className="space-y-1">
@@ -808,20 +593,4 @@ export default function Navbar() {
       )}
     </>
   );
-}
-
-function ListItem({
-  title,
-  children,
-  href,
-  ...props
-}: React.ComponentPropsWithoutRef<"li"> & { href: string }) {
-  return (
-    <li {...props}>
-      <NavigationMenuLink render={<Link href={href}><div className="flex flex-col gap-1 text-sm">
-        <div className="leading-none font-medium">{title}</div>
-        <div className="text-muted-foreground line-clamp-2">{children}</div>
-      </div></Link>} />
-    </li>
-  )
 }

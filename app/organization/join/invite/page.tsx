@@ -8,7 +8,9 @@ type Props = {
   searchParams: Promise<{ token?: string }>;
 };
 
-export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+export async function generateMetadata({
+  searchParams,
+}: Props): Promise<Metadata> {
   const { token } = await searchParams;
 
   if (!token) {

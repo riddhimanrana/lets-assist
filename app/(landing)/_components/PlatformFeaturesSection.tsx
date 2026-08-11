@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import {
@@ -11,6 +11,7 @@ import {
   Calendar,
   Clock,
 } from "lucide-react";
+import { AnimatedText } from "./AnimatedText";
 
 interface Feature {
   icon: React.ComponentType<{ className?: string }>;
@@ -70,8 +71,11 @@ export default function PlatformFeaturesSection() {
           transition={{ duration: 0.5 }}
           className="text-center mx-auto max-w-2xl mb-10"
         >
-          <h2 className="font-overusedgrotesk text-3xl sm:text-4xl tracking-tight">
-            Everything you need, nothing you don't
+          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            <AnimatedText
+              text="Everything you need, nothing you don't"
+              mode="words"
+            />
           </h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground">
             Core features built for high schoolers, families, and organizations.

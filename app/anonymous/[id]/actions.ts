@@ -20,14 +20,15 @@ async function transferAnonymousDataToUser(
 ): Promise<{ error?: string }> {
   const adminClient = getAdminClient();
 
-  const { data: profile, error: profileError } = await getAnonymousSignupAccessRecord<{
-    id: string;
-    linked_user_id: string | null;
-  }>({
-    anonymousSignupId: anonymousId,
-    token: anonymousToken,
-    columns: "id, linked_user_id",
-  });
+  const { data: profile, error: profileError } =
+    await getAnonymousSignupAccessRecord<{
+      id: string;
+      linked_user_id: string | null;
+    }>({
+      anonymousSignupId: anonymousId,
+      token: anonymousToken,
+      columns: "id, linked_user_id",
+    });
 
   if (profileError || !profile) {
     return { error: "Anonymous profile not found or access denied." };
@@ -36,6 +37,20 @@ async function transferAnonymousDataToUser(
   if (profile.linked_user_id && profile.linked_user_id !== userId) {
     return { error: "This profile is already linked to another account." };
   }
+
+  const { data: signupRows, error: signupRowsError } = await adminClient
+    .from("project_signups")
+    .select("id")
+    .eq("anonymous_id", anonymousId);
+
+  if (signupRowsError) {
+    console.error("Error loading anonymous project signups:", signupRowsError);
+    return { error: "Failed to prepare profile transfer. Please try again." };
+  }
+
+  const signupIds = (signupRows ?? [])
+    .map((row) => row.id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
 
   const { error: transferSignupsError } = await adminClient
     .from("project_signups")
@@ -55,8 +70,29 @@ async function transferAnonymousDataToUser(
     .is("user_id", null);
 
   if (transferWaiversError) {
-    console.error("Error transferring waiver signatures:", transferWaiversError);
+    console.error(
+      "Error transferring waiver signatures:",
+      transferWaiversError,
+    );
     return { error: "Failed to transfer waiver data. Please try again." };
+  }
+
+  if (signupIds.length > 0) {
+    const { error: transferCertificatesError } = await adminClient
+      .from("certificates")
+      .update({ user_id: userId })
+      .in("signup_id", signupIds)
+      .is("user_id", null);
+
+    if (transferCertificatesError) {
+      console.error(
+        "Error transferring certificates:",
+        transferCertificatesError,
+      );
+      return {
+        error: "Failed to transfer certificate data. Please try again.",
+      };
+    }
   }
 
   if (profile.linked_user_id !== userId) {
@@ -138,23 +174,30 @@ export async function linkAnonymousToExistingAccount(
   anonymousToken: string,
   email: string,
   password: string,
-  captchaToken?: string
+  captchaToken?: string,
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
 
   // Verify the user's credentials by signing in
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-    options: captchaToken ? { captchaToken } : undefined,
-  });
+  const { data: authData, error: authError } =
+    await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: captchaToken ? { captchaToken } : undefined,
+    });
 
   if (authError || !authData.user) {
     if (authError?.message?.toLowerCase().includes("captcha")) {
-      return { error: "Security verification failed. Please complete CAPTCHA and try again." };
+      return {
+        error:
+          "Security verification failed. Please complete CAPTCHA and try again.",
+      };
     }
     if (authError?.message?.toLowerCase().includes("provider")) {
-      return { error: "This email uses a different sign-in method. Please use your original provider (for example Google)." };
+      return {
+        error:
+          "This email uses a different sign-in method. Please use your original provider (for example Google).",
+      };
     }
     return { error: "Invalid email or password." };
   }
@@ -173,7 +216,7 @@ export async function linkAnonymousToNewAccount(
   email: string,
   password: string,
   fullName: string,
-  captchaToken?: string
+  captchaToken?: string,
 ): Promise<{ error?: string; requiresEmailVerification?: boolean }> {
   const supabase = await createClient();
 
@@ -200,10 +243,19 @@ export async function linkAnonymousToNewAccount(
 
   if (signupError) {
     if (signupError.message?.toLowerCase().includes("captcha")) {
-      return { error: "Security verification failed. Please complete CAPTCHA and try again." };
+      return {
+        error:
+          "Security verification failed. Please complete CAPTCHA and try again.",
+      };
     }
-    if (signupError.message?.includes("already been registered") || signupError.message?.includes("already exists")) {
-      return { error: "An account with this email already exists. Try linking to your existing account instead." };
+    if (
+      signupError.message?.includes("already been registered") ||
+      signupError.message?.includes("already exists")
+    ) {
+      return {
+        error:
+          "An account with this email already exists. Try linking to your existing account instead.",
+      };
     }
     console.error("Error creating account:", signupError);
     return { error: "Failed to create account. Please try again." };
@@ -221,7 +273,9 @@ export async function linkAnonymousToNewAccount(
     anonymousToken,
   );
   if (transferResult.error) {
-    return { error: `Account created but linking failed: ${transferResult.error}` };
+    return {
+      error: `Account created but linking failed: ${transferResult.error}`,
+    };
   }
 
   return { requiresEmailVerification: !signupData.session };

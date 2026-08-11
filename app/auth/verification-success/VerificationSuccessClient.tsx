@@ -17,12 +17,17 @@ import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
 
 function VerificationContent() {
   const searchParams = useSearchParams();
-  const [errorInfo, setErrorInfo] = useState<{ message: string; code: string } | null>(null);
+  const [errorInfo, setErrorInfo] = useState<{
+    message: string;
+    code: string;
+  } | null>(null);
   const [isChecking, setIsChecking] = useState(true);
 
   const type = searchParams.get("type") || "";
   const email = searchParams.get("email");
-  const redirectAfterAuth = normalizeRedirectPath(searchParams.get("redirectAfterAuth"));
+  const redirectAfterAuth = normalizeRedirectPath(
+    searchParams.get("redirectAfterAuth"),
+  );
   const errorParam = searchParams.get("error");
   const errorDescriptionParam = searchParams.get("error_description");
 
@@ -53,7 +58,9 @@ function VerificationContent() {
       if (error || errorCode || errorDescription) {
         foundError = {
           code: errorCode || error || "unknown",
-          message: errorDescription?.replace(/\+/g, " ") || "Verification link is invalid or has expired.",
+          message:
+            errorDescription?.replace(/\+/g, " ") ||
+            "Verification link is invalid or has expired.",
         };
       }
     } else if (errorParam || errorDescriptionParam) {
@@ -88,11 +95,16 @@ function VerificationContent() {
             <div className="flex justify-center mb-4">
               <AlertCircle className="h-12 w-12 text-destructive" />
             </div>
-            <CardTitle className="text-xl sm:text-2xl">Verification Failed</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl">
+              Verification Failed
+            </CardTitle>
             <CardDescription>{errorInfo.message}</CardDescription>
           </CardHeader>
           <CardContent className="text-center text-muted-foreground">
-            <p>The email verification link is invalid or has expired. Please request a new one by trying to sign in or signing up again.</p>
+            <p>
+              The email verification link is invalid or has expired. Please
+              request a new one by trying to sign in or signing up again.
+            </p>
           </CardContent>
           <CardFooter className="flex justify-center gap-2">
             <Link href="/login">
@@ -121,7 +133,8 @@ function VerificationContent() {
     description = email
       ? `Your email ${email} has been confirmed.`
       : "Your email has been confirmed.";
-    message = "Your account is now active. Please log in to complete your profile and start exploring volunteering opportunities.";
+    message =
+      "Your account is now active. Please log in to complete your profile and start exploring volunteering opportunities.";
     buttonText = "Go to Login";
     buttonLink = buildLoginLink(email);
   } else if (type === "email_change") {
@@ -159,11 +172,13 @@ function VerificationContent() {
 
 export default function VerificationSuccessClient() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[80vh]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      }
+    >
       <VerificationContent />
     </Suspense>
   );

@@ -1,6 +1,6 @@
-import { Suspense } from 'react';
-import PrepareClient from './PrepareClient'; // Import the client component
-import { Loader2 } from 'lucide-react';
+import { Suspense } from "react";
+import PrepareClient from "./PrepareClient"; // Import the client component
+import { Loader2 } from "lucide-react";
 
 interface PreparePageProps {
   params: Promise<{
@@ -13,7 +13,10 @@ interface PreparePageProps {
 function LoadingFallback() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
-       <Loader2 className="h-12 w-12 animate-spin text-primary" aria-label="Loading page" />
+      <Loader2
+        className="h-12 w-12 animate-spin text-primary"
+        aria-label="Loading page"
+      />
     </div>
   );
 }
@@ -23,14 +26,20 @@ export default async function PreparePage({ params }: PreparePageProps) {
   const { projectId } = await params;
 
   // Basic validation for projectId format if needed
-  if (!projectId || typeof projectId !== 'string' || !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(projectId)) {
-     console.error("PreparePage: Invalid projectId format received:", projectId);
-     // Render an error message or redirect
-     return (
-        <div className="flex items-center justify-center min-h-screen text-destructive">
-            Error: Invalid Project ID in URL.
-        </div>
-     );
+  if (
+    !projectId ||
+    typeof projectId !== "string" ||
+    !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+      projectId,
+    )
+  ) {
+    console.error("PreparePage: Invalid projectId format received:", projectId);
+    // Render an error message or redirect
+    return (
+      <div className="flex items-center justify-center min-h-screen text-destructive">
+        Error: Invalid Project ID in URL.
+      </div>
+    );
   }
 
   return (

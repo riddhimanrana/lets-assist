@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 type Direction = "TOP" | "LEFT" | "BOTTOM" | "RIGHT";
@@ -63,21 +63,21 @@ export function HoverBorderGradient({
       onMouseLeave={() => setHovered(false)}
       className={cn(
         "relative flex rounded-full border  content-center bg-black/20 hover:bg-black/10 transition duration-500 dark:bg-white/20 items-center flex-col flex-nowrap gap-10 h-min justify-center overflow-visible p-px box-decoration-clone w-fit",
-        containerClassName
+        containerClassName,
       )}
       {...props}
     >
       <div
         className={cn(
           "w-auto text-white z-10 bg-black px-4 py-2 rounded-[inherit]",
-          className
+          className,
         )}
       >
         {children}
       </div>
       <motion.div
         className={cn(
-          "flex-none inset-0 overflow-hidden absolute z-0 rounded-[inherit]"
+          "flex-none inset-0 overflow-hidden absolute z-0 rounded-[inherit]",
         )}
         style={{
           filter: "blur(2px)",

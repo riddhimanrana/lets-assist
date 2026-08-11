@@ -22,7 +22,7 @@ export default function EventType({
     title: string,
     description: string,
     icon: React.ReactNode,
-    example: string
+    example: string,
   ) => (
     <div
       className={cn(
@@ -68,7 +68,7 @@ export default function EventType({
           "Single Event",
           "A one-time event on a specific date",
           <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />,
-          "Beach cleanup event on Feb 20th, 2024 from 4 PM to 9 PM"
+          "Beach cleanup event on Feb 20th, 2024 from 4 PM to 9 PM",
         )}
 
         {renderEventCard(
@@ -76,7 +76,7 @@ export default function EventType({
           "Multiple Day Event",
           "Event spans across multiple days with different time slots",
           <CalendarClock className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />,
-          "Workshop series with morning and afternoon sessions across different days"
+          "Workshop series with morning and afternoon sessions across different days",
         )}
 
         {renderEventCard(
@@ -84,7 +84,7 @@ export default function EventType({
           "Multi-Role Event",
           "Single day event with different volunteer roles",
           <UsersRound className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />,
-          "Community festival needing decorators, cooks, and cleaners at different times"
+          "Community festival needing decorators, cooks, and cleaners at different times",
         )}
       </CardContent>
     </Card>

@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { applyStaffInviteForUser } from "@/lib/organization/staff-invite";
+import { getAdminClient } from "@/lib/supabase/admin";
+import { applyVerifiedDomainAffiliation } from "@/lib/organization/verified-domain-affiliation";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -18,10 +20,10 @@ export async function signInWithGoogle(
 ) {
   const origin = process.env.NEXT_PUBLIC_SITE_URL || "";
   const supabase = await createClient();
-  
+
   let redirectTo = `${origin}/auth/callback`;
   const params = new URLSearchParams();
-  
+
   if (redirectAfterAuth) {
     params.set("redirectAfterAuth", redirectAfterAuth);
   }
@@ -52,38 +54,61 @@ export async function signInWithGoogle(
       redirectTo,
     },
   });
-  
+
   if (error) {
     console.error("Google OAuth error:", error);
     return { error: { server: [error.message] } };
   }
-  
+
   return { url };
 }
 
-export async function applyStaffInviteForCurrentUser(
+export async function applyPostLoginAffiliations(
   staffToken?: string | null,
   orgUsername?: string | null,
 ) {
-  if (!staffToken || !orgUsername) {
-    return { inviteOutcome: null };
-  }
-
-  const { user, error } = await getAuthUser({ allowMfaPending: true });
+  const { user, error } = await getAuthUser({ sensitive: true });
   if (error || !user) {
     return {
-      inviteOutcome: { status: "error" as const, orgUsername },
+      inviteOutcome: null,
       error: error?.message ?? "Not authenticated",
     };
   }
 
-  const inviteOutcome = await applyStaffInviteForUser({
-    userId: user.id,
-    staffToken,
-    orgUsername,
-  });
+  const domainOutcome = await applyVerifiedDomainAffiliation(user.id);
+  const metadata = user.user_metadata ?? {};
+  const pendingStaffToken =
+    typeof metadata.pending_staff_token === "string"
+      ? metadata.pending_staff_token
+      : null;
+  const pendingOrgUsername =
+    typeof metadata.pending_staff_org_username === "string"
+      ? metadata.pending_staff_org_username
+      : null;
+  const resolvedStaffToken = staffToken || pendingStaffToken;
+  const resolvedOrgUsername = orgUsername || pendingOrgUsername;
 
-  return { inviteOutcome };
+  const inviteOutcome =
+    resolvedStaffToken && resolvedOrgUsername
+      ? await applyStaffInviteForUser({
+          userId: user.id,
+          staffToken: resolvedStaffToken,
+          orgUsername: resolvedOrgUsername,
+        })
+      : null;
+
+  if (pendingStaffToken || pendingOrgUsername) {
+    const admin = getAdminClient();
+    await admin.auth.admin.updateUserById(user.id, {
+      user_metadata: {
+        ...metadata,
+        pending_staff_token: null,
+        pending_staff_org_username: null,
+      },
+    });
+  }
+
+  return { inviteOutcome, domainOutcome };
 }
 
 export async function login(formData: FormData) {
@@ -125,8 +150,8 @@ export async function login(formData: FormData) {
 
   // Return the session so LoginClient can immediately use it
   // This is the critical fix - the server action returns the authenticated user
-  return { 
-    success: true, 
-    session: data.session 
+  return {
+    success: true,
+    session: data.session,
   };
 }

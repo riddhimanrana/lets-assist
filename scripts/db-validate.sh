@@ -1,7 +1,16 @@
 #!/bin/bash
 
 # Database Validation Script
-# This script performs comprehensive checks before pushing schema to production:
+#
+# NOTE: this is a lint plus replay smoke test, not the schema gate. It checks
+# migration file naming, duplicate timestamps, description comments, and that
+# the ledger replays. It checks nothing about RLS, policies, grants, or
+# advisors. The gate for anything schema-shaped is `bun run db:test:redesign`,
+# which spins a fresh isolated stack and runs the pgTAP suite plus the
+# architecture, plugin-isolation, registry, contract, and browser checks.
+#
+# This script is also interactive, so it is not suitable for CI.
+#
 # 1. Validates migration file formats
 # 2. Tests migration replay with local reset
 # 3. Shows pending changes
@@ -133,7 +142,9 @@ echo "Next steps:"
 echo "1. Review your changes: git diff supabase/migrations/"
 echo "2. Commit and push: git push origin development"
 echo "3. Create a PR merging development → main"
-echo "4. GitHub Actions will automatically validate and deploy to production"
+echo "4. CI validates on merge. Production schema deployment is NOT automatic:"
+echo "   it requires a manual workflow_dispatch of deploy-schema.yml with the"
+echo "   exact production_confirmation input."
 echo ""
 echo "To see pending migrations before production deploy:"
 echo "  supabase db diff-remote"

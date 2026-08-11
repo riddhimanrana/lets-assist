@@ -4,17 +4,30 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  X,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import type { ActiveSystemBannersResponse, SystemBanner } from "@/types/system-banner";
+import type {
+  ActiveSystemBannersResponse,
+  SystemBanner,
+} from "@/types/system-banner";
 
-const DISMISSED_BANNER_STORAGE_KEY = "lets-assist:dismissed-system-banner-tokens-v2";
+const DISMISSED_BANNER_STORAGE_KEY =
+  "lets-assist:dismissed-system-banner-tokens-v2";
 const MAX_DISMISSED_TOKEN_COUNT = 50;
 
 type DismissedBannerTokenMap = Record<string, number>;
 
-const ICON_BY_TYPE: Record<SystemBanner["banner_type"], React.ComponentType<{ className?: string }>> = {
+const ICON_BY_TYPE: Record<
+  SystemBanner["banner_type"],
+  React.ComponentType<{ className?: string }>
+> = {
   info: Info,
   success: CheckCircle2,
   warning: AlertTriangle,
@@ -95,13 +108,19 @@ function writeDismissedTokenMap(map: DismissedBannerTokenMap) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, MAX_DISMISSED_TOKEN_COUNT);
 
-  localStorage.setItem(DISMISSED_BANNER_STORAGE_KEY, JSON.stringify(Object.fromEntries(entries)));
+  localStorage.setItem(
+    DISMISSED_BANNER_STORAGE_KEY,
+    JSON.stringify(Object.fromEntries(entries)),
+  );
 }
 
 export default function SystemStickyBanner() {
   const pathname = usePathname();
-  const [response, setResponse] = useState<ActiveSystemBannersResponse | null>(null);
-  const [dismissedBannerTokens, setDismissedBannerTokens] = useState<DismissedBannerTokenMap>({});
+  const [response, setResponse] = useState<ActiveSystemBannersResponse | null>(
+    null,
+  );
+  const [dismissedBannerTokens, setDismissedBannerTokens] =
+    useState<DismissedBannerTokenMap>({});
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -150,7 +169,8 @@ export default function SystemStickyBanner() {
     return null;
   }
 
-  const BannerIcon = ICON_BY_TYPE[activeBanner.banner_type] ?? ICON_BY_TYPE.info;
+  const BannerIcon =
+    ICON_BY_TYPE[activeBanner.banner_type] ?? ICON_BY_TYPE.info;
   const toneVar = TONE_VAR_BY_TYPE[activeBanner.banner_type] ?? "--info";
   const textAlign = activeBanner.text_align ?? "center";
   const showIcon = activeBanner.show_icon ?? true;
@@ -182,11 +202,24 @@ export default function SystemStickyBanner() {
   const titlePresent = Boolean(activeBanner.title?.trim());
 
   return (
-    <div className="z-30 w-full border-b" style={wrapperStyle} role="status" aria-live="polite">
+    <div
+      className="z-30 w-full border-b"
+      style={wrapperStyle}
+      role="status"
+      aria-live="polite"
+    >
       <div className="mx-auto w-full max-w-7xl px-4 py-3 md:px-6 md:py-3.5">
-        <div className={cn("relative flex items-center gap-3", JUSTIFY_CLASS_BY_TEXT_ALIGN[textAlign])}>
+        <div
+          className={cn(
+            "relative flex items-center gap-3",
+            JUSTIFY_CLASS_BY_TEXT_ALIGN[textAlign],
+          )}
+        >
           {showIcon ? (
-            <span className="inline-flex shrink-0 items-center justify-center" style={iconStyle}>
+            <span
+              className="inline-flex shrink-0 items-center justify-center"
+              style={iconStyle}
+            >
               <BannerIcon className="h-4 w-4" />
             </span>
           ) : null}
@@ -198,11 +231,23 @@ export default function SystemStickyBanner() {
               activeBanner.dismissible && "pr-8 md:pr-10",
             )}
           >
-            <div className={cn("min-w-0", ALIGNMENT_CLASS_BY_TEXT_ALIGN[textAlign])}>
+            <div
+              className={cn(
+                "min-w-0",
+                ALIGNMENT_CLASS_BY_TEXT_ALIGN[textAlign],
+              )}
+            >
               {activeBanner.title ? (
-                <p className="text-sm font-semibold leading-tight tracking-tight">{activeBanner.title}</p>
+                <p className="text-sm font-semibold leading-tight tracking-tight">
+                  {activeBanner.title}
+                </p>
               ) : null}
-              <p className={cn("text-sm text-foreground/95", titlePresent ? "mt-0.5 leading-relaxed" : "leading-relaxed")}>
+              <p
+                className={cn(
+                  "text-sm text-foreground/95",
+                  titlePresent ? "mt-0.5 leading-relaxed" : "leading-relaxed",
+                )}
+              >
                 {activeBanner.message}
               </p>
             </div>

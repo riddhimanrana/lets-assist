@@ -1,12 +1,21 @@
 "use client";
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sparkles, Loader2, X } from 'lucide-react';
-import { toast } from 'sonner';
-import { EventType, ProjectSchedule, RecurrenceFrequency, RecurrenceEndType, RecurrenceWeekday } from '@/types';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Sparkles, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
+import {
+  parseProjectOutputSchema,
+  type ParseProjectResult,
+} from "@/lib/ai/parse-project-schema";
 
 interface AIAssistantProps {
   onApplyData: (data: AIParseResult) => void;
@@ -14,35 +23,22 @@ interface AIAssistantProps {
   isOpen: boolean;
 }
 
-export interface AIParseResult {
-  title?: string;
-  location?: string;
-  description?: string;
-  eventType?: EventType;
-  schedule?: ProjectSchedule;
-  verificationMethod?: 'qr-code' | 'manual' | 'auto' | 'signup-only';
-  requireLogin?: boolean;
-  recurrence?: {
-    enabled: boolean;
-    frequency?: RecurrenceFrequency;
-    interval?: number;
-    endType?: RecurrenceEndType;
-    endDate?: string;
-    endOccurrences?: number;
-    weekdays?: RecurrenceWeekday[];
-  };
-}
+export type AIParseResult = ParseProjectResult;
 
 // Test data for demo purposes (removed - no longer needed)
 
-export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistantProps) {
-  const [prompt, setPrompt] = useState('');
+export default function AIAssistant({
+  onApplyData,
+  onClose,
+  isOpen,
+}: AIAssistantProps) {
+  const [prompt, setPrompt] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      toast.error('Please describe your project');
+      toast.error("Please describe your project");
       return;
     }
 
@@ -50,40 +46,46 @@ export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistan
     setIsApplying(true); // Start animation immediately
 
     try {
-      const response = await fetch('/api/ai/parse-project', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/ai/parse-project", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: prompt.trim() }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
         throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
-      const parsedData: AIParseResult = await response.json();
-      
-      // Validate that we received some useful data
-      if (!parsedData || (!parsedData.title && !parsedData.eventType && !parsedData.schedule)) {
-        throw new Error('AI did not return valid project data');
+      const parsedResponse = parseProjectOutputSchema.safeParse(
+        await response.json(),
+      );
+      if (!parsedResponse.success) {
+        throw new Error("AI did not return valid project data");
       }
+      const parsedData = parsedResponse.data;
 
       await applyWithAnimation(parsedData);
     } catch (error) {
-      console.error('AI generation error:', error);
-      
+      console.error("AI generation error:", error);
+
       // Provide more specific error messages
-      let errorMessage = 'Failed to generate project details. Please try again.';
+      let errorMessage =
+        "Failed to generate project details. Please try again.";
       if (error instanceof Error) {
-        if (error.message.includes('fetch')) {
-          errorMessage = 'Network error. Please check your connection and try again.';
-        } else if (error.message.includes('valid project data')) {
-          errorMessage = 'Could not understand your description. Please try rephrasing it.';
-        } else if (error.message.includes('Server error')) {
-          errorMessage = 'Server error. Please try again in a moment.';
+        if (error.message.includes("fetch")) {
+          errorMessage =
+            "Network error. Please check your connection and try again.";
+        } else if (error.message.includes("valid project data")) {
+          errorMessage =
+            "Could not understand your description. Please try rephrasing it.";
+        } else if (error.message.includes("Server error")) {
+          errorMessage = "Server error. Please try again in a moment.";
         }
       }
-      
+
       toast.error(errorMessage);
       setIsApplying(false); // Stop animation on error
     } finally {
@@ -93,21 +95,23 @@ export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistan
 
   const applyWithAnimation = async (data: AIParseResult) => {
     // Animation is already running, just wait a bit for visual effect
-    await new Promise(resolve => setTimeout(resolve, 400));
-    
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
     try {
       onApplyData(data);
-      toast.success('Project details filled! Review and adjust as needed.');
-      setPrompt('');
-      
+      toast.success("Project details filled! Review and adjust as needed.");
+      setPrompt("");
+
       // Close after a brief moment
       setTimeout(() => {
         setIsApplying(false);
         onClose();
       }, 600);
     } catch (error) {
-      console.error('Error applying AI data:', error);
-      toast.error('Failed to apply project details. Please try entering them manually.');
+      console.error("Error applying AI data:", error);
+      toast.error(
+        "Failed to apply project details. Please try entering them manually.",
+      );
       setIsApplying(false);
       onClose();
     }
@@ -120,7 +124,7 @@ export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistan
       {/* Subtle overlay - only on main content, not navbar */}
       <div
         className={`fixed top-16 inset-x-0 bottom-0 bg-black/5 backdrop-blur-[1px] z-30 pointer-events-none transition-opacity duration-700 ${
-          isApplying ? 'opacity-100' : 'opacity-0'
+          isApplying ? "opacity-100" : "opacity-0"
         }`}
         aria-hidden="true"
       />
@@ -135,10 +139,10 @@ export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistan
               style={{
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
-                animationName: 'float-up',
+                animationName: "float-up",
                 animationDuration: `${1.4 + Math.random() * 0.8}s`,
-                animationTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                animationFillMode: 'forwards',
+                animationTimingFunction: "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+                animationFillMode: "forwards",
                 animationDelay: `${i * 0.06}s`,
               }}
             >
@@ -164,9 +168,11 @@ export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistan
         }
       `}</style>
 
-      <Card className={`mb-6 border-2 border-primary/20 bg-linear-to-br from-primary/5 to-transparent transition-all duration-500 ${
-        isApplying ? 'scale-98 opacity-60' : 'scale-100 opacity-100'
-      }`}>
+      <Card
+        className={`mb-6 border-2 border-primary/20 bg-linear-to-br from-primary/5 to-transparent transition-all duration-500 ${
+          isApplying ? "scale-98 opacity-60" : "scale-100 opacity-100"
+        }`}
+      >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
@@ -191,7 +197,8 @@ export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistan
             </Button>
           </div>
           <CardDescription>
-            Describe your project in natural language, and AI will help fill out the form
+            Describe your project in natural language, and AI will help fill out
+            the form
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -207,9 +214,18 @@ export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistan
             <div className="text-xs text-muted-foreground space-y-1">
               <div>Examples:</div>
               <div className="ml-3 space-y-0.5">
-                <div>• <span className="font-medium">Single day:</span> "Beach cleanup Saturday 9am-12pm"</div>
-                <div>• <span className="font-medium">Multiple days:</span> "Food drive Monday through Friday 10am-4pm"</div>
-                <div>• <span className="font-medium">Multiple roles:</span> "Festival with registration (9am-5pm) and cleanup (2-5pm)"</div>
+                <div>
+                  • <span className="font-medium">Single day:</span> "Beach
+                  cleanup Saturday 9am-12pm"
+                </div>
+                <div>
+                  • <span className="font-medium">Multiple days:</span> "Food
+                  drive Monday through Friday 10am-4pm"
+                </div>
+                <div>
+                  • <span className="font-medium">Multiple roles:</span>{" "}
+                  "Festival with registration (9am-5pm) and cleanup (2-5pm)"
+                </div>
               </div>
             </div>
           </div>

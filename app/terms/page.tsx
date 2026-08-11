@@ -4,7 +4,8 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "Read the terms of service for Let's Assist to understand your rights and obligations.",
+  description:
+    "Read the terms of service for Let's Assist to understand your rights and obligations.",
 };
 
 const TermsPage = () => {
@@ -30,8 +31,8 @@ const TermsPage = () => {
           <h2 className="text-2xl font-semibold">2. Eligibility</h2>
           <p className="mt-2 leading-relaxed">
             You must be at least 13 years old to use Let&apos;s Assist. By using
-            our services, you confirm that you are at least 13 years old and have
-            the legal capacity to agree to these Terms.
+            our services, you confirm that you are at least 13 years old and
+            have the legal capacity to agree to these Terms.
           </p>
 
           <h2 className="text-2xl font-semibold">3. User Responsibilities</h2>
@@ -93,17 +94,18 @@ const TermsPage = () => {
 
           <h2 className="text-2xl font-semibold">5. Data and Privacy</h2>
           <p className="mt-2 leading-relaxed">
-            By using Let&apos;s Assist, you agree to our Privacy Policy. See that
-            document for details on what data we collect, how we use it, and your
-            rights. You can delete your account and all associated data at any time.
+            By using Let&apos;s Assist, you agree to our Privacy Policy. See
+            that document for details on what data we collect, how we use it,
+            and your rights. You can delete your account and all associated data
+            at any time.
           </p>
 
           <h2 className="text-2xl font-semibold">6. Limitation of Liability</h2>
           <p className="mt-2 leading-relaxed">
             Let&apos;s Assist is provided &quot;as is&quot; without warranties.
             To the fullest extent permitted by law, we are not liable for any
-            damages, losses, or disputes arising from your use of the platform or
-            interactions with organizations and other users.
+            damages, losses, or disputes arising from your use of the platform
+            or interactions with organizations and other users.
           </p>
 
           <h2 className="text-2xl font-semibold">7. Account Suspension</h2>
@@ -125,10 +127,7 @@ const TermsPage = () => {
           <h2 className="text-2xl font-semibold">9. Contact</h2>
           <p className="mt-2 leading-relaxed">
             For any questions, reach out to us at{" "}
-            <Link
-              href="mailto:support@lets-assist.com"
-              className="text-info"
-            >
+            <Link href="mailto:support@lets-assist.com" className="text-info">
               support@lets-assist.com
             </Link>
           </p>

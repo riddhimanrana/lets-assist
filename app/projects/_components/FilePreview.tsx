@@ -1,10 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { Download, FileText, FileImage, ExternalLink, Loader2 } from "lucide-react";
+import {
+  Download,
+  FileText,
+  FileImage,
+  ExternalLink,
+  Loader2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 
@@ -32,8 +43,10 @@ export default function FilePreview({
   }, [open, url]);
 
   const getFileIcon = () => {
-    if (fileType.includes('pdf')) return <FileText className="h-5 w-5 text-chart-7" />;
-    if (fileType.includes('image')) return <FileImage className="h-5 w-5 text-info" />;
+    if (fileType.includes("pdf"))
+      return <FileText className="h-5 w-5 text-chart-7" />;
+    if (fileType.includes("image"))
+      return <FileImage className="h-5 w-5 text-info" />;
     return <FileText className="h-5 w-5 text-muted-foreground" />;
   };
 
@@ -42,7 +55,7 @@ export default function FilePreview({
       const response = await fetch(url);
       const blob = await response.blob();
       const href = URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = href;
       link.download = filename;
       document.body.appendChild(link);
@@ -50,25 +63,28 @@ export default function FilePreview({
       document.body.removeChild(link);
       URL.revokeObjectURL(href);
     } catch (error) {
-      console.error('Download error:', error);
+      console.error("Download error:", error);
       // Fallback to simple window open if fetch fails
-      window.open(url, '_blank');
+      window.open(url, "_blank");
     }
   };
 
   if (!url) return null;
 
-  const isPDF = url.toLowerCase().includes('.pdf');
+  const isPDF = url.toLowerCase().includes(".pdf");
   const isImage = url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
   const pdfSrc = isPDF
-    ? (url.includes('#')
+    ? url.includes("#")
       ? `${url}&toolbar=0&navpanes=0&view=FitH`
-      : `${url}#toolbar=0&navpanes=0&view=FitH`)
+      : `${url}#toolbar=0&navpanes=0&view=FitH`
     : url;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="w-[96vw]! max-w-[96vw]! h-[85dvh] rounded-xl p-0 gap-0 overflow-hidden flex flex-col bg-background/95 backdrop-blur-sm border-border/50 shadow-2xl sm:w-[95vw]! sm:max-w-[95vw]! sm:h-[90vh]">
+      <DialogContent
+        showCloseButton={false}
+        className="w-[calc(100vw-2rem)]! max-w-6xl! h-[82dvh] rounded-xl p-0 gap-0 overflow-hidden flex flex-col bg-background/95 backdrop-blur-sm border-border/50 shadow-2xl sm:h-[84dvh]"
+      >
         <VisuallyHidden.Root>
           <DialogTitle>File Preview: {fileName}</DialogTitle>
         </VisuallyHidden.Root>
@@ -80,11 +96,14 @@ export default function FilePreview({
               {getFileIcon()}
             </div>
             <div className="flex flex-col overflow-hidden">
-              <span className="font-semibold text-xs sm:text-sm truncate" title={fileName}>
+              <span
+                className="font-semibold text-xs sm:text-sm truncate"
+                title={fileName}
+              >
                 {fileName}
               </span>
               <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">
-                {fileType.split('/')[1] || 'FILE'}
+                {fileType.split("/")[1] || "FILE"}
               </span>
             </div>
           </div>
@@ -94,7 +113,7 @@ export default function FilePreview({
               variant="ghost"
               size="icon"
               className="hidden sm:flex"
-              onClick={() => window.open(url, '_blank')}
+              onClick={() => window.open(url, "_blank")}
               title="Open in new tab"
             >
               <ExternalLink className="h-4 w-4" />
@@ -111,14 +130,20 @@ export default function FilePreview({
         </div>
 
         {/* Content Area */}
-        <div className={cn(
-          "flex-1 relative w-full h-full overflow-hidden bg-dot-pattern",
-          isPDF ? "bg-slate-100 dark:bg-slate-900" : "bg-neutral-50/50 dark:bg-neutral-900/50"
-        )}>
+        <div
+          className={cn(
+            "flex-1 relative w-full h-full overflow-hidden bg-dot-pattern",
+            isPDF
+              ? "bg-slate-100 dark:bg-slate-900"
+              : "bg-neutral-50/50 dark:bg-neutral-900/50",
+          )}
+        >
           {loading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/50 z-20 backdrop-blur-sm">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <p className="mt-2 text-sm text-muted-foreground animate-pulse">Loading preview...</p>
+              <p className="mt-2 text-sm text-muted-foreground animate-pulse">
+                Loading preview...
+              </p>
             </div>
           )}
 
@@ -130,7 +155,7 @@ export default function FilePreview({
               title={`Preview of ${fileName}`}
             />
           ) : isImage ? (
-            <div className="relative w-full h-full flex items-center justify-center p-0 sm:p-4">
+            <div className="relative mx-auto flex h-full w-full max-w-5xl items-center justify-center p-3 sm:p-6">
               <Image
                 src={url}
                 alt={fileName}
@@ -146,11 +171,17 @@ export default function FilePreview({
               <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-muted flex items-center justify-center mb-4 sm:mb-6 shadow-inner ring-1 ring-border">
                 <FileText className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground/50" />
               </div>
-              <h3 className="text-base sm:text-lg font-medium">Preview not available</h3>
+              <h3 className="text-base sm:text-lg font-medium">
+                Preview not available
+              </h3>
               <p className="text-xs sm:text-sm text-muted-foreground mt-2 max-w-xs mx-auto mb-6 sm:mb-8">
                 This file type cannot be previewed directly in the browser.
               </p>
-              <Button onClick={() => downloadFile(url, fileName)} size="lg" className="shadow-lg">
+              <Button
+                onClick={() => downloadFile(url, fileName)}
+                size="lg"
+                className="shadow-lg"
+              >
                 <Download className="h-4 w-4 mr-2" />
                 Download File
               </Button>

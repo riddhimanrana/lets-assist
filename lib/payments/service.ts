@@ -10,9 +10,8 @@
  *   Stripe → webhook → updates payment_request status
  *   Org → Stripe Connect payout (if connected)
  *
- * Note: Stripe SDK is not yet installed. This module is designed
- * to work once `stripe` is added as a dependency and keys are configured.
- * Methods are fully typed but will throw "not configured" until then.
+ * The SDK is loaded lazily so builds and non-payment workflows do not require
+ * provider credentials. Payment calls still fail closed until keys are configured.
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -51,22 +50,25 @@ function getStripeWebhookSecret(): string {
 
 // Lazy-loaded Stripe instance
 let _stripe: import("stripe").default | null = null;
+type StripeConfig = NonNullable<
+  ConstructorParameters<typeof import("stripe").default>[1]
+>;
 
 async function getStripe(): Promise<import("stripe").default> {
   if (_stripe) return _stripe;
 
+  let Stripe: typeof import("stripe").default;
   try {
-    const Stripe = (await import("stripe")).default;
-    _stripe = new Stripe(getStripeSecretKey(), {
-      apiVersion: "2025-03-31.basil" as any,
-      typescript: true,
-    });
-    return _stripe;
+    Stripe = (await import("stripe")).default;
   } catch {
-    throw new Error(
-      "Stripe SDK not installed. Run: bun add stripe",
-    );
+    throw new Error("Stripe SDK could not be loaded.");
   }
+
+  _stripe = new Stripe(getStripeSecretKey(), {
+    apiVersion: "2026-07-29.dahlia" as StripeConfig["apiVersion"],
+    typescript: true,
+  });
+  return _stripe;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,22 +84,22 @@ export async function getOrCreateBillingAccount(
   const supabase = await createClient();
 
   // Try to find existing
-  const { data: existing, error: fetchError } = await supabase
+  const { data: existing, error: fetchError } = (await supabase
     .from("org_billing_accounts" as never)
     .select("*")
     .eq("organization_id", organizationId)
-    .single() as { data: OrgBillingAccount | null; error: Error | null };
+    .single()) as { data: OrgBillingAccount | null; error: Error | null };
 
   if (existing && !fetchError) {
     return existing;
   }
 
   // Create new
-  const { data, error } = await supabase
+  const { data, error } = (await supabase
     .from("org_billing_accounts" as never)
     .insert({ organization_id: organizationId } as never)
     .select()
-    .single() as { data: OrgBillingAccount | null; error: Error | null };
+    .single()) as { data: OrgBillingAccount | null; error: Error | null };
 
   if (error || !data) {
     throw new Error(`Failed to create billing account: ${error?.message}`);
@@ -136,14 +138,12 @@ export async function createConnectAccount(
   });
 
   // Save to billing account
-  await supabase
-    .from("org_billing_accounts" as never)
-    .upsert({
-      organization_id: options.organizationId,
-      stripe_connect_account_id: account.id,
-      connect_onboarding_status: "pending",
-      billing_email: options.email,
-    } as never);
+  await supabase.from("org_billing_accounts" as never).upsert({
+    organization_id: options.organizationId,
+    stripe_connect_account_id: account.id,
+    connect_onboarding_status: "pending",
+    billing_email: options.email,
+  } as never);
 
   // Create account link for onboarding
   const accountLink = await stripe.accountLinks.create({
@@ -191,11 +191,15 @@ export async function createPaymentRequest(
   const supabase = await createClient();
 
   // Get the org's billing account (with optional Connect ID)
-  const billingAccount = await getOrCreateBillingAccount(options.organizationId);
+  const billingAccount = await getOrCreateBillingAccount(
+    options.organizationId,
+  );
 
   // Calculate platform fee
   const platformFeeCents = billingAccount.stripe_connect_account_id
-    ? Math.round(options.amountCents * (billingAccount.platform_fee_percent / 100))
+    ? Math.round(
+        options.amountCents * (billingAccount.platform_fee_percent / 100),
+      )
     : 0;
 
   // Build Stripe Checkout Session params
@@ -219,8 +223,12 @@ export async function createPaymentRequest(
         quantity: 1,
       },
     ],
-    success_url: options.successUrl ?? `${process.env.NEXT_PUBLIC_SITE_URL}/payments/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: options.cancelUrl ?? `${process.env.NEXT_PUBLIC_SITE_URL}/payments/cancelled`,
+    success_url:
+      options.successUrl ??
+      `${process.env.NEXT_PUBLIC_SITE_URL}/payments/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url:
+      options.cancelUrl ??
+      `${process.env.NEXT_PUBLIC_SITE_URL}/payments/cancelled`,
     metadata: {
       plugin_key: options.pluginKey,
       context_type: options.contextType,
@@ -235,7 +243,10 @@ export async function createPaymentRequest(
   };
 
   // If org has a connected account, use Stripe Connect with application fee
-  if (billingAccount.stripe_connect_account_id && billingAccount.connect_charges_enabled) {
+  if (
+    billingAccount.stripe_connect_account_id &&
+    billingAccount.connect_charges_enabled
+  ) {
     sessionParams.payment_intent_data = {
       application_fee_amount: platformFeeCents,
       transfer_data: {
@@ -247,7 +258,7 @@ export async function createPaymentRequest(
   const session = await stripe.checkout.sessions.create(sessionParams);
 
   // Record the payment request in our DB
-  const { data: paymentRequest, error } = await supabase
+  const { data: paymentRequest, error } = (await supabase
     .from("payment_requests" as never)
     .insert({
       organization_id: options.organizationId,
@@ -261,16 +272,17 @@ export async function createPaymentRequest(
       context_type: options.contextType,
       context_id: options.contextId ?? null,
       stripe_checkout_session_id: session.id,
-      stripe_payment_intent_id: typeof session.payment_intent === "string"
-        ? session.payment_intent
-        : session.payment_intent?.id ?? null,
+      stripe_payment_intent_id:
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : (session.payment_intent?.id ?? null),
       status: "pending",
       platform_fee_cents: platformFeeCents,
       metadata: options.metadata ?? {},
       expires_at: options.expiresAt?.toISOString() ?? null,
     } as never)
     .select()
-    .single() as { data: PaymentRequest | null; error: Error | null };
+    .single()) as { data: PaymentRequest | null; error: Error | null };
 
   if (error || !paymentRequest) {
     throw new Error(`Failed to create payment request: ${error?.message}`);
@@ -292,14 +304,16 @@ export async function createPaymentRequest(
 /**
  * Get a payment request by ID.
  */
-export async function getPaymentRequest(id: string): Promise<PaymentRequest | null> {
+export async function getPaymentRequest(
+  id: string,
+): Promise<PaymentRequest | null> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  const { data, error } = (await supabase
     .from("payment_requests" as never)
     .select("*")
     .eq("id", id)
-    .single() as { data: PaymentRequest | null; error: Error | null };
+    .single()) as { data: PaymentRequest | null; error: Error | null };
 
   if (error) return null;
   return data;
@@ -314,12 +328,15 @@ export async function getPaymentsByContext(
 ): Promise<PaymentRequest[]> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  const { data, error } = (await supabase
     .from("payment_requests" as never)
     .select("*")
     .eq("context_type", contextType)
     .eq("context_id", contextId)
-    .order("created_at", { ascending: false }) as { data: PaymentRequest[] | null; error: Error | null };
+    .order("created_at", { ascending: false })) as {
+    data: PaymentRequest[] | null;
+    error: Error | null;
+  };
 
   if (error) return [];
   return data ?? [];
@@ -354,7 +371,9 @@ export async function refundPayment(
       },
     });
 
-    const isFullRefund = !options.amountCents || options.amountCents >= paymentRequest.amount_cents;
+    const isFullRefund =
+      !options.amountCents ||
+      options.amountCents >= paymentRequest.amount_cents;
 
     await supabase
       .from("payment_requests" as never)
@@ -398,15 +417,13 @@ async function logBillingEvent(
   try {
     const supabase = await createClient();
 
-    await supabase
-      .from("billing_events" as never)
-      .insert({
-        payment_request_id: paymentRequestId,
-        organization_id: organizationId,
-        event_type: eventType,
-        stripe_event_id: stripeEventId ?? null,
-        details,
-      } as never);
+    await supabase.from("billing_events" as never).insert({
+      payment_request_id: paymentRequestId,
+      organization_id: organizationId,
+      event_type: eventType,
+      stripe_event_id: stripeEventId ?? null,
+      details,
+    } as never);
   } catch (err) {
     // Never let billing event logging break the main flow
     console.error("[payment-service] Failed to log billing event:", err);
@@ -430,14 +447,18 @@ export async function handleStripeWebhook(
     event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return { received: false, error: `Webhook signature verification failed: ${message}` };
+    return {
+      received: false,
+      error: `Webhook signature verification failed: ${message}`,
+    };
   }
 
   const supabase = await createClient();
 
   switch (event.type) {
     case "checkout.session.completed": {
-      const session = event.data.object as import("stripe").Stripe.Checkout.Session;
+      const session = event.data
+        .object as import("stripe").Stripe.Checkout.Session;
       const sessionId = session.id;
 
       // Update payment request status
@@ -446,29 +467,37 @@ export async function handleStripeWebhook(
         .update({
           status: "succeeded",
           paid_at: new Date().toISOString(),
-          stripe_payment_intent_id: typeof session.payment_intent === "string"
-            ? session.payment_intent
-            : null,
+          stripe_payment_intent_id:
+            typeof session.payment_intent === "string"
+              ? session.payment_intent
+              : null,
         } as never)
         .eq("stripe_checkout_session_id", sessionId);
 
       // Find the payment request to get its ID for the billing event
-      const { data: pr } = await supabase
+      const { data: pr } = (await supabase
         .from("payment_requests" as never)
         .select("id, organization_id")
         .eq("stripe_checkout_session_id", sessionId)
-        .single() as { data: { id: string; organization_id: string } | null };
+        .single()) as { data: { id: string; organization_id: string } | null };
 
       if (pr) {
-        await logBillingEvent(pr.id, pr.organization_id, "succeeded", {
-          session_id: sessionId,
-        }, event.id);
+        await logBillingEvent(
+          pr.id,
+          pr.organization_id,
+          "succeeded",
+          {
+            session_id: sessionId,
+          },
+          event.id,
+        );
       }
       break;
     }
 
     case "checkout.session.expired": {
-      const session = event.data.object as import("stripe").Stripe.Checkout.Session;
+      const session = event.data
+        .object as import("stripe").Stripe.Checkout.Session;
 
       await supabase
         .from("payment_requests" as never)
@@ -485,16 +514,22 @@ export async function handleStripeWebhook(
         .update({ status: "failed" } as never)
         .eq("stripe_payment_intent_id", pi.id);
 
-      const { data: pr } = await supabase
+      const { data: pr } = (await supabase
         .from("payment_requests" as never)
         .select("id, organization_id")
         .eq("stripe_payment_intent_id", pi.id)
-        .single() as { data: { id: string; organization_id: string } | null };
+        .single()) as { data: { id: string; organization_id: string } | null };
 
       if (pr) {
-        await logBillingEvent(pr.id, pr.organization_id, "failed", {
-          error: pi.last_payment_error?.message ?? "Unknown error",
-        }, event.id);
+        await logBillingEvent(
+          pr.id,
+          pr.organization_id,
+          "failed",
+          {
+            error: pi.last_payment_error?.message ?? "Unknown error",
+          },
+          event.id,
+        );
       }
       break;
     }
@@ -508,7 +543,9 @@ export async function handleStripeWebhook(
         .update({
           connect_charges_enabled: account.charges_enabled,
           connect_payouts_enabled: account.payouts_enabled,
-          connect_onboarding_status: account.charges_enabled ? "active" : "pending",
+          connect_onboarding_status: account.charges_enabled
+            ? "active"
+            : "pending",
         } as never)
         .eq("stripe_connect_account_id", account.id);
       break;

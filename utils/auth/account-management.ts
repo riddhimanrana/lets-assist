@@ -1,26 +1,32 @@
 import { createClient } from "@/lib/supabase/client";
-import { sendVerificationEmail, verifyEmailToken, setPrimaryEmailAction, type SetPrimaryEmailResponse } from "@/app/account/email-actions";
+import {
+  getLinkedIdentitiesAction,
+  sendVerificationEmail,
+  verifyEmailToken,
+  setPrimaryEmailAction,
+  type SetPrimaryEmailResponse,
+} from "@/app/account/email-actions";
 
 /**
  * Initiates the process of adding a new email.
  * Calls server action to send verification code.
  */
 export async function addEmail(email: string) {
-    // Call server action
-    const result = await sendVerificationEmail(email);
-    if (result.error && !('warning' in result)) {
-        throw new Error(result.error);
-    }
-    return result;
+  // Call server action
+  const result = await sendVerificationEmail(email);
+  if (result.error && !("warning" in result)) {
+    throw new Error(result.error);
+  }
+  return result;
 }
 
 /**
  * Verifies the email with the provided token.
  */
 export async function verifyEmail(email: string, token: string) {
-    const result = await verifyEmailToken(email, token);
-    if (result.error) throw new Error(result.error);
-    return result;
+  const result = await verifyEmailToken(email, token);
+  if (result.error) throw new Error(result.error);
+  return result;
 }
 
 /**
@@ -28,28 +34,28 @@ export async function verifyEmail(email: string, token: string) {
  * Cannot unlink the primary email (handled by UI/Logic).
  */
 export async function unlinkEmail(emailId: string) {
-    const supabase = createClient();
+  const supabase = createClient();
 
-    const { error } = await supabase
-        .from('user_emails')
-        .delete()
-        .eq('id', emailId);
+  const { error } = await supabase
+    .from("user_emails")
+    .delete()
+    .eq("id", emailId);
 
-    if (error) throw error;
-    return { success: true };
+  if (error) throw error;
+  return { success: true };
 }
 
 /**
  * Sets a specific email as the primary email for the user.
  * This updates the `email` field on the `auth.users` table.
- * The trigger `on_auth_user_email_change` will sync this to `user_emails`.
+ * The verified confirmation route atomically syncs this to `user_emails`.
  */
-export interface SetPrimaryEmailResult extends SetPrimaryEmailResponse { }
+export interface SetPrimaryEmailResult extends SetPrimaryEmailResponse {}
 
 export async function setPrimaryEmail(email: string) {
-    const result = await setPrimaryEmailAction(email);
-    if (result.error) throw new Error(result.error);
-    return result;
+  const result = await setPrimaryEmailAction(email);
+  if (result.error) throw new Error(result.error);
+  return result;
 }
 
 /**
@@ -58,37 +64,7 @@ export async function setPrimaryEmail(email: string) {
  * Uses upsert to reduce from 3 queries to 2 (sync + fetch).
  */
 export async function getLinkedIdentities() {
-    const supabase = createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-        throw new Error('User not found');
-    }
-
-    // Upsert auth email in one query instead of check + insert
-    if (user.email) {
-        await supabase
-            .from('user_emails')
-            .upsert(
-                {
-                    user_id: user.id,
-                    email: user.email,
-                    is_primary: true,
-                    verified_at: new Date().toISOString(),
-                    verification_token: null
-                },
-                { onConflict: 'user_id,email' } // Only upsert if same user+email
-            );
-    }
-
-    const { data, error } = await supabase
-        .from('user_emails')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('is_primary', { ascending: false }); // Primary first
-
-    if (error) throw error;
-
-    return data || [];
+  const result = await getLinkedIdentitiesAction();
+  if (!result.success) throw new Error(result.error);
+  return result.emails;
 }
-

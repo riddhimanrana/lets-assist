@@ -3,8 +3,8 @@
  * Simplified version without institution-based restrictions
  */
 
-import { createClient } from '@/lib/supabase/server';
-import { ProfileVisibility } from '@/types';
+import { createClient } from "@/lib/supabase/server";
+import { ProfileVisibility } from "@/types";
 
 /**
  * Check if email domain is linked to an organization with auto-join
@@ -12,9 +12,9 @@ import { ProfileVisibility } from '@/types';
 export async function getOrganizationByDomain(domain: string) {
   const supabase = await createClient();
   const { data } = await supabase
-    .from('organizations')
-    .select('id, name, username, auto_join_domain')
-    .eq('auto_join_domain', domain.toLowerCase())
+    .from("organizations")
+    .select("id, name, username, auto_join_domain")
+    .eq("auto_join_domain", domain.toLowerCase())
     .single();
 
   return data;
@@ -24,7 +24,7 @@ export async function getOrganizationByDomain(domain: string) {
  * Get default profile visibility
  */
 export function getDefaultProfileVisibility(): ProfileVisibility {
-  return 'public';
+  return "public";
 }
 
 /**
@@ -39,7 +39,7 @@ export function canChangeProfileVisibility(): boolean {
  * Apply visibility constraints
  */
 export function applyVisibilityConstraints(
-  visibility: ProfileVisibility
+  visibility: ProfileVisibility,
 ): ProfileVisibility {
   return visibility;
 }

@@ -8,12 +8,6 @@ BEGIN;
 -- ============================================================================
 
 CREATE INDEX IF NOT EXISTS idx_dv_sd_tournaments_org ON plugin_data.dv_sd_tournaments(organization_id);
-CREATE INDEX IF NOT EXISTS idx_dv_sd_signup_forms_org ON plugin_data.dv_sd_signup_forms(organization_id);
-CREATE INDEX IF NOT EXISTS idx_dv_sd_signup_questions_org ON plugin_data.dv_sd_signup_questions(organization_id);
-CREATE INDEX IF NOT EXISTS idx_dv_sd_signup_submissions_org ON plugin_data.dv_sd_signup_submissions(organization_id);
-CREATE INDEX IF NOT EXISTS idx_dv_sd_submission_answers_org ON plugin_data.dv_sd_submission_answers(organization_id);
-CREATE INDEX IF NOT EXISTS idx_dv_sd_parent_student_links_org ON plugin_data.dv_sd_parent_student_links(organization_id);
-CREATE INDEX IF NOT EXISTS idx_dv_sd_judge_assignments_org ON plugin_data.dv_sd_judge_assignments(organization_id);
 CREATE INDEX IF NOT EXISTS idx_dv_sd_student_profiles_org ON plugin_data.dv_sd_student_profiles(organization_id);
 CREATE INDEX IF NOT EXISTS idx_dv_sd_parent_profiles_org ON plugin_data.dv_sd_parent_profiles(organization_id);
 CREATE INDEX IF NOT EXISTS idx_dv_sd_profile_links_org ON plugin_data.dv_sd_profile_links(organization_id);

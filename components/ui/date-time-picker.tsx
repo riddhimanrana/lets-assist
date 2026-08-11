@@ -68,14 +68,14 @@ export function DateTimePicker({
 
   const handleTimeChange = (
     type: "hour" | "minute" | "ampm",
-    value: string
+    value: string,
   ) => {
     if (date) {
       const newDate = new Date(date);
 
       if (type === "hour") {
         newDate.setHours(
-          (parseInt(value) % 12) + (newDate.getHours() >= 12 ? 12 : 0)
+          (parseInt(value) % 12) + (newDate.getHours() >= 12 ? 12 : 0),
         );
       } else if (type === "minute") {
         newDate.setMinutes(parseInt(value));
@@ -115,23 +115,25 @@ export function DateTimePicker({
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger render={
-        <Button
-          variant="outline"
-          className={cn(
-            "w-full justify-start text-left font-normal",
-            !date && "text-muted-foreground"
-          )}
-          disabled={disabled}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? (
-            format(date, "MM/dd/yyyy hh:mm aa")
-          ) : (
-            <span>{placeholder}</span>
-          )}
-        </Button>
-      } />
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            className={cn(
+              "w-full justify-start text-left font-normal",
+              !date && "text-muted-foreground",
+            )}
+            disabled={disabled}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {date ? (
+              format(date, "MM/dd/yyyy hh:mm aa")
+            ) : (
+              <span>{placeholder}</span>
+            )}
+          </Button>
+        }
+      />
       <PopoverContent className="w-auto p-0">
         <div className="sm:flex">
           <Calendar
@@ -168,9 +170,7 @@ export function DateTimePicker({
                     key={minute}
                     size="icon"
                     variant={
-                      date && date.getMinutes() === minute
-                        ? "default"
-                        : "ghost"
+                      date && date.getMinutes() === minute ? "default" : "ghost"
                     }
                     className="sm:w-full shrink-0 aspect-square"
                     onClick={() =>
@@ -191,8 +191,8 @@ export function DateTimePicker({
                     size="icon"
                     variant={
                       date &&
-                        ((ampm === "AM" && date.getHours() < 12) ||
-                          (ampm === "PM" && date.getHours() >= 12))
+                      ((ampm === "AM" && date.getHours() < 12) ||
+                        (ampm === "PM" && date.getHours() >= 12))
                         ? "default"
                         : "ghost"
                     }

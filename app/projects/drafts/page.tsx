@@ -35,9 +35,12 @@ type DraftRow = {
 
 export default async function DraftsPage() {
   const supabase = await createClient();
-  
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
   if (userError || !user) {
     redirect("/login?redirect=/projects/drafts");
   }
@@ -64,8 +67,12 @@ export default async function DraftsPage() {
     cover_image_url: null,
     created_at: draft.created_at,
     workflow_status: "draft",
-    organization: draft.draft_data?.basicInfo?.organizationId 
-      ? { id: draft.draft_data.basicInfo.organizationId, name: "", logo_url: null }
+    organization: draft.draft_data?.basicInfo?.organizationId
+      ? {
+          id: draft.draft_data.basicInfo.organizationId,
+          name: "",
+          logo_url: null,
+        }
       : null,
   }));
 

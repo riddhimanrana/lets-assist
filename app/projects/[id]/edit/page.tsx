@@ -21,7 +21,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function EditProjectPage({ params }: Props): Promise<React.ReactElement> {
+export default async function EditProjectPage({
+  params,
+}: Props): Promise<React.ReactElement> {
   const { id } = await params;
   const { project, error } = await getProject(id);
   const { canManageProject } = await getCurrentUserProjectPermissions(id);

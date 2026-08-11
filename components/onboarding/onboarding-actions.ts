@@ -43,29 +43,35 @@ const initialOnboardingSchema = z.object({
       /^[a-zA-Z0-9_.-]+$/,
       "Username can only contain letters, numbers, underscores, dots and hyphens",
     )
-    .transform((val) => val.toLowerCase()),   // <-- force lowercase
+    .transform((val) => val.toLowerCase()), // <-- force lowercase
   phoneNumber: z.preprocess(
     (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
-    z.string()
-      .optional()
+    z.string().optional(),
   ),
 });
 
 export type InitialOnboardingValues = z.infer<typeof initialOnboardingSchema>;
 
-export async function checkUsernameAvailability(username: string): Promise<{ available: boolean; error?: string }> {
+export async function checkUsernameAvailability(
+  username: string,
+): Promise<{ available: boolean; error?: string }> {
   const supabase = await createClient();
 
   try {
     const normalizedUsername = username.trim().toLowerCase();
-    const { 
+    const {
       data: { user },
     } = await supabase.auth.getUser();
 
     // 1. Profanity check
     const profanityResult = await checkOffensiveLanguage(normalizedUsername);
     if (profanityResult.isProfane) {
-      return { available: false, error: profanityResult.error || "This username contains inappropriate language" };
+      return {
+        available: false,
+        error:
+          profanityResult.error ||
+          "This username contains inappropriate language",
+      };
     }
 
     // 2. Uniqueness check
@@ -81,23 +87,33 @@ export async function checkUsernameAvailability(username: string): Promise<{ ava
     }
 
     // If the matching username belongs to the current user, it is still available.
-    if (existingUser && user && "id" in existingUser && existingUser.id === user.id) {
+    if (
+      existingUser &&
+      user &&
+      "id" in existingUser &&
+      existingUser.id === user.id
+    ) {
       return { available: true };
     }
 
     return { available: !existingUser };
   } catch (e) {
     console.error("Unexpected error checking username:", e);
-    return { available: false, error: "An unexpected error occurred while checking username" };
+    return {
+      available: false,
+      error: "An unexpected error occurred while checking username",
+    };
   }
 }
 
 export async function completeInitialOnboarding(
   username: string,
-  phoneNumber?: string
+  phoneNumber?: string,
 ): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return { error: "User not authenticated" };
@@ -110,14 +126,18 @@ export async function completeInitialOnboarding(
   });
 
   if (!validatedFields.success) {
-    return { error: "Invalid input: " + validatedFields.error.issues[0].message };
+    return {
+      error: "Invalid input: " + validatedFields.error.issues[0].message,
+    };
   }
 
-  const { username: validUsername, phoneNumber: validPhoneNumber } = validatedFields.data;
+  const { username: validUsername, phoneNumber: validPhoneNumber } =
+    validatedFields.data;
 
   try {
     // Check if username is unique
-    const { available, error: uniqueError } = await checkUsernameAvailability(validUsername);
+    const { available, error: uniqueError } =
+      await checkUsernameAvailability(validUsername);
     if (uniqueError) {
       return { error: uniqueError };
     }
@@ -180,9 +200,14 @@ export async function completeInitialOnboarding(
   }
 }
 
-export async function markIntroTourAsComplete(): Promise<{ success?: boolean; error?: string }> {
+export async function markIntroTourAsComplete(): Promise<{
+  success?: boolean;
+  error?: string;
+}> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return { error: "User not authenticated" };

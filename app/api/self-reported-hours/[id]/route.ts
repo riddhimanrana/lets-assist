@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -30,7 +30,7 @@ export async function DELETE(
       // Record not found
       return NextResponse.json(
         { error: "Certificate not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -38,7 +38,7 @@ export async function DELETE(
       console.error("Error fetching certificate:", fetchError);
       return NextResponse.json(
         { error: "Failed to fetch certificate" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -46,7 +46,7 @@ export async function DELETE(
     if (certificate.user_id !== user.id) {
       return NextResponse.json(
         { error: "You can only delete your own self-reported hours" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -54,7 +54,7 @@ export async function DELETE(
     if (certificate.type !== "self-reported") {
       return NextResponse.json(
         { error: "Can only delete self-reported hours" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -68,7 +68,7 @@ export async function DELETE(
       console.error("Error deleting certificate:", deleteError);
       return NextResponse.json(
         { error: "Failed to delete certificate" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -80,7 +80,7 @@ export async function DELETE(
     console.error("Unexpected error in self-reported-hours DELETE:", err);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

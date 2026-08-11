@@ -112,7 +112,8 @@ export default function CalendarOptionsModal({
     sessionStorage.setItem("reopenCalendarModal", "true");
 
     // Redirect to Google OAuth
-    window.location.href = `/api/calendar/google/connect?scopes=calendar&return_to=${encodeURIComponent(projectUrl)}`;
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = `/api/calendar/google/connect?purpose=personal_calendar&scopes=calendar&return_to=${encodeURIComponent(projectUrl)}`;
   };
 
   const syncToCalendar = async () => {
@@ -246,7 +247,9 @@ export default function CalendarOptionsModal({
         {/* Project Info Card - Only show when success message is shown */}
         {showSuccessMessage && (
           <div className="rounded-lg border p-3 space-y-2 bg-muted/30">
-            <p className="font-semibold text-sm wrap-break-word">{project.title}</p>
+            <p className="font-semibold text-sm wrap-break-word">
+              {project.title}
+            </p>
             {project.location_data && (
               <p className="text-xs text-muted-foreground flex items-start gap-1">
                 <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
@@ -260,13 +263,15 @@ export default function CalendarOptionsModal({
                 <CalendarIcon className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <span className="wrap-break-word">
                   {(() => {
-                    const [year, month, day] = project.schedule.oneTime.date.split('-').map(Number);
+                    const [year, month, day] = project.schedule.oneTime.date
+                      .split("-")
+                      .map(Number);
                     const date = new Date(year, month - 1, day);
-                    return date.toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
+                    return date.toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
                     });
                   })()}
                 </span>
@@ -312,7 +317,7 @@ export default function CalendarOptionsModal({
                   <Loader2 className="h-5 w-5 animate-spin shrink-0 text-primary" />
                 ) : (
                   <Image
-                    src="/resources/google-calendar-logo.svg"
+                    src="/resources/google-calendar-logo-2026.png"
                     alt="Google Calendar"
                     width={20}
                     height={20}

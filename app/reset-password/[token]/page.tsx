@@ -11,9 +11,7 @@ type Props = {
   params: Promise<{ token: string }>;
 };
 
-export default async function ResetPasswordTokenPage({
-  params,
-}: Props) {
+export default async function ResetPasswordTokenPage({ params }: Props) {
   // Await params before accessing token
   const awaitedParams = await params;
   const { token } = awaitedParams;

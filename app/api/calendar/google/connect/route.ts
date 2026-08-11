@@ -4,7 +4,38 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  createGoogleOAuthState,
+  getGoogleOAuthStateCookieOptions,
+  GOOGLE_OAUTH_STATE_COOKIE_NAME,
+  normalizeGoogleOAuthReturnTo,
+} from "@/lib/auth/google-oauth-state";
+import {
+  authorizeGoogleOAuthOrganizationRequest,
+  getGoogleOAuthRequiredScopeFamily,
+  googleOAuthAuthorizationError,
+  resolveGoogleOAuthRequestIntent,
+} from "@/lib/auth/google-oauth-authorization";
+import { getGoogleOAuthConnectionForBinding } from "@/lib/auth/google-oauth-connection-store";
+import {
+  GOOGLE_CALENDAR_APP_CREATED_SCOPE,
+  GOOGLE_DRIVE_FILE_SCOPE,
+  hasGoogleCalendarWriteScope,
+  hasGoogleDriveFileScope,
+} from "@/lib/auth/google-oauth-scopes";
 import { NextResponse } from "next/server";
+
+function attachGoogleOAuthStateCookie(
+  response: NextResponse,
+  nonce: string,
+): NextResponse {
+  response.cookies.set(
+    GOOGLE_OAUTH_STATE_COOKIE_NAME,
+    nonce,
+    getGoogleOAuthStateCookieOptions(),
+  );
+  return response;
+}
 
 export async function GET(request: Request) {
   try {
@@ -14,9 +45,21 @@ export async function GET(request: Request) {
     const scopeType = searchParams.get("scopes") || "calendar"; // "calendar" | "sheets" | "both"
     const forceConsent = searchParams.get("force") === "1";
     const wantsJson = searchParams.get("format") === "json";
-    const orgId = searchParams.get("org_id");
+    const organizationId =
+      searchParams.get("organization_id") ?? searchParams.get("org_id");
     const isCalendarSync = searchParams.get("calendar_sync") === "1";
     const isSheetsSync = searchParams.get("sheets_sync") === "1";
+    const intentResult = resolveGoogleOAuthRequestIntent({
+      organizationId,
+      pluginKey: searchParams.get("plugin_key") ?? searchParams.get("plugin"),
+      purpose: searchParams.get("purpose"),
+      requestedCapability:
+        searchParams.get("requested_capability") ??
+        searchParams.get("capability"),
+      scopeType,
+      isCalendarSync,
+      isSheetsSync,
+    });
 
     // Check if user is authenticated
     const {
@@ -25,32 +68,38 @@ export async function GET(request: Request) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!intentResult.ok) {
       return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
+        { error: "Invalid Google connection request" },
+        { status: 400 },
       );
     }
 
-    if (orgId) {
-      const { data: membership } = await supabase
-        .from("organization_members")
-        .select("role")
-        .eq("organization_id", orgId)
-        .eq("user_id", user.id)
-        .single();
+    const intent = intentResult.intent;
+    const authorization = await authorizeGoogleOAuthOrganizationRequest({
+      ...intent,
+      userId: user.id,
+      userEmail: user.email,
+    });
 
-      if (!membership || membership.role !== "admin") {
-        const requestUrl = new URL(request.url);
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || requestUrl.origin;
-        const safeReturnTo =
-          returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
-            ? returnTo
-            : null;
-        const target = safeReturnTo || `/organization/${orgId}/settings`;
-        const redirectUrl = new URL(target, baseUrl);
-        redirectUrl.searchParams.set("error", "org_admin_required");
-        return NextResponse.redirect(redirectUrl.toString());
-      }
+    if (!authorization.allowed) {
+      const requestUrl = new URL(request.url);
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || requestUrl.origin;
+      const safeReturnTo = normalizeGoogleOAuthReturnTo(returnTo);
+      const target =
+        safeReturnTo ||
+        (intent.organizationId
+          ? `/organization/${intent.organizationId}/settings`
+          : "/account/calendar");
+      const redirectUrl = new URL(target, baseUrl);
+      redirectUrl.searchParams.set(
+        "error",
+        googleOAuthAuthorizationError(authorization, intent.purpose),
+      );
+      return NextResponse.redirect(redirectUrl.toString());
     }
 
     // Get environment variables
@@ -61,94 +110,102 @@ export async function GET(request: Request) {
       console.error("Missing Google OAuth configuration");
       return NextResponse.json(
         { error: "Calendar integration is not configured" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    // Generate state parameter for security (prevents CSRF)
-    // Include returnTo in the state so we can redirect after OAuth
-    const state = Buffer.from(
-      JSON.stringify({
-        userId: user.id,
-        timestamp: Date.now(),
-        nonce: Math.random().toString(36).substring(7),
-        returnTo:
-          returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
-            ? returnTo
-            : null,
-        orgId: orgId || null,
-        isCalendarSync: isCalendarSync || false,
-        isSheetsSync: isSheetsSync || false,
-      })
-    ).toString("base64");
+    // Bind the OAuth response to this signed-in user and a short-lived,
+    // HttpOnly nonce cookie. The callback consumes the cookie exactly once.
+    const { state, nonce } = createGoogleOAuthState({
+      userId: user.id,
+      returnTo,
+      organizationId: intent.organizationId,
+      pluginKey: intent.pluginKey,
+      purpose: intent.purpose,
+      requestedCapability: intent.requestedCapability,
+    });
 
-    const wantsSheetsScopes = scopeType === "sheets" || scopeType === "both" || isSheetsSync;
-    const connectionTypesToCheck = wantsSheetsScopes
-      ? ["sheets", "both"]
-      : ["calendar", "both"];
+    const requiredScopeFamily = getGoogleOAuthRequiredScopeFamily(
+      intent.purpose,
+    );
+    const wantsSheetsScopes = requiredScopeFamily === "sheets";
+    const existingConnection = await getGoogleOAuthConnectionForBinding(
+      user.id,
+      {
+        purpose: intent.purpose,
+        organizationId: intent.organizationId,
+        pluginKey: intent.pluginKey,
+      },
+    );
+    const existingTypeMatches = existingConnection
+      ? wantsSheetsScopes
+        ? ["sheets", "both"].includes(
+            existingConnection.connection_type ?? "",
+          ) && hasGoogleDriveFileScope(existingConnection.granted_scopes)
+        : ["calendar", "both"].includes(
+            existingConnection.connection_type ?? "",
+          ) && hasGoogleCalendarWriteScope(existingConnection.granted_scopes)
+      : false;
 
-    const { data: existingConnection } = await supabase
-      .from("user_calendar_connections")
-      .select("refresh_token")
-      .eq("user_id", user.id)
-      .eq("provider", "google")
-      .eq("is_active", true)
-      .in("connection_type", connectionTypesToCheck)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const shouldPromptConsent =
+      forceConsent ||
+      !existingTypeMatches ||
+      !existingConnection?.refresh_token;
+    const shouldSelectAccount =
+      intent.purpose === "csf_import" && intent.pluginKey === "dvhs-csf";
 
-    const shouldPromptConsent = forceConsent || !existingConnection?.refresh_token;
-
-    const sheetsScopes = [
-      "https://www.googleapis.com/auth/drive.file",
-    ];
+    const sheetsScopes = [GOOGLE_DRIVE_FILE_SCOPE];
 
     // Build Google OAuth URL
     // IMPORTANT: redirect_uri must exactly match what's configured in Google Cloud Console
-    const googleAuthUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    const googleAuthUrl = new URL(
+      "https://accounts.google.com/o/oauth2/v2/auth",
+    );
     googleAuthUrl.searchParams.set("client_id", clientId);
     googleAuthUrl.searchParams.set("redirect_uri", redirectUri); // Use exact URI from env
     googleAuthUrl.searchParams.set("response_type", "code");
-    
+
     // Always include email scope
     const scopes = ["https://www.googleapis.com/auth/userinfo.email"];
-    
-    // Determine which scopes to request based on the connection type
-    if (scopeType === "sheets" || isSheetsSync) {
-      // Sheets-only connection (for organization reports)
+
+    // The signed purpose, not a second query alias, determines OAuth scope.
+    // This keeps callback validation and the actual Google grant aligned.
+    if (wantsSheetsScopes) {
       scopes.push(...sheetsScopes);
-    } else if (scopeType === "both") {
-      // Both calendar and sheets (rare case)
-      scopes.push(
-        "https://www.googleapis.com/auth/calendar",
-        ...sheetsScopes
-      );
     } else {
-      // Default to calendar-only (for organization calendar sync or personal calendar)
-      scopes.push("https://www.googleapis.com/auth/calendar");
+      scopes.push(GOOGLE_CALENDAR_APP_CREATED_SCOPE);
     }
 
     googleAuthUrl.searchParams.set("scope", scopes.join(" "));
     googleAuthUrl.searchParams.set("access_type", "offline");
     googleAuthUrl.searchParams.set("include_granted_scopes", "true");
-    if (shouldPromptConsent) {
-      googleAuthUrl.searchParams.set("prompt", "consent");
+    if (shouldPromptConsent || shouldSelectAccount) {
+      const prompts = [
+        ...(shouldSelectAccount ? ["select_account"] : []),
+        ...(shouldPromptConsent ? ["consent"] : []),
+      ];
+      googleAuthUrl.searchParams.set("prompt", prompts.join(" "));
     }
     googleAuthUrl.searchParams.set("state", state);
 
     if (wantsJson) {
-      return NextResponse.json({
-        authUrl: googleAuthUrl.toString(),
-      });
+      return attachGoogleOAuthStateCookie(
+        NextResponse.json({
+          authUrl: googleAuthUrl.toString(),
+        }),
+        nonce,
+      );
     }
 
-    return NextResponse.redirect(googleAuthUrl.toString());
+    return attachGoogleOAuthStateCookie(
+      NextResponse.redirect(googleAuthUrl.toString()),
+      nonce,
+    );
   } catch (error) {
     console.error("Error initiating Google Calendar connection:", error);
     return NextResponse.json(
       { error: "Failed to initiate calendar connection" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

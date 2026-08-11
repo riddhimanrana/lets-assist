@@ -6,7 +6,7 @@ import { addHours, isBefore } from "date-fns";
 
 async function checkAttendanceAvailability(projectId: string) {
   const supabase = await createClient();
-  
+
   const { data: project } = await supabase
     .from("projects")
     .select("*")
@@ -21,53 +21,54 @@ async function checkAttendanceAvailability(projectId: string) {
 
   if (project.event_type === "oneTime" && project.schedule.oneTime) {
     const { date, startTime } = project.schedule.oneTime;
-    const [year, month, day] = date.split('-').map(Number);
-    const [hours, minutes] = startTime.split(':').map(Number);
-    
+    const [year, month, day] = date.split("-").map(Number);
+    const [hours, minutes] = startTime.split(":").map(Number);
+
     const sessionStart = new Date(year, month - 1, day, hours, minutes);
     const attendanceOpenTime = addHours(sessionStart, -2);
-    
+
     if (!isBefore(now, attendanceOpenTime)) {
       isActive = true;
     }
     earliestTime = sessionStart;
-  } 
-  else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+  } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
     type MultiDaySlot = { startTime: string };
     type MultiDayDay = { date: string; slots: MultiDaySlot[] };
 
     (project.schedule.multiDay as MultiDayDay[]).forEach((day: MultiDayDay) => {
-      const [year, month, dayNum] = day.date.split('-').map(Number);
-      
+      const [year, month, dayNum] = day.date.split("-").map(Number);
+
       day.slots.forEach((slot: MultiDaySlot) => {
-        const [hours, minutes] = slot.startTime.split(':').map(Number);
+        const [hours, minutes] = slot.startTime.split(":").map(Number);
         const sessionStart = new Date(year, month - 1, dayNum, hours, minutes);
         const attendanceOpenTime = addHours(sessionStart, -2);
-        
+
         if (!isBefore(now, attendanceOpenTime)) {
           isActive = true;
         }
-        
+
         if (!earliestTime || isBefore(sessionStart, earliestTime)) {
           earliestTime = sessionStart;
         }
       });
     });
-  }
-  else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+  } else if (
+    project.event_type === "sameDayMultiArea" &&
+    project.schedule.sameDayMultiArea
+  ) {
     const { date, roles } = project.schedule.sameDayMultiArea;
-    const [year, month, day] = date.split('-').map(Number);
-    
+    const [year, month, day] = date.split("-").map(Number);
+
     type Role = { startTime: string };
     roles.forEach((role: Role) => {
-      const [hours, minutes] = role.startTime.split(':').map(Number);
+      const [hours, minutes] = role.startTime.split(":").map(Number);
       const sessionStart = new Date(year, month - 1, day, hours, minutes);
       const attendanceOpenTime = addHours(sessionStart, -2);
-      
+
       if (!isBefore(now, attendanceOpenTime)) {
         isActive = true;
       }
-      
+
       if (!earliestTime || isBefore(sessionStart, earliestTime)) {
         earliestTime = sessionStart;
       }
@@ -77,7 +78,7 @@ async function checkAttendanceAvailability(projectId: string) {
   return {
     isActive,
     earliestTime: earliestTime?.toISOString(),
-    project
+    project,
   };
 }
 
@@ -98,12 +99,18 @@ export async function generateMetadata({
   };
 }
 
-export default async function AttendancePage({ params }: { params: Promise<{ id: string }> }) {
-    const { id: projectId } = await params;
-    const availability = await checkAttendanceAvailability(projectId)
-  
-  return <AttendanceClient 
-    projectId={projectId} 
-    initialAvailability={availability}
-  />;
+export default async function AttendancePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id: projectId } = await params;
+  const availability = await checkAttendanceAvailability(projectId);
+
+  return (
+    <AttendanceClient
+      projectId={projectId}
+      initialAvailability={availability}
+    />
+  );
 }

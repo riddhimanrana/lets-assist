@@ -104,21 +104,20 @@ export default function JoinCodeAdminDisplay({
           open={showRegenerateAlert}
           onOpenChange={setShowRegenerateAlert}
         >
-          <AlertDialogTrigger render={
-            <Button
-              variant="outline"
-              type="button"
-              disabled={isRegenerating}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Regenerate Join Code
-            </Button>
-          } />
+          <AlertDialogTrigger
+            render={
+              <Button variant="outline" type="button" disabled={isRegenerating}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Regenerate Join Code
+              </Button>
+            }
+          />
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Regenerate Join Code?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will invalidate the current join code. Anyone using the old code will no longer be able to join.
+                This will invalidate the current join code. Anyone using the old
+                code will no longer be able to join.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

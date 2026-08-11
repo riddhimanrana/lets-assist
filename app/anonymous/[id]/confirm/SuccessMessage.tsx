@@ -42,11 +42,20 @@ export function SuccessMessage({
         <CardFooter className="flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
             href={`/anonymous/${anonymousSignupId}?token=${encodeURIComponent(anonymousAccessToken)}`}
-            className={cn(buttonVariants({ variant: "secondary" }), "w-full sm:w-auto")}
+            className={cn(
+              buttonVariants({ variant: "secondary" }),
+              "w-full sm:w-auto",
+            )}
           >
             View signup details
           </Link>
-          <Link href="/projects" className={cn(buttonVariants(), "w-full sm:w-auto flex items-center gap-2")}>
+          <Link
+            href="/projects"
+            className={cn(
+              buttonVariants(),
+              "w-full sm:w-auto flex items-center gap-2",
+            )}
+          >
             <Home className="h-4 w-4" />
             Find another project
           </Link>

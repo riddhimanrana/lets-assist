@@ -1,24 +1,64 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, Clock, User, Mail, Phone, Calendar, Loader2, XCircle, AlertTriangle, Award, Medal, FileText } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  Loader2,
+  XCircle,
+  AlertTriangle,
+  Award,
+  Medal,
+  FileText,
+} from "lucide-react";
 import Link from "next/link";
-import { format, addDays, parseISO, differenceInSeconds, differenceInHours, isAfter } from "date-fns";
+import {
+  format,
+  addDays,
+  parseISO,
+  differenceInSeconds,
+  differenceInHours,
+  isAfter,
+} from "date-fns";
 import { formatTimeTo12Hour, cn } from "@/lib/utils";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
 import { Project } from "@/types";
-import { getMultiDaySlotByScheduleId, getMultiDaySlotDisplayName } from "@/utils/project";
+import {
+  getMultiDaySlotByScheduleId,
+  getMultiDaySlotDisplayName,
+} from "@/utils/project";
 import { useState, useMemo, useEffect, type ReactNode } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { cancelSignup, getAnonymousWaiverSignatureMeta, getWaiverDownloadUrl } from "@/app/projects/[id]/actions";
+import {
+  cancelSignup,
+  getAnonymousWaiverSignatureMeta,
+  getWaiverDownloadUrl,
+} from "@/app/projects/[id]/actions";
 import { linkAnonymousToAuthenticatedAccount } from "./actions";
 import { AnonymousLinkingDialog } from "./AnonymousLinkingDialog";
 import type { AnonymousProfileExperienceBehavior } from "@/types";
@@ -36,7 +76,10 @@ interface SlotData {
 const formatScheduleSlot = (project: Project, slotId: string) => {
   if (!project) return slotId;
 
-  const buildTimeDisplay = (time: { date: string; startTime?: string; endTime?: string | null }, roleLabel?: string) => {
+  const buildTimeDisplay = (
+    time: { date: string; startTime?: string; endTime?: string | null },
+    roleLabel?: string,
+  ) => {
     const { date, startTime, endTime } = time;
     if (!date) return roleLabel ? roleLabel : "Schedule TBD";
 
@@ -47,7 +90,9 @@ const formatScheduleSlot = (project: Project, slotId: string) => {
       const startLabel = formatTimeTo12Hour(startTime);
       const endLabel = formatTimeTo12Hour(endTime);
       const range = `${startLabel} - ${endLabel}`;
-      return roleLabel ? `${dateLabel} - ${roleLabel} (${range})` : `${dateLabel} from ${range}`;
+      return roleLabel
+        ? `${dateLabel} - ${roleLabel} (${range})`
+        : `${dateLabel} from ${range}`;
     }
 
     if (startTime) {
@@ -67,7 +112,11 @@ const formatScheduleSlot = (project: Project, slotId: string) => {
     return roleLabel ? `${dateLabel} - ${roleLabel}` : dateLabel;
   };
 
-  if (project.event_type === "oneTime" && slotId === "oneTime" && project.schedule.oneTime) {
+  if (
+    project.event_type === "oneTime" &&
+    slotId === "oneTime" &&
+    project.schedule.oneTime
+  ) {
     return buildTimeDisplay(project.schedule.oneTime);
   }
 
@@ -83,10 +132,19 @@ const formatScheduleSlot = (project: Project, slotId: string) => {
   }
 
   if (project.event_type === "sameDayMultiArea") {
-    const role = project.schedule.sameDayMultiArea?.roles.find((r) => r.name === slotId);
+    const role = project.schedule.sameDayMultiArea?.roles.find(
+      (r) => r.name === slotId,
+    );
     if (role) {
       const eventDate = project.schedule.sameDayMultiArea?.date;
-      return buildTimeDisplay({ date: eventDate || new Date().toISOString().split("T")[0], startTime: role.startTime, endTime: role.endTime }, role.name);
+      return buildTimeDisplay(
+        {
+          date: eventDate || new Date().toISOString().split("T")[0],
+          startTime: role.startTime,
+          endTime: role.endTime,
+        },
+        role.name,
+      );
     }
   }
 
@@ -98,18 +156,23 @@ const getProjectEndDate = (project: Project): Date | null => {
   try {
     if (project.event_type === "oneTime" && project.schedule.oneTime) {
       const dateStr = project.schedule.oneTime.date;
-      const [year, month, day] = dateStr.split('-').map(Number);
+      const [year, month, day] = dateStr.split("-").map(Number);
       return new Date(year, month - 1, day);
     } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-      const dates = project.schedule.multiDay.map(day => {
-        const [year, month, dayNum] = day.date.split('-').map(Number);
+      const dates = project.schedule.multiDay.map((day) => {
+        const [year, month, dayNum] = day.date.split("-").map(Number);
         return new Date(year, month - 1, dayNum);
       });
-      return dates.length > 0 ? new Date(Math.max(...dates.map(date => date.getTime()))) : null;
-    } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+      return dates.length > 0
+        ? new Date(Math.max(...dates.map((date) => date.getTime())))
+        : null;
+    } else if (
+      project.event_type === "sameDayMultiArea" &&
+      project.schedule.sameDayMultiArea
+    ) {
       const dateStr = project.schedule.sameDayMultiArea.date;
       if (dateStr) {
-        const [year, month, day] = dateStr.split('-').map(Number);
+        const [year, month, day] = dateStr.split("-").map(Number);
         return new Date(year, month - 1, day);
       }
     }
@@ -133,18 +196,18 @@ const getSlotTiming = (project: Project, scheduleId: string) => {
     sessionDate = project.schedule.oneTime.date;
     endTime = project.schedule.oneTime.endTime;
   } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-    const lastDashIdx = scheduleId.lastIndexOf("-");
-    const date = scheduleId.substring(0, lastDashIdx);
-    const idx = scheduleId.substring(lastDashIdx + 1);
-    const day = project.schedule.multiDay.find(d => d.date === date);
-    const slotIndex = parseInt(idx, 10);
-    const slot = day && !isNaN(slotIndex) ? day.slots[slotIndex] : undefined;
-    if (day && slot) {
-      sessionDate = day.date;
-      endTime = slot.endTime;
+    const slotData = getMultiDaySlotByScheduleId(project, scheduleId);
+    if (slotData) {
+      sessionDate = slotData.day.date;
+      endTime = slotData.slot.endTime;
     }
-  } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
-    const role = project.schedule.sameDayMultiArea.roles.find(r => r.name === scheduleId);
+  } else if (
+    project.event_type === "sameDayMultiArea" &&
+    project.schedule.sameDayMultiArea
+  ) {
+    const role = project.schedule.sameDayMultiArea.roles.find(
+      (r) => r.name === scheduleId,
+    );
     if (role) {
       sessionDate = project.schedule.sameDayMultiArea.date;
       endTime = role.endTime;
@@ -156,16 +219,39 @@ const getSlotTiming = (project: Project, scheduleId: string) => {
 
 const getStatusBadge = (status: string) => {
   switch (status) {
-    case 'approved':
-      return <Badge variant="default" className="capitalize">Approved</Badge>;
-    case 'attended':
-      return <Badge variant="default" className="capitalize bg-success text-success-foreground">Attended</Badge>;
-    case 'pending':
-      return <Badge variant="secondary" className="capitalize">Pending</Badge>;
-    case 'rejected':
-      return <Badge variant="destructive" className="capitalize">Rejected</Badge>;
+    case "approved":
+      return (
+        <Badge variant="default" className="capitalize">
+          Approved
+        </Badge>
+      );
+    case "attended":
+      return (
+        <Badge
+          variant="default"
+          className="capitalize bg-success text-success-foreground"
+        >
+          Attended
+        </Badge>
+      );
+    case "pending":
+      return (
+        <Badge variant="secondary" className="capitalize">
+          Pending
+        </Badge>
+      );
+    case "rejected":
+      return (
+        <Badge variant="destructive" className="capitalize">
+          Rejected
+        </Badge>
+      );
     default:
-      return <Badge variant="secondary" className="capitalize">{status}</Badge>;
+      return (
+        <Badge variant="secondary" className="capitalize">
+          {status}
+        </Badge>
+      );
   }
 };
 
@@ -217,27 +303,42 @@ export default function AnonymousSignupClient({
   const [removedSlots, setRemovedSlots] = useState<Set<string>>(new Set());
   const [, setIsLinking] = useState(false);
   const [linkStatus, setLinkStatus] = useState<LinkStatus>(
-    linkedUserId ? (linkedAccountVerified ? "linked" : "verification-pending") : "unlinked",
+    linkedUserId
+      ? linkedAccountVerified
+        ? "linked"
+        : "verification-pending"
+      : "unlinked",
   );
-  const [verificationPendingEmail, setVerificationPendingEmail] = useState<string | null>(
-    linkedUserId && !linkedAccountVerified ? (linkedAccountEmail ?? email) : null,
+  const [verificationPendingEmail, setVerificationPendingEmail] = useState<
+    string | null
+  >(
+    linkedUserId && !linkedAccountVerified
+      ? (linkedAccountEmail ?? email)
+      : null,
   );
   const [autoLinkAttempted, setAutoLinkAttempted] = useState(false);
   const [autoLinkError, setAutoLinkError] = useState<string | null>(null);
-  const [waiverSignatures, setWaiverSignatures] = useState<Record<string, { signature_type: string; signed_at?: string | null } | null>>({});
+  const [waiverSignatures, setWaiverSignatures] = useState<
+    Record<string, { signature_type: string; signed_at?: string | null } | null>
+  >({});
 
   // Computed values
   const createdDate = new Date(created_at);
   const confirmedDate = confirmed_at ? new Date(confirmed_at) : null;
   const autoDeletionDate = getAutoDeletionDate(project);
-  const activeSlots = slots.filter(s => !removedSlots.has(s.project_signup_id));
+  const activeSlots = slots.filter(
+    (s) => !removedSlots.has(s.project_signup_id),
+  );
 
   // Load waiver signatures for all slots
   useEffect(() => {
     if (!project.waiver_required) return;
 
     const loadWaivers = async () => {
-      const results: Record<string, { signature_type: string; signed_at?: string | null } | null> = {};
+      const results: Record<
+        string,
+        { signature_type: string; signed_at?: string | null } | null
+      > = {};
       for (const slot of slots) {
         try {
           const result = await getAnonymousWaiverSignatureMeta(
@@ -245,11 +346,11 @@ export default function AnonymousSignupClient({
             id,
             accessToken,
           );
-          if ('error' in result) {
+          if ("error" in result) {
             results[slot.project_signup_id] = null;
           } else if (result.signatureId) {
             results[slot.project_signup_id] = {
-              signature_type: result.signature_type || 'upload',
+              signature_type: result.signature_type || "upload",
               signed_at: result.signed_at,
             };
           } else {
@@ -267,7 +368,9 @@ export default function AnonymousSignupClient({
   useEffect(() => {
     if (linkedUserId) {
       setLinkStatus(linkedAccountVerified ? "linked" : "verification-pending");
-      setVerificationPendingEmail(linkedAccountVerified ? null : (linkedAccountEmail ?? email));
+      setVerificationPendingEmail(
+        linkedAccountVerified ? null : (linkedAccountEmail ?? email),
+      );
     }
   }, [email, linkedAccountEmail, linkedAccountVerified, linkedUserId]);
 
@@ -294,7 +397,10 @@ export default function AnonymousSignupClient({
         }
 
         setIsLinking(true);
-        const result = await linkAnonymousToAuthenticatedAccount(id, accessToken);
+        const result = await linkAnonymousToAuthenticatedAccount(
+          id,
+          accessToken,
+        );
 
         if (result.error) {
           setAutoLinkError(result.error);
@@ -308,12 +414,16 @@ export default function AnonymousSignupClient({
 
         setLinkStatus("linked");
         setAutoLinkError(null);
-        toast.success("Account linked successfully! Your event signups have been transferred and are now pending approval from project coordinators.");
+        toast.success(
+          "Account linked successfully! Your event signups have been transferred and are now pending approval from project coordinators.",
+        );
         router.replace("/dashboard");
         router.refresh();
       } catch (error) {
         console.error("Error auto-linking account:", error);
-        setAutoLinkError("Failed to link account automatically. You can still finish linking below.");
+        setAutoLinkError(
+          "Failed to link account automatically. You can still finish linking below.",
+        );
         toast.error("Failed to link account. Please try again.");
       } finally {
         if (isMounted) {
@@ -342,7 +452,9 @@ export default function AnonymousSignupClient({
         return;
       }
 
-      const remainingSlots = activeSlots.filter(s => s.project_signup_id !== cancellingSlotId);
+      const remainingSlots = activeSlots.filter(
+        (s) => s.project_signup_id !== cancellingSlotId,
+      );
       if (remainingSlots.length === 0) {
         toast.success("All signups cancelled successfully");
         setTimeout(() => router.push("/projects"), 2000);
@@ -350,7 +462,7 @@ export default function AnonymousSignupClient({
         toast.success("Slot signup cancelled successfully");
       }
 
-      setRemovedSlots(prev => new Set(prev).add(cancellingSlotId));
+      setRemovedSlots((prev) => new Set(prev).add(cancellingSlotId));
       setCancelDialogOpen(false);
     } catch (error) {
       console.error("Error cancelling signup:", error);
@@ -363,7 +475,11 @@ export default function AnonymousSignupClient({
 
   const handleViewWaiver = async (projectSignupId: string) => {
     try {
-      const result = await getWaiverDownloadUrl(projectSignupId, id, accessToken);
+      const result = await getWaiverDownloadUrl(
+        projectSignupId,
+        id,
+        accessToken,
+      );
 
       if (result?.url) {
         window.open(result.url, "_blank", "noopener,noreferrer");
@@ -375,7 +491,9 @@ export default function AnonymousSignupClient({
         return;
       }
       if (result?.signature?.signature_text) {
-        toast.success(`Typed signature on file: ${result.signature.signature_text}`);
+        toast.success(
+          `Typed signature on file: ${result.signature.signature_text}`,
+        );
         return;
       }
       if (result?.error) {
@@ -398,9 +516,12 @@ export default function AnonymousSignupClient({
               <div className="mb-4 rounded-full bg-destructive/10 p-3">
                 <XCircle className="h-8 w-8 text-destructive" />
               </div>
-              <h2 className="text-2xl font-semibold mb-2">All Signups Cancelled</h2>
+              <h2 className="text-2xl font-semibold mb-2">
+                All Signups Cancelled
+              </h2>
               <p className="text-muted-foreground mb-6">
-                All your signups for &quot;{project.title}&quot; have been cancelled.
+                All your signups for &quot;{project.title}&quot; have been
+                cancelled.
               </p>
               <Link href="/projects" className={cn(buttonVariants())}>
                 Browse Projects
@@ -432,12 +553,16 @@ export default function AnonymousSignupClient({
           <CardTitle className="leading-tight">Volunteer Profile</CardTitle>
           <CardDescription>
             Your anonymous signup profile for{" "}
-            <Link href={`/projects/${project.id}`} className="text-primary hover:underline font-medium">
+            <Link
+              href={`/projects/${project.id}`}
+              className="text-primary hover:underline font-medium"
+            >
               {project.title}
             </Link>
             {activeSlots.length > 1 && (
               <span className="ml-1 text-foreground">
-                {" "}&mdash; {activeSlots.length} slots registered
+                {" "}
+                &mdash; {activeSlots.length} slots registered
               </span>
             )}
           </CardDescription>
@@ -453,9 +578,14 @@ export default function AnonymousSignupClient({
                     <Clock className="h-5 w-5 text-warning" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">Email Confirmation Pending</h3>
+                    <h3 className="font-semibold text-foreground">
+                      Email Confirmation Pending
+                    </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Please check your email and confirm your registration. All {activeSlots.length} slot signup{activeSlots.length > 1 ? 's' : ''} will be approved once confirmed.
+                      Please check your email and confirm your registration. All{" "}
+                      {activeSlots.length} slot signup
+                      {activeSlots.length > 1 ? "s" : ""} will be approved once
+                      confirmed.
                     </p>
                   </div>
                 </div>
@@ -471,9 +601,13 @@ export default function AnonymousSignupClient({
                     <CheckCircle2 className="h-5 w-5 text-success" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">You&apos;re Registered!</h3>
+                    <h3 className="font-semibold text-foreground">
+                      You&apos;re Registered!
+                    </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Your email has been confirmed and you&apos;re signed up for {activeSlots.length} slot{activeSlots.length > 1 ? 's' : ''}.
+                      Your email has been confirmed and you&apos;re signed up
+                      for {activeSlots.length} slot
+                      {activeSlots.length > 1 ? "s" : ""}.
                     </p>
                   </div>
                 </div>
@@ -485,14 +619,19 @@ export default function AnonymousSignupClient({
           <div className="space-y-3 text-sm">
             <h3 className="font-medium text-base mb-2">Your Information</h3>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <User className="h-4 w-4" /> Name: <span className="text-foreground font-medium">{name}</span>
+              <User className="h-4 w-4" /> Name:{" "}
+              <span className="text-foreground font-medium">{name}</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Mail className="h-4 w-4" /> Email: <span className="text-foreground font-medium">{email}</span>
+              <Mail className="h-4 w-4" /> Email:{" "}
+              <span className="text-foreground font-medium">{email}</span>
             </div>
             {phone_number && (
               <div className="flex items-center gap-2 text-muted-foreground">
-                <Phone className="h-4 w-4" /> Phone: <span className="text-foreground font-medium">{phone_number}</span>
+                <Phone className="h-4 w-4" /> Phone:{" "}
+                <span className="text-foreground font-medium">
+                  {phone_number}
+                </span>
               </div>
             )}
           </div>
@@ -506,28 +645,44 @@ export default function AnonymousSignupClient({
               <div className="flex gap-3">
                 <div className="flex flex-col items-center">
                   <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                    <span className="text-xs font-medium text-primary-foreground">1</span>
+                    <span className="text-xs font-medium text-primary-foreground">
+                      1
+                    </span>
                   </div>
                   <div className="w-0.5 h-full bg-border mt-1"></div>
                 </div>
                 <div>
                   <p className="font-medium">Profile Created</p>
-                  <p className="text-muted-foreground text-xs">{format(createdDate, "MMMM d, yyyy 'at' h:mm a")}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {format(createdDate, "MMMM d, yyyy 'at' h:mm a")}
+                  </p>
                 </div>
               </div>
 
               <div className="flex gap-3">
                 <div className="flex flex-col items-center">
-                  <div className={`w-6 h-6 rounded-full ${confirmedDate ? 'bg-primary' : 'bg-muted'} flex items-center justify-center`}>
-                    {confirmedDate ? <CheckCircle2 className="h-3.5 w-3.5 text-popover" /> : <Clock className="h-3.5 w-3.5 text-muted-foreground" />}
+                  <div
+                    className={`w-6 h-6 rounded-full ${confirmedDate ? "bg-primary" : "bg-muted"} flex items-center justify-center`}
+                  >
+                    {confirmedDate ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-popover" />
+                    ) : (
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
                   </div>
                 </div>
                 <div>
-                  <p className="font-medium">Email {confirmedDate ? 'Confirmed' : 'Confirmation Pending'}</p>
+                  <p className="font-medium">
+                    Email {confirmedDate ? "Confirmed" : "Confirmation Pending"}
+                  </p>
                   {confirmedDate ? (
-                    <p className="text-muted-foreground text-xs">{format(confirmedDate, "MMMM d, yyyy 'at' h:mm a")}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {format(confirmedDate, "MMMM d, yyyy 'at' h:mm a")}
+                    </p>
                   ) : (
-                    <p className="text-muted-foreground text-xs">Waiting for email confirmation</p>
+                    <p className="text-muted-foreground text-xs">
+                      Waiting for email confirmation
+                    </p>
                   )}
                 </div>
               </div>
@@ -538,7 +693,9 @@ export default function AnonymousSignupClient({
 
       {/* Slot Cards */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Your Slot{activeSlots.length > 1 ? 's' : ''}</h3>
+        <h3 className="text-lg font-semibold">
+          Your Slot{activeSlots.length > 1 ? "s" : ""}
+        </h3>
 
         {activeSlots.map((slot) => (
           <SlotCard
@@ -564,7 +721,12 @@ export default function AnonymousSignupClient({
           <Clock className="h-4 w-4" />
           <AlertTitle className="font-medium">Data Retention</AlertTitle>
           <AlertDescription className="text-xs text-muted-foreground">
-            This anonymous profile will be automatically deleted on <span className="font-semibold">{format(autoDeletionDate, "MMMM d, yyyy")}</span>. Your hours and certificate links will remain available. We recommend saving important details before this date.
+            This anonymous profile will be automatically deleted on{" "}
+            <span className="font-semibold">
+              {format(autoDeletionDate, "MMMM d, yyyy")}
+            </span>
+            . Your hours and certificate links will remain available. We
+            recommend saving important details before this date.
           </AlertDescription>
         </Alert>
       )}
@@ -579,7 +741,13 @@ export default function AnonymousSignupClient({
           <div className="space-y-3">
             <div className="bg-info/20 border border-info/50 rounded-lg p-3">
               <p className="text-sm text-info">
-                <span className="font-semibold">About linking:</span> When you link this anonymous profile to a Let&apos;s Assist account, all your event signups will be transferred to your account. Your signups are currently <span className="font-semibold">pending approval</span> from the project coordinator. Once approved, you can check in during events and track your volunteer hours—all in one place.
+                <span className="font-semibold">About linking:</span> When you
+                link this anonymous profile to a Let&apos;s Assist account, all
+                your event signups will be transferred to your account. Your
+                signups are currently{" "}
+                <span className="font-semibold">pending approval</span> from the
+                project coordinator. Once approved, you can check in during
+                events and track your volunteer hours—all in one place.
               </p>
             </div>
 
@@ -594,7 +762,10 @@ export default function AnonymousSignupClient({
             {linkStatus === "linked" ? (
               <div className="flex items-center gap-2 text-sm text-success bg-success/5 p-3 rounded-lg">
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
-                <span className="font-medium">Account linked successfully! Your signups have been transferred.</span>
+                <span className="font-medium">
+                  Account linked successfully! Your signups have been
+                  transferred.
+                </span>
               </div>
             ) : linkStatus === "verification-pending" ? (
               <Alert className="border-primary/30 bg-primary/5">
@@ -602,13 +773,24 @@ export default function AnonymousSignupClient({
                 <AlertTitle>Verify your new account</AlertTitle>
                 <AlertDescription className="space-y-1 text-sm">
                   <p>
-                    Your volunteer profile is linked. We sent a verification email to <span className="font-medium text-foreground">{verificationPendingEmail ?? email}</span>.
+                    Your volunteer profile is linked. We sent a verification
+                    email to{" "}
+                    <span className="font-medium text-foreground">
+                      {verificationPendingEmail ?? email}
+                    </span>
+                    .
                   </p>
                   <p>
-                    After verifying, sign in to access your volunteer dashboard, approvals, hours, and certificates.
+                    After verifying, sign in to access your volunteer dashboard,
+                    approvals, hours, and certificates.
                   </p>
                   <div className="pt-2">
-                    <Link href={`/signup/success?email=${encodeURIComponent(verificationPendingEmail ?? email)}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                    <Link
+                      href={`/signup/success?email=${encodeURIComponent(verificationPendingEmail ?? email)}`}
+                      className={cn(
+                        buttonVariants({ variant: "outline", size: "sm" }),
+                      )}
+                    >
                       Manage verification email
                     </Link>
                   </div>
@@ -642,33 +824,44 @@ export default function AnonymousSignupClient({
           <DialogHeader>
             <DialogTitle>Cancel Slot Signup</DialogTitle>
             <DialogDescription>
-              Are you sure you want to cancel this slot signup? This action cannot be undone.
+              Are you sure you want to cancel this slot signup? This action
+              cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="pt-2 pb-4">
-            <Alert variant="destructive" className="border-destructive/70 bg-destructive/10">
+            <Alert
+              variant="destructive"
+              className="border-destructive/70 bg-destructive/10"
+            >
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle className="text-destructive">Important</AlertTitle>
               <AlertDescription className="text-destructive">
                 {activeSlots.length === 1
                   ? "This is your only slot signup. Cancelling it will also remove your anonymous profile."
-                  : "This will cancel your signup for this specific slot. Your other slot signups will remain active."
-                }
+                  : "This will cancel your signup for this specific slot. Your other slot signups will remain active."}
               </AlertDescription>
             </Alert>
           </div>
           <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-between">
-            <Button variant="outline" onClick={() => setCancelDialogOpen(false)} disabled={isCancelling}>
+            <Button
+              variant="outline"
+              onClick={() => setCancelDialogOpen(false)}
+              disabled={isCancelling}
+            >
               Keep My Signup
             </Button>
-            <Button variant="destructive" onClick={handleCancelSlot} disabled={isCancelling} className="flex items-center gap-2">
+            <Button
+              variant="destructive"
+              onClick={handleCancelSlot}
+              disabled={isCancelling}
+              className="flex items-center gap-2"
+            >
               {isCancelling && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isCancelling ? 'Cancelling...' : 'Yes, Cancel Slot'}
+              {isCancelling ? "Cancelling..." : "Yes, Cancel Slot"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
@@ -688,7 +881,8 @@ function SlotCard({
   project: Project;
   isProjectCancelled: boolean;
   isConfirmed: boolean;
-  waiverSignature: { signature_type: string; signed_at?: string | null } | null | undefined;
+  waiverSignature:
+    { signature_type: string; signed_at?: string | null } | null | undefined;
   certificateId?: string;
   onCancel: () => void;
   onViewWaiver: () => void;
@@ -716,31 +910,46 @@ function SlotCard({
       const endDt = parseISO(`${sessionDate}T${endTime}`);
       if (isNaN(endDt.getTime())) return false;
       const hoursSinceEnd = differenceInHours(new Date(), endDt);
-      return isAfter(new Date(), endDt) && hoursSinceEnd >= 0 && hoursSinceEnd < 48;
+      return (
+        isAfter(new Date(), endDt) && hoursSinceEnd >= 0 && hoursSinceEnd < 48
+      );
     } catch {
       return false;
     }
   }, [sessionDate, endTime]);
 
-  const isMissedEvent = slot.status === 'approved' && !slot.check_in_time && isProjectOver && !areHoursPublished;
+  const isMissedEvent =
+    slot.status === "approved" &&
+    !slot.check_in_time &&
+    isProjectOver &&
+    !areHoursPublished;
 
   // Progress calculation for attended slots
   let percent = 0;
   let checkInTimeFormatted = "";
-  if (slot.status === 'attended' && slot.check_in_time) {
+  if (slot.status === "attended" && slot.check_in_time) {
     try {
       const checkIn = new Date(slot.check_in_time);
       checkInTimeFormatted = format(checkIn, "h:mm a");
       const endDt = parseISO(`${sessionDate}T${endTime}`);
       if (!isNaN(endDt.getTime()) && !isNaN(checkIn.getTime())) {
         const totalSec = Math.max(1, differenceInSeconds(endDt, checkIn));
-        const elapsedSec = Math.min(totalSec, differenceInSeconds(new Date(), checkIn));
+        const elapsedSec = Math.min(
+          totalSec,
+          differenceInSeconds(new Date(), checkIn),
+        );
         percent = Math.round((elapsedSec / totalSec) * 100);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
-  const canCancel = (isConfirmed || slot.status === 'pending') && slot.status !== 'rejected' && !isProjectCancelled && !isProjectOver;
+  const canCancel =
+    (isConfirmed || slot.status === "pending") &&
+    slot.status !== "rejected" &&
+    !isProjectCancelled &&
+    !isProjectOver;
 
   return (
     <Card className="overflow-hidden">
@@ -749,7 +958,9 @@ function SlotCard({
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2 text-sm min-w-0">
             <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="font-medium truncate">{formatScheduleSlot(project, slot.schedule_id)}</span>
+            <span className="font-medium truncate">
+              {formatScheduleSlot(project, slot.schedule_id)}
+            </span>
             {project.project_timezone && (
               <TimezoneBadge timezone={project.project_timezone} />
             )}
@@ -765,7 +976,10 @@ function SlotCard({
             {certificateId && (
               <Link
                 href={`/certificates/${certificateId}`}
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "ml-auto h-7 text-xs")}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "ml-auto h-7 text-xs",
+                )}
               >
                 <Medal className="h-3.5 w-3.5 mr-1" />
                 Certificate
@@ -775,38 +989,57 @@ function SlotCard({
         )}
 
         {/* Processing indicator */}
-        {slot.status === 'attended' && isInPostEventWindow && !areHoursPublished && (
-          <div className="flex items-center gap-2 text-sm text-warning">
-            <Clock className="h-4 w-4" />
-            <span>Hours being processed ({48 - differenceInHours(new Date(), parseISO(`${sessionDate}T${endTime}`))} hours remaining)</span>
-          </div>
-        )}
+        {slot.status === "attended" &&
+          isInPostEventWindow &&
+          !areHoursPublished && (
+            <div className="flex items-center gap-2 text-sm text-warning">
+              <Clock className="h-4 w-4" />
+              <span>
+                Hours being processed (
+                {48 -
+                  differenceInHours(
+                    new Date(),
+                    parseISO(`${sessionDate}T${endTime}`),
+                  )}{" "}
+                hours remaining)
+              </span>
+            </div>
+          )}
 
         {/* Missed event */}
         {isMissedEvent && (
           <div className="flex items-center gap-2 text-sm text-destructive">
             <AlertTriangle className="h-4 w-4" />
-            <span>No attendance recorded. Contact the organizer if this is an error.</span>
+            <span>
+              No attendance recorded. Contact the organizer if this is an error.
+            </span>
           </div>
         )}
 
         {/* Check-in progress */}
-        {slot.status === 'attended' && slot.check_in_time && !areHoursPublished && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Checked in at {checkInTimeFormatted}</span>
-              <span>{percent}%</span>
+        {slot.status === "attended" &&
+          slot.check_in_time &&
+          !areHoursPublished && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Checked in at {checkInTimeFormatted}</span>
+                <span>{percent}%</span>
+              </div>
+              <Progress value={percent} className="h-2" />
             </div>
-            <Progress value={percent} className="h-2" />
-          </div>
-        )}
+          )}
 
         {/* Waiver info */}
         {project.waiver_required && waiverSignature && (
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
               <FileText className="h-4 w-4" />
-              <span>Waiver signed {waiverSignature.signed_at ? format(new Date(waiverSignature.signed_at), "MMM d, yyyy") : ""}</span>
+              <span>
+                Waiver signed{" "}
+                {waiverSignature.signed_at
+                  ? format(new Date(waiverSignature.signed_at), "MMM d, yyyy")
+                  : ""}
+              </span>
             </div>
             <Button
               variant="ghost"
@@ -819,7 +1052,11 @@ function SlotCard({
               }}
               disabled={waiverLoading}
             >
-              {waiverLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "View"}
+              {waiverLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                "View"
+              )}
             </Button>
           </div>
         )}

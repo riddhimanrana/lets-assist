@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Mail, CheckCircle } from "lucide-react";
 
 export function EmailNotification() {
@@ -24,7 +24,7 @@ export function EmailNotification() {
           <CheckCircle className="h-6 w-6 text-success" />
         </motion.div>
       </motion.div>
-      
+
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
