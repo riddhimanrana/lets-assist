@@ -20,7 +20,7 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-004](#aud-004) | P1  | Plugin audit         | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited  | **Fixed on `development`**                                   |
 | [AUD-005](#aud-005) | P3  | Plugin RLS           | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob            | Reclassified — designed behaviour, document the contract     |
 | [AUD-006](#aud-006) | P2  | Architecture         | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`**                                   |
-| [AUD-012](#aud-012) | P2  | Notifications        | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter   | Confirmed; fixed for the server path only                    |
+| [AUD-012](#aud-012) | P2  | Notifications        | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter   | **Fixed locally**; hosted Development pending                |
 | [AUD-007](#aud-007) | P2  | CI                   | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                               | Fixed this session                                           |
 | [AUD-008](#aud-008) | P2  | Architecture         | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript    | Confirmed, by design                                         |
 | [AUD-009](#aud-009) | P2  | Gate coverage        | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads`                     | Confirmed                                                    |
@@ -262,7 +262,7 @@ Present in schema and, in several cases, in the admin UI — but consulted by no
 
 ## AUD-012 — Repeat notifications are silently suppressed {#aud-012}
 
-**Priority:** P2 · **Status:** Confirmed; fixed for the server path, still present in the browser path
+**Priority:** P2 · **Status:** Fixed locally; hosted Development pending
 
 `services/notifications.ts` checks for an existing notification before inserting:
 
@@ -277,7 +277,25 @@ The check was almost certainly written for `checkUsernameSetting`'s one-time "se
 
 `services/notifications-server.ts` deliberately omits it, so cancellation and moderation notifications now deliver per event. The browser path — used by `SignupsClient.tsx` — is unchanged and still suppresses.
 
-**Fix:** give the browser service an explicit one-time-nudge affordance (an optional dedupe key) rather than deduping on `type`, and drop the blanket check. Not done in this pass because it changes user-visible behaviour in a flow the audit had not yet exercised.
+**Resolution:** notification creation now accepts an optional caller-owned
+`dedupeKey`. Missing keys bypass deduplication entirely, so independent events
+of the same broad type remain repeatable. A non-null key is unique per recipient
+through the partial `notifications_user_dedupe_key_unique` index. Browser and
+server delivery classify only a conflict from that named index as a successful
+replay; unrelated `23505` errors still surface. The custom-username nudge uses
+the stable `account:set-custom-username` key, and its lookup/display update is
+scoped to that key rather than every `general` notification.
+
+**Local evidence, 2026-08-10:** the forward migration replayed successfully from
+the local ledger; `notification_dedupe_keys.test.sql` passed 8 focused pgTAP
+assertions; the full isolated database gate passed 83 files / 3,752 assertions,
+clean local advisors, architecture/plugin audits, and the 373-assertion cron
+no-egress probe; the browser and server notification suites passed 17 tests;
+`format:check`, `lint`, `typecheck`, `security:audit`, and the strict
+private-gitlink check passed. The generated isolated stack was removed with no
+Docker residue. No hosted database was mutated in this verification. Hosted
+Development remains pending, and Production was not read, written, queried,
+deployed, or tested.
 
 **Related, not yet investigated:** `app/projects/[id]/hours/actions.ts` inserts volunteer notifications with the publisher's session client. The surviving policy branch requires `p.creator_id = auth.uid()`, so a **staff manager** publishing hours for a project they did not create would fail that insert. This predates today's change — the removed `auth.uid() IS NULL` disjunct never applied there, since a session is always present — but it should be confirmed against a `can_be_managed_by_staff` project.
 

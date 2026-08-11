@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getAdminClient } from "@/lib/supabase/admin";
+import { isNotificationDedupeConflict } from "@/services/notification-dedupe";
 import type { NotificationData } from "@/services/notification-types";
 
 export type {
@@ -17,7 +18,9 @@ interface NotificationPreferences {
 }
 
 export type CreateNotificationResult =
-  { success: true } | { success: false; skipped: true } | { error: unknown };
+  | { success: true; replayed?: boolean }
+  | { success: false; skipped: true }
+  | { error: unknown };
 
 /**
  * Deliver a notification from a server context.
@@ -70,11 +73,16 @@ export async function createNotificationForUser(
       severity,
       action_url: notification.actionUrl,
       data: notification.data,
+      dedupe_key: notification.dedupeKey,
       displayed: false,
       read: false,
     });
 
     if (insertError) {
+      if (isNotificationDedupeConflict(insertError, notification.dedupeKey)) {
+        return { success: true, replayed: true };
+      }
+
       console.error(
         "Notification insert failed:",
         insertError.message,
