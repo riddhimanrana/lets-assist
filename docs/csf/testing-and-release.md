@@ -13,8 +13,10 @@
   replay, DV browser workflows, CSF browser workflows, and security checks for
   the exact root/private gitlink. Its merge commit was deployed Ready and is the
   deployment behind `dev.lets-assist.com`.
-- Hosted Development and the repository contain the same 243 ordered migration
-  versions through `20260811120000`, with zero local/remote mismatches.
+- Hosted Development and the repository contain the same 244 ordered migration
+  versions through `20260811132454`, with zero local/remote mismatches. PR #130
+  removed the unused `pg_graphql` extension with `RESTRICT`; the post-apply
+  Development schema dump contains no `pg_graphql` definition.
 - Members → Account connections, class/student links, verified-account staff
   eligibility, result-bearing profile/staff mutations, capability-filtered Help,
   and the three-section Communications workspace were accepted in the hosted
@@ -208,7 +210,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
 - [x] Latest focused hardening gate: 73/73 Bun tests with 761 expectations; root typecheck clean; focused ESLint clean
 - [x] Formatting, source organization, typecheck, and lint: 0 errors and 0 warnings
 - [x] `bun run csf:test:workflows`, `bun run csf:test:scale`, and the 5-route cron probe passed locally; cron recorded 269 assertions, zero dispatch, and zero egress
-- [ ] Supabase advisor closeout: architecture and tenant/data-access hard checks pass, and Development leaked-password protection was enabled in the Supabase Auth settings on August 11, 2026; Production `pg_graphql` discoverability findings still require explicit resolution
+- [ ] Supabase advisor closeout: architecture and tenant/data-access hard checks pass, Development leaked-password protection is enabled, and Development `pg_graphql` was removed through the reviewed migration ledger; Production still requires that migration and a post-apply advisor check
 - [x] Post-hardening private-plugin isolation browser/API smoke
 - [x] Exact detached private gitlink, registry/runtime contracts, and strict submodule validation pass
 - [x] `bun audit --production`: no vulnerabilities
@@ -269,7 +271,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
 ### External and action-time gates
 
 - Google Cloud configuration and the account chooser were inspected, but no live chapter consent, Picker selection, Drive read/import, token refresh, reconnect/revocation, 403/429 exercise, or Google write was performed.
-- Development uses a distinct hosted Supabase project whose 243-version ledger exactly matches the repository; no additional paid branch was created.
+- Development uses a distinct hosted Supabase project whose 244-version ledger exactly matches the repository; no additional paid branch was created.
 - Production Supabase, Production Vercel, `main`, the Production DVHS CSF tenant, Gmail mailbox, Classroom, website, Instagram, and officer-maintained Sheets were not mutated.
 - No Vela service, Supabase stack, container, volume, network, port, credential, or database was accessed or reused.
 
