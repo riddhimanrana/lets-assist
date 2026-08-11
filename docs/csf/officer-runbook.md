@@ -1,10 +1,10 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** the August 6 isolated database replay, production build, root/private suites, plugin-isolation checks, 40-scenario CSF browser gate, 3-scenario DV gate, and sanitized gallery remain the last consolidated baseline. The August 9 lifecycle-truth implementation is under combined verification; live Google, hosted Development, complete visible mutation, accessibility, scheduled-post publication, and Slides acceptance remain pending.
+**Current status:** the August 11 exact-tree replay/build/DV+CSF browser gates and hosted Development acceptance are green. Development has exact 243-migration parity, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. Live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, scheduled-post publication, Production webhook rotation, and Production cutover remain pending.
 **Authoritative record after review:** Let's Assist
 
-This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the combined August 9 replay/build/browser gates and the remaining Google, remote-development, full browser-mutation, accessibility, scheduling, and Slides gates in [testing and release](testing-and-release.md) pass.
+This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
 
 ## 1. Start of each work session
 
@@ -199,7 +199,7 @@ Acceptance: per-cohort roster counts match the application grade distribution; s
 ### 10.4 Posts and announcement email
 
 1. Open **Classes**, choose the class, then use **Stream**. Audience `class` targets that one cohort; `members` targets the whole chapter. Members read the result in **Feed**. Pin sparingly.
-2. The "also send as email" toggle requests exactly one campaign per post through the durable ledger — retries are safe. A class campaign freezes the current term, exact class cohort, consent topic, content, and recipient snapshot; later member/class changes or post edits do not rewrite it. The result must separately say **Post published** and either **Email queued** or **Email not queued**. A queue failure never means that a persisted post was not saved. The `csf-communications-dispatch` route is locally auth-first, bounded, input-free, and exact opt-in, and its isolated probe proves disabled/probe execution has no database or provider egress. There is still no checked-in or repeatedly verified hosted cadence. **Email queued** is not **Email delivered**; do not promise automatic or fixed-time delivery until infrastructure acceptance closes that gap.
+2. The "also send as email" toggle requests exactly one campaign per post through the durable ledger — retries are safe. A class campaign freezes the current term, exact class cohort, consent topic, content, and recipient snapshot; later member/class changes or post edits do not rewrite it. The result must separately say **Post published** and either **Email queued** or **Email not queued**. A queue failure never means that a persisted post was not saved. The auth-first, bounded, input-free, exact-opt-in `csf-communications-dispatch` route is invoked by a checked-in GitHub Actions schedule. Repeated hosted runs return aggregate truth, but GitHub starts have been irregular despite the ten-minute cron expression. **Email queued** is not **Email delivered**; never promise a fixed delivery time.
 3. Recipients can opt out via the link in every announcement email (verify-the-address confirmation). Opt-outs exclude the address from future snapshots automatically; do not hand-manage them.
 4. Grant posting rights via the `manage_posts` capability (Publicity VP and Web Master templates carry it; org admins and the owner always can).
 5. Review quarantined or unknown provider outcomes in **More → Communications → Delivery issues**. Reconcile only from exact provider evidence; an unknown attempt is never blindly resent. Closing a quarantine item acknowledges human triage and records a reason, but does not apply/rewrite the provider event or change delivery/address safety.
@@ -256,21 +256,21 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Complete green PR checks; least-privilege `PRIVATE_SUBMODULE_TOKEN`, GitGuardian disposition for the removed local-only fixture password, and authenticated Vercel Preview diagnosis remain open
 - [x] Post-hardening production build and full private-plugin unit-suite rerun
 - [ ] Persistent isolated Supabase development branch after explicit `$0.01344/hour` cost confirmation
-- [ ] Stable development Vercel preview with non-production Supabase invariant
-- [ ] Authorize local Google origin `http://localhost:3001` and callback `http://localhost:3001/api/calendar/google/callback`
+- [x] Stable Development alias with branch-scoped non-production Supabase invariant and exact 243-migration parity
+- [x] Authorize local and hosted Development Google origins/callbacks, including `http://localhost:3001` and `https://dev.lets-assist.com`
 - [ ] Confirm `dvhighcsf@gmail.com` in-product, then complete Picker, import, reconnect, revocation, and failure-state verification
 - [ ] Complete synthetic visible mutation lifecycle for every actor
 - [ ] Keyboard, focus, and screen-reader acceptance
 - [ ] Three native Google Slides decks created and visually accepted
 - [ ] Re-run merge/connection hard-conflict, application-preflight, invitation-telemetry, post partial-success, and import-readiness acceptance added after the August 9 lifecycle audit
 - [ ] Verify CSF-owned communications configuration and unknown-outcome reconciliation with `manage_settings`, plus reachable post composition for every `manage_posts` template
-- [ ] Fresh combined replay/build/static gates for the exact August 9 root + private-submodule tree, including request-safe application/merge/direct-link/post mutations, point authority revalidation, exact Google identity/disconnect, communications quarantine, grade policy, and import-history contracts
+- [x] Fresh combined replay/build/static/DV-browser/CSF-browser gates for the exact August 11 root + private-submodule tree
 - [ ] Visible exact-recorded-email student-specific link and response-loss replay journeys; no fabricated send telemetry
 - [ ] Visible six-value grade-policy edit → publish → recalculation journey with stale-draft refusal
 - [ ] Visible import match/skip failure-preservation and truthful history/lineage journey
 - [ ] Accept the in-progress authorized, retry-safe scheduled-post publisher through migration, route, pgTAP, and central replay; until then officers use the temporary manual path
-- [ ] Configure and verify hosted `csf-communications-dispatch` invocation before promising automatic or fixed-cadence announcement delivery
+- [x] Configure and repeatedly verify hosted `csf-communications-dispatch`; document that GitHub scheduling is irregular and does not promise fixed-time delivery
 
-No live Google OAuth/Picker/Drive import or Google write has been performed. No paid Supabase development branch has been created. Production and Vela were not accessed or mutated. These are action-time release gates, not completed runbook steps.
+No live chapter Google OAuth/Picker/Drive import or Google write has been performed. Development uses a separate hosted Supabase project with exact ledger parity. Production has been inspected read-only but not mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.
 
 See [testing and release](testing-and-release.md) for current evidence and residual risk. See the [product contract](product-contract.md) for the full product, permission, data, and acceptance contracts.

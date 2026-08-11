@@ -6,6 +6,14 @@ const TARGET_PATHS = new Set([
   "/api/cron/csf-scheduled-post-publisher",
 ]);
 
+const githubDispatchWorkflow = readFileSync(
+  new URL(
+    "../.github/workflows/csf-communications-dispatch.yml",
+    import.meta.url,
+  ),
+  "utf8",
+);
+
 type VercelCron = { path?: unknown; schedule?: unknown };
 type VercelConfig = { crons?: unknown };
 
@@ -17,17 +25,32 @@ function configuredCrons(): VercelCron[] {
 }
 
 describe("CSF hosted-worker cadence acceptance boundary", () => {
-  test("does not silently activate either worker before plan and hosted Production acceptance", () => {
+  test("keeps both CSF workers out of Vercel cron", () => {
     const configuredTargets = configuredCrons().filter(
       (cron) => typeof cron.path === "string" && TARGET_PATHS.has(cron.path),
     );
 
     expect(
       configuredTargets,
-      "A checked-in CSF cron activates only on a Vercel Production deployment. " +
-        "Confirm the Vercel plan, choose an accepted cadence, verify both flags " +
-        "default disabled, and complete isolated hosted-Production invocation " +
-        "evidence before replacing this deliberate no-cron contract.",
+      "CSF workers are scheduled outside Vercel because the accepted hosted " +
+        "cadence and plan do not use Vercel cron.",
     ).toEqual([]);
+  });
+
+  test("checks in the accepted GitHub communications scheduler without enabling scheduled posts", () => {
+    expect(githubDispatchWorkflow).toContain('cron: "*/10 * * * *"');
+    expect(githubDispatchWorkflow).toContain(
+      "ENDPOINT_PATH: /api/cron/csf-communications-dispatch",
+    );
+    expect(githubDispatchWorkflow).toContain("environment: production");
+    expect(githubDispatchWorkflow).toContain(
+      "CRON_TOKEN: ${{ secrets.CRON_SECRET }}",
+    );
+    expect(githubDispatchWorkflow).toContain(
+      "GitHub Actions schedules can be delayed",
+    );
+    expect(githubDispatchWorkflow).not.toContain(
+      "/api/cron/csf-scheduled-post-publisher",
+    );
   });
 });
