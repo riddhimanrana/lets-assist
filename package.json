@@ -64,7 +64,7 @@
     "format:check": "prettier --check . --cache --cache-location .artifacts/prettier/.cache",
     "test": "node scripts/run-tests.mjs",
     "test:unit": "node scripts/run-tests.mjs --root-only",
-    "test:plugins": "bun test --preload ./scripts/local-dev/server-only-test-preload.ts lib/plugins",
+    "test:plugins": "node scripts/run-tests.mjs --plugins-only",
     "test:db:isolated": "bash scripts/local-dev/test-dvhs-csf-isolated-db.sh",
     "test:e2e:csf": "playwright test --config=playwright.csf.config.ts",
     "test:e2e:dv": "playwright test --config=playwright.dv.config.ts",
