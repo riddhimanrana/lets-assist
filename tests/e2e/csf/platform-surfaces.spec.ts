@@ -85,9 +85,9 @@ test.describe("platform surfaces for linked CSF members", () => {
     page,
   }) => {
     await loginAs(page, "outsider", "/home");
-    await expect(
-      page.locator("[data-tour-id='home-plugin-feed']"),
-    ).toHaveCount(0);
+    await expect(page.locator("[data-tour-id='home-plugin-feed']")).toHaveCount(
+      0,
+    );
     await expect(page.getByText("From your organizations")).toHaveCount(0);
     await expect(page.getByText(feedPostTitle)).toHaveCount(0);
 

@@ -73,7 +73,10 @@ test("rejects non-CSF-connect redirect paths", () => {
     false,
   );
   // Missing org segment.
-  assert.equal(isCsfConnectRedirect("/organization/plugins/dvhs-csf/connect"), false);
+  assert.equal(
+    isCsfConnectRedirect("/organization/plugins/dvhs-csf/connect"),
+    false,
+  );
   // Too deep.
   assert.equal(
     isCsfConnectRedirect(

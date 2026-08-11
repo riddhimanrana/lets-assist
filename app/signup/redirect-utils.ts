@@ -39,9 +39,7 @@ export function normalizeRedirectPath(
   }
 }
 
-export function isCsfConnectRedirect(
-  path: string | null | undefined,
-): boolean {
+export function isCsfConnectRedirect(path: string | null | undefined): boolean {
   const normalized = normalizeRedirectPath(path);
   if (!normalized) {
     return false;

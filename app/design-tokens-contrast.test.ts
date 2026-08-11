@@ -174,6 +174,5 @@ describe("theme token contrast contracts", () => {
     const black = { r: 0, g: 0, b: 0 };
     expect(Number(contrastRatio(white, black).toFixed(2))).toBe(21);
     expect(Number(contrastRatio(white, white).toFixed(2))).toBe(1);
-
   });
 });

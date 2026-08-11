@@ -10,14 +10,14 @@ Promoting the current `development` iteration to Production. This carries **174 
 
 `origin/main` is far behind `development`, and several pending migrations revoke grants the currently-deployed application depends on:
 
-| Migration | Revokes |
-|---|---|
-| `20260701055524` | All `plugin_data` access from `authenticated` |
+| Migration        | Revokes                                                                                       |
+| ---------------- | --------------------------------------------------------------------------------------------- |
+| `20260701055524` | All `plugin_data` access from `authenticated`                                                 |
 | `20260712014700` | Table-wide `SELECT` on `organizations` from `anon`/`authenticated`, replaced by column grants |
-| `20260712021110` | `INSERT`/`UPDATE` on `user_emails` |
-| `20260712013500` | Direct `organization_members` deletes |
+| `20260712021110` | `INSERT`/`UPDATE` on `user_emails`                                                            |
+| `20260712013500` | Direct `organization_members` deletes                                                         |
 
-The deployed `main` build breaks the moment those land. Schedule them as a single window, with the application release ready *before* the push starts.
+The deployed `main` build breaks the moment those land. Schedule them as a single window, with the application release ready _before_ the push starts.
 
 **2. Migrations are forward-only.** There is no down migration. Rollback means a point-in-time restore, or a corrective forward migration. Never delete a migration that may have run remotely.
 
@@ -36,18 +36,18 @@ Both were confirmed against Production by read-only catalog inspection during th
 
 All must be green before a window is scheduled. Each is a stop, not a preference.
 
-| # | Gate | How it is satisfied |
-|---|---|---|
-| P-1 | `development` → `main` merged, `ci.yml` fully green on the merge commit **including `db-replay-validation`** | That job is where pgTAP and the browser suites run |
-| P-2 | `deploy-schema.yml` runs pgTAP | **Done** — a `Run pgTAP database tests` step was added to `test-local-reset`, which `deploy-to-production` depends on. Before this, pgTAP ran only in `ci.yml` behind a paths filter and a `workflow_dispatch` deploy never re-ran it |
-| P-3 | The `production` GitHub Environment has named required reviewers | The workflow declares `environment: production`, but protection rules live in repository settings, not in the repo |
-| P-4 | **PITR enabled** on `fotdmeakexgrkronxlof`, window ≥ 24 h and established | The Supabase organization is on the **Pro** plan, so PITR is available as an add-on — confirm it is actually switched on. Without it, a lossless rollback does not exist |
-| P-5 | Every preflight in `scripts/production-cutover-preflight.sql` passes, or each deviation is adjudicated in writing | See [preflight](#preflight) |
-| P-6 | Rehearsal complete on production-shaped data | See [rehearsal](#rehearsal) |
-| P-7 | Backup taken **and verify-restored** | See [backup](#backup) |
-| P-8 | A green Vercel deployment of the exact release SHA exists and was smoke-tested against the rehearsal database | Not the same as a green `development` preview |
-| P-9 | `RESEND_API_KEY` resolved (AUD-013) | Flagged **Needs Attention** on both Production and Pre-Production. This release exercises announcement, waiver, and certificate email |
-| P-10 | No `supabase config push` anywhere in automation | Verified absent from `.github/`, `scripts/`, and `package.json` as of 2026-08-10 |
+| #    | Gate                                                                                                              | How it is satisfied                                                                                                                                                                                                                   |
+| ---- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P-1  | `development` → `main` merged, `ci.yml` fully green on the merge commit **including `db-replay-validation`**      | That job is where pgTAP and the browser suites run                                                                                                                                                                                    |
+| P-2  | `deploy-schema.yml` runs pgTAP                                                                                    | **Done** — a `Run pgTAP database tests` step was added to `test-local-reset`, which `deploy-to-production` depends on. Before this, pgTAP ran only in `ci.yml` behind a paths filter and a `workflow_dispatch` deploy never re-ran it |
+| P-3  | The `production` GitHub Environment has named required reviewers                                                  | The workflow declares `environment: production`, but protection rules live in repository settings, not in the repo                                                                                                                    |
+| P-4  | **PITR enabled** on `fotdmeakexgrkronxlof`, window ≥ 24 h and established                                         | The Supabase organization is on the **Pro** plan, so PITR is available as an add-on — confirm it is actually switched on. Without it, a lossless rollback does not exist                                                              |
+| P-5  | Every preflight in `scripts/production-cutover-preflight.sql` passes, or each deviation is adjudicated in writing | See [preflight](#preflight)                                                                                                                                                                                                           |
+| P-6  | Rehearsal complete on production-shaped data                                                                      | See [rehearsal](#rehearsal)                                                                                                                                                                                                           |
+| P-7  | Backup taken **and verify-restored**                                                                              | See [backup](#backup)                                                                                                                                                                                                                 |
+| P-8  | A green Vercel deployment of the exact release SHA exists and was smoke-tested against the rehearsal database     | Not the same as a green `development` preview                                                                                                                                                                                         |
+| P-9  | `RESEND_API_KEY` resolved (AUD-013)                                                                               | Flagged **Needs Attention** on both Production and Pre-Production. This release exercises announcement, waiver, and certificate email                                                                                                 |
+| P-10 | No `supabase config push` anywhere in automation                                                                  | Verified absent from `.github/`, `scripts/`, and `package.json` as of 2026-08-10                                                                                                                                                      |
 
 ---
 
@@ -61,11 +61,11 @@ Read-only throughout. Capture the whole output into the change record. The block
 
 - **P8** — waiver signatures whose `(signup_id, project_id)` pair has no matching signup. The most likely failure in the set; it breaks a composite FK validation.
 - **P11** — **this migration deletes production rows.** `20260712021110` runs `DELETE FROM public.user_emails WHERE verified_at IS NULL`. The pass criterion is not zero; it is that the number is understood, reviewed, accepted, and present in the backup. Sign it off explicitly by name.
-- **P14** — auth emails owned by a different user. Not a migration error but a *silent* one: the `ON CONFLICT` no-ops and those users end up with no primary email row.
+- **P14** — auth emails owned by a different user. Not a migration error but a _silent_ one: the `ON CONFLICT` no-ops and those users end up with no primary email row.
 - **P22** — the CSF surface must not already exist. Any non-NULL means something created it out of band, and `CREATE TABLE` without `IF NOT EXISTS` will fail with `42P07`. Stop and reconcile.
-- **TM-1** — trusted-member adjudication. A self-grant produces a *consistent* pair (`trusted_member.status` and `profiles.trusted_member` both true), because the sync trigger wrote the profile from the row — so looking for inconsistency finds nothing. The signal is the approval notification that every legitimate approval emits. Investigate rows with no approval notification **and** missing application content.
+- **TM-1** — trusted-member adjudication. A self-grant produces a _consistent_ pair (`trusted_member.status` and `profiles.trusted_member` both true), because the sync trigger wrote the profile from the row — so looking for inconsistency finds nothing. The signal is the approval notification that every legitimate approval emits. Investigate rows with no approval notification **and** missing application content.
 
-**Do not remediate trusted-member rows inside a migration.** Notifications are user-deletable, so there is no ground truth and a mass revoke would strip legitimate members. Revoking also does not undo the consequences — organizations and projects already created remain. Adjudicate by hand and remediate *after* cutover through the existing admin path, which uses the service role and notifies the user.
+**Do not remediate trusted-member rows inside a migration.** Notifications are user-deletable, so there is no ground truth and a mass revoke would strip legitimate members. Revoking also does not undo the consequences — organizations and projects already created remain. Adjudicate by hand and remediate _after_ cutover through the existing admin path, which uses the service role and notifies the user.
 
 ---
 
@@ -75,13 +75,14 @@ Read-only throughout. Capture the whole output into the change record. The block
 
 **Preferred path — a data-cloned branch from Production.**
 
-1. `get_cost` → `confirm_cost` for a branch, and keep the `confirm_cost_id`. This is a *second* concurrent branch alongside the persistent `development` one; budget for it and delete it promptly.
+1. `get_cost` → `confirm_cost` for a branch, and keep the `confirm_cost_id`. This is a _second_ concurrent branch alongside the persistent `development` one; budget for it and delete it promptly.
 2. `create_branch({ project_id: 'fotdmeakexgrkronxlof', name: 'cutover-rehearsal-<date>', confirm_cost_id })`.
 3. **Verify it is a clone, not a replay** — `list_migrations` on the new ref.
    - **49 rows, head `20260603035734`** → a genuine clone. Continue.
    - **223 rows** → it was built by replaying the repository, which is the artifact you already have and proves nothing new. Abandon and use the fallback.
 
    Do not skip this. It is the single most important step here.
+
 4. Compare row counts for `auth.users`, `profiles`, `organizations`, `projects`, `project_signups`, `waiver_signatures`, `user_emails`, and the `dv_sd_*` tables against Production. Zero rows means schema-only — use the fallback.
 5. Run the whole preflight against the branch and confirm it matches Production. This validates the preflight queries before they are pointed at the real thing.
 6. Push, and time it:
@@ -137,7 +138,7 @@ Then restore them into a throwaway Postgres 17 and compare row counts for the to
 
 1. **T-24 h and T-1 h** — announce through `public.system_banners`.
 2. **T-0** — enable maintenance mode. **Writes must stop.** That is what makes a PITR restore lossless; without it, a restore loses whatever was written after the restore point.
-3. Snapshot `cron.job`, then unschedule active jobs. Note that `20260621210000` re-schedules two jobs *during* the push, so restoration must reconcile against the post-migration state rather than blindly replaying the snapshot.
+3. Snapshot `cron.job`, then unschedule active jobs. Note that `20260621210000` re-schedules two jobs _during_ the push, so restoration must reconcile against the post-migration state rather than blindly replaying the snapshot.
 4. Confirm quiescence: no non-idle client backends.
 5. Repair the collation version mismatch (expected — preflight E1 will show it).
 6. **Dry-run, and read it.** `deploy-schema.yml` currently runs the dry-run and the push in the same step with no human read between them; splitting that is recommended secondary hardening. Until it is split, run the dry-run manually first.
@@ -160,12 +161,12 @@ Then restore them into a throwaway Postgres 17 and compare row counts for the to
 
 There is no down migration.
 
-| Situation | Response |
-|---|---|
-| The push fails partway | Do not re-run blindly. Read which migration failed, fix forward, and re-run the dry-run |
+| Situation                                           | Response                                                                                                                                                 |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The push fails partway                              | Do not re-run blindly. Read which migration failed, fix forward, and re-run the dry-run                                                                  |
 | The schema is applied but the application is broken | Roll the application back to the previous deployment only if it is compatible — after these grant revocations it generally is not. Prefer fixing forward |
-| The data is wrong | PITR restore to just before the window. **Lossless only if writes were stopped** |
-| An index is left invalid | Drop it and rebuild it outside the window; a failed `CONCURRENTLY` build leaves an invalid index behind |
+| The data is wrong                                   | PITR restore to just before the window. **Lossless only if writes were stopped**                                                                         |
+| An index is left invalid                            | Drop it and rebuild it outside the window; a failed `CONCURRENTLY` build leaves an invalid index behind                                                  |
 
 ---
 

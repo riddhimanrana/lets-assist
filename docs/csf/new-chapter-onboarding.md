@@ -26,19 +26,18 @@ history, or repository.
 Use these roles to verify the actual permission boundary rather than testing
 everything as an administrator:
 
-| Account | Rehearsal purpose |
-|---|---|
-| `csf.admin@local.test` | Organization and CSF administration |
-| `csf.vp-membership@local.test` | Applications, members, and account connections |
-| `csf.secretary@local.test` | Meetings and attendance |
-| `csf.treasurer@local.test` | Dues |
-| `csf.data-management@local.test` | Imports and reconciliation |
-| `student.2028@local.test` | Existing Class of 2028 record and exact-email profile claim |
-| `csf.applicant@local.test` | Applicant and unmatched account-link paths |
-| `platform.outsider@local.test` | Public/private boundary check |
+| Account                          | Rehearsal purpose                                           |
+| -------------------------------- | ----------------------------------------------------------- |
+| `csf.admin@local.test`           | Organization and CSF administration                         |
+| `csf.vp-membership@local.test`   | Applications, members, and account connections              |
+| `csf.secretary@local.test`       | Meetings and attendance                                     |
+| `csf.treasurer@local.test`       | Dues                                                        |
+| `csf.data-management@local.test` | Imports and reconciliation                                  |
+| `student.2028@local.test`        | Existing Class of 2028 record and exact-email profile claim |
+| `csf.applicant@local.test`       | Applicant and unmatched account-link paths                  |
+| `platform.outsider@local.test`   | Public/private boundary check                               |
 
-The current Development rehearsal tracks Classes of 2027, 2028, 2029, and
-2030. Each class has an active Fall 2026 semester record and reusable combined
+The current Development rehearsal tracks Classes of 2027, 2028, 2029, and 2030. Each class has an active Fall 2026 semester record and reusable combined
 link. Development dates and policies are rehearsal inputs only; an adviser must
 replace and approve them from the chapter calendar before a Production cutover.
 
@@ -80,12 +79,12 @@ source identity first.
 
 ## Before you start
 
-| Prerequisite | Who provides it | Notes |
-|---|---|---|
-| The organization exists on the platform | An org admin | Created by a trusted member; the creator becomes `admin` |
-| A named chapter owner | The chapter | Becomes the `owner` staff position, which carries every capability |
-| A chapter Google account | The chapter | For Sheets and Drive imports. Never a personal account — see [source data](source-data.md) |
-| Legacy records, if any | The chapter | Rosters, attendance, club audits. Layouts in [source data](source-data.md) |
+| Prerequisite                            | Who provides it | Notes                                                                                      |
+| --------------------------------------- | --------------- | ------------------------------------------------------------------------------------------ |
+| The organization exists on the platform | An org admin    | Created by a trusted member; the creator becomes `admin`                                   |
+| A named chapter owner                   | The chapter     | Becomes the `owner` staff position, which carries every capability                         |
+| A chapter Google account                | The chapter     | For Sheets and Drive imports. Never a personal account — see [source data](source-data.md) |
+| Legacy records, if any                  | The chapter     | Rosters, attendance, club audits. Layouts in [source data](source-data.md)                 |
 
 ## Stage 1 — Entitlement (platform super admin)
 
@@ -181,13 +180,13 @@ Run a term close only after at least one full cycle of points and attendance. Th
 
 Stop and escalate rather than improvising:
 
-| Condition | Action |
-|---|---|
-| The wrong Google identity is connected | Stop before selecting files; reconnect the approved chapter account |
-| An imported point value is missing or malformed | Leave the row unresolved and fix the source mapping. Never guess a value |
-| A profile is duplicate or ambiguous | Send it to account-connection review. Never search the roster on a student's behalf or read names back to them |
-| `onInstall` left roles or point categories empty | Do not proceed to Stage 3. Check `plugin_audit_logs` |
-| A term policy is missing | Do not record points. Create the policy first |
+| Condition                                        | Action                                                                                                         |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| The wrong Google identity is connected           | Stop before selecting files; reconnect the approved chapter account                                            |
+| An imported point value is missing or malformed  | Leave the row unresolved and fix the source mapping. Never guess a value                                       |
+| A profile is duplicate or ambiguous              | Send it to account-connection review. Never search the roster on a student's behalf or read names back to them |
+| `onInstall` left roles or point categories empty | Do not proceed to Stage 3. Check `plugin_audit_logs`                                                           |
+| A term policy is missing                         | Do not record points. Create the policy first                                                                  |
 
 ## Related
 

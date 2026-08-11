@@ -186,7 +186,8 @@ test.describe("member Home class feed", () => {
     const outsider = usersResult.data.users.find(
       (candidate) => candidate.email === "platform.outsider@local.test",
     );
-    if (!outsider) throw new Error("The local outsider auth fixture is missing.");
+    if (!outsider)
+      throw new Error("The local outsider auth fixture is missing.");
     outsiderUserId = outsider.id;
 
     const { error: membershipError } = await fixture.admin
@@ -245,6 +246,9 @@ test.describe("member Home class feed", () => {
         .eq("user_id", outsiderUserId);
       cleanupError = error?.message ?? null;
     }
-    expect(cleanupError, `membership cleanup failed: ${cleanupError}`).toBeNull();
+    expect(
+      cleanupError,
+      `membership cleanup failed: ${cleanupError}`,
+    ).toBeNull();
   });
 });

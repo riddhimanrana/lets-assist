@@ -80,7 +80,7 @@ Order: **Requirements (compact) → Coming up → Actions** (unchanged order, ne
   past the cursor and merging. Author bylines batched exactly as today (two queries per page).
 - **Officer replies.** New table `plugin_data.csf_announcement_replies`:
   `id, organization_id, announcement_id FK→csf_announcements ON DELETE CASCADE, body (1..4000),
-  created_by FK→auth.users, created_at, updated_at`. Service-role-only grants + RLS posture
+created_by FK→auth.users, created_at, updated_at`. Service-role-only grants + RLS posture
   matching sibling tables; forward migration + pgTAP (grants, FK cascade, body bounds).
   Actions: `addCsfPostReplyAction`, `deleteCsfPostReplyAction` (author-or-admin), both gated by
   `manage_posts`, audited via `recordCsfAuditEvent`, revalidating the feed paths. Replies load

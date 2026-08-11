@@ -1,12 +1,4 @@
-import {
-
-  beforeEach,
-  describe,
-  expect,
-  mock,
-  spyOn,
-  test,
-} from "bun:test";
+import { beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 
 import type {
   OrganizationPluginDefinition,
@@ -215,7 +207,10 @@ describe("resolvePlatformFeedItems", () => {
   test("a hanging resolver times out without blocking other plugins", async () => {
     const warn = spyOn(console, "warn").mockImplementation(() => {});
     try {
-      membershipRows = [membership(ORG_A, "member"), membership(ORG_B, "member")];
+      membershipRows = [
+        membership(ORG_A, "member"),
+        membership(ORG_B, "member"),
+      ];
       installRows = [install(ORG_A, "hangs"), install(ORG_B, "works")];
       registerPlugin("hangs", {
         feedLevel: "member",
@@ -321,7 +316,9 @@ describe("resolvePlatformFeedItems", () => {
     expect(items).toHaveLength(7);
     expect(items[0].id).toBe("beta-pinned");
     expect(items[1].id).toBe("beta-new");
-    const timestamps = items.slice(1).map((item) => Date.parse(item.publishedAt));
+    const timestamps = items
+      .slice(1)
+      .map((item) => Date.parse(item.publishedAt));
     expect([...timestamps].sort((a, b) => b - a)).toEqual(timestamps);
 
     const capped = await resolvePlatformFeedItems(USER, { limit: 8 });
@@ -367,8 +364,10 @@ describe("resolvePlatformDashboardCards", () => {
       cardLevel: "member",
       resolvePlatformDashboardCard: async () =>
         dashboardCard({
-          status: { label: "??", tone: "sparkly" } as unknown as
-            PlatformDashboardCard["status"],
+          status: {
+            label: "??",
+            tone: "sparkly",
+          } as unknown as PlatformDashboardCard["status"],
         }),
     });
 
@@ -403,7 +402,10 @@ describe("resolvePlatformDashboardCards", () => {
   test("a rejecting card resolver is isolated and warned once", async () => {
     const warn = spyOn(console, "warn").mockImplementation(() => {});
     try {
-      membershipRows = [membership(ORG_A, "member"), membership(ORG_B, "member")];
+      membershipRows = [
+        membership(ORG_A, "member"),
+        membership(ORG_B, "member"),
+      ];
       installRows = [install(ORG_A, "throws"), install(ORG_B, "works")];
       registerPlugin("throws", {
         cardLevel: "member",
@@ -475,9 +477,7 @@ describe("plugin display preference", () => {
 
   test("global off hides everything and runs no resolver", async () => {
     const invoked = twoPluginsWithSpies();
-    preferenceRows = [
-      { show_plugin_content: false, hidden_plugin_keys: [] },
-    ];
+    preferenceRows = [{ show_plugin_content: false, hidden_plugin_keys: [] }];
 
     expect(await resolvePlatformFeedItems(USER)).toEqual([]);
     expect(await resolvePlatformDashboardCards(USER)).toEqual([]);
@@ -534,7 +534,10 @@ describe("listPlatformPluginSources", () => {
   test("skips plugins that declare a surface but implement no resolver", async () => {
     membershipRows = [membership(ORG_A, "member")];
     installRows = [install(ORG_A, "declares-only")];
-    registerPlugin("declares-only", { feedLevel: "member", cardLevel: "member" });
+    registerPlugin("declares-only", {
+      feedLevel: "member",
+      cardLevel: "member",
+    });
 
     expect(await listPlatformPluginSources(USER)).toEqual([]);
     expect(await resolvePlatformFeedItems(USER)).toEqual([]);

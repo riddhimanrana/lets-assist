@@ -28,7 +28,9 @@ export default function CsfUnsubscribeConfirm({
   return (
     <Html lang="en">
       <Head />
-      <Preview>Confirm your unsubscribe from {chapterName} announcements</Preview>
+      <Preview>
+        Confirm your unsubscribe from {chapterName} announcements
+      </Preview>
       <Body style={main}>
         <Container style={container} className="container">
           <Section style={card}>

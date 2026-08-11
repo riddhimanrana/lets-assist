@@ -7,9 +7,7 @@
   "srcDir": "components",
   "tsconfig": "tsconfig.json",
   "cssEntry": ".design-sync/.compiled/tailwind.compiled.css",
-  "extraFonts": [
-    ".design-sync/fonts.css"
-  ],
+  "extraFonts": [".design-sync/fonts.css"],
   "buildCmd": "node .design-sync/compile-tailwind.mjs && node .design-sync/gen-entry.mjs",
   "componentSrcMap": {
     "Accordion": "components/ui/accordion.tsx",

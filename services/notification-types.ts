@@ -7,9 +7,7 @@
  */
 
 export type NotificationType =
-  | "email_notifications"
-  | "project_updates"
-  | "general";
+  "email_notifications" | "project_updates" | "general";
 
 export type NotificationSeverity = "info" | "warning" | "success";
 
