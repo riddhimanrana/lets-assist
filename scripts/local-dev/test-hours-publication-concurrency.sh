@@ -201,6 +201,148 @@ if [[ "${RESULT_COUNTS}" != "1:1:1" ]]; then
   exit 1
 fi
 
+HOURS_DELIVERY_ID="$(
+  psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 <<'SQL'
+SELECT outbox.id
+FROM public.hours_publication_email_outbox AS outbox
+JOIN public.hours_publication_receipts AS receipts
+  ON receipts.id = outbox.receipt_id
+WHERE receipts.project_id = 'ac200000-0000-4000-8000-000000000001'
+LIMIT 1;
+SQL
+)"
+
+psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 \
+  -v delivery_id="${HOURS_DELIVERY_ID}" >/dev/null <<'SQL'
+SELECT public.prepare_hours_publication_email_delivery(
+  :'delivery_id'::uuid,
+  'Let''s Assist <projects@notifications.lets-assist.com>',
+  'Synthetic boundary subject',
+  '<p>Synthetic boundary body</p>'
+);
+
+UPDATE public.hours_publication_email_outbox
+SET
+  state = 'processing',
+  claim_token = 'ac400000-0000-4000-8000-000000000001',
+  claim_reuses_attempt_window = true,
+  attempt_count = 1,
+  first_attempt_at = pg_catalog.clock_timestamp()
+    - interval '23 hours 59 minutes 58 seconds',
+  last_attempt_at = pg_catalog.clock_timestamp() - interval '16 minutes',
+  updated_at = pg_catalog.clock_timestamp()
+WHERE id = :'delivery_id'::uuid;
+SQL
+
+# The claimant transaction begins before the 24-hour boundary, then waits on
+# the active worker's row lock until after it. The claim RPC must use wall-clock
+# time when PostgreSQL re-evaluates the updated row, terminalize the now-expired
+# retryable work, and refuse a resend.
+(
+  PGAPPNAME=hours_boundary_settler \
+    psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 \
+      -v delivery_id="${HOURS_DELIVERY_ID}" >/dev/null <<'SQL'
+BEGIN;
+SELECT id
+FROM public.hours_publication_email_outbox
+WHERE id = :'delivery_id'::uuid
+FOR UPDATE;
+SELECT pg_sleep(3);
+SELECT public.settle_hours_publication_email_delivery(
+  :'delivery_id'::uuid,
+  'ac400000-0000-4000-8000-000000000001',
+  'retryable_failure',
+  NULL,
+  'provider_unavailable'
+);
+COMMIT;
+SQL
+) &
+BOUNDARY_SETTLER_PID=$!
+
+BOUNDARY_SETTLER_READY=false
+for ((attempt = 0; attempt < 100; attempt += 1)); do
+  BOUNDARY_SETTLER_READY="$(
+    psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 <<'SQL'
+SELECT EXISTS (
+  SELECT 1
+  FROM pg_catalog.pg_stat_activity
+  WHERE application_name = 'hours_boundary_settler'
+    AND wait_event_type = 'Timeout'
+    AND wait_event = 'PgSleep'
+    AND xact_start IS NOT NULL
+);
+SQL
+  )"
+  [[ "${BOUNDARY_SETTLER_READY}" == "t" ]] && break
+  sleep 0.05
+done
+
+if [[ "${BOUNDARY_SETTLER_READY}" != "t" ]]; then
+  wait "${BOUNDARY_SETTLER_PID}" || true
+  echo "Boundary settler never reached its locked hold point." >&2
+  exit 1
+fi
+
+(
+  PGAPPNAME=hours_boundary_claimant \
+    psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 \
+      -v delivery_id="${HOURS_DELIVERY_ID}" >"${OUTPUT_B}" <<'SQL'
+BEGIN;
+SELECT public.claim_hours_publication_email_delivery(
+  :'delivery_id'::uuid,
+  'ac400000-0000-4000-8000-000000000002'
+);
+COMMIT;
+SQL
+) &
+BOUNDARY_CLAIMANT_PID=$!
+
+BOUNDARY_CLAIMANT_BLOCKED=false
+for ((attempt = 0; attempt < 100; attempt += 1)); do
+  BOUNDARY_CLAIMANT_BLOCKED="$(
+    psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 <<'SQL'
+SELECT EXISTS (
+  SELECT 1
+  FROM pg_catalog.pg_stat_activity
+  WHERE application_name = 'hours_boundary_claimant'
+    AND wait_event_type = 'Lock'
+    AND wait_event = 'transactionid'
+);
+SQL
+  )"
+  [[ "${BOUNDARY_CLAIMANT_BLOCKED}" == "t" ]] && break
+  if ! kill -0 "${BOUNDARY_CLAIMANT_PID}" 2>/dev/null; then
+    break
+  fi
+  sleep 0.05
+done
+
+if [[ "${BOUNDARY_CLAIMANT_BLOCKED}" != "t" ]]; then
+  wait "${BOUNDARY_SETTLER_PID}" || true
+  wait "${BOUNDARY_CLAIMANT_PID}" || true
+  echo "Boundary claimant did not wait on the active settlement lock." >&2
+  exit 1
+fi
+
+wait "${BOUNDARY_SETTLER_PID}"
+wait "${BOUNDARY_CLAIMANT_PID}"
+grep -qx 'f' "${OUTPUT_B}"
+
+BOUNDARY_RESULT="$(
+  psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 \
+    -v delivery_id="${HOURS_DELIVERY_ID}" <<'SQL'
+SELECT state || ':' || safe_code
+FROM public.hours_publication_email_outbox
+WHERE id = :'delivery_id'::uuid;
+SQL
+)"
+
+if [[ "${BOUNDARY_RESULT}" != "unknown_outcome:settlement_unconfirmed" ]]; then
+  echo "Lock-wait boundary claim produced ${BOUNDARY_RESULT} instead of terminal reconciliation." >&2
+  exit 1
+fi
+
 psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 DELETE FROM public.hours_publication_email_outbox
 WHERE receipt_id IN (
@@ -471,4 +613,4 @@ if [[ "${SUPPLEMENTAL_COUNT}" != "3" ]]; then
   exit 1
 fi
 
-echo "Concurrent publication replay, signup-status locking, membership-revocation locking, and conflict-tolerant supplemental issuance passed."
+echo "Concurrent publication replay, wall-clock delivery expiry, signup-status locking, membership-revocation locking, and conflict-tolerant supplemental issuance passed."

@@ -939,15 +939,15 @@ BEGIN
     state = 'unknown_outcome',
     claim_token = NULL,
     safe_code = 'settlement_unconfirmed',
-    settled_at = now(),
-    updated_at = now()
+    settled_at = pg_catalog.clock_timestamp(),
+    updated_at = pg_catalog.clock_timestamp()
   WHERE id = p_delivery_id
-    AND first_attempt_at < now() - interval '24 hours'
+    AND first_attempt_at < pg_catalog.clock_timestamp() - interval '24 hours'
     AND (
       state = 'retryable_failure'
       OR (
         state = 'processing'
-        AND last_attempt_at < now() - interval '15 minutes'
+        AND last_attempt_at < pg_catalog.clock_timestamp() - interval '15 minutes'
       )
     );
 
@@ -962,24 +962,52 @@ BEGIN
     claim_reuses_attempt_window = first_attempt_at IS NOT NULL,
     last_settlement_token = NULL,
     attempt_count = attempt_count + 1,
-    first_attempt_at = coalesce(first_attempt_at, now()),
-    last_attempt_at = now(),
-    updated_at = now()
+    first_attempt_at = coalesce(first_attempt_at, pg_catalog.clock_timestamp()),
+    last_attempt_at = pg_catalog.clock_timestamp(),
+    updated_at = pg_catalog.clock_timestamp()
   WHERE id = p_delivery_id
     AND payload_snapshot IS NOT NULL
     AND (
       (
         state IN ('queued', 'retryable_failure')
         AND claim_token IS NULL
+        AND (
+          first_attempt_at IS NULL
+          OR first_attempt_at >= pg_catalog.clock_timestamp() - interval '24 hours'
+        )
       )
       OR (
         state = 'processing'
-        AND last_attempt_at < now() - interval '15 minutes'
-        AND first_attempt_at >= now() - interval '24 hours'
+        AND last_attempt_at < pg_catalog.clock_timestamp() - interval '15 minutes'
+        AND first_attempt_at >= pg_catalog.clock_timestamp() - interval '24 hours'
       )
     );
 
-  RETURN FOUND;
+  IF FOUND THEN
+    RETURN true;
+  END IF;
+
+  -- The claim update itself may have waited on a worker that settled the row
+  -- after this transaction began. Re-evaluate the wall-clock boundary after
+  -- that wait so newly expired retryable work cannot remain resendable.
+  UPDATE public.hours_publication_email_outbox
+  SET
+    state = 'unknown_outcome',
+    claim_token = NULL,
+    safe_code = 'settlement_unconfirmed',
+    settled_at = pg_catalog.clock_timestamp(),
+    updated_at = pg_catalog.clock_timestamp()
+  WHERE id = p_delivery_id
+    AND first_attempt_at < pg_catalog.clock_timestamp() - interval '24 hours'
+    AND (
+      state = 'retryable_failure'
+      OR (
+        state = 'processing'
+        AND last_attempt_at < pg_catalog.clock_timestamp() - interval '15 minutes'
+      )
+    );
+
+  RETURN false;
 END;
 $$;
 
