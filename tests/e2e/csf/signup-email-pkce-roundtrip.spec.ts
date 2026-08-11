@@ -351,9 +351,12 @@ async function findConfirmationSummaries(
   fixture: PkceFixture,
   recipient: string,
 ) {
-  const payload = (await readMailpitJson(
-    `${fixture.mailpitOrigin}/api/v1/messages?limit=200`,
-  )) as { messages?: MailpitSummary[] };
+  const search = new URL("/api/v1/search", fixture.mailpitOrigin);
+  search.searchParams.set("query", `to:${recipient}`);
+  search.searchParams.set("limit", "20");
+  const payload = (await readMailpitJson(search.toString())) as {
+    messages?: MailpitSummary[];
+  };
 
   const wanted = recipient.toLowerCase();
   return (payload.messages ?? []).filter(
