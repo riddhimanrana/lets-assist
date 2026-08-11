@@ -402,7 +402,7 @@ GitHub, Vercel Development, Supabase Development, Mailpit/Resend test-event, and
 browser acceptance gates remain open for the amended exact commit. After the
 review hardening, the complete 2,908-test / 173-file root/plugin unit
 orchestrator, the CI-shaped local Next.js build, the 21 focused tests,
-formatting, lint, TypeScript, migration replay, 50 pgTAP assertions, and the
+formatting, lint, TypeScript, migration replay, 53 pgTAP assertions, and the
 expanded publication and deterministically synchronized supplemental-issuance
 concurrency probe all passed.
 Production remains excluded.

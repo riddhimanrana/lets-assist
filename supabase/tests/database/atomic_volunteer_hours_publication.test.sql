@@ -5,7 +5,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(50);
+SELECT extensions.plan(53);
 
 SELECT extensions.ok(
   EXISTS (
@@ -687,14 +687,63 @@ SELECT extensions.is(
 
 UPDATE public.hours_publication_email_outbox
 SET
-  first_attempt_at = now() - interval '25 hours',
+  first_attempt_at = now() - interval '23 hours 59 minutes',
   last_attempt_at = now() - interval '16 minutes'
+WHERE id = (SELECT id FROM retryable_delivery);
+
+SELECT extensions.ok(
+  public.claim_hours_publication_email_delivery(
+    (SELECT id FROM retryable_delivery),
+    'ab400000-0000-4000-8000-000000000006'
+  ),
+  'anchored retryable work can be claimed immediately before its provider window expires'
+);
+
+UPDATE public.hours_publication_email_outbox
+SET first_attempt_at = now() - interval '25 hours'
 WHERE id = (SELECT id FROM retryable_delivery);
 
 SELECT extensions.ok(
   NOT public.claim_hours_publication_email_delivery(
     (SELECT id FROM retryable_delivery),
-    'ab400000-0000-4000-8000-000000000006'
+    'ab400000-0000-4000-8000-000000000007'
+  )
+  AND (
+    SELECT state = 'processing'
+      AND claim_token = 'ab400000-0000-4000-8000-000000000006'::uuid
+    FROM public.hours_publication_email_outbox
+    WHERE id = (SELECT id FROM retryable_delivery)
+  ),
+  'crossing the provider-window boundary does not terminalize a live claim lease'
+);
+
+SELECT extensions.ok(
+  public.settle_hours_publication_email_delivery(
+    (SELECT id FROM retryable_delivery),
+    'ab400000-0000-4000-8000-000000000006',
+    'accepted',
+    'synthetic-boundary-message',
+    NULL
+  ),
+  'the live boundary claim can still persist its accepted provider result'
+);
+
+UPDATE public.hours_publication_email_outbox
+SET
+  state = 'retryable_failure',
+  claim_token = NULL,
+  first_attempt_at = now() - interval '25 hours',
+  last_attempt_at = now() - interval '16 minutes',
+  settled_at = NULL,
+  provider_message_id = NULL,
+  safe_code = 'provider_unavailable',
+  last_settlement_token = NULL
+WHERE id = (SELECT id FROM retryable_delivery);
+
+SELECT extensions.ok(
+  NOT public.claim_hours_publication_email_delivery(
+    (SELECT id FROM retryable_delivery),
+    'ab400000-0000-4000-8000-000000000008'
   ),
   'a recently reclaimed claim outside the original provider idempotency window is never resent'
 );

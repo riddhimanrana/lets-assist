@@ -942,8 +942,14 @@ BEGIN
     settled_at = now(),
     updated_at = now()
   WHERE id = p_delivery_id
-    AND state IN ('processing', 'retryable_failure')
-    AND first_attempt_at < now() - interval '24 hours';
+    AND first_attempt_at < now() - interval '24 hours'
+    AND (
+      state = 'retryable_failure'
+      OR (
+        state = 'processing'
+        AND last_attempt_at < now() - interval '15 minutes'
+      )
+    );
 
   IF FOUND THEN
     RETURN false;
