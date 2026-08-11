@@ -6,6 +6,10 @@ const actionsSource = readFileSync(
   `${process.cwd()}/app/projects/[id]/hours/actions.ts`,
   "utf8",
 );
+const certificateIssuanceSource = readFileSync(
+  `${process.cwd()}/app/projects/[id]/hours/certificate-issuance.ts`,
+  "utf8",
+);
 
 test("publishing hours delegates identity and permission checks to one transactional RPC", () => {
   const publishStart = actionsSource.indexOf(
@@ -64,4 +68,16 @@ test("durable delivery snapshots the rendered provider request before claim", ()
   assert.match(drainSource, /from: providerPayload\.from/u);
   assert.match(drainSource, /html: providerPayload\.html/u);
   assert.match(drainSource, /tags: providerPayload\.tags/u);
+});
+
+test("supplemental issuance delegates conflict arbitration to one database statement", () => {
+  const issuanceStart = certificateIssuanceSource.indexOf(
+    "export async function issueCertificatesForSignups",
+  );
+  const issuanceSource = certificateIssuanceSource.slice(issuanceStart);
+
+  assert.ok(issuanceStart >= 0);
+  assert.match(issuanceSource, /issue_supplemental_verified_certificates/u);
+  assert.doesNotMatch(issuanceSource, /\.from\("certificates"\)\.insert/u);
+  assert.doesNotMatch(issuanceSource, /alreadyIssued/u);
 });

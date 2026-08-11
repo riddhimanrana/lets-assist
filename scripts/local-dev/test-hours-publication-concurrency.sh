@@ -54,7 +54,9 @@ DELETE FROM auth.users
 WHERE id IN (
   'ac000000-0000-4000-8000-000000000001',
   'ac000000-0000-4000-8000-000000000002',
-  'ac000000-0000-4000-8000-000000000003'
+  'ac000000-0000-4000-8000-000000000003',
+  'ac000000-0000-4000-8000-000000000004',
+  'ac000000-0000-4000-8000-000000000005'
 );
 SQL
 }
@@ -305,4 +307,109 @@ if [[ "${MEMBERSHIP_RACE_EXIT}" -eq 0 ]] || ! grep -q "not authorized" "${OUTPUT
   exit 1
 fi
 
-echo "Concurrent publication replay, signup-status locking, and membership-revocation locking passed."
+psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+INSERT INTO auth.users (
+  id, aud, role, email, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+)
+VALUES
+  ('ac000000-0000-4000-8000-000000000004', 'authenticated', 'authenticated',
+   'concurrency-second@local.test', now(), '{}', '{"full_name":"Concurrency Second"}', now(), now()),
+  ('ac000000-0000-4000-8000-000000000005', 'authenticated', 'authenticated',
+   'concurrency-third@local.test', now(), '{}', '{"full_name":"Concurrency Third"}', now(), now());
+
+UPDATE public.profiles
+SET
+  full_name = CASE id
+    WHEN 'ac000000-0000-4000-8000-000000000004' THEN 'Concurrency Second'
+    ELSE 'Concurrency Third'
+  END,
+  email = CASE id
+    WHEN 'ac000000-0000-4000-8000-000000000004' THEN 'concurrency-second@local.test'
+    ELSE 'concurrency-third@local.test'
+  END
+WHERE id IN (
+  'ac000000-0000-4000-8000-000000000004',
+  'ac000000-0000-4000-8000-000000000005'
+);
+
+UPDATE public.project_signups
+SET
+  status = 'attended',
+  check_in_time = '2031-08-11T16:00:00Z',
+  check_out_time = '2031-08-11T18:00:00Z'
+WHERE id = 'ac300000-0000-4000-8000-000000000001';
+
+INSERT INTO public.project_signups (
+  id, project_id, user_id, schedule_id, status, check_in_time, check_out_time
+)
+VALUES
+  (
+    'ac300000-0000-4000-8000-000000000002',
+    'ac200000-0000-4000-8000-000000000001',
+    'ac000000-0000-4000-8000-000000000004',
+    'oneTime', 'attended', '2031-08-11T16:00:00Z', '2031-08-11T18:00:00Z'
+  ),
+  (
+    'ac300000-0000-4000-8000-000000000003',
+    'ac200000-0000-4000-8000-000000000001',
+    'ac000000-0000-4000-8000-000000000005',
+    'oneTime', 'attended', '2031-08-11T16:00:00Z', '2031-08-11T18:00:00Z'
+  );
+SQL
+
+# Session A keeps the overlapping signup's unique-index entry uncommitted.
+# Session B must wait, skip only that conflict, and still insert its unrelated
+# signup rather than losing the whole supplemental batch.
+(
+  psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_A}" <<'SQL'
+BEGIN;
+SELECT count(*)
+FROM public.issue_supplemental_verified_certificates(
+  'ac200000-0000-4000-8000-000000000001',
+  'oneTime',
+  ARRAY[
+    'ac300000-0000-4000-8000-000000000001',
+    'ac300000-0000-4000-8000-000000000002'
+  ]::uuid[],
+  'ac000000-0000-4000-8000-000000000001'
+);
+SELECT pg_sleep(1);
+COMMIT;
+SQL
+) &
+SUPPLEMENTAL_A_PID=$!
+sleep 0.2
+
+psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_B}" <<'SQL'
+SELECT count(*)
+FROM public.issue_supplemental_verified_certificates(
+  'ac200000-0000-4000-8000-000000000001',
+  'oneTime',
+  ARRAY[
+    'ac300000-0000-4000-8000-000000000001',
+    'ac300000-0000-4000-8000-000000000003'
+  ]::uuid[],
+  'ac000000-0000-4000-8000-000000000001'
+);
+SQL
+
+wait "${SUPPLEMENTAL_A_PID}"
+grep -qx '2' "${OUTPUT_A}"
+grep -qx '1' "${OUTPUT_B}"
+
+SUPPLEMENTAL_COUNT="$(
+  psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 <<'SQL'
+SELECT count(*)
+FROM public.certificates
+WHERE project_id = 'ac200000-0000-4000-8000-000000000001'
+  AND type = 'verified';
+SQL
+)"
+
+if [[ "${SUPPLEMENTAL_COUNT}" != "3" ]]; then
+  echo "Concurrent supplemental issuance produced ${SUPPLEMENTAL_COUNT} certificates instead of 3." >&2
+  exit 1
+fi
+
+echo "Concurrent publication replay, signup-status locking, membership-revocation locking, and conflict-tolerant supplemental issuance passed."

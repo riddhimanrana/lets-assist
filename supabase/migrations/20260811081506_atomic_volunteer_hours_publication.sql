@@ -83,9 +83,18 @@ CREATE TABLE public.hours_publication_email_outbox (
     )
     OR (
       attempt_count > 0
-      AND first_attempt_at IS NOT NULL
       AND last_attempt_at IS NOT NULL
-      AND last_attempt_at >= first_attempt_at
+      AND (
+        (
+          first_attempt_at IS NOT NULL
+          AND last_attempt_at >= first_attempt_at
+        )
+        OR (
+          state = 'retryable_failure'
+          AND claim_token IS NULL
+          AND first_attempt_at IS NULL
+        )
+      )
     )
   ),
   CONSTRAINT hours_publication_email_outbox_state_check CHECK (
@@ -804,6 +813,109 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.issue_supplemental_verified_certificates(
+  p_project_id uuid,
+  p_schedule_id text,
+  p_signup_ids uuid[],
+  p_actor_id uuid
+)
+RETURNS TABLE (
+  id uuid,
+  user_id uuid,
+  volunteer_name text,
+  volunteer_email text,
+  project_title text,
+  event_start timestamptz,
+  event_end timestamptz
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF p_project_id IS NULL
+    OR p_actor_id IS NULL
+    OR NULLIF(pg_catalog.btrim(p_schedule_id), '') IS NULL
+    OR char_length(p_schedule_id) > 200
+    OR p_signup_ids IS NULL
+    OR cardinality(p_signup_ids) < 1
+    OR cardinality(p_signup_ids) > 500
+  THEN
+    RAISE EXCEPTION USING
+      ERRCODE = '22023',
+      MESSAGE = 'invalid supplemental certificate request';
+  END IF;
+
+  RETURN QUERY
+  INSERT INTO public.certificates AS inserted_certificates (
+    project_id,
+    user_id,
+    signup_id,
+    volunteer_name,
+    volunteer_email,
+    project_title,
+    project_location,
+    event_start,
+    event_end,
+    organization_name,
+    creator_name,
+    is_certified,
+    creator_id,
+    type,
+    check_in_method,
+    schedule_id
+  )
+  SELECT
+    projects.id,
+    signups.user_id,
+    signups.id,
+    COALESCE(
+      NULLIF(volunteer_profiles.full_name, ''),
+      NULLIF(anonymous_signups.name, ''),
+      'No Name Volunteer'
+    ),
+    COALESCE(volunteer_profiles.email::text, anonymous_signups.email),
+    projects.title,
+    projects.location,
+    signups.check_in_time,
+    signups.check_out_time,
+    organizations.name,
+    COALESCE(NULLIF(creator_profiles.full_name, ''), 'Project Organizer'),
+    COALESCE(organizations.verified, false),
+    p_actor_id,
+    'verified',
+    projects.verification_method,
+    p_schedule_id
+  FROM public.project_signups AS signups
+  JOIN public.projects AS projects
+    ON projects.id = signups.project_id
+  LEFT JOIN public.profiles AS volunteer_profiles
+    ON volunteer_profiles.id = signups.user_id
+  LEFT JOIN public.anonymous_signups
+    ON anonymous_signups.id = signups.anonymous_id
+  LEFT JOIN public.profiles AS creator_profiles
+    ON creator_profiles.id = projects.creator_id
+  LEFT JOIN public.organizations
+    ON organizations.id = projects.organization_id
+  WHERE signups.id = ANY (p_signup_ids)
+    AND signups.project_id = p_project_id
+    AND signups.status = 'attended'
+    AND signups.check_in_time IS NOT NULL
+    AND signups.check_out_time IS NOT NULL
+  ON CONFLICT (signup_id)
+    WHERE type = 'verified' AND signup_id IS NOT NULL
+    DO NOTHING
+  RETURNING
+    inserted_certificates.id,
+    inserted_certificates.user_id,
+    inserted_certificates.volunteer_name,
+    inserted_certificates.volunteer_email,
+    inserted_certificates.project_title,
+    inserted_certificates.event_start,
+    inserted_certificates.event_end;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.claim_hours_publication_email_delivery(
   p_delivery_id uuid,
   p_claim_token uuid
@@ -903,6 +1015,10 @@ BEGIN
     last_settlement_token = p_claim_token,
     provider_message_id = p_provider_message_id,
     safe_code = p_safe_code,
+    first_attempt_at = CASE
+      WHEN p_state = 'retryable_failure' THEN NULL
+      ELSE first_attempt_at
+    END,
     settled_at = CASE
       WHEN p_state = 'retryable_failure' THEN NULL
       ELSE now()
@@ -934,6 +1050,8 @@ REVOKE ALL ON FUNCTION public.publish_volunteer_hours_transactional(uuid, text, 
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.prepare_hours_publication_email_delivery(uuid, text, text, text)
   FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.issue_supplemental_verified_certificates(uuid, text, uuid[], uuid)
+  FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.claim_hours_publication_email_delivery(uuid, uuid)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.settle_hours_publication_email_delivery(uuid, uuid, text, text, text)
@@ -943,6 +1061,8 @@ GRANT EXECUTE ON FUNCTION public.publish_volunteer_hours_transactional(uuid, tex
 GRANT EXECUTE ON FUNCTION public.publish_volunteer_hours_transactional(uuid, text, jsonb, text)
   TO service_role;
 GRANT EXECUTE ON FUNCTION public.prepare_hours_publication_email_delivery(uuid, text, text, text)
+  TO service_role;
+GRANT EXECUTE ON FUNCTION public.issue_supplemental_verified_certificates(uuid, text, uuid[], uuid)
   TO service_role;
 GRANT EXECUTE ON FUNCTION public.claim_hours_publication_email_delivery(uuid, uuid)
   TO service_role;

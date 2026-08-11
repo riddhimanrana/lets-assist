@@ -378,10 +378,18 @@ precision before hashing or calling the RPC. This keeps JavaScript validation
 and PostgreSQL rounded-minute validation aligned when a database-originated ISO
 value contains microseconds.
 
+The verified-signup uniqueness arbiter is also used by a service-only
+supplemental issuance RPC for paper signups committed after publication. Its
+single `INSERT ... ON CONFLICT` statement skips only a concurrently issued
+signup and still returns unaffected certificates for notification and email;
+the prior check-then-batch-insert race is gone. A settlement classified as a
+confirmed pre-send refusal clears the provider-risk anchor, so a delayed retry
+starts a fresh 24-hour window without weakening ambiguous-outcome handling.
+
 **Local verification, 2026-08-11:** empty ledger replay passed; the focused
-publication pgTAP file passed 46 assertions; action boundaries, all five email
+publication pgTAP file passed 48 assertions; action boundaries, all five email
 outcome mappings, publication-outcome precedence, bounded settlement retries,
-payload parsing, and snapshot-before-claim ordering passed 15 tests; five exact-duration and timestamp-normalization tests passed;
+payload parsing, snapshot-before-claim ordering, and supplemental issuance boundaries passed 16 tests; five exact-duration and timestamp-normalization tests passed;
 TypeScript passed; and the loopback-only multi-session probe
 proved accepted/replayed serialization plus concurrent signup rejection and
 membership revocation winning before publication.
@@ -393,9 +401,10 @@ no owned container, volume, network, or temporary work directory remained.
 GitHub, Vercel Development, Supabase Development, Mailpit/Resend test-event, and
 browser acceptance gates remain open for the amended exact commit. After the
 review hardening, the complete 2,908-test / 173-file root/plugin unit
-orchestrator, the CI-shaped local Next.js build, the 20 focused tests,
-formatting, lint, TypeScript, migration replay, 46 pgTAP assertions, and the
-expanded concurrency probe all passed. Production remains excluded.
+orchestrator, the CI-shaped local Next.js build, the 21 focused tests,
+formatting, lint, TypeScript, migration replay, 48 pgTAP assertions, and the
+expanded publication and supplemental-issuance concurrency probe all passed.
+Production remains excluded.
 
 ---
 

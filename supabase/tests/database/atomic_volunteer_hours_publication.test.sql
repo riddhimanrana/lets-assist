@@ -5,7 +5,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(46);
+SELECT extensions.plan(48);
 
 SELECT extensions.ok(
   EXISTS (
@@ -30,6 +30,19 @@ SELECT extensions.ok(
     'EXECUTE'
   ),
   'only the server role can prepare immutable provider payloads'
+);
+
+SELECT extensions.ok(
+  has_function_privilege(
+    'service_role',
+    'public.issue_supplemental_verified_certificates(uuid,text,uuid[],uuid)',
+    'EXECUTE'
+  ) AND NOT has_function_privilege(
+    'authenticated',
+    'public.issue_supplemental_verified_certificates(uuid,text,uuid[],uuid)',
+    'EXECUTE'
+  ),
+  'only the server role can issue supplemental verified certificates'
 );
 
 SELECT extensions.ok(
@@ -595,12 +608,26 @@ SELECT extensions.ok(
   'a pre-send provider refusal returns durable work to retryable state'
 );
 
+SELECT extensions.is(
+  (
+    SELECT first_attempt_at
+    FROM public.hours_publication_email_outbox
+    WHERE id = (SELECT id FROM retryable_delivery)
+  ),
+  NULL::timestamptz,
+  'a confirmed pre-send failure clears the provider-risk window anchor'
+);
+
+UPDATE public.hours_publication_email_outbox
+SET last_attempt_at = now() - interval '25 hours'
+WHERE id = (SELECT id FROM retryable_delivery);
+
 SELECT extensions.ok(
   public.claim_hours_publication_email_delivery(
     (SELECT id FROM retryable_delivery),
     'ab400000-0000-4000-8000-000000000004'
   ),
-  'an explicit durable drain can claim retryable work again'
+  'a delayed retry gets a fresh provider idempotency window after a confirmed pre-send failure'
 );
 
 UPDATE public.hours_publication_email_outbox
