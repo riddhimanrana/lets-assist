@@ -44,9 +44,54 @@ export const maxDuration = 60;
 const MAX_BATCH_SIZE = 50;
 const MAX_ORGANIZATIONS_PER_RUN = 10;
 const MAX_MAINTENANCE_CAMPAIGNS_PER_PASS = 50;
-/** Wall-clock bound, checked between organizations so a run always terminates. */
+/** Absolute wall-clock ceiling. No awaited scheduler or worker operation may outlive it. */
 const RUN_DEADLINE_MS = 45_000;
 const LEASE_SECONDS = 120;
+
+class RunDeadlineExceeded extends Error {
+  constructor() {
+    super("csf_communications_run_deadline_exceeded");
+    this.name = "RunDeadlineExceeded";
+  }
+}
+
+function configuredRunDeadlineMs(): number {
+  return readPositiveInteger(
+    process.env.CSF_COMMUNICATIONS_WORKER_DEADLINE_MS,
+    RUN_DEADLINE_MS,
+    RUN_DEADLINE_MS,
+  );
+}
+
+/**
+ * Bound one already-started operation to the route's single absolute deadline.
+ *
+ * A provider request also receives an AbortSignal before this outer race. If a
+ * database transport ignores the race, its continuation cannot create a second
+ * send; the one-attempt lease and provider idempotency coordinate remain fixed.
+ */
+async function beforeDeadline<T>(
+  operation: Promise<T>,
+  deadlineAt: number,
+): Promise<T> {
+  const remainingMs = deadlineAt - Date.now();
+  if (remainingMs <= 0) throw new RunDeadlineExceeded();
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new RunDeadlineExceeded()),
+          remainingMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
 
 /**
  * `Authorization: Bearer <secret>`, and nothing else.
@@ -169,11 +214,14 @@ function organizationScope(value: unknown): string[] {
   ].slice(0, MAX_ORGANIZATIONS_PER_RUN);
 }
 
-async function maintainCampaigns(plugin: CsfPluginRpc) {
+async function maintainCampaigns(plugin: CsfPluginRpc, deadlineAt: number) {
   try {
-    const result = await plugin.rpc("csf_maintain_communication_campaigns", {
-      p_max_campaigns: MAX_MAINTENANCE_CAMPAIGNS_PER_PASS,
-    });
+    const result = await beforeDeadline(
+      plugin.rpc("csf_maintain_communication_campaigns", {
+        p_max_campaigns: MAX_MAINTENANCE_CAMPAIGNS_PER_PASS,
+      }),
+      deadlineAt,
+    );
     if (result.error || !result.data || typeof result.data !== "object") {
       return { checked: 0, terminalized: 0, faults: 1 };
     }
@@ -187,7 +235,8 @@ async function maintainCampaigns(plugin: CsfPluginRpc) {
       ),
       faults: boundedCount(report.faults, MAX_MAINTENANCE_CAMPAIGNS_PER_PASS),
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof RunDeadlineExceeded) throw error;
     return { checked: 0, terminalized: 0, faults: 1 };
   }
 }
@@ -220,6 +269,12 @@ export async function POST(request: NextRequest) {
   }
 
   const startedAt = Date.now();
+  const runDeadlineMs = configuredRunDeadlineMs();
+  const deadlineAt = startedAt + runDeadlineMs;
+  const settlementReserveMs = Math.min(
+    5_000,
+    Math.max(1, Math.floor(runDeadlineMs / 4)),
+  );
   const batchSize = Math.min(
     readPositiveInteger(
       process.env.CSF_COMMUNICATIONS_WORKER_BATCH_SIZE,
@@ -248,60 +303,110 @@ export async function POST(request: NextRequest) {
   // Recover an earlier lost finalizer response before claiming more work. The
   // database owns both the terminalization predicate and the fair cursor; this
   // route receives aggregate counts only.
-  const maintenanceBefore = await maintainCampaigns(plugin);
-  campaignsChecked += maintenanceBefore.checked;
-  campaignsTerminalized += maintenanceBefore.terminalized;
-  faults += maintenanceBefore.faults;
-
-  // DURABLE, FAIR TENANT DISCOVERY. The request supplies no tenant,
-  // campaign, recipient, or content coordinate. The service-only RPC derives the
-  // next bounded slice from currently actionable queued attempts plus every
-  // expired processing lease, including one whose campaign was cancelled.
-  let scopeResult: Awaited<ReturnType<CsfPluginRpc["rpc"]>>;
   try {
-    scopeResult = await plugin.rpc("csf_claim_communication_scheduler_scope", {
-      p_max_organizations: MAX_ORGANIZATIONS_PER_RUN,
-    });
-  } catch {
-    return json({ error: "Campaign scope unavailable" }, 503);
+    const maintenanceBefore = await maintainCampaigns(plugin, deadlineAt);
+    campaignsChecked += maintenanceBefore.checked;
+    campaignsTerminalized += maintenanceBefore.terminalized;
+    faults += maintenanceBefore.faults;
+  } catch (error) {
+    if (error instanceof RunDeadlineExceeded) deadlineReached = true;
+    else faults += 1;
   }
 
-  if (scopeResult.error) {
-    // Bounded: the database's own message can name rows and addresses.
-    return json({ error: "Campaign scope unavailable" }, 503);
-  }
+  const queuedOrganizationIds = new Set<string>();
+  const processedOrganizationIds = new Set<string>();
+  let workerPasses = 0;
 
-  const organizationIds = organizationScope(scopeResult.data);
+  // Claim ONE tenant coordinate immediately before processing it. Marking ten
+  // tenants selected at once made the nine that did not fit before the deadline
+  // look equally recent and could starve them forever behind the first UUID.
+  // Repeating a one-tenant durable allocation advances the fairness cursor only
+  // for work this invocation is actually about to attempt.
+  while (
+    !deadlineReached &&
+    workerPasses < batchSize &&
+    processedOrganizationIds.size < MAX_ORGANIZATIONS_PER_RUN
+  ) {
+    let scopeResult: Awaited<ReturnType<CsfPluginRpc["rpc"]>>;
+    try {
+      scopeResult = await beforeDeadline(
+        plugin.rpc("csf_claim_communication_scheduler_scope", {
+          p_max_organizations: 1,
+        }),
+        deadlineAt,
+      );
+    } catch (error) {
+      if (error instanceof RunDeadlineExceeded) {
+        deadlineReached = true;
+        break;
+      }
+      return json({ error: "Campaign scope unavailable" }, 503);
+    }
 
-  for (const organizationId of organizationIds) {
-    if (Date.now() - startedAt >= RUN_DEADLINE_MS) {
-      // The remaining organizations keep their durable queued/sending campaign
-      // coordinates and are picked up by the next tick. Nothing is lost, because
-      // nothing was claimed for them.
+    if (scopeResult.error) {
+      // Bounded: the database's own message can name rows and addresses.
+      return json({ error: "Campaign scope unavailable" }, 503);
+    }
+
+    const [organizationId] = organizationScope(scopeResult.data);
+    if (!organizationId) break;
+    queuedOrganizationIds.add(organizationId);
+    workerPasses += 1;
+
+    const providerTimeMs = deadlineAt - Date.now() - settlementReserveMs;
+    if (providerTimeMs <= 0) {
       deadlineReached = true;
       break;
     }
+    const providerAbortController = new AbortController();
+    const providerAbortTimer = setTimeout(
+      () => providerAbortController.abort(),
+      providerTimeMs,
+    );
 
     try {
-      const report = await runCsfDispatchWorker(plugin, {
-        organizationId,
-        workerId,
-        batchSize,
-        leaseSeconds: LEASE_SECONDS,
-      });
+      // One claim per pass is what lets the absolute deadline be honest. A
+      // malformed RPC that returns more than requested is rejected by the worker
+      // before any send; no large leased batch can keep running behind this race.
+      const report = await beforeDeadline(
+        runCsfDispatchWorker(plugin, {
+          organizationId,
+          workerId,
+          batchSize: 1,
+          leaseSeconds: LEASE_SECONDS,
+          providerSignal: providerAbortController.signal,
+        }),
+        deadlineAt,
+      );
 
       claimed += report.claimed;
-      organizationsProcessed += 1;
+      processedOrganizationIds.add(organizationId);
+      organizationsProcessed = processedOrganizationIds.size;
       for (const attempt of report.attempts) {
         tally[attempt.status] += 1;
       }
-    } catch {
+      if (report.claimed === 0) {
+        // The allocator's eligibility snapshot may have named an expired lease
+        // that this claim just reaped or work another concurrent worker won.
+        // Do not spin on the same durable coordinate within this invocation.
+        break;
+      }
+    } catch (error) {
+      if (error instanceof RunDeadlineExceeded) {
+        deadlineReached = true;
+        break;
+      }
       // A bounded worker fault for one organization must not abandon the rest,
       // and must not leak the ledger's diagnostics. Attempts this worker had
       // leased stay leased and are reaped as unknown_outcome -- honest, and
       // never re-sent. The maintenance pass below still runs: an earlier claim
       // in this batch may already have settled before a later one failed.
       faults += 1;
+      processedOrganizationIds.add(organizationId);
+      organizationsProcessed = processedOrganizationIds.size;
+      break;
+    } finally {
+      clearTimeout(providerAbortTimer);
     }
   }
 
@@ -310,20 +415,23 @@ export async function POST(request: NextRequest) {
   // Sending immediately. If the deadline was consumed, the next tick begins with
   // this same durable maintenance step; no campaign identity has to survive in
   // application memory.
-  if (Date.now() - startedAt < RUN_DEADLINE_MS) {
-    const maintenanceAfter = await maintainCampaigns(plugin);
-    campaignsChecked += maintenanceAfter.checked;
-    campaignsTerminalized += maintenanceAfter.terminalized;
-    faults += maintenanceAfter.faults;
-  } else {
-    deadlineReached = true;
+  if (!deadlineReached) {
+    try {
+      const maintenanceAfter = await maintainCampaigns(plugin, deadlineAt);
+      campaignsChecked += maintenanceAfter.checked;
+      campaignsTerminalized += maintenanceAfter.terminalized;
+      faults += maintenanceAfter.faults;
+    } catch (error) {
+      if (error instanceof RunDeadlineExceeded) deadlineReached = true;
+      else faults += 1;
+    }
   }
 
   // AGGREGATES ONLY. No attempt identity, no campaign identity, no recipient
   // address, no subject, no provider message id, and no provider error text.
   return json({
     enabled: true,
-    organizationsQueued: organizationIds.length,
+    organizationsQueued: queuedOrganizationIds.size,
     organizationsProcessed,
     claimed,
     outcomes: tally,

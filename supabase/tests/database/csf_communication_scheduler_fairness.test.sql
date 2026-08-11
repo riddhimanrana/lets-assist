@@ -6,7 +6,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(25);
+SELECT extensions.plan(28);
 
 -- ---------------------------------------------------------------------------
 -- A. Private cursor and RPC boundary
@@ -126,8 +126,15 @@ SELECT extensions.ok(
 SELECT extensions.throws_ok(
   $$ SELECT plugin_data.csf_claim_communication_scheduler_scope(0) $$,
   '22023',
-  'A CSF scheduler scope takes between 1 and 100 organizations.',
+  'A CSF scheduler scope takes exactly 1 organization.',
   'scheduler organization scope is bounded at the database boundary'
+);
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_claim_communication_scheduler_scope(2) $$,
+  '22023',
+  'A CSF scheduler scope takes exactly 1 organization.',
+  'scheduler scope cannot durably pre-claim an unprocessed tenant suffix'
 );
 
 SELECT extensions.throws_ok(
@@ -304,7 +311,174 @@ SELECT extensions.is(
 );
 
 -- ---------------------------------------------------------------------------
--- C. A bounded prefix cannot starve later campaigns
+-- C. Tenant selection advances one processed coordinate at a time
+-- ---------------------------------------------------------------------------
+
+INSERT INTO public.organizations (id, name, username, type, join_code)
+VALUES
+  (
+    'ca100000-0000-4000-8000-000000000002',
+    'Scheduler CSF Fairness Two', 'scheduler-csf-fairness-two', 'school', '992202'
+  ),
+  (
+    'ca100000-0000-4000-8000-000000000003',
+    'Scheduler CSF Fairness Three', 'scheduler-csf-fairness-three', 'school', '992203'
+  );
+
+INSERT INTO public.organization_members (organization_id, user_id, role, status)
+VALUES
+  (
+    'ca100000-0000-4000-8000-000000000002',
+    'ca000000-0000-4000-8000-000000000001', 'admin', 'active'
+  ),
+  (
+    'ca100000-0000-4000-8000-000000000003',
+    'ca000000-0000-4000-8000-000000000001', 'admin', 'active'
+  );
+
+INSERT INTO plugin_data.csf_terms (
+  id, organization_id, code, label, school_year, semester, is_current
+)
+VALUES
+  (
+    'ca200000-0000-4000-8000-000000000002',
+    'ca100000-0000-4000-8000-000000000002',
+    'F32', 'Fall 2032', '2032-2033', 'fall', true
+  ),
+  (
+    'ca200000-0000-4000-8000-000000000003',
+    'ca100000-0000-4000-8000-000000000003',
+    'F32', 'Fall 2032', '2032-2033', 'fall', true
+  );
+
+INSERT INTO plugin_data.csf_communication_campaigns (
+  id, organization_id, campaign_kind, status, sender_name, sender_email,
+  reply_to_email, subject, body_text, body_text_hash, term_id, audience_kind,
+  created_by, created_by_identity, content_finalized_at,
+  content_finalized_by, content_finalized_by_identity,
+  audience_snapshot_version, provider_idempotency_key, metadata
+)
+VALUES
+  (
+    'ca400000-0000-4000-8000-000000000002',
+    'ca100000-0000-4000-8000-000000000002',
+    'transactional', 'draft', 'DVHS CSF',
+    'csf@notifications.lets-assist.com', 'dvhighcsf@gmail.com',
+    'Synthetic fairness two', 'Synthetic scheduler body.', repeat('b', 64),
+    'ca200000-0000-4000-8000-000000000002', 'applicants',
+    'ca000000-0000-4000-8000-000000000001',
+    'scheduler-officer@local.test', now(),
+    'ca000000-0000-4000-8000-000000000001',
+    'scheduler-officer@local.test', 1, 'scheduler-tenant-two',
+    '{"csf_environment":"local"}'::jsonb
+  ),
+  (
+    'ca400000-0000-4000-8000-000000000003',
+    'ca100000-0000-4000-8000-000000000003',
+    'transactional', 'draft', 'DVHS CSF',
+    'csf@notifications.lets-assist.com', 'dvhighcsf@gmail.com',
+    'Synthetic fairness three', 'Synthetic scheduler body.', repeat('c', 64),
+    'ca200000-0000-4000-8000-000000000003', 'applicants',
+    'ca000000-0000-4000-8000-000000000001',
+    'scheduler-officer@local.test', now(),
+    'ca000000-0000-4000-8000-000000000001',
+    'scheduler-officer@local.test', 1, 'scheduler-tenant-three',
+    '{"csf_environment":"local"}'::jsonb
+  );
+
+DO $$
+DECLARE
+  v_suffix integer;
+  v_organization_id uuid;
+  v_campaign_id uuid;
+BEGIN
+  FOR v_suffix IN 2..3 LOOP
+    v_organization_id := (
+      'ca100000-0000-4000-8000-' || pg_catalog.lpad(v_suffix::text, 12, '0')
+    )::uuid;
+    v_campaign_id := (
+      'ca400000-0000-4000-8000-' || pg_catalog.lpad(v_suffix::text, 12, '0')
+    )::uuid;
+
+    PERFORM plugin_data.csf_snapshot_communication_recipients(
+      v_organization_id,
+      v_campaign_id,
+      pg_catalog.jsonb_build_array(
+        pg_catalog.jsonb_build_object(
+          'email', 'scheduler-fairness-' || v_suffix::text || '@local.test',
+          'provenance', 'staff_entry'
+        )
+      )
+    );
+    PERFORM plugin_data.csf_finalize_communication_recipient_snapshot(
+      v_organization_id,
+      v_campaign_id,
+      1
+    );
+  END LOOP;
+END;
+$$;
+
+CREATE TEMP TABLE t_tenant_scope_rotation (
+  sequence_number integer PRIMARY KEY,
+  result jsonb NOT NULL
+);
+
+INSERT INTO t_tenant_scope_rotation
+VALUES (1, plugin_data.csf_claim_communication_scheduler_scope(1));
+
+INSERT INTO t_tenant_scope_rotation
+VALUES (2, plugin_data.csf_claim_communication_scheduler_scope(1));
+
+SELECT extensions.is(
+  (
+    SELECT pg_catalog.count(DISTINCT result->'organizationIds'->>0)::text
+    FROM t_tenant_scope_rotation
+  ),
+  '2',
+  'two repeated one-tenant claims advance to two different eligible organizations'
+);
+
+SELECT extensions.is(
+  (
+    SELECT pg_catalog.count(*)::text
+    FROM plugin_data.csf_scheduler_state
+    WHERE organization_id IN (
+      'ca100000-0000-4000-8000-000000000002',
+      'ca100000-0000-4000-8000-000000000003'
+    )
+      AND last_scope_claimed_at IS NOT NULL
+  ),
+  '2',
+  'only the two immediately returned tenant coordinates receive durable fairness timestamps'
+);
+
+-- Keep the following campaign-prefix scenario single-tenant. These synthetic
+-- organizations have already proved tenant rotation; cancellation removes their
+-- queued campaigns from maintenance eligibility without bypassing lifecycle
+-- constraints or organization-membership triggers.
+DO $$
+DECLARE
+  v_suffix integer;
+BEGIN
+  FOR v_suffix IN 2..3 LOOP
+    PERFORM plugin_data.csf_cancel_communication_campaign(
+      (
+        'ca100000-0000-4000-8000-' || pg_catalog.lpad(v_suffix::text, 12, '0')
+      )::uuid,
+      (
+        'ca400000-0000-4000-8000-' || pg_catalog.lpad(v_suffix::text, 12, '0')
+      )::uuid,
+      'Synthetic tenant fairness fixture complete.',
+      'ca000000-0000-4000-8000-000000000001',
+      'scheduler-tenant-fairness-cleanup-' || v_suffix::text
+    );
+  END LOOP;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- D. A bounded prefix cannot starve later campaigns
 -- ---------------------------------------------------------------------------
 
 INSERT INTO plugin_data.csf_communication_campaigns (

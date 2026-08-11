@@ -15,40 +15,48 @@ mock.module("server-only", () => ({}));
  */
 
 type RpcCall = { fn: string; args: Record<string, unknown> };
+type RpcResult = { data: unknown; error: unknown };
+type MaybePromise<T> = T | Promise<T>;
 const rpcCalls: RpcCall[] = [];
 const sendCalls: Array<Record<string, unknown>> = [];
 
-let schedulerScopeHandler: () => { data: unknown; error: unknown } = () => ({
+let schedulerScopeHandler: () => MaybePromise<RpcResult> = () => ({
   data: { organizationCount: 0, organizationIds: [] },
   error: null,
 });
-let maintenanceHandler: () => { data: unknown; error: unknown } = () => ({
+let maintenanceHandler: () => MaybePromise<RpcResult> = () => ({
   data: { checked: 0, terminalized: 0, nonterminal: 0, faults: 0 },
   error: null,
 });
-let claimHandler: (args: Record<string, unknown>) => {
-  data: unknown;
-  error: unknown;
-} = () => ({
+let claimHandler: (
+  args: Record<string, unknown>,
+) => MaybePromise<RpcResult> = () => ({
   data: { claimedCount: 0, claims: [] },
   error: null,
 });
-let authorizeHandler: (args: Record<string, unknown>) => {
-  data: unknown;
-  error: unknown;
-};
-let settleHandler: (args: Record<string, unknown>) => {
-  data: unknown;
-  error: unknown;
-} = () => ({ data: { attemptState: "accepted" }, error: null });
+let authorizeHandler: (
+  args: Record<string, unknown>,
+) => MaybePromise<RpcResult>;
+let settleHandler: (
+  args: Record<string, unknown>,
+) => MaybePromise<RpcResult> = () => ({
+  data: { attemptState: "accepted" },
+  error: null,
+});
 
 const ORG = "ce100000-0000-4000-8000-000000000001";
+const ORG_TWO = "ce100000-0000-4000-8000-000000000002";
 const CAMPAIGN = "ce400000-0000-4000-8000-000000000001";
 const CAMPAIGN_TWO = "ce400000-0000-4000-8000-000000000002";
 const ATTEMPT = "ce900000-0000-4000-8000-000000000001";
 const ATTEMPT_TWO = "ce900000-0000-4000-8000-000000000002";
 const IDEMPOTENCY_KEY = `csf-att-${"a".repeat(64)}-1`;
 const DIGEST = "e".repeat(64);
+
+let resendHandler: () => Promise<{
+  data: { id: string } | null;
+  error: unknown;
+}> = async () => ({ data: { id: "resend-message-synthetic" }, error: null });
 
 function authorizationFor(attemptId: string, attemptNumber: number) {
   const campaignId = attemptId === ATTEMPT_TWO ? CAMPAIGN_TWO : CAMPAIGN;
@@ -91,9 +99,37 @@ function authorizationFor(attemptId: string, attemptNumber: number) {
 mock.module("resend", () => ({
   Resend: class {
     emails = {
-      send: async (payload: Record<string, unknown>) => {
+      send: async (
+        payload: Record<string, unknown>,
+        options?: { signal?: AbortSignal },
+      ) => {
         sendCalls.push(payload);
-        return { data: { id: "resend-message-synthetic" }, error: null };
+        const providerResult = resendHandler();
+        if (!options?.signal) return providerResult;
+        if (options.signal.aborted) {
+          const error = new Error("synthetic provider request aborted");
+          error.name = "AbortError";
+          throw error;
+        }
+
+        return new Promise((resolve, reject) => {
+          const abort = () => {
+            const error = new Error("synthetic provider request aborted");
+            error.name = "AbortError";
+            reject(error);
+          };
+          options.signal?.addEventListener("abort", abort, { once: true });
+          providerResult.then(
+            (value) => {
+              options.signal?.removeEventListener("abort", abort);
+              resolve(value);
+            },
+            (error) => {
+              options.signal?.removeEventListener("abort", abort);
+              reject(error);
+            },
+          );
+        });
       },
     };
   },
@@ -211,12 +247,17 @@ beforeEach(() => {
     data: { attemptState: "accepted" },
     error: null,
   });
+  resendHandler = async () => ({
+    data: { id: "resend-message-synthetic" },
+    error: null,
+  });
 
   process.env.CRON_TOKEN = "synthetic-cron-token";
   delete process.env.CRON_SECRET;
   delete process.env.CSF_COMMUNICATIONS_WORKER_SECRET_TOKEN;
   process.env.CSF_COMMUNICATIONS_WORKER_ENABLED = "true";
   delete process.env.CSF_COMMUNICATIONS_WORKER_BATCH_SIZE;
+  delete process.env.CSF_COMMUNICATIONS_WORKER_DEADLINE_MS;
   delete process.env.CRON_AUTH_SHAPE_PROBE_ONLY;
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://synthetic.invalid";
   process.env.SUPABASE_SECRET_KEY = "synthetic-secret-key";
@@ -660,6 +701,115 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(JSON.stringify(rpcCalls)).not.toContain("attacker@example.test");
   });
 
+  test("tenant fairness is claimed one organization immediately before each worker pass", async () => {
+    const scopes = [[ORG], [ORG_TWO], []];
+    let scopeCall = 0;
+    schedulerScopeHandler = () => {
+      const organizationIds = scopes[scopeCall] ?? [];
+      scopeCall += 1;
+      return {
+        data: {
+          organizationCount: organizationIds.length,
+          organizationIds,
+        },
+        error: null,
+      };
+    };
+    claimHandler = () => ({
+      data: {
+        claimedCount: 1,
+        claims: [
+          {
+            attemptId: ATTEMPT,
+            campaignId: CAMPAIGN,
+            deliveryId: "cea00000-0000-4000-8000-000000000001",
+            recipientSnapshotId: "ce800000-0000-4000-8000-000000000001",
+            attemptNumber: 1,
+            providerIdempotencyKey: IDEMPOTENCY_KEY,
+            requestPayloadHash: DIGEST,
+            leaseExpiresAt: "2032-04-01T10:02:00.000Z",
+          },
+        ],
+      },
+      error: null,
+    });
+
+    const response = await POST(authorized());
+    const body = await response.json();
+    const scopeCalls = rpcCalls.filter(
+      (call) => call.fn === "csf_claim_communication_scheduler_scope",
+    );
+    const claims = rpcCalls.filter(
+      (call) => call.fn === "csf_claim_communication_dispatch_batch",
+    );
+
+    expect(response.status).toBe(200);
+    expect(body.organizationsQueued).toBe(2);
+    expect(body.organizationsProcessed).toBe(2);
+    expect(scopeCalls.map((call) => call.args.p_max_organizations)).toEqual([
+      1, 1, 1,
+    ]);
+    expect(claims.map((call) => call.args.p_organization_id)).toEqual([
+      ORG,
+      ORG_TWO,
+    ]);
+  });
+
+  test("one stalled provider call is aborted early enough to settle unknown before the absolute deadline", async () => {
+    process.env.CSF_COMMUNICATIONS_WORKER_DEADLINE_MS = "40";
+    let scopeCalls = 0;
+    schedulerScopeHandler = () => {
+      scopeCalls += 1;
+      return {
+        data: {
+          organizationCount: scopeCalls === 1 ? 1 : 0,
+          organizationIds: scopeCalls === 1 ? [ORG] : [],
+        },
+        error: null,
+      };
+    };
+    claimHandler = () => ({
+      data: {
+        claimedCount: 1,
+        claims: [
+          {
+            attemptId: ATTEMPT,
+            campaignId: CAMPAIGN,
+            deliveryId: "cea00000-0000-4000-8000-000000000001",
+            recipientSnapshotId: "ce800000-0000-4000-8000-000000000001",
+            attemptNumber: 1,
+            providerIdempotencyKey: IDEMPOTENCY_KEY,
+            requestPayloadHash: DIGEST,
+            leaseExpiresAt: "2032-04-01T10:02:00.000Z",
+          },
+        ],
+      },
+      error: null,
+    });
+    resendHandler = () => new Promise(() => undefined);
+
+    const wallStartedAt = Date.now();
+    const response = await POST(authorized());
+    const wallDurationMs = Date.now() - wallStartedAt;
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.outcomes.unknown).toBe(1);
+    expect(wallDurationMs).toBeLessThan(500);
+    expect(sendCalls).toHaveLength(1);
+    const settlements = rpcCalls.filter(
+      (call) => call.fn === "csf_settle_communication_dispatch_attempt",
+    );
+    expect(settlements).toHaveLength(1);
+    expect(settlements[0].args.p_outcome).toBe("unknown_outcome");
+    // Unknown is terminal and never creates a changed-key automatic retry.
+    expect(
+      rpcCalls.filter(
+        (call) => call.fn === "csf_claim_communication_dispatch_batch",
+      ),
+    ).toHaveLength(1);
+  });
+
   test("authorized work is bounded and the batch size is clamped", async () => {
     schedulerScopeHandler = () => ({
       data: { organizationCount: 1, organizationIds: [ORG] },
@@ -674,16 +824,25 @@ describe("the bounded CSF dispatch worker route", () => {
     const claim = rpcCalls.find(
       (call) => call.fn === "csf_claim_communication_dispatch_batch",
     );
-    expect(claim?.args.p_batch_size).toBe(50);
+    // The configured value is the run-wide attempt budget. Each durable claim is
+    // one attempt so the absolute wall-clock deadline remains enforceable.
+    expect(claim?.args.p_batch_size).toBe(1);
     expect(body.batchSize).toBe(50);
     delete process.env.CSF_COMMUNICATIONS_WORKER_BATCH_SIZE;
   });
 
   test("authorized work dispatches claimed attempts and reports aggregates only", async () => {
-    schedulerScopeHandler = () => ({
-      data: { organizationCount: 1, organizationIds: [ORG] },
-      error: null,
-    });
+    let scopeCalls = 0;
+    schedulerScopeHandler = () => {
+      scopeCalls += 1;
+      return {
+        data: {
+          organizationCount: scopeCalls === 1 ? 1 : 0,
+          organizationIds: scopeCalls === 1 ? [ORG] : [],
+        },
+        error: null,
+      };
+    };
     maintenanceHandler = () => ({
       data: sendCalls.length
         ? { checked: 1, terminalized: 1, nonterminal: 0, faults: 0 }
@@ -754,40 +913,41 @@ describe("the bounded CSF dispatch worker route", () => {
       scopeCalls += 1;
       return {
         data: {
-          organizationCount: scopeCalls === 1 ? 1 : 0,
-          organizationIds: scopeCalls === 1 ? [ORG] : [],
+          organizationCount: scopeCalls <= 2 ? 1 : 0,
+          organizationIds: scopeCalls <= 2 ? [ORG] : [],
         },
         error: null,
       };
     };
-    claimHandler = () => ({
-      data: {
-        claimedCount: 2,
-        claims: [
-          {
-            attemptId: ATTEMPT,
-            campaignId: CAMPAIGN,
-            deliveryId: "cea00000-0000-4000-8000-000000000001",
-            recipientSnapshotId: "ce800000-0000-4000-8000-000000000001",
-            attemptNumber: 1,
-            providerIdempotencyKey: IDEMPOTENCY_KEY,
-            requestPayloadHash: DIGEST,
-            leaseExpiresAt: "2032-04-01T10:02:00.000Z",
-          },
-          {
-            attemptId: ATTEMPT_TWO,
-            campaignId: CAMPAIGN_TWO,
-            deliveryId: "cea00000-0000-4000-8000-000000000002",
-            recipientSnapshotId: "ce800000-0000-4000-8000-000000000002",
-            attemptNumber: 2,
-            providerIdempotencyKey: `csf-att-${"b".repeat(64)}-1`,
-            requestPayloadHash: DIGEST,
-            leaseExpiresAt: "2032-04-01T10:02:00.000Z",
-          },
-        ],
-      },
-      error: null,
-    });
+    let claimCalls = 0;
+    claimHandler = () => {
+      claimCalls += 1;
+      const second = claimCalls === 2;
+      return {
+        data: {
+          claimedCount: 1,
+          claims: [
+            {
+              attemptId: second ? ATTEMPT_TWO : ATTEMPT,
+              campaignId: second ? CAMPAIGN_TWO : CAMPAIGN,
+              deliveryId: second
+                ? "cea00000-0000-4000-8000-000000000002"
+                : "cea00000-0000-4000-8000-000000000001",
+              recipientSnapshotId: second
+                ? "ce800000-0000-4000-8000-000000000002"
+                : "ce800000-0000-4000-8000-000000000001",
+              attemptNumber: second ? 2 : 1,
+              providerIdempotencyKey: second
+                ? `csf-att-${"b".repeat(64)}-1`
+                : IDEMPOTENCY_KEY,
+              requestPayloadHash: DIGEST,
+              leaseExpiresAt: "2032-04-01T10:02:00.000Z",
+            },
+          ],
+        },
+        error: null,
+      };
+    };
     authorizeHandler = (args) => {
       if (args.p_attempt_id === ATTEMPT_TWO) {
         throw new Error(

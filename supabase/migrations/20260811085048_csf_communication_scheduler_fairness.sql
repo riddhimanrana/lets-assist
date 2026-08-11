@@ -59,7 +59,7 @@ CREATE INDEX csf_comm_campaigns_scheduler_idx
   WHERE status IN ('queued', 'sending');
 
 CREATE OR REPLACE FUNCTION plugin_data.csf_claim_communication_scheduler_scope(
-  p_max_organizations integer DEFAULT 10
+  p_max_organizations integer DEFAULT 1
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -67,7 +67,11 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  c_max_organizations constant integer := 100;
+  -- Selection is a durable claim, not a read. Exactly one tenant keeps the
+  -- persisted fairness cursor aligned with work the application is immediately
+  -- about to process; pre-claiming a batch can starve every unprocessed suffix
+  -- when the request deadline expires.
+  c_max_organizations constant integer := 1;
   v_now timestamptz := now();
   v_organization_ids uuid[] := '{}'::uuid[];
 BEGIN
@@ -76,8 +80,7 @@ BEGIN
     OR p_max_organizations > c_max_organizations
   THEN
     RAISE EXCEPTION
-      'A CSF scheduler scope takes between 1 and % organizations.',
-      c_max_organizations
+      'A CSF scheduler scope takes exactly 1 organization.'
       USING ERRCODE = '22023';
   END IF;
 
@@ -156,7 +159,7 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_claim_communication_scheduler_scope(in
   TO service_role;
 
 COMMENT ON FUNCTION plugin_data.csf_claim_communication_scheduler_scope(integer) IS
-  'Returns a bounded, durably fair service-only organization scope derived from actionable queued attempts and expired processing leases. Expired leases remain discoverable even after cancellation. The result contains organization UUIDs only and records selection before application work begins.';
+  'Claims exactly one durably fair service-only organization scope derived from actionable queued attempts and expired processing leases. Expired leases remain discoverable even after cancellation. The result contains one organization UUID only and records selection immediately before application work begins.';
 
 CREATE OR REPLACE FUNCTION plugin_data.csf_maintain_communication_campaigns(
   p_max_campaigns integer DEFAULT 50
