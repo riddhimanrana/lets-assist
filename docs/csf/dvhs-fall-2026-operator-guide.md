@@ -170,6 +170,30 @@ active Fall 2026 class.
    approval. `dvhighcsf.org` currently says only that applications will reopen
    in Fall; it does not publish the Fall 2026 dates.
 
+### Public-site conflicts to resolve before publishing
+
+The public site is useful supporting evidence, but it is not the Fall 2026
+policy source of truth. A read-only review on 2026-08-11 found all of the
+following; an adviser must resolve them before the values or links are entered
+in Let's Assist:
+
+- **Membership** says Spring 2026 requires seven activity points, while its
+  penalty section later refers to reaching a two-point requirement. Do not
+  choose either value by inference.
+- The **CSF Activities** and **Tutoring** links on the Membership page currently
+  open Squarespace not-found pages. Do not publish them as member resources
+  until their destinations are corrected.
+- The home page refers to the 2026-2027 officer team, while the **Officers**
+  page is still headed 2025-2026. Confirm the current roster before assigning
+  Fall 2026 staff seats.
+- The **Clubs** page contains an apparent duplicate or spelling variant in the
+  Spring 2026 list. Reconcile clubs against the reviewed audit and returning-
+  club sources instead of importing the rendered page as a clean master list.
+
+Record the adviser's approved resolution in the semester policy or source
+review evidence. Do not silently "fix" historical Spring 2026 text by turning
+it into a Fall 2026 rule.
+
 ## Communications and email
 
 1. Open **More → Communications**.
@@ -186,7 +210,7 @@ active Fall 2026 class.
 
 - DVHigh CSF exists at `dev.lets-assist.com`, the DVHS CSF plugin is installed,
   Classes of 2027–2030 exist, and Fall 2026 is current.
-- One synthetic `@local.test` student record, one student-specific link, and one
+- Two synthetic `@local.test` student records, one student-specific link, and one
   reusable combined link per class were created through the hosted UI.
 - The copied student link was verified as an absolute
   `https://dev.lets-assist.com/...` URL.
