@@ -210,8 +210,9 @@ it into a Fall 2026 rule.
 
 - DVHigh CSF exists at `dev.lets-assist.com`, the DVHS CSF plugin is installed,
   Classes of 2027–2030 exist, and Fall 2026 is current.
-- Two synthetic `@local.test` student records, one student-specific link, and one
-  reusable combined link per class were created through the hosted UI.
+- Two Development-only student records, two student-specific links, and one
+  reusable combined link per class are present. One record uses the reserved
+  synthetic identity; no real chapter roster import has been committed.
 - The copied student link was verified as an absolute
   `https://dev.lets-assist.com/...` URL.
 - Members renders **Account connections** as its own view; its class/student
@@ -225,15 +226,16 @@ it into a Fall 2026 rule.
   configured. The in-product connection is **Not connected** until an operator
   completes a fresh `dvhighcsf@gmail.com` password/verification handoff; no real
   row preview or commit has occurred.
-- Hosted Development exactly matches all 245 repository migrations through
-  `20260811132454`. The unused `pg_graphql` extension is absent from the
-  Development schema, and leaked-password protection is enabled. Google Maps
-  autocomplete and the complete five-step project creation/deletion journey
-  were accepted on the exact deployed build.
+- The Development database exactly matches all 245 repository migrations
+  through `20260811132454`. The unused `pg_graphql` extension is absent from the
+  Development schema, and leaked-password protection is enabled. The current
+  `dev.lets-assist.com` alias is behind the repository head because Vercel's
+  Hobby build limit rejected the newer deployment; treat hosted acceptance as
+  stale until an exact-head deployment is Ready and rechecked.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
-- Two controlled Development test messages produced two signature-verified
-  `sent` events and two signature-verified `delivered` events with no webhook
+- Three controlled Development test messages produced three signature-verified
+  `sent` events and three signature-verified `delivered` events with no webhook
   quarantine rows. The checked-in GitHub dispatcher has repeated successful
   hosted runs, but its actual start intervals are irregular and provide no fixed
   delivery-time promise. No broad chapter campaign has been sent. Production's
