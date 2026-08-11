@@ -15,6 +15,9 @@ From the repository root:
 
 - starts local Supabase
 - resets the database through the current migrations
+- proves the loopback REST gateway is healthy; only an unhealthy probe can
+  restart the one exact project-labeled container publishing the API port, and
+  recovery failure stops the bootstrap
 - seeds deterministic non-DV, non-CSF platform test accounts, organizations,
   plugin installs, and projects
 - verifies the local Supabase environment is reachable
@@ -29,6 +32,14 @@ The reset step uses `scripts/local-dev/reset-supabase.mjs`. It behaves like
 `supabase db reset --local --yes`, except it can recover from the Supabase CLI
 post-reset Storage `502` race after verifying the latest migration was recorded
 and restarting the local stack.
+
+Gateway recovery is implemented by
+`scripts/local-dev/ensure-supabase-gateway.mjs`. It requires the pinned Supabase
+CLI `2.111.0`, accepts no hosted URL, logs no local key, and identifies the
+gateway by its exact project label plus published API port rather than a Kong or
+Envoy service name. `bun run supabase:refresh:kong` remains a compatibility
+alias for the same health-first check; it no longer performs or suppresses an
+unconditional container restart.
 
 ## DVHS CSF recovery — isolated only
 
