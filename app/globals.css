@@ -13,12 +13,11 @@
     /*--page-foreground: 240 10% 3.9%;*/
     /* text */
 
-    --success: hsl(142.1 76.2% 28%);
-    /* green — AA against white text and on white backgrounds */
-    --warning: hsl(35 77% 33%);
-    /* yellow — AA against the 10% warning tint */
-    --info: hsl(220 91% 51%);
-    /* blue — AA against the 10% info tint */
+    --success: hsl(142.1 76.2% 36.3%);
+    /* green */
+    --warning: hsl(35 77% 49%);
+    /* yellow */
+    --info: hsl(220 91% 54%);
 
     --background: hsl(0 0% 100%);
     /* base */
@@ -32,15 +31,13 @@
     /* base */
     --popover-foreground: hsl(240 10% 3.9%);
     /* text */
-    --primary: hsl(142.1 76.2% 28%);
-    /* accent - green — AA behind --primary-foreground (29% was 4.46:1) */
+    --primary: hsl(142.1 76.2% 36.3%);
+    /* accent - green */
     --brand: hsl(142.1 76.2% 36.3%);
-    /* green #16a34a — the identity green shipped in Production, emails, and the
-       OpenGraph card. Darkening --primary for AA also drained the decorative
-       brand washes, so those keep the identity hue here. Decorative only: never
+    /* green #16a34a — compatibility token for decorative brand washes. It
+       intentionally matches the restored light-mode primary. Decorative only: never
        put text, an icon that carries meaning, a filled control, or a focus ring
-       on --brand, because at full strength it is below AA behind
-       --primary-foreground. Interactive and status surfaces use --primary. */
+       on --brand. Interactive and status surfaces use --primary. */
     --primary-foreground: hsl(355.7 100% 97.3%);
     /* base */
     --secondary: hsl(240 4.8% 95.9%);
@@ -49,23 +46,22 @@
     /* text */
     --muted: hsl(240 4.8% 95.9%);
     /* surface0 */
-    --muted-foreground: hsl(240 3.8% 43%);
-    /* subtext1 — AA on --muted, not only on white */
+    --muted-foreground: hsl(240 3.8% 46.1%);
+    /* subtext1 */
     --accent: hsl(240 4.8% 95.9%);
     /* surface0 */
     --accent-foreground: hsl(240 5.9% 10%);
     /* text */
-    --destructive: hsl(0 84.2% 44%);
-    /* red — AA on white, behind --destructive-foreground, and against the 10%
-       destructive tint it is paired with in alerts (47% was 4.24:1 there) */
+    --destructive: hsl(0 84.2% 60.2%);
+    /* red */
     --destructive-foreground: hsl(0 0% 98%);
     /* mantle */
     --border: hsl(240 5.9% 90%);
     /* surface1 */
     --input: hsl(240 5.9% 90%);
     /* surface1 */
-    --ring: hsl(142.1 76.2% 28%);
-    /* text — kept in step with --primary */
+    --ring: hsl(142.1 76.2% 36.3%);
+    /* text */
     --radius: 1rem;
     --chart-1: hsl(12 76% 61%);
     /* red */
