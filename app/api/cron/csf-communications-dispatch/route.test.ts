@@ -19,14 +19,23 @@ const rpcCalls: RpcCall[] = [];
 const sendCalls: Array<Record<string, unknown>> = [];
 const fromCalls: string[] = [];
 
-let queuedRows: Array<{ organization_id: string }> = [];
-let queueError: { message: string } | null = null;
+let openCampaignRows: Array<{ id: string; organization_id: string }> = [];
+let scopeError: { message: string } | null = null;
 let claimHandler: () => { data: unknown; error: unknown } = () => ({
   data: { claimedCount: 0, claims: [] },
   error: null,
 });
+let settleHandler: (args: Record<string, unknown>) => {
+  data: unknown;
+  error: unknown;
+} = () => ({ data: { attemptState: "accepted" }, error: null });
+let terminalizeHandler: (args: Record<string, unknown>) => {
+  data: unknown;
+  error: unknown;
+} = () => ({ data: { status: "completed" }, error: null });
 
 const ORG = "ce100000-0000-4000-8000-000000000001";
+const CAMPAIGN = "ce400000-0000-4000-8000-000000000001";
 const ATTEMPT = "ce900000-0000-4000-8000-000000000001";
 const IDEMPOTENCY_KEY = `csf-att-${"a".repeat(64)}-1`;
 const DIGEST = "e".repeat(64);
@@ -88,7 +97,7 @@ mock.module("@supabase/supabase-js", () => ({
             deliveryId: "cea00000-0000-4000-8000-000000000001",
             coordinate: {
               organizationId: ORG,
-              campaignId: "ce400000-0000-4000-8000-000000000001",
+              campaignId: CAMPAIGN,
               recipientSnapshotId: "ce800000-0000-4000-8000-000000000001",
               attemptId: ATTEMPT,
               attemptNumber: 1,
@@ -114,7 +123,10 @@ mock.module("@supabase/supabase-js", () => ({
         };
       }
       if (fn === "csf_settle_communication_dispatch_attempt") {
-        return { data: { attemptState: "accepted" }, error: null };
+        return settleHandler(args);
+      }
+      if (fn === "csf_finalize_communication_campaign") {
+        return terminalizeHandler(args);
       }
       return { data: null, error: null };
     },
@@ -122,8 +134,9 @@ mock.module("@supabase/supabase-js", () => ({
       fromCalls.push(table);
       const builder = {
         select: () => builder,
-        eq: () => builder,
-        limit: async () => ({ data: queuedRows, error: queueError }),
+        in: () => builder,
+        order: () => builder,
+        limit: async () => ({ data: openCampaignRows, error: scopeError }),
       };
       return builder;
     },
@@ -174,9 +187,17 @@ beforeEach(() => {
   rpcCalls.length = 0;
   sendCalls.length = 0;
   fromCalls.length = 0;
-  queuedRows = [];
-  queueError = null;
+  openCampaignRows = [];
+  scopeError = null;
   claimHandler = () => ({ data: { claimedCount: 0, claims: [] }, error: null });
+  settleHandler = () => ({
+    data: { attemptState: "accepted" },
+    error: null,
+  });
+  terminalizeHandler = () => ({
+    data: { status: "completed" },
+    error: null,
+  });
 
   process.env.CRON_TOKEN = "synthetic-cron-token";
   delete process.env.CRON_SECRET;
@@ -399,7 +420,7 @@ describe("the bounded CSF dispatch worker route", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ enabled: true, claimed: 0 });
-    expect(fromCalls).toEqual(["csf_communication_dispatch_attempts"]);
+    expect(fromCalls).toEqual(["csf_communication_campaigns"]);
     expect(rpcCalls).toHaveLength(0);
     expect(sendCalls).toHaveLength(0);
   });
@@ -490,8 +511,8 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(sendCalls).toHaveLength(0);
   });
 
-  test("an unreadable queue claims nothing and sends nothing", async () => {
-    queueError = { message: "relation csf_communication_dispatch_attempts" };
+  test("an unreadable campaign scope claims nothing and sends nothing", async () => {
+    scopeError = { message: "relation csf_communication_campaigns" };
 
     const response = await POST(authorized());
 
@@ -500,11 +521,11 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(sendCalls).toHaveLength(0);
     // The database's own message never reaches the caller.
     expect(JSON.stringify(await response.json())).not.toContain(
-      "csf_communication_dispatch_attempts",
+      "csf_communication_campaigns",
     );
   });
 
-  test("an empty queue does no work at all", async () => {
+  test("no durable open campaign does no work at all", async () => {
     const response = await POST(authorized());
     const body = await response.json();
 
@@ -515,8 +536,68 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(sendCalls).toHaveLength(0);
   });
 
+  test("an open campaign with no queued attempt still reaches lease recovery and terminalization", async () => {
+    openCampaignRows = [{ id: CAMPAIGN, organization_id: ORG }];
+    // This is the route-visible shape after a worker dies while its only attempt
+    // is processing: there is no queued attempt to discover. The real claim RPC
+    // reaps an expired processing lease under the campaign lock before returning
+    // an empty claim set.
+    claimHandler = () => ({
+      data: { claimedCount: 0, claims: [] },
+      error: null,
+    });
+
+    const response = await POST(authorized());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.organizationsQueued).toBe(1);
+    expect(body.organizationsProcessed).toBe(1);
+    expect(body.claimed).toBe(0);
+    expect(sendCalls).toHaveLength(0);
+    expect(rpcCalls.map((call) => call.fn)).toEqual([
+      "csf_claim_communication_dispatch_batch",
+      "csf_finalize_communication_campaign",
+    ]);
+  });
+
+  test("a lost finalizer result remains discoverable and is retried without another send", async () => {
+    openCampaignRows = [{ id: CAMPAIGN, organization_id: ORG }];
+    let finalizerCalls = 0;
+    terminalizeHandler = () => {
+      finalizerCalls += 1;
+      return finalizerCalls === 1
+        ? {
+            data: null,
+            error: {
+              message:
+                "campaign row for rep.one@local.test could not be aggregated",
+            },
+          }
+        : { data: { status: "completed" }, error: null };
+    };
+
+    const first = await POST(authorized());
+    const firstBody = await first.json();
+    const second = await POST(authorized());
+    const secondBody = await second.json();
+
+    expect(first.status).toBe(200);
+    expect(firstBody.faults).toBe(1);
+    expect(second.status).toBe(200);
+    expect(secondBody.faults).toBe(0);
+    expect(finalizerCalls).toBe(2);
+    expect(sendCalls).toHaveLength(0);
+    expect(JSON.stringify({ firstBody, secondBody })).not.toContain(
+      "rep.one@local.test",
+    );
+  });
+
   test("the organization scope is derived from the ledger, never from the request", async () => {
-    queuedRows = [{ organization_id: ORG }, { organization_id: ORG }];
+    openCampaignRows = [
+      { id: CAMPAIGN, organization_id: ORG },
+      { id: CAMPAIGN, organization_id: ORG },
+    ];
 
     await POST(
       new NextRequest(
@@ -533,9 +614,9 @@ describe("the bounded CSF dispatch worker route", () => {
       ),
     );
 
-    // The queue named one organization, twice. The worker ran for that one, and
-    // never for the one the caller tried to name.
-    expect(fromCalls).toEqual(["csf_communication_dispatch_attempts"]);
+    // The durable campaign ledger named one organization, twice. The worker ran
+    // for that one, and never for the one the caller tried to name.
+    expect(fromCalls).toEqual(["csf_communication_campaigns"]);
     const claims = rpcCalls.filter(
       (call) => call.fn === "csf_claim_communication_dispatch_batch",
     );
@@ -546,7 +627,7 @@ describe("the bounded CSF dispatch worker route", () => {
   });
 
   test("authorized work is bounded and the batch size is clamped", async () => {
-    queuedRows = [{ organization_id: ORG }];
+    openCampaignRows = [{ id: CAMPAIGN, organization_id: ORG }];
     process.env.CSF_COMMUNICATIONS_WORKER_BATCH_SIZE = "100000";
 
     const response = await POST(authorized());
@@ -562,14 +643,14 @@ describe("the bounded CSF dispatch worker route", () => {
   });
 
   test("authorized work dispatches claimed attempts and reports aggregates only", async () => {
-    queuedRows = [{ organization_id: ORG }];
+    openCampaignRows = [{ id: CAMPAIGN, organization_id: ORG }];
     claimHandler = () => ({
       data: {
         claimedCount: 1,
         claims: [
           {
             attemptId: ATTEMPT,
-            campaignId: "ce400000-0000-4000-8000-000000000001",
+            campaignId: CAMPAIGN,
             deliveryId: "cea00000-0000-4000-8000-000000000001",
             recipientSnapshotId: "ce800000-0000-4000-8000-000000000001",
             attemptNumber: 1,
@@ -592,10 +673,29 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(body.outcomes.sent).toBe(1);
     expect(sendCalls).toHaveLength(1);
 
+    // V122: the same bounded worker pass that settled the claimed attempt must
+    // terminalization-check its campaign. Otherwise a wholly delivered campaign
+    // remains visibly "Sending" forever because no queued attempt exists to make
+    // a later scheduler invocation discover this organization again.
+    expect(
+      rpcCalls.filter(
+        (call) => call.fn === "csf_finalize_communication_campaign",
+      ),
+    ).toEqual([
+      {
+        fn: "csf_finalize_communication_campaign",
+        args: {
+          p_organization_id: ORG,
+          p_campaign_id: CAMPAIGN,
+        },
+      },
+    ]);
+
     // SANITIZED RESPONSE. Aggregates only -- nothing that identifies a recipient,
     // a message, or a ledger row.
     expect(serialized).not.toContain("rep.one@local.test");
     expect(serialized).not.toContain(ATTEMPT);
+    expect(serialized).not.toContain(CAMPAIGN);
     expect(serialized).not.toContain(IDEMPOTENCY_KEY);
     expect(serialized).not.toContain("resend-message-synthetic");
     expect(serialized).not.toContain("Synthetic bounded worker subject");
@@ -603,7 +703,7 @@ describe("the bounded CSF dispatch worker route", () => {
   });
 
   test("a worker fault for one organization is bounded and leaks nothing", async () => {
-    queuedRows = [{ organization_id: ORG }];
+    openCampaignRows = [{ id: CAMPAIGN, organization_id: ORG }];
     claimHandler = () => ({
       data: null,
       error: {
@@ -621,6 +721,13 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(body.claimed).toBe(0);
     // Nothing was claimed, so nothing was sent.
     expect(sendCalls).toHaveLength(0);
+    // The terminalizer still runs after the worker fault. This is safe because
+    // its locked aggregate refuses completion while a live lease remains.
+    expect(
+      rpcCalls.filter(
+        (call) => call.fn === "csf_finalize_communication_campaign",
+      ),
+    ).toHaveLength(1);
     expect(JSON.stringify(body)).not.toContain("rep.one@local.test");
   });
 });

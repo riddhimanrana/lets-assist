@@ -163,6 +163,7 @@ V118: CSF Google import connection → verified user-info identity exactly `dvhi
 V119: CSF communications recovery → an unresolved attempt changes outcome only from durable provider evidence and is never blindly resent; webhook quarantine resolution = one tenant-scoped reasoned triage acknowledgement + audit and never applies/retries/suppresses/rewrites the event.
 V120: CSF scheduled post → persisted `scheduled_for` ≠ publication/feed visibility/email; automatic schedule claims ⊥ until the dedicated due-post publisher reauthorizes, serializes, transitions + audits atomically, queues optional email only after publication, and passes migration + route + pgTAP + central replay acceptance; meanwhile manual publication is the temporary pre-acceptance operator path.
 V121: CSF point lifecycle mutation → begin/proof finalization/withdraw/review/appeal submit/appeal decision reauthorizes actor/owner, organization, current open term, active membership, published policy, source relationship, numeric cap, class, and finalized proof under lock as applicable; browser or earlier eligibility evidence alone ⊥.
+V122: CSF communications scheduler → durable queued/sending campaigns derive tenant scope; every discovered campaign is terminalization-checked after the bounded worker pass even when no attempt was claimable or the pass faulted; wholly settled campaigns cannot remain open after a lost finalizer response, expired processing-only leases remain discoverable for safe reaping, and live/retry/unknown/undispatched work remains nonterminal.
 
 §T
 
@@ -297,3 +298,4 @@ B80|2026-08-09|the canonical contract simultaneously promised timestamped Google
 B81|2026-08-09|the accepted baseline can label a row scheduled without an accepted authorized due-post transition, so “Post scheduled” must not promise an automatic lifecycle until the in-progress publisher passes V120 acceptance|V120
 B82|2026-08-09|point submission, proof, withdrawal, review, and appeal entrypoints did not consistently rederive current membership/policy/source/cap/proof authority at the database boundary|V121
 B83|2026-08-09|operator instructions promised ten-minute announcement dispatch while the repository proved the durable ledger and worker route but contained no hosted scheduler configuration or invocation evidence|V35,V92
+B84|2026-08-11|the hosted communications worker settled its delivery and attempt but never called the existing campaign terminalizer, leaving a one-recipient delivered campaign visibly stuck at Sending|V122

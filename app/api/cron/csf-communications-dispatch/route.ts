@@ -7,7 +7,6 @@ import { createClient } from "@supabase/supabase-js";
 import { readPositiveInteger } from "@/lib/async/map-with-concurrency";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 import {
-  CsfWorkerRpcError,
   runCsfDispatchWorker,
   type CsfPluginRpc,
   type CsfWorkerAttemptReport,
@@ -44,6 +43,9 @@ export const maxDuration = 60;
 /** Bounded work per invocation. A cron tick is not a place to drain a queue. */
 const MAX_BATCH_SIZE = 50;
 const MAX_ORGANIZATIONS_PER_RUN = 10;
+const MAX_CAMPAIGNS_PER_ORGANIZATION_RUN = 50;
+const MAX_OPEN_CAMPAIGNS_PER_RUN =
+  MAX_ORGANIZATIONS_PER_RUN * MAX_CAMPAIGNS_PER_ORGANIZATION_RUN;
 /** Wall-clock bound, checked between organizations so a run always terminates. */
 const RUN_DEADLINE_MS = 45_000;
 const LEASE_SECONDS = 120;
@@ -197,27 +199,57 @@ export async function POST(request: NextRequest) {
     return json({ error: "Worker transport unavailable" }, 503);
   }
 
-  // ORGANIZATION SCOPE IS DERIVED, NEVER SUPPLIED. service_role holds SELECT on
-  // the attempt ledger and nothing more, so this reads the queue and cannot
-  // mutate it.
-  const { data: queuedRows, error: queueError } = await plugin
-    .from("csf_communication_dispatch_attempts")
-    .select("organization_id")
-    .eq("state", "queued")
-    .limit(1000);
+  // DURABLE DISCOVERY, DERIVED SERVER-SIDE AND NEVER SUPPLIED BY THE CALLER.
+  //
+  // A queued-attempt scan loses the tenant as soon as its last attempt settles,
+  // and it never sees an organization whose only work is an expired processing
+  // lease. Both are exactly the states this route must recover: the claim RPC
+  // reaps expired leases, while the campaign finalizer is safely repeatable after
+  // a lost response or a process death between settlement and aggregation.
+  //
+  // The campaign remains queued/sending until the locked database aggregate says
+  // otherwise, so it is the durable retry coordinate. service_role holds SELECT
+  // only on this table; all mutations remain behind the two purpose-built RPCs.
+  const { data: openRows, error: scopeError } = await plugin
+    .from("csf_communication_campaigns")
+    .select("id, organization_id")
+    .in("status", ["queued", "sending"])
+    .order("updated_at", { ascending: true })
+    .limit(MAX_OPEN_CAMPAIGNS_PER_RUN);
 
-  if (queueError) {
+  if (scopeError) {
     // Bounded: the database's own message can name rows and addresses.
-    return json({ error: "Queue scope unavailable" }, 503);
+    return json({ error: "Campaign scope unavailable" }, 503);
   }
 
-  const organizationIds = [
-    ...new Set(
-      (queuedRows ?? [])
-        .map((row) => (row as { organization_id?: unknown }).organization_id)
-        .filter((value): value is string => typeof value === "string"),
-    ),
-  ].slice(0, MAX_ORGANIZATIONS_PER_RUN);
+  const openCampaignIdsByOrganization = new Map<string, string[]>();
+  for (const row of openRows ?? []) {
+    const candidate = row as {
+      id?: unknown;
+      organization_id?: unknown;
+    };
+    if (
+      typeof candidate.id !== "string" ||
+      typeof candidate.organization_id !== "string"
+    ) {
+      continue;
+    }
+
+    const campaignIds =
+      openCampaignIdsByOrganization.get(candidate.organization_id) ?? [];
+    if (
+      campaignIds.length < MAX_CAMPAIGNS_PER_ORGANIZATION_RUN &&
+      !campaignIds.includes(candidate.id)
+    ) {
+      campaignIds.push(candidate.id);
+      openCampaignIdsByOrganization.set(candidate.organization_id, campaignIds);
+    }
+  }
+
+  const organizationIds = [...openCampaignIdsByOrganization.keys()].slice(
+    0,
+    MAX_ORGANIZATIONS_PER_RUN,
+  );
 
   const workerId = `csf-dispatch-${startedAt.toString(36)}`;
   const tally = emptyTally();
@@ -228,8 +260,9 @@ export async function POST(request: NextRequest) {
 
   for (const organizationId of organizationIds) {
     if (Date.now() - startedAt >= RUN_DEADLINE_MS) {
-      // The remaining organizations keep their queued work and are picked up by
-      // the next tick. Nothing is lost, because nothing was claimed.
+      // The remaining organizations keep their durable queued/sending campaign
+      // coordinates and are picked up by the next tick. Nothing is lost, because
+      // nothing was claimed for them.
       deadlineReached = true;
       break;
     }
@@ -247,15 +280,49 @@ export async function POST(request: NextRequest) {
       for (const attempt of report.attempts) {
         tally[attempt.status] += 1;
       }
-    } catch (error) {
+    } catch {
       // A bounded worker fault for one organization must not abandon the rest,
       // and must not leak the ledger's diagnostics. Attempts this worker had
       // leased stay leased and are reaped as unknown_outcome -- honest, and
-      // never re-sent.
+      // never re-sent. The finalization pass below still runs: an earlier claim
+      // in this batch may already have settled before a later one failed.
       faults += 1;
-      if (!(error instanceof CsfWorkerRpcError)) {
-        // An unexpected fault is still bounded here: the message is discarded.
-        continue;
+    }
+
+    // V122: settling the last attempt is not itself the campaign aggregate. The
+    // ledger owns that decision because it must inspect every attempt and delivery
+    // under the campaign lock. Check every durable open campaign discovered for
+    // this organization even when the worker claimed nothing or faulted halfway.
+    // A live/retry/unknown result is a truthful no-op; a wholly settled campaign
+    // leaves Sending now. A failed or lost finalizer response is retried on the
+    // next invocation because the campaign itself remains durably open.
+    for (const campaignId of openCampaignIdsByOrganization.get(
+      organizationId,
+    ) ?? []) {
+      if (Date.now() - startedAt >= RUN_DEADLINE_MS) {
+        deadlineReached = true;
+        break;
+      }
+
+      try {
+        const terminalization = await plugin.rpc(
+          "csf_finalize_communication_campaign",
+          {
+            p_organization_id: organizationId,
+            p_campaign_id: campaignId,
+          },
+        );
+
+        if (terminalization.error) {
+          // The sends and settlements above already happened and remain counted.
+          // Record a bounded operational fault without leaking the database's
+          // message or pretending the provider work failed.
+          faults += 1;
+        }
+      } catch {
+        // A rejected transport promise is the same bounded operational fault as
+        // an RPC error result. The open campaign remains the retry coordinate.
+        faults += 1;
       }
     }
   }
