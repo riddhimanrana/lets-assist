@@ -90,12 +90,14 @@ INSERT INTO plugin_data.csf_profile_cohort_memberships (
   ('e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000004', 'e1300000-0000-4000-8000-000000000001', 'active'),
   ('e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000017', 'e1300000-0000-4000-8000-000000000002', 'active');
 
+-- Exactly one active reusable link for Class of 2032 in Fall 2031. A reusable
+-- class link is shared by every student in that class, so each scenario below
+-- is distinguished by its actor and record, not by its own link row.
 INSERT INTO plugin_data.csf_onboarding_links (
   id, organization_id, term_id, cohort_id, code, title,
   invitation_scope, delivery_status, is_active
 ) VALUES
-  ('e1500000-0000-4000-8000-000000000001', 'e1100000-0000-4000-8000-000000000001', 'e1200000-0000-4000-8000-000000000001', 'e1300000-0000-4000-8000-000000000001', 'cohort-claim-token-long-enough-000001', 'Class of 2032', 'cohort', 'link_ready', true),
-  ('e1500000-0000-4000-8000-000000000002', 'e1100000-0000-4000-8000-000000000001', 'e1200000-0000-4000-8000-000000000001', 'e1300000-0000-4000-8000-000000000001', 'cohort-decline-token-long-enough-0001', 'Class of 2032 review', 'cohort', 'link_ready', true);
+  ('e1500000-0000-4000-8000-000000000001', 'e1100000-0000-4000-8000-000000000001', 'e1200000-0000-4000-8000-000000000001', 'e1300000-0000-4000-8000-000000000001', 'cohort-claim-token-long-enough-000001', 'Class of 2032', 'cohort', 'link_ready', true);
 
 INSERT INTO plugin_data.csf_onboarding_links (
   id, organization_id, term_id, cohort_id, code, title, link_type,
@@ -104,7 +106,11 @@ INSERT INTO plugin_data.csf_onboarding_links (
   'e1500000-0000-4000-8000-000000000018',
   'e1100000-0000-4000-8000-000000000001',
   'e1200000-0000-4000-8000-000000000001',
-  'e1300000-0000-4000-8000-000000000001',
+  -- Class of 2033. One active reusable link per class and semester is a
+  -- database invariant, and Class of 2032 already holds its own link above.
+  -- Nothing in this scenario depends on the class: the link type alone is what
+  -- makes every claim below fail.
+  'e1300000-0000-4000-8000-000000000002',
   'application-only-token-long-enough-001',
   'Application only', 'application_google_form', 'cohort', 'link_ready', true
 );
@@ -399,7 +405,7 @@ SELECT extensions.lives_ok(
   $$
     SELECT plugin_data.csf_decline_profile_claim(
       'e1100000-0000-4000-8000-000000000001',
-      'cohort-decline-token-long-enough-0001',
+      'cohort-claim-token-long-enough-000001',
       'e1400000-0000-4000-8000-000000000004',
       'e1000000-0000-4000-8000-000000000004',
       'declined-claim@local.test',
@@ -605,15 +611,8 @@ INSERT INTO plugin_data.csf_profile_cohort_memberships (
   ('e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000013', 'e1300000-0000-4000-8000-000000000001', 'active'),
   ('e1100000-0000-4000-8000-000000000001', 'e1400000-0000-4000-8000-000000000014', 'e1300000-0000-4000-8000-000000000001', 'active');
 
-INSERT INTO plugin_data.csf_onboarding_links (
-  id, organization_id, term_id, cohort_id, code, title,
-  invitation_scope, delivery_status, is_active
-) VALUES
-  ('e1500000-0000-4000-8000-000000000003', 'e1100000-0000-4000-8000-000000000001', 'e1200000-0000-4000-8000-000000000001', 'e1300000-0000-4000-8000-000000000001', 'inactive-self-token-long-enough-000001', 'Inactive self claim', 'cohort', 'link_ready', true),
-  ('e1500000-0000-4000-8000-000000000004', 'e1100000-0000-4000-8000-000000000001', 'e1200000-0000-4000-8000-000000000001', 'e1300000-0000-4000-8000-000000000001', 'revoked-self-token-long-enough-000001', 'Revoked self claim', 'cohort', 'link_ready', true),
-  ('e1500000-0000-4000-8000-000000000005', 'e1100000-0000-4000-8000-000000000001', 'e1200000-0000-4000-8000-000000000001', 'e1300000-0000-4000-8000-000000000001', 'revoked-term-self-token-long-000001', 'Revoked term self claim', 'cohort', 'link_ready', true),
-  ('e1500000-0000-4000-8000-000000000006', 'e1100000-0000-4000-8000-000000000001', 'e1200000-0000-4000-8000-000000000001', 'e1300000-0000-4000-8000-000000000001', 'finalized-term-self-token-long-0001', 'Finalized term self claim', 'cohort', 'link_ready', true),
-  ('e1500000-0000-4000-8000-000000000007', 'e1100000-0000-4000-8000-000000000001', 'e1200000-0000-4000-8000-000000000001', 'e1300000-0000-4000-8000-000000000001', 'admin-self-token-long-enough-0000001', 'Admin self claim', 'cohort', 'link_ready', true);
+-- The self-claim scenarios below reuse the single active Class of 2032 link;
+-- what differs between them is the account and the record it targets.
 
 INSERT INTO public.organization_members (organization_id, user_id, role, status)
 VALUES
@@ -672,7 +671,7 @@ SELECT extensions.throws_ok(
   $$
     SELECT plugin_data.csf_confirm_profile_claim(
       'e1100000-0000-4000-8000-000000000001',
-      'inactive-self-token-long-enough-000001',
+      'cohort-claim-token-long-enough-000001',
       'e1400000-0000-4000-8000-000000000006',
       'e1000000-0000-4000-8000-000000000006',
       'inactive-self@local.test'
@@ -700,7 +699,7 @@ SELECT extensions.throws_ok(
   $$
     SELECT plugin_data.csf_confirm_profile_claim(
       'e1100000-0000-4000-8000-000000000001',
-      'revoked-self-token-long-enough-000001',
+      'cohort-claim-token-long-enough-000001',
       'e1400000-0000-4000-8000-000000000007',
       'e1000000-0000-4000-8000-000000000007',
       'revoked-self@local.test'
@@ -727,7 +726,7 @@ SELECT extensions.ok(
 SELECT extensions.is(
   (plugin_data.csf_confirm_profile_claim(
     'e1100000-0000-4000-8000-000000000001',
-    'revoked-term-self-token-long-000001',
+    'cohort-claim-token-long-enough-000001',
     'e1400000-0000-4000-8000-000000000008',
     'e1000000-0000-4000-8000-000000000008',
     'revoked-term-self@local.test'
@@ -760,7 +759,7 @@ SELECT extensions.ok(
 SELECT extensions.is(
   (plugin_data.csf_confirm_profile_claim(
     'e1100000-0000-4000-8000-000000000001',
-    'finalized-term-self-token-long-0001',
+    'cohort-claim-token-long-enough-000001',
     'e1400000-0000-4000-8000-000000000009',
     'e1000000-0000-4000-8000-000000000009',
     'finalized-term-self@local.test'
@@ -793,7 +792,7 @@ SELECT extensions.lives_ok(
   $$
     SELECT plugin_data.csf_confirm_profile_claim(
       'e1100000-0000-4000-8000-000000000001',
-      'admin-self-token-long-enough-0000001',
+      'cohort-claim-token-long-enough-000001',
       'e1400000-0000-4000-8000-000000000010',
       'e1000000-0000-4000-8000-000000000001',
       'claim-admin@local.test'

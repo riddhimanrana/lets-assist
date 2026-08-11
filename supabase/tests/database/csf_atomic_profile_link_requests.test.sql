@@ -97,12 +97,14 @@ INSERT INTO plugin_data.csf_term_applications (
   ('f2600000-0000-4000-8000-000000000006', 'f2200000-0000-4000-8000-000000000001', 'f2500000-0000-4000-8000-000000000006', 'f2400000-0000-4000-8000-000000000001', 'f2300000-0000-4000-8000-000000000002', 'manual', 'accepted'),
   ('f2600000-0000-4000-8000-000000000008', 'f2200000-0000-4000-8000-000000000001', 'f2500000-0000-4000-8000-000000000008', 'f2400000-0000-4000-8000-000000000002', 'f2300000-0000-4000-8000-000000000001', 'manual', 'accepted');
 
+-- One active reusable link per class and semester is a database invariant, so
+-- Class of 2042 holds a single Fall link that every fallback and wrong-class
+-- scenario below shares; the closed-semester link is a different semester.
 INSERT INTO plugin_data.csf_onboarding_links (
   id, organization_id, term_id, cohort_id, code, title,
   invitation_scope, delivery_status, is_active
 ) VALUES
   ('f2700000-0000-4000-8000-000000000001', 'f2200000-0000-4000-8000-000000000001', 'f2300000-0000-4000-8000-000000000001', 'f2400000-0000-4000-8000-000000000001', 'fallback-review-token-long-enough-00001', 'Fallback review', 'cohort', 'link_ready', true),
-  ('f2700000-0000-4000-8000-000000000002', 'f2200000-0000-4000-8000-000000000001', 'f2300000-0000-4000-8000-000000000001', 'f2400000-0000-4000-8000-000000000001', 'wrong-class-token-long-enough-0000001', 'Wrong class review', 'cohort', 'link_ready', true),
   ('f2700000-0000-4000-8000-000000000003', 'f2200000-0000-4000-8000-000000000001', 'f2300000-0000-4000-8000-000000000002', 'f2400000-0000-4000-8000-000000000001', 'closed-link-token-long-enough-0000001', 'Closed term identity link', 'cohort', 'link_ready', true);
 
 INSERT INTO plugin_data.csf_onboarding_links (
@@ -112,7 +114,9 @@ INSERT INTO plugin_data.csf_onboarding_links (
   'f2700000-0000-4000-8000-000000000004',
   'f2200000-0000-4000-8000-000000000001',
   'f2300000-0000-4000-8000-000000000001',
-  'f2400000-0000-4000-8000-000000000001',
+  -- Class of 2043: the link type alone makes every request below fail, and
+  -- Class of 2042 already holds its one active Fall link.
+  'f2400000-0000-4000-8000-000000000002',
   'application-only-link-long-enough-0001',
   'Application only', 'application_google_form', 'cohort', 'link_ready', true
 );
@@ -434,7 +438,7 @@ SELECT extensions.is(
   (
     plugin_data.csf_submit_profile_link_request(
       'f2200000-0000-4000-8000-000000000001',
-      'wrong-class-token-long-enough-0000001',
+      'fallback-review-token-long-enough-00001',
       'f2100000-0000-4000-8000-000000000005',
       'wrong-class-link@local.test',
       'Wrong', NULL, 'Class', NULL, NULL, 'wrong-class-link@local.test',
