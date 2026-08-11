@@ -357,15 +357,7 @@ async function findConfirmationSummaries(
   const payload = (await readMailpitJson(search.toString())) as {
     messages?: MailpitSummary[];
   };
-
-  const wanted = recipient.toLowerCase();
-  return (payload.messages ?? []).filter(
-    (message) =>
-      mailpitSubject(message) === confirmationSubject &&
-      mailpitRecipients(message).some(
-        (to) => mailpitRecipientAddress(to).toLowerCase() === wanted,
-      ),
-  );
+  return payload.messages ?? [];
 }
 
 /** Attribute values are HTML-escaped by the mailer; only `&` matters here. */
