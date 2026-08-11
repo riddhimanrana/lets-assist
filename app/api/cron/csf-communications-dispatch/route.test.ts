@@ -603,6 +603,24 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(sendCalls).toHaveLength(0);
   });
 
+  test("stalled preflight maintenance is also bounded by the absolute route deadline", async () => {
+    process.env.CSF_COMMUNICATIONS_WORKER_DEADLINE_MS = "20";
+    maintenanceHandler = () => new Promise(() => undefined);
+
+    const wallStartedAt = Date.now();
+    const response = await POST(authorized());
+    const wallDurationMs = Date.now() - wallStartedAt;
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.deadlineReached).toBe(true);
+    expect(wallDurationMs).toBeLessThan(500);
+    expect(rpcCalls.map((call) => call.fn)).toEqual([
+      "csf_maintain_communication_campaigns",
+    ]);
+    expect(sendCalls).toHaveLength(0);
+  });
+
   test("an expired processing-only scope reaches lease recovery without a resend", async () => {
     schedulerScopeHandler = () => ({
       data: { organizationCount: 1, organizationIds: [ORG] },

@@ -327,6 +327,13 @@ export async function POST(request: NextRequest) {
     workerPasses < batchSize &&
     processedOrganizationIds.size < MAX_ORGANIZATIONS_PER_RUN
   ) {
+    if (deadlineAt - Date.now() <= settlementReserveMs) {
+      // Do not advance a durable tenant cursor when there is already too little
+      // time to authorize a provider request and settle its outcome.
+      deadlineReached = true;
+      break;
+    }
+
     let scopeResult: Awaited<ReturnType<CsfPluginRpc["rpc"]>>;
     try {
       scopeResult = await beforeDeadline(
