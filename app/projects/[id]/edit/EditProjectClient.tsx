@@ -1157,8 +1157,7 @@ export default function EditProjectClient({ project }: Props) {
         toast.error(result.error);
       } else {
         toast.success("Project deleted successfully");
-        router.push("/home");
-        router.refresh(); // Trigger server-side re-fetch of home page data
+        router.replace("/home");
       }
     } catch {
       toast.error("Failed to delete project");
