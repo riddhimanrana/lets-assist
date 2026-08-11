@@ -6,6 +6,8 @@ Method: local gate execution, plus read-only catalog queries against both hosted
 
 Evidence: `.artifacts/audit-20260810/`.
 
+The staged repository-wide program also generates a fresh source inventory with `bun run audit:inventory` under `.artifacts/audit/surface-inventory/`. The inventory records exact root/private commit provenance and keeps source discovery separate from runtime catalog and hosted Development evidence.
+
 Priority scale: **P0** exploitable now against real users · **P1** security-relevant, not directly exploitable · **P2** correctness/maintainability · **P3** cosmetic or dead code.
 
 ---
@@ -16,7 +18,7 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | ------------------- | --- | -------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | [AUD-001](#aud-001) | P0  | Core RLS             | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                  | **Fixed on `development`**; live in Production until cutover |
 | [AUD-002](#aud-002) | P0  | Core RLS             | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection            | **Fixed on `development`**; live in Production until cutover |
-| [AUD-003](#aud-003) | P1  | Grants               | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions                   | **Fixed locally**; hosted Development pending                |
+| [AUD-003](#aud-003) | P1  | Grants               | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions                   | **Merged on `development`**; catalog verification pending    |
 | [AUD-004](#aud-004) | P1  | Plugin audit         | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited  | **Fixed on `development`**                                   |
 | [AUD-005](#aud-005) | P3  | Plugin RLS           | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob            | Reclassified — designed behaviour, document the contract     |
 | [AUD-006](#aud-006) | P2  | Architecture         | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`**                                   |
@@ -28,6 +30,8 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-011](#aud-011) | P3  | Plugin control plane | Advertised control-plane surfaces that no code path reads                                                           | Confirmed                                                    |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
+
+**Static surface inventory, local only:** the initial generator run after rebasing over `development` `15ba480` and private gitlink `8efdc9a` found 46 route handlers, 351 exported Server Actions, 166 RPC call sites, 464 SQL function definitions (321 marked `SECURITY DEFINER`), 359 RLS policy definitions, 10 storage buckets, 12 cron routes, 2 webhook routes, 3 OAuth callback boundaries, 38 upload boundaries, 20 file-processing boundaries, and 8 service-role references. These are source-definition counts, not distinct effective database objects or proof of reachability. Generated JSON/Markdown remains ignored under `.artifacts/` and records the exact commit of each run.
 
 ---
 
@@ -95,7 +99,7 @@ Reversing this order breaks project cancellation and moderation notifications.
 
 ## AUD-003 — `public` default privileges still grant clients everything {#aud-003}
 
-**Priority:** P1 · **Status:** Fixed locally; hosted Development pending
+**Priority:** P1 · **Status:** Merged on `development`; hosted catalog verification pending
 
 Baseline `20260325181408` (~lines 3836-3847) still carries:
 
@@ -111,7 +115,7 @@ The FUNCTIONS half is the more valuable fix: `GRANT ALL ON FUNCTIONS TO anon` me
 
 **Blast radius of fixing it: zero at cutover.** `ALTER DEFAULT PRIVILEGES` affects only objects created after it runs, and every existing object carries explicit grants.
 
-**Status after implementation — the table, sequence, and function halves are fixed locally, with hosted Development verification still pending.**
+**Status after implementation — the table, sequence, and function halves are merged on `development`; shared Development catalog verification is still pending.**
 
 `20260810220400_revoke_public_default_privileges.sql` revokes the TABLES and SEQUENCES defaults for grantors `postgres` and `service_role`. `public_default_privileges.test.sql` proves the property that matters: a freshly created `public` table is unreadable and unwritable by both `anon` and `authenticated`.
 
@@ -123,7 +127,9 @@ Local evidence on 2026-08-11: `quality:static`, strict private-submodule validat
 
 One deliberate exclusion remains: `supabase_admin`'s default ACLs also name `anon` and `authenticated`. Hosted migrations execute as `postgres`, which cannot alter another role's defaults on Supabase. The effective callable-catalog gate covers the resulting runtime posture instead.
 
-**Still to do:** merge through GitHub, verify the exact hosted Development migration ledger and effective catalog, and rerun Development advisors. Production remains a separate excluded cutover.
+GitHub evidence on 2026-08-11: PR #117 merged as `15ba480` after quality/build, GitGuardian, Supabase Preview, and the full isolated database/DV/CSF browser replay passed. Vercel Development deployment `dpl_GS7WcMq2tN62ZiuetZLmutCpUJAa` is READY for that exact commit and aliased to `dev.lets-assist.com` without an alias error. The PR Preview build remained deliberately fail-closed until an exact non-Production Supabase ref was available.
+
+**Still to do:** verify the shared hosted Development migration ledger and effective callable catalog, then rerun Development advisors. The Supabase connector currently exposes only the excluded Production project, so no fallback query was attempted. Production remains a separate excluded cutover.
 
 ---
 
