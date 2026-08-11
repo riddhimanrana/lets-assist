@@ -397,6 +397,59 @@ unexpected_security_definer_exec="$(
 )"
 fail_if_rows "client EXECUTE grants on public SECURITY DEFINER functions" "$unexpected_security_definer_exec"
 
+public_client_function_acl_drift="$(
+  psql "$DB_URL" -AtF $'\t' -c "
+    with expected(signature, role_name) as (
+      values
+        ('public.can_insert_project(uuid)', 'authenticated'),
+        ('public.can_insert_project(uuid,text,uuid)', 'authenticated'),
+        ('public.can_keep_or_set_public_visibility(uuid,uuid)', 'authenticated'),
+        ('public.get_public_attendees(uuid)', 'anon'),
+        ('public.get_public_attendees(uuid)', 'authenticated'),
+        ('public.is_project_organizer(uuid,uuid)', 'authenticated'),
+        ('public.is_super_admin()', 'authenticated'),
+        ('public.is_trusted_member(uuid)', 'authenticated')
+    ),
+    actual as (
+      select
+        format(
+          'public.%I(%s)',
+          p.proname,
+          replace(pg_catalog.oidvectortypes(p.proargtypes), ', ', ',')
+        ) as signature,
+        client.role_name
+      from pg_catalog.pg_proc p
+      join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+      cross join (values ('anon'), ('authenticated')) client(role_name)
+      where n.nspname = 'public'
+        and has_function_privilege(client.role_name, p.oid, 'EXECUTE')
+    ),
+    drift as (
+      select 'unexpected'::text as drift, actual.signature, actual.role_name
+      from actual
+      where not exists (
+        select 1
+        from expected
+        where expected.signature = actual.signature
+          and expected.role_name = actual.role_name
+      )
+      union all
+      select 'missing'::text, expected.signature, expected.role_name
+      from expected
+      where not exists (
+        select 1
+        from actual
+        where actual.signature = expected.signature
+          and actual.role_name = expected.role_name
+      )
+    )
+    select drift, signature, role_name
+    from drift
+    order by drift, signature, role_name;
+  "
+)"
+fail_if_rows "public client-callable function ACL drift" "$public_client_function_acl_drift"
+
 allowed_security_definer_exec="$(
   psql "$DB_URL" -AtF $'\t' -c "
     select n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), r.rolname

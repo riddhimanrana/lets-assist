@@ -16,7 +16,7 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | ------------------- | --- | -------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | [AUD-001](#aud-001) | P0  | Core RLS             | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                  | **Fixed on `development`**; live in Production until cutover |
 | [AUD-002](#aud-002) | P0  | Core RLS             | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection            | **Fixed on `development`**; live in Production until cutover |
-| [AUD-003](#aud-003) | P1  | Grants               | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions                   | **Tables fixed**; functions half still open                  |
+| [AUD-003](#aud-003) | P1  | Grants               | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions                   | **Fixed locally**; hosted Development pending                |
 | [AUD-004](#aud-004) | P1  | Plugin audit         | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited  | **Fixed on `development`**                                   |
 | [AUD-005](#aud-005) | P3  | Plugin RLS           | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob            | Reclassified — designed behaviour, document the contract     |
 | [AUD-006](#aud-006) | P2  | Architecture         | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`**                                   |
@@ -95,7 +95,7 @@ Reversing this order breaks project cancellation and moderation notifications.
 
 ## AUD-003 — `public` default privileges still grant clients everything {#aud-003}
 
-**Priority:** P1 · **Status:** Confirmed
+**Priority:** P1 · **Status:** Fixed locally; hosted Development pending
 
 Baseline `20260325181408` (~lines 3836-3847) still carries:
 
@@ -111,16 +111,19 @@ The FUNCTIONS half is the more valuable fix: `GRANT ALL ON FUNCTIONS TO anon` me
 
 **Blast radius of fixing it: zero at cutover.** `ALTER DEFAULT PRIVILEGES` affects only objects created after it runs, and every existing object carries explicit grants.
 
-**Status after implementation — the tables half is fixed, the functions half is not, and that distinction was established by testing rather than assumed.**
+**Status after implementation — the table, sequence, and function halves are fixed locally, with hosted Development verification still pending.**
 
 `20260810220400_revoke_public_default_privileges.sql` revokes the TABLES and SEQUENCES defaults for grantors `postgres` and `service_role`. `public_default_privileges.test.sql` proves the property that matters: a freshly created `public` table is unreadable and unwritable by both `anon` and `authenticated`.
 
-Two deliberate exclusions, both verified rather than guessed:
+The function half is closed without a broad DDL event trigger. `20260811074518_public_rpc_acl_allowlist.sql` explicitly revokes `PUBLIC`, `anon`, and `authenticated` execution from 18 trigger or maintenance functions, then normalizes the reviewed callable catalog to seven signatures and eight signature/role pairs. Only `get_public_attendees(uuid)` is callable by both `anon` and `authenticated`; the six RLS helpers are `authenticated` only.
 
-1. **FUNCTIONS.** Postgres grants `EXECUTE` to PUBLIC as a built-in default. Revoking it through `ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` was tested locally and did **not** suppress the `=X/postgres` entry on a newly created function — `has_function_privilege('anon', …)` still returned true even with the default ACL correctly reduced to `{postgres=X, service_role=X}`. Shipping that revoke would have been security theatre. New `SECURITY DEFINER` functions must keep carrying their own explicit `REVOKE EXECUTE … FROM PUBLIC, anon, authenticated`, as `20260701040027`, `20260701051022`, and `20260802195500` already do. **This half of AUD-003 remains open** and needs a different mechanism — most likely a `ddl_command_end` event trigger, or a gate check that fails any migration creating a `public` function without an accompanying revoke.
-2. **`supabase_admin`'s default ACLs**, which also name `anon` and `authenticated`. `postgres` is not superuser on hosted Supabase and cannot alter another role's defaults, so attempting it would fail the deploy. Objects created by migrations use the `postgres` grantor, so this does not affect the fix's coverage.
+`public_function_acl_allowlist.test.sql` compares effective client privileges, including inherited `PUBLIC` grants, to that exact catalog and separately proves that the maintenance functions are not client-executable. `audit-supabase-architecture.sh` performs the same catalog comparison as a hard gate, and `AGENTS.md` now requires every new or replaced SQL function to carry explicit reviewed `REVOKE`/`GRANT` statements and update the allowlist when client-callable.
 
-**Still to do:** extend `audit-supabase-architecture.sh` so re-introduction fails the gate, and add the explicit-`GRANT` rule to `AGENTS.md`.
+Local evidence on 2026-08-11: `quality:static`, strict private-submodule validation, `db:validate`, an empty migration replay, all 84 pgTAP files, clean local advisors, Supabase/plugin architecture audits, the authenticated plugin isolation smoke, and the 373-assertion cron no-egress probe passed. The generated stack was removed with marker-bounded proof that no container, volume, or network remained. This is local evidence only; no hosted or Production conclusion follows from it.
+
+One deliberate exclusion remains: `supabase_admin`'s default ACLs also name `anon` and `authenticated`. Hosted migrations execute as `postgres`, which cannot alter another role's defaults on Supabase. The effective callable-catalog gate covers the resulting runtime posture instead.
+
+**Still to do:** merge through GitHub, verify the exact hosted Development migration ledger and effective catalog, and rerun Development advisors. Production remains a separate excluded cutover.
 
 ---
 
