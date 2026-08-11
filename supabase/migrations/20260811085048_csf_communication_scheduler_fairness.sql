@@ -6,17 +6,20 @@
 -- outcome becomes ambiguous when the lease expires.
 --
 -- Keep provider transport in the application, but move scheduler scope and
--- terminalization maintenance behind two service-only database RPCs. Durable
--- tenant-fairness timestamps advance only with real attempt-ledger progress,
--- while per-tenant cyclic campaign cursors advance even when a selected row
--- stays nonterminal or one finalizer faults. The existing
+-- terminalization maintenance behind service-only database RPCs. Durable
+-- tenant-fairness timestamps advance only when the application acknowledges a
+-- short-lived scope reservation immediately before a worker pass, while
+-- per-tenant cyclic campaign cursors advance even when a selected row stays
+-- nonterminal or one finalizer faults. The existing
 -- claim/reaper/finalizer RPCs remain the only authorities on dispatch state and
 -- retain their canonical campaign lock order.
 
 CREATE TABLE plugin_data.csf_scheduler_state (
   organization_id uuid PRIMARY KEY
     REFERENCES public.organizations(id) ON DELETE CASCADE,
-  last_scope_claimed_at timestamptz,
+  last_worker_attempted_at timestamptz,
+  scope_reservation_id uuid,
+  scope_reserved_until timestamptz,
   last_maintenance_at timestamptz,
   last_campaign_id uuid,
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -33,7 +36,7 @@ COMMENT ON TABLE plugin_data.csf_scheduler_state IS
 
 CREATE INDEX csf_scheduler_scope_fairness_idx
   ON plugin_data.csf_scheduler_state (
-    last_scope_claimed_at NULLS FIRST,
+    last_worker_attempted_at NULLS FIRST,
     organization_id
   );
 
@@ -59,45 +62,52 @@ CREATE INDEX csf_comm_campaigns_scheduler_idx
   ON plugin_data.csf_communication_campaigns (organization_id, id)
   WHERE status IN ('queued', 'sending');
 
--- Scope discovery is intentionally a read with respect to fairness. A slow
--- response can arrive after the application has too little time left to start a
--- worker; advancing the cursor inside discovery would then count work that never
--- began. The attempt ledger is the truthful commit point: claim, lease reaping,
--- authorization refusal, and settlement all change attempt state under the
--- canonical campaign lock. Only such a transition advances tenant fairness.
-CREATE OR REPLACE FUNCTION plugin_data.csf_note_scheduler_attempt_progress()
-RETURNS trigger
+-- Scope discovery creates a short reservation but does not advance fairness. A
+-- slow response can arrive after the application has too little time left to
+-- start a worker; its unacknowledged reservation expires, while other tenants are
+-- immediately selectable. A separate acknowledgement commits the bounded worker
+-- attempt before any campaign lock is acquired. That makes a claim-time fault
+-- rotate fairly without inserting a scheduler-row lock into campaign work.
+CREATE OR REPLACE FUNCTION plugin_data.csf_acknowledge_communication_scheduler_scope(
+  p_organization_id uuid,
+  p_reservation_id uuid
+)
+RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+DECLARE
+  v_acknowledged boolean := false;
 BEGIN
-  IF OLD.state IS DISTINCT FROM NEW.state THEN
-    INSERT INTO plugin_data.csf_scheduler_state (
-      organization_id,
-      last_scope_claimed_at,
-      updated_at
-    )
-    VALUES (NEW.organization_id, now(), now())
-    ON CONFLICT (organization_id) DO UPDATE
-    SET
-      last_scope_claimed_at = EXCLUDED.last_scope_claimed_at,
-      updated_at = EXCLUDED.updated_at;
+  IF p_organization_id IS NULL OR p_reservation_id IS NULL THEN
+    RAISE EXCEPTION 'A CSF scheduler acknowledgement requires its reserved scope.'
+      USING ERRCODE = '22004';
   END IF;
 
-  RETURN NEW;
+  UPDATE plugin_data.csf_scheduler_state AS state
+  SET
+    last_worker_attempted_at = now(),
+    scope_reservation_id = NULL,
+    scope_reserved_until = NULL,
+    updated_at = now()
+  WHERE state.organization_id = p_organization_id
+    AND state.scope_reservation_id = p_reservation_id
+    AND state.scope_reserved_until > now();
+
+  v_acknowledged := FOUND;
+
+  RETURN pg_catalog.jsonb_build_object('acknowledged', v_acknowledged);
 END;
 $$;
 
-REVOKE ALL ON FUNCTION plugin_data.csf_note_scheduler_attempt_progress()
+REVOKE ALL ON FUNCTION plugin_data.csf_acknowledge_communication_scheduler_scope(uuid, uuid)
   FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_acknowledge_communication_scheduler_scope(uuid, uuid)
+  TO service_role;
 
-CREATE TRIGGER csf_note_scheduler_attempt_progress
-AFTER UPDATE OF state
-ON plugin_data.csf_communication_dispatch_attempts
-FOR EACH ROW
-WHEN (OLD.state IS DISTINCT FROM NEW.state)
-EXECUTE FUNCTION plugin_data.csf_note_scheduler_attempt_progress();
+COMMENT ON FUNCTION plugin_data.csf_acknowledge_communication_scheduler_scope(uuid, uuid) IS
+  'Acknowledges one unexpired service-only scheduler reservation immediately before its worker pass. This advances tenant attempt fairness even if the following claim faults, and takes no campaign lock.';
 
 CREATE OR REPLACE FUNCTION plugin_data.csf_claim_communication_scheduler_scope(
   p_max_organizations integer DEFAULT 1
@@ -109,11 +119,14 @@ SET search_path = ''
 AS $$
 DECLARE
   -- Return exactly one tenant so the application cannot preallocate an
-  -- unprocessed suffix. Discovery itself remains a read for fairness; the
-  -- attempt-state trigger above records only work that actually progressed.
+  -- unprocessed suffix. Discovery reserves but does not advance attempt
+  -- fairness; the application must acknowledge the exact reservation before it
+  -- starts the worker.
   c_max_organizations constant integer := 1;
+  c_reservation_seconds constant integer := 120;
   v_now timestamptz := now();
   v_organization_ids uuid[] := '{}'::uuid[];
+  v_reservation_id uuid;
 BEGIN
   IF p_max_organizations IS NULL
     OR p_max_organizations < 1
@@ -160,7 +173,9 @@ BEGIN
     FROM eligible
     LEFT JOIN plugin_data.csf_scheduler_state AS state
       ON state.organization_id = eligible.organization_id
-    ORDER BY state.last_scope_claimed_at NULLS FIRST, eligible.organization_id
+    WHERE state.scope_reserved_until IS NULL
+      OR state.scope_reserved_until <= v_now
+    ORDER BY state.last_worker_attempted_at NULLS FIRST, eligible.organization_id
     LIMIT p_max_organizations
   )
   SELECT coalesce(
@@ -170,11 +185,34 @@ BEGIN
   INTO v_organization_ids
   FROM selected;
 
+  IF pg_catalog.array_length(v_organization_ids, 1) IS NOT NULL THEN
+    v_reservation_id := pg_catalog.gen_random_uuid();
+
+    INSERT INTO plugin_data.csf_scheduler_state (
+      organization_id,
+      scope_reservation_id,
+      scope_reserved_until,
+      updated_at
+    )
+    VALUES (
+      v_organization_ids[1],
+      v_reservation_id,
+      v_now + pg_catalog.make_interval(secs => c_reservation_seconds),
+      v_now
+    )
+    ON CONFLICT (organization_id) DO UPDATE
+    SET
+      scope_reservation_id = EXCLUDED.scope_reservation_id,
+      scope_reserved_until = EXCLUDED.scope_reserved_until,
+      updated_at = EXCLUDED.updated_at;
+  END IF;
+
   RETURN pg_catalog.jsonb_build_object(
     'organizationCount', coalesce(
       pg_catalog.array_length(v_organization_ids, 1), 0
     ),
-    'organizationIds', pg_catalog.to_jsonb(v_organization_ids)
+    'organizationIds', pg_catalog.to_jsonb(v_organization_ids),
+    'reservationId', v_reservation_id
   );
 END;
 $$;
@@ -185,7 +223,7 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_claim_communication_scheduler_scope(in
   TO service_role;
 
 COMMENT ON FUNCTION plugin_data.csf_claim_communication_scheduler_scope(integer) IS
-  'Returns exactly one durably fair service-only organization scope derived from actionable queued attempts and expired processing leases. Discovery itself never advances fairness; only a real attempt-state transition does. Expired leases remain discoverable even after cancellation.';
+  'Reserves exactly one durably fair service-only organization scope derived from actionable queued attempts and expired processing leases. The short reservation excludes that tenant without advancing worker-attempt fairness until exact acknowledgement. Expired leases remain discoverable even after cancellation.';
 
 CREATE OR REPLACE FUNCTION plugin_data.csf_maintain_communication_campaigns(
   p_max_campaigns integer DEFAULT 50

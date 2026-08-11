@@ -317,11 +317,13 @@ export async function POST(request: NextRequest) {
   const processedOrganizationIds = new Set<string>();
   let workerPasses = 0;
 
-  // Claim ONE tenant coordinate immediately before processing it. Marking ten
+  // Reserve ONE tenant coordinate immediately before processing it. Marking ten
   // tenants selected at once made the nine that did not fit before the deadline
-  // look equally recent and could starve them forever behind the first UUID.
-  // Repeating a one-tenant durable allocation advances the fairness cursor only
-  // for work this invocation is actually about to attempt.
+  // look equally recent and could starve them forever behind the first UUID. A
+  // reservation does not advance fairness: the exact coordinate is acknowledged
+  // only after this route proves that provider and settlement time remains. The
+  // acknowledgement is its own short transaction, before any campaign lock, so a
+  // claim-time fault rotates on the next tick without creating a lock inversion.
   while (
     !deadlineReached &&
     workerPasses < batchSize &&
@@ -357,9 +359,47 @@ export async function POST(request: NextRequest) {
 
     const [organizationId] = organizationScope(scopeResult.data);
     if (!organizationId) break;
+    const reservationId =
+      scopeResult.data && typeof scopeResult.data === "object"
+        ? (scopeResult.data as { reservationId?: unknown }).reservationId
+        : null;
+    if (typeof reservationId !== "string" || reservationId.length === 0) {
+      return json({ error: "Campaign scope unavailable" }, 503);
+    }
     queuedOrganizationIds.add(organizationId);
-    workerPasses += 1;
 
+    if (deadlineAt - Date.now() <= settlementReserveMs) {
+      deadlineReached = true;
+      break;
+    }
+
+    let acknowledgement: Awaited<ReturnType<CsfPluginRpc["rpc"]>>;
+    try {
+      acknowledgement = await beforeDeadline(
+        plugin.rpc("csf_acknowledge_communication_scheduler_scope", {
+          p_organization_id: organizationId,
+          p_reservation_id: reservationId,
+        }),
+        deadlineAt - settlementReserveMs,
+      );
+    } catch (error) {
+      if (error instanceof RunDeadlineExceeded) deadlineReached = true;
+      else faults += 1;
+      break;
+    }
+
+    const acknowledged =
+      !acknowledgement.error &&
+      acknowledgement.data &&
+      typeof acknowledgement.data === "object" &&
+      (acknowledgement.data as { acknowledged?: unknown }).acknowledged ===
+        true;
+    if (!acknowledged) {
+      faults += 1;
+      break;
+    }
+
+    workerPasses += 1;
     const providerTimeMs = deadlineAt - Date.now() - settlementReserveMs;
     if (providerTimeMs <= 0) {
       deadlineReached = true;

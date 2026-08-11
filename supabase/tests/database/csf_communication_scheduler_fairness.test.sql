@@ -6,7 +6,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(30);
+SELECT extensions.plan(32);
 
 -- ---------------------------------------------------------------------------
 -- A. Private cursor and RPC boundary
@@ -63,6 +63,12 @@ SELECT extensions.has_function(
 );
 
 SELECT extensions.has_function(
+  'plugin_data', 'csf_acknowledge_communication_scheduler_scope',
+  ARRAY['uuid', 'uuid'],
+  'a service scheduler scope acknowledgement RPC exists'
+);
+
+SELECT extensions.has_function(
   'plugin_data', 'csf_maintain_communication_campaigns', ARRAY['integer'],
   'a bounded campaign maintenance RPC exists'
 );
@@ -72,6 +78,7 @@ SELECT extensions.ok(
     SELECT 1
     FROM unnest(ARRAY[
       'plugin_data.csf_claim_communication_scheduler_scope(integer)',
+      'plugin_data.csf_acknowledge_communication_scheduler_scope(uuid,uuid)',
       'plugin_data.csf_maintain_communication_campaigns(integer)'
     ]) AS scheduler(signature)
     CROSS JOIN unnest(ARRAY['public', 'anon', 'authenticated']) AS client(role_name)
@@ -90,10 +97,15 @@ SELECT extensions.ok(
   )
   AND has_function_privilege(
     'service_role',
+    'plugin_data.csf_acknowledge_communication_scheduler_scope(uuid,uuid)',
+    'EXECUTE'
+  )
+  AND has_function_privilege(
+    'service_role',
     'plugin_data.csf_maintain_communication_campaigns(integer)',
     'EXECUTE'
   ),
-  'service_role can execute both narrow scheduler RPCs'
+  'service_role can execute all narrow scheduler RPCs'
 );
 
 SELECT extensions.ok(
@@ -102,10 +114,11 @@ SELECT extensions.ok(
     FROM pg_proc AS proc
     WHERE proc.oid IN (
       'plugin_data.csf_claim_communication_scheduler_scope(integer)'::regprocedure,
+      'plugin_data.csf_acknowledge_communication_scheduler_scope(uuid,uuid)'::regprocedure,
       'plugin_data.csf_maintain_communication_campaigns(integer)'::regprocedure
     )
   ),
-  'both scheduler RPCs are SECURITY DEFINER with a pinned empty search_path'
+  'all scheduler RPCs are SECURITY DEFINER with a pinned empty search_path'
 );
 
 SELECT extensions.ok(
@@ -435,40 +448,48 @@ SELECT extensions.is(
     SELECT pg_catalog.count(DISTINCT result->'organizationIds'->>0)::text
     FROM t_tenant_scope_rotation
   ),
-  '1',
-  'repeated discovery without worker progress does not rotate away from the oldest eligible organization'
+  '2',
+  'an unacknowledged reservation cannot pin the oldest tenant ahead of another eligible organization'
 );
 
 SELECT extensions.is(
   (
-    SELECT pg_catalog.count(*)::text
+    SELECT
+      pg_catalog.count(*) FILTER (
+        WHERE last_worker_attempted_at IS NOT NULL
+      )::text
+      || '|' ||
+      pg_catalog.count(*) FILTER (
+        WHERE scope_reservation_id IS NOT NULL
+          AND scope_reserved_until > now()
+      )::text
     FROM plugin_data.csf_scheduler_state
     WHERE organization_id IN (
       'ca100000-0000-4000-8000-000000000002',
       'ca100000-0000-4000-8000-000000000003'
     )
-      AND last_scope_claimed_at IS NOT NULL
   ),
-  '0',
-  'scope discovery alone never persists a fairness timestamp'
+  '0|2',
+  'scope discovery reserves both coordinates without claiming worker-attempt progress'
 );
 
-CREATE TEMP TABLE t_tenant_worker_claim AS
-SELECT plugin_data.csf_claim_communication_dispatch_batch(
+CREATE TEMP TABLE t_tenant_scope_acknowledgement AS
+SELECT plugin_data.csf_acknowledge_communication_scheduler_scope(
   (
     SELECT (result->'organizationIds'->>0)::uuid
     FROM t_tenant_scope_rotation
     WHERE sequence_number = 1
   ),
-  NULL,
-  'scheduler-tenant-fairness-worker',
-  1,
-  120
+  (
+    SELECT (result->>'reservationId')::uuid
+    FROM t_tenant_scope_rotation
+    WHERE sequence_number = 1
+  )
 ) AS result;
 
 SELECT extensions.is(
   (
-    SELECT (result->>'claimedCount') || '|' || (
+    SELECT (result->>'acknowledged') || '|' || (
       SELECT pg_catalog.count(*)::text
       FROM plugin_data.csf_scheduler_state
       WHERE organization_id = (
@@ -476,12 +497,34 @@ SELECT extensions.is(
         FROM t_tenant_scope_rotation AS scope
         WHERE scope.sequence_number = 1
       )
-        AND last_scope_claimed_at IS NOT NULL
+        AND last_worker_attempted_at IS NOT NULL
+        AND scope_reservation_id IS NULL
     )
-    FROM t_tenant_worker_claim
+    FROM t_tenant_scope_acknowledgement
   ),
-  '1|1',
-  'a real queued-to-processing claim is the commit point that advances tenant fairness'
+  'true|1',
+  'exact acknowledgement advances worker-attempt fairness and releases the reservation before claim work'
+);
+
+SELECT extensions.is(
+  (
+    SELECT plugin_data.csf_acknowledge_communication_scheduler_scope(
+      (result->'organizationIds'->>0)::uuid,
+      (result->>'reservationId')::uuid
+    )->>'acknowledged'
+    FROM t_tenant_scope_rotation
+    WHERE sequence_number = 1
+  ),
+  'false',
+  'a consumed reservation cannot be acknowledged twice'
+);
+
+UPDATE plugin_data.csf_scheduler_state AS state
+SET scope_reserved_until = now() - interval '1 second'
+WHERE state.organization_id = (
+  SELECT (result->'organizationIds'->>0)::uuid
+  FROM t_tenant_scope_rotation
+  WHERE sequence_number = 2
 );
 
 INSERT INTO t_tenant_scope_rotation
@@ -490,13 +533,13 @@ VALUES (3, plugin_data.csf_claim_communication_scheduler_scope(1));
 SELECT extensions.ok(
   (
     SELECT later.result->'organizationIds'->>0
-      <> earlier.result->'organizationIds'->>0
+      = earlier.result->'organizationIds'->>0
     FROM t_tenant_scope_rotation AS earlier
     CROSS JOIN t_tenant_scope_rotation AS later
-    WHERE earlier.sequence_number = 1
+    WHERE earlier.sequence_number = 2
       AND later.sequence_number = 3
   ),
-  'after real worker progress the next scope rotates to the other eligible organization'
+  'an unacknowledged reservation becomes eligible again after its bounded lease expires'
 );
 
 -- Keep the following campaign-prefix scenario single-tenant. These synthetic

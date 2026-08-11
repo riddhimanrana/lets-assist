@@ -24,6 +24,12 @@ let schedulerScopeHandler: () => MaybePromise<RpcResult> = () => ({
   data: { organizationCount: 0, organizationIds: [] },
   error: null,
 });
+let schedulerAcknowledgementHandler: (
+  args: Record<string, unknown>,
+) => MaybePromise<RpcResult> = () => ({
+  data: { acknowledged: true },
+  error: null,
+});
 let maintenanceHandler: () => MaybePromise<RpcResult> = () => ({
   data: { checked: 0, terminalized: 0, nonterminal: 0, faults: 0 },
   error: null,
@@ -50,6 +56,8 @@ const CAMPAIGN = "ce400000-0000-4000-8000-000000000001";
 const CAMPAIGN_TWO = "ce400000-0000-4000-8000-000000000002";
 const ATTEMPT = "ce900000-0000-4000-8000-000000000001";
 const ATTEMPT_TWO = "ce900000-0000-4000-8000-000000000002";
+const RESERVATION = "ceb00000-0000-4000-8000-000000000001";
+const RESERVATION_TWO = "ceb00000-0000-4000-8000-000000000002";
 const IDEMPOTENCY_KEY = `csf-att-${"a".repeat(64)}-1`;
 const DIGEST = "e".repeat(64);
 
@@ -174,6 +182,8 @@ mock.module("@supabase/supabase-js", () => ({
         return maintenanceHandler();
       if (fn === "csf_claim_communication_scheduler_scope")
         return schedulerScopeHandler();
+      if (fn === "csf_acknowledge_communication_scheduler_scope")
+        return schedulerAcknowledgementHandler(args);
       if (fn === "csf_claim_communication_dispatch_batch")
         return claimHandler(args);
       if (fn === "csf_authorize_communication_dispatch")
@@ -231,6 +241,10 @@ beforeEach(() => {
   sendCalls.length = 0;
   schedulerScopeHandler = () => ({
     data: { organizationCount: 0, organizationIds: [] },
+    error: null,
+  });
+  schedulerAcknowledgementHandler = () => ({
+    data: { acknowledged: true },
     error: null,
   });
   maintenanceHandler = () => ({
@@ -621,9 +635,89 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(sendCalls).toHaveLength(0);
   });
 
-  test("an expired processing-only scope reaches lease recovery without a resend", async () => {
+  test("a late scope response leaves its reservation unacknowledged and starts no worker", async () => {
+    process.env.CSF_COMMUNICATIONS_WORKER_DEADLINE_MS = "80";
+    schedulerScopeHandler = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 70));
+      return {
+        data: {
+          organizationCount: 1,
+          organizationIds: [ORG],
+          reservationId: RESERVATION,
+        },
+        error: null,
+      };
+    };
+
+    const response = await POST(authorized());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.deadlineReached).toBe(true);
+    expect(
+      rpcCalls.filter(
+        (call) => call.fn === "csf_acknowledge_communication_scheduler_scope",
+      ),
+    ).toHaveLength(0);
+    expect(
+      rpcCalls.filter(
+        (call) => call.fn === "csf_claim_communication_dispatch_batch",
+      ),
+    ).toHaveLength(0);
+    expect(sendCalls).toHaveLength(0);
+  });
+
+  test("a scope without its reservation coordinate is refused before claim", async () => {
     schedulerScopeHandler = () => ({
       data: { organizationCount: 1, organizationIds: [ORG] },
+      error: null,
+    });
+
+    const response = await POST(authorized());
+
+    expect(response.status).toBe(503);
+    expect(
+      rpcCalls.filter(
+        (call) => call.fn === "csf_claim_communication_dispatch_batch",
+      ),
+    ).toHaveLength(0);
+    expect(sendCalls).toHaveLength(0);
+  });
+
+  test("an expired or mismatched reservation is refused before claim", async () => {
+    schedulerScopeHandler = () => ({
+      data: {
+        organizationCount: 1,
+        organizationIds: [ORG],
+        reservationId: RESERVATION,
+      },
+      error: null,
+    });
+    schedulerAcknowledgementHandler = () => ({
+      data: { acknowledged: false },
+      error: null,
+    });
+
+    const response = await POST(authorized());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.faults).toBe(1);
+    expect(
+      rpcCalls.filter(
+        (call) => call.fn === "csf_claim_communication_dispatch_batch",
+      ),
+    ).toHaveLength(0);
+    expect(sendCalls).toHaveLength(0);
+  });
+
+  test("an expired processing-only scope reaches lease recovery without a resend", async () => {
+    schedulerScopeHandler = () => ({
+      data: {
+        organizationCount: 1,
+        organizationIds: [ORG],
+        reservationId: RESERVATION,
+      },
       error: null,
     });
     claimHandler = () => ({
@@ -642,6 +736,7 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(rpcCalls.map((call) => call.fn)).toEqual([
       "csf_maintain_communication_campaigns",
       "csf_claim_communication_scheduler_scope",
+      "csf_acknowledge_communication_scheduler_scope",
       "csf_claim_communication_dispatch_batch",
       "csf_maintain_communication_campaigns",
     ]);
@@ -689,7 +784,11 @@ describe("the bounded CSF dispatch worker route", () => {
 
   test("the organization scope is derived from the ledger, never from the request", async () => {
     schedulerScopeHandler = () => ({
-      data: { organizationCount: 2, organizationIds: [ORG, ORG] },
+      data: {
+        organizationCount: 2,
+        organizationIds: [ORG, ORG],
+        reservationId: RESERVATION,
+      },
       error: null,
     });
 
@@ -719,7 +818,7 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(JSON.stringify(rpcCalls)).not.toContain("attacker@example.test");
   });
 
-  test("tenant fairness is claimed one organization immediately before each worker pass", async () => {
+  test("each reserved tenant is acknowledged immediately before its worker pass", async () => {
     const scopes = [[ORG], [ORG_TWO], []];
     let scopeCall = 0;
     schedulerScopeHandler = () => {
@@ -729,6 +828,12 @@ describe("the bounded CSF dispatch worker route", () => {
         data: {
           organizationCount: organizationIds.length,
           organizationIds,
+          reservationId:
+            organizationIds[0] === ORG
+              ? RESERVATION
+              : organizationIds[0] === ORG_TWO
+                ? RESERVATION_TWO
+                : null,
         },
         error: null,
       };
@@ -760,12 +865,24 @@ describe("the bounded CSF dispatch worker route", () => {
     const claims = rpcCalls.filter(
       (call) => call.fn === "csf_claim_communication_dispatch_batch",
     );
+    const acknowledgements = rpcCalls.filter(
+      (call) => call.fn === "csf_acknowledge_communication_scheduler_scope",
+    );
 
     expect(response.status).toBe(200);
     expect(body.organizationsQueued).toBe(2);
     expect(body.organizationsProcessed).toBe(2);
     expect(scopeCalls.map((call) => call.args.p_max_organizations)).toEqual([
       1, 1, 1,
+    ]);
+    expect(
+      acknowledgements.map((call) => [
+        call.args.p_organization_id,
+        call.args.p_reservation_id,
+      ]),
+    ).toEqual([
+      [ORG, RESERVATION],
+      [ORG_TWO, RESERVATION_TWO],
     ]);
     expect(claims.map((call) => call.args.p_organization_id)).toEqual([
       ORG,
@@ -782,6 +899,7 @@ describe("the bounded CSF dispatch worker route", () => {
         data: {
           organizationCount: scopeCalls === 1 ? 1 : 0,
           organizationIds: scopeCalls === 1 ? [ORG] : [],
+          reservationId: scopeCalls === 1 ? RESERVATION : null,
         },
         error: null,
       };
@@ -830,7 +948,11 @@ describe("the bounded CSF dispatch worker route", () => {
 
   test("authorized work is bounded and the batch size is clamped", async () => {
     schedulerScopeHandler = () => ({
-      data: { organizationCount: 1, organizationIds: [ORG] },
+      data: {
+        organizationCount: 1,
+        organizationIds: [ORG],
+        reservationId: RESERVATION,
+      },
       error: null,
     });
     process.env.CSF_COMMUNICATIONS_WORKER_BATCH_SIZE = "100000";
@@ -857,6 +979,7 @@ describe("the bounded CSF dispatch worker route", () => {
         data: {
           organizationCount: scopeCalls === 1 ? 1 : 0,
           organizationIds: scopeCalls === 1 ? [ORG] : [],
+          reservationId: scopeCalls === 1 ? RESERVATION : null,
         },
         error: null,
       };
@@ -933,6 +1056,7 @@ describe("the bounded CSF dispatch worker route", () => {
         data: {
           organizationCount: scopeCalls <= 2 ? 1 : 0,
           organizationIds: scopeCalls <= 2 ? [ORG] : [],
+          reservationId: scopeCalls <= 2 ? RESERVATION : null,
         },
         error: null,
       };
@@ -1011,35 +1135,66 @@ describe("the bounded CSF dispatch worker route", () => {
     }
   });
 
-  test("a worker fault for one organization is bounded and leaks nothing", async () => {
-    schedulerScopeHandler = () => ({
-      data: { organizationCount: 1, organizationIds: [ORG] },
-      error: null,
-    });
-    claimHandler = () => ({
-      data: null,
-      error: {
-        message:
-          "row csf_communication_dispatch_attempts for rep.one@local.test",
-        code: "08006",
-      },
-    });
+  test("a claim-time fault is bounded and the next tick rotates to another tenant", async () => {
+    const scopes = [
+      { organizationId: ORG, reservationId: RESERVATION },
+      { organizationId: ORG_TWO, reservationId: RESERVATION_TWO },
+    ];
+    let scopeCall = 0;
+    schedulerScopeHandler = () => {
+      const scope = scopes[scopeCall];
+      scopeCall += 1;
+      return {
+        data: {
+          organizationCount: scope ? 1 : 0,
+          organizationIds: scope ? [scope.organizationId] : [],
+          reservationId: scope?.reservationId ?? null,
+        },
+        error: null,
+      };
+    };
+    let claimCall = 0;
+    claimHandler = () => {
+      claimCall += 1;
+      return claimCall === 1
+        ? {
+            data: null,
+            error: {
+              message:
+                "row csf_communication_dispatch_attempts for rep.one@local.test",
+              code: "08006",
+            },
+          }
+        : { data: { claimedCount: 0, claims: [] }, error: null };
+    };
 
-    const response = await POST(authorized());
-    const body = await response.json();
+    const firstResponse = await POST(authorized());
+    const firstBody = await firstResponse.json();
+    const secondResponse = await POST(authorized());
+    const secondBody = await secondResponse.json();
 
-    expect(response.status).toBe(200);
-    expect(body.faults).toBe(1);
-    expect(body.claimed).toBe(0);
+    expect(firstResponse.status).toBe(200);
+    expect(firstBody.faults).toBe(1);
+    expect(firstBody.claimed).toBe(0);
+    expect(secondResponse.status).toBe(200);
+    expect(secondBody.faults).toBe(0);
+    expect(secondBody.claimed).toBe(0);
     // Nothing was claimed, so nothing was sent.
     expect(sendCalls).toHaveLength(0);
-    // Maintenance still runs after the worker fault. Its locked finalizer refuses
-    // completion while a live lease remains and continues past per-row faults.
     expect(
-      rpcCalls.filter(
-        (call) => call.fn === "csf_maintain_communication_campaigns",
-      ),
-    ).toHaveLength(2);
-    expect(JSON.stringify(body)).not.toContain("rep.one@local.test");
+      rpcCalls
+        .filter(
+          (call) => call.fn === "csf_acknowledge_communication_scheduler_scope",
+        )
+        .map((call) => call.args.p_organization_id),
+    ).toEqual([ORG, ORG_TWO]);
+    expect(
+      rpcCalls
+        .filter((call) => call.fn === "csf_claim_communication_dispatch_batch")
+        .map((call) => call.args.p_organization_id),
+    ).toEqual([ORG, ORG_TWO]);
+    expect(JSON.stringify({ firstBody, secondBody })).not.toContain(
+      "rep.one@local.test",
+    );
   });
 });
