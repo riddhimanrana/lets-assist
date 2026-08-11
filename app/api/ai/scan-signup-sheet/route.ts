@@ -255,8 +255,16 @@ export async function POST(req: NextRequest) {
       windowSeconds: SCAN_WINDOW_SECONDS,
       buckets: [
         { scope: "user", identifier: user.id, limit: SCAN_USER_LIMIT },
-        { scope: "ip", identifier: getRequestIp(req.headers), limit: SCAN_IP_LIMIT },
-        { scope: "project", identifier: batch.project_id, limit: SCAN_PROJECT_LIMIT },
+        {
+          scope: "ip",
+          identifier: getRequestIp(req.headers),
+          limit: SCAN_IP_LIMIT,
+        },
+        {
+          scope: "project",
+          identifier: batch.project_id,
+          limit: SCAN_PROJECT_LIMIT,
+        },
       ],
     });
     if (!quota.allowed) {
@@ -266,7 +274,10 @@ export async function POST(req: NextRequest) {
       );
       return Response.json(
         { error: "Too many scans right now. Please try again shortly." },
-        { status: 429, headers: { "Retry-After": retryAfterSeconds.toString() } },
+        {
+          status: 429,
+          headers: { "Retry-After": retryAfterSeconds.toString() },
+        },
       );
     }
 
@@ -297,7 +308,10 @@ export async function POST(req: NextRequest) {
       .update({ status: "extracting", extraction_error: null })
       .eq("id", batchId);
     // Idempotent restart after a crash: clear any partial staging rows.
-    await admin.from("project_paper_scan_rows").delete().eq("batch_id", batchId);
+    await admin
+      .from("project_paper_scan_rows")
+      .delete()
+      .eq("batch_id", batchId);
 
     const slotStart = new Date(window.startsAt);
     const prompt = buildPaperSignupExtractionPrompt({

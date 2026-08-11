@@ -76,9 +76,9 @@ describe("shouldEscalatePaperScan", () => {
   });
 
   test("escalates an illegible sheet", () => {
-    expect(
-      shouldEscalatePaperScan(extraction({ sheetLegible: false })),
-    ).toBe(true);
+    expect(shouldEscalatePaperScan(extraction({ sheetLegible: false }))).toBe(
+      true,
+    );
   });
 
   test("escalates when no rows were found", () => {

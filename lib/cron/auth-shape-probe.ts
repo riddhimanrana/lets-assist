@@ -47,6 +47,7 @@ export const CRON_PROBE_ROUTE_IDS = [
   "data-exports",
   "csf-communications-dispatch",
   "csf-scheduled-post-publisher",
+  "project-feedback-followups",
 ] as const;
 
 export type CronProbeRouteId = (typeof CRON_PROBE_ROUTE_IDS)[number];

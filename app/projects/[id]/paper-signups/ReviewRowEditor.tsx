@@ -219,7 +219,11 @@ export function ReviewRowEditor({
         </Label>
       </div>
       <div className="flex gap-2 pt-2">
-        <Button onClick={save} disabled={saving} className="flex-1 sm:flex-none">
+        <Button
+          onClick={save}
+          disabled={saving}
+          className="flex-1 sm:flex-none"
+        >
           {saving ? "Saving…" : "Save row"}
         </Button>
         <Button variant="outline" onClick={onClose} disabled={saving}>

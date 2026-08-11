@@ -32,18 +32,18 @@ docs/csf/source-data/
 
 One sheet (`Form Responses 1`), 517 data rows, Google Forms export. Columns:
 
-| Column | Notes |
-|---|---|
-| Timestamp | Form submission time |
-| Email Address | Auth email of submitter — often the school address |
-| Last Name / First Name | Separate columns |
-| Most Frequently Checked Email | Personal email; the better contact channel |
-| Current Grade Level | Numeric 9–12 (float-formatted, e.g. `10.0`) |
-| Returning or New Member | Literal strings `Returning Member` / `New Member` |
-| Shirt Sizing | Often blank |
-| List I / II / III Courses | Multi-line text, one course per line as `Course, Grade, Points` (e.g. `English 10, A, 3`) |
-| Total Points - List I / List I & II / Grand Total - All Lists | Claimed totals (floats) |
-| Transcript Copy | Google Drive open-URL |
+| Column                                                        | Notes                                                                                     |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Timestamp                                                     | Form submission time                                                                      |
+| Email Address                                                 | Auth email of submitter — often the school address                                        |
+| Last Name / First Name                                        | Separate columns                                                                          |
+| Most Frequently Checked Email                                 | Personal email; the better contact channel                                                |
+| Current Grade Level                                           | Numeric 9–12 (float-formatted, e.g. `10.0`)                                               |
+| Returning or New Member                                       | Literal strings `Returning Member` / `New Member`                                         |
+| Shirt Sizing                                                  | Often blank                                                                               |
+| List I / II / III Courses                                     | Multi-line text, one course per line as `Course, Grade, Points` (e.g. `English 10, A, 3`) |
+| Total Points - List I / List I & II / Grand Total - All Lists | Claimed totals (floats)                                                                   |
+| Transcript Copy                                               | Google Drive open-URL                                                                     |
 
 ### CSF March Meeting Attendance 2025.xlsx
 
@@ -53,12 +53,12 @@ One sheet, 354 rows, **no header row** — column A = first name, column B = las
 
 One sheet, header + 32 club rows:
 
-| Column | Notes |
-|---|---|
-| Club | Club name (short/informal — needs alias matching against audit forms) |
-| Point - nondrive | Points per non-drive event (float, typically `2.0`) |
-| ATTENDENCE | (sic) boolean — whether the club tracks attendance |
-| PHOTOS + HOURS | boolean — whether photos+hours evidence was provided |
+| Column           | Notes                                                                 |
+| ---------------- | --------------------------------------------------------------------- |
+| Club             | Club name (short/informal — needs alias matching against audit forms) |
+| Point - nondrive | Points per non-drive event (float, typically `2.0`)                   |
+| ATTENDENCE       | (sic) boolean — whether the club tracks attendance                    |
+| PHOTOS + HOURS   | boolean — whether photos+hours evidence was provided                  |
 
 ### CSF Club Audit Spring 2026 Responses.xlsx
 
@@ -84,29 +84,29 @@ Every club invented its own format. Common denominators: a member-name column (s
 
 Per-file shape (sheet → meaning; only sheets relevant to Fall 25 credit listed as **credit-bearing**):
 
-| File | Credit-bearing sheet(s) | Shape notes |
-|---|---|---|
-| HOSA Card Drive.xlsx | `Sheet1` | Name (combined), cards submitted, points (2 cards = 1 pt) |
-| 2025-2026 Sem 1 Project Morph Audit.xlsx | `Attendance` | Col A is a Yes/No legend, col B names, 3 meeting-date columns; `Meeting Agendas` sheet is context |
-| 25-26 Club Audits - Literacy Through Languages.xlsx | `Sheet1` | Name + 10 dated meeting columns (full year); no points column — derive |
-| 25-26 Semester 1 Music Service Audits.xlsx | `Sheet1` | Name + 3 month columns **containing names, not marks** (columns misused); points as `"2 points"` strings |
-| Attendance 2025-26.xlsx (public-speaking mentoring) | `Mentors`, `Fall 25 - Mentees` | Name + personal email + dated columns; Fall 24 tabs and `Pairings` are history/context, skip |
-| DVI4C Club Audit 25-26 sem 1.xlsx | `Sheet1` | Last, First, Grade, Email, 2 event YES/NO columns, total points, membership status |
-| DVSA CSF Points 2025-2026.xlsx | `CSF Points` | First, Last, Grade, points; `Meeting Agendas` is context |
-| FTY CSF PTS AUDIT Fall 25.xlsx | `csf pts list` | Header in **row 1** (row 0 junk); first, last, 3 boolean meeting cols, points; `Sheet2` empty |
-| FoodForThought Spreadsheet (CSF Audit).xlsx | `Sheet1` | Combined name in "Member First Name", email, 3 month attendance columns (blank = ambiguous) |
-| GWC 2025 Attendance + CSF Points.xlsx | `Attendance + Workshop Points` | Row 0 is banner text; real header row 1: combined name + 7 meeting dates + 5 workshop dates, `Yes` marks; total at far right |
-| Hearts4Hands Attendance Tracker.xlsx | `attendance` | Combined name, 3 dated columns, summary text; ~1000 phantom rows |
-| Letters of Love CSF point tracker....xlsx | `Sheet1` | First, Last, 3 described-meeting columns (blank marks), points column authoritative |
-| Petite Picassos Club Audits Fall 2025.xlsx | `Sheet1` | Combined name, `Attendance` cell holds a **date-like count artifact**, events + description text |
-| Project C.A.R.E. Fall 2025 CSF Audit.xlsx | `Sheet1` | First, Last, 3 boolean meeting columns, points |
-| Sankara Eye Foundation CSF Club Audits.xlsx | `Sheet1` | First, Last, Active flag, Grade, points |
-| Spanish Club Audits Fall 25.xlsx | `Sheet1` | Combined name, date-artifact attendance, events + description text |
-| Stitch a Smile Minutes_ Members....xlsx | `Members Qualified for CSF point` | Authoritative name+points sheet; `MinutesAttendance` (Yes/No per event) is evidence; roster/form sheets are context |
-| TEAMWORKS CSF Points - Semester 1.xlsx | `Sheet1` | Combined name, grade, status, points |
-| TEDx CSF Points Audit Form....xlsx | `Member Info` | First, Last, Grade, Email, 3 meeting columns (`X` marks, sparsely filled), points; `MeetingsEvents` context |
-| TYME (CSF) Attendance 25-26_.xlsx | `Hour Log (Band)`, `Hour Log (Orchestra)` | Name, grade, hours S1/S2, derived points, active + qualify flags; `Form Responses 1` raw check-ins, `Statistics` context; ~1000 phantom rows |
-| Virtual Tutors DVHS CSF points.xlsx | `Form Responses 1` | Junk `Column 1`/`Column 6` columns; combined name, grade, status, `"2 points"` strings |
+| File                                                | Credit-bearing sheet(s)                   | Shape notes                                                                                                                                  |
+| --------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| HOSA Card Drive.xlsx                                | `Sheet1`                                  | Name (combined), cards submitted, points (2 cards = 1 pt)                                                                                    |
+| 2025-2026 Sem 1 Project Morph Audit.xlsx            | `Attendance`                              | Col A is a Yes/No legend, col B names, 3 meeting-date columns; `Meeting Agendas` sheet is context                                            |
+| 25-26 Club Audits - Literacy Through Languages.xlsx | `Sheet1`                                  | Name + 10 dated meeting columns (full year); no points column — derive                                                                       |
+| 25-26 Semester 1 Music Service Audits.xlsx          | `Sheet1`                                  | Name + 3 month columns **containing names, not marks** (columns misused); points as `"2 points"` strings                                     |
+| Attendance 2025-26.xlsx (public-speaking mentoring) | `Mentors`, `Fall 25 - Mentees`            | Name + personal email + dated columns; Fall 24 tabs and `Pairings` are history/context, skip                                                 |
+| DVI4C Club Audit 25-26 sem 1.xlsx                   | `Sheet1`                                  | Last, First, Grade, Email, 2 event YES/NO columns, total points, membership status                                                           |
+| DVSA CSF Points 2025-2026.xlsx                      | `CSF Points`                              | First, Last, Grade, points; `Meeting Agendas` is context                                                                                     |
+| FTY CSF PTS AUDIT Fall 25.xlsx                      | `csf pts list`                            | Header in **row 1** (row 0 junk); first, last, 3 boolean meeting cols, points; `Sheet2` empty                                                |
+| FoodForThought Spreadsheet (CSF Audit).xlsx         | `Sheet1`                                  | Combined name in "Member First Name", email, 3 month attendance columns (blank = ambiguous)                                                  |
+| GWC 2025 Attendance + CSF Points.xlsx               | `Attendance + Workshop Points`            | Row 0 is banner text; real header row 1: combined name + 7 meeting dates + 5 workshop dates, `Yes` marks; total at far right                 |
+| Hearts4Hands Attendance Tracker.xlsx                | `attendance`                              | Combined name, 3 dated columns, summary text; ~1000 phantom rows                                                                             |
+| Letters of Love CSF point tracker....xlsx           | `Sheet1`                                  | First, Last, 3 described-meeting columns (blank marks), points column authoritative                                                          |
+| Petite Picassos Club Audits Fall 2025.xlsx          | `Sheet1`                                  | Combined name, `Attendance` cell holds a **date-like count artifact**, events + description text                                             |
+| Project C.A.R.E. Fall 2025 CSF Audit.xlsx           | `Sheet1`                                  | First, Last, 3 boolean meeting columns, points                                                                                               |
+| Sankara Eye Foundation CSF Club Audits.xlsx         | `Sheet1`                                  | First, Last, Active flag, Grade, points                                                                                                      |
+| Spanish Club Audits Fall 25.xlsx                    | `Sheet1`                                  | Combined name, date-artifact attendance, events + description text                                                                           |
+| Stitch a Smile Minutes_ Members....xlsx             | `Members Qualified for CSF point`         | Authoritative name+points sheet; `MinutesAttendance` (Yes/No per event) is evidence; roster/form sheets are context                          |
+| TEAMWORKS CSF Points - Semester 1.xlsx              | `Sheet1`                                  | Combined name, grade, status, points                                                                                                         |
+| TEDx CSF Points Audit Form....xlsx                  | `Member Info`                             | First, Last, Grade, Email, 3 meeting columns (`X` marks, sparsely filled), points; `MeetingsEvents` context                                  |
+| TYME (CSF) Attendance 25-26_.xlsx                   | `Hour Log (Band)`, `Hour Log (Orchestra)` | Name, grade, hours S1/S2, derived points, active + qualify flags; `Form Responses 1` raw check-ins, `Statistics` context; ~1000 phantom rows |
+| Virtual Tutors DVHS CSF points.xlsx                 | `Form Responses 1`                        | Junk `Column 1`/`Column 6` columns; combined name, grade, status, `"2 points"` strings                                                       |
 
 When a workbook has both a points/total column and per-meeting marks, the points column is authoritative; derived attendance counts are evidence only.
 

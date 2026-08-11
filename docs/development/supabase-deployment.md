@@ -152,15 +152,15 @@ supabase db push --linked --yes
 
 ### Validation Checks
 
-| Check                 | Local Validate | CI/CD | Purpose                             |
-| --------------------- | -------------- | ----- | ----------------------------------- |
-| File format check     | ✓              | ✓     | Catch naming errors early           |
-| Duplicate timestamps  | ✓              | ✓     | Prevent migration conflicts         |
-| Migration replay test | ✓              | ✓     | Ensure migrations work from scratch |
+| Check                 | Local Validate | CI/CD | Purpose                                                        |
+| --------------------- | -------------- | ----- | -------------------------------------------------------------- |
+| File format check     | ✓              | ✓     | Catch naming errors early                                      |
+| Duplicate timestamps  | ✓              | ✓     | Prevent migration conflicts                                    |
+| Migration replay test | ✓              | ✓     | Ensure migrations work from scratch                            |
 | Risky-pattern grep    | ✗              | ✓     | Flags `SELECT *`, `WHERE 1=1`, `-- UNSAFE`. Not a syntax check |
-| Security advisors     | ✓              | ✓     | Find RLS/exposure issues            |
-| Performance advisors  | ✓              | ✓     | Identify missing indexes            |
-| Dry-run check         | ✓              | ✓     | Preview prod changes safely         |
+| Security advisors     | ✓              | ✓     | Find RLS/exposure issues                                       |
+| Performance advisors  | ✓              | ✓     | Identify missing indexes                                       |
+| Dry-run check         | ✓              | ✓     | Preview prod changes safely                                    |
 
 ### Blocking Conditions
 

@@ -43,7 +43,9 @@ test.describe("officer post compose in the class Stream", () => {
     // Classes tab -> class picker -> Class of 2028 workspace (Stream default).
     await page.getByRole("tab", { name: "Classes", exact: true }).click();
     await expect(page).toHaveURL(/[?&]tab=csf-cohorts(?:&|$)/);
-    await page.getByRole("link", { name: "Class of 2028", exact: true }).click();
+    await page
+      .getByRole("link", { name: "Class of 2028", exact: true })
+      .click();
     await expect(page).toHaveURL(/[?&]csf_cohort=/);
 
     const workspaceTabs = page.getByRole("navigation", {
@@ -141,7 +143,9 @@ test.describe("officer post compose in the class Stream", () => {
       .getByRole("region", { name: "Class stream" })
       .getByRole("article")
       .filter({ hasText: composedTitle });
-    await expect(pinnedEntry.getByText("Pinned", { exact: true })).toBeVisible();
+    await expect(
+      pinnedEntry.getByText("Pinned", { exact: true }),
+    ).toBeVisible();
     await expect(
       pinnedEntry.getByRole("button", { name: "Unpin post", exact: true }),
     ).toBeVisible();

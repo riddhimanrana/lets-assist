@@ -67,10 +67,7 @@ export async function GET(request: NextRequest) {
 
     const finalDrain = await drainPaperScanStorageDeletionQueue(supabase);
     if (finalDrain.error) {
-      console.error(
-        "Error deleting purged scan photos:",
-        finalDrain.error,
-      );
+      console.error("Error deleting purged scan photos:", finalDrain.error);
       return NextResponse.json({ error: finalDrain.error }, { status: 500 });
     }
 

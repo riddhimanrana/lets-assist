@@ -122,7 +122,10 @@ export function PaperSignupsClient({
   const handleDiscard = async () => {
     if (!batch) return;
     setDiscarding(true);
-    const result = await discardPaperScanBatch({ projectId, batchId: batch.id });
+    const result = await discardPaperScanBatch({
+      projectId,
+      batchId: batch.id,
+    });
     setDiscarding(false);
     if ("error" in result) {
       toast.error(result.error);
@@ -157,8 +160,8 @@ export function PaperSignupsClient({
           <FileWarning className="size-4" />
           <AlertTitle>This event hasn&apos;t finished yet</AlertTitle>
           <AlertDescription>
-            Paper sheets are usually scanned after the event ends. You can
-            still scan now — recorded times are clamped to the scheduled slot.
+            Paper sheets are usually scanned after the event ends. You can still
+            scan now — recorded times are clamped to the scheduled slot.
           </AlertDescription>
         </Alert>
       )}
@@ -204,9 +207,9 @@ export function PaperSignupsClient({
           }
           sessionPublished={Boolean(
             publishedState[batch.scheduleId] ||
-              publishedState[
-                batch.scheduleId === "oneTime" ? "oneTime" : batch.scheduleId
-              ],
+            publishedState[
+              batch.scheduleId === "oneTime" ? "oneTime" : batch.scheduleId
+            ],
           )}
           discarding={discarding}
           onDiscard={handleDiscard}

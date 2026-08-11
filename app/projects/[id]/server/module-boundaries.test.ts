@@ -34,6 +34,7 @@ const PUBLIC_ACTIONS = [
   "saveWaiverDefinition",
   "signUpForProject",
   "submitProjectFeedback",
+  "submitProjectFeedbackWithToken",
   "togglePauseSignups",
   "unrejectSignup",
   "updateProject",

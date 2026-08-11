@@ -24,7 +24,9 @@ export interface DownscaledImage {
 const DEFAULT_MAX_EDGE = 2000;
 const DEFAULT_QUALITY = 0.82;
 
-async function decodeWithOrientation(file: File): Promise<ImageBitmap | HTMLImageElement> {
+async function decodeWithOrientation(
+  file: File,
+): Promise<ImageBitmap | HTMLImageElement> {
   if (typeof createImageBitmap === "function") {
     try {
       return await createImageBitmap(file, { imageOrientation: "from-image" });

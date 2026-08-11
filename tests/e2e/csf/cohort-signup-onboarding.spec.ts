@@ -134,7 +134,9 @@ async function seedClaimProfile(fixture: SignupFixture) {
     source_summary: { e2eSignupFixture: true },
   });
   if (profileError) {
-    throw new Error(`Could not seed the claim profile: ${profileError.message}`);
+    throw new Error(
+      `Could not seed the claim profile: ${profileError.message}`,
+    );
   }
 
   const { error: membershipError } = await plugin
@@ -154,7 +156,10 @@ async function seedClaimProfile(fixture: SignupFixture) {
   return profileId;
 }
 
-async function cleanSignupFixture(fixture: SignupFixture, userId: string | null) {
+async function cleanSignupFixture(
+  fixture: SignupFixture,
+  userId: string | null,
+) {
   const plugin = fixture.admin.schema("plugin_data");
 
   if (userId) {
@@ -217,7 +222,9 @@ async function cleanSignupFixture(fixture: SignupFixture, userId: string | null)
     .eq("record_status", "active")
     .contains("source_summary", { e2eSignupFixture: true });
   if (profileError) {
-    throw new Error(`Could not retire the claim profile: ${profileError.message}`);
+    throw new Error(
+      `Could not retire the claim profile: ${profileError.message}`,
+    );
   }
 
   if (userId) {
@@ -294,7 +301,10 @@ test.describe("cohort-link signup onboarding", () => {
           const user = await findUserIdByEmail(fixture, signupEmail);
           if (!user) return null;
           createdUserId = user.id;
-          const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+          const metadata = (user.user_metadata ?? {}) as Record<
+            string,
+            unknown
+          >;
           return {
             signupFlow: metadata.signup_flow ?? null,
             introTourDone: metadata.has_completed_intro_tour ?? null,
@@ -408,7 +418,9 @@ test.describe("cohort-link signup onboarding", () => {
       await expect(
         page.getByText("Points at a glance", { exact: true }),
       ).toBeVisible();
-      await page.getByRole("button", { name: "Skip tour", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Skip tour", exact: true })
+        .click();
       await expect(page.getByText("Points at a glance")).toHaveCount(0);
       await expectNoGenericFirstLoginTour(page);
 
@@ -427,9 +439,9 @@ test.describe("cohort-link signup onboarding", () => {
 
     await test.step("/home never shows the generic FirstLoginTour", async () => {
       await page.goto("/home", { waitUntil: "domcontentloaded" });
-      await expect(
-        page.locator("[data-tour-id='home-greeting']"),
-      ).toBeVisible({ timeout: 20_000 });
+      await expect(page.locator("[data-tour-id='home-greeting']")).toBeVisible({
+        timeout: 20_000,
+      });
       // The tour arms itself up to 1.5s after the greeting renders; give it
       // more than that before asserting it never appeared.
       await page.waitForTimeout(2_500);

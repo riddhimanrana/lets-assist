@@ -206,9 +206,7 @@ function scoreCandidate(
   return { score, reasons };
 }
 
-function resultKind(
-  candidate: PaperMatchCandidate,
-): PaperMatchResult["kind"] {
+function resultKind(candidate: PaperMatchCandidate): PaperMatchResult["kind"] {
   if (candidate.signupId) return "existing_signup";
   if (candidate.userId) return "existing_profile";
   if (candidate.anonymousId) return "existing_anonymous";

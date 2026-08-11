@@ -37,7 +37,9 @@ type AccessResult =
   | { ok: false; error: string };
 
 /** Every action re-derives authorization; none trusts a client-supplied id. */
-async function requirePaperScanAccess(projectId: string): Promise<AccessResult> {
+async function requirePaperScanAccess(
+  projectId: string,
+): Promise<AccessResult> {
   const { user, error: authError } = await getAuthUser();
   if (authError || !user) {
     return { ok: false, error: "Authentication required." };
@@ -96,7 +98,11 @@ const createBatchSchema = z
         z
           .object({
             objectPath: z.string().min(1).max(500),
-            sequence: z.number().int().min(0).max(PAPER_SCAN_MAX_IMAGES - 1),
+            sequence: z
+              .number()
+              .int()
+              .min(0)
+              .max(PAPER_SCAN_MAX_IMAGES - 1),
             byteSize: z.number().int().min(1).max(PAPER_SCAN_MAX_IMAGE_BYTES),
             contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
           })
@@ -133,7 +139,9 @@ export async function createPaperScanBatch(input: {
     `^paper_signups/${projectId}/${OBJECT_PATH_SEGMENT}/[0-9]+_[A-Za-z0-9_-]+\\.(jpg|jpeg|png|webp)$`,
   );
   if (!images.every((image) => pathPattern.test(image.objectPath))) {
-    return { error: "One or more uploaded photos are not valid for this project." };
+    return {
+      error: "One or more uploaded photos are not valid for this project.",
+    };
   }
 
   const scheduleId = resolveScheduleId(project, parsed.data.scheduleId);
@@ -311,9 +319,7 @@ export async function getPaperScanImageUrls(input: {
   return {
     urls: images.flatMap((image, index) => {
       const url = signed[index]?.signedUrl;
-      return url
-        ? [{ imageId: image.id, sequence: image.sequence, url }]
-        : [];
+      return url ? [{ imageId: image.id, sequence: image.sequence, url }] : [];
     }),
   };
 }
@@ -322,7 +328,10 @@ const commitSchema = z
   .object({
     projectId: z.string().uuid(),
     batchId: z.string().uuid(),
-    rowIds: z.array(z.string().uuid()).min(1).max(PAPER_SCAN_MAX_ROWS_PER_BATCH),
+    rowIds: z
+      .array(z.string().uuid())
+      .min(1)
+      .max(PAPER_SCAN_MAX_ROWS_PER_BATCH),
     allowOverCapacity: z.boolean(),
     idempotencyKey: z.string().uuid(),
   })

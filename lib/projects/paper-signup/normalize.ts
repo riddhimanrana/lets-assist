@@ -111,9 +111,13 @@ export function resolveRowWindow(options: {
   const { window, timezone, timeIn, timeOut } = options;
 
   let checkInMs =
-    timeIn === null ? window.startsAt : composeSlotInstant(window, timezone, timeIn);
+    timeIn === null
+      ? window.startsAt
+      : composeSlotInstant(window, timezone, timeIn);
   let checkOutMs =
-    timeOut === null ? window.endsAt : composeSlotInstant(window, timezone, timeOut);
+    timeOut === null
+      ? window.endsAt
+      : composeSlotInstant(window, timezone, timeOut);
 
   if (checkInMs === null || checkOutMs === null) return null;
 

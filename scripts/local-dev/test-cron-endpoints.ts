@@ -96,6 +96,10 @@ const ROUTES = [
     id: "csf-scheduled-post-publisher",
     path: "/api/cron/csf-scheduled-post-publisher",
   },
+  {
+    id: "project-feedback-followups",
+    path: "/api/cron/project-feedback-followups",
+  },
 ] as const;
 
 const METHODS = ["GET", "POST"] as const;

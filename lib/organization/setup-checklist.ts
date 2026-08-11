@@ -13,10 +13,7 @@
  */
 
 export type OrganizationSetupItemId =
-  | "details"
-  | "invite"
-  | "plugin"
-  | "project";
+  "details" | "invite" | "plugin" | "project";
 
 /**
  * Every field here is already loaded by the organization page — `logo_url`,
@@ -69,8 +66,7 @@ export function deriveOrganizationSetupChecklist(
       title: "Add your organization details",
       description: "A logo, a description, and a type help people find you.",
       href: `/organization/${slug}/settings`,
-      complete:
-        snapshot.hasLogo && snapshot.hasDescription && snapshot.hasType,
+      complete: snapshot.hasLogo && snapshot.hasDescription && snapshot.hasType,
     },
     {
       id: "invite",

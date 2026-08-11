@@ -78,9 +78,7 @@ export function FeedbackClient({
       <Card className="mb-6">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-baseline gap-3">
-            <span className="text-3xl">
-              {summary.average ?? "—"}
-            </span>
+            <span className="text-3xl">{summary.average ?? "—"}</span>
             {summary.average !== null && (
               <Stars rating={Math.round(summary.average)} />
             )}

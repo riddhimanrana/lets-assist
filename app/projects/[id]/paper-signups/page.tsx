@@ -5,10 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
 import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
-import {
-  getMultiDaySlotDisplayName,
-  getProjectStatus,
-} from "@/utils/project";
+import { getMultiDaySlotDisplayName, getProjectStatus } from "@/utils/project";
 import type { Project } from "@/types";
 
 import {

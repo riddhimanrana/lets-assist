@@ -276,8 +276,7 @@ export default function UserDashboard({
 
   // --- Private post-project feedback ---
   const attendedFeedbackSignupId = useMemo(
-    () =>
-      signups.find((signup) => signup.status === "attended")?.id ?? null,
+    () => signups.find((signup) => signup.status === "attended")?.id ?? null,
     [signups],
   );
   const [myFeedback, setMyFeedback] = useState<{

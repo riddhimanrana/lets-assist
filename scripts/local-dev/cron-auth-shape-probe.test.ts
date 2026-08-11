@@ -440,7 +440,7 @@ const EXACT_PROBE_HEADERS = headersWith({
 // ---------------------------------------------------------------------------
 
 describe("cron auth/shape probe helper contract", () => {
-  test("exposes exactly the seven stable route IDs", () => {
+  test("exposes exactly the eight stable route IDs", () => {
     expect([...CRON_PROBE_ROUTE_IDS]).toEqual([
       "auto-publish-hours",
       "project-cancellations",
@@ -449,6 +449,7 @@ describe("cron auth/shape probe helper contract", () => {
       "data-exports",
       "csf-communications-dispatch",
       "csf-scheduled-post-publisher",
+      "project-feedback-followups",
     ]);
     expect(CRON_AUTH_SHAPE_PROBE_ENV).toBe("CRON_AUTH_SHAPE_PROBE_ONLY");
     expect(CRON_AUTH_SHAPE_PROBE_MODE).toBe("auth-shape-v1");

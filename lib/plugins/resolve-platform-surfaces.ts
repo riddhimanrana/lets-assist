@@ -110,7 +110,9 @@ async function loadActiveMemberships(
 ): Promise<PlatformPluginMembership[]> {
   const { data, error } = await supabase
     .from("organization_members")
-    .select("organization_id, role, organization:organizations(id, name, username)")
+    .select(
+      "organization_id, role, organization:organizations(id, name, username)",
+    )
     .eq("user_id", userId)
     .eq("status", "active");
 
@@ -165,9 +167,7 @@ async function loadEligiblePlatformPlugins(input: {
 
   const installRows = await loadAccessibleOrganizationPluginAccess({
     supabase: accessClient,
-    organizationIds: memberships.map(
-      (membership) => membership.organizationId,
-    ),
+    organizationIds: memberships.map((membership) => membership.organizationId),
   });
 
   const membershipByOrganization = new Map(
@@ -259,7 +259,10 @@ export async function listPlatformPluginSources(
     surfaces: PLATFORM_SURFACES,
   });
 
-  const sources = new Map<string, PlatformPluginSource & { orgs: Set<string> }>();
+  const sources = new Map<
+    string,
+    PlatformPluginSource & { orgs: Set<string> }
+  >();
   for (const { plugin, membership } of eligible) {
     const key = plugin.manifest.key;
     const existing = sources.get(key);

@@ -27,7 +27,9 @@ const ONLY = (process.env.ONLY ?? "")
 const ORG = "dvhs-csf";
 
 if (!PASSWORD) {
-  throw new Error("Set CSF_LOCAL_TEST_PASSWORD to the isolated fixture password.");
+  throw new Error(
+    "Set CSF_LOCAL_TEST_PASSWORD to the isolated fixture password.",
+  );
 }
 
 const SHOTS = [
@@ -140,7 +142,13 @@ async function main() {
 
   if (context) await context.close();
   await browser.close();
-  console.log(JSON.stringify({ ok: true, count: results.length, outDir: OUT_DIR }, null, 2));
+  console.log(
+    JSON.stringify(
+      { ok: true, count: results.length, outDir: OUT_DIR },
+      null,
+      2,
+    ),
+  );
 }
 
 await main();

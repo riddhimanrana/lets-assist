@@ -152,9 +152,7 @@ export function CaptureStep({
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(
-          payload?.error ?? "Scanning failed. Please try again.",
-        );
+        throw new Error(payload?.error ?? "Scanning failed. Please try again.");
       }
 
       toast.success(
@@ -258,7 +256,10 @@ export function CaptureStep({
           className="w-full sm:w-auto"
         >
           <ScanText className="size-4" />
-          Scan {photos.length > 0 ? `${photos.length} photo${photos.length === 1 ? "" : "s"}` : "sheet"}
+          Scan{" "}
+          {photos.length > 0
+            ? `${photos.length} photo${photos.length === 1 ? "" : "s"}`
+            : "sheet"}
         </Button>
       </CardFooter>
     </Card>

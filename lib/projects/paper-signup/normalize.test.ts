@@ -67,9 +67,7 @@ describe("composeSlotInstant", () => {
   test("composes on the slot's local date in the project timezone", () => {
     const window = windowFor("2026-06-15", "10:00", "12:00");
     const instant = composeSlotInstant(window, TZ, "11:00");
-    expect(instant).toBe(
-      new TZDate(2026, 5, 15, 11, 0, 0, TZ).getTime(),
-    );
+    expect(instant).toBe(new TZDate(2026, 5, 15, 11, 0, 0, TZ).getTime());
   });
 
   test("stays correct across the fall-back DST boundary", () => {

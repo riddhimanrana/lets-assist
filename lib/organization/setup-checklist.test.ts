@@ -35,9 +35,9 @@ describe("deriveOrganizationSetupChecklist", () => {
     const partial = deriveOrganizationSetupChecklist(
       snapshot({ hasLogo: true, hasDescription: true }),
     );
-    expect(
-      partial.items.find((item) => item.id === "details")?.complete,
-    ).toBe(false);
+    expect(partial.items.find((item) => item.id === "details")?.complete).toBe(
+      false,
+    );
 
     const full = deriveOrganizationSetupChecklist(
       snapshot({ hasLogo: true, hasDescription: true, hasType: true }),

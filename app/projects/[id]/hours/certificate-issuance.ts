@@ -185,8 +185,7 @@ export async function issueCertificatesForSignups(options: {
         project_id: projectId,
         user_id: signup.user_id,
         signup_id: signup.id,
-        volunteer_name:
-          profile?.full_name || anon?.name || "No Name Volunteer",
+        volunteer_name: profile?.full_name || anon?.name || "No Name Volunteer",
         volunteer_email: profile?.email || anon?.email || null,
         project_title: projectData.title,
         project_location: projectData.location,

@@ -8,10 +8,10 @@ Read the [inert surfaces](#surfaces-that-do-not-do-anything-yet) section before 
 
 Installing a plugin takes two different people in two different places.
 
-| | Who | Where | What it does |
-|---|---|---|---|
-| **Platform control** | Super admin | `/admin/plugins` | Publishes the plugin to the catalog and grants an organization the right to use it |
-| **Organization install** | Organization **admin** | `/organization/[id]/settings` | Turns it on for that organization and configures it |
+|                          | Who                    | Where                         | What it does                                                                       |
+| ------------------------ | ---------------------- | ----------------------------- | ---------------------------------------------------------------------------------- |
+| **Platform control**     | Super admin            | `/admin/plugins`              | Publishes the plugin to the catalog and grants an organization the right to use it |
+| **Organization install** | Organization **admin** | `/organization/[id]/settings` | Turns it on for that organization and configures it                                |
 
 Neither side can do the other's job. A super admin granting an entitlement does not install anything; an org admin cannot install a private plugin they have no entitlement for. Organization **staff** cannot manage plugins at all — `isOrganizationAdminForSettings()` requires role `admin`.
 
@@ -21,7 +21,7 @@ Neither side can do the other's job. A super admin granting an entitlement does 
 
 - **`is_active`** — the master switch. Inactive means the plugin is unavailable everywhere, regardless of entitlements or installs.
 - **`visibility`** — `global` makes the plugin installable by any organization. Anything else requires a per-organization entitlement.
-- **`latest_version`** — what an org receives when it installs or clicks update. This is the value written to `installed_version`; the plugin's own `manifest.version` is *not* consulted (see [version drift](#version-drift)).
+- **`latest_version`** — what an org receives when it installs or clicks update. This is the value written to `installed_version`; the plugin's own `manifest.version` is _not_ consulted (see [version drift](#version-drift)).
 - **`force_update_version`** — the floor. Any organization whose `installed_version` is below this loses the plugin **entirely** at runtime until an admin updates. Validated only as "force ≤ latest".
 
 ## Step 2 — Grant an entitlement (super admin)
@@ -86,26 +86,26 @@ Worth knowing which guarantees are real:
 
 These exist in the schema, and several appear in the admin UI, but **no code path reads them**. Do not plan a rollout around them:
 
-| Surface | Reality |
-|---|---|
-| `plugin_versions` review workflow | `draft → review → published/rejected`, `commit_sha`, `review_notes` — all inert. Nothing reads the table. |
-| `organization_plugin_feature_flags`, `rollout_percentage` | Feature gating and percentage rollout are **unimplemented**. |
-| `organization_plugin_installs.auto_update` | Never read. Updates are always manual or forced. |
+| Surface                                                                       | Reality                                                                                                                                                     |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `plugin_versions` review workflow                                             | `draft → review → published/rejected`, `commit_sha`, `review_notes` — all inert. Nothing reads the table.                                                   |
+| `organization_plugin_feature_flags`, `rollout_percentage`                     | Feature gating and percentage rollout are **unimplemented**.                                                                                                |
+| `organization_plugin_installs.auto_update`                                    | Never read. Updates are always manual or forced.                                                                                                            |
 | `organization_plugin_data_boundaries`, `organization_data_isolation_profiles` | Editable in the admin UI, consulted by no enforcement path. The `shared / dedicated_schema / dedicated_project / external` model is planning metadata only. |
-| `validatePluginUninstall` | Always returns `canUninstall: true`, and the transition path never calls it. |
-| `plugin_runtime_contracts` | Only refreshed when a super admin loads `/admin/plugins`, so it is stale by default, and it silently skips any registered plugin with no catalog row. |
+| `validatePluginUninstall`                                                     | Always returns `canUninstall: true`, and the transition path never calls it.                                                                                |
+| `plugin_runtime_contracts`                                                    | Only refreshed when a super admin loads `/admin/plugins`, so it is stale by default, and it silently skips any registered plugin with no catalog row.       |
 
 There is also **no plugin signing or attestation**. The trust root is the private submodule's pinned commit, verified at build time by `scripts/check-private-submodules.mjs`. The catalog's `code_repository` and `code_reference` fields are display-only and are never checked against anything.
 
 ## Troubleshooting
 
-| Symptom | Cause to check first |
-|---|---|
-| Plugin missing for everyone in the org | `plugins.is_active`; entitlement window; `force_update_version` above the org's `installed_version` |
-| Plugin missing for members but visible to admins | The manifest's `minimumRole`, or a surface's `surfaceAccess` entry |
-| "You have no plugins" for everyone, suddenly | `loadAccessibleOrganizationPluginAccess` defaults to `failureMode: "empty"` — a database outage is indistinguishable from no entitlement. Check the database before the entitlements. |
-| Install fails with a concurrency error | A lease is held, or a lifecycle hook bumped `updated_at` mid-transition. Retry once, then check `plugin_audit_logs`. |
-| No audit row for a config or version change | Fixed on `development`; before that the action CHECK rejected six lifecycle values and the error was swallowed. |
+| Symptom                                          | Cause to check first                                                                                                                                                                  |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plugin missing for everyone in the org           | `plugins.is_active`; entitlement window; `force_update_version` above the org's `installed_version`                                                                                   |
+| Plugin missing for members but visible to admins | The manifest's `minimumRole`, or a surface's `surfaceAccess` entry                                                                                                                    |
+| "You have no plugins" for everyone, suddenly     | `loadAccessibleOrganizationPluginAccess` defaults to `failureMode: "empty"` — a database outage is indistinguishable from no entitlement. Check the database before the entitlements. |
+| Install fails with a concurrency error           | A lease is held, or a lifecycle hook bumped `updated_at` mid-transition. Retry once, then check `plugin_audit_logs`.                                                                  |
+| No audit row for a config or version change      | Fixed on `development`; before that the action CHECK rejected six lifecycle values and the error was swallowed.                                                                       |
 
 ## Related
 

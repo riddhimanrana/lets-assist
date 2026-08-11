@@ -34,7 +34,10 @@ export function ProjectFeedbackForm({
   onSubmitted,
 }: ProjectFeedbackFormProps) {
   const [rating, setRating] = useState<number>(
-    initial?.rating ?? (initialRating && initialRating >= 1 && initialRating <= 5 ? initialRating : 0),
+    initial?.rating ??
+      (initialRating && initialRating >= 1 && initialRating <= 5
+        ? initialRating
+        : 0),
   );
   const [hovered, setHovered] = useState(0);
   const [comment, setComment] = useState(initial?.comment ?? "");
@@ -68,7 +71,10 @@ export function ProjectFeedbackForm({
   if (submitted && !editing) {
     return (
       <div className="space-y-2">
-        <div className="flex items-center gap-1" aria-label={`Your rating: ${rating} of 5`}>
+        <div
+          className="flex items-center gap-1"
+          aria-label={`Your rating: ${rating} of 5`}
+        >
           {[1, 2, 3, 4, 5].map((value) => (
             <Star
               key={value}
@@ -153,7 +159,11 @@ export function ProjectFeedbackForm({
 
       <div className="flex gap-2">
         <Button onClick={submit} disabled={pending || rating < 1}>
-          {pending ? "Sending…" : submitted ? "Update feedback" : "Send feedback"}
+          {pending
+            ? "Sending…"
+            : submitted
+              ? "Update feedback"
+              : "Send feedback"}
         </Button>
         {submitted && (
           <Button

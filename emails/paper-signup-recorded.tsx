@@ -63,15 +63,13 @@ export default function PaperSignupRecorded({
             <EmailHeader />
 
             <Section style={content}>
-              <Heading style={heading1}>
-                Your volunteering was recorded
-              </Heading>
+              <Heading style={heading1}>Your volunteering was recorded</Heading>
               <Text style={paragraph}>Hi {volunteerName},</Text>
               <Text style={paragraph}>
                 {organizerName} recorded your attendance at{" "}
                 <strong>{projectName}</strong> from the paper signup sheet you
-                filled out at the event. Your volunteer hours are now tracked
-                on Let&apos;s Assist.
+                filled out at the event. Your volunteer hours are now tracked on
+                Let&apos;s Assist.
               </Text>
 
               <Section style={detailsBox}>
@@ -113,9 +111,9 @@ export default function PaperSignupRecorded({
               <Section style={infoBox}>
                 <Text style={infoTitle}>Keep your hours in one place</Text>
                 <Text style={smallText}>
-                  From your volunteer record you can view certificates and
-                  link this attendance to a Let&apos;s Assist account so all
-                  your hours live together.
+                  From your volunteer record you can view certificates and link
+                  this attendance to a Let&apos;s Assist account so all your
+                  hours live together.
                 </Text>
                 <Link style={link} href={anonymousProfileUrl}>
                   {anonymousProfileUrl}
@@ -123,8 +121,8 @@ export default function PaperSignupRecorded({
               </Section>
 
               <Text style={smallText}>
-                Didn&apos;t volunteer at this event? You can ignore this email
-                — no account was created for you.
+                Didn&apos;t volunteer at this event? You can ignore this email —
+                no account was created for you.
               </Text>
             </Section>
 

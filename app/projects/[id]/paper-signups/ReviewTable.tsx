@@ -334,9 +334,7 @@ export function ReviewTable({
               {rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className={cn(
-                    row.decision !== "include" && "opacity-50",
-                  )}
+                  className={cn(row.decision !== "include" && "opacity-50")}
                 >
                   <TableCell>
                     <Checkbox
@@ -447,8 +445,8 @@ export function ReviewTable({
                   <AlertDialogDescription>
                     {summary.withEmail.length} attendance record
                     {summary.withEmail.length === 1 ? "" : "s"} will be created
-                    or updated, and {summary.rosterOnly.length} roster-only
-                    entr{summary.rosterOnly.length === 1 ? "y" : "ies"} saved.
+                    or updated, and {summary.rosterOnly.length} roster-only entr
+                    {summary.rosterOnly.length === 1 ? "y" : "ies"} saved.
                     Volunteers with a new record are emailed a link to it. This
                     can&apos;t be undone from this screen.
                   </AlertDialogDescription>

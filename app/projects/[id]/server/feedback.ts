@@ -189,6 +189,139 @@ export async function submitProjectFeedback(input: {
   return { success: true };
 }
 
+const tokenFeedbackSchema = z
+  .object({
+    requestId: z.string().uuid(),
+    token: z.string().min(1).max(4096),
+    rating: z.number().int().min(1).max(5),
+    comment: z.string().trim().max(2000).optional().nullable(),
+  })
+  .strict();
+
+/**
+ * Email-link submission. The HMAC token IS the authorization: nothing from
+ * the body is trusted beyond rating and comment, and the write happens with
+ * the admin client because the bearer has no session.
+ */
+export async function submitProjectFeedbackWithToken(input: {
+  requestId: string;
+  token: string;
+  rating: number;
+  comment?: string | null;
+}): Promise<{ success: boolean; error?: string }> {
+  "use server";
+  const parsed = tokenFeedbackSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Invalid feedback." };
+  }
+  const { requestId, token, rating } = parsed.data;
+  const comment = parsed.data.comment?.trim() || null;
+
+  const { verifyProjectFeedbackToken } =
+    await import("@/services/project-feedback-token");
+  const payload = verifyProjectFeedbackToken(token);
+  if (!payload || payload.requestId !== requestId) {
+    return {
+      success: false,
+      error: "This feedback link is invalid or expired.",
+    };
+  }
+
+  const admin = getAdminClient();
+  const { data: request } = await admin
+    .from("project_feedback_requests")
+    .select("id, project_id, signup_id, user_id, anonymous_id")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (!request || request.project_id !== payload.projectId) {
+    return {
+      success: false,
+      error: "This feedback link is invalid or expired.",
+    };
+  }
+  const subjectMatches =
+    payload.subject.kind === "user"
+      ? request.user_id === payload.subject.userId
+      : request.anonymous_id === payload.subject.anonymousSignupId;
+  if (!subjectMatches) {
+    return {
+      success: false,
+      error: "This feedback link is invalid or expired.",
+    };
+  }
+
+  try {
+    const quota = await consumeAiQuota({
+      feature: "project-feedback",
+      windowSeconds: 3600,
+      buckets: [{ scope: "token", identifier: requestId, limit: 10 }],
+    });
+    if (!quota.allowed) {
+      return {
+        success: false,
+        error: "Too many submissions right now. Please try again shortly.",
+      };
+    }
+  } catch (error) {
+    console.error("Token feedback rate-limit check failed:", error);
+  }
+
+  const identity = request.user_id
+    ? { user_id: request.user_id, anonymous_id: null }
+    : { user_id: null, anonymous_id: request.anonymous_id };
+
+  const { data: existing } = await admin
+    .from("project_feedback")
+    .select("id")
+    .eq("project_id", request.project_id)
+    .eq(
+      request.user_id ? "user_id" : "anonymous_id",
+      (request.user_id ?? request.anonymous_id)!,
+    )
+    .maybeSingle();
+
+  let feedbackId: string;
+  if (existing) {
+    const { error: updateError } = await admin
+      .from("project_feedback")
+      .update({ rating, comment })
+      .eq("id", existing.id);
+    if (updateError) {
+      return { success: false, error: "Could not update your feedback." };
+    }
+    feedbackId = existing.id;
+  } else {
+    const { data: inserted, error: insertError } = await admin
+      .from("project_feedback")
+      .insert({
+        project_id: request.project_id,
+        ...identity,
+        signup_id: request.signup_id,
+        rating,
+        comment,
+        submitted_via: "email_link",
+        comment_moderation_status: comment ? "pending" : "not_applicable",
+      })
+      .select("id")
+      .single();
+    if (insertError || !inserted) {
+      return { success: false, error: "Could not save your feedback." };
+    }
+    feedbackId = inserted.id;
+  }
+
+  if (comment) {
+    await moderateFeedbackComment(
+      feedbackId,
+      comment,
+      request.user_id ?? request.anonymous_id ?? "anonymous",
+    );
+  }
+
+  revalidatePath(`/projects/${request.project_id}/feedback`);
+  return { success: true };
+}
+
 export async function getMyProjectFeedback(projectId: string): Promise<{
   feedback: { rating: number; comment: string | null } | null;
 }> {
@@ -288,8 +421,7 @@ export async function getProjectFeedbackSummary(projectId: string): Promise<
       rating: row.rating,
       // A blocked comment is suppressed for the organizer; the text
       // survives only in the moderation pipeline.
-      comment:
-        row.comment_moderation_status === "blocked" ? null : row.comment,
+      comment: row.comment_moderation_status === "blocked" ? null : row.comment,
       commentModerationStatus: row.comment_moderation_status,
       volunteerName: profile?.full_name ?? anon?.name ?? null,
       submittedVia: row.submitted_via,

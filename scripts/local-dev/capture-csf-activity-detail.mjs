@@ -18,7 +18,9 @@ const ONLY = (process.env.ONLY ?? "")
 const ORG = "dvhs-csf";
 
 if (!PASSWORD) {
-  throw new Error("Set CSF_LOCAL_TEST_PASSWORD to the isolated fixture password.");
+  throw new Error(
+    "Set CSF_LOCAL_TEST_PASSWORD to the isolated fixture password.",
+  );
 }
 
 const ACTIVITIES = [

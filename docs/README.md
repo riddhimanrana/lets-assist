@@ -35,6 +35,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Production cutover runbook](development/production-cutover-runbook.md)
 - [Local fictional accounts](development/local-accounts.md)
 - [Member import parser setup](development/member-imports.md)
+- [Post-project suite: paper signups, feedback, follow-up email](development/post-project-suite.md)
 - [Google Cross-Account Protection](development/google-cross-account-protection.md)
 - [Database simplification roadmap](development/database-simplification-roadmap.md)
 - [Dependency modernization ledger](development/dependency-modernization.md)

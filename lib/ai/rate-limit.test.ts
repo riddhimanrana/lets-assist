@@ -3,8 +3,11 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 type RpcCall = { key: string; limit: number; windowSeconds: number };
 
 const rpcCalls: RpcCall[] = [];
-let rpcResponses: Array<{ allowed: boolean; remaining: number; reset_at: string }> =
-  [];
+let rpcResponses: Array<{
+  allowed: boolean;
+  remaining: number;
+  reset_at: string;
+}> = [];
 
 mock.module("@/lib/supabase/admin", () => ({
   getAdminClient: () => ({
