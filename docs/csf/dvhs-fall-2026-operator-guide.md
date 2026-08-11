@@ -126,12 +126,12 @@ person actually needs.
 
 ### Privacy-safe source totals verified 2026-08-10
 
-| Graduating class | Historical source | Exact bounded range | Rows after header |
-| --- | --- | --- | ---: |
-| 2027 | `c/o 2027` → `S26` | `A1:O168` | 167 |
-| 2028 | `c/o 2028` → `S26` | `A1:O168` | 167 |
-| 2029 | `c/o 2029` → `S26` | `A1:N89` | 88 |
-| 2030 | `c/o 2030` → `F26` | `A1:O1` | 0; header only, do not import |
+| Graduating class | Historical source  | Exact bounded range |             Rows after header |
+| ---------------- | ------------------ | ------------------- | ----------------------------: |
+| 2027             | `c/o 2027` → `S26` | `A1:O168`           |                           167 |
+| 2028             | `c/o 2028` → `S26` | `A1:O168`           |                           167 |
+| 2029             | `c/o 2029` → `S26` | `A1:N89`            |                            88 |
+| 2030             | `c/o 2030` → `F26` | `A1:O1`             | 0; header only, do not import |
 
 The three non-empty class sheets contain 422 unique names with no exact
 cross-class overlap. They do not contain reliable account emails, so they are
@@ -145,10 +145,10 @@ The Spring 2026 application source is `CSF Application - Spring 2026
 Exact-name reconciliation before any commit currently produces:
 
 | Fall 2026 class | Application-only | Class-sheet-only | Exact overlap |
-| --- | ---: | ---: | ---: |
-| 2027 | 5 | 6 | 161 |
-| 2028 | 11 | 3 | 164 |
-| 2029 | 2 | 0 | 88 |
+| --------------- | ---------------: | ---------------: | ------------: |
+| 2027            |                5 |                6 |           161 |
+| 2028            |               11 |                3 |           164 |
+| 2029            |                2 |                0 |            88 |
 
 These differences are a review queue, not errors to auto-resolve. Grade 12
 responses belong to the graduated Class of 2026 and must not be placed in an
@@ -199,4 +199,3 @@ active Fall 2026 class.
 - [Officer runbook](officer-runbook.md)
 - [Source data semantics](source-data.md)
 - [Testing and release evidence](testing-and-release.md)
-
