@@ -208,7 +208,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
 - [x] Latest focused hardening gate: 73/73 Bun tests with 761 expectations; root typecheck clean; focused ESLint clean
 - [x] Formatting, source organization, typecheck, and lint: 0 errors and 0 warnings
 - [x] `bun run csf:test:workflows`, `bun run csf:test:scale`, and the 5-route cron probe passed locally; cron recorded 269 assertions, zero dispatch, and zero egress
-- [ ] Supabase advisor closeout: architecture and tenant/data-access hard checks pass, but Development leaked-password protection and Production `pg_graphql` discoverability findings still require explicit resolution
+- [ ] Supabase advisor closeout: architecture and tenant/data-access hard checks pass, and Development leaked-password protection was enabled in the Supabase Auth settings on August 11, 2026; Production `pg_graphql` discoverability findings still require explicit resolution
 - [x] Post-hardening private-plugin isolation browser/API smoke
 - [x] Exact detached private gitlink, registry/runtime contracts, and strict submodule validation pass
 - [x] `bun audit --production`: no vulnerabilities
