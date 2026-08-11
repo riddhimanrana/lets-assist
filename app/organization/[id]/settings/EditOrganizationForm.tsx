@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -48,6 +48,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Organization } from "@/types";
+
+import { hasOrganizationFormChanges } from "./organization-form-change";
 
 // Constants
 const USERNAME_MAX_LENGTH = 32;
@@ -142,6 +144,26 @@ export default function EditOrganizationForm({
   )
     ? (organization.type as OrganizationTypeOption)
     : "nonprofit";
+  const initialValues = useMemo<OrganizationFormValues>(
+    () => ({
+      name: organization.name || "",
+      username: organization.username || "",
+      description: organization.description || "",
+      website: organization.website || "",
+      type: resolvedOrgType,
+      logoUrl: organization.logo_url || null,
+      showMembersPublicly: organization.show_members_publicly !== false,
+    }),
+    [
+      organization.description,
+      organization.logo_url,
+      organization.name,
+      organization.show_members_publicly,
+      organization.username,
+      organization.website,
+      resolvedOrgType,
+    ],
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
     null,
@@ -158,15 +180,7 @@ export default function EditOrganizationForm({
   // Setup form with initial values from organization
   const form = useForm<OrganizationFormValues>({
     resolver: zodResolver(orgUpdateSchema),
-    defaultValues: {
-      name: organization.name || "",
-      username: organization.username || "",
-      description: organization.description || "",
-      website: organization.website || "",
-      type: resolvedOrgType,
-      logoUrl: organization.logo_url || null,
-      showMembersPublicly: organization.show_members_publicly !== false,
-    },
+    defaultValues: initialValues,
   });
 
   // Watch all form values and detect changes more reliably
@@ -174,27 +188,16 @@ export default function EditOrganizationForm({
 
   useEffect(() => {
     const subscription = form.watch((value) => {
-      // Check if any field has changed from initial values
-      const hasFormChanges = Object.keys(value).some((key) => {
-        const orgKey = (
-          key === "logoUrl" ? "logo_url" : key
-        ) as keyof OrganizationWithSettings;
-        const initialValue = organization[orgKey];
-        const currentValue = value[key as keyof OrganizationFormValues];
-
-        // Handle empty strings and null values
-        if (!initialValue && !currentValue) return false;
-        if (!initialValue && currentValue === "") return false;
-        if (!currentValue && initialValue === "") return false;
-
-        return initialValue !== currentValue;
-      });
-
-      setHasChanges(hasFormChanges);
+      setHasChanges(
+        hasOrganizationFormChanges(
+          initialValues,
+          value as OrganizationFormValues,
+        ),
+      );
     });
 
     return () => subscription.unsubscribe();
-  }, [form, organization]);
+  }, [form, initialValues]);
 
   // Check if organization username is still available when changed
   const currentUsername = organization.username;
