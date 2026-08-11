@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 
+import { resolveCsfCommunicationsEnvironment } from "@/services/csf-communications-environment";
+
 /**
  * Resend webhook implementation for DVHS CSF durable communications.
  *
@@ -44,6 +46,8 @@ export const CSF_CAMPAIGN_TAG = "csf_campaign_id";
  * single byte of message content or a recipient address.
  */
 export const CSF_ATTEMPT_TAG = "csf_attempt_id";
+/** Signed tag carrying the Supabase backend that owns the ledger row. */
+export const CSF_ENVIRONMENT_TAG = "csf_environment";
 /** Signed tag carrying the broadcast topic, when the send was a broadcast. */
 export const CSF_TOPIC_TAG = "csf_topic_key";
 
@@ -73,6 +77,7 @@ export type CsfRouting = {
   organizationId: string | null;
   campaignId: string | null;
   attemptId: string | null;
+  environment: string | null;
   topicKey: string | null;
 };
 
@@ -153,6 +158,7 @@ export function extractCsfRouting(event: unknown): CsfRouting {
     organizationId: isCsf ? organizationId : null,
     campaignId: isCsf ? readUuidTag(event, CSF_CAMPAIGN_TAG) : null,
     attemptId: isCsf ? readUuidTag(event, CSF_ATTEMPT_TAG) : null,
+    environment: isCsf ? readSignedTag(event, CSF_ENVIRONMENT_TAG) : null,
     topicKey: isCsf && topicKey ? topicKey : null,
   };
 }
@@ -1037,6 +1043,49 @@ export async function POST(req: NextRequest) {
       csf: false,
     });
     return NextResponse.json({ received: true, csf: false });
+  }
+
+  // RESEND WEBHOOK SUBSCRIPTIONS ARE ACCOUNT-WIDE. Both the Production and
+  // Development endpoints receive the same signed event, so the provider
+  // payload carries the backend coordinate that authored it. A foreign event is
+  // valid CSF evidence, just not evidence for this database; acknowledge it
+  // without creating a false quarantine row or attempting a cross-environment
+  // organization lookup.
+  //
+  // Missing coordinates keep the legacy behavior below. That preserves events
+  // created before this tag existed while every new campaign is required to
+  // carry it by the canonical provider-request builder.
+  if (routing.environment !== null) {
+    let currentEnvironment: string;
+    try {
+      currentEnvironment = resolveCsfCommunicationsEnvironment();
+    } catch {
+      logWebhook(
+        "error",
+        "CSF webhook could not resolve its current environment.",
+        {
+          providerEventId: id,
+          eventType: safeEventType,
+        },
+      );
+      return NextResponse.json(
+        { error: "Webhook environment is not configured." },
+        { status: 503 },
+      );
+    }
+
+    if (routing.environment !== currentEnvironment) {
+      logWebhook("info", "Acknowledged CSF webhook for another environment.", {
+        providerEventId: id,
+        eventType: safeEventType,
+        csf: true,
+      });
+      return NextResponse.json({
+        received: true,
+        csf: true,
+        foreignEnvironment: true,
+      });
+    }
   }
 
   if (!boundedEventType) {

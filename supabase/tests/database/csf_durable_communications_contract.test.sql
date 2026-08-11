@@ -33,6 +33,13 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 -- from a grep, and must be updated whenever an assertion is added or removed.
 SELECT extensions.plan(125);
 
+-- This transaction is one synthetic local backend. Direct fixture inserts do
+-- not pass through the server wrapper that derives the hosted project ref, so
+-- make their signed environment coordinate explicit at the table boundary.
+ALTER TABLE plugin_data.csf_communication_campaigns
+  ALTER COLUMN metadata
+  SET DEFAULT '{"csf_environment":"local"}'::jsonb;
+
 -- ---------------------------------------------------------------------------
 -- A. THE AT-REST CONTRACT
 --

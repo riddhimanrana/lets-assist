@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { CsfPluginRpc } from "@/services/csf-communications-worker";
+import { resolveCsfCommunicationsEnvironment } from "@/services/csf-communications-environment";
 import {
   boundedRpcFaultCode,
   CsfWorkerRpcError,
@@ -154,7 +155,12 @@ export async function createCsfCampaignDraft(
     p_body_html: input.bodyHtml ?? null,
     p_broadcast_topic_key: input.broadcastTopicKey ?? null,
     p_resend_topic_id: input.resendTopicId ?? null,
-    p_tags: input.tags ?? {},
+    p_tags: {
+      ...(input.tags ?? {}),
+      // Server-derived and deliberately last: callers may add operational tags,
+      // but they cannot claim that a message belongs to another backend.
+      csf_environment: resolveCsfCommunicationsEnvironment(),
+    },
     p_correlation_id: input.correlationId ?? null,
     p_source_announcement_id: input.sourceAnnouncementId ?? null,
   });
