@@ -12,6 +12,7 @@ Use Bun, not npm, pnpm, or Yarn. The package manager version is pinned in `packa
 
 - Base work and pull requests on `development`. Do not mutate `main` or Production unless the user explicitly authorizes a separate release.
 - Treat Supabase migrations as an append-only ledger. Never edit or squash historical migrations; create a forward migration and add pgTAP coverage.
+- Every new or replaced SQL function must explicitly `REVOKE` and `GRANT` execution for its reviewed roles, and any client-callable `public` function must be added to the architecture catalog allowlist in the same change.
 - Keep the private submodule at its exact gitlink. Make private-plugin changes in its own repository first, merge them there, then update the root gitlink.
 - Do not expose CSF roster, membership, evidence, attendance, or credentials through public or browser-direct data access.
 - Google services are import/export/broadcast channels, not a second source of truth. Persist immutable source snapshots and revalidate authorization before commit.
