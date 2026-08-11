@@ -6,10 +6,11 @@ import {
   seedFeedPosts,
   type CsfFeedFixture,
 } from "./feed-fixtures";
-import { loginAs } from "./helpers";
+import { localActors, loginAs } from "./helpers";
 
 const TITLE_PREFIX = "E2E platform surface";
 const feedPostTitle = `${TITLE_PREFIX} chapter update`;
+const SEEDED_PROJECT_PATH = "/projects/10000000-0000-4000-8000-000000000020";
 
 test.describe("platform surfaces for linked CSF members", () => {
   let fixture: CsfFeedFixture;
@@ -96,5 +97,29 @@ test.describe("platform surfaces for linked CSF members", () => {
       page.getByRole("heading", { name: "Volunteer Dashboard" }),
     ).toBeVisible();
     await expect(page.getByText("DVHS CSF", { exact: true })).toHaveCount(0);
+  });
+});
+
+test.describe("platform project acceptance", () => {
+  test("the creator can load every seeded signup", async ({ page }) => {
+    await loginAs(page, "admin", SEEDED_PROJECT_PATH);
+
+    await expect(
+      page.getByRole("heading", { name: "Santa Cruz Beach Cleanup" }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Manage Signups", exact: true })
+      .click();
+    await page.waitForURL(`${SEEDED_PROJECT_PATH}/signups`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    await expect(page.getByText("Failed to load signups")).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Manage Volunteer Signups" }),
+    ).toBeVisible();
+    await expect(page.getByText(localActors.member.name)).toBeVisible();
+    await expect(page.getByText(localActors.applicant.name)).toBeVisible();
+    await expect(page.getByText("Rowan Alvarez")).toBeVisible();
   });
 });
