@@ -11,7 +11,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { FieldLabel } from "@/components/ui/field";
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item";
 
 import type { PaperScanSlotOption } from "./PaperSignupsClient";
 
@@ -63,44 +77,44 @@ export function ScheduleSlotStep({
       </CardHeader>
       <CardContent>
         {slotOptions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            This project&apos;s schedule could not be resolved, so paper sheets
-            can&apos;t be attributed to a session.
-          </p>
+          <Empty>
+            <EmptyMedia variant="icon">
+              <CalendarClock />
+            </EmptyMedia>
+            <EmptyTitle>No scannable sessions</EmptyTitle>
+            <EmptyDescription>
+              This project&apos;s schedule could not be resolved, so paper
+              sheets can&apos;t be attributed to a session.
+            </EmptyDescription>
+          </Empty>
         ) : (
-          <div role="radiogroup" className="flex flex-col gap-2">
-            {slotOptions.map((option) => {
-              const selected = option.id === selectedSlotId;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => onSelect(option.id)}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg border p-4 text-left transition-colors",
-                    selected
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:bg-muted/50",
-                  )}
-                >
-                  <CalendarClock
-                    className={cn(
-                      "size-5 shrink-0",
-                      selected ? "text-primary" : "text-muted-foreground",
-                    )}
-                  />
-                  <span className="flex flex-col">
-                    <span className="font-medium">{option.label}</span>
-                    <span className="text-sm text-muted-foreground">
+          <RadioGroup
+            value={selectedSlotId ?? undefined}
+            onValueChange={(value) => onSelect(String(value))}
+            aria-label="Session for this sheet"
+          >
+            {slotOptions.map((option) => (
+              <FieldLabel key={option.id} htmlFor={`slot-${option.id}`}>
+                <Item variant="outline" className="w-full">
+                  <ItemMedia>
+                    <RadioGroupItem
+                      id={`slot-${option.id}`}
+                      value={option.id}
+                    />
+                  </ItemMedia>
+                  <ItemMedia variant="icon">
+                    <CalendarClock />
+                  </ItemMedia>
+                  <ItemContent>
+                    <ItemTitle>{option.label}</ItemTitle>
+                    <ItemDescription>
                       {formatWindow(option, timezone)}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                    </ItemDescription>
+                  </ItemContent>
+                </Item>
+              </FieldLabel>
+            ))}
+          </RadioGroup>
         )}
       </CardContent>
       <CardFooter>

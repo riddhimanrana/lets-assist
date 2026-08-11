@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Loader2, ScanText, Trash2 } from "lucide-react";
+import { ArrowLeft, ScanText, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { downscaleImageFiles } from "@/components/projects/paper-signup/useImageDownscale";
 import { PaperScanCameraInput } from "@/components/projects/paper-signup/PaperScanCameraInput";
@@ -205,24 +208,31 @@ export function CaptureStep({
           <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
             {photos.map((photo, index) => (
               <li key={photo.key} className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.previewUrl}
-                  alt={`Sheet page ${index + 1}`}
-                  className="aspect-[3/4] w-full rounded-md border object-cover"
-                />
-                <span className="absolute left-1 top-1 rounded bg-background/90 px-1.5 text-xs font-medium">
+                <AspectRatio ratio={3 / 4}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photo.previewUrl}
+                    alt={`Sheet page ${index + 1}`}
+                    className="size-full rounded-md border object-cover"
+                  />
+                </AspectRatio>
+                <Badge
+                  variant="secondary"
+                  className="absolute left-1 top-1 px-1.5 py-0 text-xs"
+                >
                   {index + 1}
-                </span>
+                </Badge>
                 {!busy && (
-                  <button
+                  <Button
                     type="button"
+                    size="icon"
+                    variant="secondary"
                     aria-label={`Remove page ${index + 1}`}
                     onClick={() => removePhoto(photo.key)}
-                    className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-destructive"
+                    className="absolute right-1 top-1 size-7 text-destructive"
                   >
                     <Trash2 className="size-3.5" />
-                  </button>
+                  </Button>
                 )}
               </li>
             ))}
@@ -230,18 +240,23 @@ export function CaptureStep({
         )}
 
         {busy && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            {phase.kind === "scanning" ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Spinner className="size-4" />
+              {phase.kind === "compressing" &&
+                `Preparing photo ${phase.index + 1} of ${phase.total}…`}
+              {phase.kind === "uploading" &&
+                `Uploading photo ${phase.index + 1} of ${phase.total}…`}
+              {phase.kind === "scanning" &&
+                "Reading the sheet — this can take a minute for several pages…"}
+            </div>
+            {(phase.kind === "compressing" || phase.kind === "uploading") && (
+              <Progress
+                aria-label="Upload progress"
+                value={phase.total > 0 ? (phase.index / phase.total) * 100 : 0}
+                className="h-1.5"
+              />
             )}
-            {phase.kind === "compressing" &&
-              `Preparing photo ${phase.index + 1} of ${phase.total}…`}
-            {phase.kind === "uploading" &&
-              `Uploading photo ${phase.index + 1} of ${phase.total}…`}
-            {phase.kind === "scanning" &&
-              "Reading the sheet — this can take a minute for several pages…"}
           </div>
         )}
       </CardContent>

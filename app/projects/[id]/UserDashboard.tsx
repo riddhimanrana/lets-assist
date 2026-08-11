@@ -1327,9 +1327,46 @@ export default function UserDashboard({
     return null;
   }
 
+  /**
+   * Private post-project feedback, deliberately independent of eventCards.
+   * A signup can drop out of the carousel entirely (past the 48h hours
+   * window, 'none' render state, missing slot details) while the volunteer
+   * is still an attendee who should be able to rate the project — and the
+   * follow-up email links them here 24-96h after the event, which is
+   * exactly when the carousel tends to be empty.
+   */
+  const feedbackCard =
+    isProjectCompleted && attendedFeedbackSignupId && feedbackLoaded ? (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">
+            How did volunteering here go?
+          </CardTitle>
+          <CardDescription>
+            Share private feedback with the organizer.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ProjectFeedbackForm
+            projectId={project.id}
+            signupId={attendedFeedbackSignupId}
+            initial={myFeedback}
+          />
+        </CardContent>
+      </Card>
+    ) : null;
+
   if (!eventCards || eventCards.length === 0) {
-    // Render general alerts even if no specific signup cards are shown
-    return <div className="space-y-4">{renderGeneralSignupOnlyAlert()}</div>;
+    // Render general alerts and feedback even if no specific signup cards show
+    if (!feedbackCard && !renderGeneralSignupOnlyAlert()) {
+      return null;
+    }
+    return (
+      <div className="space-y-4 mb-6">
+        {renderGeneralSignupOnlyAlert()}
+        {feedbackCard}
+      </div>
+    );
   }
 
   return (
@@ -1338,26 +1375,7 @@ export default function UserDashboard({
       {renderGeneralSignupOnlyAlert()}
       {/* --- END ADDED --- */}
 
-      {/* Private post-project feedback: attendees only, organizer-visible only */}
-      {isProjectCompleted && attendedFeedbackSignupId && feedbackLoaded && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">
-              How did volunteering here go?
-            </CardTitle>
-            <CardDescription>
-              Share private feedback with the organizer.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ProjectFeedbackForm
-              projectId={project.id}
-              signupId={attendedFeedbackSignupId}
-              initial={myFeedback}
-            />
-          </CardContent>
-        </Card>
-      )}
+      {feedbackCard}
 
       {/* Event Cards Carousel */}
       <Carousel

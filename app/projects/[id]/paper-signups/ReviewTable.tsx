@@ -21,11 +21,27 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -209,24 +225,29 @@ export function ReviewTable({
       {/* Source photos: reviewing a transcription without the photo in view
           is not review. */}
       {images.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto rounded-lg border bg-muted/30 p-2">
-          {images.map((image) => (
-            <button
-              key={image.imageId}
-              type="button"
-              onClick={() => setZoomedImage(image.url)}
-              className="shrink-0"
-              aria-label={`View sheet page ${image.sequence + 1}`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={image.url}
-                alt={`Sheet page ${image.sequence + 1}`}
-                className="h-24 rounded border object-cover"
-              />
-            </button>
-          ))}
-        </div>
+        <ScrollArea className="w-full rounded-lg border bg-muted/30">
+          <div className="flex gap-2 p-2">
+            {images.map((image) => (
+              <button
+                key={image.imageId}
+                type="button"
+                onClick={() => setZoomedImage(image.url)}
+                className="w-36 shrink-0 rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                aria-label={`View sheet page ${image.sequence + 1}`}
+              >
+                <AspectRatio ratio={4 / 3}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={image.url}
+                    alt={`Sheet page ${image.sequence + 1}`}
+                    className="size-full rounded-md border object-cover"
+                  />
+                </AspectRatio>
+              </button>
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
       )}
       {zoomedImage && (
         <button
@@ -259,48 +280,56 @@ export function ReviewTable({
       )}
 
       {rows.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            <Users className="mx-auto mb-2 size-8" />
-            No rows were read from the photos. Try re-scanning with clearer
-            photos.
-          </CardContent>
-        </Card>
+        <Empty className="border">
+          <EmptyMedia variant="icon">
+            <Users />
+          </EmptyMedia>
+          <EmptyTitle>No rows were read</EmptyTitle>
+          <EmptyDescription>
+            Nothing legible came back from the photos. Try re-scanning with
+            better lighting and the sheet filling the frame.
+          </EmptyDescription>
+        </Empty>
       ) : isMobile ? (
-        <ul className="space-y-2">
+        <ItemGroup className="gap-2">
           {rows.map((row) => (
-            <li key={row.id} className="rounded-lg border p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    checked={row.decision === "include"}
-                    onCheckedChange={(checked) =>
-                      toggleInclude(row, checked === true)
-                    }
-                    aria-label={`Include row ${row.sheetRowNumber}`}
-                    className="mt-1"
+            <Item
+              key={row.id}
+              variant="outline"
+              className={cn(row.decision !== "include" && "opacity-60")}
+            >
+              <ItemMedia className="self-start pt-0.5">
+                <Checkbox
+                  checked={row.decision === "include"}
+                  onCheckedChange={(checked) =>
+                    toggleInclude(row, checked === true)
+                  }
+                  aria-label={`Include row ${row.sheetRowNumber}`}
+                />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle>
+                  <CellValue
+                    value={row.name}
+                    confidence={row.fieldConfidence.name}
                   />
-                  <div>
-                    <p className="font-medium">
-                      <CellValue
-                        value={row.name}
-                        confidence={row.fieldConfidence.name}
-                      />
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      <CellValue
-                        value={row.email}
-                        confidence={row.fieldConfidence.email}
-                      />
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatTime(row.checkInTime, timezone)} –{" "}
-                      {formatTime(row.checkOutTime, timezone)}
-                      {row.signaturePresent ? " · signed" : ""}
-                    </p>
-                    <div className="mt-1">{rowHighlights(row)}</div>
-                  </div>
-                </div>
+                </ItemTitle>
+                <ItemDescription>
+                  <CellValue
+                    value={row.email}
+                    confidence={row.fieldConfidence.email}
+                  />
+                </ItemDescription>
+                <ItemDescription className="text-xs">
+                  {formatTime(row.checkInTime, timezone)} –{" "}
+                  {formatTime(row.checkOutTime, timezone)}
+                  {row.signaturePresent ? " · signed" : ""}
+                </ItemDescription>
+                {rowHighlights(row) ? (
+                  <div className="mt-1">{rowHighlights(row)}</div>
+                ) : null}
+              </ItemContent>
+              <ItemActions className="self-start">
                 <Button
                   size="icon"
                   variant="ghost"
@@ -309,10 +338,10 @@ export function ReviewTable({
                 >
                   <Pencil className="size-4" />
                 </Button>
-              </div>
-            </li>
+              </ItemActions>
+            </Item>
           ))}
-        </ul>
+        </ItemGroup>
       ) : (
         <div className="overflow-x-auto rounded-lg border">
           <Table>

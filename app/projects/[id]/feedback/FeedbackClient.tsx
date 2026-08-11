@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, MessageSquareText, ShieldAlert, Star } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button-variants";
 import {
   Card,
   CardContent,
@@ -11,7 +12,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemHeader,
+  ItemTitle,
+} from "@/components/ui/item";
 import { Progress } from "@/components/ui/progress";
+import { StarRatingDisplay } from "@/components/projects/StarRatingInput";
 import { cn } from "@/lib/utils";
 import type {
   ProjectFeedbackEntry,
@@ -23,27 +39,6 @@ interface FeedbackClientProps {
   projectTitle: string;
   summary: ProjectFeedbackSummary;
   entries: ProjectFeedbackEntry[];
-}
-
-function Stars({ rating, className }: { rating: number; className?: string }) {
-  return (
-    <span
-      className={cn("flex items-center gap-0.5", className)}
-      aria-label={`${rating} of 5 stars`}
-    >
-      {[1, 2, 3, 4, 5].map((value) => (
-        <Star
-          key={value}
-          className={cn(
-            "size-4",
-            value <= rating
-              ? "fill-amber-400 text-amber-400"
-              : "text-muted-foreground/30",
-          )}
-        />
-      ))}
-    </span>
-  );
 }
 
 export function FeedbackClient({
@@ -62,7 +57,10 @@ export function FeedbackClient({
       <div className="mb-6 flex items-center gap-3">
         <Link
           href={`/projects/${projectId}`}
-          className="text-muted-foreground hover:text-foreground"
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "icon" }),
+            "shrink-0",
+          )}
           aria-label="Back to project"
         >
           <ArrowLeft className="size-5" />
@@ -80,7 +78,10 @@ export function FeedbackClient({
           <CardTitle className="flex items-baseline gap-3">
             <span className="text-3xl">{summary.average ?? "—"}</span>
             {summary.average !== null && (
-              <Stars rating={Math.round(summary.average)} />
+              <StarRatingDisplay
+                rating={Math.round(summary.average)}
+                size="md"
+              />
             )}
           </CardTitle>
           <CardDescription>
@@ -94,8 +95,12 @@ export function FeedbackClient({
           {([5, 4, 3, 2, 1] as const).map((value) => (
             <div key={value} className="flex items-center gap-2 text-sm">
               <span className="w-3 text-muted-foreground">{value}</span>
-              <Star className="size-3.5 fill-amber-400 text-amber-400" />
+              <Star
+                aria-hidden="true"
+                className="size-3.5 fill-amber-400 text-amber-400"
+              />
               <Progress
+                aria-label={`${summary.distribution[value]} ${value}-star responses`}
                 value={
                   summary.count > 0
                     ? (summary.distribution[value] / summary.count) * 100
@@ -112,23 +117,28 @@ export function FeedbackClient({
       </Card>
 
       {entries.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            <MessageSquareText className="mx-auto mb-2 size-8" />
-            No feedback yet. Attendees can rate the project from its page once
-            it&apos;s completed.
-          </CardContent>
-        </Card>
+        <Empty className="border">
+          <EmptyMedia variant="icon">
+            <MessageSquareText />
+          </EmptyMedia>
+          <EmptyTitle>No feedback yet</EmptyTitle>
+          <EmptyDescription>
+            Attendees can rate the project from its page once it&apos;s
+            completed, or from the follow-up email.
+          </EmptyDescription>
+        </Empty>
       ) : (
-        <ul className="space-y-3">
+        <ItemGroup className="gap-3">
           {entries.map((entry) => (
-            <li key={entry.id} className="rounded-lg border p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Stars rating={entry.rating} />
-                  <span className="text-sm font-medium">
-                    {entry.volunteerName ?? "Volunteer"}
-                  </span>
+            <Item
+              key={entry.id}
+              variant="outline"
+              className="flex-col items-stretch"
+            >
+              <ItemHeader>
+                <div className="flex flex-wrap items-center gap-2">
+                  <StarRatingDisplay rating={entry.rating} />
+                  <ItemTitle>{entry.volunteerName ?? "Volunteer"}</ItemTitle>
                   {entry.commentModerationStatus === "flagged" && (
                     <Badge variant="secondary" className="gap-1">
                       <ShieldAlert className="size-3" />
@@ -141,17 +151,23 @@ export function FeedbackClient({
                     dateStyle: "medium",
                   })}
                 </span>
-              </div>
+              </ItemHeader>
               {entry.comment ? (
-                <p className="mt-2 text-sm">{entry.comment}</p>
+                <ItemContent>
+                  <ItemDescription className="text-foreground">
+                    {entry.comment}
+                  </ItemDescription>
+                </ItemContent>
               ) : entry.commentModerationStatus === "blocked" ? (
-                <p className="mt-2 text-sm italic text-muted-foreground">
-                  Comment removed by moderation.
-                </p>
+                <ItemContent>
+                  <ItemDescription className="italic">
+                    Comment removed by moderation.
+                  </ItemDescription>
+                </ItemContent>
               ) : null}
-            </li>
+            </Item>
           ))}
-        </ul>
+        </ItemGroup>
       )}
     </div>
   );

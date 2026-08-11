@@ -20,8 +20,15 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { ButtonGroup } from "@/components/ui/button-group";
+import { Spinner } from "@/components/ui/spinner";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 import { updatePaperScanRow } from "./actions";
@@ -132,9 +139,9 @@ export function ReviewRowEditor({
   };
 
   const body = (
-    <div className="space-y-4 px-4 pb-6 sm:px-0 sm:pb-0">
-      <div className="space-y-1.5">
-        <Label htmlFor="paper-row-name">Name</Label>
+    <FieldGroup className="px-4 pb-6 sm:px-0 sm:pb-0">
+      <Field>
+        <FieldLabel htmlFor="paper-row-name">Name</FieldLabel>
         <Input
           id="paper-row-name"
           value={form.name}
@@ -143,9 +150,10 @@ export function ReviewRowEditor({
           }
           autoComplete="off"
         />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="paper-row-email">Email</Label>
+      </Field>
+
+      <Field>
+        <FieldLabel htmlFor="paper-row-email">Email</FieldLabel>
         <Input
           id="paper-row-email"
           type="email"
@@ -156,13 +164,14 @@ export function ReviewRowEditor({
           autoComplete="off"
           placeholder="Leave empty for roster-only"
         />
-        <p className="text-xs text-muted-foreground">
+        <FieldDescription>
           Rows without an email are kept as roster entries and don&apos;t get
           hours or certificates.
-        </p>
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="paper-row-phone">Phone</Label>
+        </FieldDescription>
+      </Field>
+
+      <Field>
+        <FieldLabel htmlFor="paper-row-phone">Phone</FieldLabel>
         <Input
           id="paper-row-phone"
           type="tel"
@@ -172,24 +181,22 @@ export function ReviewRowEditor({
           }
           autoComplete="off"
         />
-      </div>
+      </Field>
+
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="paper-row-time-in">Time in</Label>
+        <Field>
+          <FieldLabel htmlFor="paper-row-time-in">Time in</FieldLabel>
           <Input
             id="paper-row-time-in"
             type="time"
             value={form.timeIn}
             onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                timeIn: event.target.value,
-              }))
+              setForm((current) => ({ ...current, timeIn: event.target.value }))
             }
           />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="paper-row-time-out">Time out</Label>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="paper-row-time-out">Time out</FieldLabel>
           <Input
             id="paper-row-time-out"
             type="time"
@@ -201,9 +208,10 @@ export function ReviewRowEditor({
               }))
             }
           />
-        </div>
+        </Field>
       </div>
-      <div className="flex items-center gap-2">
+
+      <Field orientation="horizontal">
         <Checkbox
           id="paper-row-signature"
           checked={form.signaturePresent}
@@ -214,23 +222,21 @@ export function ReviewRowEditor({
             }))
           }
         />
-        <Label htmlFor="paper-row-signature" className="font-normal">
+        <FieldLabel htmlFor="paper-row-signature" className="font-normal">
           Signature present on the sheet
-        </Label>
-      </div>
-      <div className="flex gap-2 pt-2">
-        <Button
-          onClick={save}
-          disabled={saving}
-          className="flex-1 sm:flex-none"
-        >
+        </FieldLabel>
+      </Field>
+
+      <ButtonGroup>
+        <Button onClick={save} disabled={saving}>
+          {saving ? <Spinner /> : null}
           {saving ? "Saving…" : "Save row"}
         </Button>
         <Button variant="outline" onClick={onClose} disabled={saving}>
           Cancel
         </Button>
-      </div>
-    </div>
+      </ButtonGroup>
+    </FieldGroup>
   );
 
   const title = `Row ${row.sheetRowNumber}`;

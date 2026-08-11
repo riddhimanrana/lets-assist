@@ -1,12 +1,23 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Star } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { MaxLengthField } from "@/components/ui/max-length-field";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  StarRatingDisplay,
+  StarRatingInput,
+} from "@/components/projects/StarRatingInput";
 import { submitProjectFeedback } from "@/app/projects/[id]/actions";
 
 const COMMENT_MAX = 2000;
@@ -39,7 +50,6 @@ export function ProjectFeedbackForm({
         ? initialRating
         : 0),
   );
-  const [hovered, setHovered] = useState(0);
   const [comment, setComment] = useState(initial?.comment ?? "");
   const [submitted, setSubmitted] = useState(Boolean(initial));
   const [editing, setEditing] = useState(!initial);
@@ -70,102 +80,71 @@ export function ProjectFeedbackForm({
 
   if (submitted && !editing) {
     return (
-      <div className="space-y-2">
-        <div
-          className="flex items-center gap-1"
-          aria-label={`Your rating: ${rating} of 5`}
+      <FieldGroup>
+        <Field>
+          <StarRatingDisplay rating={rating} size="md" />
+          {comment.trim() ? (
+            <FieldDescription className="text-foreground">
+              {comment}
+            </FieldDescription>
+          ) : null}
+        </Field>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-fit"
+          onClick={() => setEditing(true)}
         >
-          {[1, 2, 3, 4, 5].map((value) => (
-            <Star
-              key={value}
-              className={cn(
-                "size-5",
-                value <= rating
-                  ? "fill-amber-400 text-amber-400"
-                  : "text-muted-foreground/40",
-              )}
-            />
-          ))}
-        </div>
-        {comment.trim() && (
-          <p className="text-sm text-muted-foreground">{comment}</p>
-        )}
-        <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
           Edit feedback
         </Button>
-      </div>
+      </FieldGroup>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <div
-        role="radiogroup"
-        aria-label="Rate this project from 1 to 5 stars"
-        className="flex items-center gap-1"
-        onMouseLeave={() => setHovered(0)}
-      >
-        {[1, 2, 3, 4, 5].map((value) => (
-          <button
-            key={value}
-            type="button"
-            role="radio"
-            aria-checked={rating === value}
-            aria-label={`${value} star${value > 1 ? "s" : ""}`}
-            disabled={pending}
-            onClick={() => setRating(value)}
-            onMouseEnter={() => setHovered(value)}
-            onKeyDown={(event) => {
-              if (event.key === "ArrowRight" || event.key === "ArrowUp") {
-                event.preventDefault();
-                setRating(Math.min(5, (rating || 0) + 1));
-              } else if (
-                event.key === "ArrowLeft" ||
-                event.key === "ArrowDown"
-              ) {
-                event.preventDefault();
-                setRating(Math.max(1, (rating || 1) - 1));
-              }
-            }}
-            className="flex size-11 items-center justify-center rounded-md transition-colors hover:bg-muted sm:size-9"
-          >
-            <Star
-              className={cn(
-                "size-7 sm:size-6",
-                value <= (hovered || rating)
-                  ? "fill-amber-400 text-amber-400"
-                  : "text-muted-foreground/40",
-              )}
-            />
-          </button>
-        ))}
-      </div>
+    <FieldGroup>
+      <Field>
+        <FieldLabel htmlFor="project-feedback-rating">Your rating</FieldLabel>
+        <StarRatingInput
+          value={rating}
+          onChange={setRating}
+          disabled={pending}
+        />
+      </Field>
 
-      <Textarea
-        value={comment}
-        onChange={(event) =>
-          setComment(event.target.value.slice(0, COMMENT_MAX))
-        }
-        placeholder="What went well? What could be better? (optional)"
-        rows={3}
-        maxLength={COMMENT_MAX}
-        disabled={pending}
-      />
+      <Field>
+        <MaxLengthField
+          label="Comment (optional)"
+          current={comment.length}
+          max={COMMENT_MAX}
+        />
+        <Textarea
+          id="project-feedback-comment"
+          value={comment}
+          onChange={(event) =>
+            setComment(event.target.value.slice(0, COMMENT_MAX))
+          }
+          placeholder="What went well? What could be better?"
+          rows={3}
+          maxLength={COMMENT_MAX}
+          disabled={pending}
+        />
+        <FieldDescription>
+          Only the organizer sees this — it&apos;s never shown on the project
+          page. Your name is shown with your feedback.
+        </FieldDescription>
+      </Field>
 
-      <p className="text-xs text-muted-foreground">
-        Only the organizer sees this — it&apos;s never shown on the project
-        page. Your name is shown with your feedback.
-      </p>
-
-      <div className="flex gap-2">
+      <ButtonGroup>
         <Button onClick={submit} disabled={pending || rating < 1}>
+          {pending ? <Spinner /> : null}
           {pending
             ? "Sending…"
             : submitted
               ? "Update feedback"
               : "Send feedback"}
         </Button>
-        {submitted && (
+        {submitted ? (
           <Button
             variant="ghost"
             disabled={pending}
@@ -173,8 +152,8 @@ export function ProjectFeedbackForm({
           >
             Cancel
           </Button>
-        )}
-      </div>
-    </div>
+        ) : null}
+      </ButtonGroup>
+    </FieldGroup>
   );
 }

@@ -1,12 +1,26 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckCircle2, Star } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { MaxLengthField } from "@/components/ui/max-length-field";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { StarRatingInput } from "@/components/projects/StarRatingInput";
 import { submitProjectFeedbackWithToken } from "@/app/projects/[id]/actions";
 
 const COMMENT_MAX = 2000;
@@ -31,7 +45,6 @@ export function FeedbackTokenClient({
   const [rating, setRating] = useState<number>(
     initial?.rating ?? initialRating ?? 0,
   );
-  const [hovered, setHovered] = useState(0);
   const [comment, setComment] = useState(initial?.comment ?? "");
   const [done, setDone] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -58,71 +71,60 @@ export function FeedbackTokenClient({
 
   if (done) {
     return (
-      <div className="flex flex-col items-center gap-2 py-6 text-center">
-        <CheckCircle2 className="size-10 text-primary" />
-        <p className="font-medium">Thanks for the feedback!</p>
-        <p className="text-sm text-muted-foreground">
+      <Empty className="border-0 p-6">
+        <EmptyMedia variant="icon" className="text-primary">
+          <CheckCircle2 />
+        </EmptyMedia>
+        <EmptyTitle>Thanks for the feedback!</EmptyTitle>
+        <EmptyDescription>
           It goes straight to the organizer — it&apos;s never shown publicly.
-        </p>
-      </div>
+        </EmptyDescription>
+      </Empty>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div
-        role="radiogroup"
-        aria-label="Rate this project from 1 to 5 stars"
-        className="flex items-center justify-center gap-1"
-        onMouseLeave={() => setHovered(0)}
-      >
-        {[1, 2, 3, 4, 5].map((value) => (
-          <button
-            key={value}
-            type="button"
-            role="radio"
-            aria-checked={rating === value}
-            aria-label={`${value} star${value > 1 ? "s" : ""}`}
-            disabled={pending}
-            onClick={() => setRating(value)}
-            onMouseEnter={() => setHovered(value)}
-            className="flex size-12 items-center justify-center rounded-md transition-colors hover:bg-muted"
-          >
-            <Star
-              className={cn(
-                "size-8",
-                value <= (hovered || rating)
-                  ? "fill-amber-400 text-amber-400"
-                  : "text-muted-foreground/40",
-              )}
-            />
-          </button>
-        ))}
-      </div>
+    <FieldGroup>
+      <Field className="items-center">
+        <FieldLabel className="sr-only">Your rating</FieldLabel>
+        <StarRatingInput
+          value={rating}
+          onChange={setRating}
+          disabled={pending}
+          size="lg"
+        />
+      </Field>
 
-      <Textarea
-        value={comment}
-        onChange={(event) =>
-          setComment(event.target.value.slice(0, COMMENT_MAX))
-        }
-        placeholder="What went well? What could be better? (optional)"
-        rows={4}
-        maxLength={COMMENT_MAX}
-        disabled={pending}
-      />
-
-      <p className="text-center text-xs text-muted-foreground">
-        Only the organizer sees this — it&apos;s never shown publicly. Your name
-        is shown with your feedback.
-      </p>
+      <Field>
+        <MaxLengthField
+          label="Comment (optional)"
+          current={comment.length}
+          max={COMMENT_MAX}
+        />
+        <Textarea
+          value={comment}
+          onChange={(event) =>
+            setComment(event.target.value.slice(0, COMMENT_MAX))
+          }
+          placeholder="What went well? What could be better?"
+          rows={4}
+          maxLength={COMMENT_MAX}
+          disabled={pending}
+        />
+        <FieldDescription className="text-center">
+          Only the organizer sees this — it&apos;s never shown publicly. Your
+          name is shown with your feedback.
+        </FieldDescription>
+      </Field>
 
       <Button
         onClick={submit}
         disabled={pending || rating < 1}
         className="w-full"
       >
+        {pending ? <Spinner /> : null}
         {pending ? "Sending…" : "Send feedback"}
       </Button>
-    </div>
+    </FieldGroup>
   );
 }
