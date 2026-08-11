@@ -228,7 +228,7 @@ SET
   claim_reuses_attempt_window = true,
   attempt_count = 1,
   first_attempt_at = pg_catalog.clock_timestamp()
-    - interval '23 hours 59 minutes 58 seconds',
+    - interval '23 hours 59 minutes 45 seconds',
   last_attempt_at = pg_catalog.clock_timestamp() - interval '16 minutes',
   updated_at = pg_catalog.clock_timestamp()
 WHERE id = :'delivery_id'::uuid;
@@ -247,7 +247,7 @@ SELECT id
 FROM public.hours_publication_email_outbox
 WHERE id = :'delivery_id'::uuid
 FOR UPDATE;
-SELECT pg_sleep(3);
+SELECT pg_sleep(16);
 SELECT public.settle_hours_publication_email_delivery(
   :'delivery_id'::uuid,
   'ac400000-0000-4000-8000-000000000001',
@@ -322,6 +322,25 @@ if [[ "${BOUNDARY_CLAIMANT_BLOCKED}" != "t" ]]; then
   wait "${BOUNDARY_SETTLER_PID}" || true
   wait "${BOUNDARY_CLAIMANT_PID}" || true
   echo "Boundary claimant did not wait on the active settlement lock." >&2
+  exit 1
+fi
+
+BOUNDARY_STARTED_BEFORE_EXPIRY="$(
+  psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 \
+    -v delivery_id="${HOURS_DELIVERY_ID}" <<'SQL'
+SELECT claimant.xact_start
+  < outbox.first_attempt_at + interval '24 hours'
+FROM pg_catalog.pg_stat_activity AS claimant
+CROSS JOIN public.hours_publication_email_outbox AS outbox
+WHERE claimant.application_name = 'hours_boundary_claimant'
+  AND outbox.id = :'delivery_id'::uuid;
+SQL
+)"
+
+if [[ "${BOUNDARY_STARTED_BEFORE_EXPIRY}" != "t" ]]; then
+  wait "${BOUNDARY_SETTLER_PID}" || true
+  wait "${BOUNDARY_CLAIMANT_PID}" || true
+  echo "Boundary claimant did not begin before the provider-risk window expired." >&2
   exit 1
 fi
 
