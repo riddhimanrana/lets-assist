@@ -197,13 +197,20 @@ active Fall 2026 class.
 - Help, Members, Staff access, Imports, and the three-section Communications
   workspace were clicked through on the deployed Development build. Help is
   filtered by exact position capabilities rather than broad route access.
-- Google OAuth is paused at the password step for `dvhighcsf@gmail.com`; no real
+- Google Cloud origins, callbacks, and Drive/Sheets/Picker key restrictions are
+  configured. The in-product connection is **Not connected** until an operator
+  completes a fresh `dvhighcsf@gmail.com` password/verification handoff; no real
   row preview or commit has occurred.
+- Hosted Development exactly matches all 243 repository migrations through
+  `20260811120000`. Google Maps autocomplete and the complete five-step project
+  creation/deletion journey were accepted on the exact deployed build.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
 - Two controlled Development test messages produced two signature-verified
   `sent` events and two signature-verified `delivered` events with no webhook
-  quarantine rows. No broad chapter campaign has been sent. Production's
+  quarantine rows. The checked-in GitHub dispatcher has repeated successful
+  hosted runs, but its actual start intervals are irregular and provide no fixed
+  delivery-time promise. No broad chapter campaign has been sent. Production's
   webhook remains disabled and must be rotated and proved during release.
 - Production was not changed by this rehearsal.
 
