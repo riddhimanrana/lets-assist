@@ -201,9 +201,11 @@ active Fall 2026 class.
   configured. The in-product connection is **Not connected** until an operator
   completes a fresh `dvhighcsf@gmail.com` password/verification handoff; no real
   row preview or commit has occurred.
-- Hosted Development exactly matches all 243 repository migrations through
-  `20260811120000`. Google Maps autocomplete and the complete five-step project
-  creation/deletion journey were accepted on the exact deployed build.
+- Hosted Development exactly matches all 244 repository migrations through
+  `20260811132454`. The unused `pg_graphql` extension is absent from the
+  Development schema, and leaked-password protection is enabled. Google Maps
+  autocomplete and the complete five-step project creation/deletion journey
+  were accepted on the exact deployed build.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
 - Two controlled Development test messages produced two signature-verified
