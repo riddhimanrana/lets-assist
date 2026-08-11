@@ -3,13 +3,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 /**
- * CLEAN-004 darkened `--primary` to clear WCAG AA behind
- * `--primary-foreground`, which is correct for buttons, links, status text, and
- * focus rings. But `--primary` was doing a second, unrelated job: it also
- * painted the decorative organization-header washes. Darkening it there read as
- * a global rebrand — the CSF Classes page stopped looking like Production,
- * whose identity green is `#16a34a` and still ships in every transactional
- * email and the OpenGraph card.
+ * `--primary` and `--brand` intentionally share the historical Production
+ * identity green, `#16a34a`. They remain separate semantic tokens so decorative
+ * organization washes do not become interactive surfaces by accident.
  *
  * `--brand` splits those two jobs apart. This file is the contract for that
  * split, and it has to be a source test rather than a browser test: the failure
@@ -25,8 +21,6 @@ const AA_NORMAL_TEXT = 4.5;
 
 /** Production identity green: `#16a34a`, as shipped by `emails/` and the OG card. */
 const PRODUCTION_BRAND = { r: 22, g: 163, b: 74 };
-/** The AA-tuned semantic green: `#117e39`. */
-const ACCESSIBLE_PRIMARY = { r: 17, g: 126, b: 57 };
 
 type Rgb = { r: number; g: number; b: number };
 
@@ -121,14 +115,12 @@ describe("the brand token carries identity, the primary token carries meaning", 
     expect(token(light, "brand")).toEqual(PRODUCTION_BRAND);
   });
 
-  test("light --primary keeps the AA-tuned green, not the identity green", () => {
-    expect(token(light, "primary")).toEqual(ACCESSIBLE_PRIMARY);
-    expect(token(light, "primary")).not.toEqual(PRODUCTION_BRAND);
+  test("light --primary uses the historical Production identity green", () => {
+    expect(token(light, "primary")).toEqual(PRODUCTION_BRAND);
   });
 
-  test("the focus ring tracks --primary, never --brand", () => {
+  test("the focus ring tracks --primary", () => {
     expect(token(light, "ring")).toEqual(token(light, "primary"));
-    expect(token(light, "ring")).not.toEqual(token(light, "brand"));
   });
 
   test("dark --brand is pinned to dark --primary so dark mode is unchanged", () => {
@@ -177,8 +169,7 @@ describe("decorative brand surfaces", () => {
 
 describe("--brand never reaches an interactive or text-bearing surface", () => {
   /**
-   * `--brand` is lighter than `--primary` by design, so it is *below* AA behind
-   * `--primary-foreground` and as body text on white. The only safe use is a
+   * `--brand` is below AA as body text on white. The only safe use is a
    * low-opacity background wash. Rather than trusting a comment in `globals.css`
    * to hold that line, scan the tree: any brand utility that is not an
    * opacity-modified background or gradient stop is a defect.
@@ -234,7 +225,7 @@ describe("--brand never reaches an interactive or text-bearing surface", () => {
   });
 });
 
-describe("the brand washes still clear WCAG AA", () => {
+describe("the brand washes follow their scoped token contracts", () => {
   const background = token(light, "background");
 
   test("the monogram reads on the 10% brand avatar tint", () => {
@@ -246,28 +237,9 @@ describe("the brand washes still clear WCAG AA", () => {
     ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
   });
 
-  test("muted header text reads on the strongest 15% wash stop", () => {
-    // The `@username` and the organization-type badge sit in the darkest stop of
-    // the header gradient, so this is the wash's worst case.
-    const surface = tint(token(light, "brand"), background, 0.15);
-    const ratio = contrastRatio(token(light, "muted-foreground"), surface);
-    expect(
-      ratio,
-      `--muted-foreground on 15% --brand is ${ratio.toFixed(2)}:1`,
-    ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
-  });
-
-  test("the brand wash is lighter than the primary wash it replaced", () => {
-    // Restoring the identity green is not an accessibility regression: --brand
-    // is lighter than --primary, so every tint built from it composites to a
-    // paler surface and clears more contrast, not less. The 15% primary wash
-    // measured 4.42:1 against --muted-foreground, i.e. below AA.
+  test("the brand and primary washes share the historical identity green", () => {
     const brandWash = tint(token(light, "brand"), background, 0.15);
     const primaryWash = tint(token(light, "primary"), background, 0.15);
-    const muted = token(light, "muted-foreground");
-    expect(contrastRatio(muted, brandWash)).toBeGreaterThan(
-      contrastRatio(muted, primaryWash),
-    );
-    expect(contrastRatio(muted, primaryWash)).toBeLessThan(AA_NORMAL_TEXT);
+    expect(brandWash).toEqual(primaryWash);
   });
 });

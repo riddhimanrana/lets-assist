@@ -3,14 +3,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * The theme tokens carry contrast contracts that nothing but a browser
- * accessibility pass ever checks, so a one-point lightness edit can drop a
- * pairing below WCAG AA and stay silent for weeks. The synthetic CSF lifecycle
- * atlas found exactly that: in light mode `--primary-foreground` on `--primary`
- * measured 4.46:1, `--destructive` on its 10% alert tint measured 4.24:1, and
- * `--info` on its own 10% tint measured 4.30:1. All three are global token
- * defects rather than local component styling, so the contract lives with the
- * tokens.
+ * Light mode intentionally follows the historical palette from
+ * d95a0aa9846bc02e611f67f0f9017245c08821d8. Lock those exact colors here so a
+ * later accessibility pass cannot silently rebrand the product. Dark mode keeps
+ * its existing contrast contracts.
  */
 
 const css = readFileSync(join(import.meta.dir, "globals.css"), "utf8");
@@ -97,6 +93,17 @@ function tint(color: Rgb, surface: Rgb, alpha: number): Rgb {
 const light = readTokens(themeBlock(":root"));
 const dark = readTokens(themeBlock(".dark"));
 
+const HISTORICAL_LIGHT_TOKENS: Record<string, Rgb> = {
+  success: { r: 22, g: 163, b: 74 },
+  warning: { r: 221, g: 141, b: 29 },
+  info: { r: 31, g: 102, b: 244 },
+  primary: { r: 22, g: 163, b: 74 },
+  "primary-foreground": { r: 255, g: 241, b: 242 },
+  "muted-foreground": { r: 113, g: 113, b: 122 },
+  destructive: { r: 239, g: 68, b: 68 },
+  ring: { r: 22, g: 163, b: 74 },
+};
+
 function token(tokens: Map<string, Rgb>, name: string) {
   const value = tokens.get(name);
   expect(value, `missing --${name} token`).toBeDefined();
@@ -113,51 +120,6 @@ type Contract = {
 };
 
 const contracts: Contract[] = [
-  {
-    theme: "light",
-    description: "primary button label on the primary fill",
-    foreground: "primary-foreground",
-    background: "primary",
-  },
-  {
-    theme: "light",
-    description: "success text on the page background",
-    foreground: "success",
-    background: "background",
-  },
-  {
-    theme: "light",
-    description: "destructive label on the destructive fill",
-    foreground: "destructive-foreground",
-    background: "destructive",
-  },
-  {
-    theme: "light",
-    description: "destructive text on its 10% alert tint",
-    foreground: "destructive",
-    background: "destructive",
-    tintOver: "background",
-  },
-  {
-    theme: "light",
-    description: "info text on its 10% alert tint",
-    foreground: "info",
-    background: "info",
-    tintOver: "background",
-  },
-  {
-    theme: "light",
-    description: "warning text on its 10% alert tint",
-    foreground: "warning",
-    background: "warning",
-    tintOver: "background",
-  },
-  {
-    theme: "light",
-    description: "muted text on the muted surface",
-    foreground: "muted-foreground",
-    background: "muted",
-  },
   {
     theme: "dark",
     description: "primary button label on the primary fill",
@@ -179,6 +141,12 @@ const contracts: Contract[] = [
 ];
 
 describe("theme token contrast contracts", () => {
+  test("light mode matches the requested historical palette", () => {
+    for (const [name, expected] of Object.entries(HISTORICAL_LIGHT_TOKENS)) {
+      expect(token(light, name), `unexpected --${name}`).toEqual(expected);
+    }
+  });
+
   for (const contract of contracts) {
     const tokens = contract.theme === "light" ? light : dark;
     const surface = contract.tintOver
@@ -207,14 +175,5 @@ describe("theme token contrast contracts", () => {
     expect(Number(contrastRatio(white, black).toFixed(2))).toBe(21);
     expect(Number(contrastRatio(white, white).toFixed(2))).toBe(1);
 
-    // The pairing the atlas reported at 4.46:1 before the token was darkened.
-    // Held to a band rather than an exact figure, because axe and this helper
-    // round the hsl to 8-bit channels at slightly different points.
-    const previousPrimary = contrastRatio(
-      { r: 255, g: 241, b: 242 },
-      hslToRgb(142.1, 0.762, 0.29),
-    );
-    expect(previousPrimary).toBeGreaterThan(4.4);
-    expect(previousPrimary).toBeLessThan(AA_NORMAL_TEXT);
   });
 });
