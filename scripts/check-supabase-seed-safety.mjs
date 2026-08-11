@@ -483,13 +483,6 @@ export function checkSupabaseSeedSafety({
   return sortFindings(findings);
 }
 
-function formatFinding(finding) {
-  // A finding may originate from a credential-shaped source match. Report
-  // only its location and rule; never forward matched or derived content to
-  // the CI log.
-  return `${finding.file}:${finding.line} [${finding.rule}] Seed safety violation.`;
-}
-
 const isEntrypoint = process.argv[1]
   ? fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
   : false;
@@ -497,10 +490,12 @@ const isEntrypoint = process.argv[1]
 if (isEntrypoint) {
   const findings = checkSupabaseSeedSafety();
   if (findings.length > 0) {
-    console.error("Supabase seed safety check failed:\n");
-    for (const finding of findings) {
-      console.error(`- ${formatFinding(finding)}`);
-    }
+    // Findings can originate from credential-shaped source material. Keep all
+    // matched and derived values out of shared CI logs; callers may inspect the
+    // structured return value locally in the controlled repository checkout.
+    console.error(
+      "Supabase seed safety check failed; inspect the structured findings locally.",
+    );
     process.exitCode = 1;
   } else {
     console.log("Supabase seed safety check passed.");

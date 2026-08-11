@@ -62,18 +62,12 @@ test("accepts a valid state bound to its HttpOnly cookie nonce and user", () => 
 
 test("rejects a tampered state payload", () => {
   const created = createState();
-  const [payload, signature] = created.state.split(".");
-  const decoded = JSON.parse(
-    Buffer.from(payload, "base64url").toString("utf8"),
-  );
-  decoded.userId = "33333333-3333-4333-8333-333333333333";
-  const tamperedPayload = Buffer.from(JSON.stringify(decoded)).toString(
-    "base64url",
-  );
+  const [iv, ciphertext, tag] = created.state.split(".");
+  const tamperedCiphertext = `${ciphertext.slice(0, -1)}${ciphertext.endsWith("A") ? "B" : "A"}`;
 
   assert.deepEqual(
     verifyGoogleOAuthState({
-      state: `${tamperedPayload}.${signature}`,
+      state: `${iv}.${tamperedCiphertext}.${tag}`,
       cookieNonce: created.nonce,
       currentUserId: USER_ID,
       now: NOW + 1_000,
@@ -83,7 +77,7 @@ test("rejects a tampered state payload", () => {
   );
 });
 
-test("rejects a tampered CSF import capability", () => {
+test("rejects tampering with a CSF import state", () => {
   const created = createGoogleOAuthState(
     {
       userId: USER_ID,
@@ -99,18 +93,12 @@ test("rejects a tampered CSF import capability", () => {
       nonce: "nonce-value-that-is-long-enough-for-validation-1234",
     },
   );
-  const [payload, signature] = created.state.split(".");
-  const decoded = JSON.parse(
-    Buffer.from(payload, "base64url").toString("utf8"),
-  );
-  decoded.requestedCapability = "import_applications";
-  const tamperedPayload = Buffer.from(JSON.stringify(decoded)).toString(
-    "base64url",
-  );
+  const [iv, ciphertext, tag] = created.state.split(".");
+  const tamperedTag = `${tag.slice(0, -1)}${tag.endsWith("A") ? "B" : "A"}`;
 
   assert.deepEqual(
     verifyGoogleOAuthState({
-      state: `${tamperedPayload}.${signature}`,
+      state: `${iv}.${ciphertext}.${tamperedTag}`,
       cookieNonce: created.nonce,
       currentUserId: USER_ID,
       now: NOW + 1_000,

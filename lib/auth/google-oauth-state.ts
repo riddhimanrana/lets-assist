@@ -1,5 +1,6 @@
 import {
-  createHmac,
+  createCipheriv,
+  createDecipheriv,
   randomBytes,
   scryptSync,
   timingSafeEqual,
@@ -32,6 +33,8 @@ export type GoogleOAuthCsfImportCapability =
 const GOOGLE_OAUTH_STATE_VERSION = 2;
 const SAFE_REDIRECT_ORIGIN = "https://lets-assist.invalid";
 const MINIMUM_STATE_SECRET_LENGTH = 32;
+const GOOGLE_OAUTH_STATE_IV_BYTES = 12;
+const GOOGLE_OAUTH_STATE_TAG_BYTES = 16;
 
 export type GoogleOAuthStatePayload = {
   version: typeof GOOGLE_OAUTH_STATE_VERSION;
@@ -92,21 +95,69 @@ function getGoogleOAuthStateSecret(): string {
   return secret;
 }
 
-function signPayload(encodedPayload: string, secret: string): string {
+function deriveStateEncryptionKey(secret: string) {
   // The configured value is a high-entropy signing secret, not a user
-  // password. Derive a fixed-length, domain-separated key anyway so the OAuth
-  // state signer cannot be confused with password hashing and the same secret
+  // password. Derive a fixed-length, domain-separated key so the same secret
   // cannot be reused directly by another protocol.
-  const signingKey = scryptSync(
+  return scryptSync(
     secret,
     `lets-assist:google-oauth-state:v${GOOGLE_OAUTH_STATE_VERSION}`,
     32,
   );
-  return createHmac("sha256", signingKey)
-    .update(
-      `google-oauth-state:v${GOOGLE_OAUTH_STATE_VERSION}:${encodedPayload}`,
-    )
-    .digest("base64url");
+}
+
+function stateAdditionalData() {
+  return Buffer.from(
+    `lets-assist:google-oauth-state:v${GOOGLE_OAUTH_STATE_VERSION}`,
+  );
+}
+
+function encryptStatePayload(payload: GoogleOAuthStatePayload, secret: string) {
+  const iv = randomBytes(GOOGLE_OAUTH_STATE_IV_BYTES);
+  const cipher = createCipheriv(
+    "aes-256-gcm",
+    deriveStateEncryptionKey(secret),
+    iv,
+  );
+  cipher.setAAD(stateAdditionalData());
+  const ciphertext = Buffer.concat([
+    cipher.update(JSON.stringify(payload), "utf8"),
+    cipher.final(),
+  ]);
+  const tag = cipher.getAuthTag();
+  return `${iv.toString("base64url")}.${ciphertext.toString("base64url")}.${tag.toString("base64url")}`;
+}
+
+function decryptStatePayload(state: string, secret: string): unknown {
+  const parts = state.split(".");
+  if (parts.length !== 3) {
+    throw new Error("Invalid Google OAuth state envelope");
+  }
+
+  const [encodedIv, encodedCiphertext, encodedTag] = parts;
+  const iv = Buffer.from(encodedIv, "base64url");
+  const ciphertext = Buffer.from(encodedCiphertext, "base64url");
+  const tag = Buffer.from(encodedTag, "base64url");
+  if (
+    iv.length !== GOOGLE_OAUTH_STATE_IV_BYTES ||
+    tag.length !== GOOGLE_OAUTH_STATE_TAG_BYTES ||
+    ciphertext.length === 0
+  ) {
+    throw new Error("Invalid Google OAuth state envelope");
+  }
+
+  const decipher = createDecipheriv(
+    "aes-256-gcm",
+    deriveStateEncryptionKey(secret),
+    iv,
+  );
+  decipher.setAAD(stateAdditionalData());
+  decipher.setAuthTag(tag);
+  const plaintext = Buffer.concat([
+    decipher.update(ciphertext),
+    decipher.final(),
+  ]).toString("utf8");
+  return JSON.parse(plaintext) as unknown;
 }
 
 function safelyEqual(left: string, right: string): boolean {
@@ -262,13 +313,8 @@ export function createGoogleOAuthState(
     isSheetsSync: input.purpose === "organization_sheets",
   };
 
-  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString(
-    "base64url",
-  );
-  const signature = signPayload(encodedPayload, secret);
-
   return {
-    state: `${encodedPayload}.${signature}`,
+    state: encryptStatePayload(payload, secret),
     nonce,
     payload,
   };
@@ -289,24 +335,9 @@ export function verifyGoogleOAuthState(
     return { ok: false, reason: "missing_user" };
   }
 
-  const parts = input.state.split(".");
-  if (parts.length !== 2) {
-    return { ok: false, reason: "invalid_state" };
-  }
-
-  const [encodedPayload, suppliedSignature] = parts;
-
   try {
     const secret = input.secret ?? getGoogleOAuthStateSecret();
-    const expectedSignature = signPayload(encodedPayload, secret);
-
-    if (!safelyEqual(suppliedSignature, expectedSignature)) {
-      return { ok: false, reason: "invalid_state" };
-    }
-
-    const parsedPayload = JSON.parse(
-      Buffer.from(encodedPayload, "base64url").toString("utf8"),
-    ) as unknown;
+    const parsedPayload = decryptStatePayload(input.state, secret);
 
     if (!isGoogleOAuthStatePayload(parsedPayload)) {
       return { ok: false, reason: "invalid_state" };
