@@ -4,6 +4,22 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import fg from "fast-glob";
 
+const supportedArguments = new Set(["--root-only", "--plugins-only"]);
+const unknownArguments = process.argv
+  .slice(2)
+  .filter((argument) => !supportedArguments.has(argument));
+if (unknownArguments.length > 0) {
+  throw new Error(
+    `Unknown test-runner argument: ${unknownArguments.join(", ")}`,
+  );
+}
+
+const rootOnly = process.argv.includes("--root-only");
+const pluginsOnly = process.argv.includes("--plugins-only");
+if (rootOnly && pluginsOnly) {
+  throw new Error("--root-only and --plugins-only cannot be combined.");
+}
+
 const preload = [
   "--preload",
   "./scripts/local-dev/server-only-test-preload.ts",
@@ -75,17 +91,24 @@ const testFilePatterns = [
   "**/*.spec.{ts,tsx,js,mjs,cjs}",
 ];
 const sharedDiscoveryIgnore = [
-  ".artifacts/**",
-  ".next/**",
-  "node_modules/**",
+  "**/.artifacts/**",
+  "**/.next/**",
+  "**/node_modules/**",
   "tests/e2e/**",
 ];
 const discoveryIgnore = [...sharedDiscoveryIgnore, "lib/plugins/**"];
+const mockModulePattern = /\bmock\s*\.\s*module\s*\(/u;
+
+function isTestFileArgument(argument) {
+  return /\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(argument);
+}
 
 function filesNamedByGroup(group) {
-  return group.args.filter((arg) =>
-    /\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(arg),
-  );
+  return group.args.filter(isTestFileArgument);
+}
+
+function hasGlobalModuleMock(file) {
+  return mockModulePattern.test(readFileSync(file, "utf8"));
 }
 
 const explicitlyGroupedFiles = new Set(groups.flatMap(filesNamedByGroup));
@@ -98,9 +121,7 @@ const discoveredRootFiles = await fg(testFilePatterns, {
 const remainingRootFiles = discoveredRootFiles
   .filter((file) => !explicitlyGroupedFiles.has(file))
   .sort();
-const isolatedMockFiles = remainingRootFiles.filter((file) =>
-  /\bmock\.module\s*\(/u.test(readFileSync(file, "utf8")),
-);
+const isolatedMockFiles = remainingRootFiles.filter(hasGlobalModuleMock);
 const ordinaryRootFiles = remainingRootFiles.filter(
   (file) => !isolatedMockFiles.includes(file),
 );
@@ -114,9 +135,8 @@ const discoveredPluginFiles = (
 )
   .filter((file) => file.startsWith("lib/plugins/"))
   .sort();
-const isolatedPluginMockFiles = discoveredPluginFiles.filter((file) =>
-  /\bmock\.module\s*\(/u.test(readFileSync(file, "utf8")),
-);
+const isolatedPluginMockFiles =
+  discoveredPluginFiles.filter(hasGlobalModuleMock);
 const ordinaryPluginFiles = discoveredPluginFiles.filter(
   (file) => !isolatedPluginMockFiles.includes(file),
 );
@@ -132,15 +152,34 @@ function run(name, command, args) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-const rootOnly = process.argv.includes("--root-only");
-const pluginsOnly = process.argv.includes("--plugins-only");
+function runGroup(group) {
+  const files = filesNamedByGroup(group);
+  const commonArgs = group.args.filter(
+    (argument) => !isTestFileArgument(argument),
+  );
+  const isolatedFiles = files.filter(hasGlobalModuleMock);
+  const ordinaryFiles = files.filter((file) => !isolatedFiles.includes(file));
 
-if (rootOnly && pluginsOnly) {
-  throw new Error("--root-only and --plugins-only cannot be combined.");
+  if (ordinaryFiles.length > 0) {
+    run(group.name, "bun", [...commonArgs, ...ordinaryFiles]);
+  }
+  for (const file of isolatedFiles) {
+    run(`${group.name} mock-isolated root test: ${file}`, "bun", [
+      ...commonArgs,
+      file,
+    ]);
+  }
+}
+
+if (!pluginsOnly && discoveredRootFiles.length === 0) {
+  throw new Error("No root test files were discovered.");
+}
+if (!rootOnly && discoveredPluginFiles.length === 0) {
+  throw new Error("No plugin test files were discovered.");
 }
 
 if (!pluginsOnly) {
-  for (const group of groups) run(group.name, "bun", group.args);
+  for (const group of groups) runGroup(group);
 
   if (ordinaryRootFiles.length > 0) {
     run("remaining root unit tests", "bun", [

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import fg from "fast-glob";
 import {
   repositoryRoot,
   createSandbox,
@@ -203,7 +204,7 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
     expect(job).not.toContain("bun test \\");
   });
 
-  test("the orchestrator names each sensitive suite once and spawns every group", () => {
+  test("the orchestrator names each sensitive suite once and isolates grouped mocks", () => {
     const orchestrator = readFileSync(
       join(repositoryRoot, "scripts/run-tests.mjs"),
       "utf8",
@@ -212,7 +213,11 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
       expect(orchestrator.split(file).length - 1, file).toBe(1);
     }
     expect(orchestrator).toContain("spawnSync(command, args");
-    expect(orchestrator).toContain("for (const group of groups)");
+    expect(orchestrator).toContain(
+      "for (const group of groups) runGroup(group)",
+    );
+    expect(orchestrator).toContain("files.filter(hasGlobalModuleMock)");
+    expect(orchestrator).toContain("mock-isolated root test");
   });
 
   test("plugin tests with global module mocks run in isolated Bun processes", () => {
@@ -224,14 +229,54 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
       join(repositoryRoot, "package.json"),
       "utf8",
     );
-    expect(orchestrator).toContain("isolatedPluginMockFiles");
-    expect(orchestrator).toContain("mock-isolated plugin test");
+    expect(orchestrator).toMatch(
+      /const isolatedPluginMockFiles =\s*discoveredPluginFiles\.filter\(hasGlobalModuleMock\)/u,
+    );
+    expect(orchestrator).toMatch(
+      /for \(const file of isolatedPluginMockFiles\)[\s\S]*mock-isolated plugin test/u,
+    );
     expect(orchestrator).not.toContain(
       'run("plugin unit and security", "bun", ["test", ...preload, "lib/plugins"])',
     );
     expect(packageSource).toContain(
       '"test:plugins": "node scripts/run-tests.mjs --plugins-only"',
     );
+  });
+
+  test("global module mocks are declared only in discoverable tests or the preload", async () => {
+    const sourceFiles = await fg("**/*.{ts,tsx,js,mjs,cjs}", {
+      cwd: repositoryRoot,
+      ignore: ["**/.artifacts/**", "**/.next/**", "**/node_modules/**"],
+      onlyFiles: true,
+      unique: true,
+    });
+    const allowedStandaloneMockEntrypoints = new Set([
+      "scripts/local-dev/server-only-test-preload.ts",
+      "scripts/local-dev/test-plugin-registry-gates.ts",
+      "scripts/local-dev/test-plugin-runtime-contracts.mjs",
+    ]);
+    const testFilePattern = /\.(?:test|spec)\.[cm]?[jt]sx?$/u;
+    const mockModulePattern = /\bmock\s*\.\s*module\s*\(/u;
+    const hiddenMocks = sourceFiles.filter(
+      (file) =>
+        !allowedStandaloneMockEntrypoints.has(file) &&
+        !testFilePattern.test(file) &&
+        mockModulePattern.test(
+          readFileSync(join(repositoryRoot, file), "utf8"),
+        ),
+    );
+    expect(hiddenMocks).toEqual([]);
+  });
+
+  test("test discovery fails closed and rejects unknown mode flags", () => {
+    const orchestrator = readFileSync(
+      join(repositoryRoot, "scripts/run-tests.mjs"),
+      "utf8",
+    );
+    expect(orchestrator).toContain("No root test files were discovered.");
+    expect(orchestrator).toContain("No plugin test files were discovered.");
+    expect(orchestrator).toContain("Unknown test-runner argument");
+    expect(orchestrator).toContain("**/node_modules/**");
   });
 
   test("the cron probe suite keeps its server-only preload", () => {
