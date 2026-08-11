@@ -7,10 +7,11 @@
 --
 -- Keep provider transport in the application, but move scheduler scope and
 -- terminalization maintenance behind two service-only database RPCs. Durable
--- tenant-fairness timestamps plus per-tenant cyclic campaign cursors make every
--- bounded pass advance even when a selected row stays nonterminal or one
--- finalizer faults. The existing claim/reaper/finalizer RPCs remain the only
--- authorities on dispatch state and retain their canonical campaign lock order.
+-- tenant-fairness timestamps advance only with real attempt-ledger progress,
+-- while per-tenant cyclic campaign cursors advance even when a selected row
+-- stays nonterminal or one finalizer faults. The existing
+-- claim/reaper/finalizer RPCs remain the only authorities on dispatch state and
+-- retain their canonical campaign lock order.
 
 CREATE TABLE plugin_data.csf_scheduler_state (
   organization_id uuid PRIMARY KEY
@@ -58,6 +59,46 @@ CREATE INDEX csf_comm_campaigns_scheduler_idx
   ON plugin_data.csf_communication_campaigns (organization_id, id)
   WHERE status IN ('queued', 'sending');
 
+-- Scope discovery is intentionally a read with respect to fairness. A slow
+-- response can arrive after the application has too little time left to start a
+-- worker; advancing the cursor inside discovery would then count work that never
+-- began. The attempt ledger is the truthful commit point: claim, lease reaping,
+-- authorization refusal, and settlement all change attempt state under the
+-- canonical campaign lock. Only such a transition advances tenant fairness.
+CREATE OR REPLACE FUNCTION plugin_data.csf_note_scheduler_attempt_progress()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF OLD.state IS DISTINCT FROM NEW.state THEN
+    INSERT INTO plugin_data.csf_scheduler_state (
+      organization_id,
+      last_scope_claimed_at,
+      updated_at
+    )
+    VALUES (NEW.organization_id, now(), now())
+    ON CONFLICT (organization_id) DO UPDATE
+    SET
+      last_scope_claimed_at = EXCLUDED.last_scope_claimed_at,
+      updated_at = EXCLUDED.updated_at;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_note_scheduler_attempt_progress()
+  FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE TRIGGER csf_note_scheduler_attempt_progress
+AFTER UPDATE OF state
+ON plugin_data.csf_communication_dispatch_attempts
+FOR EACH ROW
+WHEN (OLD.state IS DISTINCT FROM NEW.state)
+EXECUTE FUNCTION plugin_data.csf_note_scheduler_attempt_progress();
+
 CREATE OR REPLACE FUNCTION plugin_data.csf_claim_communication_scheduler_scope(
   p_max_organizations integer DEFAULT 1
 )
@@ -67,10 +108,9 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  -- Selection is a durable claim, not a read. Exactly one tenant keeps the
-  -- persisted fairness cursor aligned with work the application is immediately
-  -- about to process; pre-claiming a batch can starve every unprocessed suffix
-  -- when the request deadline expires.
+  -- Return exactly one tenant so the application cannot preallocate an
+  -- unprocessed suffix. Discovery itself remains a read for fairness; the
+  -- attempt-state trigger above records only work that actually progressed.
   c_max_organizations constant integer := 1;
   v_now timestamptz := now();
   v_organization_ids uuid[] := '{}'::uuid[];
@@ -130,20 +170,6 @@ BEGIN
   INTO v_organization_ids
   FROM selected;
 
-  IF pg_catalog.array_length(v_organization_ids, 1) IS NOT NULL THEN
-    INSERT INTO plugin_data.csf_scheduler_state (
-      organization_id,
-      last_scope_claimed_at,
-      updated_at
-    )
-    SELECT selected.organization_id, v_now, v_now
-    FROM pg_catalog.unnest(v_organization_ids) AS selected(organization_id)
-    ON CONFLICT (organization_id) DO UPDATE
-    SET
-      last_scope_claimed_at = EXCLUDED.last_scope_claimed_at,
-      updated_at = EXCLUDED.updated_at;
-  END IF;
-
   RETURN pg_catalog.jsonb_build_object(
     'organizationCount', coalesce(
       pg_catalog.array_length(v_organization_ids, 1), 0
@@ -159,7 +185,7 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_claim_communication_scheduler_scope(in
   TO service_role;
 
 COMMENT ON FUNCTION plugin_data.csf_claim_communication_scheduler_scope(integer) IS
-  'Claims exactly one durably fair service-only organization scope derived from actionable queued attempts and expired processing leases. Expired leases remain discoverable even after cancellation. The result contains one organization UUID only and records selection immediately before application work begins.';
+  'Returns exactly one durably fair service-only organization scope derived from actionable queued attempts and expired processing leases. Discovery itself never advances fairness; only a real attempt-state transition does. Expired leases remain discoverable even after cancellation.';
 
 CREATE OR REPLACE FUNCTION plugin_data.csf_maintain_communication_campaigns(
   p_max_campaigns integer DEFAULT 50

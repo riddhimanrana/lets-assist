@@ -6,7 +6,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(28);
+SELECT extensions.plan(30);
 
 -- ---------------------------------------------------------------------------
 -- A. Private cursor and RPC boundary
@@ -435,8 +435,8 @@ SELECT extensions.is(
     SELECT pg_catalog.count(DISTINCT result->'organizationIds'->>0)::text
     FROM t_tenant_scope_rotation
   ),
-  '2',
-  'two repeated one-tenant claims advance to two different eligible organizations'
+  '1',
+  'repeated discovery without worker progress does not rotate away from the oldest eligible organization'
 );
 
 SELECT extensions.is(
@@ -449,8 +449,54 @@ SELECT extensions.is(
     )
       AND last_scope_claimed_at IS NOT NULL
   ),
-  '2',
-  'only the two immediately returned tenant coordinates receive durable fairness timestamps'
+  '0',
+  'scope discovery alone never persists a fairness timestamp'
+);
+
+CREATE TEMP TABLE t_tenant_worker_claim AS
+SELECT plugin_data.csf_claim_communication_dispatch_batch(
+  (
+    SELECT (result->'organizationIds'->>0)::uuid
+    FROM t_tenant_scope_rotation
+    WHERE sequence_number = 1
+  ),
+  NULL,
+  'scheduler-tenant-fairness-worker',
+  1,
+  120
+) AS result;
+
+SELECT extensions.is(
+  (
+    SELECT (result->>'claimedCount') || '|' || (
+      SELECT pg_catalog.count(*)::text
+      FROM plugin_data.csf_scheduler_state
+      WHERE organization_id = (
+        SELECT (scope.result->'organizationIds'->>0)::uuid
+        FROM t_tenant_scope_rotation AS scope
+        WHERE scope.sequence_number = 1
+      )
+        AND last_scope_claimed_at IS NOT NULL
+    )
+    FROM t_tenant_worker_claim
+  ),
+  '1|1',
+  'a real queued-to-processing claim is the commit point that advances tenant fairness'
+);
+
+INSERT INTO t_tenant_scope_rotation
+VALUES (3, plugin_data.csf_claim_communication_scheduler_scope(1));
+
+SELECT extensions.ok(
+  (
+    SELECT later.result->'organizationIds'->>0
+      <> earlier.result->'organizationIds'->>0
+    FROM t_tenant_scope_rotation AS earlier
+    CROSS JOIN t_tenant_scope_rotation AS later
+    WHERE earlier.sequence_number = 1
+      AND later.sequence_number = 3
+  ),
+  'after real worker progress the next scope rotates to the other eligible organization'
 );
 
 -- Keep the following campaign-prefix scenario single-tenant. These synthetic
