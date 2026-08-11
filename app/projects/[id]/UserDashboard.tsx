@@ -47,7 +47,8 @@ import Link from "next/link";
 import { QRCodeScannerModal } from "@/app/projects/_components/QRCodeScannerModal"; // Import the new component
 import { createClient } from "@/lib/supabase/client"; // 🆕 add supabase client
 import { toast } from "sonner";
-import { getMyWaiverSignatures } from "./actions";
+import { getMyProjectFeedback, getMyWaiverSignatures } from "./actions";
+import { ProjectFeedbackForm } from "@/components/projects/ProjectFeedbackForm";
 import {
   Carousel,
   CarouselContent,
@@ -272,6 +273,35 @@ export default function UserDashboard({
     [projectEndDateTime, now],
   );
   // --- END ADDED ---
+
+  // --- Private post-project feedback ---
+  const attendedFeedbackSignupId = useMemo(
+    () =>
+      signups.find((signup) => signup.status === "attended")?.id ?? null,
+    [signups],
+  );
+  const [myFeedback, setMyFeedback] = useState<{
+    rating: number;
+    comment: string | null;
+  } | null>(null);
+  const [feedbackLoaded, setFeedbackLoaded] = useState(false);
+  useEffect(() => {
+    if (!isProjectCompleted || !attendedFeedbackSignupId) return;
+    let cancelled = false;
+    getMyProjectFeedback(project.id)
+      .then((result) => {
+        if (cancelled) return;
+        setMyFeedback(result.feedback);
+        setFeedbackLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) setFeedbackLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isProjectCompleted, attendedFeedbackSignupId, project.id]);
+  // --- END feedback ---
 
   // --- Process Each Signup ---
   const signupStatuses = useMemo(() => {
@@ -1308,6 +1338,27 @@ export default function UserDashboard({
       {/* --- ADDED: Render general signup-only alert --- */}
       {renderGeneralSignupOnlyAlert()}
       {/* --- END ADDED --- */}
+
+      {/* Private post-project feedback: attendees only, organizer-visible only */}
+      {isProjectCompleted && attendedFeedbackSignupId && feedbackLoaded && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              How did volunteering here go?
+            </CardTitle>
+            <CardDescription>
+              Share private feedback with the organizer.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ProjectFeedbackForm
+              projectId={project.id}
+              signupId={attendedFeedbackSignupId}
+              initial={myFeedback}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Event Cards Carousel */}
       <Carousel
