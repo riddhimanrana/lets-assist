@@ -9,7 +9,9 @@ Let's Assist accounts, assigning officer positions, or reconciling the Fall
 ## Environment and stop rules
 
 - Rehearse at `https://dev.lets-assist.com/organization/dvhighcsf`. Development
-  uses a separate database and must contain only reserved synthetic identities.
+  uses a separate database. Automated fixtures must use only reserved synthetic
+  identities. Real chapter Sheets may be inspected in a read-only preview, but
+  do not commit their rows to Development.
 - Production is `https://lets-assist.com/organization/dvhighcsf`. Do not copy
   Development fixtures, links, or test decisions into Production.
 - The approved Google identity is exactly `dvhighcsf@gmail.com`. Stop at the
@@ -124,6 +126,10 @@ person actually needs.
 7. Commit only after an officer confirms the preview against both the class
    workbook and the Spring 2026 application responses.
 
+On Development, stop after the reviewed preview and reconciliation evidence.
+Commit real chapter rows only in Production after the release gates below pass;
+never copy the Development fixture rows or connection links forward.
+
 ### Privacy-safe source totals verified 2026-08-10
 
 | Graduating class | Historical source  | Exact bounded range |             Rows after header |
@@ -184,8 +190,13 @@ active Fall 2026 class.
   reusable combined link per class were created through the hosted UI.
 - The copied student link was verified as an absolute
   `https://dev.lets-assist.com/...` URL.
+- Members renders **Account connections** as its own view; its class/student
+  link dialogs open previews in a new tab and explicitly require a signed-out
+  student test. Staff access explains why **Assign position** is disabled when
+  no verified account exists and links directly back to that view.
 - Help, Members, Staff access, Imports, and the three-section Communications
-  workspace were clicked through on the deployed Development build.
+  workspace were clicked through on the deployed Development build. Help is
+  filtered by exact position capabilities rather than broad route access.
 - Google OAuth is paused at the password step for `dvhighcsf@gmail.com`; no real
   row preview or commit has occurred.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
