@@ -137,7 +137,7 @@ export async function getOrganizerSignupsWithWaiverStatus(
       schedule_id,
       volunteer_comment,
       response_data,
-      waiver_signature:waiver_signatures!waiver_signatures_signup_id_fkey (
+      waiver_signature:waiver_signatures!waiver_signatures_signup_project_fkey (
         id,
         created_at,
         signature_type,
