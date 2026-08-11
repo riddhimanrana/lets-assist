@@ -299,6 +299,32 @@ SELECT extensions.is(
   'successful create and retries never change class configuration'
 );
 
+-- One active reusable class invitation per class and semester is now enforced
+-- by `csf_onboarding_links_active_cohort_uidx`. The toggle fixture below
+-- targets the same class and semester as the link created above, so retire
+-- that link through the product's own deactivate action first rather than
+-- leaving a state the chapter can no longer reach. The link is addressed by
+-- its exact class, semester, and scope rather than by an unordered `LIMIT 1`,
+-- so this deactivates the one link it means to deactivate.
+SELECT plugin_data.csf_mutate_onboarding_link(
+  'bf100000-0000-4000-8000-000000000001',
+  'bf000000-0000-4000-8000-000000000001',
+  'bf900000-0000-4000-8000-000000000013',
+  jsonb_build_object(
+    'operation', 'set_active',
+    'linkId', (
+      SELECT id
+      FROM plugin_data.csf_onboarding_links
+      WHERE organization_id = 'bf100000-0000-4000-8000-000000000001'
+        AND cohort_id = 'bf200000-0000-4000-8000-000000000001'
+        AND term_id = 'bf300000-0000-4000-8000-000000000001'
+        AND invitation_scope = 'cohort'
+        AND is_active
+    ),
+    'isActive', false
+  )
+);
+
 INSERT INTO plugin_data.csf_onboarding_links (
   id, organization_id, term_id, cohort_id, code, title, link_type,
   is_active, created_by, invitation_scope, delivery_status
