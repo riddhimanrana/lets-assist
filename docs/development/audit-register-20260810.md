@@ -361,7 +361,10 @@ session's resend action first drains only queued/retryable durable work. An
 interrupted processing claim becomes explicitly reclaimable after 15 minutes
 using the same deterministic provider key, but only inside Resend's documented
 24-hour idempotency window; older ambiguous work terminalizes as
-`unknown_outcome` instead of risking a duplicate. Before any claim, a
+`unknown_outcome` instead of risking a duplicate. The immutable
+`first_attempt_at` anchors that 24-hour boundary while `last_attempt_at` renews
+only the 15-minute processing lease, so repeated reclaims cannot slide the
+provider-safety window. Before any claim, a
 service-only RPC stores a first-writer-wins, integrity-hashed snapshot of the
 exact recipient, sender, subject, rendered HTML, and tags. Recovery replays that
 snapshot instead of today's project, template, site URL, or environment, so the
@@ -370,10 +373,15 @@ bounded and claim-token idempotent, so a lost successful database response
 cannot overwrite the provider outcome. Provider calls use the
 certificate-derived key and synthetic workflow/receipt tags.
 
+The Server Action also normalizes accepted client timestamps to ISO millisecond
+precision before hashing or calling the RPC. This keeps JavaScript validation
+and PostgreSQL rounded-minute validation aligned when a database-originated ISO
+value contains microseconds.
+
 **Local verification, 2026-08-11:** empty ledger replay passed; the focused
-publication pgTAP file passed 45 assertions; action boundaries, all five email
+publication pgTAP file passed 46 assertions; action boundaries, all five email
 outcome mappings, publication-outcome precedence, bounded settlement retries,
-payload parsing, and snapshot-before-claim ordering passed 15 tests; four exact-duration tests passed;
+payload parsing, and snapshot-before-claim ordering passed 15 tests; five exact-duration and timestamp-normalization tests passed;
 TypeScript passed; and the loopback-only multi-session probe
 proved accepted/replayed serialization plus concurrent signup rejection and
 membership revocation winning before publication.
@@ -385,8 +393,8 @@ no owned container, volume, network, or temporary work directory remained.
 GitHub, Vercel Development, Supabase Development, Mailpit/Resend test-event, and
 browser acceptance gates remain open for the amended exact commit. After the
 review hardening, the complete 2,908-test / 173-file root/plugin unit
-orchestrator, the CI-shaped local Next.js build, the 19 focused tests,
-formatting, lint, TypeScript, migration replay, 45 pgTAP assertions, and the
+orchestrator, the CI-shaped local Next.js build, the 20 focused tests,
+formatting, lint, TypeScript, migration replay, 46 pgTAP assertions, and the
 expanded concurrency probe all passed. Production remains excluded.
 
 ---

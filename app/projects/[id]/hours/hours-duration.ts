@@ -6,6 +6,11 @@ export type HoursDuration = {
   minutes: number;
 };
 
+export function normalizeHoursTimestamp(value: string): string | null {
+  const timestamp = parseISO(value);
+  return Number.isFinite(timestamp.getTime()) ? timestamp.toISOString() : null;
+}
+
 export function calculateHoursDuration(
   checkInISO: string | null,
   checkOutISO: string | null,

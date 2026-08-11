@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 
-import { calculateHoursDuration } from "./hours-duration";
+import {
+  calculateHoursDuration,
+  normalizeHoursTimestamp,
+} from "./hours-duration";
 
 describe("volunteer-hours duration validation", () => {
   it("rejects an identical check-in and check-out before publication", () => {
@@ -68,5 +71,12 @@ describe("volunteer-hours duration validation", () => {
         "2026-08-12T09:00:00.001Z",
       ).isValid,
     ).toBe(false);
+  });
+
+  it("normalizes database microseconds to the millisecond precision used by validation", () => {
+    expect(normalizeHoursTimestamp("2026-08-11T09:00:29.999200Z")).toBe(
+      "2026-08-11T09:00:29.999Z",
+    );
+    expect(normalizeHoursTimestamp("not-a-timestamp")).toBeNull();
   });
 });

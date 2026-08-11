@@ -19,6 +19,7 @@ import {
   getPublishStateKey,
   sendCertificatePublishedEmails,
 } from "./certificate-issuance";
+import { normalizeHoursTimestamp } from "./hours-duration";
 
 // Define the structure for session data passed from the client
 type SessionVolunteerData = {
@@ -488,11 +489,14 @@ export async function publishVolunteerHours(
 
     const entries = sessionData
       .filter((v) => v.isValid && v.checkIn && v.checkOut)
-      .map((volunteer) => ({
-        signupId: volunteer.signupId,
-        checkIn: volunteer.checkIn!,
-        checkOut: volunteer.checkOut!,
-      }))
+      .map((volunteer) => {
+        const checkIn = normalizeHoursTimestamp(volunteer.checkIn!);
+        const checkOut = normalizeHoursTimestamp(volunteer.checkOut!);
+        return checkIn && checkOut
+          ? { signupId: volunteer.signupId, checkIn, checkOut }
+          : null;
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
       .sort((left, right) => left.signupId.localeCompare(right.signupId));
 
     if (entries.length === 0) {

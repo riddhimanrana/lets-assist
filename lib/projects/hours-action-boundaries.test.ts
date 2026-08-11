@@ -19,6 +19,7 @@ test("publishing hours delegates identity and permission checks to one transacti
   assert.ok(publishStart >= 0);
   assert.match(publishSource, /publish_volunteer_hours_transactional/u);
   assert.match(publishSource, /publicationRequestKey/u);
+  assert.match(publishSource, /normalizeHoursTimestamp/u);
   assert.match(publishSource, /drainPublicationEmails/u);
   assert.doesNotMatch(publishSource, /\.from\("certificates"\)\.insert/u);
   assert.doesNotMatch(publishSource, /\.from\("projects"\)\.update/u);

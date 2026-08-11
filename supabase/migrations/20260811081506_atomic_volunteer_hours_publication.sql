@@ -60,6 +60,7 @@ CREATE TABLE public.hours_publication_email_outbox (
   state text NOT NULL DEFAULT 'queued',
   claim_token uuid,
   attempt_count integer NOT NULL DEFAULT 0,
+  first_attempt_at timestamptz,
   last_attempt_at timestamptz,
   settled_at timestamptz,
   provider_message_id text,
@@ -74,6 +75,19 @@ CREATE TABLE public.hours_publication_email_outbox (
   CONSTRAINT hours_publication_email_outbox_idempotency_key_key UNIQUE (idempotency_key),
   CONSTRAINT hours_publication_email_outbox_idempotency_key_bounded
     CHECK (char_length(idempotency_key) BETWEEN 1 AND 256),
+  CONSTRAINT hours_publication_email_outbox_attempt_timeline_check CHECK (
+    (
+      attempt_count = 0
+      AND first_attempt_at IS NULL
+      AND last_attempt_at IS NULL
+    )
+    OR (
+      attempt_count > 0
+      AND first_attempt_at IS NOT NULL
+      AND last_attempt_at IS NOT NULL
+      AND last_attempt_at >= first_attempt_at
+    )
+  ),
   CONSTRAINT hours_publication_email_outbox_state_check CHECK (
     state IN (
       'queued',
@@ -816,7 +830,7 @@ BEGIN
     updated_at = now()
   WHERE id = p_delivery_id
     AND state = 'processing'
-    AND last_attempt_at < now() - interval '24 hours';
+    AND first_attempt_at < now() - interval '24 hours';
 
   IF FOUND THEN
     RETURN false;
@@ -828,6 +842,7 @@ BEGIN
     claim_token = p_claim_token,
     last_settlement_token = NULL,
     attempt_count = attempt_count + 1,
+    first_attempt_at = coalesce(first_attempt_at, now()),
     last_attempt_at = now(),
     updated_at = now()
   WHERE id = p_delivery_id
@@ -840,7 +855,7 @@ BEGIN
       OR (
         state = 'processing'
         AND last_attempt_at < now() - interval '15 minutes'
-        AND last_attempt_at >= now() - interval '24 hours'
+        AND first_attempt_at >= now() - interval '24 hours'
       )
     );
 

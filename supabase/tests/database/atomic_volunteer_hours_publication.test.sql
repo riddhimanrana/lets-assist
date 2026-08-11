@@ -5,7 +5,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(45);
+SELECT extensions.plan(46);
 
 SELECT extensions.ok(
   EXISTS (
@@ -604,7 +604,14 @@ SELECT extensions.ok(
 );
 
 UPDATE public.hours_publication_email_outbox
-SET last_attempt_at = now() - interval '16 minutes'
+SET
+  first_attempt_at = now() - interval '20 minutes',
+  last_attempt_at = now() - interval '16 minutes'
+WHERE id = (SELECT id FROM retryable_delivery);
+
+CREATE TEMP TABLE retryable_first_attempt AS
+SELECT first_attempt_at
+FROM public.hours_publication_email_outbox
 WHERE id = (SELECT id FROM retryable_delivery);
 
 SELECT extensions.ok(
@@ -615,8 +622,20 @@ SELECT extensions.ok(
   'an explicit drain reclaims a stale interrupted claim with the same provider idempotency key'
 );
 
+SELECT extensions.is(
+  (
+    SELECT first_attempt_at
+    FROM public.hours_publication_email_outbox
+    WHERE id = (SELECT id FROM retryable_delivery)
+  ),
+  (SELECT first_attempt_at FROM retryable_first_attempt),
+  'reclaiming a stale lease does not slide the provider idempotency window'
+);
+
 UPDATE public.hours_publication_email_outbox
-SET last_attempt_at = now() - interval '25 hours'
+SET
+  first_attempt_at = now() - interval '25 hours',
+  last_attempt_at = now() - interval '16 minutes'
 WHERE id = (SELECT id FROM retryable_delivery);
 
 SELECT extensions.ok(
@@ -624,7 +643,7 @@ SELECT extensions.ok(
     (SELECT id FROM retryable_delivery),
     'ab400000-0000-4000-8000-000000000006'
   ),
-  'an interrupted claim outside the provider idempotency window is never resent'
+  'a recently reclaimed claim outside the original provider idempotency window is never resent'
 );
 
 SELECT extensions.results_eq(
