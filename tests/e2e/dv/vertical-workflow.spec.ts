@@ -105,12 +105,15 @@ test("guardian availability link is single-use and updates judge availability", 
   await expect(
     actionCard.getByText("Confirm judging availability"),
   ).toBeVisible();
+  await expect(actionCard.locator('form[data-hydrated="true"]')).toBeVisible();
   const limitedAvailability = actionCard.getByRole("radio", {
     name: "Available for some rounds",
   });
   await limitedAvailability.click();
   await expect(limitedAvailability).toBeChecked();
-  await actionCard.getByLabel("Notes").fill("Available after the first round.");
+  const notes = actionCard.getByLabel("Notes");
+  await notes.fill("Available after the first round.");
+  await expect(notes).toHaveValue("Available after the first round.");
   await actionCard
     .getByRole("button", { name: "Confirm availability" })
     .click();

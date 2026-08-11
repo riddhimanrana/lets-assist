@@ -23,8 +23,9 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-005](#aud-005) | P3  | Plugin RLS             | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob            | Reclassified — designed behaviour, document the contract     |
 | [AUD-006](#aud-006) | P2  | Architecture           | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`**                                   |
 | [AUD-012](#aud-012) | P2  | Notifications          | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter   | **Fixed locally**; hosted Development pending                |
-| [AUD-016](#aud-016) | P1  | Stored HTML            | The DV form-editor preview inserted persisted rich-text help content without sanitization                           | **Fixed locally**; root integration pending                  |
+| [AUD-016](#aud-016) | P1  | Stored HTML            | The DV form-editor preview inserted persisted rich-text help content without sanitization                           | **Fixed on `development`**; exact CI green                   |
 | [AUD-017](#aud-017) | P1  | Next.js route contract | The paper-signup AI route exported an unsupported value, so clean isolated production builds failed type checking   | **Fixed on `development`**; exact CI green                   |
+| [AUD-018](#aud-018) | P1  | Guardian form          | Hydration could replace a guardian's reviewed availability and notes with SSR defaults before submission            | **Fixed locally**; exact Development CI pending              |
 | [AUD-007](#aud-007) | P2  | CI                     | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                               | Fixed this session                                           |
 | [AUD-008](#aud-008) | P2  | Architecture           | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript    | Confirmed, by design                                         |
 | [AUD-009](#aud-009) | P2  | Gate coverage          | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads`                     | Confirmed                                                    |
@@ -334,9 +335,12 @@ links are removed while reviewed formatting and HTTPS links remain.
 **Evidence, 2026-08-11:** private commit `a465266` passed its focused 4-assertion
 contract, Prettier, root integration lint and typecheck, GitGuardian, and an
 exact-commit Codex review with no major issue. It merged to private
-`development` as `711c848`. The root integration keeps that exact gitlink and
-adds two sanitizer behavior tests. Production, `main`, credentials, providers,
-live data, and Production browser surfaces were not accessed.
+`development` as `711c848`. Root PR #122 kept that exact gitlink and added two
+sanitizer behavior tests; it merged to `development` as `5ad8cc7`. Exact run
+`31480704997` passed quality/build, empty replay, pgTAP, fictional seeding, DV
+RLS, CSF workflow/scale, cron no-egress, DV/CSF browser suites, trace validation,
+and owned teardown. Production, `main`, credentials, providers, live data, and
+Production browser surfaces were not accessed.
 
 ---
 
@@ -366,6 +370,43 @@ typecheck. PR #123 merged to `development` as `f6a0931`; exact-commit manual run
 RLS, CSF workflow/scale, the cron no-egress probe, DV and CSF browser suites,
 trace validation, and owned teardown. Production, `main`, provider credentials,
 live data, and Production browser surfaces were not accessed.
+
+---
+
+## AUD-018 — Guardian availability could reset during hydration {#aud-018}
+
+**Priority:** P1 · **Confidence:** Confirmed · **Blast radius:** guardians using
+single-use DV judge-availability links during a slow or cold page hydration
+
+The guardian form rendered interactive uncontrolled inputs before its client
+boundary was ready. In exact Development CI, Playwright selected `limited`,
+confirmed that radio was checked, and filled a scheduling note. Hydration then
+reconciled the form to its server-rendered defaults immediately before the
+Server Action submission. The action received `available` and a blank note,
+consumed the single-use token, persisted the wrong availability, and displayed
+**Availability recorded**.
+
+**Evidence provenance:** GitHub run `31482117709` used the isolated fictional DV
+stack and retained sanitized Playwright evidence. Its trace recorded the checked
+control and filled textarea, followed by a multipart Server Action request whose
+status was `available` and whose notes were empty. The database assertion then
+read that exact wrong status. No hosted database, provider, credential, live
+identity, or Production surface was used.
+
+**Resolution:** the form is now a small Client Component with controlled status
+and notes. Every mutable control and the submit button remain disabled until the
+component has hydrated, the form exposes an explicit readiness marker for
+acceptance, and the submit button prevents repeat work while the Server Action is
+pending. The public page and action URL remain unchanged. The DV browser journey
+now waits for the same readiness contract and proves both values immediately
+before submission; a focused source contract prevents the uncontrolled/default
+form from returning.
+
+**Verification, 2026-08-11:** the focused 10-assertion regression, Prettier,
+lint, TypeScript, strict private-gitlink validation, all 2,908 root/private unit
+tests, and the CI-shaped production build pass locally. Exact GitHub quality,
+isolated DV/CSF browser, and owned teardown gates remain pending. Production
+remains excluded.
 
 ---
 
