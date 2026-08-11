@@ -215,6 +215,25 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
     expect(orchestrator).toContain("for (const group of groups)");
   });
 
+  test("plugin tests with global module mocks run in isolated Bun processes", () => {
+    const orchestrator = readFileSync(
+      join(repositoryRoot, "scripts/run-tests.mjs"),
+      "utf8",
+    );
+    const packageSource = readFileSync(
+      join(repositoryRoot, "package.json"),
+      "utf8",
+    );
+    expect(orchestrator).toContain("isolatedPluginMockFiles");
+    expect(orchestrator).toContain("mock-isolated plugin test");
+    expect(orchestrator).not.toContain(
+      'run("plugin unit and security", "bun", ["test", ...preload, "lib/plugins"])',
+    );
+    expect(packageSource).toContain(
+      '"test:plugins": "node scripts/run-tests.mjs --plugins-only"',
+    );
+  });
+
   test("the cron probe suite keeps its server-only preload", () => {
     const orchestrator = readFileSync(
       join(repositoryRoot, "scripts/run-tests.mjs"),

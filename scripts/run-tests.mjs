@@ -74,13 +74,13 @@ const testFilePatterns = [
   "**/*.test.{ts,tsx,js,mjs,cjs}",
   "**/*.spec.{ts,tsx,js,mjs,cjs}",
 ];
-const discoveryIgnore = [
+const sharedDiscoveryIgnore = [
   ".artifacts/**",
   ".next/**",
-  "lib/plugins/**",
   "node_modules/**",
   "tests/e2e/**",
 ];
+const discoveryIgnore = [...sharedDiscoveryIgnore, "lib/plugins/**"];
 
 function filesNamedByGroup(group) {
   return group.args.filter((arg) =>
@@ -104,6 +104,22 @@ const isolatedMockFiles = remainingRootFiles.filter((file) =>
 const ordinaryRootFiles = remainingRootFiles.filter(
   (file) => !isolatedMockFiles.includes(file),
 );
+const discoveredPluginFiles = (
+  await fg(testFilePatterns, {
+    cwd: process.cwd(),
+    ignore: sharedDiscoveryIgnore,
+    onlyFiles: true,
+    unique: true,
+  })
+)
+  .filter((file) => file.startsWith("lib/plugins/"))
+  .sort();
+const isolatedPluginMockFiles = discoveredPluginFiles.filter((file) =>
+  /\bmock\.module\s*\(/u.test(readFileSync(file, "utf8")),
+);
+const ordinaryPluginFiles = discoveredPluginFiles.filter(
+  (file) => !isolatedPluginMockFiles.includes(file),
+);
 
 function run(name, command, args) {
   console.log(`\n[test] ${name}`);
@@ -116,24 +132,47 @@ function run(name, command, args) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-for (const group of groups) run(group.name, "bun", group.args);
+const rootOnly = process.argv.includes("--root-only");
+const pluginsOnly = process.argv.includes("--plugins-only");
 
-if (ordinaryRootFiles.length > 0) {
-  run("remaining root unit tests", "bun", [
-    "test",
-    ...preload,
-    ...ordinaryRootFiles,
-  ]);
+if (rootOnly && pluginsOnly) {
+  throw new Error("--root-only and --plugins-only cannot be combined.");
 }
 
-for (const file of isolatedMockFiles) {
-  run(`mock-isolated root test: ${file}`, "bun", ["test", ...preload, file]);
+if (!pluginsOnly) {
+  for (const group of groups) run(group.name, "bun", group.args);
+
+  if (ordinaryRootFiles.length > 0) {
+    run("remaining root unit tests", "bun", [
+      "test",
+      ...preload,
+      ...ordinaryRootFiles,
+    ]);
+  }
+
+  for (const file of isolatedMockFiles) {
+    run(`mock-isolated root test: ${file}`, "bun", ["test", ...preload, file]);
+  }
 }
 
-if (!process.argv.includes("--root-only")) {
-  run("plugin unit and security", "bun", ["test", ...preload, "lib/plugins"]);
+if (!rootOnly) {
+  if (ordinaryPluginFiles.length > 0) {
+    run("ordinary plugin unit and security", "bun", [
+      "test",
+      ...preload,
+      ...ordinaryPluginFiles,
+    ]);
+  }
+
+  for (const file of isolatedPluginMockFiles) {
+    run(`mock-isolated plugin test: ${file}`, "bun", [
+      "test",
+      ...preload,
+      file,
+    ]);
+  }
 }
 
 console.log(
-  `\n[test] PASS: ${discoveredRootFiles.length} root test files were discovered; every mock-sensitive file ran in its own Bun process.`,
+  `\n[test] PASS: ${pluginsOnly ? 0 : discoveredRootFiles.length} root and ${rootOnly ? 0 : discoveredPluginFiles.length} plugin test files were discovered; every mock-sensitive file ran in its own Bun process.`,
 );
