@@ -63,7 +63,9 @@ test("accepts a valid state bound to its HttpOnly cookie nonce and user", () => 
 test("rejects a tampered state payload", () => {
   const created = createState();
   const [iv, ciphertext, tag] = created.state.split(".");
-  const tamperedCiphertext = `${ciphertext.slice(0, -1)}${ciphertext.endsWith("A") ? "B" : "A"}`;
+  const ciphertextBytes = Buffer.from(ciphertext, "base64url");
+  ciphertextBytes[0] ^= 1;
+  const tamperedCiphertext = ciphertextBytes.toString("base64url");
 
   assert.deepEqual(
     verifyGoogleOAuthState({
@@ -94,7 +96,9 @@ test("rejects tampering with a CSF import state", () => {
     },
   );
   const [iv, ciphertext, tag] = created.state.split(".");
-  const tamperedTag = `${tag.slice(0, -1)}${tag.endsWith("A") ? "B" : "A"}`;
+  const tagBytes = Buffer.from(tag, "base64url");
+  tagBytes[0] ^= 1;
+  const tamperedTag = tagBytes.toString("base64url");
 
   assert.deepEqual(
     verifyGoogleOAuthState({
