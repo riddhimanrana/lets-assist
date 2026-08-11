@@ -8,18 +8,22 @@
  * place to roll the fleet forward when Google rotates generations.
  *
  * Tiers (AI Gateway pricing per 1M tokens, verified 2026-08-11):
- * - FAST  google/gemini-3.5-flash-lite  $0.30 in / $2.50 out — the default
+ * - FAST  google/gemini-2.5-flash-lite  $0.10 in / $0.40 out — the default
  *   for every routine job: moderation, form parsing, sheet transcription.
- * - QUALITY  google/gemini-3.6-flash    $1.50 in / $7.50 out — escalation
+ * - QUALITY  google/gemini-2.5-flash    $0.30 in / $2.50 out — escalation
  *   tier for low-confidence vision reads and harder structured extraction.
  *
- * gemini-2.5-flash-lite is still served and nominally cheaper, but it is
- * two generations behind and the 2.x line is where retirements happen;
- * the savings are not worth another silent 404.
+ * Both are FREE-TIER ELIGIBLE on the AI Gateway (browse
+ * vercel.com/ai-gateway/models with the Free Tier filter). That matters:
+ * this team currently runs on free credit, and the newer 3.x flash line is
+ * paid-tier only — pinning it returns 403 "free tier users do not have
+ * access" until credits are purchased. When the team moves to paid credits,
+ * bump these two constants (3.5-flash-lite / 3.6-flash are the successors)
+ * and nothing else.
  */
 
-export const AI_MODEL_FAST = "google/gemini-3.5-flash-lite";
-export const AI_MODEL_QUALITY = "google/gemini-3.6-flash";
+export const AI_MODEL_FAST = "google/gemini-2.5-flash-lite";
+export const AI_MODEL_QUALITY = "google/gemini-2.5-flash";
 
 /** Availability chain: try FAST, fall through to QUALITY on provider errors. */
 export const AI_MODEL_FALLBACK_CHAIN = [
