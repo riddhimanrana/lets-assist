@@ -42,6 +42,7 @@ This directory is the canonical documentation home for humans and coding agents.
 ## DVHS CSF
 
 - [Subsystem overview](csf/README.md)
+- [DVHS Fall 2026 operator guide](csf/dvhs-fall-2026-operator-guide.md)
 - [Onboarding a new chapter](csf/new-chapter-onboarding.md)
 - [Formal invariants](csf/invariants.md)
 - [Product contract](csf/product-contract.md)
