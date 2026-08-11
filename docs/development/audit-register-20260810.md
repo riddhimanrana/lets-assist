@@ -461,11 +461,12 @@ now waits for the same readiness contract and proves both values immediately
 before submission; a focused source contract prevents the uncontrolled/default
 form from returning.
 
-**Verification, 2026-08-11:** the focused 10-assertion regression, Prettier,
-lint, TypeScript, strict private-gitlink validation, all 2,908 root/private unit
-tests, and the CI-shaped production build pass locally. Exact GitHub quality,
-isolated DV/CSF browser, and owned teardown gates remain pending. Production
-remains excluded.
+**Verification, 2026-08-11:** merged root PR #124 as `e830fdf`. Exact GitHub
+run `31483374291` passed formatting, lint, TypeScript, all root/private tests,
+the production build, database replay and pgTAP, DV/CSF database workflows,
+cron no-egress, the strengthened DV journey, the CSF browser lifecycle, trace
+validation, health verification, and owned teardown. Production remained
+excluded.
 
 ---
 
