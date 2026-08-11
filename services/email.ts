@@ -80,6 +80,14 @@ export interface SendEmailParams {
    */
   topicId?: string;
   idempotencyKey?: string;
+  /**
+   * Optional caller-owned cancellation for the provider request only.
+   *
+   * Once the request begins, an abort is an unknown provider outcome, never a
+   * retryable pre-send failure. Callers with a hard execution deadline use this
+   * to leave enough time to durably settle that ambiguity.
+   */
+  signal?: AbortSignal;
 }
 
 /**

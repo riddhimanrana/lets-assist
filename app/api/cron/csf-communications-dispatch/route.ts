@@ -7,7 +7,6 @@ import { createClient } from "@supabase/supabase-js";
 import { readPositiveInteger } from "@/lib/async/map-with-concurrency";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 import {
-  CsfWorkerRpcError,
   runCsfDispatchWorker,
   type CsfPluginRpc,
   type CsfWorkerAttemptReport,
@@ -44,9 +43,55 @@ export const maxDuration = 60;
 /** Bounded work per invocation. A cron tick is not a place to drain a queue. */
 const MAX_BATCH_SIZE = 50;
 const MAX_ORGANIZATIONS_PER_RUN = 10;
-/** Wall-clock bound, checked between organizations so a run always terminates. */
+const MAX_MAINTENANCE_CAMPAIGNS_PER_PASS = 50;
+/** Absolute wall-clock ceiling. No awaited scheduler or worker operation may outlive it. */
 const RUN_DEADLINE_MS = 45_000;
 const LEASE_SECONDS = 120;
+
+class RunDeadlineExceeded extends Error {
+  constructor() {
+    super("csf_communications_run_deadline_exceeded");
+    this.name = "RunDeadlineExceeded";
+  }
+}
+
+function configuredRunDeadlineMs(): number {
+  return readPositiveInteger(
+    process.env.CSF_COMMUNICATIONS_WORKER_DEADLINE_MS,
+    RUN_DEADLINE_MS,
+    RUN_DEADLINE_MS,
+  );
+}
+
+/**
+ * Bound one already-started operation to the route's single absolute deadline.
+ *
+ * A provider request also receives an AbortSignal before this outer race. If a
+ * database transport ignores the race, its continuation cannot create a second
+ * send; the one-attempt lease and provider idempotency coordinate remain fixed.
+ */
+async function beforeDeadline<T>(
+  operation: Promise<T>,
+  deadlineAt: number,
+): Promise<T> {
+  const remainingMs = deadlineAt - Date.now();
+  if (remainingMs <= 0) throw new RunDeadlineExceeded();
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new RunDeadlineExceeded()),
+          remainingMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
 
 /**
  * `Authorization: Bearer <secret>`, and nothing else.
@@ -113,9 +158,7 @@ function isAuthorized(request: NextRequest): boolean {
   );
 }
 
-function pluginClient(): CsfPluginRpc & {
-  from: ReturnType<typeof createClient>["from"];
-} {
+function pluginClient(): CsfPluginRpc {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const secretKey =
     process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -127,9 +170,7 @@ function pluginClient(): CsfPluginRpc & {
   return createClient(supabaseUrl, secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
     db: { schema: "plugin_data" },
-  }) as unknown as CsfPluginRpc & {
-    from: ReturnType<typeof createClient>["from"];
-  };
+  }) as unknown as CsfPluginRpc;
 }
 
 type OutcomeTally = Record<CsfWorkerAttemptReport["status"], number>;
@@ -155,6 +196,51 @@ function json(body: unknown, status = 200) {
   });
 }
 
+function boundedCount(value: unknown, maximum: number): number {
+  return typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= maximum
+    ? value
+    : 0;
+}
+
+function organizationScope(value: unknown): string[] {
+  if (!value || typeof value !== "object") return [];
+  const ids = (value as { organizationIds?: unknown }).organizationIds;
+  if (!Array.isArray(ids)) return [];
+  return [
+    ...new Set(ids.filter((id): id is string => typeof id === "string")),
+  ].slice(0, MAX_ORGANIZATIONS_PER_RUN);
+}
+
+async function maintainCampaigns(plugin: CsfPluginRpc, deadlineAt: number) {
+  try {
+    const result = await beforeDeadline(
+      plugin.rpc("csf_maintain_communication_campaigns", {
+        p_max_campaigns: MAX_MAINTENANCE_CAMPAIGNS_PER_PASS,
+      }),
+      deadlineAt,
+    );
+    if (result.error || !result.data || typeof result.data !== "object") {
+      return { checked: 0, terminalized: 0, faults: 1 };
+    }
+
+    const report = result.data as Record<string, unknown>;
+    return {
+      checked: boundedCount(report.checked, MAX_MAINTENANCE_CAMPAIGNS_PER_PASS),
+      terminalized: boundedCount(
+        report.terminalized,
+        MAX_MAINTENANCE_CAMPAIGNS_PER_PASS,
+      ),
+      faults: boundedCount(report.faults, MAX_MAINTENANCE_CAMPAIGNS_PER_PASS),
+    };
+  } catch (error) {
+    if (error instanceof RunDeadlineExceeded) throw error;
+    return { checked: 0, terminalized: 0, faults: 1 };
+  }
+}
+
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     // NOTHING HAS HAPPENED YET. No client is built, no organization is read, and
@@ -175,12 +261,20 @@ export async function POST(request: NextRequest) {
       organizationsProcessed: 0,
       claimed: 0,
       outcomes: emptyTally(),
+      campaignsChecked: 0,
+      campaignsTerminalized: 0,
       faults: 0,
       deadlineReached: false,
     });
   }
 
   const startedAt = Date.now();
+  const runDeadlineMs = configuredRunDeadlineMs();
+  const deadlineAt = startedAt + runDeadlineMs;
+  const settlementReserveMs = Math.min(
+    5_000,
+    Math.max(1, Math.floor(runDeadlineMs / 4)),
+  );
   const batchSize = Math.min(
     readPositiveInteger(
       process.env.CSF_COMMUNICATIONS_WORKER_BATCH_SIZE,
@@ -197,66 +291,186 @@ export async function POST(request: NextRequest) {
     return json({ error: "Worker transport unavailable" }, 503);
   }
 
-  // ORGANIZATION SCOPE IS DERIVED, NEVER SUPPLIED. service_role holds SELECT on
-  // the attempt ledger and nothing more, so this reads the queue and cannot
-  // mutate it.
-  const { data: queuedRows, error: queueError } = await plugin
-    .from("csf_communication_dispatch_attempts")
-    .select("organization_id")
-    .eq("state", "queued")
-    .limit(1000);
-
-  if (queueError) {
-    // Bounded: the database's own message can name rows and addresses.
-    return json({ error: "Queue scope unavailable" }, 503);
-  }
-
-  const organizationIds = [
-    ...new Set(
-      (queuedRows ?? [])
-        .map((row) => (row as { organization_id?: unknown }).organization_id)
-        .filter((value): value is string => typeof value === "string"),
-    ),
-  ].slice(0, MAX_ORGANIZATIONS_PER_RUN);
-
   const workerId = `csf-dispatch-${startedAt.toString(36)}`;
   const tally = emptyTally();
   let claimed = 0;
   let organizationsProcessed = 0;
   let faults = 0;
   let deadlineReached = false;
+  let campaignsChecked = 0;
+  let campaignsTerminalized = 0;
 
-  for (const organizationId of organizationIds) {
-    if (Date.now() - startedAt >= RUN_DEADLINE_MS) {
-      // The remaining organizations keep their queued work and are picked up by
-      // the next tick. Nothing is lost, because nothing was claimed.
+  // Recover an earlier lost finalizer response before claiming more work. The
+  // database owns both the terminalization predicate and the fair cursor; this
+  // route receives aggregate counts only.
+  try {
+    const maintenanceBefore = await maintainCampaigns(plugin, deadlineAt);
+    campaignsChecked += maintenanceBefore.checked;
+    campaignsTerminalized += maintenanceBefore.terminalized;
+    faults += maintenanceBefore.faults;
+  } catch (error) {
+    if (error instanceof RunDeadlineExceeded) deadlineReached = true;
+    else faults += 1;
+  }
+
+  const queuedOrganizationIds = new Set<string>();
+  const processedOrganizationIds = new Set<string>();
+  let workerPasses = 0;
+
+  // Reserve ONE tenant coordinate immediately before processing it. Marking ten
+  // tenants selected at once made the nine that did not fit before the deadline
+  // look equally recent and could starve them forever behind the first UUID. A
+  // reservation does not advance fairness: the exact coordinate is acknowledged
+  // only after this route proves that provider and settlement time remains. The
+  // acknowledgement is its own short transaction, before any campaign lock, so a
+  // claim-time fault rotates on the next tick without creating a lock inversion.
+  while (
+    !deadlineReached &&
+    workerPasses < batchSize &&
+    processedOrganizationIds.size < MAX_ORGANIZATIONS_PER_RUN
+  ) {
+    if (deadlineAt - Date.now() <= settlementReserveMs) {
+      // Do not advance a durable tenant cursor when there is already too little
+      // time to authorize a provider request and settle its outcome.
       deadlineReached = true;
       break;
     }
 
+    let scopeResult: Awaited<ReturnType<CsfPluginRpc["rpc"]>>;
     try {
-      const report = await runCsfDispatchWorker(plugin, {
-        organizationId,
-        workerId,
-        batchSize,
-        leaseSeconds: LEASE_SECONDS,
-      });
+      scopeResult = await beforeDeadline(
+        plugin.rpc("csf_claim_communication_scheduler_scope", {
+          p_max_organizations: 1,
+        }),
+        deadlineAt,
+      );
+    } catch (error) {
+      if (error instanceof RunDeadlineExceeded) {
+        deadlineReached = true;
+        break;
+      }
+      return json({ error: "Campaign scope unavailable" }, 503);
+    }
+
+    if (scopeResult.error) {
+      // Bounded: the database's own message can name rows and addresses.
+      return json({ error: "Campaign scope unavailable" }, 503);
+    }
+
+    const [organizationId] = organizationScope(scopeResult.data);
+    if (!organizationId) break;
+    const reservationId =
+      scopeResult.data && typeof scopeResult.data === "object"
+        ? (scopeResult.data as { reservationId?: unknown }).reservationId
+        : null;
+    if (typeof reservationId !== "string" || reservationId.length === 0) {
+      return json({ error: "Campaign scope unavailable" }, 503);
+    }
+    queuedOrganizationIds.add(organizationId);
+
+    if (deadlineAt - Date.now() <= settlementReserveMs) {
+      deadlineReached = true;
+      break;
+    }
+
+    let acknowledgement: Awaited<ReturnType<CsfPluginRpc["rpc"]>>;
+    try {
+      acknowledgement = await beforeDeadline(
+        plugin.rpc("csf_acknowledge_communication_scheduler_scope", {
+          p_organization_id: organizationId,
+          p_reservation_id: reservationId,
+        }),
+        deadlineAt - settlementReserveMs,
+      );
+    } catch (error) {
+      if (error instanceof RunDeadlineExceeded) deadlineReached = true;
+      else faults += 1;
+      break;
+    }
+
+    const acknowledged =
+      !acknowledgement.error &&
+      acknowledgement.data &&
+      typeof acknowledgement.data === "object" &&
+      (acknowledgement.data as { acknowledged?: unknown }).acknowledged ===
+        true;
+    if (!acknowledged) {
+      faults += 1;
+      break;
+    }
+
+    workerPasses += 1;
+    const providerTimeMs = deadlineAt - Date.now() - settlementReserveMs;
+    if (providerTimeMs <= 0) {
+      deadlineReached = true;
+      break;
+    }
+    const providerAbortController = new AbortController();
+    const providerAbortTimer = setTimeout(
+      () => providerAbortController.abort(),
+      providerTimeMs,
+    );
+
+    try {
+      // One claim per pass is what lets the absolute deadline be honest. A
+      // malformed RPC that returns more than requested is rejected by the worker
+      // before any send; no large leased batch can keep running behind this race.
+      const report = await beforeDeadline(
+        runCsfDispatchWorker(plugin, {
+          organizationId,
+          workerId,
+          batchSize: 1,
+          leaseSeconds: LEASE_SECONDS,
+          providerSignal: providerAbortController.signal,
+        }),
+        deadlineAt,
+      );
 
       claimed += report.claimed;
-      organizationsProcessed += 1;
+      processedOrganizationIds.add(organizationId);
+      organizationsProcessed = processedOrganizationIds.size;
       for (const attempt of report.attempts) {
         tally[attempt.status] += 1;
       }
+      if (report.claimed === 0) {
+        // The allocator's eligibility snapshot may have named an expired lease
+        // that this claim just reaped or work another concurrent worker won.
+        // Do not spin on the same durable coordinate within this invocation.
+        break;
+      }
     } catch (error) {
+      if (error instanceof RunDeadlineExceeded) {
+        deadlineReached = true;
+        break;
+      }
       // A bounded worker fault for one organization must not abandon the rest,
       // and must not leak the ledger's diagnostics. Attempts this worker had
       // leased stay leased and are reaped as unknown_outcome -- honest, and
-      // never re-sent.
+      // never re-sent. The maintenance pass below still runs: an earlier claim
+      // in this batch may already have settled before a later one failed.
       faults += 1;
-      if (!(error instanceof CsfWorkerRpcError)) {
-        // An unexpected fault is still bounded here: the message is discarded.
-        continue;
-      }
+      processedOrganizationIds.add(organizationId);
+      organizationsProcessed = processedOrganizationIds.size;
+      break;
+    } finally {
+      clearTimeout(providerAbortTimer);
+    }
+  }
+
+  // V122: attempt settlement is not campaign aggregation. Run maintenance again
+  // after the bounded worker pass so campaigns settled in this invocation leave
+  // Sending immediately. If the deadline was consumed, the next tick begins with
+  // this same durable maintenance step; no campaign identity has to survive in
+  // application memory.
+  if (!deadlineReached) {
+    try {
+      const maintenanceAfter = await maintainCampaigns(plugin, deadlineAt);
+      campaignsChecked += maintenanceAfter.checked;
+      campaignsTerminalized += maintenanceAfter.terminalized;
+      faults += maintenanceAfter.faults;
+    } catch (error) {
+      if (error instanceof RunDeadlineExceeded) deadlineReached = true;
+      else faults += 1;
     }
   }
 
@@ -264,10 +478,12 @@ export async function POST(request: NextRequest) {
   // address, no subject, no provider message id, and no provider error text.
   return json({
     enabled: true,
-    organizationsQueued: organizationIds.length,
+    organizationsQueued: queuedOrganizationIds.size,
     organizationsProcessed,
     claimed,
     outcomes: tally,
+    campaignsChecked,
+    campaignsTerminalized,
     faults,
     deadlineReached,
     batchSize,

@@ -27,6 +27,7 @@ export async function sendEmail({
   headers,
   topicId,
   idempotencyKey,
+  signal,
 }: SendEmailParams): Promise<SendEmailResult> {
   const shouldLog = process.env.NODE_ENV !== "test";
   const safeLogAttributes = emailLogAttributes({ to, type, userId });
@@ -266,6 +267,14 @@ export async function sendEmail({
     const content = emailHtml
       ? { html: emailHtml, ...(text ? { text } : {}) }
       : { text: text! };
+    // The installed SDK forwards all request options to `fetch`; its published
+    // type currently names idempotency only, while the Fetch-standard signal is
+    // intentionally local to this call. Keeping it in the request-options object
+    // means it is never serialized into the provider payload or its ledger hash.
+    const requestOptions = {
+      ...(idempotencyKey ? { idempotencyKey } : {}),
+      ...(signal ? { signal } : {}),
+    };
     const { data, error } = await resend.emails.send(
       {
         from:
@@ -286,7 +295,7 @@ export async function sendEmail({
         ...(topicId ? { topicId } : {}),
         attachments,
       },
-      idempotencyKey ? { idempotencyKey } : undefined,
+      Object.keys(requestOptions).length > 0 ? requestOptions : undefined,
     );
 
     // THE API ANSWERED, SO THE REQUEST AROSE -- ONLY ACCEPTANCE IS IN QUESTION.

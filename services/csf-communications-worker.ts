@@ -306,9 +306,11 @@ export async function dispatchClaimedAttempt(
     workerId: string;
     correlationId?: string;
     claim: CsfWorkerClaim;
+    providerSignal?: AbortSignal;
   },
 ): Promise<CsfWorkerAttemptReport> {
-  const { organizationId, workerId, correlationId, claim } = input;
+  const { organizationId, workerId, correlationId, claim, providerSignal } =
+    input;
 
   // 1. AUTHORIZE IMMEDIATELY BEFORE SENDING.
   //
@@ -358,7 +360,10 @@ export async function dispatchClaimedAttempt(
   // within its retention window it deduplicates; beyond that window the ledger's own
   // attempt coordinate is what prevents a second send, which is why nothing below
   // ever loops.
-  const transportResult = await sendEmail({ ...authorization.providerPayload });
+  const transportResult = await sendEmail({
+    ...authorization.providerPayload,
+    ...(providerSignal ? { signal: providerSignal } : {}),
+  });
 
   const settlement = mapTransportResultToSettlement(transportResult);
 
@@ -422,15 +427,17 @@ export async function runCsfDispatchWorker(
     batchSize?: number;
     leaseSeconds?: number;
     correlationId?: string;
+    providerSignal?: AbortSignal;
   },
 ): Promise<CsfWorkerRunReport> {
+  const requestedBatchSize = input.batchSize ?? 25;
   const claimResponse = await plugin.rpc(
     "csf_claim_communication_dispatch_batch",
     {
       p_organization_id: input.organizationId,
       p_campaign_id: input.campaignId ?? null,
       p_worker_id: input.workerId,
-      p_batch_size: input.batchSize ?? 25,
+      p_batch_size: requestedBatchSize,
       p_lease_seconds: input.leaseSeconds ?? 120,
     },
   );
@@ -443,6 +450,17 @@ export async function runCsfDispatchWorker(
   }
 
   const claims = parseClaimBatch(claimResponse.data);
+  if (claims.length > requestedBatchSize) {
+    // A caller uses a one-attempt claim to enforce its wall-clock budget. If the
+    // database ever violates that bound, dispatching the oversized response
+    // would turn a bounded route back into an unbounded provider loop. Refuse the
+    // entire malformed batch before the first authorization or send. The leases
+    // remain conservative and are reaped as unknown rather than guessed at.
+    throw new CsfWorkerRpcError(
+      "validating a dispatch batch bound",
+      "malformed_rpc_response",
+    );
+  }
   const attempts: CsfWorkerAttemptReport[] = [];
 
   for (const claim of claims) {
@@ -452,6 +470,7 @@ export async function runCsfDispatchWorker(
         workerId: input.workerId,
         correlationId: input.correlationId,
         claim,
+        providerSignal: input.providerSignal,
       }),
     );
   }
