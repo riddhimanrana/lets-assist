@@ -177,7 +177,7 @@ This section is the one-time cutover procedure from Google Classroom + spreadshe
 ### 10.1 One-time semester and cohort setup
 
 1. Create cohorts Class of 2027 through Class of 2030 (2026 exists only if seeding history for graduated seniors) and terms Spring 2025, Fall 2025, Spring 2026 (closed) and Fall 2026 (current) through **Classes → Semester setup** (§2).
-2. In **CSF Settings → Communications**, confirm the broadcast consent topic, Resend topic id, sender, and integration health for the `term_members` audience. Do not use the generic organization-plugin JSON editor; cohort posts email through the same announcements consent topic.
+2. In **More → Communications → Settings**, confirm the broadcast consent topic, Resend topic id, sender, and integration health for the `term_members` audience. Do not use the generic organization-plugin JSON editor; cohort posts email through the same announcements consent topic.
 
 ### 10.2 Legacy data seed (rehearse locally first: `bun run dev`)
 
@@ -202,7 +202,7 @@ Acceptance: per-cohort roster counts match the application grade distribution; s
 2. The "also send as email" toggle requests exactly one campaign per post through the durable ledger — retries are safe. A class campaign freezes the current term, exact class cohort, consent topic, content, and recipient snapshot; later member/class changes or post edits do not rewrite it. The result must separately say **Post published** and either **Email queued** or **Email not queued**. A queue failure never means that a persisted post was not saved. The `csf-communications-dispatch` route is locally auth-first, bounded, input-free, and exact opt-in, and its isolated probe proves disabled/probe execution has no database or provider egress. There is still no checked-in or repeatedly verified hosted cadence. **Email queued** is not **Email delivered**; do not promise automatic or fixed-time delivery until infrastructure acceptance closes that gap.
 3. Recipients can opt out via the link in every announcement email (verify-the-address confirmation). Opt-outs exclude the address from future snapshots automatically; do not hand-manage them.
 4. Grant posting rights via the `manage_posts` capability (Publicity VP and Web Master templates carry it; org admins and the owner always can).
-5. Review quarantined or unknown provider outcomes in **CSF Settings → Communications**. Reconcile only from exact provider evidence; an unknown attempt is never blindly resent. Closing a quarantine item acknowledges human triage and records a reason, but does not apply/rewrite the provider event or change delivery/address safety.
+5. Review quarantined or unknown provider outcomes in **More → Communications → Delivery issues**. Reconcile only from exact provider evidence; an unknown attempt is never blindly resent. Closing a quarantine item acknowledges human triage and records a reason, but does not apply/rewrite the provider event or change delivery/address safety.
 6. Do not rely on **Schedule post** in the currently accepted release. A stored due time is not proof that the post entered Feed or queued email. Use manual publication as the temporary pre-acceptance path until the in-progress publisher passes its migration, route, pgTAP, and central replay gates.
 
 ## 11. Troubleshooting and stop rules
