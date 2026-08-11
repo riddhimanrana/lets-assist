@@ -200,8 +200,11 @@ active Fall 2026 class.
 - Google OAuth is paused at the password step for `dvhighcsf@gmail.com`; no real
   row preview or commit has occurred.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
-  not yet recorded. No staff position has been assigned and no campaign has
-  been sent.
+  not yet recorded. No staff position has been assigned.
+- Two controlled Development test messages produced two signature-verified
+  `sent` events and two signature-verified `delivered` events with no webhook
+  quarantine rows. No broad chapter campaign has been sent. Production's
+  webhook remains disabled and must be rotated and proved during release.
 - Production was not changed by this rehearsal.
 
 ## Related references
