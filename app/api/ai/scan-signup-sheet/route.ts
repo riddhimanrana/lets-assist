@@ -14,6 +14,7 @@ import {
   type PaperSignupExtraction,
   type PaperSignupRow,
 } from "@/lib/ai/paper-signup-schema";
+import { AI_MODEL_FALLBACK_CHAIN } from "@/lib/ai/models";
 import { buildPaperSignupExtractionPrompt } from "@/lib/ai/paper-signup-prompt";
 import {
   normalizeTimeString,
@@ -38,10 +39,7 @@ export const dynamic = "force-dynamic";
  * tier 1 re-reads images the cheap tier could not transcribe confidently
  * (see shouldEscalatePaperScan) and doubles as the availability fallback.
  */
-export const PAPER_SCAN_MODELS = [
-  "google/gemini-3.5-flash-lite",
-  "google/gemini-3.6-flash",
-] as const;
+export const PAPER_SCAN_MODELS = AI_MODEL_FALLBACK_CHAIN;
 
 const SCAN_USER_LIMIT = 6;
 const SCAN_IP_LIMIT = 20;

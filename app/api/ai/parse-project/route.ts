@@ -1,6 +1,7 @@
 import { generateText } from "ai";
 import { NextRequest } from "next/server";
 import { gatewayModel } from "@/lib/ai/gateway";
+import { AI_MODEL_FAST } from "@/lib/ai/models";
 import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { consumeParseProjectQuota } from "@/lib/ai/parse-project-rate-limit";
@@ -186,7 +187,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { text } = await generateText({
-      model: gatewayModel("platform", "google/gemini-2.5-flash-lite"),
+      model: gatewayModel("platform", AI_MODEL_FAST),
       experimental_telemetry: createPostHogTelemetry({
         functionId: "parse-project",
         distinctId: user.id,

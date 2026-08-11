@@ -10,6 +10,7 @@ import { detectPdfWidgets } from "@/lib/waiver/pdf-field-detect";
 import type { CandidateArea } from "@/lib/waiver/candidate-detection";
 import type { DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
 import { gatewayModel } from "@/lib/ai/gateway";
+import { AI_MODEL_FAST, AI_MODEL_FALLBACK_CHAIN } from "@/lib/ai/models";
 import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
 
 const FIELD_TYPES = [
@@ -28,12 +29,8 @@ const FIELD_TYPES = [
 
 const ENABLE_VISION_FALLBACK = true;
 const DEFAULT_STRICT_HALLUCINATION_GUARD = true;
-const DEFAULT_AI_MODEL = "google/gemini-2.5-flash-lite";
-const ALLOWED_AI_MODELS = new Set([
-  "google/gemini-2.5-flash-lite",
-  "google/gemini-2.5-flash",
-  "google/gemini-3-flash",
-]);
+const DEFAULT_AI_MODEL = AI_MODEL_FAST;
+const ALLOWED_AI_MODELS = new Set<string>(AI_MODEL_FALLBACK_CHAIN);
 
 // Phase 3: New schema for AI output with candidate selection
 const SelectedFieldSchema = z.object({
