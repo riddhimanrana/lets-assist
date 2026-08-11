@@ -389,6 +389,12 @@ unexpected_security_definer_exec="$(
       where n.nspname = 'public'
         and p.prosecdef
         and has_function_privilege(r.rolname, p.oid, 'EXECUTE')
+        and not (
+          p.proname = 'publish_volunteer_hours_transactional'
+          and pg_get_function_identity_arguments(p.oid) =
+            'p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text'
+          and r.rolname = 'authenticated'
+        )
     )
     select g.nspname, g.proname, g.identity_arguments, g.rolname
     from grants g
@@ -408,7 +414,8 @@ public_client_function_acl_drift="$(
         ('public.get_public_attendees(uuid)', 'authenticated'),
         ('public.is_project_organizer(uuid,uuid)', 'authenticated'),
         ('public.is_super_admin()', 'authenticated'),
-        ('public.is_trusted_member(uuid)', 'authenticated')
+        ('public.is_trusted_member(uuid)', 'authenticated'),
+        ('public.publish_volunteer_hours_transactional(uuid,text,jsonb,text)', 'authenticated')
     ),
     actual as (
       select
@@ -449,20 +456,6 @@ public_client_function_acl_drift="$(
   "
 )"
 fail_if_rows "public client-callable function ACL drift" "$public_client_function_acl_drift"
-
-allowed_security_definer_exec="$(
-  psql "$DB_URL" -AtF $'\t' -c "
-    select n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), r.rolname
-    from pg_proc p
-    join pg_namespace n on n.oid = p.pronamespace
-    cross join (values ('anon'), ('authenticated')) r(rolname)
-    where n.nspname = 'public'
-      and p.prosecdef
-      and has_function_privilege(r.rolname, p.oid, 'EXECUTE')
-    order by n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), r.rolname;
-  "
-)"
-fail_if_rows "client-callable public SECURITY DEFINER functions" "$allowed_security_definer_exec"
 
 summary="$(
   psql "$DB_URL" -AtF $'\t' -c "

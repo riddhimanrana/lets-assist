@@ -7,7 +7,7 @@ const actionsSource = readFileSync(
   "utf8",
 );
 
-test("publishing hours enforces canonical project-management access", () => {
+test("publishing hours delegates identity and permission checks to one transactional RPC", () => {
   const publishStart = actionsSource.indexOf(
     "export async function publishVolunteerHours",
   );
@@ -17,15 +17,14 @@ test("publishing hours enforces canonical project-management access", () => {
   const publishSource = actionsSource.slice(publishStart, resendStart);
 
   assert.ok(publishStart >= 0);
-  assert.match(publishSource, /canUserManageProjectHours/u);
-  assert.match(
-    publishSource,
-    /Unauthorized: You cannot publish hours for this project/u,
-  );
-  assert.ok(
-    publishSource.indexOf("canUserManageProjectHours") <
-      publishSource.indexOf('.from("certificates")'),
-  );
+  assert.match(publishSource, /publish_volunteer_hours_transactional/u);
+  assert.match(publishSource, /publicationRequestKey/u);
+  assert.match(publishSource, /drainPublicationEmails/u);
+  assert.doesNotMatch(publishSource, /\.from\("certificates"\)\.insert/u);
+  assert.doesNotMatch(publishSource, /\.from\("projects"\)\.update/u);
+  assert.doesNotMatch(publishSource, /volunteer_name ===/u);
+  assert.doesNotMatch(publishSource, /volunteer\.userId/u);
+  assert.doesNotMatch(publishSource, /volunteer\.email/u);
 });
 
 test("certificate resend is permission checked and scoped to one project session", () => {

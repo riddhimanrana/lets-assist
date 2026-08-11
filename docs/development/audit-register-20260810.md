@@ -23,9 +23,10 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-005](#aud-005) | P3  | Plugin RLS             | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob            | Reclassified — designed behaviour, document the contract     |
 | [AUD-006](#aud-006) | P2  | Architecture           | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`**                                   |
 | [AUD-012](#aud-012) | P2  | Notifications          | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter   | **Fixed locally**; hosted Development pending                |
+| [AUD-015](#aud-015) | P1  | Hours publication      | Certificate publication trusts client identity and commits database/provider work non-atomically                    | **Fixed locally**; full and hosted Development gates pending |
 | [AUD-016](#aud-016) | P1  | Stored HTML            | The DV form-editor preview inserted persisted rich-text help content without sanitization                           | **Fixed on `development`**; exact CI green                   |
 | [AUD-017](#aud-017) | P1  | Next.js route contract | The paper-signup AI route exported an unsupported value, so clean isolated production builds failed type checking   | **Fixed on `development`**; exact CI green                   |
-| [AUD-018](#aud-018) | P1  | Guardian form          | Hydration could replace a guardian's reviewed availability and notes with SSR defaults before submission            | **Fixed locally**; exact Development CI pending              |
+| [AUD-018](#aud-018) | P1  | Guardian form          | Hydration could replace a guardian's reviewed availability and notes with SSR defaults before submission            | **Fixed on `development`**; exact CI green                   |
 | [AUD-007](#aud-007) | P2  | CI                     | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                               | Fixed this session                                           |
 | [AUD-008](#aud-008) | P2  | Architecture           | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript    | Confirmed, by design                                         |
 | [AUD-009](#aud-009) | P2  | Gate coverage          | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads`                     | Confirmed                                                    |
@@ -310,6 +311,64 @@ Development remains pending, and Production was not read, written, queried,
 deployed, or tested.
 
 **Related, not yet investigated:** `app/projects/[id]/hours/actions.ts` inserts volunteer notifications with the publisher's session client. The surviving policy branch requires `p.creator_id = auth.uid()`, so a **staff manager** publishing hours for a project they did not create would fail that insert. This predates today's change — the removed `auth.uid() IS NULL` disjunct never applied there, since a session is always present — but it should be confirmed against a `can_be_managed_by_staff` project.
+
+---
+
+## AUD-015 — Volunteer-hours publication is non-atomic and trusts client identity {#aud-015}
+
+**Priority:** P1 · **Confidence:** confirmed · **Status:** Fixed locally; hosted
+Development gates pending
+
+**Blast radius:** every manual project-session hours publication. The prior
+Server Action accepted browser-supplied `userId`, name, email, duration, and
+session data; inserted all certificates; separately updated `projects.published`;
+looked up a new certificate by volunteer name for in-app notification; then sent
+email sequentially without a receipt or provider idempotency key. A failed
+publish-state update left committed certificates behind, an action retry could
+create duplicates, two same-named volunteers could be paired to one certificate,
+and provider ambiguity had no durable reconciliation state.
+
+**Evidence provenance:** local source trace plus an empty migration replay and
+synthetic database fixtures only. No hosted database, provider, browser session,
+credential, real recipient, or Production surface was used. The synthetic
+fixtures include staff-managed authorization, two distinct users with the same
+display name, forged cross-project signup/session input, an excessive duration,
+exact replay, duplicate provider settlement, and a real two-connection lock
+race.
+
+**Resolution:** `publishVolunteerHours(projectId, sessionId, sessionData)` keeps
+its three-argument public signature and compatibility result fields, but reduces
+the browser payload to signup ID plus check-in/out timestamps and derives a
+deterministic request key. The reviewed authenticated RPC locks the project,
+rechecks creator/admin/active-staff authority and `can_be_managed_by_staff`,
+normalizes legacy session IDs, validates 1–500 exact project/session signups and
+0–24-hour ranges, derives identity from profile/anonymous-signup rows, and
+atomically writes signup times, verified certificates, publish state, deduplicated
+in-app notifications, a receipt, and one email outbox row per certificate.
+
+The forward migration aborts if duplicate verified certificates already exist;
+it deletes or rewrites no evidence. A partial unique index prevents future
+duplicates. Email work is claimed once with a UUID token and settled to
+`accepted`, `retryable_failure`, `definitive_failure`, `unknown_outcome`, or
+`skipped`. Only a proven pre-send refusal remains retryable; interrupted claims
+and unknown provider outcomes require reconciliation. Provider calls use the
+certificate-derived key and synthetic workflow/receipt tags.
+
+**Local verification, 2026-08-11:** empty ledger replay passed; the focused
+publication pgTAP file passed 29 assertions; action boundaries, all five email
+outcome mappings, and publication-outcome precedence passed 9 tests; TypeScript
+passed; and the loopback-only two-session concurrency probe produced exactly
+`accepted` then `replayed` with one receipt, one certificate, and one outbox row.
+The full generated isolated gate then passed 85 pgTAP files / 3,783 assertions,
+synthetic DV and CSF database workflows, zero-issue local advisors, architecture
+and plugin-isolation checks, strict private-gitlink validation, static checks,
+and the 373-assertion cron authentication/no-egress probe; teardown proved that
+no owned container, volume, network, or temporary work directory remained.
+GitHub, Vercel Development, Supabase Development, Mailpit/Resend test-event, and
+browser acceptance gates remain open. The complete root/plugin unit orchestrator
+and the CI-shaped local Next.js build also passed; after the final payload/outcome
+tightening, the 9 focused tests, TypeScript, formatting, and CI-shaped build
+passed again. Production remains excluded.
 
 ---
 

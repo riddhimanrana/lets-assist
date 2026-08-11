@@ -522,19 +522,35 @@ export function HoursClient({
         return;
       }
 
+      const publicationEntries = volunteersData.map((volunteer) => ({
+        signupId: volunteer.signupId,
+        checkIn: volunteer.checkIn,
+        checkOut: volunteer.checkOut,
+        isValid: volunteer.isValid,
+      }));
       const result = await publishVolunteerHours(
         project.id,
         sessionId,
-        volunteersData,
+        publicationEntries,
       );
 
       if (result.success) {
         const emailsSent = result.emailsSent ?? 0;
         const emailErrors = result.emailErrors ?? [];
+        const wasReplayed = result.outcome === "replayed";
+        const wasPartial = result.outcome === "partial";
 
-        if (emailsSent > 0) {
+        if (wasReplayed) {
+          toast.success("Hours Already Published", {
+            description: `The existing publication receipt was replayed safely for session: ${formatSessionName(project, sessionId)}. No certificates were duplicated.`,
+          });
+        } else if (emailsSent > 0 && !wasPartial) {
           toast.success("Hours Published & Emails Sent!", {
             description: `${result.certificatesCreated} certificates generated and ${emailsSent} email notifications sent for session: ${formatSessionName(project, sessionId)}.`,
+          });
+        } else if (wasPartial) {
+          toast.warning("Hours Published; Delivery Needs Attention", {
+            description: `${result.certificatesCreated} certificates were committed for session: ${formatSessionName(project, sessionId)}. Some email work was recorded for safe follow-up.`,
           });
         } else {
           toast.success("Hours Published!", {
