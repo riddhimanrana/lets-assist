@@ -1,10 +1,10 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** the August 11 exact-tree replay/build/DV+CSF browser gates and hosted Development acceptance are green. Development has exact 244-migration parity, leaked-password protection enabled, the unused `pg_graphql` extension removed, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. Live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, scheduled-post publication, Production webhook rotation, and Production cutover remain pending.
+**Current status:** the August 11 exact-tree replay/build/DV+CSF browser gates and hosted Development acceptance are green. Development has exact 244-migration parity, leaked-password protection enabled, the unused `pg_graphql` extension removed, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. The scheduled-post transition and repository-owned scheduler are implemented, but hosted enabled invocation and visible schedule → Feed acceptance remain pending alongside live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, Production webhook rotation, and Production cutover.
 **Authoritative record after review:** Let's Assist
 
-This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
+This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
 
 ## 1. Start of each work session
 
@@ -203,27 +203,27 @@ Acceptance: per-cohort roster counts match the application grade distribution; s
 3. Recipients can opt out via the link in every announcement email (verify-the-address confirmation). Opt-outs exclude the address from future snapshots automatically; do not hand-manage them.
 4. Grant posting rights via the `manage_posts` capability (Publicity VP and Web Master templates carry it; org admins and the owner always can).
 5. Review quarantined or unknown provider outcomes in **More → Communications → Delivery issues**. Reconcile only from exact provider evidence; an unknown attempt is never blindly resent. Closing a quarantine item acknowledges human triage and records a reason, but does not apply/rewrite the provider event or change delivery/address safety.
-6. Do not rely on **Schedule post** in the currently accepted release. A stored due time is not proof that the post entered Feed or queued email. Use manual publication as the temporary pre-acceptance path until the in-progress publisher passes its migration, route, pgTAP, and central replay gates.
+6. **Schedule post** is offered only when the target environment has the publisher explicitly enabled. The transition, fail-closed hold states, authenticated route, pgTAP suite, central replay, and GitHub scheduler are implemented, but a stored due time is still not proof that a particular hosted post entered Feed. Use manual publication until the target environment has a successful enabled worker run and visible schedule → Feed acceptance. Scheduled posts never queue email; publish now first if email is required.
 
 ## 11. Troubleshooting and stop rules
 
-| Condition                                                | Officer action                                                                                                                                                  |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Wrong connected Google identity                          | Stop before file selection; reconnect the approved chapter account.                                                                                             |
-| Google source says **Reconnect**                         | Reauthorize; keep existing reviewed records.                                                                                                                    |
-| Intended secure-link email is absent/shared              | Close link creation and make an audited member correction first; never type a substitute.                                                                       |
-| Missing or malformed imported point value                | Leave the row unresolved and correct the source mapping/value; never guess.                                                                                     |
-| Invalid meeting timestamp                                | Correct with a reason before commit.                                                                                                                            |
-| Import match/skip action fails                           | Keep the visible member/reason, read the inline error, and retry only after correction.                                                                         |
-| Duplicate or ambiguous profile                           | Send to account-connection review; never search or expose the roster to the student.                                                                            |
-| Application approval is blocked                          | Complete the mandatory check or have the adviser record a reasoned override.                                                                                    |
-| Semester evidence changed                                | Refresh preflight and review again.                                                                                                                             |
-| A mutation partially appears to succeed                  | Stop and inspect Change history before retrying; do not add a compensating manual record.                                                                       |
-| Post says scheduled                                      | In the currently accepted release, treat it as unpublished until Feed/dispatch evidence exists; use the temporary manual path while the publisher gate is open. |
-| Post saved but email did not queue                       | Keep the post; correct the named email blocker and use the post's email retry action.                                                                           |
-| Email is queued but dispatch timing is unclear           | Treat it as queued, not delivered. Confirm the hosted worker configuration and invocation evidence; do not promise a fixed delivery time.                       |
-| Email outcome is unknown or webhook is quarantined       | Use Communications recovery with exact provider evidence; never blindly resend or guess.                                                                        |
-| Private data appears on a public route or in an artifact | Treat as P0, stop testing, remove the artifact, and notify the platform owner.                                                                                  |
+| Condition                                                | Officer action                                                                                                                                                                 |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Wrong connected Google identity                          | Stop before file selection; reconnect the approved chapter account.                                                                                                            |
+| Google source says **Reconnect**                         | Reauthorize; keep existing reviewed records.                                                                                                                                   |
+| Intended secure-link email is absent/shared              | Close link creation and make an audited member correction first; never type a substitute.                                                                                      |
+| Missing or malformed imported point value                | Leave the row unresolved and correct the source mapping/value; never guess.                                                                                                    |
+| Invalid meeting timestamp                                | Correct with a reason before commit.                                                                                                                                           |
+| Import match/skip action fails                           | Keep the visible member/reason, read the inline error, and retry only after correction.                                                                                        |
+| Duplicate or ambiguous profile                           | Send to account-connection review; never search or expose the roster to the student.                                                                                           |
+| Application approval is blocked                          | Complete the mandatory check or have the adviser record a reasoned override.                                                                                                   |
+| Semester evidence changed                                | Refresh preflight and review again.                                                                                                                                            |
+| A mutation partially appears to succeed                  | Stop and inspect Change history before retrying; do not add a compensating manual record.                                                                                      |
+| Post says scheduled                                      | Treat it as unpublished until Feed evidence exists. If the target environment lacks an accepted enabled worker run, use manual publication. Scheduled posts never queue email. |
+| Post saved but email did not queue                       | Keep the post; correct the named email blocker and use the post's email retry action.                                                                                          |
+| Email is queued but dispatch timing is unclear           | Treat it as queued, not delivered. Confirm the hosted worker configuration and invocation evidence; do not promise a fixed delivery time.                                      |
+| Email outcome is unknown or webhook is quarantined       | Use Communications recovery with exact provider evidence; never blindly resend or guess.                                                                                       |
+| Private data appears on a public route or in an artifact | Treat as P0, stop testing, remove the artifact, and notify the platform owner.                                                                                                 |
 
 ## 12. Current release checklist
 
@@ -268,7 +268,8 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Visible exact-recorded-email student-specific link and response-loss replay journeys; no fabricated send telemetry
 - [ ] Visible six-value grade-policy edit → publish → recalculation journey with stale-draft refusal
 - [ ] Visible import match/skip failure-preservation and truthful history/lineage journey
-- [ ] Accept the in-progress authorized, retry-safe scheduled-post publisher through migration, route, pgTAP, and central replay; until then officers use the temporary manual path
+- [x] Accept the authorized, retry-safe scheduled-post publisher through migration, route, pgTAP, central replay, and repository-owned scheduler
+- [ ] Prove an enabled hosted scheduled-post worker invocation and visible synthetic schedule → Feed transition before relying on it in that environment
 - [x] Configure and repeatedly verify hosted `csf-communications-dispatch`; document that GitHub scheduling is irregular and does not promise fixed-time delivery
 
 No live chapter Google OAuth/Picker/Drive import or Google write has been performed. Development uses a separate hosted Supabase project with exact ledger parity. Production has been inspected read-only but not mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.

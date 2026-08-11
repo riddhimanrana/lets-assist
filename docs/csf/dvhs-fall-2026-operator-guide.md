@@ -238,6 +238,11 @@ it into a Fall 2026 rule.
   hosted runs, but its actual start intervals are irregular and provide no fixed
   delivery-time promise. No broad chapter campaign has been sent. Production's
   webhook remains disabled and must be rotated and proved during release.
+- The scheduled-post transition, hold recovery, authenticated route, and
+  repository-owned GitHub scheduler are implemented. Development's branch-
+  scoped publisher opt-in is configured, but it requires a new Development
+  deployment and a visible synthetic schedule → Feed run before officers rely
+  on it. Scheduled posts never queue email.
 - Production was not changed by this rehearsal.
 
 ## Related references

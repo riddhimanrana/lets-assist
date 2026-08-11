@@ -14,6 +14,14 @@ const githubDispatchWorkflow = readFileSync(
   "utf8",
 );
 
+const githubScheduledPostWorkflow = readFileSync(
+  new URL(
+    "../.github/workflows/csf-scheduled-post-publisher.yml",
+    import.meta.url,
+  ),
+  "utf8",
+);
+
 type VercelCron = { path?: unknown; schedule?: unknown };
 type VercelConfig = { crons?: unknown };
 
@@ -37,7 +45,7 @@ describe("CSF hosted-worker cadence acceptance boundary", () => {
     ).toEqual([]);
   });
 
-  test("checks in the accepted GitHub communications scheduler without enabling scheduled posts", () => {
+  test("checks in the accepted GitHub communications scheduler", () => {
     expect(githubDispatchWorkflow).toContain('cron: "*/10 * * * *"');
     expect(githubDispatchWorkflow).toContain(
       "ENDPOINT_PATH: /api/cron/csf-communications-dispatch",
@@ -51,6 +59,29 @@ describe("CSF hosted-worker cadence acceptance boundary", () => {
     );
     expect(githubDispatchWorkflow).not.toContain(
       "/api/cron/csf-scheduled-post-publisher",
+    );
+  });
+
+  test("checks in the bounded GitHub scheduled-post publisher away from the top of the hour", () => {
+    expect(githubScheduledPostWorkflow).toContain(
+      'cron: "7,17,27,37,47,57 * * * *"',
+    );
+    expect(githubScheduledPostWorkflow).toContain(
+      "ENDPOINT_PATH: /api/cron/csf-scheduled-post-publisher",
+    );
+    expect(githubScheduledPostWorkflow).toContain("environment: production");
+    expect(githubScheduledPostWorkflow).toContain(
+      "CRON_TOKEN: ${{ secrets.CRON_SECRET }}",
+    );
+    expect(githubScheduledPostWorkflow).toContain(
+      "GitHub Actions schedules can be delayed or dropped under load",
+    );
+    expect(githubScheduledPostWorkflow).toContain("cancel-in-progress: false");
+    expect(githubScheduledPostWorkflow).toContain(
+      'if [[ "$enabled" != "true" ]]',
+    );
+    expect(githubScheduledPostWorkflow).not.toContain(
+      "/api/cron/csf-communications-dispatch",
     );
   });
 });
