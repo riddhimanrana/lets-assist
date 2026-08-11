@@ -16,8 +16,10 @@ describe("audit surface inventory parser", () => {
         export async function POST() {}
         const handler = async () => {};
         export { handler as GET };
+        export { PATCH } from "./implementation";
+        export { DELETE as internalDelete } from "./implementation";
       `),
-    ).toEqual(["GET", "POST"]);
+    ).toEqual(["GET", "PATCH", "POST"]);
   });
 
   test("requires a file-level server directive and exported async functions", () => {
@@ -43,6 +45,9 @@ describe("audit surface inventory parser", () => {
       RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$ BEGIN RETURN '{}'::jsonb; END $$;
       CREATE FUNCTION public.trigger_only()
       RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
+      -- SECURITY DEFINER belongs to no function in this comment.
+      CREATE FUNCTION implicit_function(p_ratio numeric(5, 2), p_label text DEFAULT 'a(b)')
+      RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;
       CREATE POLICY "tenant reads" ON plugin_data.records FOR SELECT USING (true);
     `;
     expect(sqlFunctionDefinitions(sql, "migration.sql")).toEqual([
@@ -54,6 +59,12 @@ describe("audit surface inventory parser", () => {
       expect.objectContaining({
         schema: "public",
         name: "trigger_only",
+        securityDefiner: false,
+      }),
+      expect.objectContaining({
+        schema: "unqualified",
+        name: "implicit_function",
+        arguments: "p_ratio numeric(5, 2), p_label text DEFAULT 'a(b)'",
         securityDefiner: false,
       }),
     ]);

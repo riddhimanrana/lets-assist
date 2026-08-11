@@ -42,12 +42,16 @@ export function routeMethods(source) {
     `export\\s+(?:async\\s+)?(?:function|const)\\s+(${HTTP_METHODS.join("|")})\\b`,
     "gu",
   );
-  const alias = new RegExp(
-    `export\\s*\\{[^}]*\\bas\\s+(${HTTP_METHODS.join("|")})\\b[^}]*\\}`,
-    "gu",
-  );
-  for (const expression of [declaration, alias]) {
-    for (const match of source.matchAll(expression)) methods.add(match[1]);
+  for (const match of source.matchAll(declaration)) methods.add(match[1]);
+  for (const block of source.matchAll(/export\s*\{([^}]*)\}/gu)) {
+    for (const rawSpecifier of block[1].split(",")) {
+      const specifier = rawSpecifier.trim();
+      const alias = specifier.match(
+        /^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/u,
+      );
+      const exportedName = alias?.[2] ?? specifier;
+      if (HTTP_METHODS.includes(exportedName)) methods.add(exportedName);
+    }
   }
   return [...methods].sort();
 }
@@ -74,22 +78,98 @@ export function rpcCallSites(source) {
 export function sqlFunctionDefinitions(source, file) {
   const definitions = [];
   const pattern =
-    /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([\w"]+)\.([\w"]+)\s*\(([^)]*)\)/giu;
-  const matches = [...source.matchAll(pattern)];
-  for (let index = 0; index < matches.length; index += 1) {
-    const match = matches[index];
-    const end = matches[index + 1]?.index ?? source.length;
-    const definition = source.slice(match.index, end);
+    /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:("(?:[^"]|"")*"|[A-Za-z_][\w$]*)\s*\.\s*)?("(?:[^"]|"")*"|[A-Za-z_][\w$]*)\s*\(/giu;
+  for (const match of source.matchAll(pattern)) {
+    const argumentsStart = match.index + match[0].length;
+    const argumentsEnd = closingParenthesis(source, argumentsStart);
+    if (argumentsEnd < 0) continue;
+    const afterArguments = source.slice(argumentsEnd + 1);
+    const bodyStart = afterArguments.search(
+      /\bAS\s+(?:\$[A-Za-z0-9_]*\$|['"])/iu,
+    );
+    const headerEnd =
+      bodyStart >= 0
+        ? argumentsEnd + 1 + bodyStart
+        : argumentsEnd + 1 + Math.max(0, afterArguments.indexOf(";"));
+    const header = source.slice(match.index, headerEnd);
     definitions.push({
-      schema: match[1].replaceAll('"', ""),
+      schema: match[1]?.replaceAll('"', "") ?? "unqualified",
       name: match[2].replaceAll('"', ""),
-      arguments: compact(match[3]),
-      securityDefiner: /\bSECURITY\s+DEFINER\b/iu.test(definition),
+      arguments: compact(source.slice(argumentsStart, argumentsEnd)),
+      securityDefiner: /\bSECURITY\s+DEFINER\b/iu.test(header),
       file,
       line: lineNumber(source, match.index),
     });
   }
   return definitions;
+}
+
+function closingParenthesis(source, start) {
+  let depth = 1;
+  let quote = null;
+  for (let index = start; index < source.length; index += 1) {
+    const character = source[index];
+    if (quote) {
+      if (character === quote) {
+        if (source[index + 1] === quote) index += 1;
+        else quote = null;
+      }
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    if (character === "(") depth += 1;
+    if (character === ")") {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+}
+
+function privatePluginCommit(root) {
+  const pluginPath = resolve(root, "lib/plugins/private");
+  const gitlink = execFileSync(
+    "git",
+    ["ls-tree", "HEAD", "lib/plugins/private"],
+    { cwd: root, encoding: "utf8" },
+  ).trim();
+  const gitlinkMatch = gitlink.match(/^160000\s+commit\s+([0-9a-f]{40})\s+/u);
+  if (!gitlinkMatch) {
+    throw new Error("Private plugin gitlink is missing from the root commit.");
+  }
+
+  let pluginTopLevel;
+  let pluginHead;
+  try {
+    pluginTopLevel = execFileSync(
+      "git",
+      ["-C", pluginPath, "rev-parse", "--show-toplevel"],
+      { cwd: root, encoding: "utf8" },
+    ).trim();
+    pluginHead = execFileSync("git", ["-C", pluginPath, "rev-parse", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim();
+  } catch {
+    throw new Error(
+      "Private plugin submodule is not initialized; run bun run plugin:submodules:init.",
+    );
+  }
+
+  if (resolve(pluginTopLevel) !== pluginPath) {
+    throw new Error(
+      "Private plugin path is not an initialized standalone submodule worktree.",
+    );
+  }
+  if (pluginHead !== gitlinkMatch[1]) {
+    throw new Error(
+      `Private plugin HEAD ${pluginHead} does not match root gitlink ${gitlinkMatch[1]}.`,
+    );
+  }
+  return pluginHead;
 }
 
 export function sqlPolicies(source, file) {
@@ -224,14 +304,7 @@ export async function buildSurfaceInventory(rootDirectory) {
         cwd: root,
         encoding: "utf8",
       }).trim(),
-      privatePluginCommit: execFileSync(
-        "git",
-        ["-C", "lib/plugins/private", "rev-parse", "HEAD"],
-        {
-          cwd: root,
-          encoding: "utf8",
-        },
-      ).trim(),
+      privatePluginCommit: privatePluginCommit(root),
       evidenceClass: "static-source-inventory",
       environment: "local-read-only",
     },
