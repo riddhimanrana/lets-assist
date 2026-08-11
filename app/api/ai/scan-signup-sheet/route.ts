@@ -39,7 +39,7 @@ export const dynamic = "force-dynamic";
  * tier 1 re-reads images the cheap tier could not transcribe confidently
  * (see shouldEscalatePaperScan) and doubles as the availability fallback.
  */
-export const PAPER_SCAN_MODELS = AI_MODEL_FALLBACK_CHAIN;
+const PAPER_SCAN_MODELS = AI_MODEL_FALLBACK_CHAIN;
 
 const SCAN_USER_LIMIT = 6;
 const SCAN_IP_LIMIT = 20;

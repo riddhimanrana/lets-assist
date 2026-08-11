@@ -14,20 +14,21 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 
 ## Summary
 
-| ID                  | Pri | Area                 | Finding                                                                                                             | Status                                                       |
-| ------------------- | --- | -------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| [AUD-001](#aud-001) | P0  | Core RLS             | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                  | **Fixed on `development`**; live in Production until cutover |
-| [AUD-002](#aud-002) | P0  | Core RLS             | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection            | **Fixed on `development`**; live in Production until cutover |
-| [AUD-003](#aud-003) | P1  | Grants               | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions                   | **Merged on `development`**; catalog verification pending    |
-| [AUD-004](#aud-004) | P1  | Plugin audit         | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited  | **Fixed on `development`**                                   |
-| [AUD-005](#aud-005) | P3  | Plugin RLS           | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob            | Reclassified — designed behaviour, document the contract     |
-| [AUD-006](#aud-006) | P2  | Architecture         | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`**                                   |
-| [AUD-012](#aud-012) | P2  | Notifications        | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter   | **Fixed locally**; hosted Development pending                |
-| [AUD-007](#aud-007) | P2  | CI                   | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                               | Fixed this session                                           |
-| [AUD-008](#aud-008) | P2  | Architecture         | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript    | Confirmed, by design                                         |
-| [AUD-009](#aud-009) | P2  | Gate coverage        | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads`                     | Confirmed                                                    |
-| [AUD-010](#aud-010) | P3  | Moderation           | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true                    | Confirmed, dead policy                                       |
-| [AUD-011](#aud-011) | P3  | Plugin control plane | Advertised control-plane surfaces that no code path reads                                                           | Confirmed                                                    |
+| ID                  | Pri | Area                   | Finding                                                                                                             | Status                                                       |
+| ------------------- | --- | ---------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [AUD-001](#aud-001) | P0  | Core RLS               | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                  | **Fixed on `development`**; live in Production until cutover |
+| [AUD-002](#aud-002) | P0  | Core RLS               | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection            | **Fixed on `development`**; live in Production until cutover |
+| [AUD-003](#aud-003) | P1  | Grants                 | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions                   | **Merged on `development`**; catalog verification pending    |
+| [AUD-004](#aud-004) | P1  | Plugin audit           | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited  | **Fixed on `development`**                                   |
+| [AUD-005](#aud-005) | P3  | Plugin RLS             | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob            | Reclassified — designed behaviour, document the contract     |
+| [AUD-006](#aud-006) | P2  | Architecture           | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`**                                   |
+| [AUD-012](#aud-012) | P2  | Notifications          | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter   | **Fixed locally**; hosted Development pending                |
+| [AUD-017](#aud-017) | P1  | Next.js route contract | The paper-signup AI route exported an unsupported value, so clean isolated production builds failed type checking   | **Fixed locally**; CI integration pending                    |
+| [AUD-007](#aud-007) | P2  | CI                     | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                               | Fixed this session                                           |
+| [AUD-008](#aud-008) | P2  | Architecture           | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript    | Confirmed, by design                                         |
+| [AUD-009](#aud-009) | P2  | Gate coverage          | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads`                     | Confirmed                                                    |
+| [AUD-010](#aud-010) | P3  | Moderation             | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true                    | Confirmed, dead policy                                       |
+| [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                           | Confirmed                                                    |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -307,6 +308,32 @@ Development remains pending, and Production was not read, written, queried,
 deployed, or tested.
 
 **Related, not yet investigated:** `app/projects/[id]/hours/actions.ts` inserts volunteer notifications with the publisher's session client. The surviving policy branch requires `p.creator_id = auth.uid()`, so a **staff manager** publishing hours for a project they did not create would fail that insert. This predates today's change — the removed `auth.uid() IS NULL` disjunct never applied there, since a session is always present — but it should be confirmed against a `can_be_managed_by_staff` project.
+
+---
+
+## AUD-017 — Paper scan route broke clean production builds {#aud-017}
+
+**Priority:** P1 · **Confidence:** Confirmed · **Blast radius:** Development
+build and browser-acceptance pipelines containing the paper-signup feature
+
+`app/api/ai/scan-signup-sheet/route.ts` exported `PAPER_SCAN_MODELS` alongside
+the supported HTTP method and route configuration fields. Next.js rejects extra
+route-module value exports. The default build output had stale generated types
+and passed, while two exact GitHub DV runs failed when their clean isolated
+output regenerated the route contract.
+
+**Resolution:** keep the model fallback tuple in `lib/ai/models.ts` and make the
+route's local alias private. A focused source contract now asserts that the
+route exports only `POST`, `dynamic`, and `maxDuration`.
+
+**Evidence, 2026-08-11:** GitHub runs `31475757024` and `31477491456` passed
+empty replay, pgTAP, synthetic seeding, DV RLS, CSF workflow and scale, and cron
+checks before failing at the same nested Next type-check boundary. A sterile,
+provider-disabled local build using the isolated alternate output reproduced
+the exact `PAPER_SCAN_MODELS` diagnostic. The same clean build passes after the
+fix, together with the focused regression, formatting, lint, and root
+typecheck. Production, `main`, provider credentials, live data, and Production
+browser surfaces were not accessed.
 
 ---
 
