@@ -359,10 +359,12 @@ VALUES
 SQL
 
 # Session A keeps the overlapping signup's unique-index entry uncommitted.
-# Session B must wait, skip only that conflict, and still insert its unrelated
-# signup rather than losing the whole supplemental batch.
+# The pg_stat_activity handshakes prove A has completed the insert before B
+# starts and that B waits on A's transaction before the commit releases it.
+# B must then skip only that conflict and still insert its unrelated signup.
 (
-  psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_A}" <<'SQL'
+  PGAPPNAME=hours_supplemental_session_a \
+    psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_A}" <<'SQL'
 BEGIN;
 SELECT count(*)
 FROM public.issue_supplemental_verified_certificates(
@@ -374,14 +376,40 @@ FROM public.issue_supplemental_verified_certificates(
   ]::uuid[],
   'ac000000-0000-4000-8000-000000000001'
 );
-SELECT pg_sleep(1);
+SELECT pg_sleep(5);
 COMMIT;
 SQL
 ) &
 SUPPLEMENTAL_A_PID=$!
-sleep 0.2
 
-psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_B}" <<'SQL'
+SUPPLEMENTAL_A_READY=false
+for ((attempt = 0; attempt < 100; attempt += 1)); do
+  SUPPLEMENTAL_A_READY="$(
+    psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 <<'SQL'
+SELECT EXISTS (
+  SELECT 1
+  FROM pg_catalog.pg_stat_activity
+  WHERE application_name = 'hours_supplemental_session_a'
+    AND state = 'active'
+    AND wait_event_type = 'Timeout'
+    AND wait_event = 'PgSleep'
+    AND xact_start IS NOT NULL
+);
+SQL
+  )"
+  [[ "${SUPPLEMENTAL_A_READY}" == "t" ]] && break
+  sleep 0.05
+done
+
+if [[ "${SUPPLEMENTAL_A_READY}" != "t" ]]; then
+  wait "${SUPPLEMENTAL_A_PID}" || true
+  echo "Supplemental session A never reached its uncommitted hold point." >&2
+  exit 1
+fi
+
+(
+  PGAPPNAME=hours_supplemental_session_b \
+    psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_B}" <<'SQL'
 SELECT count(*)
 FROM public.issue_supplemental_verified_certificates(
   'ac200000-0000-4000-8000-000000000001',
@@ -393,8 +421,39 @@ FROM public.issue_supplemental_verified_certificates(
   'ac000000-0000-4000-8000-000000000001'
 );
 SQL
+) &
+SUPPLEMENTAL_B_PID=$!
+
+SUPPLEMENTAL_B_BLOCKED=false
+for ((attempt = 0; attempt < 100; attempt += 1)); do
+  SUPPLEMENTAL_B_BLOCKED="$(
+    psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 <<'SQL'
+SELECT EXISTS (
+  SELECT 1
+  FROM pg_catalog.pg_stat_activity
+  WHERE application_name = 'hours_supplemental_session_b'
+    AND wait_event_type = 'Lock'
+    AND wait_event = 'transactionid'
+);
+SQL
+  )"
+  [[ "${SUPPLEMENTAL_B_BLOCKED}" == "t" ]] && break
+  if ! kill -0 "${SUPPLEMENTAL_B_PID}" 2>/dev/null; then
+    break
+  fi
+  sleep 0.05
+done
+
+if [[ "${SUPPLEMENTAL_B_BLOCKED}" != "t" ]] \
+  || ! kill -0 "${SUPPLEMENTAL_B_PID}" 2>/dev/null; then
+  wait "${SUPPLEMENTAL_A_PID}" || true
+  wait "${SUPPLEMENTAL_B_PID}" || true
+  echo "Supplemental session B did not block on session A's uncommitted certificate." >&2
+  exit 1
+fi
 
 wait "${SUPPLEMENTAL_A_PID}"
+wait "${SUPPLEMENTAL_B_PID}"
 grep -qx '2' "${OUTPUT_A}"
 grep -qx '1' "${OUTPUT_B}"
 

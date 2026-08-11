@@ -5,7 +5,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(48);
+SELECT extensions.plan(50);
 
 SELECT extensions.ok(
   EXISTS (
@@ -466,10 +466,15 @@ SELECT extensions.is(
 );
 
 SELECT extensions.is(
-  (SELECT body FROM public.notifications
-   WHERE user_id = 'ab000000-0000-4000-8000-000000000004'
-     AND dedupe_key LIKE 'hours-publication:certificate:%'
-   ORDER BY created_at DESC
+  (SELECT notifications.body
+   FROM public.notifications
+   JOIN public.certificates
+     ON notifications.action_url = '/certificates/' || certificates.id
+   WHERE certificates.signup_id = 'ab300000-0000-4000-8000-000000000004'
+     AND certificates.type = 'verified'
+     AND notifications.dedupe_key =
+       'hours-publication:certificate:' || certificates.id
+   ORDER BY notifications.created_at DESC
    LIMIT 1),
   'Your volunteer certificate for "Unpublished Validation Project" is now available. You volunteered for 1 hours and 31 minutes.',
   'notification duration decomposes the same rounded total minutes as the publication review'
@@ -657,6 +662,27 @@ SELECT extensions.is(
   ),
   (SELECT first_attempt_at FROM retryable_first_attempt),
   'reclaiming a stale lease does not slide the provider idempotency window'
+);
+
+SELECT extensions.ok(
+  public.settle_hours_publication_email_delivery(
+    (SELECT id FROM retryable_delivery),
+    'ab400000-0000-4000-8000-000000000005',
+    'retryable_failure',
+    NULL,
+    'provider_unavailable'
+  ),
+  'a pre-send failure after reclaiming ambiguous work is recorded for another bounded retry'
+);
+
+SELECT extensions.is(
+  (
+    SELECT first_attempt_at
+    FROM public.hours_publication_email_outbox
+    WHERE id = (SELECT id FROM retryable_delivery)
+  ),
+  (SELECT first_attempt_at FROM retryable_first_attempt),
+  'a reclaimed ambiguous attempt retains the original provider-risk window after a pre-send failure'
 );
 
 UPDATE public.hours_publication_email_outbox

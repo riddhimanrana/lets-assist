@@ -59,6 +59,7 @@ CREATE TABLE public.hours_publication_email_outbox (
   idempotency_key text NOT NULL,
   state text NOT NULL DEFAULT 'queued',
   claim_token uuid,
+  claim_reuses_attempt_window boolean NOT NULL DEFAULT false,
   attempt_count integer NOT NULL DEFAULT 0,
   first_attempt_at timestamptz,
   last_attempt_at timestamptz,
@@ -941,7 +942,7 @@ BEGIN
     settled_at = now(),
     updated_at = now()
   WHERE id = p_delivery_id
-    AND state = 'processing'
+    AND state IN ('processing', 'retryable_failure')
     AND first_attempt_at < now() - interval '24 hours';
 
   IF FOUND THEN
@@ -952,6 +953,7 @@ BEGIN
   SET
     state = 'processing',
     claim_token = p_claim_token,
+    claim_reuses_attempt_window = first_attempt_at IS NOT NULL,
     last_settlement_token = NULL,
     attempt_count = attempt_count + 1,
     first_attempt_at = coalesce(first_attempt_at, now()),
@@ -1016,9 +1018,12 @@ BEGIN
     provider_message_id = p_provider_message_id,
     safe_code = p_safe_code,
     first_attempt_at = CASE
-      WHEN p_state = 'retryable_failure' THEN NULL
+      WHEN p_state = 'retryable_failure'
+        AND NOT claim_reuses_attempt_window
+      THEN NULL
       ELSE first_attempt_at
     END,
+    claim_reuses_attempt_window = false,
     settled_at = CASE
       WHEN p_state = 'retryable_failure' THEN NULL
       ELSE now()
