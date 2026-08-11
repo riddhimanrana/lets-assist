@@ -62,5 +62,11 @@ describe("volunteer-hours duration validation", () => {
         "2026-08-12T09:00:01.000Z",
       ).isValid,
     ).toBe(false);
+    expect(
+      calculateHoursDuration(
+        "2026-08-11T09:00:00.000Z",
+        "2026-08-12T09:00:00.001Z",
+      ).isValid,
+    ).toBe(false);
   });
 });

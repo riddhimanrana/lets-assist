@@ -1,4 +1,4 @@
-import { differenceInSeconds, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
 
 export type HoursDuration = {
   text: string;
@@ -17,14 +17,14 @@ export function calculateHoursDuration(
   try {
     const checkIn = parseISO(checkInISO);
     const checkOut = parseISO(checkOutISO);
-    const diffSeconds = differenceInSeconds(checkOut, checkIn);
-    const diffMins = Math.round(diffSeconds / 60);
+    const diffMilliseconds = checkOut.getTime() - checkIn.getTime();
+    const diffMins = Math.round(diffMilliseconds / 60_000);
 
-    if (!Number.isFinite(diffSeconds) || !Number.isFinite(diffMins)) {
+    if (!Number.isFinite(diffMilliseconds) || !Number.isFinite(diffMins)) {
       return { text: "Error parsing dates", isValid: false, minutes: 0 };
     }
 
-    if (diffSeconds <= 0 || diffMins <= 0) {
+    if (diffMilliseconds <= 0 || diffMins <= 0) {
       return {
         text: "Invalid: Check-out must be after check-in",
         isValid: false,
@@ -32,7 +32,7 @@ export function calculateHoursDuration(
       };
     }
 
-    if (diffSeconds > 24 * 60 * 60) {
+    if (diffMilliseconds > 24 * 60 * 60 * 1000) {
       return {
         text: `${Math.floor(diffMins / 60)}h ${diffMins % 60}m (Excessive)`,
         isValid: false,
