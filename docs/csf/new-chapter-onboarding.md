@@ -102,6 +102,31 @@ In `/organization/[id]/settings` → Plugins, review the declared permissions an
 
 Installing runs the `onInstall` hook, which seeds the chapter's default roles and point categories. **Verify before continuing:** the roles list is populated and point categories exist. If either is empty the hook failed and was compensated — check `plugin_audit_logs` rather than proceeding.
 
+On a hosted Supabase project, **Data API → Exposed schemas** must include
+`plugin_data`. The plugin's server-only client addresses that schema through
+PostgREST during installation and normal operation. An install that reports
+`Invalid schema: plugin_data` should be left compensated, the setting corrected,
+and the normal install action retried; never hand-seed the missing rows.
+
+Exposing the schema is not permission to expose chapter data. Before continuing,
+verify that `anon` and `authenticated` still have no schema usage or table
+grants, while `service_role` has schema usage:
+
+```sql
+select
+  has_schema_privilege('anon', 'plugin_data', 'USAGE') as anon_usage,
+  has_schema_privilege('authenticated', 'plugin_data', 'USAGE') as authenticated_usage,
+  has_schema_privilege('service_role', 'plugin_data', 'USAGE') as service_role_usage,
+  (
+    select count(*)
+    from information_schema.role_table_grants
+    where grantee in ('anon', 'authenticated')
+      and table_schema = 'plugin_data'
+  ) as browser_table_grants;
+```
+
+The required result is `false`, `false`, `true`, and `0`, respectively.
+
 ## Stage 3 — Semester and cohorts
 
 Following [officer runbook §2](officer-runbook.md) and §10.1:
