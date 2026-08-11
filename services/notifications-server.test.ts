@@ -182,9 +182,7 @@ describe("server notification callers", () => {
       expect(source).toContain("@/services/notifications-server");
       // The browser service pulls in @/lib/supabase/client and sonner, neither
       // of which belongs in a server-only module.
-      expect(source).not.toMatch(
-        /from\s+["']@\/services\/notifications["']/u,
-      );
+      expect(source).not.toMatch(/from\s+["']@\/services\/notifications["']/u);
       expect(source).not.toMatch(/from\s+["']@\/lib\/supabase\/client["']/u);
     });
   }

@@ -70,7 +70,10 @@ test("modal predicate matches historical /home behavior without CSF context", ()
     shouldShowOnboardingModal({ ...base, suppressOnboardingAfterReturn: true }),
     false,
   );
-  assert.equal(shouldShowOnboardingModal({ ...base, isHomeRoute: false }), false);
+  assert.equal(
+    shouldShowOnboardingModal({ ...base, isHomeRoute: false }),
+    false,
+  );
 });
 
 test("modal predicate also fires on the connect route in CSF context", () => {

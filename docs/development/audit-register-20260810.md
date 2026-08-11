@@ -12,20 +12,20 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 
 ## Summary
 
-| ID | Pri | Area | Finding | Status |
-|---|---|---|---|---|
-| [AUD-001](#aud-001) | P0 | Core RLS | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status | **Fixed on `development`**; live in Production until cutover |
-| [AUD-002](#aud-002) | P0 | Core RLS | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection | **Fixed on `development`**; live in Production until cutover |
-| [AUD-003](#aud-003) | P1 | Grants | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions | **Tables fixed**; functions half still open |
-| [AUD-004](#aud-004) | P1 | Plugin audit | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited | **Fixed on `development`** |
-| [AUD-005](#aud-005) | P3 | Plugin RLS | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob | Reclassified — designed behaviour, document the contract |
-| [AUD-006](#aud-006) | P2 | Architecture | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`** |
-| [AUD-012](#aud-012) | P2 | Notifications | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter | Confirmed; fixed for the server path only |
-| [AUD-007](#aud-007) | P2 | CI | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test | Fixed this session |
-| [AUD-008](#aud-008) | P2 | Architecture | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript | Confirmed, by design |
-| [AUD-009](#aud-009) | P2 | Gate coverage | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads` | Confirmed |
-| [AUD-010](#aud-010) | P3 | Moderation | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true | Confirmed, dead policy |
-| [AUD-011](#aud-011) | P3 | Plugin control plane | Advertised control-plane surfaces that no code path reads | Confirmed |
+| ID                  | Pri | Area                 | Finding                                                                                                             | Status                                                       |
+| ------------------- | --- | -------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [AUD-001](#aud-001) | P0  | Core RLS             | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                  | **Fixed on `development`**; live in Production until cutover |
+| [AUD-002](#aud-002) | P0  | Core RLS             | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection            | **Fixed on `development`**; live in Production until cutover |
+| [AUD-003](#aud-003) | P1  | Grants               | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions                   | **Tables fixed**; functions half still open                  |
+| [AUD-004](#aud-004) | P1  | Plugin audit         | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited  | **Fixed on `development`**                                   |
+| [AUD-005](#aud-005) | P3  | Plugin RLS           | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob            | Reclassified — designed behaviour, document the contract     |
+| [AUD-006](#aud-006) | P2  | Architecture         | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`**                                   |
+| [AUD-012](#aud-012) | P2  | Notifications        | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter   | Confirmed; fixed for the server path only                    |
+| [AUD-007](#aud-007) | P2  | CI                   | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                               | Fixed this session                                           |
+| [AUD-008](#aud-008) | P2  | Architecture         | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript    | Confirmed, by design                                         |
+| [AUD-009](#aud-009) | P2  | Gate coverage        | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads`                     | Confirmed                                                    |
+| [AUD-010](#aud-010) | P3  | Moderation           | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true                    | Confirmed, dead policy                                       |
+| [AUD-011](#aud-011) | P3  | Plugin control plane | Advertised control-plane surfaces that no code path reads                                                           | Confirmed                                                    |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -44,6 +44,7 @@ WITH CHECK ((SELECT is_super_admin()) OR ((SELECT auth.uid()) = user_id))
 No guard on `status`. The sibling UPDATE policy correctly carries `AND (status IS NULL)` — the INSERT policy simply missed it.
 
 Chain:
+
 1. `authenticated` holds `SELECT,INSERT,UPDATE,DELETE,REFERENCES,TRIGGER,TRUNCATE` on the table (baseline ~line 3780), never revoked.
 2. `trusted_member_set_user_id_trg` (BEFORE INSERT) forces `new.user_id` but never touches `new.status`.
 3. `trg_tm_sync_profiles` (AFTER INSERT OR UPDATE OF status) calls `sync_profiles_trusted_from_tm()`, which sets `app.allow_trusted_sync` and writes `profiles.trusted_member = NEW.status`, deliberately bypassing `prevent_trusted_member_edit()`.
@@ -83,6 +84,7 @@ Reads are correctly scoped (`SELECT` uses `auth.uid() = user_id`), so this is wr
 **Why the clause exists:** see AUD-006. It is load-bearing for two `server-only` modules that reach the database through the browser client, where `auth.uid()` is NULL.
 
 **Fix (ordered — the code change must land first):**
+
 1. Route `app/projects/[id]/server/cancellation.ts` and `app/admin/moderation/server/notifications.ts` through the admin client, e.g. the existing `createServerNotification` in `app/admin/server/shared.ts:99`.
 2. Drop the `OR ((SELECT auth.uid()) IS NULL)` disjunct in a forward migration.
 3. Add `supabase/tests/database/notifications_rls.test.sql` asserting that `anon` cannot insert, that an authenticated user cannot insert for another user, that a project creator still can insert for a signed-up attendee, and that reads stay self-scoped.
@@ -188,7 +190,7 @@ Because CI never reached the test step, it never reported that `lib/auth/local-d
 
 **Resolution:** the submodule work was published (`lets-assist-plugins` PR #13) and the gitlink moved onto a merged commit; the test now asserts the port contract — that `APP_PORT` defaults to 3000 and every emitted origin derives from it — instead of a literal.
 
-**Standing lesson:** a submodule commit must be pushed *before* the root gitlink that references it, or CI cannot check out the tree and every gate result becomes vacuous.
+**Standing lesson:** a submodule commit must be pushed _before_ the root gitlink that references it, or CI cannot check out the tree and every gate result becomes vacuous.
 
 ---
 
@@ -198,7 +200,7 @@ Because CI never reached the test step, it never reported that `lib/auth/local-d
 
 All 131 `plugin_data` tables have RLS enabled. The 78 `csf_*` tables have RLS enabled and **zero policies**, combined with revoked schema `USAGE` and revoked table grants for `anon` and `authenticated`. Only `service_role` reaches them.
 
-That is a correct and defensible deny-all posture, and it is what produces the 90 `INFO` advisor lints. But the honest characterization is: *CSF data is RLS-protected in the sense that RLS denies everyone; it is not RLS-authorized.* Every real authorization decision — which chapter, which term, which role, which permission — lives in TypeScript. A missed check in a server action is not caught by a second layer.
+That is a correct and defensible deny-all posture, and it is what produces the 90 `INFO` advisor lints. But the honest characterization is: _CSF data is RLS-protected in the sense that RLS denies everyone; it is not RLS-authorized._ Every real authorization decision — which chapter, which term, which role, which permission — lives in TypeScript. A missed check in a server action is not caught by a second layer.
 
 `plugin_data.csf_assert_import_actor` is the one SQL-level actor guard and is the model the rest could follow.
 
@@ -241,16 +243,16 @@ Not exploitable, but misleading — it reads as though client-side admin moderat
 
 Present in schema and, in several cases, in the admin UI — but consulted by no code path:
 
-| Surface | Reality |
-|---|---|
-| `public.plugin_versions` | The `draft → review → published/rejected` workflow, `commit_sha`, `published_by`, `review_notes` are all inert. Its RLS is `FOR SELECT USING (true)` for every role, contradicting its own "platform admins can manage" comment. |
-| `organization_plugin_feature_flags` + `rollout_percentage` | **Feature gating is unimplemented.** |
-| `organization_plugin_installs.auto_update` | Never read. |
-| `organization_plugin_data_boundaries`, `organization_data_isolation_profiles` | Surfaced in the admin UI; never consulted by any enforcement path, despite the developer docs calling a missing boundary row "a schema/process bug". |
-| `validatePluginUninstall` | Always returns `canUninstall: true`, and the transition path never calls it. |
-| `createPluginRegistry(..., allowList)` | Always invoked with `null`. |
-| `syncRegisteredPluginRuntimeContracts()` | Runs only when a super admin loads `/admin/plugins`, so `plugin_runtime_contracts` is stale by default, and it silently skips any registered plugin with no catalog row. |
-| `renderOrganizationPluginPage` | Still carries a "no renderer is registered yet" placeholder branch. |
+| Surface                                                                       | Reality                                                                                                                                                                                                                          |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `public.plugin_versions`                                                      | The `draft → review → published/rejected` workflow, `commit_sha`, `published_by`, `review_notes` are all inert. Its RLS is `FOR SELECT USING (true)` for every role, contradicting its own "platform admins can manage" comment. |
+| `organization_plugin_feature_flags` + `rollout_percentage`                    | **Feature gating is unimplemented.**                                                                                                                                                                                             |
+| `organization_plugin_installs.auto_update`                                    | Never read.                                                                                                                                                                                                                      |
+| `organization_plugin_data_boundaries`, `organization_data_isolation_profiles` | Surfaced in the admin UI; never consulted by any enforcement path, despite the developer docs calling a missing boundary row "a schema/process bug".                                                                             |
+| `validatePluginUninstall`                                                     | Always returns `canUninstall: true`, and the transition path never calls it.                                                                                                                                                     |
+| `createPluginRegistry(..., allowList)`                                        | Always invoked with `null`.                                                                                                                                                                                                      |
+| `syncRegisteredPluginRuntimeContracts()`                                      | Runs only when a super admin loads `/admin/plugins`, so `plugin_runtime_contracts` is stale by default, and it silently skips any registered plugin with no catalog row.                                                         |
+| `renderOrganizationPluginPage`                                                | Still carries a "no renderer is registered yet" placeholder branch.                                                                                                                                                              |
 
 **Recommendation:** do not build these speculatively. Decide per surface whether to implement or remove, and until then make sure the plugin install documentation (plan Task 3.3) states plainly which of them do not work, so operators do not rely on them.
 
@@ -269,7 +271,7 @@ Present in schema and, in several cases, in the admin UI — but consulted by no
   .eq("user_id", userId).eq("type", notification.type).limit(1)
 ```
 
-There is no filter on `read`, `displayed`, or `created_at`, and `type` only ever takes three broad values (`general`, `project_updates`, `email_notifications`). So a user who has *ever* received a `project_updates` notification never receives another one. A volunteer whose signup is rejected twice is told once, forever.
+There is no filter on `read`, `displayed`, or `created_at`, and `type` only ever takes three broad values (`general`, `project_updates`, `email_notifications`). So a user who has _ever_ received a `project_updates` notification never receives another one. A volunteer whose signup is rejected twice is told once, forever.
 
 The check was almost certainly written for `checkUsernameSetting`'s one-time "set a custom username" nudge, where suppressing repeats is correct, and then applied to every caller.
 
@@ -285,27 +287,27 @@ The check was almost certainly written for `checkUsernameSetting`'s one-time "se
 
 Local, on `development` at `9b9abcd`, macOS, Bun 1.3.14.
 
-| Gate | Result |
-|---|---|
-| `plugin:submodules:check:strict` | Pass (after AUD-007 remediation) |
-| `security:seeds` | Pass |
-| `lint` | Pass |
-| `typecheck` | Pass |
-| `test` | Pass — 3,714 assertions, 0 failures (after AUD-007 remediation) |
-| `build` | Pass |
-| `db:test:redesign` | Not yet run in this pass |
-| Hosted `development` advisors (security) | 90 lints, all `INFO`/`rls_enabled_no_policy`; 0 ERROR, 0 WARN |
+| Gate                                     | Result                                                          |
+| ---------------------------------------- | --------------------------------------------------------------- |
+| `plugin:submodules:check:strict`         | Pass (after AUD-007 remediation)                                |
+| `security:seeds`                         | Pass                                                            |
+| `lint`                                   | Pass                                                            |
+| `typecheck`                              | Pass                                                            |
+| `test`                                   | Pass — 3,714 assertions, 0 failures (after AUD-007 remediation) |
+| `build`                                  | Pass                                                            |
+| `db:test:redesign`                       | Not yet run in this pass                                        |
+| Hosted `development` advisors (security) | 90 lints, all `INFO`/`rls_enabled_no_policy`; 0 ERROR, 0 WARN   |
 
 After the AUD-001..004 fixes, on a full local replay of all 222 migrations:
 
-| Gate | Result |
-|---|---|
-| `supabase db reset` (full replay) | Pass |
-| `supabase test db` (whole suite) | **Pass — 70 files, 3,262 tests** (was 66 files, 3,219) |
-| `db:audit:architecture` | Pass |
-| `db:audit:plugin-isolation` | Pass |
-| `plugin:audit:data-access` | Pass |
-| `supabase db advisors --local --fail-on error` | No issues found |
+| Gate                                           | Result                                                 |
+| ---------------------------------------------- | ------------------------------------------------------ |
+| `supabase db reset` (full replay)              | Pass                                                   |
+| `supabase test db` (whole suite)               | **Pass — 70 files, 3,262 tests** (was 66 files, 3,219) |
+| `db:audit:architecture`                        | Pass                                                   |
+| `db:audit:plugin-isolation`                    | Pass                                                   |
+| `plugin:audit:data-access`                     | Pass                                                   |
+| `supabase db advisors --local --fail-on error` | No issues found                                        |
 
 **Local environment note:** three orphaned isolated CSF stacks (32 containers, ~19 hours old) were left running by earlier sessions and prevented the shared local stack from starting. They were torn down with `scripts/local-dev/stop-dvhs-csf-isolated-stack.sh`, which validated resource ownership before and residual absence after. Nine stale work directories under `/tmp` and `$TMPDIR` were removed with them. Worth checking for periodically — a failed run leaves its stack behind.
 
@@ -319,16 +321,16 @@ Dependabot reports 2 high-severity vulnerabilities on the default branch; not ye
 
 Verified in the Vercel dashboard as `admin@lets-assist.com` on team `lets-assist-team` (Hobby plan), project `lets-assist`.
 
-| Check | Result |
-|---|---|
-| `dev.lets-assist.com` domain | **Valid Configuration**, assigned to the `development` branch |
-| `lets-assist.com` domain | **Valid Configuration**, Production |
-| Branch-scoped Preview variables | Present and scoped to `development`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF` (all marked Sensitive, added 2026-08-04) |
-| Latest `development` deployments | `f3fcf79`, `83ce42f`, `9b9abcd`, `e4f0179` — all **Ready** |
-| `dev.lets-assist.com` serves | Yes. Vercel deployment protection is on; an authenticated Vercel session passes through |
-| Supabase branch migrations | 218, head `20260807223600` — identical to the repository ledger |
-| Supabase branch advisors | 90 lints, all `INFO`/`rls_enabled_no_policy`; 0 ERROR, 0 WARN |
-| **Production untouched** | **49 migrations, head `20260603035734`** — unchanged throughout this session |
+| Check                            | Result                                                                                                                                                                                           |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dev.lets-assist.com` domain     | **Valid Configuration**, assigned to the `development` branch                                                                                                                                    |
+| `lets-assist.com` domain         | **Valid Configuration**, Production                                                                                                                                                              |
+| Branch-scoped Preview variables  | Present and scoped to `development`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF` (all marked Sensitive, added 2026-08-04) |
+| Latest `development` deployments | `f3fcf79`, `83ce42f`, `9b9abcd`, `e4f0179` — all **Ready**                                                                                                                                       |
+| `dev.lets-assist.com` serves     | Yes. Vercel deployment protection is on; an authenticated Vercel session passes through                                                                                                          |
+| Supabase branch migrations       | 218, head `20260807223600` — identical to the repository ledger                                                                                                                                  |
+| Supabase branch advisors         | 90 lints, all `INFO`/`rls_enabled_no_policy`; 0 ERROR, 0 WARN                                                                                                                                    |
+| **Production untouched**         | **49 migrations, head `20260603035734`** — unchanged throughout this session                                                                                                                     |
 
 **Which Supabase project the deployment targets is proven by construction rather than by reading a value.** Every Vercel build runs `bun run build`, whose second step is `node scripts/verify-deployment-environment.mjs`. That script refuses any non-production `VERCEL_ENV` whose `NEXT_PUBLIC_SUPABASE_URL` is not HTTPS, is a production host (`api.lets-assist.com`, `fotdmeakexgrkronxlof.supabase.co`), or does not exactly match `EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF`. A **Ready** Preview deployment therefore cannot have been built against production. The three Supabase variables being branch-scoped to `development` is the other half of the same proof.
 
@@ -336,7 +338,7 @@ Browser network inspection could not confirm the target independently: the pages
 
 ### The stale-deployment finding
 
-`a5c4ea7` (*Land the class-stream redesign*) shows **Error at 11 s, 2 days ago** — the same unpushed-submodule failure that took CI down (AUD-007). The Vercel build died at submodule fetch too.
+`a5c4ea7` (_Land the class-stream redesign_) shows **Error at 11 s, 2 days ago** — the same unpushed-submodule failure that took CI down (AUD-007). The Vercel build died at submodule fetch too.
 
 So `dev.lets-assist.com` had been serving a **stale build from 2026-08-06** for two days, and every deployment attempt in between failed the same way. Anyone testing hosted Development during that window was testing old code. Several earlier Errors on 2026-08-02 and 2026-08-03 (`93ca1f2`, `388cb2a`, `c20d31f`, `287cb57`) suggest this has recurred.
 
@@ -360,12 +362,12 @@ Not investigated further here: reading or rotating a provider credential is outs
 
 Neither the root branch nor its submodule branch was on any remote, and both carried uncommitted work. A stray checkout would have destroyed it. All of it is now pushed:
 
-| Ref | Repository | Contents |
-|---|---|---|
-| `codex/csf-lifecycle-overhaul` | root | 2 commits ahead of `development`, +18,611 lines |
-| `codex/csf-lifecycle-overhaul` | plugins | Codex's private-plugin work, including `42388fc` |
-| `wip/codex-root-snapshot-20260810` | root | The worktree's uncommitted work — 28 files, 2,521 insertions |
-| `wip/codex-spill-20260810` | plugins | An intermediate Codex state found in the main checkout |
+| Ref                                | Repository | Contents                                                     |
+| ---------------------------------- | ---------- | ------------------------------------------------------------ |
+| `codex/csf-lifecycle-overhaul`     | root       | 2 commits ahead of `development`, +18,611 lines              |
+| `codex/csf-lifecycle-overhaul`     | plugins    | Codex's private-plugin work, including `42388fc`             |
+| `wip/codex-root-snapshot-20260810` | root       | The worktree's uncommitted work — 28 files, 2,521 insertions |
+| `wip/codex-spill-20260810`         | plugins    | An intermediate Codex state found in the main checkout       |
 
 The root snapshot was taken with `commit-tree` against a throwaway index, so the worktree, its HEAD, and its index were left untouched and Codex can resume exactly where it stopped. It contains work that existed nowhere else, notably `supabase/migrations/20260810021019_csf_posting_role_permission_rollout.sql` and new suites for design-token contrast, brand-token separation, footer target size, focusable scrollable regions, signup request origin, and a signup email PKCE round trip.
 
@@ -373,18 +375,18 @@ The root snapshot was taken with `commit-tree` against a throwaway index, so the
 
 **Priority:** P2 · **Status:** Confirmed · **Affects merge order, not correctness**
 
-| Set | Range | Count |
-|---|---|---|
-| Codex | `20260809211732` → `20260810015500` | 11 committed, plus `20260810021019` uncommitted |
-| This session | `20260810220100` → `20260810220500` | 5 |
+| Set          | Range                               | Count                                           |
+| ------------ | ----------------------------------- | ----------------------------------------------- |
+| Codex        | `20260809211732` → `20260810015500` | 11 committed, plus `20260810021019` uncommitted |
+| This session | `20260810220100` → `20260810220500` | 5                                               |
 
-No filename or timestamp collisions. But **every Codex timestamp is earlier than every one of this session's**, so merging Codex *after* these have been applied somewhere would append migrations that sort before the recorded head — the ledger would no longer be ordered.
+No filename or timestamp collisions. But **every Codex timestamp is earlier than every one of this session's**, so merging Codex _after_ these have been applied somewhere would append migrations that sort before the recorded head — the ledger would no longer be ordered.
 
 There is no problem yet: the hosted `development` branch is still at `20260807223600`, so **neither set has been applied anywhere remote**. That is what makes this cheap to fix, and it will not stay true.
 
 **Recommendation: merge `codex/csf-lifecycle-overhaul` into `development` before pushing anything to the hosted branch or Production.** A replay then orders both sets correctly by timestamp and a single `db push` applies them in order.
 
-If Codex lands later instead, renumber its migrations to follow the current head. That is legitimate here precisely because they have never been applied to any database — renumbering an *applied* migration would not be.
+If Codex lands later instead, renumber its migrations to follow the current head. That is legitimate here precisely because they have never been applied to any database — renumbering an _applied_ migration would not be.
 
 The two sets are also disjoint in what they touch: Codex's are all `csf_*`, while this session's touch `trusted_member`, `notifications`, `plugin_audit_logs`, `public` default privileges, and `organizations`. So the risk is ledger hygiene rather than a broken dependency.
 

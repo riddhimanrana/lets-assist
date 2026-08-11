@@ -77,7 +77,11 @@ describe("loadPluginDisplayPreferences", () => {
   test("an empty user id resolves to hidden without querying", async () => {
     expect(
       await loadPluginDisplayPreferences(
-        { from: () => { throw new Error("should not query"); } } as never,
+        {
+          from: () => {
+            throw new Error("should not query");
+          },
+        } as never,
         "",
       ),
     ).toEqual({ showPluginContent: false, hiddenPluginKeys: [] });

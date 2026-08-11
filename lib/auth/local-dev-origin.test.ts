@@ -75,9 +75,7 @@ describe("local browser verification origin", () => {
     expect(launcher).toContain(
       'emit_app_env_value NEXT_PUBLIC_VERCEL_URL "localhost:${APP_PORT}"',
     );
-    expect(environmentContract).toContain(
-      "if (requested === \"\") return 3000;",
-    );
+    expect(environmentContract).toContain('if (requested === "") return 3000;');
     expect(environmentContract).toContain(
       "const CSF_ISOLATED_SITE_URL = `http://localhost:${CSF_ISOLATED_APP_PORT}`;",
     );

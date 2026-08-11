@@ -35,7 +35,7 @@ describe("current CSF platform help", () => {
       "Most CSF programs require",
       "10-15 hours per semester",
       "Create projects specifically tagged for CSF requirements",
-      'Create a project tagged as &quot;CSF Volunteer Hours&quot;',
+      "Create a project tagged as &quot;CSF Volunteer Hours&quot;",
       "Dashboard → Export Certificates",
       "Start CSF Project",
     ]) {

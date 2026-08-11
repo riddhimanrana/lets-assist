@@ -17,9 +17,7 @@ interface NotificationPreferences {
 }
 
 export type CreateNotificationResult =
-  | { success: true }
-  | { success: false; skipped: true }
-  | { error: unknown };
+  { success: true } | { success: false; skipped: true } | { error: unknown };
 
 /**
  * Deliver a notification from a server context.
