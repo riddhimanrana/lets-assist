@@ -793,7 +793,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle>Manage Volunteer Signups</CardTitle>
+              <CardTitle role="heading" aria-level={1}>
+                Manage Volunteer Signups
+              </CardTitle>
               <CardDescription>
                 Review and manage volunteer signups.
               </CardDescription>

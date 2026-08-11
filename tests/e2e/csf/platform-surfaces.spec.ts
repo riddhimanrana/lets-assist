@@ -6,7 +6,7 @@ import {
   seedFeedPosts,
   type CsfFeedFixture,
 } from "./feed-fixtures";
-import { localActors, loginAs } from "./helpers";
+import { loginAs } from "./helpers";
 
 const TITLE_PREFIX = "E2E platform surface";
 const feedPostTitle = `${TITLE_PREFIX} chapter update`;
@@ -118,8 +118,13 @@ test.describe("platform project acceptance", () => {
     await expect(
       page.getByRole("heading", { name: "Manage Volunteer Signups" }),
     ).toBeVisible();
-    await expect(page.getByText(localActors.member.name)).toBeVisible();
-    await expect(page.getByText(localActors.applicant.name)).toBeVisible();
-    await expect(page.getByText("Rowan Alvarez")).toBeVisible();
+    for (const signupName of [
+      "Aarav Mehta",
+      "Evan Chen",
+      "Sofia Nguyen",
+      "Rowan Alvarez",
+    ]) {
+      await expect(page.getByText(signupName, { exact: true })).toBeVisible();
+    }
   });
 });
