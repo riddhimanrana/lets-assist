@@ -293,8 +293,31 @@ async function cleanPkceFixture(fixture: PkceFixture, userId: string | null) {
   }
 }
 
-type MailpitRecipient = { Address?: string };
-type MailpitSummary = { ID: string; Subject: string; To?: MailpitRecipient[] };
+type MailpitRecipient = { Address?: string; address?: string };
+type MailpitSummary = {
+  ID?: string;
+  id?: string;
+  Subject?: string;
+  subject?: string;
+  To?: MailpitRecipient[];
+  to?: MailpitRecipient[];
+};
+
+function mailpitMessageId(message: MailpitSummary) {
+  return message.ID ?? message.id;
+}
+
+function mailpitSubject(message: MailpitSummary) {
+  return message.Subject ?? message.subject;
+}
+
+function mailpitRecipients(message: MailpitSummary) {
+  return message.To ?? message.to ?? [];
+}
+
+function mailpitRecipientAddress(recipient: MailpitRecipient) {
+  return recipient.Address ?? recipient.address ?? "";
+}
 
 async function readMailpitJson(url: string) {
   const response = await fetch(url);
@@ -335,9 +358,9 @@ async function findConfirmationSummaries(
   const wanted = recipient.toLowerCase();
   return (payload.messages ?? []).filter(
     (message) =>
-      message.Subject === confirmationSubject &&
-      (message.To ?? []).some(
-        (to) => (to.Address ?? "").toLowerCase() === wanted,
+      mailpitSubject(message) === confirmationSubject &&
+      mailpitRecipients(message).some(
+        (to) => mailpitRecipientAddress(to).toLowerCase() === wanted,
       ),
   );
 }
@@ -358,9 +381,11 @@ function decodeLinkAmpersands(value: string) {
 async function readVerificationLink(fixture: PkceFixture, messageId: string) {
   const message = (await readMailpitJson(
     `${fixture.mailpitOrigin}/api/v1/message/${encodeURIComponent(messageId)}`,
-  )) as { HTML?: string; Text?: string };
+  )) as { HTML?: string; Text?: string; html?: string; text?: string };
 
-  const body = `${message.HTML ?? ""}\n${message.Text ?? ""}`;
+  const body = `${message.HTML ?? message.html ?? ""}\n${
+    message.Text ?? message.text ?? ""
+  }`;
   const links = new Set<string>();
   for (const match of body.matchAll(
     /https?:\/\/[^\s"'<>]*\/auth\/v1\/verify\?[^\s"'<>]+/gu,
@@ -412,6 +437,30 @@ test.describe("signup email PKCE round trip", () => {
     } finally {
       await deleteMailpitMessages(fixture, createdMessageIds);
     }
+  });
+
+  test("normalizes current and legacy Mailpit message summaries", () => {
+    const current = {
+      id: "current-message",
+      subject: confirmationSubject,
+      to: [{ address: signupEmail }],
+    } satisfies MailpitSummary;
+    const legacy = {
+      ID: "legacy-message",
+      Subject: confirmationSubject,
+      To: [{ Address: signupEmail }],
+    } satisfies MailpitSummary;
+
+    expect(mailpitMessageId(current)).toBe("current-message");
+    expect(mailpitSubject(current)).toBe(confirmationSubject);
+    expect(mailpitRecipientAddress(mailpitRecipients(current)[0])).toBe(
+      signupEmail,
+    );
+    expect(mailpitMessageId(legacy)).toBe("legacy-message");
+    expect(mailpitSubject(legacy)).toBe(confirmationSubject);
+    expect(mailpitRecipientAddress(mailpitRecipients(legacy)[0])).toBe(
+      signupEmail,
+    );
   });
 
   test("the emailed confirmation link comes back to the loopback origin that holds the PKCE verifier", async ({
@@ -478,7 +527,10 @@ test.describe("signup email PKCE round trip", () => {
               fixture,
               signupEmail,
             );
-            messageId = summaries.length === 1 ? summaries[0].ID : undefined;
+            messageId =
+              summaries.length === 1
+                ? mailpitMessageId(summaries[0])
+                : undefined;
             return summaries.length;
           },
           {
