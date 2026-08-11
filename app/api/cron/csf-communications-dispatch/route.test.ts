@@ -17,28 +17,76 @@ mock.module("server-only", () => ({}));
 type RpcCall = { fn: string; args: Record<string, unknown> };
 const rpcCalls: RpcCall[] = [];
 const sendCalls: Array<Record<string, unknown>> = [];
-const fromCalls: string[] = [];
 
-let openCampaignRows: Array<{ id: string; organization_id: string }> = [];
-let scopeError: { message: string } | null = null;
-let claimHandler: () => { data: unknown; error: unknown } = () => ({
+let schedulerScopeHandler: () => { data: unknown; error: unknown } = () => ({
+  data: { organizationCount: 0, organizationIds: [] },
+  error: null,
+});
+let maintenanceHandler: () => { data: unknown; error: unknown } = () => ({
+  data: { checked: 0, terminalized: 0, nonterminal: 0, faults: 0 },
+  error: null,
+});
+let claimHandler: (args: Record<string, unknown>) => {
+  data: unknown;
+  error: unknown;
+} = () => ({
   data: { claimedCount: 0, claims: [] },
   error: null,
 });
+let authorizeHandler: (args: Record<string, unknown>) => {
+  data: unknown;
+  error: unknown;
+};
 let settleHandler: (args: Record<string, unknown>) => {
   data: unknown;
   error: unknown;
 } = () => ({ data: { attemptState: "accepted" }, error: null });
-let terminalizeHandler: (args: Record<string, unknown>) => {
-  data: unknown;
-  error: unknown;
-} = () => ({ data: { status: "completed" }, error: null });
 
 const ORG = "ce100000-0000-4000-8000-000000000001";
 const CAMPAIGN = "ce400000-0000-4000-8000-000000000001";
+const CAMPAIGN_TWO = "ce400000-0000-4000-8000-000000000002";
 const ATTEMPT = "ce900000-0000-4000-8000-000000000001";
+const ATTEMPT_TWO = "ce900000-0000-4000-8000-000000000002";
 const IDEMPOTENCY_KEY = `csf-att-${"a".repeat(64)}-1`;
 const DIGEST = "e".repeat(64);
+
+function authorizationFor(attemptId: string, attemptNumber: number) {
+  const campaignId = attemptId === ATTEMPT_TWO ? CAMPAIGN_TWO : CAMPAIGN;
+  const idempotencyKey =
+    attemptNumber === 1 ? IDEMPOTENCY_KEY : `csf-att-${"b".repeat(64)}-1`;
+  return {
+    data: {
+      authorized: true,
+      organizationId: ORG,
+      attemptId,
+      deliveryId: `cea00000-0000-4000-8000-${attemptNumber.toString().padStart(12, "0")}`,
+      coordinate: {
+        organizationId: ORG,
+        campaignId,
+        recipientSnapshotId: `ce800000-0000-4000-8000-${attemptNumber.toString().padStart(12, "0")}`,
+        attemptId,
+        attemptNumber,
+        contentHash: "c".repeat(64),
+        recipientSnapshotHash: "d".repeat(64),
+        deliveryRequirement: "broadcast",
+        topicKey: "partner_clubs",
+      },
+      providerPayload: {
+        from: "DVHS CSF <csf@notifications.lets-assist.com>",
+        to: `rep.${attemptNumber}@local.test`,
+        replyTo: "dvhighcsf@example.test",
+        subject: "Synthetic bounded worker subject",
+        text: "Synthetic body.",
+        tags: [{ name: "csf_attempt_id", value: attemptId }],
+        type: "transactional",
+        idempotencyKey,
+      },
+      requestPayloadHash: DIGEST,
+      providerIdempotencyKey: idempotencyKey,
+    },
+    error: null,
+  };
+}
 
 mock.module("resend", () => ({
   Resend: class {
@@ -86,59 +134,18 @@ mock.module("@supabase/supabase-js", () => ({
   createClient: () => ({
     rpc: async (fn: string, args: Record<string, unknown>) => {
       rpcCalls.push({ fn, args });
+      if (fn === "csf_maintain_communication_campaigns")
+        return maintenanceHandler();
+      if (fn === "csf_claim_communication_scheduler_scope")
+        return schedulerScopeHandler();
       if (fn === "csf_claim_communication_dispatch_batch")
-        return claimHandler();
-      if (fn === "csf_authorize_communication_dispatch") {
-        return {
-          data: {
-            authorized: true,
-            organizationId: ORG,
-            attemptId: ATTEMPT,
-            deliveryId: "cea00000-0000-4000-8000-000000000001",
-            coordinate: {
-              organizationId: ORG,
-              campaignId: CAMPAIGN,
-              recipientSnapshotId: "ce800000-0000-4000-8000-000000000001",
-              attemptId: ATTEMPT,
-              attemptNumber: 1,
-              contentHash: "c".repeat(64),
-              recipientSnapshotHash: "d".repeat(64),
-              deliveryRequirement: "broadcast",
-              topicKey: "partner_clubs",
-            },
-            providerPayload: {
-              from: "DVHS CSF <csf@notifications.lets-assist.com>",
-              to: "rep.one@local.test",
-              replyTo: "dvhighcsf@example.test",
-              subject: "Synthetic bounded worker subject",
-              text: "Synthetic body.",
-              tags: [{ name: "csf_attempt_id", value: ATTEMPT }],
-              type: "transactional",
-              idempotencyKey: IDEMPOTENCY_KEY,
-            },
-            requestPayloadHash: DIGEST,
-            providerIdempotencyKey: IDEMPOTENCY_KEY,
-          },
-          error: null,
-        };
-      }
+        return claimHandler(args);
+      if (fn === "csf_authorize_communication_dispatch")
+        return authorizeHandler(args);
       if (fn === "csf_settle_communication_dispatch_attempt") {
         return settleHandler(args);
       }
-      if (fn === "csf_finalize_communication_campaign") {
-        return terminalizeHandler(args);
-      }
       return { data: null, error: null };
-    },
-    from: (table: string) => {
-      fromCalls.push(table);
-      const builder = {
-        select: () => builder,
-        in: () => builder,
-        order: () => builder,
-        limit: async () => ({ data: openCampaignRows, error: scopeError }),
-      };
-      return builder;
     },
   }),
 }));
@@ -186,16 +193,22 @@ function literalHeaderRequest(authorization: string) {
 beforeEach(() => {
   rpcCalls.length = 0;
   sendCalls.length = 0;
-  fromCalls.length = 0;
-  openCampaignRows = [];
-  scopeError = null;
-  claimHandler = () => ({ data: { claimedCount: 0, claims: [] }, error: null });
-  settleHandler = () => ({
-    data: { attemptState: "accepted" },
+  schedulerScopeHandler = () => ({
+    data: { organizationCount: 0, organizationIds: [] },
     error: null,
   });
-  terminalizeHandler = () => ({
-    data: { status: "completed" },
+  maintenanceHandler = () => ({
+    data: { checked: 0, terminalized: 0, nonterminal: 0, faults: 0 },
+    error: null,
+  });
+  claimHandler = () => ({ data: { claimedCount: 0, claims: [] }, error: null });
+  authorizeHandler = (args) =>
+    authorizationFor(
+      String(args.p_attempt_id),
+      args.p_attempt_id === ATTEMPT_TWO ? 2 : 1,
+    );
+  settleHandler = () => ({
+    data: { attemptState: "accepted" },
     error: null,
   });
 
@@ -244,12 +257,13 @@ describe("the bounded CSF dispatch worker route", () => {
           unknown: 0,
           authorization_lost: 0,
         },
+        campaignsChecked: 0,
+        campaignsTerminalized: 0,
         faults: 0,
         deadlineReached: false,
       });
       expect(rpcCalls, String(value)).toHaveLength(0);
       expect(sendCalls, String(value)).toHaveLength(0);
-      expect(fromCalls, String(value)).toHaveLength(0);
     }
   });
 
@@ -260,13 +274,11 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(disabled.status).toBe(200);
     expect(await disabled.json()).toMatchObject({ enabled: false, claimed: 0 });
     expect(disabled.headers.get("cache-control")).toContain("no-store");
-    expect(fromCalls).toHaveLength(0);
     expect(sendCalls).toHaveLength(0);
 
     const unauthorized = await GET(request({}, "GET"));
     expect(unauthorized.status).toBe(401);
     expect(unauthorized.headers.get("cache-control")).toContain("no-store");
-    expect(fromCalls).toHaveLength(0);
     expect(sendCalls).toHaveLength(0);
   });
 
@@ -278,7 +290,6 @@ describe("the bounded CSF dispatch worker route", () => {
     // never touched and no provider call was made.
     expect(rpcCalls).toHaveLength(0);
     expect(sendCalls).toHaveLength(0);
-    expect(fromCalls).toHaveLength(0);
   });
 
   test("every malformed Authorization form is rejected with zero work", async () => {
@@ -314,16 +325,15 @@ describe("the bounded CSF dispatch worker route", () => {
     for (const [label, header] of malformed) {
       rpcCalls.length = 0;
       sendCalls.length = 0;
-      fromCalls.length = 0;
 
       // Literal bytes, not a normalized request. See literalHeaderRequest.
       const response = await POST(literalHeaderRequest(header));
 
       expect(`${label}=${response.status}`).toBe(`${label}=401`);
       // Not merely a 401: the ledger was never touched and nothing was mailed.
-      expect(
-        `${label}=${rpcCalls.length}/${sendCalls.length}/${fromCalls.length}`,
-      ).toBe(`${label}=0/0/0`);
+      expect(`${label}=${rpcCalls.length}/${sendCalls.length}`).toBe(
+        `${label}=0/0`,
+      );
     }
   });
 
@@ -420,8 +430,11 @@ describe("the bounded CSF dispatch worker route", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ enabled: true, claimed: 0 });
-    expect(fromCalls).toEqual(["csf_communication_campaigns"]);
-    expect(rpcCalls).toHaveLength(0);
+    expect(rpcCalls.map((call) => call.fn)).toEqual([
+      "csf_maintain_communication_campaigns",
+      "csf_claim_communication_scheduler_scope",
+      "csf_maintain_communication_campaigns",
+    ]);
     expect(sendCalls).toHaveLength(0);
   });
 
@@ -511,39 +524,51 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(sendCalls).toHaveLength(0);
   });
 
-  test("an unreadable campaign scope claims nothing and sends nothing", async () => {
-    scopeError = { message: "relation csf_communication_campaigns" };
+  test("an unreadable scheduler scope claims nothing and sends nothing", async () => {
+    schedulerScopeHandler = () => ({
+      data: null,
+      error: {
+        message:
+          "scheduler scope for rep.one@local.test is temporarily unavailable",
+      },
+    });
 
     const response = await POST(authorized());
 
     expect(response.status).toBe(503);
-    expect(rpcCalls).toHaveLength(0);
+    expect(rpcCalls.map((call) => call.fn)).toEqual([
+      "csf_maintain_communication_campaigns",
+      "csf_claim_communication_scheduler_scope",
+    ]);
     expect(sendCalls).toHaveLength(0);
     // The database's own message never reaches the caller.
     expect(JSON.stringify(await response.json())).not.toContain(
-      "csf_communication_campaigns",
+      "rep.one@local.test",
     );
   });
 
-  test("no durable open campaign does no work at all", async () => {
+  test("an empty durable scheduler scope claims and sends nothing", async () => {
     const response = await POST(authorized());
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(body.organizationsQueued).toBe(0);
     expect(body.claimed).toBe(0);
-    expect(rpcCalls).toHaveLength(0);
+    expect(rpcCalls.map((call) => call.fn)).toEqual([
+      "csf_maintain_communication_campaigns",
+      "csf_claim_communication_scheduler_scope",
+      "csf_maintain_communication_campaigns",
+    ]);
     expect(sendCalls).toHaveLength(0);
   });
 
-  test("an open campaign with no queued attempt still reaches lease recovery and terminalization", async () => {
-    openCampaignRows = [{ id: CAMPAIGN, organization_id: ORG }];
-    // This is the route-visible shape after a worker dies while its only attempt
-    // is processing: there is no queued attempt to discover. The real claim RPC
-    // reaps an expired processing lease under the campaign lock before returning
-    // an empty claim set.
+  test("an expired processing-only scope reaches lease recovery without a resend", async () => {
+    schedulerScopeHandler = () => ({
+      data: { organizationCount: 1, organizationIds: [ORG] },
+      error: null,
+    });
     claimHandler = () => ({
-      data: { claimedCount: 0, claims: [] },
+      data: { claimedCount: 0, reapedUnknownOutcomes: 1, claims: [] },
       error: null,
     });
 
@@ -556,17 +581,18 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(body.claimed).toBe(0);
     expect(sendCalls).toHaveLength(0);
     expect(rpcCalls.map((call) => call.fn)).toEqual([
+      "csf_maintain_communication_campaigns",
+      "csf_claim_communication_scheduler_scope",
       "csf_claim_communication_dispatch_batch",
-      "csf_finalize_communication_campaign",
+      "csf_maintain_communication_campaigns",
     ]);
   });
 
   test("a lost finalizer result remains discoverable and is retried without another send", async () => {
-    openCampaignRows = [{ id: CAMPAIGN, organization_id: ORG }];
-    let finalizerCalls = 0;
-    terminalizeHandler = () => {
-      finalizerCalls += 1;
-      return finalizerCalls === 1
+    let maintenanceCalls = 0;
+    maintenanceHandler = () => {
+      maintenanceCalls += 1;
+      return maintenanceCalls <= 2
         ? {
             data: null,
             error: {
@@ -574,7 +600,15 @@ describe("the bounded CSF dispatch worker route", () => {
                 "campaign row for rep.one@local.test could not be aggregated",
             },
           }
-        : { data: { status: "completed" }, error: null };
+        : {
+            data: {
+              checked: maintenanceCalls === 3 ? 1 : 0,
+              terminalized: maintenanceCalls === 3 ? 1 : 0,
+              nonterminal: 0,
+              faults: 0,
+            },
+            error: null,
+          };
     };
 
     const first = await POST(authorized());
@@ -583,10 +617,11 @@ describe("the bounded CSF dispatch worker route", () => {
     const secondBody = await second.json();
 
     expect(first.status).toBe(200);
-    expect(firstBody.faults).toBe(1);
+    expect(firstBody.faults).toBe(2);
     expect(second.status).toBe(200);
     expect(secondBody.faults).toBe(0);
-    expect(finalizerCalls).toBe(2);
+    expect(secondBody.campaignsTerminalized).toBe(1);
+    expect(maintenanceCalls).toBe(4);
     expect(sendCalls).toHaveLength(0);
     expect(JSON.stringify({ firstBody, secondBody })).not.toContain(
       "rep.one@local.test",
@@ -594,10 +629,10 @@ describe("the bounded CSF dispatch worker route", () => {
   });
 
   test("the organization scope is derived from the ledger, never from the request", async () => {
-    openCampaignRows = [
-      { id: CAMPAIGN, organization_id: ORG },
-      { id: CAMPAIGN, organization_id: ORG },
-    ];
+    schedulerScopeHandler = () => ({
+      data: { organizationCount: 2, organizationIds: [ORG, ORG] },
+      error: null,
+    });
 
     await POST(
       new NextRequest(
@@ -614,9 +649,8 @@ describe("the bounded CSF dispatch worker route", () => {
       ),
     );
 
-    // The durable campaign ledger named one organization, twice. The worker ran
-    // for that one, and never for the one the caller tried to name.
-    expect(fromCalls).toEqual(["csf_communication_campaigns"]);
+    // The service-only scheduler scope named one organization twice. The route
+    // deduplicated it and never trusted the tenant or payload in the request.
     const claims = rpcCalls.filter(
       (call) => call.fn === "csf_claim_communication_dispatch_batch",
     );
@@ -627,7 +661,10 @@ describe("the bounded CSF dispatch worker route", () => {
   });
 
   test("authorized work is bounded and the batch size is clamped", async () => {
-    openCampaignRows = [{ id: CAMPAIGN, organization_id: ORG }];
+    schedulerScopeHandler = () => ({
+      data: { organizationCount: 1, organizationIds: [ORG] },
+      error: null,
+    });
     process.env.CSF_COMMUNICATIONS_WORKER_BATCH_SIZE = "100000";
 
     const response = await POST(authorized());
@@ -643,7 +680,16 @@ describe("the bounded CSF dispatch worker route", () => {
   });
 
   test("authorized work dispatches claimed attempts and reports aggregates only", async () => {
-    openCampaignRows = [{ id: CAMPAIGN, organization_id: ORG }];
+    schedulerScopeHandler = () => ({
+      data: { organizationCount: 1, organizationIds: [ORG] },
+      error: null,
+    });
+    maintenanceHandler = () => ({
+      data: sendCalls.length
+        ? { checked: 1, terminalized: 1, nonterminal: 0, faults: 0 }
+        : { checked: 1, terminalized: 0, nonterminal: 1, faults: 0 },
+      error: null,
+    });
     claimHandler = () => ({
       data: {
         claimedCount: 1,
@@ -671,23 +717,23 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(response.status).toBe(200);
     expect(body.claimed).toBe(1);
     expect(body.outcomes.sent).toBe(1);
+    expect(body.campaignsTerminalized).toBe(1);
     expect(sendCalls).toHaveLength(1);
 
-    // V122: the same bounded worker pass that settled the claimed attempt must
-    // terminalization-check its campaign. Otherwise a wholly delivered campaign
-    // remains visibly "Sending" forever because no queued attempt exists to make
-    // a later scheduler invocation discover this organization again.
+    // V122: maintenance brackets the worker pass. The second pass sees the
+    // campaign the worker just settled without the route carrying its identity.
     expect(
       rpcCalls.filter(
-        (call) => call.fn === "csf_finalize_communication_campaign",
+        (call) => call.fn === "csf_maintain_communication_campaigns",
       ),
     ).toEqual([
       {
-        fn: "csf_finalize_communication_campaign",
-        args: {
-          p_organization_id: ORG,
-          p_campaign_id: CAMPAIGN,
-        },
+        fn: "csf_maintain_communication_campaigns",
+        args: { p_max_campaigns: 50 },
+      },
+      {
+        fn: "csf_maintain_communication_campaigns",
+        args: { p_max_campaigns: 50 },
       },
     ]);
 
@@ -702,8 +748,96 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(serialized).not.toContain("Synthetic body.");
   });
 
+  test("a later attempt fault cannot strand an earlier settled campaign or replay its send", async () => {
+    let scopeCalls = 0;
+    schedulerScopeHandler = () => {
+      scopeCalls += 1;
+      return {
+        data: {
+          organizationCount: scopeCalls === 1 ? 1 : 0,
+          organizationIds: scopeCalls === 1 ? [ORG] : [],
+        },
+        error: null,
+      };
+    };
+    claimHandler = () => ({
+      data: {
+        claimedCount: 2,
+        claims: [
+          {
+            attemptId: ATTEMPT,
+            campaignId: CAMPAIGN,
+            deliveryId: "cea00000-0000-4000-8000-000000000001",
+            recipientSnapshotId: "ce800000-0000-4000-8000-000000000001",
+            attemptNumber: 1,
+            providerIdempotencyKey: IDEMPOTENCY_KEY,
+            requestPayloadHash: DIGEST,
+            leaseExpiresAt: "2032-04-01T10:02:00.000Z",
+          },
+          {
+            attemptId: ATTEMPT_TWO,
+            campaignId: CAMPAIGN_TWO,
+            deliveryId: "cea00000-0000-4000-8000-000000000002",
+            recipientSnapshotId: "ce800000-0000-4000-8000-000000000002",
+            attemptNumber: 2,
+            providerIdempotencyKey: `csf-att-${"b".repeat(64)}-1`,
+            requestPayloadHash: DIGEST,
+            leaseExpiresAt: "2032-04-01T10:02:00.000Z",
+          },
+        ],
+      },
+      error: null,
+    });
+    authorizeHandler = (args) => {
+      if (args.p_attempt_id === ATTEMPT_TWO) {
+        throw new Error(
+          "malformed authorization for private recipient second@local.test",
+        );
+      }
+      return authorizationFor(ATTEMPT, 1);
+    };
+    maintenanceHandler = () => ({
+      data:
+        sendCalls.length === 0
+          ? { checked: 2, terminalized: 0, nonterminal: 2, faults: 0 }
+          : { checked: 2, terminalized: 1, nonterminal: 1, faults: 0 },
+      error: null,
+    });
+
+    const first = await POST(authorized());
+    const firstBody = await first.json();
+    const second = await POST(authorized());
+    const secondBody = await second.json();
+
+    expect(first.status).toBe(200);
+    expect(firstBody.faults).toBe(1);
+    expect(firstBody.campaignsTerminalized).toBe(1);
+    expect(second.status).toBe(200);
+    expect(secondBody.faults).toBe(0);
+    expect(sendCalls).toHaveLength(1);
+    expect(
+      rpcCalls.filter(
+        (call) => call.fn === "csf_settle_communication_dispatch_attempt",
+      ),
+    ).toHaveLength(1);
+    const serialized = JSON.stringify({ firstBody, secondBody });
+    for (const privateValue of [
+      ATTEMPT,
+      ATTEMPT_TWO,
+      CAMPAIGN,
+      CAMPAIGN_TWO,
+      "second@local.test",
+      "malformed authorization",
+    ]) {
+      expect(serialized).not.toContain(privateValue);
+    }
+  });
+
   test("a worker fault for one organization is bounded and leaks nothing", async () => {
-    openCampaignRows = [{ id: CAMPAIGN, organization_id: ORG }];
+    schedulerScopeHandler = () => ({
+      data: { organizationCount: 1, organizationIds: [ORG] },
+      error: null,
+    });
     claimHandler = () => ({
       data: null,
       error: {
@@ -721,13 +855,13 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(body.claimed).toBe(0);
     // Nothing was claimed, so nothing was sent.
     expect(sendCalls).toHaveLength(0);
-    // The terminalizer still runs after the worker fault. This is safe because
-    // its locked aggregate refuses completion while a live lease remains.
+    // Maintenance still runs after the worker fault. Its locked finalizer refuses
+    // completion while a live lease remains and continues past per-row faults.
     expect(
       rpcCalls.filter(
-        (call) => call.fn === "csf_finalize_communication_campaign",
+        (call) => call.fn === "csf_maintain_communication_campaigns",
       ),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
     expect(JSON.stringify(body)).not.toContain("rep.one@local.test");
   });
 });
