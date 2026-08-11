@@ -48,9 +48,7 @@ export function PluginContentSettings({
         toast.error(result.error);
         return;
       }
-      toast.success(
-        next ? "Plugin content is on" : "Plugin content is off",
-      );
+      toast.success(next ? "Plugin content is on" : "Plugin content is off");
     });
   };
 
@@ -90,7 +88,9 @@ export function PluginContentSettings({
 
         <Card className="border shadow-xs">
           <CardHeader>
-            <CardTitle className="text-xl">Where plugin content shows</CardTitle>
+            <CardTitle className="text-xl">
+              Where plugin content shows
+            </CardTitle>
             <CardDescription>
               This only changes what you see. It never changes your membership
               or what your organizations can do.

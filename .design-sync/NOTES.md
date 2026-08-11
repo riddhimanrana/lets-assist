@@ -63,7 +63,7 @@ reason (not just "hard to render"):
   (all 92 components missing from `window.LetsAssistUI` — a single bad module
   in the `export *` graph takes down every export). Confirmed via
   `grep -rln "next/link\|next/navigation\|next/router\|next/image"
-  components/ui components/shared` — these two were the only offenders beyond
+components/ui components/shared` — these two were the only offenders beyond
   QueryMessageToast (already excluded). If re-including either: cfg has no
   esbuild-alias knob for this — would need to fork `lib/bundle.mjs`
   (`cfg.libOverrides`) to alias `next/link` to a stub, which touches the
