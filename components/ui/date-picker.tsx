@@ -22,6 +22,10 @@ interface DatePickerProps {
   className?: string;
   error?: boolean;
   "data-testid"?: string;
+  id?: string;
+  required?: boolean;
+  "aria-describedby"?: string;
+  "aria-label"?: string;
 }
 
 export function DatePicker({
@@ -34,6 +38,10 @@ export function DatePicker({
   className,
   error = false,
   "data-testid": dataTestId,
+  id,
+  required,
+  "aria-describedby": ariaDescribedBy,
+  "aria-label": ariaLabel,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -82,6 +90,8 @@ export function DatePicker({
       <PopoverTrigger
         render={
           <Button
+            type="button"
+            id={id}
             variant="outline"
             className={cn(
               "w-full justify-start text-left font-normal",
@@ -91,8 +101,12 @@ export function DatePicker({
             )}
             disabled={disabled}
             data-testid={dataTestId}
+            aria-describedby={ariaDescribedBy}
+            aria-label={ariaLabel}
+            aria-required={required}
+            aria-invalid={error || undefined}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
+            <CalendarIcon data-icon="inline-start" />
             {displayValue}
           </Button>
         }
@@ -101,6 +115,7 @@ export function DatePicker({
         {/* Quick action: Today button */}
         <div className="border-b p-2 bg-muted/50">
           <Button
+            type="button"
             size="sm"
             variant="ghost"
             className="w-full justify-start text-xs"
