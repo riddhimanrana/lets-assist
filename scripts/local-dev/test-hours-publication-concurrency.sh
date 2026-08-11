@@ -46,10 +46,15 @@ DELETE FROM public.project_signups
 WHERE project_id = 'ac200000-0000-4000-8000-000000000001';
 DELETE FROM public.projects
 WHERE id = 'ac200000-0000-4000-8000-000000000001';
+DELETE FROM public.organization_members
+WHERE organization_id = 'ac100000-0000-4000-8000-000000000001';
+DELETE FROM public.organizations
+WHERE id = 'ac100000-0000-4000-8000-000000000001';
 DELETE FROM auth.users
 WHERE id IN (
   'ac000000-0000-4000-8000-000000000001',
-  'ac000000-0000-4000-8000-000000000002'
+  'ac000000-0000-4000-8000-000000000002',
+  'ac000000-0000-4000-8000-000000000003'
 );
 SQL
 }
@@ -71,7 +76,9 @@ VALUES
   ('ac000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated',
    'concurrency-creator@local.test', now(), '{}', '{"full_name":"Concurrency Creator"}', now(), now()),
   ('ac000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated',
-   'concurrency-volunteer@local.test', now(), '{}', '{"full_name":"Concurrency Volunteer"}', now(), now());
+   'concurrency-volunteer@local.test', now(), '{}', '{"full_name":"Concurrency Volunteer"}', now(), now()),
+  ('ac000000-0000-4000-8000-000000000003', 'authenticated', 'authenticated',
+   'concurrency-staff@local.test', now(), '{}', '{"full_name":"Concurrency Staff"}', now(), now());
 
 UPDATE public.profiles
 SET full_name = CASE id
@@ -84,12 +91,33 @@ SET full_name = CASE id
   END
 WHERE id IN (
   'ac000000-0000-4000-8000-000000000001',
-  'ac000000-0000-4000-8000-000000000002'
+  'ac000000-0000-4000-8000-000000000002',
+  'ac000000-0000-4000-8000-000000000003'
+);
+
+INSERT INTO public.organizations (
+  id, name, username, type, join_code, verified
+) VALUES (
+  'ac100000-0000-4000-8000-000000000001',
+  'Concurrency Hours Organization',
+  'concurrency-hours-organization',
+  'school',
+  '820001',
+  true
+);
+
+INSERT INTO public.organization_members (organization_id, user_id, role, status)
+VALUES (
+  'ac100000-0000-4000-8000-000000000001',
+  'ac000000-0000-4000-8000-000000000003',
+  'staff',
+  'active'
 );
 
 INSERT INTO public.projects (
   id, creator_id, title, location, description, event_type,
-  verification_method, schedule, require_login
+  verification_method, schedule, require_login, organization_id,
+  can_be_managed_by_staff
 )
 VALUES (
   'ac200000-0000-4000-8000-000000000001',
@@ -97,6 +125,8 @@ VALUES (
   'Concurrent Hours Project', 'Local', 'Synthetic concurrency fixture',
   'oneTime', 'manual',
   '{"oneTime":{"date":"2031-08-11","startTime":"09:00","endTime":"12:00","volunteers":1}}',
+  true,
+  'ac100000-0000-4000-8000-000000000001',
   true
 );
 
@@ -169,4 +199,110 @@ if [[ "${RESULT_COUNTS}" != "1:1:1" ]]; then
   exit 1
 fi
 
-echo "Concurrent publication serialized to accepted/replayed with one receipt, certificate, and outbox row."
+psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+DELETE FROM public.hours_publication_email_outbox
+WHERE receipt_id IN (
+  SELECT id FROM public.hours_publication_receipts
+  WHERE project_id = 'ac200000-0000-4000-8000-000000000001'
+);
+DELETE FROM public.hours_publication_receipts
+WHERE project_id = 'ac200000-0000-4000-8000-000000000001';
+DELETE FROM public.certificates
+WHERE project_id = 'ac200000-0000-4000-8000-000000000001';
+UPDATE public.projects
+SET published = '{}'::jsonb
+WHERE id = 'ac200000-0000-4000-8000-000000000001';
+UPDATE public.project_signups
+SET status = 'approved', check_in_time = NULL, check_out_time = NULL
+WHERE id = 'ac300000-0000-4000-8000-000000000001';
+SQL
+
+# A status change that already owns the signup lock must settle before the
+# publication validates the row. The RPC must then observe rejected, not the
+# stale approved snapshot.
+(
+  psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+BEGIN;
+SELECT id FROM public.project_signups
+WHERE id = 'ac300000-0000-4000-8000-000000000001'
+FOR UPDATE;
+SELECT pg_sleep(1);
+UPDATE public.project_signups
+SET status = 'rejected'
+WHERE id = 'ac300000-0000-4000-8000-000000000001';
+COMMIT;
+SQL
+) &
+STATUS_WRITER_PID=$!
+sleep 0.2
+
+set +e
+psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_A}" 2>&1 <<'SQL'
+BEGIN;
+SELECT set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000001', true);
+SELECT public.publish_volunteer_hours_transactional(
+  'ac200000-0000-4000-8000-000000000001',
+  'oneTime',
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  'hours-publication:v1:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd'
+);
+COMMIT;
+SQL
+STATUS_RACE_EXIT=$?
+set -e
+wait "${STATUS_WRITER_PID}"
+
+if [[ "${STATUS_RACE_EXIT}" -eq 0 ]] || ! grep -q "one or more signups" "${OUTPUT_A}"; then
+  echo "Concurrent signup rejection did not stop publication." >&2
+  cat "${OUTPUT_A}" >&2
+  exit 1
+fi
+
+psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+UPDATE public.project_signups
+SET status = 'approved'
+WHERE id = 'ac300000-0000-4000-8000-000000000001';
+SQL
+
+# The same serialization guarantee applies to the staff membership used for
+# authorization. A revocation that owns the row lock must win before publish.
+(
+  psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+BEGIN;
+SELECT user_id FROM public.organization_members
+WHERE organization_id = 'ac100000-0000-4000-8000-000000000001'
+  AND user_id = 'ac000000-0000-4000-8000-000000000003'
+FOR UPDATE;
+SELECT pg_sleep(1);
+DELETE FROM public.organization_members
+WHERE organization_id = 'ac100000-0000-4000-8000-000000000001'
+  AND user_id = 'ac000000-0000-4000-8000-000000000003';
+COMMIT;
+SQL
+) &
+MEMBERSHIP_WRITER_PID=$!
+sleep 0.2
+
+set +e
+psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_B}" 2>&1 <<'SQL'
+BEGIN;
+SELECT set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000003', true);
+SELECT public.publish_volunteer_hours_transactional(
+  'ac200000-0000-4000-8000-000000000001',
+  'oneTime',
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  'hours-publication:v1:efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef'
+);
+COMMIT;
+SQL
+MEMBERSHIP_RACE_EXIT=$?
+set -e
+wait "${MEMBERSHIP_WRITER_PID}"
+
+if [[ "${MEMBERSHIP_RACE_EXIT}" -eq 0 ]] || ! grep -q "not authorized" "${OUTPUT_B}"; then
+  echo "Concurrent membership revocation did not stop publication." >&2
+  cat "${OUTPUT_B}" >&2
+  exit 1
+fi
+
+echo "Concurrent publication replay, signup-status locking, and membership-revocation locking passed."

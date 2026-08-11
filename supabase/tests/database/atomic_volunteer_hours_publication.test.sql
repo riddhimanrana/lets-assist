@@ -5,7 +5,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(29);
+SELECT extensions.plan(40);
 
 SELECT extensions.ok(
   EXISTS (
@@ -328,6 +328,17 @@ SELECT extensions.throws_ok(
 SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
     'ab200000-0000-4000-8000-000000000003', 'oneTime',
+    '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T16:00:10Z"}]'::jsonb,
+    'hours-publication:v1:1212121212121212121212121212121212121212121212121212121212121212'
+  )$$,
+  '22023',
+  'one or more signups, sessions, statuses, or time ranges are invalid',
+  'a positive duration that rounds to zero minutes is rejected at the database boundary'
+);
+
+SELECT extensions.throws_ok(
+  $$SELECT public.publish_volunteer_hours_transactional(
+    'ab200000-0000-4000-8000-000000000003', 'oneTime',
     '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-14T17:00:00Z"}]'::jsonb,
     'hours-publication:v1:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
   )$$,
@@ -399,6 +410,35 @@ SELECT extensions.is(
   'the raced conflict aborts the receipt and certificate transaction'
 );
 
+CREATE TEMP TABLE alias_publication AS
+SELECT public.publish_volunteer_hours_transactional(
+  'ab200000-0000-4000-8000-000000000003',
+  '0',
+  '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T18:00:00Z"}]'::jsonb,
+  'hours-publication:v1:3434343434343434343434343434343434343434343434343434343434343434'
+) AS result;
+
+SELECT extensions.is(
+  (SELECT result ->> 'outcome' FROM alias_publication),
+  'accepted',
+  'a supported session alias publishes through its canonical project session'
+);
+
+SELECT extensions.is(
+  (SELECT schedule_id FROM public.hours_publication_receipts
+   WHERE project_id = 'ab200000-0000-4000-8000-000000000003'),
+  'oneTime',
+  'the durable receipt stores the canonical session identifier'
+);
+
+SELECT extensions.is(
+  (SELECT schedule_id FROM public.certificates
+   WHERE signup_id = 'ab300000-0000-4000-8000-000000000004'
+     AND type = 'verified'),
+  'oneTime',
+  'the certificate stores the canonical session used by resend lookup'
+);
+
 CREATE TEMP TABLE claimed_delivery AS
 SELECT id
 FROM public.hours_publication_email_outbox
@@ -441,14 +481,93 @@ SELECT extensions.is(
 );
 
 SELECT extensions.ok(
+  public.settle_hours_publication_email_delivery(
+    (SELECT id FROM claimed_delivery),
+    'ab400000-0000-4000-8000-000000000001',
+    'accepted',
+    'synthetic-provider-message',
+    NULL
+  ),
+  'an exact claim-token settlement replay confirms the durable outcome'
+);
+
+SELECT extensions.ok(
   NOT public.settle_hours_publication_email_delivery(
     (SELECT id FROM claimed_delivery),
     'ab400000-0000-4000-8000-000000000001',
     'accepted',
-    'duplicate-provider-message',
+    'different-provider-message',
     NULL
   ),
-  'a duplicate provider event cannot settle the same work twice'
+  'a settlement replay cannot change the provider outcome metadata'
+);
+
+CREATE TEMP TABLE retryable_delivery AS
+SELECT id
+FROM public.hours_publication_email_outbox
+WHERE receipt_id = ((SELECT result ->> 'receiptId' FROM first_publication)::uuid)
+  AND id <> (SELECT id FROM claimed_delivery)
+LIMIT 1;
+
+SELECT extensions.ok(
+  public.claim_hours_publication_email_delivery(
+    (SELECT id FROM retryable_delivery),
+    'ab400000-0000-4000-8000-000000000003'
+  ),
+  'the remaining queued delivery can be claimed'
+);
+
+SELECT extensions.ok(
+  public.settle_hours_publication_email_delivery(
+    (SELECT id FROM retryable_delivery),
+    'ab400000-0000-4000-8000-000000000003',
+    'retryable_failure',
+    NULL,
+    'provider_unavailable'
+  ),
+  'a pre-send provider refusal returns durable work to retryable state'
+);
+
+SELECT extensions.ok(
+  public.claim_hours_publication_email_delivery(
+    (SELECT id FROM retryable_delivery),
+    'ab400000-0000-4000-8000-000000000004'
+  ),
+  'an explicit durable drain can claim retryable work again'
+);
+
+UPDATE public.hours_publication_email_outbox
+SET last_attempt_at = now() - interval '16 minutes'
+WHERE id = (SELECT id FROM retryable_delivery);
+
+SELECT extensions.ok(
+  public.claim_hours_publication_email_delivery(
+    (SELECT id FROM retryable_delivery),
+    'ab400000-0000-4000-8000-000000000005'
+  ),
+  'an explicit drain reclaims a stale interrupted claim with the same provider idempotency key'
+);
+
+UPDATE public.hours_publication_email_outbox
+SET last_attempt_at = now() - interval '25 hours'
+WHERE id = (SELECT id FROM retryable_delivery);
+
+SELECT extensions.ok(
+  NOT public.claim_hours_publication_email_delivery(
+    (SELECT id FROM retryable_delivery),
+    'ab400000-0000-4000-8000-000000000006'
+  ),
+  'an interrupted claim outside the provider idempotency window is never resent'
+);
+
+SELECT extensions.results_eq(
+  $$
+    SELECT state, safe_code
+    FROM public.hours_publication_email_outbox
+    WHERE id = (SELECT id FROM retryable_delivery)
+  $$,
+  $$VALUES ('unknown_outcome'::text, 'settlement_unconfirmed'::text)$$,
+  'expired ambiguous work is terminalized honestly for reconciliation'
 );
 
 DROP INDEX public.certificates_verified_signup_unique;

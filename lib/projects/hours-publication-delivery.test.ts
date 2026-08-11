@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   hoursEmailSettlement,
   hoursPublicationOutcome,
+  settleHoursDeliveryWithRetry,
 } from "./hours-publication-delivery";
 
 test("database acceptance remains accepted when all delivery work settles", () => {
@@ -92,4 +93,57 @@ test("intentional skips are surfaced as partial publication delivery", () => {
   assert.equal(settlement.state, "skipped");
   assert.equal(settlement.accepted, false);
   assert.equal(settlement.partial, true);
+});
+
+test("settlement retries a transient failure and accepts an idempotent replay", async () => {
+  let calls = 0;
+  const pauses: number[] = [];
+  const result = await settleHoursDeliveryWithRetry(
+    async () => {
+      calls++;
+      return calls === 1
+        ? { data: null, error: { code: "08006" } }
+        : { data: true, error: null };
+    },
+    { pause: async (attempt) => void pauses.push(attempt) },
+  );
+
+  assert.deepEqual(result, {
+    settled: true,
+    attempts: 2,
+    errorCode: null,
+  });
+  assert.deepEqual(pauses, [1]);
+});
+
+test("settlement retries a rejected transport attempt", async () => {
+  let calls = 0;
+  const result = await settleHoursDeliveryWithRetry(async () => {
+    calls++;
+    if (calls === 1) {
+      throw Object.assign(new Error("synthetic transport refusal"), {
+        code: "08006",
+      });
+    }
+    return { data: true, error: null };
+  });
+
+  assert.deepEqual(result, {
+    settled: true,
+    attempts: 2,
+    errorCode: null,
+  });
+});
+
+test("settlement failure remains explicit after the bounded retry budget", async () => {
+  const result = await settleHoursDeliveryWithRetry(
+    async () => ({ data: false, error: null }),
+    { maxAttempts: 2 },
+  );
+
+  assert.deepEqual(result, {
+    settled: false,
+    attempts: 2,
+    errorCode: "settlement_not_confirmed",
+  });
 });

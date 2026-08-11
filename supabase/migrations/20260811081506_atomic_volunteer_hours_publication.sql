@@ -64,6 +64,7 @@ CREATE TABLE public.hours_publication_email_outbox (
   settled_at timestamptz,
   provider_message_id text,
   safe_code text,
+  last_settlement_token uuid,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT hours_publication_email_outbox_certificate_key UNIQUE (certificate_id),
@@ -285,23 +286,24 @@ BEGIN
     RAISE EXCEPTION USING ERRCODE = 'P0002', MESSAGE = 'project not found';
   END IF;
 
-  IF v_project.creator_id <> v_actor_id
-    AND NOT EXISTS (
-      SELECT 1
-      FROM public.organization_members AS members
-      WHERE members.organization_id = v_project.organization_id
-        AND members.user_id = v_actor_id
-        AND COALESCE(members.status, 'active') = 'active'
-        AND (
-          members.role = 'admin'
-          OR (
-            members.role = 'staff'
-            AND v_project.can_be_managed_by_staff IS TRUE
-          )
+  IF v_project.creator_id <> v_actor_id THEN
+    PERFORM members.user_id
+    FROM public.organization_members AS members
+    WHERE members.organization_id = v_project.organization_id
+      AND members.user_id = v_actor_id
+      AND COALESCE(members.status, 'active') = 'active'
+      AND (
+        members.role = 'admin'
+        OR (
+          members.role = 'staff'
+          AND v_project.can_be_managed_by_staff IS TRUE
         )
-    )
-  THEN
-    RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'not authorized to publish project hours';
+      )
+    FOR UPDATE OF members;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'not authorized to publish project hours';
+    END IF;
   END IF;
 
   v_publish_key := private.project_hours_publish_key(
@@ -342,6 +344,16 @@ BEGIN
   ) <> v_entry_count THEN
     RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'a signup can appear only once in a publication';
   END IF;
+
+  -- Lock every referenced signup in deterministic order before checking its
+  -- project, status, session, or time range. Direct status changes therefore
+  -- serialize with publication instead of racing certificate creation.
+  PERFORM signups.id
+  FROM pg_catalog.jsonb_array_elements(v_entries) AS entry(value)
+  JOIN public.project_signups AS signups
+    ON signups.id = (entry.value ->> 'signupId')::uuid
+  ORDER BY signups.id
+  FOR UPDATE OF signups;
 
   v_request_hash := pg_catalog.encode(
     extensions.digest(
@@ -400,6 +412,12 @@ BEGIN
     ) = v_publish_key
     AND (entry.value ->> 'checkOut')::timestamptz
       > (entry.value ->> 'checkIn')::timestamptz
+    AND pg_catalog.round(
+      extract(epoch FROM (
+        (entry.value ->> 'checkOut')::timestamptz
+          - (entry.value ->> 'checkIn')::timestamptz
+      )) / 60
+    ) > 0
     AND (entry.value ->> 'checkOut')::timestamptz
       <= (entry.value ->> 'checkIn')::timestamptz + interval '24 hours';
 
@@ -442,7 +460,7 @@ BEGIN
     requested_by
   ) VALUES (
     p_project_id,
-    p_schedule_id,
+    v_publish_key,
     v_publish_key,
     p_request_key,
     v_request_hash,
@@ -495,7 +513,7 @@ BEGIN
     v_project.creator_id,
     'verified',
     v_project.verification_method,
-    signups.schedule_id
+    v_publish_key
   FROM pg_catalog.jsonb_array_elements(v_entries) AS entry(value)
   JOIN public.project_signups AS signups
     ON signups.id = (entry.value ->> 'signupId')::uuid
@@ -537,7 +555,7 @@ BEGIN
       OR certificates.is_certified IS DISTINCT FROM v_organization_verified
       OR certificates.creator_id IS DISTINCT FROM v_project.creator_id
       OR certificates.check_in_method IS DISTINCT FROM v_project.verification_method
-      OR certificates.schedule_id IS DISTINCT FROM signups.schedule_id
+      OR certificates.schedule_id IS DISTINCT FROM v_publish_key
   ) THEN
     RAISE EXCEPTION USING
       ERRCODE = '23505',
@@ -657,16 +675,44 @@ BEGIN
     RETURN false;
   END IF;
 
+  -- Resend retains an idempotency key for 24 hours. Once an interrupted
+  -- provider attempt is outside that window, another send could duplicate an
+  -- accepted message, so terminalize it honestly instead of reclaiming it.
+  UPDATE public.hours_publication_email_outbox
+  SET
+    state = 'unknown_outcome',
+    claim_token = NULL,
+    safe_code = 'settlement_unconfirmed',
+    settled_at = now(),
+    updated_at = now()
+  WHERE id = p_delivery_id
+    AND state = 'processing'
+    AND last_attempt_at < now() - interval '24 hours';
+
+  IF FOUND THEN
+    RETURN false;
+  END IF;
+
   UPDATE public.hours_publication_email_outbox
   SET
     state = 'processing',
     claim_token = p_claim_token,
+    last_settlement_token = NULL,
     attempt_count = attempt_count + 1,
     last_attempt_at = now(),
     updated_at = now()
   WHERE id = p_delivery_id
-    AND state IN ('queued', 'retryable_failure')
-    AND claim_token IS NULL;
+    AND (
+      (
+        state IN ('queued', 'retryable_failure')
+        AND claim_token IS NULL
+      )
+      OR (
+        state = 'processing'
+        AND last_attempt_at < now() - interval '15 minutes'
+        AND last_attempt_at >= now() - interval '24 hours'
+      )
+    );
 
   RETURN FOUND;
 END;
@@ -709,6 +755,7 @@ BEGIN
   SET
     state = p_state,
     claim_token = NULL,
+    last_settlement_token = p_claim_token,
     provider_message_id = p_provider_message_id,
     safe_code = p_safe_code,
     settled_at = CASE
@@ -720,7 +767,21 @@ BEGIN
     AND state = 'processing'
     AND claim_token = p_claim_token;
 
-  RETURN FOUND;
+  IF FOUND THEN
+    RETURN true;
+  END IF;
+
+  -- A successful settlement whose response was lost is safe to repeat with
+  -- the same claim token and exact bounded outcome metadata.
+  RETURN EXISTS (
+    SELECT 1
+    FROM public.hours_publication_email_outbox AS outbox
+    WHERE outbox.id = p_delivery_id
+      AND outbox.last_settlement_token = p_claim_token
+      AND outbox.state = p_state
+      AND outbox.provider_message_id IS NOT DISTINCT FROM p_provider_message_id
+      AND outbox.safe_code IS NOT DISTINCT FROM p_safe_code
+  );
 END;
 $$;
 
@@ -742,6 +803,6 @@ GRANT EXECUTE ON FUNCTION public.settle_hours_publication_email_delivery(uuid, u
 COMMENT ON FUNCTION public.publish_volunteer_hours_transactional(uuid, text, jsonb, text) IS
   'Authenticated, permission-rechecked, replay-safe publication of validated signup hours, certificates, in-app notifications, and durable email work.';
 COMMENT ON FUNCTION public.claim_hours_publication_email_delivery(uuid, uuid) IS
-  'Service-only one-way claim. An interrupted processing claim requires reconciliation and is never reclaimed automatically.';
+  'Service-only claim. Explicit drains reclaim interrupted processing only inside Resend''s 24-hour idempotency window; older ambiguous work terminalizes as unknown.';
 COMMENT ON FUNCTION public.settle_hours_publication_email_delivery(uuid, uuid, text, text, text) IS
-  'Service-only settlement with bounded, non-recipient provider outcome metadata.';
+  'Service-only, claim-token-idempotent settlement with bounded, non-recipient provider outcome metadata.';

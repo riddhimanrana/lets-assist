@@ -11,8 +11,12 @@ import { logError, logInfo, logWarn } from "@/lib/logger";
 import {
   hoursEmailSettlement,
   hoursPublicationOutcome,
+  settleHoursDeliveryWithRetry,
 } from "@/lib/projects/hours-publication-delivery";
-import { sendCertificatePublishedEmails } from "./certificate-issuance";
+import {
+  getPublishStateKey,
+  sendCertificatePublishedEmails,
+} from "./certificate-issuance";
 
 // Define the structure for session data passed from the client
 type SessionVolunteerData = {
@@ -26,6 +30,12 @@ type ManageableProject = {
   creator_id: string | null;
   organization_id?: string | null;
   can_be_managed_by_staff?: boolean | null;
+};
+
+type ResendProject = ManageableProject & {
+  event_type: "oneTime" | "multiDay" | "sameDayMultiArea";
+  title: string;
+  project_timezone: string | null;
 };
 
 export type HoursPublicationOutcome =
@@ -121,6 +131,79 @@ type DeliverySummary = {
   partial: boolean;
 };
 
+async function pauseBeforeSettlementRetry(attemptNumber: number) {
+  await new Promise((resolve) => setTimeout(resolve, attemptNumber * 75));
+}
+
+async function loadDurablePublicationForRetry(
+  admin: ReturnType<typeof getAdminClient>,
+  projectId: string,
+  publishKey: string,
+  project: Pick<ResendProject, "title" | "project_timezone">,
+): Promise<TransactionalPublication | null> {
+  const { data: receipt, error: receiptError } = await admin
+    .from("hours_publication_receipts")
+    .select("id, request_key, certificate_count")
+    .eq("project_id", projectId)
+    .eq("publish_key", publishKey)
+    .maybeSingle();
+
+  if (receiptError) {
+    throw new Error("durable publication receipt lookup failed");
+  }
+  if (!receipt) return null;
+
+  const { data: outboxRows, error: outboxError } = await admin
+    .from("hours_publication_email_outbox")
+    .select("id, state, idempotency_key, certificate_id")
+    .eq("receipt_id", receipt.id)
+    .order("created_at", { ascending: true });
+  if (outboxError || !outboxRows) {
+    throw new Error("durable publication delivery lookup failed");
+  }
+
+  const certificateIds = outboxRows.map((row) => row.certificate_id);
+  const { data: certificates, error: certificateError } = certificateIds.length
+    ? await admin
+        .from("certificates")
+        .select("id, volunteer_name, volunteer_email, event_start, event_end")
+        .in("id", certificateIds)
+    : { data: [], error: null };
+  if (certificateError || !certificates) {
+    throw new Error("durable publication certificate lookup failed");
+  }
+
+  const certificatesById = new Map(
+    certificates.map((certificate) => [certificate.id, certificate]),
+  );
+  const deliveries: PublicationDelivery[] = outboxRows.map((row) => {
+    const certificate = certificatesById.get(row.certificate_id);
+    if (!certificate) {
+      throw new Error("durable publication certificate is missing");
+    }
+    return {
+      deliveryId: row.id,
+      state: row.state,
+      idempotencyKey: row.idempotency_key,
+      certificateId: certificate.id,
+      volunteerName: certificate.volunteer_name,
+      volunteerEmail: certificate.volunteer_email,
+      eventStart: certificate.event_start,
+      eventEnd: certificate.event_end,
+    };
+  });
+
+  return {
+    outcome: "replayed",
+    receiptId: receipt.id,
+    requestKey: receipt.request_key,
+    certificatesCreated: receipt.certificate_count,
+    projectTitle: project.title,
+    projectTimezone: project.project_timezone,
+    deliveries,
+  };
+}
+
 async function drainPublicationEmails(
   publication: TransactionalPublication,
 ): Promise<DeliverySummary> {
@@ -150,13 +233,6 @@ async function drainPublicationEmails(
       partial = true;
       errors.push(
         `Certificate ${delivery.certificateId}: email ${delivery.state.replaceAll("_", " ")}`,
-      );
-      continue;
-    }
-    if (delivery.state === "processing") {
-      partial = true;
-      errors.push(
-        `Certificate ${delivery.certificateId}: delivery already in progress`,
       );
       continue;
     }
@@ -273,18 +349,19 @@ async function drainPublicationEmails(
       });
     }
 
-    const { data: settled, error: settleError } = await admin.rpc(
-      "settle_hours_publication_email_delivery",
-      {
-        p_delivery_id: delivery.deliveryId,
-        p_claim_token: claimToken,
-        p_state: settlementState,
-        p_provider_message_id: providerMessageId,
-        p_safe_code: safeCode,
-      },
+    const settlementResult = await settleHoursDeliveryWithRetry(
+      async () =>
+        admin!.rpc("settle_hours_publication_email_delivery", {
+          p_delivery_id: delivery.deliveryId,
+          p_claim_token: claimToken,
+          p_state: settlementState,
+          p_provider_message_id: providerMessageId,
+          p_safe_code: safeCode,
+        }),
+      { pause: pauseBeforeSettlementRetry },
     );
 
-    if (settleError || settled !== true) {
+    if (!settlementResult.settled) {
       partial = true;
       errors.push(
         `Certificate ${delivery.certificateId}: delivery settlement failed`,
@@ -296,7 +373,8 @@ async function drainPublicationEmails(
           receipt_id: publication.receiptId,
           delivery_id: delivery.deliveryId,
           outcome: settlementState,
-          error_code: settleError?.code,
+          error_code: settlementResult.errorCode ?? undefined,
+          settlement_attempts: settlementResult.attempts,
         },
       );
       continue;
@@ -448,6 +526,7 @@ export async function resendCertificateEmails(
   error?: string;
   emailsSent?: number;
   emailErrors?: string[];
+  deliveryMode?: "durable-retry" | "manual-resend";
 }> {
   const supabase = await createClient();
 
@@ -469,7 +548,7 @@ export async function resendCertificateEmails(
     const { data: project, error: projectError } = await supabase
       .from("projects")
       .select(
-        "id, creator_id, organization_id, can_be_managed_by_staff, project_timezone",
+        "id, creator_id, organization_id, can_be_managed_by_staff, event_type, title, project_timezone",
       )
       .eq("id", projectId)
       .single();
@@ -485,6 +564,37 @@ export async function resendCertificateEmails(
       };
     }
 
+    const typedProject = project as ResendProject;
+    const publishKey = getPublishStateKey(typedProject, sessionId);
+    let admin: ReturnType<typeof getAdminClient>;
+    try {
+      admin = getAdminClient();
+      const durablePublication = await loadDurablePublicationForRetry(
+        admin,
+        projectId,
+        publishKey,
+        typedProject,
+      );
+      if (durablePublication) {
+        const delivery = await drainPublicationEmails(durablePublication);
+        return {
+          success: true,
+          emailsSent: delivery.emailsSent,
+          emailErrors: delivery.errors,
+          deliveryMode: "durable-retry",
+        };
+      }
+    } catch (error) {
+      logError("Durable certificate delivery retry failed closed", error, {
+        project_id: projectId,
+        publish_key: publishKey,
+      });
+      return {
+        success: false,
+        error: "The durable email ledger could not be checked safely.",
+      };
+    }
+
     // 3. Fetch the certificates to resend
     const { data: certificates, error: certError } = await supabase
       .from("certificates")
@@ -492,7 +602,7 @@ export async function resendCertificateEmails(
         "id, volunteer_name, volunteer_email, project_title, event_start, event_end",
       )
       .eq("project_id", projectId)
-      .eq("schedule_id", sessionId);
+      .eq("schedule_id", publishKey);
 
     if (certError || !certificates) {
       return { success: false, error: "Failed to fetch certificates." };
@@ -520,13 +630,12 @@ export async function resendCertificateEmails(
       success: true,
       emailsSent: emailResult.emailsSent,
       emailErrors: emailResult.errors,
+      deliveryMode: "manual-resend",
     };
   } catch (error) {
-    console.error("Unexpected error in resendCertificateEmails:", error);
-    const message =
-      error instanceof Error
-        ? error.message
-        : "An unexpected server error occurred.";
-    return { success: false, error: message };
+    logError("Unexpected certificate resend failure", error, {
+      project_id: projectId,
+    });
+    return { success: false, error: "An unexpected server error occurred." };
   }
 }

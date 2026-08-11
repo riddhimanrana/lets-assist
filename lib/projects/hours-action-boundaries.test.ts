@@ -35,6 +35,9 @@ test("certificate resend is permission checked and scoped to one project session
 
   assert.ok(resendStart >= 0);
   assert.match(resendSource, /canUserManageProjectHours/u);
+  assert.match(resendSource, /getPublishStateKey/u);
+  assert.match(resendSource, /loadDurablePublicationForRetry/u);
+  assert.match(resendSource, /drainPublicationEmails/u);
   assert.match(resendSource, /\.eq\("project_id", projectId\)/u);
-  assert.match(resendSource, /\.eq\("schedule_id", sessionId\)/u);
+  assert.match(resendSource, /\.eq\("schedule_id", publishKey\)/u);
 });

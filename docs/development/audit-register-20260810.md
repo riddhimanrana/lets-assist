@@ -333,42 +333,54 @@ synthetic database fixtures only. No hosted database, provider, browser session,
 credential, real recipient, or Production surface was used. The synthetic
 fixtures include staff-managed authorization, two distinct users with the same
 display name, forged cross-project signup/session input, an excessive duration,
-exact replay, duplicate provider settlement, and a real two-connection lock
-race.
+rounded-zero input, exact replay, idempotent provider settlement, canonical
+session aliases, and real multi-connection project/signup/membership lock
+races.
 
 **Resolution:** `publishVolunteerHours(projectId, sessionId, sessionData)` keeps
 its three-argument public signature and compatibility result fields, but reduces
 the browser payload to signup ID plus check-in/out timestamps and derives a
 deterministic request key. The reviewed authenticated RPC locks the project,
-rechecks creator/admin/active-staff authority and `can_be_managed_by_staff`,
+locks and rechecks creator/admin/active-staff authority and
+`can_be_managed_by_staff`,
 normalizes legacy session IDs, validates 1–500 exact project/session signups and
-0–24-hour ranges, derives identity from profile/anonymous-signup rows, and
-atomically writes signup times, verified certificates, publish state, deduplicated
-in-app notifications, a receipt, and one email outbox row per certificate.
+rounded-positive 0–24-hour ranges, locks every referenced signup before
+eligibility checks, derives identity from profile/anonymous-signup rows, and
+atomically writes signup times, verified certificates under the canonical
+session key, publish state, deduplicated in-app notifications, a receipt, and
+one email outbox row per certificate.
 
 The forward migration aborts if duplicate verified certificates already exist;
 it deletes or rewrites no evidence. A partial unique index prevents future
 duplicates. Email work is claimed once with a UUID token and settled to
 `accepted`, `retryable_failure`, `definitive_failure`, `unknown_outcome`, or
-`skipped`. Only a proven pre-send refusal remains retryable; interrupted claims
-and unknown provider outcomes require reconciliation. Provider calls use the
-certificate-derived key and synthetic workflow/receipt tags.
+`skipped`. Only a proven pre-send refusal remains retryable. The published
+session's resend action first drains only queued/retryable durable work. An
+interrupted processing claim becomes explicitly reclaimable after 15 minutes
+using the same deterministic provider key, but only inside Resend's documented
+24-hour idempotency window; older ambiguous work terminalizes as
+`unknown_outcome` instead of risking a duplicate. Settlement retries are bounded
+and claim-token idempotent, so a lost successful database response cannot
+overwrite the provider outcome. Provider calls use the certificate-derived key
+and synthetic workflow/receipt tags.
 
 **Local verification, 2026-08-11:** empty ledger replay passed; the focused
-publication pgTAP file passed 29 assertions; action boundaries, all five email
-outcome mappings, and publication-outcome precedence passed 9 tests; TypeScript
-passed; and the loopback-only two-session concurrency probe produced exactly
-`accepted` then `replayed` with one receipt, one certificate, and one outbox row.
+publication pgTAP file passed 40 assertions; action boundaries, all five email
+outcome mappings, publication-outcome precedence, and bounded settlement retries
+passed 12 tests; TypeScript passed; and the loopback-only multi-session probe
+proved accepted/replayed serialization plus concurrent signup rejection and
+membership revocation winning before publication.
 The full generated isolated gate then passed 85 pgTAP files / 3,783 assertions,
 synthetic DV and CSF database workflows, zero-issue local advisors, architecture
 and plugin-isolation checks, strict private-gitlink validation, static checks,
 and the 373-assertion cron authentication/no-egress probe; teardown proved that
 no owned container, volume, network, or temporary work directory remained.
 GitHub, Vercel Development, Supabase Development, Mailpit/Resend test-event, and
-browser acceptance gates remain open. The complete root/plugin unit orchestrator
-and the CI-shaped local Next.js build also passed; after the final payload/outcome
-tightening, the 9 focused tests, TypeScript, formatting, and CI-shaped build
-passed again. Production remains excluded.
+browser acceptance gates remain open for the amended exact commit. After the
+review hardening, the complete 2,908-test / 173-file root/plugin unit
+orchestrator, the CI-shaped local Next.js build, the 12 focused tests,
+formatting, lint, TypeScript, migration replay, 40 pgTAP assertions, and the
+expanded concurrency probe all passed. Production remains excluded.
 
 ---
 

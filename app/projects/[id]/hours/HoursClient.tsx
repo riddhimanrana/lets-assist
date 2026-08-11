@@ -557,21 +557,6 @@ export function HoursClient({
     }));
 
     try {
-      // Find all certificates for this session to get their IDs
-      let sessionSignups: ProjectSignup[] = [];
-      if (signupsBySession[sessionId]) {
-        sessionSignups = signupsBySession[sessionId];
-      }
-
-      // Extract certificate IDs from signups
-      // In a real scenario, we'd fetch actual certificates from DB
-      // For now, we'll collect emails and let the action handle it
-
-      if (sessionSignups.length === 0) {
-        toast.error("No volunteers found for this session");
-        return;
-      }
-
       const result = await resendCertificateEmails(project.id, sessionId);
       if (!result.success) {
         toast.error("Certificates were not resent", {
@@ -582,6 +567,20 @@ export function HoursClient({
 
       const emailsSent = result.emailsSent ?? 0;
       const emailErrors = result.emailErrors ?? [];
+      if (result.deliveryMode === "durable-retry") {
+        toast.success(
+          `${emailsSent} certificate email${emailsSent === 1 ? " is" : "s are"} confirmed accepted`,
+          emailErrors.length > 0
+            ? {
+                description: `${emailErrors.length} durable delivery item${emailErrors.length === 1 ? " still needs" : "s still need"} attention.`,
+              }
+            : {
+                description:
+                  "The durable publication ledger is fully reconciled.",
+              },
+        );
+        return;
+      }
       toast.success(
         `${emailsSent} certificate email${emailsSent === 1 ? "" : "s"} resent`,
         emailErrors.length > 0
