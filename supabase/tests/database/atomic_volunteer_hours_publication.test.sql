@@ -5,7 +5,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(40);
+SELECT extensions.plan(45);
 
 SELECT extensions.ok(
   EXISTS (
@@ -17,6 +17,19 @@ SELECT extensions.ok(
       AND indexes.indpred IS NOT NULL
   ),
   'verified certificates are unique per non-null signup through a partial index'
+);
+
+SELECT extensions.ok(
+  has_function_privilege(
+    'service_role',
+    'public.prepare_hours_publication_email_delivery(uuid,text,text,text)',
+    'EXECUTE'
+  ) AND NOT has_function_privilege(
+    'authenticated',
+    'public.prepare_hours_publication_email_delivery(uuid,text,text,text)',
+    'EXECUTE'
+  ),
+  'only the server role can prepare immutable provider payloads'
 );
 
 SELECT extensions.ok(
@@ -414,7 +427,7 @@ CREATE TEMP TABLE alias_publication AS
 SELECT public.publish_volunteer_hours_transactional(
   'ab200000-0000-4000-8000-000000000003',
   '0',
-  '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T17:30:30Z"}]'::jsonb,
   'hours-publication:v1:3434343434343434343434343434343434343434343434343434343434343434'
 ) AS result;
 
@@ -439,12 +452,58 @@ SELECT extensions.is(
   'the certificate stores the canonical session used by resend lookup'
 );
 
+SELECT extensions.is(
+  (SELECT body FROM public.notifications
+   WHERE user_id = 'ab000000-0000-4000-8000-000000000004'
+     AND dedupe_key LIKE 'hours-publication:certificate:%'
+   ORDER BY created_at DESC
+   LIMIT 1),
+  'Your volunteer certificate for "Unpublished Validation Project" is now available. You volunteered for 1 hours and 31 minutes.',
+  'notification duration decomposes the same rounded total minutes as the publication review'
+);
+
 CREATE TEMP TABLE claimed_delivery AS
 SELECT id
 FROM public.hours_publication_email_outbox
 WHERE receipt_id = ((SELECT result ->> 'receiptId' FROM first_publication)::uuid)
 ORDER BY id
 LIMIT 1;
+
+CREATE TEMP TABLE prepared_payload AS
+SELECT public.prepare_hours_publication_email_delivery(
+  (SELECT id FROM claimed_delivery),
+  'Let''s Assist <projects@notifications.lets-assist.com>',
+  'Synthetic certificate subject',
+  '<p>Immutable synthetic certificate</p>'
+) AS result;
+
+SELECT extensions.is(
+  (SELECT result ->> 'subject' FROM prepared_payload),
+  'Synthetic certificate subject',
+  'the first provider payload is durably snapshotted before claim'
+);
+
+SELECT extensions.ok(
+  (SELECT payload_hash ~ '^[0-9a-f]{64}$'
+      AND payload_prepared_at IS NOT NULL
+   FROM public.hours_publication_email_outbox
+   WHERE id = (SELECT id FROM claimed_delivery)),
+  'the provider snapshot carries a durable integrity hash and preparation time'
+);
+
+CREATE TEMP TABLE replayed_payload AS
+SELECT public.prepare_hours_publication_email_delivery(
+  (SELECT id FROM claimed_delivery),
+  'Changed Sender <changed@local.test>',
+  'Changed subject',
+  '<p>Changed deployment template</p>'
+) AS result;
+
+SELECT extensions.is(
+  (SELECT result FROM replayed_payload),
+  (SELECT result FROM prepared_payload),
+  'recovery returns the exact first payload despite deployment or project drift'
+);
 
 SELECT extensions.ok(
   public.claim_hours_publication_email_delivery(
@@ -508,6 +567,14 @@ FROM public.hours_publication_email_outbox
 WHERE receipt_id = ((SELECT result ->> 'receiptId' FROM first_publication)::uuid)
   AND id <> (SELECT id FROM claimed_delivery)
 LIMIT 1;
+
+CREATE TEMP TABLE retryable_prepared_payload AS
+SELECT public.prepare_hours_publication_email_delivery(
+  (SELECT id FROM retryable_delivery),
+  'Let''s Assist <projects@notifications.lets-assist.com>',
+  'Synthetic retryable certificate subject',
+  '<p>Immutable retryable certificate</p>'
+) AS result;
 
 SELECT extensions.ok(
   public.claim_hours_publication_email_delivery(

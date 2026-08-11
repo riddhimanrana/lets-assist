@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   hoursEmailSettlement,
   hoursPublicationOutcome,
+  parseHoursEmailPayloadSnapshot,
   settleHoursDeliveryWithRetry,
 } from "./hours-publication-delivery";
 
@@ -133,6 +134,42 @@ test("settlement retries a rejected transport attempt", async () => {
     attempts: 2,
     errorCode: null,
   });
+});
+
+test("durable payload parsing accepts only the exact receipt-bound provider request", () => {
+  const snapshot = {
+    version: 1,
+    to: "volunteer@local.test",
+    from: "Let's Assist <projects@notifications.lets-assist.com>",
+    subject: "Your certificate is ready",
+    html: "<p>Synthetic certificate</p>",
+    tags: [
+      { name: "workflow", value: "volunteer-hours-publication" },
+      { name: "receipt", value: "receipt-1" },
+    ],
+  };
+
+  assert.deepEqual(
+    parseHoursEmailPayloadSnapshot(snapshot, "receipt-1"),
+    snapshot,
+  );
+});
+
+test("durable payload parsing rejects drift and extra provider fields", () => {
+  const snapshot = {
+    version: 1,
+    to: "volunteer@local.test",
+    from: "Let's Assist <projects@notifications.lets-assist.com>",
+    subject: "Your certificate is ready",
+    html: "<p>Synthetic certificate</p>",
+    tags: [
+      { name: "workflow", value: "volunteer-hours-publication" },
+      { name: "receipt", value: "different-receipt" },
+    ],
+    replyTo: "unexpected@local.test",
+  };
+
+  assert.equal(parseHoursEmailPayloadSnapshot(snapshot, "receipt-1"), null);
 });
 
 test("settlement failure remains explicit after the bounded retry budget", async () => {

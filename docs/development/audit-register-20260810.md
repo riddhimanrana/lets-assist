@@ -333,9 +333,10 @@ synthetic database fixtures only. No hosted database, provider, browser session,
 credential, real recipient, or Production surface was used. The synthetic
 fixtures include staff-managed authorization, two distinct users with the same
 display name, forged cross-project signup/session input, an excessive duration,
-rounded-zero input, exact replay, idempotent provider settlement, canonical
-session aliases, and real multi-connection project/signup/membership lock
-races.
+rounded-zero and exact-over-24-hour input, fractional-minute notification text,
+exact replay, idempotent provider settlement, immutable provider-payload replay
+across simulated deployment drift, canonical session aliases, and real
+multi-connection project/signup/membership lock races.
 
 **Resolution:** `publishVolunteerHours(projectId, sessionId, sessionData)` keeps
 its three-argument public signature and compatibility result fields, but reduces
@@ -344,11 +345,12 @@ deterministic request key. The reviewed authenticated RPC locks the project,
 locks and rechecks creator/admin/active-staff authority and
 `can_be_managed_by_staff`,
 normalizes legacy session IDs, validates 1–500 exact project/session signups and
-rounded-positive 0–24-hour ranges, locks every referenced signup before
+rounded-positive ranges no longer than exactly 24 hours, locks every referenced signup before
 eligibility checks, derives identity from profile/anonymous-signup rows, and
 atomically writes signup times, verified certificates under the canonical
 session key, publish state, deduplicated in-app notifications, a receipt, and
-one email outbox row per certificate.
+one email outbox row per certificate. Notification hours/minutes are decomposed
+from the same rounded total used by the publication review.
 
 The forward migration aborts if duplicate verified certificates already exist;
 it deletes or rewrites no evidence. A partial unique index prevents future
@@ -359,15 +361,20 @@ session's resend action first drains only queued/retryable durable work. An
 interrupted processing claim becomes explicitly reclaimable after 15 minutes
 using the same deterministic provider key, but only inside Resend's documented
 24-hour idempotency window; older ambiguous work terminalizes as
-`unknown_outcome` instead of risking a duplicate. Settlement retries are bounded
-and claim-token idempotent, so a lost successful database response cannot
-overwrite the provider outcome. Provider calls use the certificate-derived key
-and synthetic workflow/receipt tags.
+`unknown_outcome` instead of risking a duplicate. Before any claim, a
+service-only RPC stores a first-writer-wins, integrity-hashed snapshot of the
+exact recipient, sender, subject, rendered HTML, and tags. Recovery replays that
+snapshot instead of today's project, template, site URL, or environment, so the
+same provider key never carries a changed payload. Settlement retries are
+bounded and claim-token idempotent, so a lost successful database response
+cannot overwrite the provider outcome. Provider calls use the
+certificate-derived key and synthetic workflow/receipt tags.
 
 **Local verification, 2026-08-11:** empty ledger replay passed; the focused
-publication pgTAP file passed 40 assertions; action boundaries, all five email
-outcome mappings, publication-outcome precedence, and bounded settlement retries
-passed 12 tests; TypeScript passed; and the loopback-only multi-session probe
+publication pgTAP file passed 45 assertions; action boundaries, all five email
+outcome mappings, publication-outcome precedence, bounded settlement retries,
+payload parsing, and snapshot-before-claim ordering passed 15 tests; four exact-duration tests passed;
+TypeScript passed; and the loopback-only multi-session probe
 proved accepted/replayed serialization plus concurrent signup rejection and
 membership revocation winning before publication.
 The full generated isolated gate then passed 85 pgTAP files / 3,783 assertions,
@@ -378,8 +385,8 @@ no owned container, volume, network, or temporary work directory remained.
 GitHub, Vercel Development, Supabase Development, Mailpit/Resend test-event, and
 browser acceptance gates remain open for the amended exact commit. After the
 review hardening, the complete 2,908-test / 173-file root/plugin unit
-orchestrator, the CI-shaped local Next.js build, the 12 focused tests,
-formatting, lint, TypeScript, migration replay, 40 pgTAP assertions, and the
+orchestrator, the CI-shaped local Next.js build, the 19 focused tests,
+formatting, lint, TypeScript, migration replay, 45 pgTAP assertions, and the
 expanded concurrency probe all passed. Production remains excluded.
 
 ---

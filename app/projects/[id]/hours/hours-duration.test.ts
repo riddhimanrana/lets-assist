@@ -47,5 +47,20 @@ describe("volunteer-hours duration validation", () => {
         "2026-08-11T10:30:00.000Z",
       ),
     ).toEqual({ text: "1h 30m", isValid: true, minutes: 90 });
+    expect(
+      calculateHoursDuration(
+        "2026-08-11T09:00:00.000Z",
+        "2026-08-12T09:00:00.000Z",
+      ),
+    ).toEqual({ text: "24h 0m", isValid: true, minutes: 1440 });
+  });
+
+  it("rejects an exact duration beyond 24 hours even when minutes round down", () => {
+    expect(
+      calculateHoursDuration(
+        "2026-08-11T09:00:00.000Z",
+        "2026-08-12T09:00:01.000Z",
+      ).isValid,
+    ).toBe(false);
   });
 });

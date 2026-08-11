@@ -32,7 +32,7 @@ export function calculateHoursDuration(
       };
     }
 
-    if (diffMins > 24 * 60) {
+    if (diffSeconds > 24 * 60 * 60) {
       return {
         text: `${Math.floor(diffMins / 60)}h ${diffMins % 60}m (Excessive)`,
         isValid: false,

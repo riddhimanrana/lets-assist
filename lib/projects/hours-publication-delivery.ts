@@ -24,6 +24,67 @@ export type HoursSettlementRetryResult = {
   errorCode: string | null;
 };
 
+export type HoursEmailPayloadSnapshot = {
+  version: 1;
+  to: string;
+  from: string;
+  subject: string;
+  html: string;
+  tags: [
+    { name: "workflow"; value: "volunteer-hours-publication" },
+    { name: "receipt"; value: string },
+  ];
+};
+
+export function parseHoursEmailPayloadSnapshot(
+  value: unknown,
+  receiptId: string,
+): HoursEmailPayloadSnapshot | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Record<string, unknown>;
+  if (
+    Object.keys(candidate).length !== 6 ||
+    candidate.version !== 1 ||
+    typeof candidate.to !== "string" ||
+    candidate.to.length < 1 ||
+    candidate.to.length > 320 ||
+    typeof candidate.from !== "string" ||
+    candidate.from.length < 1 ||
+    candidate.from.length > 500 ||
+    typeof candidate.subject !== "string" ||
+    candidate.subject.length < 1 ||
+    candidate.subject.length > 998 ||
+    typeof candidate.html !== "string" ||
+    candidate.html.length < 1 ||
+    candidate.html.length > 1_000_000 ||
+    !Array.isArray(candidate.tags) ||
+    candidate.tags.length !== 2
+  ) {
+    return null;
+  }
+
+  const [workflowTag, receiptTag] = candidate.tags;
+  if (
+    !workflowTag ||
+    typeof workflowTag !== "object" ||
+    Array.isArray(workflowTag) ||
+    Object.keys(workflowTag).length !== 2 ||
+    (workflowTag as Record<string, unknown>).name !== "workflow" ||
+    (workflowTag as Record<string, unknown>).value !==
+      "volunteer-hours-publication" ||
+    !receiptTag ||
+    typeof receiptTag !== "object" ||
+    Array.isArray(receiptTag) ||
+    Object.keys(receiptTag).length !== 2 ||
+    (receiptTag as Record<string, unknown>).name !== "receipt" ||
+    (receiptTag as Record<string, unknown>).value !== receiptId
+  ) {
+    return null;
+  }
+
+  return candidate as HoursEmailPayloadSnapshot;
+}
+
 export function hoursPublicationOutcome(
   databaseOutcome: "accepted" | "replayed",
   deliveryIsPartial: boolean,

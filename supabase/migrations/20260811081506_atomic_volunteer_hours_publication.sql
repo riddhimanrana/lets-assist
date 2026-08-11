@@ -65,6 +65,9 @@ CREATE TABLE public.hours_publication_email_outbox (
   provider_message_id text,
   safe_code text,
   last_settlement_token uuid,
+  payload_snapshot jsonb,
+  payload_hash text,
+  payload_prepared_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT hours_publication_email_outbox_certificate_key UNIQUE (certificate_id),
@@ -87,7 +90,27 @@ CREATE TABLE public.hours_publication_email_outbox (
   CONSTRAINT hours_publication_email_outbox_provider_id_bounded
     CHECK (provider_message_id IS NULL OR char_length(provider_message_id) <= 200),
   CONSTRAINT hours_publication_email_outbox_safe_code_bounded
-    CHECK (safe_code IS NULL OR safe_code ~ '^[a-z0-9_]{1,64}$')
+    CHECK (safe_code IS NULL OR safe_code ~ '^[a-z0-9_]{1,64}$'),
+  CONSTRAINT hours_publication_email_outbox_payload_shape CHECK (
+    (
+      payload_snapshot IS NULL
+      AND payload_hash IS NULL
+      AND payload_prepared_at IS NULL
+    ) OR (
+      pg_catalog.jsonb_typeof(payload_snapshot) = 'object'
+      AND payload_snapshot ->> 'version' = '1'
+      AND pg_catalog.octet_length(payload_snapshot::text) <= 1048576
+      AND payload_hash ~ '^[0-9a-f]{64}$'
+      AND payload_hash = pg_catalog.encode(
+        extensions.digest(
+          pg_catalog.convert_to(payload_snapshot::text, 'UTF8'),
+          'sha256'
+        ),
+        'hex'
+      )
+      AND payload_prepared_at IS NOT NULL
+    )
+  )
 );
 
 CREATE INDEX hours_publication_email_outbox_receipt_state_idx
@@ -207,6 +230,7 @@ AS $$
         pg_catalog.jsonb_build_object(
           'deliveryId', outbox.id,
           'state', outbox.state,
+          'payloadPrepared', outbox.payload_snapshot IS NOT NULL,
           'idempotencyKey', outbox.idempotency_key,
           'certificateId', certificates.id,
           'volunteerName', certificates.volunteer_name,
@@ -589,8 +613,14 @@ BEGIN
     pg_catalog.format(
       'Your volunteer certificate for "%s" is now available. You volunteered for %s hours and %s minutes.',
       v_project.title,
-      floor(extract(epoch FROM (certificates.event_end - certificates.event_start)) / 3600),
-      floor(extract(epoch FROM (certificates.event_end - certificates.event_start)) / 60)::integer % 60
+      floor(
+        pg_catalog.round(
+          extract(epoch FROM (certificates.event_end - certificates.event_start)) / 60
+        ) / 60
+      ),
+      pg_catalog.round(
+        extract(epoch FROM (certificates.event_end - certificates.event_start)) / 60
+      )::integer % 60
     ),
     'project_updates',
     'success',
@@ -661,6 +691,105 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.prepare_hours_publication_email_delivery(
+  p_delivery_id uuid,
+  p_sender text DEFAULT NULL,
+  p_subject text DEFAULT NULL,
+  p_html text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_outbox public.hours_publication_email_outbox%ROWTYPE;
+  v_recipient text;
+  v_snapshot jsonb;
+  v_hash text;
+BEGIN
+  IF p_delivery_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT outbox.*
+  INTO v_outbox
+  FROM public.hours_publication_email_outbox AS outbox
+  WHERE outbox.id = p_delivery_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+
+  IF v_outbox.payload_snapshot IS NOT NULL THEN
+    v_hash := pg_catalog.encode(
+      extensions.digest(
+        pg_catalog.convert_to(v_outbox.payload_snapshot::text, 'UTF8'),
+        'sha256'
+      ),
+      'hex'
+    );
+    IF v_outbox.payload_hash IS DISTINCT FROM v_hash THEN
+      RAISE EXCEPTION USING ERRCODE = '22000', MESSAGE = 'durable email payload integrity check failed';
+    END IF;
+    RETURN v_outbox.payload_snapshot;
+  END IF;
+
+  SELECT certificates.volunteer_email
+  INTO v_recipient
+  FROM public.certificates AS certificates
+  WHERE certificates.id = v_outbox.certificate_id;
+
+  IF NULLIF(pg_catalog.btrim(v_recipient), '') IS NULL
+    OR char_length(v_recipient) > 320
+    OR NULLIF(pg_catalog.btrim(p_sender), '') IS NULL
+    OR char_length(p_sender) > 500
+    OR NULLIF(pg_catalog.btrim(p_subject), '') IS NULL
+    OR char_length(p_subject) > 998
+    OR NULLIF(p_html, '') IS NULL
+    OR pg_catalog.octet_length(p_html) > 1000000
+  THEN
+    RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'invalid durable email payload';
+  END IF;
+
+  v_snapshot := pg_catalog.jsonb_build_object(
+    'version', 1,
+    'to', v_recipient,
+    'from', p_sender,
+    'subject', p_subject,
+    'html', p_html,
+    'tags', pg_catalog.jsonb_build_array(
+      pg_catalog.jsonb_build_object(
+        'name', 'workflow',
+        'value', 'volunteer-hours-publication'
+      ),
+      pg_catalog.jsonb_build_object(
+        'name', 'receipt',
+        'value', v_outbox.receipt_id::text
+      )
+    )
+  );
+  v_hash := pg_catalog.encode(
+    extensions.digest(
+      pg_catalog.convert_to(v_snapshot::text, 'UTF8'),
+      'sha256'
+    ),
+    'hex'
+  );
+
+  UPDATE public.hours_publication_email_outbox
+  SET
+    payload_snapshot = v_snapshot,
+    payload_hash = v_hash,
+    payload_prepared_at = now(),
+    updated_at = now()
+  WHERE id = p_delivery_id;
+
+  RETURN v_snapshot;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.claim_hours_publication_email_delivery(
   p_delivery_id uuid,
   p_claim_token uuid
@@ -702,6 +831,7 @@ BEGIN
     last_attempt_at = now(),
     updated_at = now()
   WHERE id = p_delivery_id
+    AND payload_snapshot IS NOT NULL
     AND (
       (
         state IN ('queued', 'retryable_failure')
@@ -787,6 +917,8 @@ $$;
 
 REVOKE ALL ON FUNCTION public.publish_volunteer_hours_transactional(uuid, text, jsonb, text)
   FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.prepare_hours_publication_email_delivery(uuid, text, text, text)
+  FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.claim_hours_publication_email_delivery(uuid, uuid)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.settle_hours_publication_email_delivery(uuid, uuid, text, text, text)
@@ -795,6 +927,8 @@ GRANT EXECUTE ON FUNCTION public.publish_volunteer_hours_transactional(uuid, tex
   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.publish_volunteer_hours_transactional(uuid, text, jsonb, text)
   TO service_role;
+GRANT EXECUTE ON FUNCTION public.prepare_hours_publication_email_delivery(uuid, text, text, text)
+  TO service_role;
 GRANT EXECUTE ON FUNCTION public.claim_hours_publication_email_delivery(uuid, uuid)
   TO service_role;
 GRANT EXECUTE ON FUNCTION public.settle_hours_publication_email_delivery(uuid, uuid, text, text, text)
@@ -802,6 +936,8 @@ GRANT EXECUTE ON FUNCTION public.settle_hours_publication_email_delivery(uuid, u
 
 COMMENT ON FUNCTION public.publish_volunteer_hours_transactional(uuid, text, jsonb, text) IS
   'Authenticated, permission-rechecked, replay-safe publication of validated signup hours, certificates, in-app notifications, and durable email work.';
+COMMENT ON FUNCTION public.prepare_hours_publication_email_delivery(uuid, text, text, text) IS
+  'Service-only first-writer-wins snapshot of the exact bounded provider payload. Recovery returns the immutable stored payload and verifies its hash.';
 COMMENT ON FUNCTION public.claim_hours_publication_email_delivery(uuid, uuid) IS
   'Service-only claim. Explicit drains reclaim interrupted processing only inside Resend''s 24-hour idempotency window; older ambiguous work terminalizes as unknown.';
 COMMENT ON FUNCTION public.settle_hours_publication_email_delivery(uuid, uuid, text, text, text) IS

@@ -5,12 +5,14 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import CertificatePublished from "@/emails/certificate-published";
 import * as React from "react";
+import { render } from "react-email";
 import { sendEmail } from "@/services/email";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
 import { logError, logInfo, logWarn } from "@/lib/logger";
 import {
   hoursEmailSettlement,
   hoursPublicationOutcome,
+  parseHoursEmailPayloadSnapshot,
   settleHoursDeliveryWithRetry,
 } from "@/lib/projects/hours-publication-delivery";
 import {
@@ -55,6 +57,7 @@ export type HoursPublicationResult = {
 type PublicationDelivery = {
   deliveryId: string;
   state: string;
+  payloadPrepared: boolean;
   idempotencyKey: string;
   certificateId: string;
   volunteerName: string | null;
@@ -155,7 +158,7 @@ async function loadDurablePublicationForRetry(
 
   const { data: outboxRows, error: outboxError } = await admin
     .from("hours_publication_email_outbox")
-    .select("id, state, idempotency_key, certificate_id")
+    .select("id, state, idempotency_key, certificate_id, payload_prepared_at")
     .eq("receipt_id", receipt.id)
     .order("created_at", { ascending: true });
   if (outboxError || !outboxRows) {
@@ -184,6 +187,7 @@ async function loadDurablePublicationForRetry(
     return {
       deliveryId: row.id,
       state: row.state,
+      payloadPrepared: row.payload_prepared_at !== null,
       idempotencyKey: row.idempotency_key,
       certificateId: certificate.id,
       volunteerName: certificate.volunteer_name,
@@ -202,6 +206,58 @@ async function loadDurablePublicationForRetry(
     projectTimezone: project.project_timezone,
     deliveries,
   };
+}
+
+async function preparePublicationEmailPayload(
+  admin: ReturnType<typeof getAdminClient>,
+  publication: TransactionalPublication,
+  delivery: PublicationDelivery,
+  siteUrl: string,
+) {
+  let sender: string | null = null;
+  let subject: string | null = null;
+  let html: string | null = null;
+
+  // Once any provider attempt can have started, recovery asks the database for
+  // the first-writer-wins snapshot without rendering today's template or
+  // reading today's deployment configuration.
+  if (!delivery.payloadPrepared) {
+    sender =
+      process.env.EMAIL_FROM?.trim() ||
+      "Let's Assist <projects@notifications.lets-assist.com>";
+    subject = `Your volunteer certificate for ${publication.projectTitle} is ready!`;
+    html = await render(
+      React.createElement(CertificatePublished, {
+        volunteerName: delivery.volunteerName!,
+        projectTitle: publication.projectTitle,
+        certificateId: delivery.certificateId,
+        certificateUrl: `${siteUrl}/certificates/${delivery.certificateId}`,
+        isAutoPublished: false,
+        eventStart: delivery.eventStart,
+        eventEnd: delivery.eventEnd,
+        timezone: publication.projectTimezone ?? undefined,
+      }),
+    );
+  }
+
+  const { data, error } = await admin.rpc(
+    "prepare_hours_publication_email_delivery",
+    {
+      p_delivery_id: delivery.deliveryId,
+      p_sender: sender,
+      p_subject: subject,
+      p_html: html,
+    },
+  );
+  if (error) {
+    throw new Error("durable provider payload preparation failed");
+  }
+
+  const payload = parseHoursEmailPayloadSnapshot(data, publication.receiptId);
+  if (!payload) {
+    throw new Error("durable provider payload was invalid");
+  }
+  return payload;
 }
 
 async function drainPublicationEmails(
@@ -236,7 +292,10 @@ async function drainPublicationEmails(
       );
       continue;
     }
-    if (!delivery.volunteerEmail || !delivery.volunteerName) {
+    if (
+      !delivery.payloadPrepared &&
+      (!delivery.volunteerEmail || !delivery.volunteerName)
+    ) {
       partial = true;
       errors.push(
         `Certificate ${delivery.certificateId}: email recipient missing`,
@@ -261,6 +320,26 @@ async function drainPublicationEmails(
         );
         return { emailsSent, errors, partial: true };
       }
+    }
+
+    let providerPayload;
+    try {
+      providerPayload = await preparePublicationEmailPayload(
+        admin,
+        publication,
+        delivery,
+        siteUrl,
+      );
+    } catch (error) {
+      partial = true;
+      errors.push(
+        `Certificate ${delivery.certificateId}: delivery payload preparation failed`,
+      );
+      logError("Volunteer-hours email payload preparation failed", error, {
+        receipt_id: publication.receiptId,
+        delivery_id: delivery.deliveryId,
+      });
+      continue;
     }
 
     const claimToken = randomUUID();
@@ -288,8 +367,8 @@ async function drainPublicationEmails(
       continue;
     }
     if (claimed !== true) {
-      // Another invocation claimed or settled it. A processing row is
-      // deliberately not reclaimed because the provider outcome may be unknown.
+      // Another invocation claimed or settled it. SQL owns the bounded stale
+      // recovery and refuses work outside the provider idempotency window.
       partial = true;
       errors.push(
         `Certificate ${delivery.certificateId}: delivery already in progress`,
@@ -308,24 +387,13 @@ async function drainPublicationEmails(
 
     try {
       const result = await sendEmail({
-        to: delivery.volunteerEmail,
-        subject: `Your volunteer certificate for ${publication.projectTitle} is ready!`,
-        react: React.createElement(CertificatePublished, {
-          volunteerName: delivery.volunteerName,
-          projectTitle: publication.projectTitle,
-          certificateId: delivery.certificateId,
-          certificateUrl: `${siteUrl}/certificates/${delivery.certificateId}`,
-          isAutoPublished: false,
-          eventStart: delivery.eventStart,
-          eventEnd: delivery.eventEnd,
-          timezone: publication.projectTimezone ?? undefined,
-        }),
+        to: providerPayload.to,
+        from: providerPayload.from,
+        subject: providerPayload.subject,
+        html: providerPayload.html,
         type: "transactional",
         idempotencyKey: delivery.idempotencyKey,
-        tags: [
-          { name: "workflow", value: "volunteer-hours-publication" },
-          { name: "receipt", value: publication.receiptId },
-        ],
+        tags: providerPayload.tags,
       });
 
       const settlement = hoursEmailSettlement(result);

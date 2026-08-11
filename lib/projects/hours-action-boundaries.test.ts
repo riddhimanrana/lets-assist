@@ -41,3 +41,26 @@ test("certificate resend is permission checked and scoped to one project session
   assert.match(resendSource, /\.eq\("project_id", projectId\)/u);
   assert.match(resendSource, /\.eq\("schedule_id", publishKey\)/u);
 });
+
+test("durable delivery snapshots the rendered provider request before claim", () => {
+  const drainStart = actionsSource.indexOf(
+    "async function drainPublicationEmails",
+  );
+  const publishStart = actionsSource.indexOf(
+    "export async function publishVolunteerHours",
+  );
+  const drainSource = actionsSource.slice(drainStart, publishStart);
+  const prepareIndex = drainSource.indexOf("preparePublicationEmailPayload");
+  const claimIndex = drainSource.indexOf(
+    "claim_hours_publication_email_delivery",
+  );
+  const sendIndex = drainSource.indexOf("await sendEmail");
+
+  assert.ok(drainStart >= 0);
+  assert.ok(prepareIndex >= 0 && prepareIndex < claimIndex);
+  assert.ok(claimIndex < sendIndex);
+  assert.match(drainSource, /to: providerPayload\.to/u);
+  assert.match(drainSource, /from: providerPayload\.from/u);
+  assert.match(drainSource, /html: providerPayload\.html/u);
+  assert.match(drainSource, /tags: providerPayload\.tags/u);
+});
