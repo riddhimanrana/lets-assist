@@ -25,6 +25,7 @@ const canonicalMoreItems = [
   "Change history",
   "Communications",
   "Settings",
+  "Help",
 ] as const;
 
 type CanonicalTab = (typeof canonicalTabs)[number];
@@ -57,6 +58,7 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
       "Change history",
       "Communications",
       "Settings",
+      "Help",
     ],
     deniedRoute: "staff",
   },
@@ -66,7 +68,7 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
     // The Classes hub opens for any class-tab capability; membership holds
     // manage_profiles, process_points, and manage_meetings.
     visibleTabs: ["Home", "Applications", "Members", "Service", "Classes"],
-    visibleMoreItems: ["Imports", "Reports"],
+    visibleMoreItems: ["Imports", "Reports", "Help"],
     deniedRoute: "staff",
   },
   {
@@ -75,7 +77,7 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
     // manage_posts opens Classes so posting officers can reach each class Stream
     // without gaining Members, Points, Meetings, or the Communications console.
     visibleTabs: ["Home", "Service", "Classes"],
-    visibleMoreItems: [],
+    visibleMoreItems: ["Help"],
     deniedRoute: "applications",
     opensClassStream: true,
   },
@@ -84,14 +86,14 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
     label: "Vice President — Clubs",
     // process_points opens the Classes hub (Points tab only inside it).
     visibleTabs: ["Home", "Service", "Classes"],
-    visibleMoreItems: ["Imports", "Reports"],
+    visibleMoreItems: ["Imports", "Reports", "Help"],
     deniedRoute: "applications",
   },
   {
     actor: "treasurer",
     label: "Treasurer",
     visibleTabs: ["Home", "Applications"],
-    visibleMoreItems: ["Reports"],
+    visibleMoreItems: ["Reports", "Help"],
     deniedRoute: "profiles",
   },
   {
@@ -99,14 +101,14 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
     label: "Secretary",
     // The former Semester tab now lives inside the Classes hub.
     visibleTabs: ["Home", "Members", "Service", "Classes"],
-    visibleMoreItems: ["Imports", "Reports"],
+    visibleMoreItems: ["Imports", "Reports", "Help"],
     deniedRoute: "applications",
   },
   {
     actor: "webMaster",
     label: "Web Master",
     visibleTabs: ["Home", "Service", "Classes"],
-    visibleMoreItems: [],
+    visibleMoreItems: ["Help"],
     deniedRoute: "applications",
     opensClassStream: true,
   },
@@ -114,14 +116,14 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
     actor: "activityCoordinator",
     label: "Activity Coordinator",
     visibleTabs: ["Home", "Service"],
-    visibleMoreItems: [],
+    visibleMoreItems: ["Help"],
     deniedRoute: "applications",
   },
   {
     actor: "dataManagement",
     label: "Data Management",
     visibleTabs: ["Home", "Applications", "Members", "Service", "Classes"],
-    visibleMoreItems: ["Imports", "Reports", "Change history"],
+    visibleMoreItems: ["Imports", "Reports", "Change history", "Help"],
     deniedRoute: "staff",
   },
 ] as const;
@@ -353,7 +355,7 @@ test.describe("DVHS CSF role-aware navigation", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("member sees only Feed, Activities, Point submissions, and My CSF", async ({
+  test("member sees only Feed, My CSF, Activities, Point submissions, and Help", async ({
     page,
   }) => {
     await loginAs(page, "member");
@@ -368,6 +370,16 @@ test.describe("DVHS CSF role-aware navigation", () => {
         page.getByRole("tab", { name: tab, exact: true }),
       ).toBeVisible();
     }
+    const memberMore = page.getByRole("button", {
+      name: "More",
+      exact: true,
+    });
+    await expect(memberMore).toBeVisible();
+    await memberMore.click();
+    await expect(
+      page.getByRole("menuitem", { name: "Help", exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
     for (const tab of ["Applications", "Members", "Service", "Classes"]) {
       await expect(
         page.getByRole("tab", { name: tab, exact: true }),
@@ -392,6 +404,16 @@ test.describe("DVHS CSF role-aware navigation", () => {
         page.getByRole("tab", { name: tab, exact: true }),
       ).toBeVisible();
     }
+    const applicantMore = page.getByRole("button", {
+      name: "More",
+      exact: true,
+    });
+    await expect(applicantMore).toBeVisible();
+    await applicantMore.click();
+    await expect(
+      page.getByRole("menuitem", { name: "Help", exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
     // The applicant's review state lives in My CSF; Feed is the landing tab.
     await page.getByRole("tab", { name: "My CSF", exact: true }).click();
     await expect(
