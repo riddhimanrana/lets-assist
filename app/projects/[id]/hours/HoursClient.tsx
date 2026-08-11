@@ -19,13 +19,7 @@ import {
   FileText,
   Mail,
 } from "lucide-react";
-import {
-  format,
-  parseISO,
-  differenceInMinutes,
-  differenceInSeconds,
-  isAfter,
-} from "date-fns";
+import { format, parseISO, differenceInMinutes, isAfter } from "date-fns";
 import {
   Tooltip,
   TooltipContent,
@@ -75,6 +69,7 @@ import { publishVolunteerHours, resendCertificateEmails } from "./actions";
 import { TimePicker } from "@/components/ui/time-picker"; // Import the TimePicker
 import { formatTimeTo12Hour } from "@/lib/utils"; // Assuming this exists and works
 import { getMultiDaySlotDisplayName } from "@/utils/project";
+import { calculateHoursDuration as calculateDuration } from "./hours-duration";
 
 // Define the structure for edited times
 type EditedTime = {
@@ -224,58 +219,6 @@ export function HoursClient({
     }
 
     return sessionId; // Fallback if no formatting rules matched
-  };
-
-  // Enhanced duration calculation with validation
-  const calculateDuration = (
-    checkInISO: string | null,
-    checkOutISO: string | null,
-  ): {
-    text: string;
-    isValid: boolean;
-    minutes: number;
-  } => {
-    if (!checkInISO || !checkOutISO) {
-      return { text: "--:--", isValid: false, minutes: 0 };
-    }
-
-    try {
-      const checkIn = parseISO(checkInISO);
-      const checkOut = parseISO(checkOutISO);
-
-      // Calculate difference in seconds and convert to minutes with rounding
-      const diffSeconds = differenceInSeconds(checkOut, checkIn);
-      const diffMins = Math.round(diffSeconds / 60);
-
-      // Various validation checks
-      if (diffMins < 0) {
-        return {
-          text: "Invalid: Check-out before check-in",
-          isValid: false,
-          minutes: 0,
-        };
-      }
-
-      // Check for unreasonably long duration (more than 24 hours)
-      if (diffMins > 24 * 60) {
-        return {
-          text: `${Math.floor(diffMins / 60)}h ${diffMins % 60}m (Excessive)`,
-          isValid: false,
-          minutes: diffMins,
-        };
-      }
-
-      // Valid duration
-      const hours = Math.floor(diffMins / 60);
-      const minutes = diffMins % 60;
-      return {
-        text: `${hours}h ${minutes}m`,
-        isValid: true,
-        minutes: diffMins,
-      };
-    } catch {
-      return { text: "Error parsing dates", isValid: false, minutes: 0 };
-    }
   };
 
   // Handler for DateTimePicker changes
