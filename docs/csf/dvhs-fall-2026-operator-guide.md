@@ -225,7 +225,7 @@ it into a Fall 2026 rule.
   configured. The in-product connection is **Not connected** until an operator
   completes a fresh `dvhighcsf@gmail.com` password/verification handoff; no real
   row preview or commit has occurred.
-- Hosted Development exactly matches all 244 repository migrations through
+- Hosted Development exactly matches all 245 repository migrations through
   `20260811132454`. The unused `pg_graphql` extension is absent from the
   Development schema, and leaked-password protection is enabled. Google Maps
   autocomplete and the complete five-step project creation/deletion journey
@@ -240,9 +240,10 @@ it into a Fall 2026 rule.
   webhook remains disabled and must be rotated and proved during release.
 - The scheduled-post transition, hold recovery, authenticated route, and
   repository-owned GitHub scheduler are implemented. Development's branch-
-  scoped publisher opt-in is configured, but it requires a new Development
-  deployment and a visible synthetic schedule → Feed run before officers rely
-  on it. Scheduled posts never queue email.
+  scoped publisher opt-in is present on the exact Ready deployment, and a
+  visible synthetic composer schedule/readback/archive lifecycle passed with
+  no email option. An enabled publisher invocation and visible schedule → Feed
+  publication are still required before officers rely on automatic release.
 - Production was not changed by this rehearsal.
 
 ## Related references

@@ -1,7 +1,7 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** the August 11 exact-tree replay/build/DV+CSF browser gates and hosted Development acceptance are green. Development has exact 244-migration parity, leaked-password protection enabled, the unused `pg_graphql` extension removed, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. The scheduled-post transition and repository-owned scheduler are implemented, but hosted enabled invocation and visible schedule → Feed acceptance remain pending alongside live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, Production webhook rotation, and Production cutover.
+**Current status:** the August 11 exact-tree replay/build/DV+CSF browser gates and hosted Development acceptance are green. Development has exact 245-migration parity, leaked-password protection enabled, the unused `pg_graphql` extension removed, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. The scheduled-post transition, repository-owned scheduler, and visible composer schedule/readback/archive lifecycle are implemented and accepted, but hosted enabled publisher invocation and visible schedule → Feed publication remain pending alongside live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, Production webhook rotation, and Production cutover.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
@@ -256,7 +256,7 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Complete green PR checks; least-privilege `PRIVATE_SUBMODULE_TOKEN`, GitGuardian disposition for the removed local-only fixture password, and authenticated Vercel Preview diagnosis remain open
 - [x] Post-hardening production build and full private-plugin unit-suite rerun
 - [ ] Persistent isolated Supabase development branch after explicit `$0.01344/hour` cost confirmation
-- [x] Stable Development alias with branch-scoped non-production Supabase invariant and exact 244-migration parity
+- [x] Stable Development alias with branch-scoped non-production Supabase invariant and exact 245-migration parity
 - [x] Authorize local and hosted Development Google origins/callbacks, including `http://localhost:3001` and `https://dev.lets-assist.com`
 - [ ] Confirm `dvhighcsf@gmail.com` in-product, then complete Picker, import, reconnect, revocation, and failure-state verification
 - [ ] Complete synthetic visible mutation lifecycle for every actor
@@ -269,6 +269,7 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Visible six-value grade-policy edit → publish → recalculation journey with stale-draft refusal
 - [ ] Visible import match/skip failure-preservation and truthful history/lineage journey
 - [x] Accept the authorized, retry-safe scheduled-post publisher through migration, route, pgTAP, central replay, and repository-owned scheduler
+- [x] Prove the visible Development composer schedule/readback/archive lifecycle with synthetic data and no email option
 - [ ] Prove an enabled hosted scheduled-post worker invocation and visible synthetic schedule → Feed transition before relying on it in that environment
 - [x] Configure and repeatedly verify hosted `csf-communications-dispatch`; document that GitHub scheduling is irregular and does not promise fixed-time delivery
 
