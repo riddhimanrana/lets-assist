@@ -660,6 +660,8 @@ SELECT extensions.lives_ok(
         'label', 'Spring 2044 adjusted',
         'startsAt', '2044-01-05',
         'endsAt', '2044-06-25',
+        'applicationOpensAt', '2044-01-10',
+        'applicationClosesAt', '2044-02-10',
         'sheetTabName', 'S44 adjusted',
         'linkStatus', 'inactive'
       ),
@@ -673,6 +675,8 @@ SELECT extensions.ok(
     SELECT term.label = 'Spring 2044 adjusted'
       AND term.starts_at = '2044-01-05'::date
       AND term.ends_at = '2044-06-25'::date
+      AND term.application_opens_at = '2044-01-10'::timestamptz
+      AND term.application_closes_at = '2044-02-10'::timestamptz
       AND link.sheet_tab_name = 'S44 adjusted'
       AND link.status = 'inactive'
     FROM plugin_data.csf_terms AS term
@@ -713,6 +717,8 @@ SELECT extensions.is(
         'label', 'Spring 2044 adjusted',
         'startsAt', '2044-01-05',
         'endsAt', '2044-06-25',
+        'applicationOpensAt', '2044-01-10',
+        'applicationClosesAt', '2044-02-10',
         'sheetTabName', 'S44 adjusted',
         'linkStatus', 'inactive'
       ),

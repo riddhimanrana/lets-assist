@@ -23,6 +23,10 @@ const actorHelperSource = readFileSync(
   new URL("../../tests/e2e/csf/helpers.ts", import.meta.url),
   "utf8",
 );
+const hostedSeedScript = new URL(
+  "./seed-hosted-development.mjs",
+  import.meta.url,
+).pathname;
 
 function sourceSection(startMarker: string, endMarker: string) {
   const start = seedSource.indexOf(startMarker);
@@ -925,7 +929,7 @@ describe("package scripts carry the exact seed modes", () => {
       "PLATFORM_SEED_MODE=csf-isolated-v1 node scripts/local-dev/seed-platform.mjs",
     );
     expect(packageJson.scripts["csf:seed:hosted-development"]).toBe(
-      "PLATFORM_SEED_MODE=hosted-development-v1 node scripts/local-dev/seed-platform.mjs",
+      "node scripts/local-dev/seed-hosted-development.mjs",
     );
   });
 
@@ -936,5 +940,52 @@ describe("package scripts carry the exact seed modes", () => {
     expect(packageJson.scripts.supabase).not.toContain(
       "csf:seed:platform:isolated",
     );
+  });
+});
+
+describe("hosted Development seed wrapper", () => {
+  function runHosted(env: Record<string, string>) {
+    const result = Bun.spawnSync([process.execPath, hostedSeedScript], {
+      cwd: new URL("../..", import.meta.url).pathname,
+      env: {
+        PATH: process.env.PATH ?? "",
+        ...env,
+      },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    return {
+      exitCode: result.exitCode,
+      stderr: result.stderr.toString(),
+    };
+  }
+
+  test("requires a run-scoped fixture password before resolving a remote branch", () => {
+    const result = runHosted({});
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("CSF_LOCAL_TEST_PASSWORD is required");
+  });
+
+  test("refuses the Production project ref before invoking Supabase", () => {
+    const result = runHosted({
+      CSF_LOCAL_TEST_PASSWORD: "synthetic-test-password-Aa1!",
+      EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: "fotdmeakexgrkronxlof",
+      SUPABASE_BRANCH_ID: "e230a19e-00cf-41fa-9ab6-c0194108a617",
+    });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("refuses the Production project ref");
+  });
+
+  test("refuses malformed branch IDs before invoking Supabase", () => {
+    const result = runHosted({
+      CSF_LOCAL_TEST_PASSWORD: "synthetic-test-password-Aa1!",
+      EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: "ocbuygudvarsuxijxhau",
+      SUPABASE_BRANCH_ID: "not-a-branch",
+    });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("SUPABASE_BRANCH_ID is malformed");
   });
 });

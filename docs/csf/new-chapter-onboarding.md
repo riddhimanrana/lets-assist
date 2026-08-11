@@ -6,6 +6,78 @@ This generalizes the DVHS-specific cutover in [officer runbook §10](officer-run
 
 **Rehearse the whole sequence locally first** — `bun run dev` brings up the isolated CSF stack with fictional fixtures. Never rehearse against a real chapter's data.
 
+## DVHS hosted Development rehearsal
+
+Use `https://dev.lets-assist.com` only for the final shared rehearsal. It is the
+`development` branch deployed against the separate Supabase Development branch;
+it is not Production. The hosted fixture refresh is intentionally explicit:
+
+```sh
+CSF_LOCAL_TEST_PASSWORD="$(security find-generic-password -s lets-assist-dev-csf-fixture -a riddhiman.rana -w)" \
+  bun run csf:seed:hosted:development
+```
+
+The command rejects local and Production targets, verifies the Development
+project ref, and only seeds reserved `.test` identities. The shared fixture
+password is stored in macOS Keychain under service
+`lets-assist-dev-csf-fixture`; do not put it in a document, message, shell
+history, or repository.
+
+Use these roles to verify the actual permission boundary rather than testing
+everything as an administrator:
+
+| Account | Rehearsal purpose |
+|---|---|
+| `csf.admin@local.test` | Organization and CSF administration |
+| `csf.vp-membership@local.test` | Applications, members, and account connections |
+| `csf.secretary@local.test` | Meetings and attendance |
+| `csf.treasurer@local.test` | Dues |
+| `csf.data-management@local.test` | Imports and reconciliation |
+| `student.2028@local.test` | Existing Class of 2028 record and exact-email profile claim |
+| `csf.applicant@local.test` | Applicant and unmatched account-link paths |
+| `platform.outsider@local.test` | Public/private boundary check |
+
+The current Development rehearsal tracks Classes of 2027, 2028, 2029, and
+2030. Each class has an active Fall 2026 semester record and reusable combined
+link. Development dates and policies are rehearsal inputs only; an adviser must
+replace and approve them from the chapter calendar before a Production cutover.
+
+### Development acceptance walk-through
+
+1. Sign in as `csf.admin@local.test`; open **DVHS CSF → Classes**. Confirm all
+   four classes point to Fall 2026, the application window is set, the policy is
+   published, and each class has one active reusable link.
+2. Open **Members → account connections** and note the queue before testing a
+   new link. Never expose or export the member roster to perform this check.
+3. In a signed-out window, open the Class of 2028 link and sign in as
+   `student.2028@local.test`. Confirm **Is this you?**, choose **Use this
+   profile**, then verify **Home** and **My CSF** show the class, current policy,
+   and historical semesters.
+4. Repeat with `csf.applicant@local.test`, choose **Not me** or submit the
+   unmatched request, then return as the Membership VP. Verify the request
+   appears in the officer queue. Connect only when the recorded email, name, and
+   class all corroborate; otherwise reject with a reason.
+5. Sign in as `platform.outsider@local.test`. The public organization page may
+   show public activities, but must not expose roster, applications, evidence,
+   attendance, points, or account-connection data.
+6. As the relevant officer roles, click through Applications, Members,
+   Activities, Points, Meetings, Partner clubs, Imports, Reports, Staff access,
+   Change history, Communications, and Settings. A hidden route is an expected
+   permission result; a blank page, runtime error, or cross-role private data is
+   not.
+7. Keep email in no-send mode until the Resend topic id, webhook, audience
+   consent key, sender domain, and exact recipient snapshot are all visible.
+   Queue/delivery/provider outcomes are separate states.
+8. Download a report ZIP and inspect it locally. Do not upload generated reports
+   or browser traces to the repository.
+
+For Google acceptance, Chrome must be signed into exactly
+`dvhighcsf@gmail.com`. If the account is not offered by Google, stop at the
+chooser. Do not authorize a personal account. Selecting a Sheet and generating
+an import preview are read-only; committing rows is a separate consequential
+step that requires the named officer to review counts, mappings, conflicts, and
+source identity first.
+
 ## Before you start
 
 | Prerequisite | Who provides it | Notes |
@@ -35,15 +107,15 @@ Installing runs the `onInstall` hook, which seeds the chapter's default roles an
 Following [officer runbook §2](officer-runbook.md) and §10.1:
 
 1. Create one cohort per graduating class the chapter tracks. Include a graduated class only if you intend to seed its history.
-2. Create the terms you have records for, marking past terms **closed** and the incoming term **current**. Exactly one term is current at a time.
-3. Set the term policy — point requirements, deadlines, proof rules — before any member-facing work. Points recorded under a missing policy are refused by design.
+2. Create the terms you have records for, marking past terms **closed** and the incoming term **current**. Exactly one term is current at a time. Enter both application dates or leave both blank; before opening a semester, both are required and the closing date must follow the opening date.
+3. Set the term policy — point requirements, deadlines, proof rules — before any member-facing work. Points recorded under a missing policy are refused by design. A policy draft does not govern records until an adviser publishes it.
 4. Assign staff positions from the role templates. The chapter owner must hold an active `owner` position; owner authority is derived from that position, never from an email address.
 
 ## Stage 4 — Legacy import (optional)
 
 Only if the chapter has history worth carrying. Skip entirely for a brand-new chapter.
 
-Import through the Sheets workspace preview → commit fence. Every commit is staff-approved and only reversible forward. The order matters, because later imports reference earlier ones:
+Import through the Sheets workspace preview → commit fence. Google and the chapter website are source evidence, not a second database. Every commit is staff-approved and only reversible forward. The order matters, because later imports reference earlier ones:
 
 1. **Club registry and policies** — partner-form imports, producing partner clubs with per-club point policy.
 2. **Member roster** — an application-responses import for the earliest term you are seeding. Grade maps to graduating class.
