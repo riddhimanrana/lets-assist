@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { isNotificationDedupeConflict } from "@/services/notification-dedupe";
 import type {
   NotificationData,
   NotificationType,
@@ -72,20 +73,6 @@ export const NotificationService = {
       //   return { error: new Error('Authentication error') };
       // }
 
-      // First check if this notification already exists
-      const { data: existingNotifications } = await supabase
-        .from("notifications")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("type", notification.type)
-        .limit(1);
-
-      // If notification already exists, don't create a duplicate
-      if (existingNotifications?.length) {
-        console.log("Notification already exists, not creating duplicate");
-        return { success: true, existing: true };
-      }
-
       console.log("Creating new notification for user:", userId);
 
       // Insert into notifications table without showing toast directly
@@ -98,10 +85,15 @@ export const NotificationService = {
         severity: notificationWithSeverity.severity,
         action_url: notificationWithSeverity.actionUrl,
         data: notificationWithSeverity.data,
+        dedupe_key: notificationWithSeverity.dedupeKey,
         displayed: false, // Start as not displayed, let the listener handle it
       });
 
       if (error) {
+        if (isNotificationDedupeConflict(error, notification.dedupeKey)) {
+          return { success: true, existing: true, replayed: true };
+        }
+
         console.error(
           "Notification insert error details:",
           error.message,
@@ -121,15 +113,23 @@ export const NotificationService = {
     }
   },
 
-  async markAsDisplayed(userId: string, type: NotificationType) {
+  async markAsDisplayed(
+    userId: string,
+    type: NotificationType,
+    dedupeKey?: string,
+  ) {
     const supabase = createClient();
 
     try {
-      await supabase
+      let query = supabase
         .from("notifications")
         .update({ displayed: true })
         .eq("user_id", userId)
         .eq("type", type);
+
+      if (dedupeKey) query = query.eq("dedupe_key", dedupeKey);
+
+      await query;
 
       console.log(
         `Marked ${type} notification as displayed for user ${userId}`,
@@ -141,6 +141,7 @@ export const NotificationService = {
 
   async checkUsernameSetting(userId: string) {
     const supabase = createClient();
+    const dedupeKey = "account:set-custom-username";
 
     try {
       // Verify user is still authenticated
@@ -177,7 +178,7 @@ export const NotificationService = {
             .from("notifications")
             .select("id, displayed")
             .eq("user_id", userId)
-            .eq("type", "general")
+            .eq("dedupe_key", dedupeKey)
             .limit(1);
 
         if (notifError) {
@@ -204,7 +205,7 @@ export const NotificationService = {
             });
 
             // Mark as displayed
-            await this.markAsDisplayed(userId, "general");
+            await this.markAsDisplayed(userId, "general", dedupeKey);
           }
         } else {
           // No notification exists, create one with toast
@@ -216,6 +217,7 @@ export const NotificationService = {
               type: "general",
               severity: "info",
               actionUrl: "/account/profile",
+              dedupeKey,
             },
             userId,
             true,
