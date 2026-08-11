@@ -6,6 +6,8 @@ Method: local gate execution, plus read-only catalog queries against both hosted
 
 Evidence: `.artifacts/audit-20260810/`.
 
+The staged repository-wide program also generates a fresh source inventory with `bun run audit:inventory` under `.artifacts/audit/surface-inventory/`. The inventory records exact root/private commit provenance and keeps source discovery separate from runtime catalog and hosted Development evidence.
+
 Priority scale: **P0** exploitable now against real users · **P1** security-relevant, not directly exploitable · **P2** correctness/maintainability · **P3** cosmetic or dead code.
 
 ---
@@ -16,11 +18,11 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | ------------------- | --- | -------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | [AUD-001](#aud-001) | P0  | Core RLS             | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                  | **Fixed on `development`**; live in Production until cutover |
 | [AUD-002](#aud-002) | P0  | Core RLS             | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection            | **Fixed on `development`**; live in Production until cutover |
-| [AUD-003](#aud-003) | P1  | Grants               | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions                   | **Tables fixed**; functions half still open                  |
+| [AUD-003](#aud-003) | P1  | Grants               | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions                   | **Merged on `development`**; catalog verification pending    |
 | [AUD-004](#aud-004) | P1  | Plugin audit         | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited  | **Fixed on `development`**                                   |
 | [AUD-005](#aud-005) | P3  | Plugin RLS           | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob            | Reclassified — designed behaviour, document the contract     |
 | [AUD-006](#aud-006) | P2  | Architecture         | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`**                                   |
-| [AUD-012](#aud-012) | P2  | Notifications        | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter   | Confirmed; fixed for the server path only                    |
+| [AUD-012](#aud-012) | P2  | Notifications        | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter   | **Fixed locally**; hosted Development pending                |
 | [AUD-007](#aud-007) | P2  | CI                   | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                               | Fixed this session                                           |
 | [AUD-008](#aud-008) | P2  | Architecture         | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript    | Confirmed, by design                                         |
 | [AUD-009](#aud-009) | P2  | Gate coverage        | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads`                     | Confirmed                                                    |
@@ -28,6 +30,8 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-011](#aud-011) | P3  | Plugin control plane | Advertised control-plane surfaces that no code path reads                                                           | Confirmed                                                    |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
+
+**Static surface inventory, local only:** the initial generator run after rebasing over `development` `15ba480` and private gitlink `8efdc9a` found 46 route handlers, 351 exported Server Actions, 166 RPC call sites, 464 SQL function definitions (321 marked `SECURITY DEFINER`), 359 RLS policy definitions, 10 storage buckets, 12 cron routes, 2 webhook routes, 3 OAuth callback boundaries, 38 upload boundaries, 20 file-processing boundaries, and 8 service-role references. These are source-definition counts, not distinct effective database objects or proof of reachability. Generated JSON/Markdown remains ignored under `.artifacts/` and records the exact commit of each run.
 
 ---
 
@@ -95,7 +99,7 @@ Reversing this order breaks project cancellation and moderation notifications.
 
 ## AUD-003 — `public` default privileges still grant clients everything {#aud-003}
 
-**Priority:** P1 · **Status:** Confirmed
+**Priority:** P1 · **Status:** Merged on `development`; hosted catalog verification pending
 
 Baseline `20260325181408` (~lines 3836-3847) still carries:
 
@@ -111,16 +115,21 @@ The FUNCTIONS half is the more valuable fix: `GRANT ALL ON FUNCTIONS TO anon` me
 
 **Blast radius of fixing it: zero at cutover.** `ALTER DEFAULT PRIVILEGES` affects only objects created after it runs, and every existing object carries explicit grants.
 
-**Status after implementation — the tables half is fixed, the functions half is not, and that distinction was established by testing rather than assumed.**
+**Status after implementation — the table, sequence, and function halves are merged on `development`; shared Development catalog verification is still pending.**
 
 `20260810220400_revoke_public_default_privileges.sql` revokes the TABLES and SEQUENCES defaults for grantors `postgres` and `service_role`. `public_default_privileges.test.sql` proves the property that matters: a freshly created `public` table is unreadable and unwritable by both `anon` and `authenticated`.
 
-Two deliberate exclusions, both verified rather than guessed:
+The function half is closed without a broad DDL event trigger. `20260811074518_public_rpc_acl_allowlist.sql` explicitly revokes `PUBLIC`, `anon`, and `authenticated` execution from 18 trigger or maintenance functions, then normalizes the reviewed callable catalog to seven signatures and eight signature/role pairs. Only `get_public_attendees(uuid)` is callable by both `anon` and `authenticated`; the six RLS helpers are `authenticated` only.
 
-1. **FUNCTIONS.** Postgres grants `EXECUTE` to PUBLIC as a built-in default. Revoking it through `ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` was tested locally and did **not** suppress the `=X/postgres` entry on a newly created function — `has_function_privilege('anon', …)` still returned true even with the default ACL correctly reduced to `{postgres=X, service_role=X}`. Shipping that revoke would have been security theatre. New `SECURITY DEFINER` functions must keep carrying their own explicit `REVOKE EXECUTE … FROM PUBLIC, anon, authenticated`, as `20260701040027`, `20260701051022`, and `20260802195500` already do. **This half of AUD-003 remains open** and needs a different mechanism — most likely a `ddl_command_end` event trigger, or a gate check that fails any migration creating a `public` function without an accompanying revoke.
-2. **`supabase_admin`'s default ACLs**, which also name `anon` and `authenticated`. `postgres` is not superuser on hosted Supabase and cannot alter another role's defaults, so attempting it would fail the deploy. Objects created by migrations use the `postgres` grantor, so this does not affect the fix's coverage.
+`public_function_acl_allowlist.test.sql` compares effective client privileges, including inherited `PUBLIC` grants, to that exact catalog and separately proves that the maintenance functions are not client-executable. `audit-supabase-architecture.sh` performs the same catalog comparison as a hard gate, and `AGENTS.md` now requires every new or replaced SQL function to carry explicit reviewed `REVOKE`/`GRANT` statements and update the allowlist when client-callable.
 
-**Still to do:** extend `audit-supabase-architecture.sh` so re-introduction fails the gate, and add the explicit-`GRANT` rule to `AGENTS.md`.
+Local evidence on 2026-08-11: `quality:static`, strict private-submodule validation, `db:validate`, an empty migration replay, all 84 pgTAP files, clean local advisors, Supabase/plugin architecture audits, the authenticated plugin isolation smoke, and the 373-assertion cron no-egress probe passed. The generated stack was removed with marker-bounded proof that no container, volume, or network remained. This is local evidence only; no hosted or Production conclusion follows from it.
+
+One deliberate exclusion remains: `supabase_admin`'s default ACLs also name `anon` and `authenticated`. Hosted migrations execute as `postgres`, which cannot alter another role's defaults on Supabase. The effective callable-catalog gate covers the resulting runtime posture instead.
+
+GitHub evidence on 2026-08-11: PR #117 merged as `15ba480` after quality/build, GitGuardian, Supabase Preview, and the full isolated database/DV/CSF browser replay passed. Vercel Development deployment `dpl_GS7WcMq2tN62ZiuetZLmutCpUJAa` is READY for that exact commit and aliased to `dev.lets-assist.com` without an alias error. The PR Preview build remained deliberately fail-closed until an exact non-Production Supabase ref was available.
+
+**Still to do:** verify the shared hosted Development migration ledger and effective callable catalog, then rerun Development advisors. The Supabase connector currently exposes only the excluded Production project, so no fallback query was attempted. Production remains a separate excluded cutover.
 
 ---
 
@@ -262,7 +271,7 @@ Present in schema and, in several cases, in the admin UI — but consulted by no
 
 ## AUD-012 — Repeat notifications are silently suppressed {#aud-012}
 
-**Priority:** P2 · **Status:** Confirmed; fixed for the server path, still present in the browser path
+**Priority:** P2 · **Status:** Fixed locally; hosted Development pending
 
 `services/notifications.ts` checks for an existing notification before inserting:
 
@@ -277,7 +286,25 @@ The check was almost certainly written for `checkUsernameSetting`'s one-time "se
 
 `services/notifications-server.ts` deliberately omits it, so cancellation and moderation notifications now deliver per event. The browser path — used by `SignupsClient.tsx` — is unchanged and still suppresses.
 
-**Fix:** give the browser service an explicit one-time-nudge affordance (an optional dedupe key) rather than deduping on `type`, and drop the blanket check. Not done in this pass because it changes user-visible behaviour in a flow the audit had not yet exercised.
+**Resolution:** notification creation now accepts an optional caller-owned
+`dedupeKey`. Missing keys bypass deduplication entirely, so independent events
+of the same broad type remain repeatable. A non-null key is unique per recipient
+through the partial `notifications_user_dedupe_key_unique` index. Browser and
+server delivery classify only a conflict from that named index as a successful
+replay; unrelated `23505` errors still surface. The custom-username nudge uses
+the stable `account:set-custom-username` key, and its lookup/display update is
+scoped to that key rather than every `general` notification.
+
+**Local evidence, 2026-08-10:** the forward migration replayed successfully from
+the local ledger; `notification_dedupe_keys.test.sql` passed 8 focused pgTAP
+assertions; the full isolated database gate passed 83 files / 3,752 assertions,
+clean local advisors, architecture/plugin audits, and the 373-assertion cron
+no-egress probe; the browser and server notification suites passed 17 tests;
+`format:check`, `lint`, `typecheck`, `security:audit`, and the strict
+private-gitlink check passed. The generated isolated stack was removed with no
+Docker residue. No hosted database was mutated in this verification. Hosted
+Development remains pending, and Production was not read, written, queried,
+deployed, or tested.
 
 **Related, not yet investigated:** `app/projects/[id]/hours/actions.ts` inserts volunteer notifications with the publisher's session client. The surviving policy branch requires `p.creator_id = auth.uid()`, so a **staff manager** publishing hours for a project they did not create would fail that insert. This predates today's change — the removed `auth.uid() IS NULL` disjunct never applied there, since a session is always present — but it should be confirmed against a `can_be_managed_by_staff` project.
 

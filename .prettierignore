@@ -9,6 +9,7 @@ supabase/schemas/
 docs/csf/evidence/
 
 # Generated output (also ignored by Git).
+.design-sync/.cache-authoring-scope.json
 .artifacts/
 .next/
 .next-csf-isolated/

@@ -22,6 +22,11 @@ type InsertedRow = Record<string, unknown>;
 let insertedRows: InsertedRow[] = [];
 let preferenceRow: Record<string, unknown> | null = null;
 let preferenceError: { code: string } | null = null;
+let insertError: {
+  code: string;
+  details?: string;
+  message: string;
+} | null = null;
 let browserClientCalls = 0;
 
 mock.module("@/lib/supabase/client", () => ({
@@ -53,7 +58,7 @@ mock.module("@/lib/supabase/admin", () => ({
         return {
           insert: async (row: InsertedRow) => {
             insertedRows.push(row);
-            return { data: row, error: null };
+            return { data: row, error: insertError };
           },
         };
       }
@@ -71,6 +76,7 @@ beforeEach(() => {
   insertedRows = [];
   preferenceRow = null;
   preferenceError = null;
+  insertError = null;
   browserClientCalls = 0;
 });
 
@@ -114,6 +120,7 @@ describe("createNotificationForUser", () => {
       severity: "info",
       action_url: "/projects/xyz",
       data: { kind: "moderation_report_update" },
+      dedupe_key: undefined,
       displayed: false,
       read: false,
     });
@@ -165,6 +172,60 @@ describe("createNotificationForUser", () => {
     );
 
     expect(insertedRows.map((row) => row.title)).toEqual(["first", "second"]);
+  });
+
+  test("persists an explicit dedupe key", async () => {
+    await createNotificationForUser(
+      {
+        title: "Set Your Custom Username",
+        body: "Choose a username",
+        type: "general",
+        dedupeKey: "account:set-custom-username",
+      },
+      USER,
+    );
+
+    expect(insertedRows[0]?.dedupe_key).toBe("account:set-custom-username");
+  });
+
+  test("classifies the named dedupe conflict as a replay", async () => {
+    insertError = {
+      code: "23505",
+      message:
+        'duplicate key value violates unique constraint "notifications_user_dedupe_key_unique"',
+    };
+
+    const result = await createNotificationForUser(
+      {
+        title: "Set Your Custom Username",
+        body: "Choose a username",
+        type: "general",
+        dedupeKey: "account:set-custom-username",
+      },
+      USER,
+    );
+
+    expect(result).toEqual({ success: true, replayed: true });
+  });
+
+  test("does not hide an unrelated unique violation", async () => {
+    insertError = {
+      code: "23505",
+      message:
+        'duplicate key value violates unique constraint "some_other_index"',
+    };
+
+    const result = await createNotificationForUser(
+      {
+        title: "Set Your Custom Username",
+        body: "Choose a username",
+        type: "general",
+        dedupeKey: "account:set-custom-username",
+      },
+      USER,
+    );
+
+    expect(result).toEqual({ error: insertError });
   });
 });
 

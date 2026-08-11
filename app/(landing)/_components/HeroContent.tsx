@@ -985,7 +985,7 @@ export const HeroContent = () => {
           </DialogContent>
         </Dialog>
 
-        <h1 className="mt-5 max-w-5xl text-[2.7rem] font-semibold leading-[0.96] tracking-tight text-foreground sm:text-6xl md:text-[5rem]">
+        <h1 className="mt-5 max-w-5xl text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] text-foreground sm:text-6xl sm:leading-[0.98] md:text-[5rem]">
           <AnimatedText
             text="The modern way to do"
             mode="letters"
@@ -1004,7 +1004,7 @@ export const HeroContent = () => {
           initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ delay: 0.78, duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
-          className="mx-auto mt-5 max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg"
+          className="mx-auto mt-4 max-w-xl text-[0.95rem] leading-6.5 text-muted-foreground sm:mt-5 sm:max-w-2xl sm:text-lg sm:leading-8"
         >
           One link for public signups, QR attendance, verified hours,
           certificates, and organization workflows that scale from student clubs
@@ -1015,7 +1015,7 @@ export const HeroContent = () => {
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.95, duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-7 flex w-full max-w-[560px] flex-col items-center justify-center gap-3 sm:w-auto sm:max-w-none sm:flex-row"
+          className="mt-6 flex w-full max-w-[560px] flex-col items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:max-w-none sm:flex-row"
         >
           <MotionLinkButton href="/signup">
             Get started

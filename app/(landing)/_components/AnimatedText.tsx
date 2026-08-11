@@ -103,30 +103,43 @@ export function AnimatedText({
     );
   }
 
+  let letterIndex = 0;
+
   return (
     <span
       ref={rootRef}
       aria-label={text}
       data-visible={isVisible}
-      className={cn("la-text-reveal block whitespace-pre-wrap", className)}
+      className={cn("la-text-reveal block", className)}
     >
-      {Array.from(text).map((letter, index) => (
-        <span
-          key={`${letter}-${index}`}
-          aria-hidden
-          className="la-text-reveal-item inline-block whitespace-pre"
-          style={
-            {
-              "--la-delay": `${delay + index * HERO_LETTER_STAGGER}s`,
-              "--la-duration": "0.62s",
-              "--la-reveal-y": "20px",
-              "--la-reveal-blur": "10px",
-              "--la-scale": "1",
-              "--la-rotate-x": "0deg",
-            } as RevealStyle
-          }
-        >
-          {letter}
+      {words.map((word, wordIndex) => (
+        <span key={`${word}-${wordIndex}`} aria-hidden>
+          {/* Words stay atomic so lines never break mid-word on small screens. */}
+          <span className="inline-block whitespace-nowrap">
+            {Array.from(word).map((letter, index) => {
+              const currentIndex = letterIndex;
+              letterIndex += 1;
+              return (
+                <span
+                  key={`${letter}-${index}`}
+                  className="la-text-reveal-item inline-block"
+                  style={
+                    {
+                      "--la-delay": `${delay + currentIndex * HERO_LETTER_STAGGER}s`,
+                      "--la-duration": "0.62s",
+                      "--la-reveal-y": "20px",
+                      "--la-reveal-blur": "10px",
+                      "--la-scale": "1",
+                      "--la-rotate-x": "0deg",
+                    } as RevealStyle
+                  }
+                >
+                  {letter}
+                </span>
+              );
+            })}
+          </span>
+          {wordIndex < words.length - 1 ? " " : null}
         </span>
       ))}
     </span>

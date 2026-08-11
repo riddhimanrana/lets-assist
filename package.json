@@ -56,6 +56,7 @@
     "db:audit:remote-readiness": "bash scripts/audit-supabase-remote-readiness.sh",
     "db:test:redesign": "bash scripts/local-dev/verify-supabase-redesign.sh",
     "plugin:audit:data-access": "bash scripts/audit-plugin-data-access.sh",
+    "audit:inventory": "node scripts/generate-audit-surface-inventory.mjs",
     "source:check:organization": "node scripts/check-source-organization.mjs && cd lib/plugins/private && node ../../../scripts/check-source-organization.mjs",
     "quality:static": "bun run format:check && bun run lint && bun run typecheck && bun run security:audit",
     "format": "prettier --write . --cache --cache-location .artifacts/prettier/.cache",

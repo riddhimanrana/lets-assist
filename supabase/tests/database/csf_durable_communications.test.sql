@@ -10,6 +10,13 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SELECT extensions.plan(421);
 
+-- This transaction is one synthetic local backend. Direct fixture inserts do
+-- not pass through the server wrapper that derives the hosted project ref, so
+-- make their signed environment coordinate explicit at the table boundary.
+ALTER TABLE plugin_data.csf_communication_campaigns
+  ALTER COLUMN metadata
+  SET DEFAULT '{"csf_environment":"local"}'::jsonb;
+
 -- ---------------------------------------------------------------------------
 -- A. Fresh schema presence and explicit, in-limit object names
 -- ---------------------------------------------------------------------------
@@ -573,7 +580,7 @@ SELECT extensions.lives_ok(
       content_hash, term_id, audience_kind, broadcast_topic_key, resend_topic_id,
       created_by, created_by_identity, content_finalized_at, content_finalized_by,
       content_finalized_by_identity, audience_snapshot_version,
-      provider_idempotency_key
+      provider_idempotency_key, metadata
     ) VALUES (
       'bd400000-0000-4000-8000-000000000001', 'bd100000-0000-4000-8000-000000000001',
       'broadcast', 'draft', 'DVHS CSF', 'csf@notifications.lets-assist.com',
@@ -587,7 +594,8 @@ SELECT extensions.lives_ok(
       'topic_synthetic_partner_clubs',
       'bd000000-0000-4000-8000-000000000001', 'csf-officer@local.test',
       now(), 'bd000000-0000-4000-8000-000000000001', 'csf-officer@local.test', 1,
-      'spring-2032-audit-broadcast'
+      'spring-2032-audit-broadcast',
+      '{"csf_environment":"local"}'::jsonb
     )
   $$,
   'a dispatch-ready broadcast records the DVHS identity, body, topic, provider topic, term, and creator'
@@ -1946,6 +1954,7 @@ SELECT extensions.is(
     SELECT jsonb_build_array(
       jsonb_build_object('name', 'csf_attempt_id', 'value', attempt.id::text),
       jsonb_build_object('name', 'csf_campaign_id', 'value', attempt.campaign_id::text),
+      jsonb_build_object('name', 'csf_environment', 'value', 'local'),
       jsonb_build_object(
         'name', 'csf_organization_id', 'value', attempt.organization_id::text
       ),
@@ -1958,7 +1967,7 @@ SELECT extensions.is(
     WHERE snapshot.normalized_recipient_email = 'rep.one@local.test'
       AND attempt.campaign_id = 'bd400000-0000-4000-8000-000000000001'
   ),
-  'the sendable payload carries the signed plugin, organization, campaign, attempt, and topic tags as a name/value array'
+  'the sendable payload carries the signed environment, plugin, organization, campaign, attempt, and topic tags as a name/value array'
 );
 
 -- THE PROVIDER TOPIC IS IN THE SENDABLE PAYLOAD AND THEREFORE IN THE DIGEST.

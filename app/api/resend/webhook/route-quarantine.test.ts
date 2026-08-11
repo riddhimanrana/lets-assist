@@ -432,6 +432,7 @@ describe("metadata is allowlisted, never content", () => {
         organizationId: ORG,
         campaignId: CAMPAIGN,
         attemptId: ATTEMPT,
+        environment: null,
         topicKey: "partner_clubs",
       },
     );
@@ -465,6 +466,7 @@ describe("metadata is allowlisted, never content", () => {
         organizationId: ORG,
         campaignId: null,
         attemptId: null,
+        environment: null,
         topicKey: null,
       },
     );

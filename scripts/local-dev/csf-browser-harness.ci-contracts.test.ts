@@ -198,6 +198,7 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
 
   test("the quality job invokes the same test interface developers use", () => {
     const job = ciJob("quality");
+    expect(job).toContain("run: bun run format:check");
     expect(job).toContain("run: bun run test");
     expect(job).not.toContain("bun test \\");
   });

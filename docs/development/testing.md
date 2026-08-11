@@ -14,6 +14,7 @@ The orchestrator keeps safety-sensitive groups explicit, discovers all remaining
 
 ## Static gates
 
+- `bun run format:check`
 - `bun run lint`
 - `bun run typecheck`
 - `bun run build`
