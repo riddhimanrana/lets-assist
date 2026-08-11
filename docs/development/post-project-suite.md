@@ -81,12 +81,12 @@ the email layer's invariant.
 
 ## Environment
 
-| Variable | Purpose |
-| --- | --- |
-| `PROJECT_FEEDBACK_WORKER_ENABLED` | Exact-`"true"` opt-in for the follow-up worker. Deploy unset first; verify the enqueue backfill guard against production data before enabling. |
-| `PROJECT_FEEDBACK_WORKER_SECRET_TOKEN` | Dedicated cron bearer token (falls back to `CRON_TOKEN`/`CRON_SECRET`). |
-| `PROJECT_FEEDBACK_WORKER_BATCH_SIZE` | Optional, default 25, max 50. |
-| `PROJECT_FEEDBACK_TOKEN_SECRET` | HMAC secret for feedback links (falls back to `ENCRYPTION_KEY`, min 32 chars). |
+| Variable                               | Purpose                                                                                                                                        |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PROJECT_FEEDBACK_WORKER_ENABLED`      | Exact-`"true"` opt-in for the follow-up worker. Deploy unset first; verify the enqueue backfill guard against production data before enabling. |
+| `PROJECT_FEEDBACK_WORKER_SECRET_TOKEN` | Dedicated cron bearer token (falls back to `CRON_TOKEN`/`CRON_SECRET`).                                                                        |
+| `PROJECT_FEEDBACK_WORKER_BATCH_SIZE`   | Optional, default 25, max 50.                                                                                                                  |
+| `PROJECT_FEEDBACK_TOKEN_SECRET`        | HMAC secret for feedback links (falls back to `ENCRYPTION_KEY`, min 32 chars).                                                                 |
 
 GitHub Actions secrets follow the shared cron template; optional dedicated
 heartbeats: `BETTERSTACK_PAPER_SCAN_CLEANUP_HEARTBEAT_URL`,
