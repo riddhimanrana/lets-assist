@@ -6,7 +6,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(32);
+SELECT extensions.plan(33);
 
 -- ---------------------------------------------------------------------------
 -- A. Private cursor and RPC boundary
@@ -540,6 +540,29 @@ SELECT extensions.ok(
       AND later.sequence_number = 3
   ),
   'an unacknowledged reservation becomes eligible again after its bounded lease expires'
+);
+
+UPDATE plugin_data.csf_scheduler_state AS state
+SET scope_reserved_until = pg_catalog.clock_timestamp() + interval '50 milliseconds'
+WHERE state.organization_id = (
+  SELECT (result->'organizationIds'->>0)::uuid
+  FROM t_tenant_scope_rotation
+  WHERE sequence_number = 3
+);
+
+SELECT pg_catalog.pg_sleep(0.1);
+
+SELECT extensions.is(
+  (
+    SELECT plugin_data.csf_acknowledge_communication_scheduler_scope(
+      (result->'organizationIds'->>0)::uuid,
+      (result->>'reservationId')::uuid
+    )->>'acknowledged'
+    FROM t_tenant_scope_rotation
+    WHERE sequence_number = 3
+  ),
+  'false',
+  'wall-clock expiry is enforced even when the transaction began before the reservation expired'
 );
 
 -- Keep the following campaign-prefix scenario single-tenant. These synthetic

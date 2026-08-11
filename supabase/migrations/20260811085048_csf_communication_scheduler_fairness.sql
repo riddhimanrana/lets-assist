@@ -79,23 +79,38 @@ SET search_path = ''
 AS $$
 DECLARE
   v_acknowledged boolean := false;
+  v_reserved_until timestamptz;
+  v_wall_clock timestamptz;
 BEGIN
   IF p_organization_id IS NULL OR p_reservation_id IS NULL THEN
     RAISE EXCEPTION 'A CSF scheduler acknowledgement requires its reserved scope.'
       USING ERRCODE = '22004';
   END IF;
 
-  UPDATE plugin_data.csf_scheduler_state AS state
-  SET
-    last_worker_attempted_at = now(),
-    scope_reservation_id = NULL,
-    scope_reserved_until = NULL,
-    updated_at = now()
+  -- Lock the reservation first, then read wall-clock time. `now()` is fixed at
+  -- transaction start, so using it in the UPDATE predicate would let a caller
+  -- that began just before expiry wait on this row and acknowledge after expiry.
+  SELECT state.scope_reserved_until
+  INTO v_reserved_until
+  FROM plugin_data.csf_scheduler_state AS state
   WHERE state.organization_id = p_organization_id
     AND state.scope_reservation_id = p_reservation_id
-    AND state.scope_reserved_until > now();
+  FOR UPDATE;
 
-  v_acknowledged := FOUND;
+  IF FOUND AND v_reserved_until > pg_catalog.clock_timestamp() THEN
+    v_wall_clock := pg_catalog.clock_timestamp();
+
+    UPDATE plugin_data.csf_scheduler_state AS state
+    SET
+      last_worker_attempted_at = v_wall_clock,
+      scope_reservation_id = NULL,
+      scope_reserved_until = NULL,
+      updated_at = v_wall_clock
+    WHERE state.organization_id = p_organization_id
+      AND state.scope_reservation_id = p_reservation_id;
+
+    v_acknowledged := FOUND;
+  END IF;
 
   RETURN pg_catalog.jsonb_build_object('acknowledged', v_acknowledged);
 END;
