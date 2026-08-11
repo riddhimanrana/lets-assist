@@ -166,34 +166,34 @@ const searchIndex = [
   // Schools & CSF
   {
     id: "schools-csf",
-    title: "CSF Programs",
+    title: "Chapter CSF Workspaces",
     category: "schools",
     content:
-      "california scholarship federation csf volunteer hours school programs csf requirements membership verification reporting students track hours csf compliant documentation supervisor verification export reports",
+      "california scholarship federation chapter workspace member officer role help class links student links membership applications policy deadlines account connections",
     section: "CSF & Schools",
   },
   {
     id: "schools-students",
-    title: "CSF Hour Tracking",
+    title: "CSF Member Workflow",
     category: "schools",
     content:
-      "csf hour tracking school approved projects csf eligible volunteer work tutoring students school events community clean up library nonprofit senior center activities csf documentation",
+      "connect student record verified account my csf membership status activities signups point submissions proof officer review class feed",
     section: "Student Guide",
   },
   {
     id: "schools-projects",
-    title: "School-Approved Projects",
+    title: "CSF Activities and Point Claims",
     category: "schools",
     content:
-      "school approved projects csf eligible tutoring school events community cleanup library help senior center food banks animal shelters hospital volunteer",
+      "approved activities signups schedule location point type service proof returned claim verification chapter published policy",
     section: "Approved Activities",
   },
   {
     id: "schools-setup",
-    title: "School Program Setup",
+    title: "CSF Chapter Setup",
     category: "schools",
     content:
-      "school program setup school organization account csf volunteer program requirements invite students monitor progress verify hours dashboard student progress automated alerts bulk export school records",
+      "semester setup applications imports google sheets members account connections staff access officer positions class posts meetings communications reports change history",
     section: "School Administration",
   },
 
