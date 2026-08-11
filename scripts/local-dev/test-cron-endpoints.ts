@@ -9,7 +9,7 @@
  *
  * Five other cron routes exist in this repository and are deliberately outside
  * this harness: ai-moderation, anonymous-cleanup, csf-proof-cleanup,
- * generate-recurring-projects, and waiver-cleanup. They are neither probed nor
+ * generate-recurring-projects, paper-scan-cleanup, and waiver-cleanup. They are neither probed nor
  * modified here, so nothing below should be read as evidence about them.
  *
  * What this proves: each of the seven selected routes authenticates, reaches its
@@ -623,7 +623,7 @@ async function main() {
   );
   console.log(
     "  outside scope    : ai-moderation, anonymous-cleanup, csf-proof-cleanup, " +
-      "generate-recurring-projects, and waiver-cleanup",
+      "generate-recurring-projects, paper-scan-cleanup, and waiver-cleanup",
   );
   console.log(`  isolated project : ${isolated.projectId}`);
   console.log(
@@ -751,7 +751,7 @@ async function main() {
   );
   console.log(
     "   Also not covered: ai-moderation, anonymous-cleanup, csf-proof-cleanup, " +
-      "generate-recurring-projects, and waiver-cleanup.",
+      "generate-recurring-projects, paper-scan-cleanup, and waiver-cleanup.",
   );
 }
 

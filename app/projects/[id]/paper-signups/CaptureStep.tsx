@@ -1,0 +1,266 @@
+"use client";
+
+import { useState } from "react";
+import { ArrowLeft, Loader2, ScanText, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
+import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { downscaleImageFiles } from "@/components/projects/paper-signup/useImageDownscale";
+import { PaperScanCameraInput } from "@/components/projects/paper-signup/PaperScanCameraInput";
+import { PAPER_SCAN_MAX_IMAGES } from "@/lib/ai/paper-signup-schema";
+
+import { createPaperScanBatch } from "./actions";
+import type {
+  PaperScanBatchView,
+  PaperScanSlotOption,
+} from "./PaperSignupsClient";
+
+interface PendingPhoto {
+  key: string;
+  file: File;
+  previewUrl: string;
+}
+
+interface CaptureStepProps {
+  projectId: string;
+  slot: PaperScanSlotOption;
+  existingBatch: PaperScanBatchView | null;
+  onBack: () => void;
+  onExtracted: (batch: PaperScanBatchView) => void;
+}
+
+type Phase =
+  | { kind: "collecting" }
+  | { kind: "compressing"; index: number; total: number }
+  | { kind: "uploading"; index: number; total: number }
+  | { kind: "scanning" };
+
+const photoKey = (file: File) =>
+  `${file.name}-${file.size}-${file.lastModified}`;
+
+export function CaptureStep({
+  projectId,
+  slot,
+  existingBatch,
+  onBack,
+  onExtracted,
+}: CaptureStepProps) {
+  const [photos, setPhotos] = useState<PendingPhoto[]>([]);
+  const [phase, setPhase] = useState<Phase>({ kind: "collecting" });
+  const busy = phase.kind !== "collecting";
+
+  const addFiles = (files: File[]) => {
+    setPhotos((current) => {
+      const existing = new Set(current.map((photo) => photo.key));
+      const additions = files
+        .filter((file) => !existing.has(photoKey(file)))
+        .slice(0, PAPER_SCAN_MAX_IMAGES - current.length)
+        .map((file) => ({
+          key: photoKey(file),
+          file,
+          previewUrl: URL.createObjectURL(file),
+        }));
+      if (current.length + files.length > PAPER_SCAN_MAX_IMAGES) {
+        toast.warning(`Up to ${PAPER_SCAN_MAX_IMAGES} photos per scan.`);
+      }
+      return [...current, ...additions];
+    });
+  };
+
+  const removePhoto = (key: string) => {
+    setPhotos((current) => {
+      const removed = current.find((photo) => photo.key === key);
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return current.filter((photo) => photo.key !== key);
+    });
+  };
+
+  const scan = async () => {
+    if (photos.length === 0) return;
+    const supabase = createBrowserSupabaseClient();
+    const batchDir = crypto.randomUUID();
+    const uploadedPaths: string[] = [];
+
+    try {
+      setPhase({ kind: "compressing", index: 0, total: photos.length });
+      const downscaled = await downscaleImageFiles(
+        photos.map((photo) => photo.file),
+        {
+          onProgress: (index, total) =>
+            setPhase({ kind: "compressing", index, total }),
+        },
+      );
+
+      const images: Array<{
+        objectPath: string;
+        sequence: number;
+        byteSize: number;
+        contentType: string;
+      }> = [];
+      for (let index = 0; index < downscaled.length; index++) {
+        setPhase({ kind: "uploading", index, total: downscaled.length });
+        const item = downscaled[index];
+        const extension =
+          item.file.type === "image/png"
+            ? "png"
+            : item.file.type === "image/webp"
+              ? "webp"
+              : "jpg";
+        const objectPath = `paper_signups/${projectId}/${batchDir}/${index}_${crypto
+          .randomUUID()
+          .replace(/-/g, "")}.${extension}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("paper-signup-scans")
+          .upload(objectPath, item.file, { contentType: item.file.type });
+        if (uploadError) {
+          throw new Error("One of the photos failed to upload.");
+        }
+        uploadedPaths.push(objectPath);
+        images.push({
+          objectPath,
+          sequence: index,
+          byteSize: item.file.size,
+          contentType: item.file.type,
+        });
+      }
+
+      const batchResult = await createPaperScanBatch({
+        projectId,
+        scheduleId: slot.id,
+        images,
+      });
+      if ("error" in batchResult) {
+        throw new Error(batchResult.error);
+      }
+
+      setPhase({ kind: "scanning" });
+      const response = await fetch("/api/ai/scan-signup-sheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchId: batchResult.batchId }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          payload?.error ?? "Scanning failed. Please try again.",
+        );
+      }
+
+      toast.success(
+        `Read ${payload.rowCount} row${payload.rowCount === 1 ? "" : "s"} from ${payload.imagesProcessed} photo${payload.imagesProcessed === 1 ? "" : "s"}.`,
+      );
+      onExtracted({
+        id: batchResult.batchId,
+        scheduleId: slot.id,
+        status: "review",
+        imageCount: images.length,
+      });
+    } catch (error) {
+      // Roll back stray uploads so abandoned objects never linger.
+      if (uploadedPaths.length > 0) {
+        await supabase.storage
+          .from("paper-signup-scans")
+          .remove(uploadedPaths)
+          .catch(() => undefined);
+      }
+      toast.error(
+        error instanceof Error ? error.message : "Something went wrong.",
+      );
+      setPhase({ kind: "collecting" });
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Photograph the sheet</CardTitle>
+        <CardDescription>
+          {slot.label} · Lay the sheet flat, fill the frame, and avoid shadows.
+          Add every page of the sheet before scanning.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {existingBatch && existingBatch.status !== "review" && (
+          <p className="text-sm text-muted-foreground">
+            A previous scan for this project didn&apos;t finish; starting a new
+            one replaces it.
+          </p>
+        )}
+
+        <PaperScanCameraInput
+          disabled={busy || photos.length >= PAPER_SCAN_MAX_IMAGES}
+          onFiles={addFiles}
+        />
+
+        {photos.length > 0 && (
+          <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            {photos.map((photo, index) => (
+              <li key={photo.key} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photo.previewUrl}
+                  alt={`Sheet page ${index + 1}`}
+                  className="aspect-[3/4] w-full rounded-md border object-cover"
+                />
+                <span className="absolute left-1 top-1 rounded bg-background/90 px-1.5 text-xs font-medium">
+                  {index + 1}
+                </span>
+                {!busy && (
+                  <button
+                    type="button"
+                    aria-label={`Remove page ${index + 1}`}
+                    onClick={() => removePhoto(photo.key)}
+                    className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-destructive"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {busy && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {phase.kind === "scanning" ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Spinner className="size-4" />
+            )}
+            {phase.kind === "compressing" &&
+              `Preparing photo ${phase.index + 1} of ${phase.total}…`}
+            {phase.kind === "uploading" &&
+              `Uploading photo ${phase.index + 1} of ${phase.total}…`}
+            {phase.kind === "scanning" &&
+              "Reading the sheet — this can take a minute for several pages…"}
+          </div>
+        )}
+      </CardContent>
+      <CardFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
+        <Button variant="ghost" onClick={onBack} disabled={busy}>
+          <ArrowLeft className="size-4" />
+          Change session
+        </Button>
+        <Button
+          onClick={scan}
+          disabled={busy || photos.length === 0}
+          className="w-full sm:w-auto"
+        >
+          <ScanText className="size-4" />
+          Scan {photos.length > 0 ? `${photos.length} photo${photos.length === 1 ? "" : "s"}` : "sheet"}
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}

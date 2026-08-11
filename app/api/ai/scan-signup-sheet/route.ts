@@ -114,6 +114,10 @@ async function extractImageWithModel(options: {
     const parsed = paperSignupExtractionSchema.safeParse(result.output);
     return parsed.success ? parsed.data : null;
   } catch (error) {
+    console.error(
+      `Paper scan extraction failed on ${options.modelId}:`,
+      error instanceof Error ? `${error.name}: ${error.message}` : error,
+    );
     await tracked.logUsage({
       latencyMs: Date.now() - startedAt,
       success: false,

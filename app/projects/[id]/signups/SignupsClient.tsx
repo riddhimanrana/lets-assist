@@ -42,6 +42,7 @@ import {
   XCircle,
   Clock,
   ArrowLeft,
+  ScanText,
   Loader2,
   UserRoundSearch,
   ArrowUpDown,
@@ -762,10 +763,19 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         }
       />
 
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <Button variant="ghost" className="gap-2" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
           Back to Project
+        </Button>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => router.push(`/projects/${projectId}/paper-signups`)}
+        >
+          <ScanText className="h-4 w-4" />
+          <span className="hidden sm:inline">Scan paper sheet</span>
+          <span className="sm:hidden">Paper sheet</span>
         </Button>
       </div>
 
