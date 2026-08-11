@@ -130,7 +130,7 @@ On Development, stop after the reviewed preview and reconciliation evidence.
 Commit real chapter rows only in Production after the release gates below pass;
 never copy the Development fixture rows or connection links forward.
 
-### Privacy-safe source totals verified 2026-08-10
+### Privacy-safe source totals verified 2026-08-11
 
 | Graduating class | Historical source  | Exact bounded range |             Rows after header |
 | ---------------- | ------------------ | ------------------- | ----------------------------: |
