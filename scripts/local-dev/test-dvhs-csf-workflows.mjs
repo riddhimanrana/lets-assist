@@ -25,6 +25,26 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function htmlHasExactLink(html, expectedUrl) {
+  const expected = new URL(expectedUrl);
+  for (const match of html.matchAll(/\bhref\s*=\s*(["'])(.*?)\1/giu)) {
+    try {
+      const candidate = new URL(match[2], expected.origin);
+      if (
+        candidate.origin === expected.origin &&
+        candidate.pathname === expected.pathname &&
+        candidate.search === expected.search &&
+        candidate.hash === expected.hash
+      ) {
+        return true;
+      }
+    } catch {
+      // Malformed markup is not the exact expected link.
+    }
+  }
+  return false;
+}
+
 const { data: organization, error: orgError } = await admin
   .from("organizations")
   .select("id, username")
@@ -311,7 +331,7 @@ if (appOrigin) {
     "CSF public route is missing the public activity surface.",
   );
   assert(
-    html.includes("https://www.dvhighcsf.org/"),
+    htmlHasExactLink(html, "https://www.dvhighcsf.org/"),
     "CSF public route is missing the official website link.",
   );
   assert(

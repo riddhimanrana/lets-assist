@@ -1,4 +1,9 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createHmac,
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+} from "node:crypto";
 
 export const GOOGLE_OAUTH_STATE_COOKIE_NAME = "lets_assist_google_oauth_state";
 export const GOOGLE_OAUTH_STATE_TTL_SECONDS = 5 * 60;
@@ -88,7 +93,16 @@ function getGoogleOAuthStateSecret(): string {
 }
 
 function signPayload(encodedPayload: string, secret: string): string {
-  return createHmac("sha256", secret)
+  // The configured value is a high-entropy signing secret, not a user
+  // password. Derive a fixed-length, domain-separated key anyway so the OAuth
+  // state signer cannot be confused with password hashing and the same secret
+  // cannot be reused directly by another protocol.
+  const signingKey = scryptSync(
+    secret,
+    `lets-assist:google-oauth-state:v${GOOGLE_OAUTH_STATE_VERSION}`,
+    32,
+  );
+  return createHmac("sha256", signingKey)
     .update(
       `google-oauth-state:v${GOOGLE_OAUTH_STATE_VERSION}:${encodedPayload}`,
     )

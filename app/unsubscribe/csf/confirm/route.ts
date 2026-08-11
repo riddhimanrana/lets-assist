@@ -18,14 +18,31 @@ import { verifyCsfUnsubscribeToken } from "@/services/csf-unsubscribe-token";
 
 export const dynamic = "force-dynamic";
 
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/gu, (character) => {
+    switch (character) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      default:
+        return "&#39;";
+    }
+  });
+}
+
 function confirmationPage(message: string, resubscribeUrl?: string) {
   const resubscribeBlock = resubscribeUrl
-    ? `<p style="margin-top:16px"><a href="${resubscribeUrl}" style="color:#16a34a">Changed your mind? Resubscribe</a></p>`
+    ? `<p style="margin-top:16px"><a href="${escapeHtml(resubscribeUrl)}" style="color:#16a34a">Changed your mind? Resubscribe</a></p>`
     : "";
   return new NextResponse(
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Announcement emails</title></head>` +
       `<body style="font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Arial,sans-serif;display:flex;justify-content:center;padding:64px 16px"><main style="max-width:28rem">` +
-      `<h1 style="font-size:1.4rem;margin:0 0 12px">Announcement emails</h1><p style="line-height:1.6;color:#374151">${message}</p>${resubscribeBlock}` +
+      `<h1 style="font-size:1.4rem;margin:0 0 12px">Announcement emails</h1><p style="line-height:1.6;color:#374151">${escapeHtml(message)}</p>${resubscribeBlock}` +
       `</main></body></html>`,
     { status: 200, headers: { "content-type": "text/html; charset=utf-8" } },
   );
@@ -91,7 +108,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const resubscribeUrl = `${request.nextUrl.origin}/unsubscribe/csf/confirm?token=${encodeURIComponent(token ?? "")}&decision=resubscribe`;
+  const resubscribeParams = new URLSearchParams({
+    token: token ?? "",
+    decision: "resubscribe",
+  });
+  const resubscribeUrl = `/unsubscribe/csf/confirm?${resubscribeParams.toString()}`;
   return confirmationPage(
     "Done — this address will no longer receive chapter announcement emails. Required emails about your own account or membership are unaffected.",
     resubscribeUrl,

@@ -16,6 +16,18 @@ const CSF_CANONICAL_PROFILE_PATH = `${CSF_ORGANIZATION_PATH}?tab=csf-profile`;
 const FIXTURE_APPLICATION_URL =
   "https://docs.google.com/forms/d/local-csf-form-fixture/viewform";
 
+function isApprovedExternalFormUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      (url.hostname === "docs.google.com" || url.hostname === "forms.gle")
+    );
+  } catch {
+    return false;
+  }
+}
+
 test.describe("DVHS CSF public privacy boundary", () => {
   test("public HTML contains only public organization and activity structure", async ({
     page,
@@ -73,10 +85,7 @@ test.describe("DVHS CSF public privacy boundary", () => {
   }) => {
     const externalFormRequests: string[] = [];
     page.on("request", (pageRequest) => {
-      if (
-        pageRequest.url().includes("docs.google.com") ||
-        pageRequest.url().includes("forms.gle")
-      ) {
+      if (isApprovedExternalFormUrl(pageRequest.url())) {
         externalFormRequests.push(pageRequest.url());
       }
     });

@@ -362,10 +362,7 @@ async function findConfirmationSummaries(
 
 /** Attribute values are HTML-escaped by the mailer; only `&` matters here. */
 function decodeLinkAmpersands(value: string) {
-  return value
-    .replace(/&amp;/gu, "&")
-    .replace(/&#38;/gu, "&")
-    .replace(/&#x26;/giu, "&");
+  return value.replace(/&(amp|#38|#x26);/giu, "&");
 }
 
 /**

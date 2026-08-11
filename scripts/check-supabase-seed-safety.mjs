@@ -102,12 +102,11 @@ function scanEmails(file, source) {
     expression: /\b[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})\b/gi,
     rule: RULES.EMAIL,
     message(match) {
-      const email = match[0].toLowerCase();
       const domain = match[1].toLowerCase();
       if (domain.endsWith(".test") || RESERVED_EMAIL_DOMAINS.has(domain)) {
         return null;
       }
-      return `Use a .test address instead of ${email}.`;
+      return "Use a reserved example or .test address in tracked seed data.";
     },
   }).filter((finding) => finding.message !== null);
 }
@@ -485,7 +484,10 @@ export function checkSupabaseSeedSafety({
 }
 
 function formatFinding(finding) {
-  return `${finding.file}:${finding.line} [${finding.rule}] ${finding.message}`;
+  // A finding may originate from a credential-shaped source match. Report
+  // only its location and rule; never forward matched or derived content to
+  // the CI log.
+  return `${finding.file}:${finding.line} [${finding.rule}] Seed safety violation.`;
 }
 
 const isEntrypoint = process.argv[1]
