@@ -2,11 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { Project } from "@/types"; // Import Project type
-// Import React Email template and React
-import CertificatePublished from "@/emails/certificate-published";
-import * as React from "react";
-import { sendEmail } from "@/services/email";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
+import {
+  getPublishStateKey,
+  sendCertificatePublishedEmails,
+} from "./certificate-issuance";
 
 // Define the structure for session data passed from the client
 type SessionVolunteerData = {
@@ -51,93 +51,6 @@ async function canUserManageProjectHours(
     canBeManagedByStaff: project.can_be_managed_by_staff,
   });
 }
-
-// Helper function to get the key for the 'published' JSONB field
-const getPublishStateKey = (project: Project, sessionId: string): string => {
-  if (project.event_type === "oneTime") {
-    return "oneTime";
-  } else if (project.event_type === "multiDay") {
-    const parts = sessionId.split("-");
-    if (parts.length === 5) {
-      // New format: YYYY-MM-DD-dayIndex-slotIndex
-      const dateKey = `${parts[0]}-${parts[1]}-${parts[2]}`;
-      const slotIndex = parts[4];
-      return `${dateKey}-${slotIndex}`;
-    } else if (parts.length === 4) {
-      // Legacy format: YYYY-MM-DD-slotIndex
-      return sessionId;
-    }
-  } else if (project.event_type === "sameDayMultiArea") {
-    // For multi-area events, the sessionId is the role name
-    return sessionId;
-  }
-  return sessionId; // Fallback
-};
-
-// Function to send certificate published notifications
-const sendCertificatePublishedEmails = async (
-  certificates: Array<{
-    id: string;
-    volunteer_name: string | null;
-    volunteer_email: string | null;
-    project_title: string;
-    event_start?: string;
-    event_end?: string;
-  }>,
-  projectTimezone?: string,
-): Promise<{ success: boolean; emailsSent: number; errors: string[] }> => {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
-  let emailsSent = 0;
-  const errors: string[] = [];
-
-  for (const cert of certificates) {
-    if (!cert.volunteer_email || !cert.volunteer_name) {
-      errors.push(`Skipped certificate ${cert.id}: Missing email or name`);
-      continue;
-    }
-
-    try {
-      const certificateUrl = `${siteUrl}/certificates/${cert.id}`;
-
-      const { error: emailError } = await sendEmail({
-        to: cert.volunteer_email,
-        subject: `Your volunteer certificate for ${cert.project_title} is ready!`,
-        react: React.createElement(CertificatePublished, {
-          volunteerName: cert.volunteer_name,
-          projectTitle: cert.project_title,
-          certificateId: cert.id,
-          certificateUrl,
-          isAutoPublished: false,
-          eventStart: cert.event_start,
-          eventEnd: cert.event_end,
-          timezone: projectTimezone,
-        }),
-        type: "transactional",
-      });
-
-      if (emailError) {
-        console.error(`Error sending certificate ${cert.id}:`, emailError);
-        errors.push(`Failed to send certificate ${cert.id}: ${emailError}`);
-      } else {
-        emailsSent++;
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error(`Unexpected error sending certificate ${cert.id}:`, error);
-      errors.push(
-        `Unexpected error for certificate ${cert.id}: ${errorMessage}`,
-      );
-    }
-  }
-
-  return {
-    success: emailsSent > 0,
-    emailsSent,
-    errors,
-  };
-};
 
 export async function publishVolunteerHours(
   projectId: string,

@@ -2,10 +2,11 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { gatewayModel } from "@/lib/ai/gateway";
 import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
+import { AI_MODEL_FAST, AI_MODEL_QUALITY } from "@/lib/ai/models";
 
 export const MODERATION_MODELS = [
-  "google/gemini-2.5-flash-lite",
-  "google/gemini-2.5-flash",
+  AI_MODEL_FAST,
+  AI_MODEL_QUALITY,
   "openai/gpt-oss-safeguard-20b",
 ] as const;
 

@@ -19,9 +19,10 @@ import { notifyAdminUserBatched } from "@/services/admin-notifications";
 import { logError } from "@/lib/logger";
 import { gatewayModel } from "@/lib/ai/gateway";
 import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
+import { AI_MODEL_FAST } from "@/lib/ai/models";
 
-// Model configuration for Vercel AI Gateway
-const MODEL = "google/gemini-2.0-flash-lite";
+// Model configuration for Vercel AI Gateway (see lib/ai/models.ts)
+const MODEL = AI_MODEL_FAST;
 
 export interface ModerationResult {
   safe: boolean;

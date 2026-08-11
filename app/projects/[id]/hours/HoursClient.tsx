@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import {
   Search,
   ArrowLeft,
+  ScanText,
   Clock,
   CheckCircle,
   Loader2,
@@ -1075,7 +1076,7 @@ export function HoursClient({
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <div className="mb-4 sm:mb-6">
+      <div className="mb-4 flex items-center justify-between sm:mb-6">
         <Link
           href={`/projects/${project.id}`}
           className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}
@@ -1083,6 +1084,14 @@ export function HoursClient({
           <ArrowLeft className="h-4 w-4" />
           <span className="hidden sm:inline">Back to Project</span>
           <span className="sm:hidden">Back</span>
+        </Link>
+        <Link
+          href={`/projects/${project.id}/paper-signups`}
+          className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
+        >
+          <ScanText className="h-4 w-4" />
+          <span className="hidden sm:inline">Add from paper sheet</span>
+          <span className="sm:hidden">Paper sheet</span>
         </Link>
       </div>
 
