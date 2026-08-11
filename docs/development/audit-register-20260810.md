@@ -23,7 +23,8 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-005](#aud-005) | P3  | Plugin RLS             | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob            | Reclassified — designed behaviour, document the contract     |
 | [AUD-006](#aud-006) | P2  | Architecture           | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`**                                   |
 | [AUD-012](#aud-012) | P2  | Notifications          | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter   | **Fixed locally**; hosted Development pending                |
-| [AUD-017](#aud-017) | P1  | Next.js route contract | The paper-signup AI route exported an unsupported value, so clean isolated production builds failed type checking   | **Fixed locally**; CI integration pending                    |
+| [AUD-016](#aud-016) | P1  | Stored HTML            | The DV form-editor preview inserted persisted rich-text help content without sanitization                           | **Fixed locally**; root integration pending                  |
+| [AUD-017](#aud-017) | P1  | Next.js route contract | The paper-signup AI route exported an unsupported value, so clean isolated production builds failed type checking   | **Fixed on `development`**; exact CI green                   |
 | [AUD-007](#aud-007) | P2  | CI                     | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                               | Fixed this session                                           |
 | [AUD-008](#aud-008) | P2  | Architecture           | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript    | Confirmed, by design                                         |
 | [AUD-009](#aud-009) | P2  | Gate coverage          | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads`                     | Confirmed                                                    |
@@ -311,6 +312,34 @@ deployed, or tested.
 
 ---
 
+## AUD-016 — DV form-editor preview rendered stored HTML unsafely {#aud-016}
+
+**Priority:** P1 · **Confidence:** Confirmed · **Blast radius:** authenticated
+DV form editors who open a stored field preview
+
+`DvFormFieldBlock.tsx` inserted the persisted `field.helpText` value with a
+direct `dangerouslySetInnerHTML` call. The adjacent form editor permits rich
+text updates to that field, so executable markup persisted by one authorized
+editor could run when another editor opened the preview. The public form
+renderers escaped help text as text; this finding was limited to the private DV
+editor surface, not every form respondent.
+
+**Resolution:** private PR #20 replaced the raw sink with the shared
+`RichTextContent` boundary, whose client sanitizer allowlists formatting tags,
+anchor attributes, and `http`, `https`, `mailto`, and `tel` schemes. The private
+regression forbids a direct HTML sink in the field block. Root behavior coverage
+proves that scripts, event handlers, inline styles, images, and `javascript:`
+links are removed while reviewed formatting and HTTPS links remain.
+
+**Evidence, 2026-08-11:** private commit `a465266` passed its focused 4-assertion
+contract, Prettier, root integration lint and typecheck, GitGuardian, and an
+exact-commit Codex review with no major issue. It merged to private
+`development` as `711c848`. The root integration keeps that exact gitlink and
+adds two sanitizer behavior tests. Production, `main`, credentials, providers,
+live data, and Production browser surfaces were not accessed.
+
+---
+
 ## AUD-017 — Paper scan route broke clean production builds {#aud-017}
 
 **Priority:** P1 · **Confidence:** Confirmed · **Blast radius:** Development
@@ -332,8 +361,11 @@ checks before failing at the same nested Next type-check boundary. A sterile,
 provider-disabled local build using the isolated alternate output reproduced
 the exact `PAPER_SCAN_MODELS` diagnostic. The same clean build passes after the
 fix, together with the focused regression, formatting, lint, and root
-typecheck. Production, `main`, provider credentials, live data, and Production
-browser surfaces were not accessed.
+typecheck. PR #123 merged to `development` as `f6a0931`; exact-commit manual run
+`31479507620` then passed quality/build, empty replay, pgTAP, synthetic seed, DV
+RLS, CSF workflow/scale, the cron no-egress probe, DV and CSF browser suites,
+trace validation, and owned teardown. Production, `main`, provider credentials,
+live data, and Production browser surfaces were not accessed.
 
 ---
 
