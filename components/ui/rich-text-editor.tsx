@@ -33,6 +33,10 @@ interface RichTextEditorProps {
   placeholder?: string;
   maxLength?: number;
   className?: string;
+  id?: string;
+  "aria-label"?: string;
+  "aria-labelledby"?: string;
+  "aria-describedby"?: string;
 }
 
 export function RichTextEditor({
@@ -41,6 +45,10 @@ export function RichTextEditor({
   placeholder = "e.g., Join us for a day of fun and community service...",
   maxLength,
   className,
+  id,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledBy,
+  "aria-describedby": ariaDescribedBy,
 }: RichTextEditorProps) {
   // Removed manual character count state
   const [mounted, setMounted] = useState(false);
@@ -107,6 +115,10 @@ export function RichTextEditor({
     immediatelyRender: false,
     editorProps: {
       attributes: {
+        ...(id ? { id } : {}),
+        ...(ariaLabel ? { "aria-label": ariaLabel } : {}),
+        ...(ariaLabelledBy ? { "aria-labelledby": ariaLabelledBy } : {}),
+        ...(ariaDescribedBy ? { "aria-describedby": ariaDescribedBy } : {}),
         class: cn(
           "min-h-[150px] max-h-[200px] overflow-y-auto w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 prose prose-sm dark:prose-invert max-w-none [&_p]:my-0.5 [&_ul]:my-0.5 [&_ol]:my-0.5 [&_li]:my-0 [&_li_p]:my-0 [&_p]:min-h-[1.5em] text-foreground prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground",
           className,
