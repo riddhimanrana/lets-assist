@@ -82,6 +82,19 @@ keyboard testing shows the region is genuinely unreachable.
 
 See [the 2026-08-10 audit register](audit-register-20260810.md) for the AUD finding evidence and release boundaries. Production P0s remain outside this Development-only rollout until separately authorized.
 
+### Identity-hardening candidate evidence
+
+CLEAN-006 and CLEAN-013 retain implementation candidates on this branch. The
+profile-merge work catalogs current-schema references, preserves settled frozen
+import evidence, blocks unsettled targets, applies an organization-first identity
+lock hierarchy, and covers same-organization and cross-organization races. The
+account-connection work recomputes confirmed-email, exact-name, and single-active-
+cohort corroboration under lock and fails closed. The exact combined root/private
+tree passed an empty local replay, 90 focused pgTAP assertions, 103 focused source
+contracts, formatting, lint, typecheck, dependency audit, and strict submodule
+validation on 2026-08-12. These findings remain active pending compiled browser
+acceptance and hosted Development verification.
+
 ## External/account blockers
 
 | ID      | Dependency         | Blocker                                                                                                                                                                                                                                                                                                                                                                                                  | Required owner/action                                                          |
