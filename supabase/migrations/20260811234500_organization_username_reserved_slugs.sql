@@ -165,11 +165,14 @@ ALTER TABLE public.organizations
 --
 -- but it cannot be executed in a migration running as `postgres`. CI run
 -- 31563941682 observed 22 matching `supabase_admin` table/sequence default ACL
--- entries, so this release does not claim that provider-owned state is zero.
--- EXT-005 tracks the platform finding separately. The repository-owned test in
--- supabase/tests/database/public_default_privileges.test.sql instead proves the
--- effective deny-by-default behavior of objects created by the `postgres` and
--- `service_role` owners whose defaults 20260810220400 can actually govern.
+-- entries, so this release does not claim that provider-owned state is zero;
+-- EXT-005 tracks the platform finding separately. supabase/tests/database/
+-- public_default_privileges.test.sql therefore proves what this repository can
+-- actually enforce: the effective deny-by-default behavior of objects created
+-- by the `postgres` and `service_role` owners whose defaults 20260810220400
+-- does govern, plus the two properties of the provider baseline that remain
+-- true and would make it worse if they changed -- it names no PUBLIC grantee,
+-- and nothing it grants is grantable onward.
 --
 -- The application never truncates this table, creates a trigger on it, or
 -- owns another table that would add a foreign key referencing it through
