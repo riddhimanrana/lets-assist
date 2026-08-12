@@ -630,7 +630,7 @@ Development fixture, connection link, import preview, or policy decision into
 Production, and do not treat a Development screenshot as Production evidence.
 
 At this guide's current evidence point, the repository has 274 migrations
-through `20260812162732`, hosted Development remains at 272 through
+through `20260812225436`, hosted Development remains at 272 through
 `20260812132725`, and Production has 236 through `20260811001500`, leaving 38
 Production-pending migrations. The Development Vercel alias still serves code
 built from the 272-migration tree because the external
@@ -669,16 +669,20 @@ database nor the hosted code gate has accepted the repository target.
 - Hosted Development Supabase has 272 ordered migrations through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`, while this
   repository has 274 through
-  `20260812162732_recheck_csf_activity_partner_authorization_under_lock`. Live
+  `20260812225436_recheck_csf_activity_partner_authorization_under_lock`. Live
   advisors on the hosted 272-migration shape report 95 INFO / 0 WARN / 0 ERROR
   for security and 611 INFO / 0 WARN / 0 ERROR for performance. The repository's
   two later forward migrations are
   `20260812152300_atomic_csf_post_replies` and
-  `20260812162732_recheck_csf_activity_partner_authorization_under_lock`;
+  `20260812225436_recheck_csf_activity_partner_authorization_under_lock`;
   neither has been accepted on hosted Development.
-- The local isolated replay passed all 123 pgTAP files and 5,208 assertions
+- The local isolated replay passed all 123 pgTAP files and 5,227 assertions
   against the repository's 274 ordered migrations. This local result does not
   establish hosted acceptance.
+- The 274 count and the `20260812225436` tail describe this branch only.
+  Migration pull requests #152, #158, #174, and #175 are open with later or
+  interleaving versions, so the last migration pull request to merge must
+  recompute this ledger and the cutover preflight pin.
 - The seven-argument metadata RPC exists, the old four-argument overload is
   absent, and only `service_role` can execute the current RPC; `anon` and
   `authenticated` cannot. The Drive metadata RPC is no longer the Preview
@@ -720,7 +724,7 @@ Do not use real chapter rows or credentials until every item is checked:
 - [ ] At T-0 enable maintenance mode, stop writers and scheduled workers, take
       the final snapshots, and pair the schema push with the exact compatible
       application deployment. A partial or divergent ledger is a stop.
-- [ ] Replay the ordered migration ledger through `20260812162732` in the
+- [ ] Replay the ordered migration ledger through `20260812225436` in the
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.

@@ -824,7 +824,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       .sort();
     expect(migrations).toHaveLength(274);
     expect(migrations.at(-1)).toBe(
-      "20260812162732_recheck_csf_activity_partner_authorization_under_lock.sql",
+      "20260812225436_recheck_csf_activity_partner_authorization_under_lock.sql",
     );
 
     const currentState = between(
@@ -836,10 +836,10 @@ describe("CSF operator documentation truthfulness guards", () => {
       "repository branch has 274 ordered migrations through",
     );
     expect(currentState).toContain(
-      "`20260812162732_recheck_csf_activity_partner_authorization_under_lock`",
+      "`20260812225436_recheck_csf_activity_partner_authorization_under_lock`",
     );
     expect(currentState).toContain(
-      "local isolated replay passed all 123 pgTAP files and 5,208 assertions",
+      "local isolated replay passed all 123 pgTAP files and 5,227 assertions",
     );
     expect(currentState).toContain(
       "Hosted Development remains at 272 ordered migrations through",
@@ -904,7 +904,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Artifact index",
     );
     expect(externalGates).toContain(
-      "repository branch has 274 through `20260812162732_recheck_csf_activity_partner_authorization_under_lock`",
+      "repository branch has 274 through `20260812225436_recheck_csf_activity_partner_authorization_under_lock`",
     );
     expect(externalGates).toContain(
       "does not contain the forward atomic-reply or activity/partner authorization-recheck migrations",
@@ -939,11 +939,11 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`20260812152300_atomic_csf_post_replies`",
     );
     expect(rehearsalState).toContain(
-      "`20260812162732_recheck_csf_activity_partner_authorization_under_lock`",
+      "`20260812225436_recheck_csf_activity_partner_authorization_under_lock`",
     );
     expect(rehearsalState).toContain("repository has 274 through");
     expect(rehearsalState).toContain(
-      "local isolated replay passed all 123 pgTAP files and 5,208 assertions",
+      "local isolated replay passed all 123 pgTAP files and 5,227 assertions",
     );
     expect(rehearsalState).toContain(
       "neither has been accepted on hosted Development",
@@ -989,7 +989,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Related references",
     );
     expect(cutover).toContain(
-      "Replay the ordered migration ledger through `20260812162732`",
+      "Replay the ordered migration ledger through `20260812225436`",
     );
     expect(cutover).toContain(
       "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
@@ -1007,13 +1007,13 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Hosted Development has 272 ordered migrations through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "repository branch has 274 ordered migrations through `20260812162732`",
+      "repository branch has 274 ordered migrations through `20260812225436`",
     );
     expect(productionCutoverRunbook).toContain(
       "contains 38 Production-pending migrations",
     );
     expect(productionCutoverRunbook).toContain(
-      "local isolated replay passed all 123 pgTAP files and 5,208 assertions",
+      "local isolated replay passed all 123 pgTAP files and 5,227 assertions",
     );
     expect(productionCutoverRunbook).toContain(
       "hosted acceptance remains pending",
@@ -1071,18 +1071,92 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
   });
 
-  test("AUD-032 distinguishes completed local replay from pending hosted acceptance", () => {
-    const aud032 = between(
+  test("AUD-036 states the exact seven-function scope and intentional replay change", () => {
+    const aud036 = between(cleanupRegister, "| AUD-036", "| AUD-037");
+
+    expect(aud036).toContain(
+      "`20260812225436_recheck_csf_activity_partner_authorization_under_lock.sql`",
+    );
+    expect(aud036).toContain("Seven service-only CSF transactions");
+    expect(aud036).toContain("csf_set_partner_club_term_status");
+    expect(aud036).toContain("csf_upsert_partner_club_policy");
+    expect(aud036).toContain("Intentional behavior change");
+    expect(aud036).toContain(
+      "the committed outcome stays durable and unmodified",
+    );
+    expect(aud036).toContain("61-assertion autocommit dblink pgTAP suite");
+    expect(aud036).toContain("membership-deletion (`IF NOT FOUND`) races");
+    expect(aud036).toContain(
+      "full local isolated replay passed all 123 pgTAP files and 5,227 assertions",
+    );
+    expect(aud036).toContain("Hosted Development acceptance remains pending");
+  });
+
+  test("AUD-037 keeps the private caller wording open without claiming a root fix", () => {
+    const aud037 = between(
       cleanupRegister,
-      "| AUD-032",
+      "| AUD-037",
       "### Integrated project/auth findings",
     );
-    expect(aud032).toContain(
-      "`20260812162732_recheck_csf_activity_partner_authorization_under_lock.sql`",
+
+    expect(aud037).toContain("CSF plugin (private repo)");
+    expect(aud037).toContain("Repository-side scope is closed");
+    expect(aud037).toContain(
+      "supabase/tests/contracts/csf_activity_partner_authorization_lock_source.test.ts",
     );
-    expect(aud032).toContain(
-      "local isolated replay passed all 123 pgTAP files and 5,208 assertions",
+    expect(aud037).toContain("private plugin repository");
+    expect(aud037).toContain("Not fixable from this repository");
+  });
+
+  test("the register records the current cross-branch AUD identifier drift", () => {
+    const preamble = between(
+      cleanupRegister,
+      "# Repository cleanup register",
+      "## Repository-owned P0–P2",
     );
-    expect(aud032).toContain("hosted Development acceptance remains pending");
+
+    expect(preamble).toContain("`AUD-` identifiers are allocated per branch");
+    expect(preamble).toContain("`origin/development` ends at `AUD-029`");
+    expect(preamble).toContain("`AUD-030` (#152)");
+    expect(preamble).toContain("`AUD-031`–`AUD-034` (#158)");
+    expect(preamble).toContain("`AUD-034`–`AUD-035` (#174)");
+    expect(preamble).toContain("takes `AUD-036` and `AUD-037`");
+  });
+
+  test("the ledger pin is declared provisional while migration branches are open", () => {
+    for (const document of [
+      testingAndRelease,
+      operatorGuide,
+      productionCutoverRunbook,
+    ]) {
+      expect(document).toContain("#152, #158, #174, and #175 are open");
+    }
+    expect(productionCutoverRunbook).toContain(
+      "the last migration pull request to merge must recompute the count, head, and exact tail from the merged tree",
+    );
+    expect(
+      flow(readRepositoryFile("scripts/production-cutover-preflight.sql")),
+    ).toContain("the last migration pull request to merge must recompute it");
+  });
+
+  test("testing and release states the exact seven-function scope and replay semantics", () => {
+    expect(testingAndRelease).toContain(
+      "closes the CSF activity and partner-club stale-authority",
+    );
+    for (const operation of [
+      "csf_create_activity",
+      "csf_update_activity",
+      "csf_set_activity_status",
+      "csf_link_activity_project",
+      "csf_set_partner_club_status",
+      "csf_set_partner_club_term_status",
+      "csf_upsert_partner_club_policy",
+    ]) {
+      expect(testingAndRelease).toContain(`\`${operation}\``);
+    }
+    expect(testingAndRelease).toContain("**Intentional behavior change:**");
+    expect(testingAndRelease).toContain(
+      "never as proof that the write did not happen",
+    );
   });
 });

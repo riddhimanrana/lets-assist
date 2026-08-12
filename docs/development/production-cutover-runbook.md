@@ -2,15 +2,22 @@
 
 Production has 236 ordered migrations through `20260811001500`.
 Hosted Development has 272 ordered migrations through `20260812132725`.
-This repository branch has 274 ordered migrations through `20260812162732` and
+This repository branch has 274 ordered migrations through `20260812225436` and
 contains 38 Production-pending migrations. The local isolated replay passed all
-123 pgTAP files and 5,208 assertions; hosted acceptance remains pending.
+123 pgTAP files and 5,227 assertions; hosted acceptance remains pending.
 `dev.lets-assist.com` still serves the earlier Ready code
 whose repository ledger ended at 272 through `20260812132725`: the external
 Vercel 100-deployment-per-day project cap prevented the refreshed deployment.
 Database parity is not application-deployment parity, so the hosted release
 gate remains open until both the 274-migration database target and that exact
 current code are deployed and accepted.
+
+The 274-row target, its `20260812225436` head, and the 38-row pending tail
+pinned in `scripts/production-cutover-preflight.sql` are computed from this
+branch's migration directory alone. Migration pull requests #152, #158, #174,
+and #175 are open with later or interleaving versions, so this pin is provisional:
+the last migration pull request to merge must recompute the count, head, and
+exact tail from the merged tree before any cutover uses them.
 
 **This runbook is preparation. Executing it requires explicit release
 authorization** ([deployment boundaries](deployment.md)). Production remains
@@ -123,7 +130,7 @@ data.
 3. **Verify it is a clone, not a replay** — `list_migrations` on the new ref.
    - **236 rows, head `20260811001500`** → a genuine current-baseline clone.
      Continue.
-   - **274 rows, head `20260812162732`** → it was built by replaying the
+   - **274 rows, head `20260812225436`** → it was built by replaying the
      repository branch, which is the artifact you already have and proves nothing new.
      Abandon and use the fallback.
 

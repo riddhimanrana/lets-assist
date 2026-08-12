@@ -10,7 +10,7 @@ Development remains at 272 through `20260812132725` and
 `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository tree ended at 272
 through `20260812132725`, because the external Vercel 100-deployment-per-day
 project cap prevented the refreshed deployment. The local isolated replay
-passed all 123 pgTAP files and 5,208 assertions; hosted acceptance remains
+passed all 123 pgTAP files and 5,227 assertions; hosted acceptance remains
 pending. Google OAuth and Picker are connected. On that earlier deployed code,
 the real Spring 2026 application Preview passed the metadata RPC and stored 85
 preview rows, then failed at the seal because the caller supplied a reserved
@@ -26,14 +26,34 @@ their named runs only.
 ## Current hosted Development state
 
 - The repository branch has 274 ordered migrations through
-  `20260812162732_recheck_csf_activity_partner_authorization_under_lock`.
-- The local isolated replay passed all 123 pgTAP files and 5,208 assertions
+  `20260812225436_recheck_csf_activity_partner_authorization_under_lock`.
+- That count, head, and tail describe **this branch only**. Migration pull
+  requests #152, #158, #174, and #175 are open with later or interleaving
+  versions, so the exact ledger count and tail pinned here and in
+  `scripts/production-cutover-preflight.sql` must be recomputed and reconciled
+  by whichever migration pull request merges last. Do not treat this pin as the
+  final Production target while those branches remain open.
+- `20260812225436` closes the CSF activity and partner-club stale-authority
+  class across all seven service-only transactions: `csf_create_activity`,
+  `csf_update_activity`, `csf_set_activity_status`, `csf_link_activity_project`,
+  `csf_set_partner_club_status`, `csf_set_partner_club_term_status`, and
+  `csf_upsert_partner_club_policy`. Each keeps its exact prior signature and
+  named arguments and delegates to an owner-only `_locked_impl` after taking the
+  organization staff-access lock, sharing the actor's active
+  `organization_members` row, and rechecking the exact permission.
+  **Intentional behavior change:** replaying an exact committed request as an
+  actor who has since lost the permission now raises the authorization error
+  instead of returning the earlier idempotent receipt. The committed outcome
+  stays durable; only re-reading it through this boundary is denied. Callers
+  must report that case as lost authorization over a possibly already-durable
+  outcome, never as proof that the write did not happen.
+- The local isolated replay passed all 123 pgTAP files and 5,227 assertions
   against that 274-migration ledger. This local result does not establish hosted
   acceptance.
 - Hosted Development remains at 272 ordered migrations through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`;
   `20260812152300_atomic_csf_post_replies` and
-  `20260812162732_recheck_csf_activity_partner_authorization_under_lock` have
+  `20260812225436_recheck_csf_activity_partner_authorization_under_lock` have
   not been applied there.
 - Production remains at 236 ordered migrations through `20260811001500`; the
   38-migration cutover has not run.
@@ -391,7 +411,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
   ordered migrations through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`, while this
   repository branch has 274 through
-  `20260812162732_recheck_csf_activity_partner_authorization_under_lock`. The
+  `20260812225436_recheck_csf_activity_partner_authorization_under_lock`. The
   Ready alias serves development SHA
   `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, which does not contain the
   forward atomic-reply or activity/partner authorization-recheck migrations.

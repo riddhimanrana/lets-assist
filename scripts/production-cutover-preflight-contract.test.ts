@@ -14,7 +14,7 @@ const architectureAudit = readFileSync(
 );
 
 const PRODUCTION_HEAD = "20260811001500";
-const TARGET_HEAD = "20260812162732";
+const TARGET_HEAD = "20260812225436";
 const PENDING_VERSIONS = [
   "20260811063522",
   "20260811073000",
@@ -53,7 +53,7 @@ const PENDING_VERSIONS = [
   "20260812115556",
   "20260812132725",
   "20260812152300",
-  "20260812162732",
+  "20260812225436",
 ] as const;
 
 function readMigration(version: string) {

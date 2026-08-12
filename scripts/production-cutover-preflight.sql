@@ -10,13 +10,19 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   236 rows headed by 20260811001500
---   post-cutover  274 rows headed by 20260812162732 with the exact 38-row tail
+--   post-cutover  274 rows headed by 20260812225436 with the exact 38-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
 -- named blocker instead of sending a query against an object that is absent.
 -- This makes the same file safe before and after cutover and useful on a
 -- Production-baseline rehearsal clone.
+--
+-- The target count, head, and tail below are computed from this branch's
+-- supabase/migrations directory alone. Migration pull requests #152, #158,
+-- #174, and #175 are open with later or interleaving versions, so this pin is
+-- provisional and the last migration pull request to merge must recompute it
+-- from the merged tree before any cutover relies on it.
 
 \set ON_ERROR_STOP on
 \timing off
@@ -148,7 +154,7 @@ SELECT
     ) = 0 AS baseline_ledger,
   count(*) = 274
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260812162732'
+    AND max(version::text) = '20260812225436'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
@@ -171,7 +177,7 @@ SELECT
       '20260812100700','20260812100800','20260812100900',
       '20260812101000','20260812101100','20260812104754',
       '20260812114638','20260812115556','20260812132725',
-      '20260812152300','20260812162732'
+      '20260812152300','20260812225436'
       -- END EXACT PRODUCTION TARGET TAIL
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
