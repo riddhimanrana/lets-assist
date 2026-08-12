@@ -1,14 +1,14 @@
 -- Contract for officer follow-up replies on CSF member posts (Amendment 2).
 --
 -- Three things must hold: the table is server-only like every sibling
--- plugin_data table, a reply's life is bounded by its parent post (cascade),
+-- plugin_data table, parent deletion cannot bypass the reviewed reply boundary,
 -- and the database itself refuses a blank or unbounded body.
 
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(16);
+SELECT extensions.plan(20);
 
 SELECT extensions.ok(
   to_regclass('plugin_data.csf_announcement_replies') IS NOT NULL,
@@ -58,9 +58,39 @@ SELECT extensions.ok(
   has_table_privilege(
     'service_role',
     'plugin_data.csf_announcement_replies',
-    'SELECT,INSERT,UPDATE,DELETE'
+    'SELECT'
+  )
+  AND NOT has_table_privilege(
+    'service_role',
+    'plugin_data.csf_announcement_replies',
+    'INSERT'
+  )
+  AND NOT has_table_privilege(
+    'service_role',
+    'plugin_data.csf_announcement_replies',
+    'UPDATE'
+  )
+  AND NOT has_table_privilege(
+    'service_role',
+    'plugin_data.csf_announcement_replies',
+    'DELETE'
+  )
+  AND NOT has_table_privilege(
+    'service_role',
+    'plugin_data.csf_announcement_replies',
+    'TRUNCATE'
+  )
+  AND NOT has_table_privilege(
+    'service_role',
+    'plugin_data.csf_announcement_replies',
+    'REFERENCES'
+  )
+  AND NOT has_table_privilege(
+    'service_role',
+    'plugin_data.csf_announcement_replies',
+    'TRIGGER'
   ),
-  'the server role reads and writes announcement replies'
+  'the server role reads replies but writes only through the transaction RPC'
 );
 
 -- ---------------------------------------------------------------------------
@@ -166,11 +196,33 @@ SELECT extensions.ok(
 );
 
 -- ---------------------------------------------------------------------------
--- Cascade: a reply''s life is bounded by its parent post
+-- Parent deletion is restricted; explicit plugin teardown is the sole bulk path
 -- ---------------------------------------------------------------------------
 
-DELETE FROM plugin_data.csf_announcements
-WHERE id = 'ce200000-0000-4000-8000-000000000001';
+SELECT extensions.throws_ok(
+  $$ DELETE FROM plugin_data.csf_announcements
+     WHERE id = 'ce200000-0000-4000-8000-000000000001' $$,
+  '23503',
+  NULL,
+  'a parent post cannot cascade around the reply transaction boundary'
+);
+
+SELECT extensions.is(
+  (
+    SELECT count(*)
+    FROM plugin_data.csf_announcement_replies
+    WHERE announcement_id = 'ce200000-0000-4000-8000-000000000001'
+  ),
+  1::bigint,
+  'a refused parent delete leaves the reply intact'
+);
+
+SELECT extensions.lives_ok(
+  $$ SELECT plugin_data.csf_purge_recovery_foundations(
+    'ce100000-0000-4000-8000-000000000001'
+  ) $$,
+  'the reviewed plugin teardown explicitly removes tenant replies'
+);
 
 SELECT extensions.is(
   (
@@ -179,7 +231,13 @@ SELECT extensions.is(
     WHERE announcement_id = 'ce200000-0000-4000-8000-000000000001'
   ),
   0::bigint,
-  'deleting the parent post deletes its replies'
+  'plugin teardown removes the reply before its parent'
+);
+
+SELECT extensions.lives_ok(
+  $$ DELETE FROM plugin_data.csf_announcements
+     WHERE id = 'ce200000-0000-4000-8000-000000000001' $$,
+  'the parent post can be deleted after the explicit teardown'
 );
 
 SELECT * FROM extensions.finish();

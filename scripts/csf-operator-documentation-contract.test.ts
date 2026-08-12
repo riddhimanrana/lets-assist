@@ -699,9 +699,9 @@ describe("CSF operator documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(271);
+    expect(migrations).toHaveLength(272);
     expect(migrations.at(-1)).toBe(
-      "20260812115556_plugin_data_deletion_requests.sql",
+      "20260812125938_atomic_csf_post_replies.sql",
     );
 
     const currentState = between(
@@ -710,11 +710,9 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 271 ordered migrations through",
+      "repository branch has 272 ordered migrations through",
     );
-    expect(currentState).toContain(
-      "`20260812115556_plugin_data_deletion_requests`",
-    );
+    expect(currentState).toContain("`20260812125938_atomic_csf_post_replies`");
     expect(currentState).toContain("Hosted Development remains at");
     expect(currentState).toContain(
       "269 through `20260812104754_harden_project_transaction_rpc_boundaries`",

@@ -34,6 +34,7 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                              | Confirmed                                                    |
 | [AUD-020](#aud-020) | P2  | Plugin data deletion   | Permanent deletion lacked a complete contract, authorization boundary, and truthful durable replay state               | **Fixed locally**; hosted Development pending                |
 | [AUD-021](#aud-021) | P2  | Plugin uninstall       | Ordinary uninstall could run arbitrary plugin code and therefore could not guarantee data retention                    | **Fixed locally**; hosted Development pending                |
+| [AUD-029](#aud-029) | P1  | CSF post replies       | Follow-up writes were non-atomic, non-idempotent, authorization-racy, and lacked a tenant-parent database constraint   | Local implementation verified; hosted Development pending    |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -665,6 +666,57 @@ and external systems, lands there, and only then updates the root gitlink.
 Local evidence is green: 78 focused Bun tests, 59 focused pgTAP assertions, and
 a full local migration reset/replay pass. Hosted Development remains pending.
 Production was not read, written, queried, deployed, or tested.
+
+---
+
+<a id="aud-029"></a>
+
+## AUD-029 — CSF post replies were not an atomic tenant boundary {#aud-029}
+
+**Priority:** P1 · **Status:** Local implementation verified; hosted Development pending
+
+`addCsfPostReplyAction` and `deleteCsfPostReplyAction` previously performed
+authorization, parent/reply reads, row mutation, and audit insertion as separate
+application statements. A process failure could commit the reply without its
+history, a lost response could duplicate an add, and a queued request could
+continue after current staff authority changed. The reply table also had
+independent organization and announcement foreign keys, so the database did not
+itself prove that both identifiers named the same tenant.
+
+Migration `20260812125938_atomic_csf_post_replies.sql` adds and validates the
+composite tenant-parent foreign key and moves add/delete plus the immutable
+audit receipt into one service-only transaction. The transaction authorizes
+before caller-controlled record inspection, takes the shared organization
+staff-access lock, pins the active host-membership row, rechecks
+`manage_posts`, locks the published parent or target reply, enforces current
+author-or-admin deletion, and binds the normalized intent to one request UUID.
+Exact retries return the original reply; conflicting reuse and stale committed
+state fail closed. Direct service-role INSERT, UPDATE, DELETE, TRUNCATE,
+REFERENCES, and TRIGGER privileges are removed while server-rendered SELECT is
+retained. Both parent foreign keys now use `ON DELETE RESTRICT`, so deleting an
+announcement cannot cascade around the reply boundary. The existing
+service-role-only plugin teardown RPC removes tenant replies explicitly under
+the same staff-access lock before delegating to its owner-only prior
+implementation; its public signature and exact fourteen-key result contract
+remain unchanged. Audit state stores hashes and bounded lengths, not reply
+text.
+
+The private action keeps its existing parameters and accepts one optional final
+request UUID. The UI retains that UUID across an unknown add/delete outcome and
+reuses it on an unchanged manual retry; changing the body discards the stale
+key. Private PR #44 merged first into the private repository's `development`
+branch at `d4188dd7`; the root gitlink points to that exact merge. Focused
+private tests pass 48/48 (220 expectations). The final clean local replay passes
+all 121 database files and 5,126 pgTAP assertions, including observed
+two-connection advisory-lock waits for same-request replay and a staff-only
+`manage_posts` revocation. The same generated stack passed fictional seeds,
+CSF workflows, database advisors, architecture and plugin-data audits, registry
+and runtime contracts, strict submodule verification, typecheck, lint, the
+authenticated plugin isolation smoke, and the 425-assertion cron no-egress
+probe. Hosted Development migration/advisor/browser acceptance remains required
+before this finding closes.
+
+Production was not accessed or changed for this finding.
 
 ---
 
