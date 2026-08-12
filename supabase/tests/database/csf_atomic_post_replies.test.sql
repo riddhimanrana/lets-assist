@@ -3,7 +3,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(47);
+SELECT extensions.plan(51);
 
 SELECT extensions.has_function(
   'plugin_data',
@@ -137,7 +137,8 @@ INSERT INTO auth.users (
 ) VALUES
   ('fb000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'admin-a-replies@local.test', now(), '{}', '{}', now(), now()),
   ('fb000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'member-a-replies@local.test', now(), '{}', '{}', now(), now()),
-  ('fb000000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'admin-b-replies@local.test', now(), '{}', '{}', now(), now());
+  ('fb000000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'admin-b-replies@local.test', now(), '{}', '{}', now(), now()),
+  ('fb000000-0000-4000-8000-000000000004', 'authenticated', 'authenticated', 'boundary-officer-replies@local.test', now(), '{}', '{}', now(), now());
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES
@@ -149,7 +150,87 @@ INSERT INTO public.organization_members (
 ) VALUES
   ('fb100000-0000-4000-8000-000000000001', 'fb000000-0000-4000-8000-000000000001', 'admin', 'active'),
   ('fb100000-0000-4000-8000-000000000001', 'fb000000-0000-4000-8000-000000000002', 'member', 'active'),
-  ('fb100000-0000-4000-8000-000000000002', 'fb000000-0000-4000-8000-000000000003', 'admin', 'active');
+  ('fb100000-0000-4000-8000-000000000002', 'fb000000-0000-4000-8000-000000000003', 'admin', 'active'),
+  ('fb100000-0000-4000-8000-000000000001', 'fb000000-0000-4000-8000-000000000004', 'member', 'active');
+
+INSERT INTO plugin_data.csf_roles (
+  id, organization_id, key, display_name, role_type
+) VALUES (
+  'fb500000-0000-4000-8000-000000000001',
+  'fb100000-0000-4000-8000-000000000001',
+  'boundary-poster', 'Boundary Poster', 'custom'
+);
+INSERT INTO plugin_data.csf_role_permissions (
+  organization_id, role_id, permission_key, enabled
+) VALUES (
+  'fb100000-0000-4000-8000-000000000001',
+  'fb500000-0000-4000-8000-000000000001',
+  'manage_posts', true
+);
+
+DO $$
+BEGIN
+  PERFORM pg_catalog.set_config(
+    'TimeZone',
+    CASE
+      WHEN (pg_catalog.now() AT TIME ZONE 'Pacific/Kiritimati')::date
+        <> plugin_data.csf_chapter_today()
+        THEN 'Pacific/Kiritimati'
+      ELSE 'Pacific/Pago_Pago'
+    END,
+    true
+  );
+END;
+$$;
+
+SELECT extensions.ok(
+  current_date <> plugin_data.csf_chapter_today(),
+  'the permission regression runs with a session date outside the Pacific chapter day'
+);
+
+INSERT INTO plugin_data.csf_staff_positions (
+  id, organization_id, user_id, role_id, school_year,
+  display_title, status, starts_at, ends_at
+) VALUES (
+  'fb600000-0000-4000-8000-000000000001',
+  'fb100000-0000-4000-8000-000000000001',
+  'fb000000-0000-4000-8000-000000000004',
+  'fb500000-0000-4000-8000-000000000001',
+  '2026-2027', 'Boundary Poster', 'active',
+  plugin_data.csf_chapter_today(), plugin_data.csf_chapter_today()
+);
+SELECT extensions.ok(
+  plugin_data.csf_actor_has_permission(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb000000-0000-4000-8000-000000000004',
+    'manage_posts'
+  ),
+  'starts_at and ends_at include the Pacific chapter day despite the session timezone'
+);
+
+UPDATE plugin_data.csf_staff_positions
+SET starts_at = plugin_data.csf_chapter_today() + 1, ends_at = NULL
+WHERE id = 'fb600000-0000-4000-8000-000000000001';
+SELECT extensions.ok(
+  NOT plugin_data.csf_actor_has_permission(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb000000-0000-4000-8000-000000000004',
+    'manage_posts'
+  ),
+  'starts_at after the Pacific chapter day does not authorize'
+);
+
+UPDATE plugin_data.csf_staff_positions
+SET starts_at = NULL, ends_at = plugin_data.csf_chapter_today() - 1
+WHERE id = 'fb600000-0000-4000-8000-000000000001';
+SELECT extensions.ok(
+  NOT plugin_data.csf_actor_has_permission(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb000000-0000-4000-8000-000000000004',
+    'manage_posts'
+  ),
+  'ends_at before the Pacific chapter day does not authorize'
+);
 
 INSERT INTO plugin_data.csf_announcements (
   id, organization_id, title, body, audience, status, published_at, created_by

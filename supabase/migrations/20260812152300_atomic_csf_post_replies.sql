@@ -4,6 +4,52 @@
 
 BEGIN;
 
+-- Staff-position windows follow the chapter's Pacific calendar day, not the
+-- caller's session time zone. Preserve the existing signature, ACL, and admin
+-- and active-member authorization semantics.
+CREATE OR REPLACE FUNCTION plugin_data.csf_actor_has_permission(
+  p_organization_id uuid,
+  p_actor_user_id uuid,
+  p_permission_key text
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.organization_members AS member
+    WHERE member.organization_id = p_organization_id
+      AND member.user_id = p_actor_user_id
+      AND member.status = 'active'
+      AND (
+        member.role = 'admin'
+        OR EXISTS (
+          SELECT 1
+          FROM plugin_data.csf_staff_positions AS position
+          JOIN plugin_data.csf_role_permissions AS permission
+            ON permission.organization_id = position.organization_id
+           AND permission.role_id = position.role_id
+           AND permission.permission_key = p_permission_key
+           AND permission.enabled = true
+          WHERE position.organization_id = p_organization_id
+            AND position.user_id = p_actor_user_id
+            AND position.status = 'active'
+            AND (
+              position.starts_at IS NULL
+              OR position.starts_at <= plugin_data.csf_chapter_today()
+            )
+            AND (
+              position.ends_at IS NULL
+              OR position.ends_at >= plugin_data.csf_chapter_today()
+            )
+        )
+      )
+  );
+$$;
+
 -- A globally unique announcement id did not prevent a row from carrying
 -- organization A beside organization B's announcement id. Fail the migration
 -- if such legacy corruption exists, then keep the tenant relationship true at
