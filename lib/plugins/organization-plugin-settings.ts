@@ -44,6 +44,7 @@ export type RuntimePluginInfo = {
   detailedDescription?: OrganizationPluginAdminSetting["detailedDescription"];
   capabilityHighlights?: OrganizationPluginAdminSetting["capabilityHighlights"];
   dataAccess?: OrganizationPluginAdminSetting["dataAccess"];
+  dataAccessPurposes?: OrganizationPluginAdminSetting["dataAccessPurposes"];
   routes?: Array<{ path: string; label: string }>;
   backendCapabilities?: Array<{
     key: string;
@@ -141,6 +142,7 @@ export function buildOrganizationPluginAdminSettings(input: {
             (capability) => `${capability.kind}: ${capability.description}`,
           ),
         ],
+        dataAccessPurposes: runtimePlugin?.dataAccessPurposes ?? [],
         visibility: plugin.visibility,
         navLabel: runtimePlugin?.navLabel ?? plugin.name,
         version: runtimePlugin?.version ?? "unregistered",
