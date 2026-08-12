@@ -69,9 +69,11 @@ Installing writes `installed_version = plugins.latest_version`. It never reads t
 
 ## Uninstalling and data deletion
 
-`uninstallOrganizationPlugin` runs the plugin's `onUninstall` hook and removes the install row. Data deletion is a separate lifecycle hook.
+`uninstallOrganizationPlugin` runs the plugin's `onUninstall` hook and removes the `organization_plugin_installs` row — nothing else. Its saved `configuration` goes with that row and is not recoverable. Every `plugin_data` row the plugin wrote for that organization is untouched: uninstall never references `plugin_data`, so those rows stay, still scoped to the same `organization_id`, and reappear if the organization reinstalls. `describePluginUninstallImpact` (`lib/plugins/plugin-uninstall-impact.ts`) states this contract as the confirmation-dialog and success-toast copy; it makes no database change itself.
 
-For DVHS CSF, `onDvhsCsfDataDelete` purges chapter storage, calls `csf_purge_recovery_foundations`, and clears roughly fifty tables. It explicitly does **not** tear down anything held by Google Calendar, Gmail, Drive, or Resend — those remain and must be handled by hand.
+Permanent erasure of `plugin_data` is a separate, unwired lifecycle hook: `onDataDelete` / `runPluginDataDelete` (`lib/plugins/lifecycle.ts`). **No route, Server Action, or admin surface currently calls it.** There is no self-service or admin-triggered way to request permanent plugin-data erasure from the product today — treat that as an open contract gap, not a documented capability, until a caller exists.
+
+For DVHS CSF specifically, the private submodule implements `onDvhsCsfDataDelete`, which purges chapter storage, calls `csf_purge_recovery_foundations`, and clears roughly fifty tables — but nothing in this repository invokes it outside of that plugin's own hook definition. It also explicitly does **not** tear down anything held by Google Calendar, Gmail, Drive, or Resend — those remain and must be handled by hand.
 
 ## What the platform enforces
 
@@ -92,7 +94,7 @@ These exist in the schema, and several appear in the admin UI, but **no code pat
 | `organization_plugin_feature_flags`, `rollout_percentage`                     | Feature gating and percentage rollout are **unimplemented**.                                                                                                |
 | `organization_plugin_installs.auto_update`                                    | Never read. Updates are always manual or forced.                                                                                                            |
 | `organization_plugin_data_boundaries`, `organization_data_isolation_profiles` | Editable in the admin UI, consulted by no enforcement path. The `shared / dedicated_schema / dedicated_project / external` model is planning metadata only. |
-| `validatePluginUninstall`                                                     | Always returns `canUninstall: true`, and the transition path never calls it.                                                                                |
+| `onDataDelete` / `runPluginDataDelete`                                        | Defined and audited (`lifecycle.data_delete`), but no route, Server Action, or admin surface calls it. Permanent plugin-data erasure is not requestable from the product yet. |
 | `plugin_runtime_contracts`                                                    | Only refreshed when a super admin loads `/admin/plugins`, so it is stale by default, and it silently skips any registered plugin with no catalog row.       |
 
 There is also **no plugin signing or attestation**. The trust root is the private submodule's pinned commit, verified at build time by `scripts/check-private-submodules.mjs`. The catalog's `code_repository` and `code_reference` fields are display-only and are never checked against anything.

@@ -85,6 +85,21 @@ export class PluginControlPlaneConcurrencyError extends Error {
   }
 }
 
+/**
+ * Extra audit detail for one control-plane action, merged alongside the
+ * transition kind. Uninstall never deletes plugin_data — only the install
+ * row — so its audit row records that truthfully rather than leaving a
+ * reader to guess.
+ */
+export function pluginControlPlaneAuditDetails(
+  action: PluginControlPlaneAuditAction,
+): Record<string, unknown> {
+  if (action === "install.removed") {
+    return { pluginDataRetained: true };
+  }
+  return {};
+}
+
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }

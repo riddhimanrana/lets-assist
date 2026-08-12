@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 
 import {
   applyPluginControlPlaneTransition,
+  pluginControlPlaneAuditDetails,
   PluginControlPlaneConcurrencyError,
+  type PluginControlPlaneAuditAction,
   type PluginControlPlaneCallbacks,
   type PluginInstallSnapshot,
   type PluginLifecycleInvocation,
@@ -305,5 +307,45 @@ describe("plugin control-plane lifecycle ordering", () => {
       "persist:update",
       "lifecycle:disable",
     ]);
+  });
+
+  test("a repeat uninstall with no current install is refused, not silently accepted", async () => {
+    const harness = callbacks();
+    const result = await applyPluginControlPlaneTransition({
+      current: null,
+      transition: { kind: "uninstall" },
+      callbacks: harness.implementation,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      changed: false,
+      actions: [],
+      error: "Plugin is not installed for this organization.",
+    });
+    expect(harness.events).toEqual([]);
+  });
+});
+
+describe("plugin control-plane audit details", () => {
+  test("only install.removed asserts plugin_data retention", () => {
+    const actions: PluginControlPlaneAuditAction[] = [
+      "install.created",
+      "install.enabled",
+      "install.disabled",
+      "install.updated",
+      "install.config_changed",
+      "install.version_updated",
+      "install.removed",
+    ];
+
+    for (const action of actions) {
+      const details = pluginControlPlaneAuditDetails(action);
+      if (action === "install.removed") {
+        expect(details).toEqual({ pluginDataRetained: true });
+      } else {
+        expect(details).toEqual({});
+      }
+    }
   });
 });

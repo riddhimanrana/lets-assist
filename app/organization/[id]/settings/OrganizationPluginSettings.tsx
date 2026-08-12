@@ -464,11 +464,14 @@ export default function OrganizationPluginSettings({
       return;
     }
 
-    toast.success(
-      intent === "install"
-        ? `${pluginName} installed successfully`
-        : `${pluginName} uninstalled successfully`,
-    );
+    if (intent === "install") {
+      toast.success(`${pluginName} installed successfully`);
+    } else {
+      const uninstallMessage = (response as { message?: string }).message;
+      toast.success(`${pluginName} uninstalled`, {
+        description: uninstallMessage,
+      });
+    }
 
     setPluginActionConfirmation(null);
     setInstallConsentChecked(false);
@@ -1190,10 +1193,21 @@ export default function OrganizationPluginSettings({
                 ) : (
                   <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 flex items-start gap-3">
                     <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
-                    <p className="text-sm text-destructive font-medium leading-relaxed">
-                      All plugin workflows will stop, and your settings will be
-                      permanently lost. This cannot be undone.
-                    </p>
+                    <div className="flex flex-col gap-2 text-sm leading-relaxed">
+                      <p className="text-destructive font-medium">
+                        All plugin workflows will stop and your saved
+                        settings will be permanently removed. This cannot be
+                        undone.
+                      </p>
+                      <p className="text-muted-foreground">
+                        {activePluginAction.dataAccess.length > 0
+                          ? `Data this plugin already stored for your organization (${activePluginAction.dataAccess.join(", ")}) is not deleted — it stays in your organization and reappears if you reinstall.`
+                          : "Any data this plugin already stored for your organization is not deleted — it stays in your organization and reappears if you reinstall."}{" "}
+                        Permanently erasing that data is a separate,
+                        authorized request; there is currently no
+                        self-service way to request it from this screen.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

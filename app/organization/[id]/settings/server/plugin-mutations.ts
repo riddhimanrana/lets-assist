@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
+import { describePluginUninstallImpact } from "@/lib/plugins/plugin-uninstall-impact";
 import { transitionOrganizationPluginInstall } from "@/lib/plugins/control-plane-transition";
 import {
   applyConfigDefaults,
@@ -170,7 +171,7 @@ export async function setOrganizationPluginInstallState(options: {
 export async function uninstallOrganizationPlugin(options: {
   organizationId: string;
   pluginKey: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; message?: string }> {
   "use server";
   const { organizationId, pluginKey } = options;
   const { user } = await getAuthUser();
@@ -288,7 +289,13 @@ export async function uninstallOrganizationPlugin(options: {
   revalidatePath(`/organization/${organizationId}`);
   revalidatePath(`/organization/${organizationId}/settings`);
 
-  return { success: true };
+  const definition = getRegisteredPlugin(pluginKey);
+  return {
+    success: true,
+    message: definition
+      ? describePluginUninstallImpact(definition).summary
+      : undefined,
+  };
 }
 
 export async function updateOrganizationPluginToLatest(options: {

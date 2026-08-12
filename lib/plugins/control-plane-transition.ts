@@ -3,6 +3,7 @@ import "server-only";
 import { logPluginAudit } from "@/lib/plugins/audit";
 import {
   applyPluginControlPlaneTransition,
+  pluginControlPlaneAuditDetails,
   PluginControlPlaneConcurrencyError,
   type PluginControlPlaneTransition,
   type PluginInstallMutation,
@@ -350,6 +351,7 @@ async function transitionOrganizationPluginInstallWithLease(
       actor_type: input.actor.type,
       details: {
         controlPlaneTransition: input.transition.kind,
+        ...pluginControlPlaneAuditDetails(action),
       },
     });
   }

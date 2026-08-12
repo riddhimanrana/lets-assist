@@ -12,6 +12,10 @@ export type {
   OrganizationPluginLifecycleContext,
   OrganizationPluginLifecycleHooks,
 };
+export {
+  describePluginUninstallImpact,
+  type PluginUninstallImpact,
+} from "./plugin-uninstall-impact";
 
 function getLifecycleActionName(
   hookName: keyof OrganizationPluginLifecycleHooks,
@@ -272,32 +276,3 @@ export async function runPluginOnSignup(
   });
 }
 
-/**
- * Validate that a plugin can be safely uninstalled
- * Checks if there's any data that would be orphaned
- */
-export async function validatePluginUninstall(
-  plugin: OrganizationPluginDefinition,
-  _context: Omit<OrganizationPluginLifecycleContext, "pluginKey">,
-): Promise<{ canUninstall: boolean; warnings: string[] }> {
-  const warnings: string[] = [];
-
-  // If the plugin has custom cleanup, it should handle its own data
-  if (plugin.lifecycle?.onUninstall) {
-    warnings.push(
-      "This plugin has custom data that will be cleaned up during uninstall.",
-    );
-  }
-
-  // Check manifest for any data dependencies
-  if (plugin.manifest.dataScope && plugin.manifest.dataScope.length > 0) {
-    warnings.push(
-      `This plugin manages data in: ${plugin.manifest.dataScope.join(", ")}. This data may be deleted.`,
-    );
-  }
-
-  return {
-    canUninstall: true, // Currently always allow, but warnings inform the user
-    warnings,
-  };
-}
