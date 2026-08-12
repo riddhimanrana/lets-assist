@@ -15,6 +15,10 @@ import { getPluginRegistry } from "@/lib/plugins/registry";
 import { runProjectClone } from "@/lib/plugins/lifecycle";
 import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
 import { canUserManageProject } from "./access";
+import {
+  validateRecurrenceRule,
+  validateProjectTimezone,
+} from "@/lib/projects/schedule-validation";
 
 const ALLOWED_PROJECT_STATUS_TRANSITIONS: Record<
   ProjectStatus,
@@ -499,6 +503,26 @@ export async function updateProject(
         ? { description: sanitizeRichTextHtml(updates.description) }
         : {}),
     };
+    // Validate project_timezone when being updated.
+    if (Object.prototype.hasOwnProperty.call(sanitizedUpdates, "project_timezone")) {
+      const tzResult = validateProjectTimezone(sanitizedUpdates.project_timezone);
+      if (!tzResult.ok) {
+        return { error: `Invalid project timezone: ${tzResult.error}` };
+      }
+    }
+
+    // Validate recurrence_rule when being updated (null clears the rule).
+    if (
+      Object.prototype.hasOwnProperty.call(sanitizedUpdates, "recurrence_rule") &&
+      sanitizedUpdates.recurrence_rule !== null &&
+      sanitizedUpdates.recurrence_rule !== undefined
+    ) {
+      const ruleResult = validateRecurrenceRule(sanitizedUpdates.recurrence_rule);
+      if (!ruleResult.ok) {
+        return { error: `Invalid recurrence rule: ${ruleResult.error}` };
+      }
+    }
+
     const mutableSanitizedUpdates = sanitizedUpdates as Record<string, unknown>;
     const immutableProjectFields = [
       "id",
