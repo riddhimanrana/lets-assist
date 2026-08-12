@@ -46,7 +46,7 @@ SELECT extensions.ok(
 );
 SELECT extensions.results_eq(
   $$
-    SELECT COALESCE(roles.rolname, 'PUBLIC')::text
+    SELECT COALESCE(roles.rolname, 'PUBLIC')::text COLLATE "C"
     FROM pg_catalog.pg_proc AS proc
     CROSS JOIN LATERAL pg_catalog.aclexplode(
       COALESCE(
@@ -61,7 +61,7 @@ SELECT extensions.results_eq(
       AND privilege.grantee <> proc.proowner
     ORDER BY 1
   $$,
-  $$ VALUES ('authenticated'::text) $$,
+  $$ VALUES ('authenticated'::text COLLATE "C") $$,
   'authenticated is the exact non-owner EXECUTE ACL'
 );
 

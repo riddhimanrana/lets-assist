@@ -175,6 +175,25 @@ SELECT extensions.is(
   'the cancellation-first snapshot excludes the refused approval'
 );
 
+SELECT extensions.dblink_disconnect('project_lifecycle_integration_probe');
+SELECT extensions.dblink_connect(
+  'project_lifecycle_integration_probe',
+  'hostaddr=' || host(inet_server_addr()) ||
+  ' port=' || current_setting('port') ||
+  ' dbname=' || current_database() ||
+  ' user=' || current_user ||
+  ' password=' || current_user ||
+  ' sslmode=disable'
+);
+SELECT extensions.dblink_exec(
+  'project_lifecycle_integration_probe',
+  'SET ROLE authenticated'
+);
+SELECT extensions.dblink_exec(
+  'project_lifecycle_integration_probe',
+  'SET "request.jwt.claims" = ''{"sub":"ef000000-0000-4000-8000-000000000001","role":"authenticated"}'''
+);
+
 -- Atomic unreject owns the same project boundary first. Cancellation waits,
 -- then includes the committed approval in the frozen ledger.
 BEGIN;
@@ -230,6 +249,8 @@ SELECT extensions.is(
 
 SELECT extensions.dblink_disconnect('project_lifecycle_integration_probe');
 
+DELETE FROM public.project_cancellation_deliveries
+WHERE project_id::text LIKE 'ef200000-0000-4000-8000-00000000000%';
 DELETE FROM public.project_cancellation_jobs
 WHERE project_id::text LIKE 'ef200000-0000-4000-8000-00000000000%';
 DELETE FROM public.project_signups
