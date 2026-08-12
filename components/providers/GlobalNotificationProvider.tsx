@@ -367,7 +367,7 @@ function GlobalNotificationProviderInner({
   }, [isHomeRoute, isCsfConnectContext, suppressOnboardingModal]);
 
   return (
-    <NotificationProvider>
+    <>
       {showIntroTour && user?.id && !isLoading && !suppressOnboardingModal && (
         <FirstLoginTour
           isOpen={showIntroTour}
@@ -397,7 +397,7 @@ function GlobalNotificationProviderInner({
           />
         )}
       {children}
-    </NotificationProvider>
+    </>
   );
 }
 
@@ -407,10 +407,12 @@ export default function GlobalNotificationProvider({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense fallback={children}>
-      <GlobalNotificationProviderInner>
-        {children}
-      </GlobalNotificationProviderInner>
-    </Suspense>
+    <NotificationProvider>
+      <Suspense fallback={children}>
+        <GlobalNotificationProviderInner>
+          {children}
+        </GlobalNotificationProviderInner>
+      </Suspense>
+    </NotificationProvider>
   );
 }
