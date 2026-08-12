@@ -44,9 +44,15 @@ SELECT extensions.ok(
   ),
   'the service role cannot substitute a caller identity for unrejection'
 );
+-- `COLLATE "C"` on both sides on purpose, matching
+-- public_function_acl_allowlist.test.sql: `pg_roles.rolname` is `name`, whose
+-- implicit collation is "C", while a text literal carries the database default.
+-- The `::text` cast does not reset that derivation, so an unpinned comparison
+-- leaves `results_eq` with two conflicting implicit collations and no way to
+-- choose one. Role names are ASCII identifiers, so "C" is the exact comparison.
 SELECT extensions.results_eq(
   $$
-    SELECT COALESCE(roles.rolname, 'PUBLIC')::text
+    SELECT COALESCE(roles.rolname, 'PUBLIC')::text COLLATE "C"
     FROM pg_catalog.pg_proc AS proc
     CROSS JOIN LATERAL pg_catalog.aclexplode(
       COALESCE(
@@ -61,7 +67,7 @@ SELECT extensions.results_eq(
       AND privilege.grantee <> proc.proowner
     ORDER BY 1
   $$,
-  $$ VALUES ('authenticated'::text) $$,
+  $$ SELECT 'authenticated'::text COLLATE "C" $$,
   'authenticated is the exact non-owner EXECUTE ACL'
 );
 
@@ -83,7 +89,7 @@ VALUES (
   'Atomic Unreject Organization',
   'atomic-unreject-organization',
   'nonprofit',
-  'URJ001'
+  '760001'
 );
 
 INSERT INTO public.organization_members (
