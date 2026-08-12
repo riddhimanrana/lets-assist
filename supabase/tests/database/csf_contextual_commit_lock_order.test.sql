@@ -25,7 +25,7 @@
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(39);
+SELECT extensions.plan(40);
 
 -- The readiness projections and historical acknowledgement are server-only; the
 -- population lock is internal even to service-role callers.
@@ -54,15 +54,38 @@ SELECT extensions.ok(
     SELECT bool_and(
       pg_catalog.strpos(
         pg_get_functiondef(routine_name::regprocedure),
-        'csf_lock_contextual_commit_population'
+        'csf_lock_identity_mutation'
       ) > 0
+      AND pg_catalog.strpos(
+        pg_get_functiondef(routine_name::regprocedure),
+        'csf_lock_identity_mutation'
+      ) < pg_catalog.strpos(
+        pg_get_functiondef(routine_name::regprocedure),
+        'csf_assert_import_actor'
+      )
     )
     FROM unnest(ARRAY[
       'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
       'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid,uuid)'
     ]) AS routine_name
   ),
-  'both contextual commits take their population through the one canonical lock helper'
+  'both public contextual commits lock organization identity before actor authorization'
+);
+
+SELECT extensions.ok(
+  (
+    SELECT bool_and(
+      pg_catalog.strpos(
+        pg_get_functiondef(routine_name::regprocedure),
+        'csf_lock_contextual_commit_population'
+      ) > 0
+    )
+    FROM unnest(ARRAY[
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
+      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
+    ]) AS routine_name
+  ),
+  'both owner-internal contextual commits take their population through the one canonical lock helper'
 );
 
 SELECT extensions.ok(
@@ -77,8 +100,8 @@ SELECT extensions.ok(
       )
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
+      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
     ]) AS routine_name
   ),
   'the population lock precedes the readiness read in both contextual commits'
@@ -96,8 +119,8 @@ SELECT extensions.ok(
       )
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
+      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
     ]) AS routine_name
   ),
   'the idempotent replay return precedes the population lock, so a replay stays a read'
@@ -115,8 +138,8 @@ SELECT extensions.ok(
       )
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
+      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
     ]) AS routine_name
   ),
   'readiness is read before the first business write in both contextual commits'
@@ -140,12 +163,12 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   pg_catalog.strpos(
     pg_get_functiondef(
-      'plugin_data.csf_reconcile_sheet_import_row(uuid,uuid,uuid,text,text,uuid,uuid)'::regprocedure
+      'plugin_data.csf_reconcile_sheet_import_row_identity_base(uuid,uuid,uuid,text,text,uuid,uuid)'::regprocedure
     ),
     'FROM plugin_data.csf_sheet_import_rows'
   ) < pg_catalog.strpos(
     pg_get_functiondef(
-      'plugin_data.csf_reconcile_sheet_import_row(uuid,uuid,uuid,text,text,uuid,uuid)'::regprocedure
+      'plugin_data.csf_reconcile_sheet_import_row_identity_base(uuid,uuid,uuid,text,text,uuid,uuid)'::regprocedure
     ),
     'UPDATE plugin_data.csf_partner_submission_rows'
   ),
@@ -177,8 +200,8 @@ SELECT extensions.ok(
       ) = 0
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
+      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
     ]) AS routine_name
   ),
   'neither contextual commit continues past a refused row into a partial success'
@@ -203,8 +226,8 @@ SELECT extensions.ok(
       ) > 0
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
+      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
     ]) AS routine_name
   ),
   'both contextual commits spend the source-evidence receipt inside the commit transaction'
@@ -222,8 +245,8 @@ SELECT extensions.ok(
       )
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
+      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
     ]) AS routine_name
   ),
   'the population lock precedes the consume, so rows are taken before the source in both'
@@ -232,12 +255,12 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   pg_catalog.strpos(
     pg_get_functiondef(
-      'plugin_data.csf_claim_import_commit_attempt(uuid,uuid,uuid,integer,uuid)'::regprocedure
+      'plugin_data.csf_claim_import_commit_attempt_identity_base(uuid,uuid,uuid,integer,uuid)'::regprocedure
     ),
     'csf_lock_import_commit_coordinate'
   ) < pg_catalog.strpos(
     pg_get_functiondef(
-      'plugin_data.csf_claim_import_commit_attempt(uuid,uuid,uuid,integer,uuid)'::regprocedure
+      'plugin_data.csf_claim_import_commit_attempt_identity_base(uuid,uuid,uuid,integer,uuid)'::regprocedure
     ),
     'csf_consume_sheet_source_evidence'
   ),
@@ -256,8 +279,8 @@ SELECT extensions.ok(
       )
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
+      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
     ]) AS routine_name
   ),
   'the receipt is spent before the first business write in both contextual commits'
@@ -275,8 +298,8 @@ SELECT extensions.ok(
       )
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
+      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
     ]) AS routine_name
   ),
   'the idempotent replay return precedes the consume, so a replay needs no fresh receipt'
