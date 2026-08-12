@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const RECURRENCE_INTERVAL_MAX = 365;
-export const RECURRENCE_OCCURRENCE_MAX = 730;
+/** Unified ceiling used by the server schema, AI schema, and UI input max. */
+export const RECURRENCE_OCCURRENCE_MAX = 52;
 
 /**
  * Server-safe IANA timezone validation. Uses Intl.DateTimeFormat which is
@@ -65,11 +66,25 @@ export const recurrenceRuleSchema = z
         });
         return;
       }
-      const parsed = new Date(rule.end_date);
-      if (Number.isNaN(parsed.getTime())) {
+      // Strict YYYY-MM-DD format + real calendar round-trip, matching parseISO consumers.
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(rule.end_date)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "end_date must be a valid date string",
+          message: "end_date must be in YYYY-MM-DD format",
+          path: ["end_date"],
+        });
+        return;
+      }
+      const [year, month, day] = rule.end_date.split("-").map(Number);
+      const d = new Date(Date.UTC(year, month - 1, day));
+      if (
+        d.getUTCFullYear() !== year ||
+        d.getUTCMonth() !== month - 1 ||
+        d.getUTCDate() !== day
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "end_date must be a real calendar date",
           path: ["end_date"],
         });
       }
