@@ -38,7 +38,7 @@ export type ManageableProjectRecord = {
   creator_id?: string | null;
   organization_id?: string | null;
   organization?: { id?: string | null } | null;
-  can_be_managed_by_staff?: boolean;
+  can_be_managed_by_staff?: boolean | null;
 };
 
 export type CurrentUserProjectPermissions = {
@@ -68,17 +68,20 @@ export async function canUserManageProject(
     });
   }
 
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabase
     .from("organization_members")
-    .select("role")
+    .select("role, status")
     .eq("organization_id", orgId)
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
+
+  if (membershipError) return false;
 
   return canManageProjectAccess({
     creatorId: project.creator_id ?? null,
     userId,
-    organizationRole: membership?.role,
+    organizationRole:
+      (membership?.status ?? "active") === "active" ? membership?.role : null,
     canBeManagedByStaff: project.can_be_managed_by_staff,
   });
 }

@@ -837,7 +837,7 @@ export default function AnonymousSignupClient({
               <AlertTitle className="text-destructive">Important</AlertTitle>
               <AlertDescription className="text-destructive">
                 {activeSlots.length === 1
-                  ? "This is your only slot signup. Cancelling it will also remove your anonymous profile."
+                  ? "This is your only active slot signup. Cancelling it keeps the private profile and retained waiver evidence available until scheduled cleanup."
                   : "This will cancel your signup for this specific slot. Your other slot signups will remain active."}
               </AlertDescription>
             </Alert>
