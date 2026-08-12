@@ -1,5 +1,10 @@
 "use server";
 
+import {
+  createGooglePickerAccessTokenResult,
+  resolveGooglePickerAppId,
+  type GooglePickerAccessTokenResult,
+} from "@/lib/auth/google-picker-config";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { buildOrganizationReportRows } from "@/lib/organization/report-service";
 import {
@@ -27,10 +32,13 @@ import { syncSheetNow } from "./sync";
 
 export async function getSheetsAccessTokenForPicker(
   organizationId: string,
-): Promise<{ success: boolean; accessToken?: string; error?: string }> {
+): Promise<GooglePickerAccessTokenResult> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
-    return { success: false, error: access.error };
+    return {
+      success: false,
+      error: access.error || "Authentication required",
+    };
   }
 
   if (access.role !== "admin") {
@@ -53,6 +61,9 @@ export async function getSheetsAccessTokenForPicker(
     };
   }
 
+  const appIdResult = resolveGooglePickerAppId();
+  if (!appIdResult.success) return appIdResult;
+
   const accessToken = await getOrganizationSheetsAccessToken(
     access.userId,
     organizationId,
@@ -65,7 +76,10 @@ export async function getSheetsAccessTokenForPicker(
     };
   }
 
-  return { success: true, accessToken };
+  return createGooglePickerAccessTokenResult(
+    accessToken,
+    appIdResult.pickerAppId,
+  );
 }
 
 export async function getSpreadsheetSetupMetadata(
