@@ -14,24 +14,24 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 
 ## Summary
 
-| ID                  | Pri | Area                   | Finding                                                                                                             | Status                                                       |
-| ------------------- | --- | ---------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| [AUD-001](#aud-001) | P0  | Core RLS               | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                  | **Fixed on `development`**; live in Production until cutover |
-| [AUD-002](#aud-002) | P0  | Core RLS               | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection            | **Fixed on `development`**; live in Production until cutover |
-| [AUD-003](#aud-003) | P1  | Grants                 | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions                   | **Merged on `development`**; catalog verification pending    |
-| [AUD-004](#aud-004) | P1  | Plugin audit           | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited  | **Fixed on `development`**                                   |
-| [AUD-005](#aud-005) | P3  | Plugin RLS             | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob            | Reclassified — designed behaviour, document the contract     |
-| [AUD-006](#aud-006) | P2  | Architecture           | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`**                                   |
-| [AUD-012](#aud-012) | P2  | Notifications          | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter   | **Fixed locally**; hosted Development pending                |
-| [AUD-015](#aud-015) | P1  | Hours publication      | Certificate publication trusts client identity and commits database/provider work non-atomically                    | **Fixed locally**; full and hosted Development gates pending |
-| [AUD-016](#aud-016) | P1  | Stored HTML            | The DV form-editor preview inserted persisted rich-text help content without sanitization                           | **Fixed on `development`**; exact CI green                   |
-| [AUD-017](#aud-017) | P1  | Next.js route contract | The paper-signup AI route exported an unsupported value, so clean isolated production builds failed type checking   | **Fixed on `development`**; exact CI green                   |
-| [AUD-018](#aud-018) | P1  | Guardian form          | Hydration could replace a guardian's reviewed availability and notes with SSR defaults before submission            | **Fixed on `development`**; exact CI green                   |
-| [AUD-007](#aud-007) | P2  | CI                     | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                               | Fixed this session                                           |
-| [AUD-008](#aud-008) | P2  | Architecture           | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript    | Confirmed, by design                                         |
-| [AUD-009](#aud-009) | P2  | Gate coverage          | bucket allowlist omitted `csf-private` and `paper-signup-scans`; LEFT JOIN hid unexpected buckets                   | **Fixed locally**; hosted Development pending                |
-| [AUD-010](#aud-010) | P3  | Moderation             | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true                    | Confirmed, dead policy                                       |
-| [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                           | Confirmed                                                    |
+| ID                  | Pri | Area                   | Finding                                                                                                                | Status                                                       |
+| ------------------- | --- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [AUD-001](#aud-001) | P0  | Core RLS               | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                     | **Fixed on `development`**; live in Production until cutover |
+| [AUD-002](#aud-002) | P0  | Core RLS               | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection               | **Fixed on `development`**; live in Production until cutover |
+| [AUD-003](#aud-003) | P1  | Grants                 | `public` defaults and existing relation/column ACL residue can expose client capabilities outside the reviewed catalog | Source fix amended; exact CI replay pending                  |
+| [AUD-004](#aud-004) | P1  | Plugin audit           | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited     | **Fixed on `development`**                                   |
+| [AUD-005](#aud-005) | P3  | Plugin RLS             | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob               | Reclassified — designed behaviour, document the contract     |
+| [AUD-006](#aud-006) | P2  | Architecture           | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002    | **Fixed on `development`**                                   |
+| [AUD-012](#aud-012) | P2  | Notifications          | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter      | **Fixed locally**; hosted Development pending                |
+| [AUD-015](#aud-015) | P1  | Hours publication      | Certificate publication trusts client identity and commits database/provider work non-atomically                       | **Fixed locally**; full and hosted Development gates pending |
+| [AUD-016](#aud-016) | P1  | Stored HTML            | The DV form-editor preview inserted persisted rich-text help content without sanitization                              | **Fixed on `development`**; exact CI green                   |
+| [AUD-017](#aud-017) | P1  | Next.js route contract | The paper-signup AI route exported an unsupported value, so clean isolated production builds failed type checking      | **Fixed on `development`**; exact CI green                   |
+| [AUD-018](#aud-018) | P1  | Guardian form          | Hydration could replace a guardian's reviewed availability and notes with SSR defaults before submission               | **Fixed on `development`**; exact CI green                   |
+| [AUD-007](#aud-007) | P2  | CI                     | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                                  | Fixed this session                                           |
+| [AUD-008](#aud-008) | P2  | Architecture           | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript       | Confirmed, by design                                         |
+| [AUD-009](#aud-009) | P1  | Gate coverage          | storage policy heuristics could miss broad client policies that reach every bucket, including server-only buckets      | Source fix amended; exact CI replay pending                  |
+| [AUD-010](#aud-010) | P3  | Moderation             | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true                       | Confirmed, dead policy                                       |
+| [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                              | Confirmed                                                    |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -103,7 +103,7 @@ Reversing this order breaks project cancellation and moderation notifications.
 
 ## AUD-003 — `public` default privileges still grant clients everything {#aud-003}
 
-**Priority:** P1 · **Status:** Merged on `development`; hosted catalog verification pending
+**Priority:** P1 · **Status:** Source fix amended; exact CI database replay pending
 
 Baseline `20260325181408` (~lines 3836-3847) still carries:
 
@@ -127,15 +127,15 @@ The function half is closed without a broad DDL event trigger. `20260811074518_p
 
 `public_function_acl_allowlist.test.sql` compares effective client privileges, including inherited `PUBLIC` grants, to that exact catalog and separately proves that the maintenance functions are not client-executable. `audit-supabase-architecture.sh` performs the same catalog comparison as a hard gate, and `AGENTS.md` now requires every new or replaced SQL function to carry explicit reviewed `REVOKE`/`GRANT` statements and update the allowlist when client-callable.
 
-The remaining half is **existing-object ACL residue** on already-created `public` tables and views: historical defaults left full `anon`/`authenticated` DML (plus `TRUNCATE`/`REFERENCES`/`TRIGGER` residue) on objects that RLS never intended to expose. That is distinct from the merged default-privilege closure, which only affects objects created afterward. Locally on 2026-08-11, `20260812035110_public_client_relation_acl_catalog.sql` adds `app_private.client_relation_grant_catalog()` as a reviewed subset of the pre-migration effective grants, preflights that every catalog row is already effective, revokes all client relation ACLs on every public table/view/materialized view, regrants only the catalog, and postflight-checks bidirectional DML equality plus independent dangerous-privilege and `PUBLIC` invariants. `client_relation_grant_catalog.test.sql` and the architecture audit consume the same catalog. Hosted Development verification of the relation catalog remains pending.
+The remaining half is **existing-object ACL residue** on already-created `public` tables and views: historical defaults left full `anon`/`authenticated` DML (plus `TRUNCATE`/`REFERENCES`/`TRIGGER` residue) on objects that RLS never intended to expose. That is distinct from the merged default-privilege closure, which only affects objects created afterward. The amended `20260812035110_public_client_relation_acl_catalog.sql` treats relation ACLs and independent `pg_attribute.attacl` entries as separate layers. It preflights every reviewed capability with effective privilege checks, revokes direct relation and column ACLs for `PUBLIC`, `anon`, and `authenticated`, restores only identifier-quoted catalog grants, then verifies exact direct ACL shape and effective privileges including PUBLIC and role inheritance. `client_relation_grant_catalog.test.sql` and the architecture audit exercise the same direct/effective distinction, including redundant column grants hidden beside whole-table grants. The amended migration has not yet been replayed, so AUD-003 remains open pending the exact CI database replay and pgTAP gate.
 
-Local evidence on 2026-08-11: `quality:static`, strict private-submodule validation, `db:validate`, an empty migration replay, all 84 pgTAP files, clean local advisors, Supabase/plugin architecture audits, the authenticated plugin isolation smoke, and the 373-assertion cron no-egress probe passed. The generated stack was removed with marker-bounded proof that no container, volume, or network remained. This is local evidence only; no hosted or Production conclusion follows from it.
+Earlier local evidence on 2026-08-11 covered the pre-review implementation only. It is retained as historical evidence but does not validate the amended column-ACL reconciliation. No hosted or Production conclusion follows from it.
 
 One deliberate exclusion remains: `supabase_admin`'s default ACLs also name `anon` and `authenticated`. Hosted migrations execute as `postgres`, which cannot alter another role's defaults on Supabase. The effective callable-catalog gate covers the resulting runtime posture instead.
 
 GitHub evidence on 2026-08-11: PR #117 merged as `15ba480` after quality/build, GitGuardian, Supabase Preview, and the full isolated database/DV/CSF browser replay passed. Vercel Development deployment `dpl_GS7WcMq2tN62ZiuetZLmutCpUJAa` is READY for that exact commit and aliased to `dev.lets-assist.com` without an alias error. The PR Preview build remained deliberately fail-closed until an exact non-Production Supabase ref was available.
 
-**Still to do:** verify the shared hosted Development migration ledger and effective callable catalog, then rerun Development advisors. The Supabase connector currently exposes only the excluded Production project, so no fallback query was attempted. Production remains a separate excluded cutover.
+**Still to do:** first pass the exact CI database replay and amended pgTAP contract, then verify the shared hosted Development migration ledger and effective callable catalog and rerun Development advisors. The Supabase connector currently exposes only the excluded Production project, so no fallback query was attempted. Production remains a separate excluded cutover.
 
 ---
 
@@ -223,15 +223,17 @@ That is a correct and defensible deny-all posture, and it is what produces the 9
 
 ---
 
-## AUD-009 — Bucket drift detection has two blind spots {#aud-009}
+## AUD-009 — Storage policy drift detection was fail-open {#aud-009}
 
-**Priority:** P2 · **Status:** Fixed locally; hosted Development pending
+**Priority:** P1 · **Status:** Source fix amended; exact CI database replay pending
 
 `scripts/audit-supabase-architecture.sh` (~lines 302-368) enumerated nine expected buckets and already included `plugin_form_uploads`, but it omitted `csf-private` and `paper-signup-scans`. The property-drift query used a catalog-to-live `LEFT JOIN`, so buckets present in `storage.buckets` but absent from the allowlist were invisible. The server-only client-policy pattern matched only `data-exports` and `waiver-signatures`, so a new client policy on `csf-private` would also have stayed green.
 
-**Resolution:** `20260812033551_client_acl_and_storage_posture_catalogs.sql` adds `app_private.storage_bucket_posture_catalog()` as the reviewed source for all eleven buckets, their public/MIME/size properties, and posture classes: six `public`, two `private-client` (`paper-signup-scans`, `plugin_form_uploads`), and three `server-only` (`csf-private`, `data-exports`, `waiver-signatures`). The architecture gate now compares live `storage.buckets` to that catalog bidirectionally — missing, unexpected, and property drift — and enforces posture-specific `storage.objects` policy classes without brittle `auth.uid()` source-text checks. Server-only buckets must have zero client policies; private-client buckets must have authenticated policies and no public/anon policies.
+The first catalog fix still classified policies by searching deparsed SQL for bucket literals. That remained fail-open: an additional authenticated `USING (true)` policy, a policy with no bucket predicate, or a policy granted to `PUBLIC` could make server-only objects client-reachable without matching the heuristic's expected text.
 
-**Local evidence, 2026-08-11:** the forward migration replayed on local Supabase Postgres; `storage_bucket_posture_catalog.test.sql` passed ten focused pgTAP assertions covering all eleven catalog buckets, the three posture classes, and rollback-safe adversarial probes for rogue buckets, server-only authenticated policy drift, and flipped public flags; `db:audit:architecture` passed on the same stack. This is local evidence only; hosted Development catalog verification remains pending.
+**Resolution:** `20260812033551_client_acl_and_storage_posture_catalogs.sql` adds `app_private.storage_bucket_posture_catalog()` as the reviewed source for all eleven buckets, their public/MIME/size properties, and posture classes: six `public`, two `private-client` (`paper-signup-scans`, `plugin_form_uploads`), and three `server-only` (`csf-private`, `data-exports`, `waiver-signatures`). The amended migration now recreates the complete reviewed browser policy surface and snapshots its canonical `pg_policy` identity, command, role array, permissive/restrictive shape, `USING`, and `WITH CHECK` expressions. The architecture gate rejects every missing, changed, or unnamed client-reachable policy, including `PUBLIC` and inherited role reachability; therefore a broad `USING (true)` policy or any policy reaching a server-only bucket cannot be admitted by naming or bucket-text heuristics. The catalog still preserves the reviewed public-bucket write policies and the seven exact private-client policies.
+
+Earlier local evidence on 2026-08-11 covered the weaker pre-review policy heuristic only. The amended 23-assertion pgTAP contract proves `storage.objects` RLS is enabled and adds adversarial probes for broad authenticated access, missing bucket predicates, `PUBLIC`, inherited-role reachability, command/role/expression/shape drift, valid private-client policies, and zero server-only exposure. It has not been executed in this worktree under the review constraints. AUD-009 remains open until the mandatory exact CI database replay and pgTAP gate pass.
 
 ---
 

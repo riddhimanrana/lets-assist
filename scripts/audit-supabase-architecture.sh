@@ -273,60 +273,123 @@ public_client_relation_acl_drift="$(
       cross join lateral unnest(c.columns) as col(column_name)
       where c.columns is not null
     ),
-    actual_relation as (
-      select table_name as relation_name, grantee as role_name, privilege_type as privilege, null::text as column_name
-      from information_schema.role_table_grants
-      where table_schema = 'public'
-        and grantee in ('anon', 'authenticated')
-        and privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
+    client_roles as (
+      select oid, rolname::text as role_name
+      from pg_roles
+      where rolname in ('anon', 'authenticated')
     ),
-    actual_column as (
-      select cp.table_name as relation_name, cp.grantee as role_name, cp.privilege_type as privilege, cp.column_name
-      from information_schema.column_privileges cp
-      where cp.table_schema = 'public'
-        and cp.grantee in ('anon', 'authenticated')
-        and cp.privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
-        and not exists (
-          select 1
-          from information_schema.role_table_grants rt
-          where rt.table_schema = cp.table_schema
-            and rt.table_name = cp.table_name
-            and rt.grantee = cp.grantee
-            and rt.privilege_type = cp.privilege_type
+    relations as (
+      select relation.oid, relation.relname::text as relation_name, relation.relacl
+      from pg_class relation
+      join pg_namespace namespace on namespace.oid = relation.relnamespace
+      where namespace.nspname = 'public'
+        and relation.relkind in ('r', 'p', 'v', 'm')
+    ),
+    dml_privileges(privilege) as (
+      values ('SELECT'::text), ('INSERT'::text), ('UPDATE'::text), ('DELETE'::text)
+    ),
+    direct_actual as (
+      select
+        relations.relation_name,
+        grantee.rolname::text as role_name,
+        acl.privilege_type as privilege,
+        null::text as column_name
+      from relations
+      cross join lateral aclexplode(relations.relacl) acl
+      join pg_roles grantee on grantee.oid = acl.grantee
+      where grantee.rolname in ('anon', 'authenticated')
+        and acl.privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
+      union all
+      select
+        relations.relation_name,
+        grantee.rolname::text,
+        acl.privilege_type,
+        attribute.attname::text
+      from relations
+      join pg_attribute attribute
+        on attribute.attrelid = relations.oid
+       and attribute.attnum > 0
+       and not attribute.attisdropped
+      cross join lateral aclexplode(attribute.attacl) acl
+      join pg_roles grantee on grantee.oid = acl.grantee
+      where grantee.rolname in ('anon', 'authenticated')
+        and acl.privilege_type in ('SELECT', 'INSERT', 'UPDATE')
+    ),
+    effective_actual as (
+      select
+        relations.relation_name,
+        client_roles.role_name,
+        dml_privileges.privilege,
+        null::text as column_name
+      from relations
+      cross join client_roles
+      cross join dml_privileges
+      where has_table_privilege(client_roles.oid, relations.oid, dml_privileges.privilege)
+      union all
+      select
+        relations.relation_name,
+        client_roles.role_name,
+        dml_privileges.privilege,
+        attribute.attname::text
+      from relations
+      join pg_attribute attribute
+        on attribute.attrelid = relations.oid
+       and attribute.attnum > 0
+       and not attribute.attisdropped
+      cross join client_roles
+      cross join dml_privileges
+      where dml_privileges.privilege in ('SELECT', 'INSERT', 'UPDATE')
+        and not has_table_privilege(client_roles.oid, relations.oid, dml_privileges.privilege)
+        and has_column_privilege(
+          client_roles.oid,
+          relations.oid,
+          attribute.attnum,
+          dml_privileges.privilege
         )
     ),
-    actual as (
-      select * from actual_relation
-      union all
-      select * from actual_column
-    ),
     drift as (
-      select 'missing'::text as drift_kind, e.relation_name, e.role_name, e.privilege, e.column_name
-      from expected e
+      select 'direct_missing'::text as drift_kind, expected.*
+      from expected
       where not exists (
         select 1
-        from actual a
-        where a.relation_name = e.relation_name
-          and a.role_name = e.role_name
-          and a.privilege = e.privilege
-          and app_private.client_relation_grant_expected_satisfied_by_actual(
-            e.column_name,
-            a.column_name
-          )
+        from direct_actual
+        where direct_actual.relation_name = expected.relation_name
+          and direct_actual.role_name = expected.role_name
+          and direct_actual.privilege = expected.privilege
+          and direct_actual.column_name is not distinct from expected.column_name
       )
       union all
-      select 'unexpected'::text, a.relation_name, a.role_name, a.privilege, a.column_name
-      from actual a
+      select 'direct_unexpected'::text, direct_actual.*
+      from direct_actual
       where not exists (
         select 1
-        from expected e
-        where e.relation_name = a.relation_name
-          and e.role_name = a.role_name
-          and e.privilege = e.privilege
-          and app_private.client_relation_grant_actual_covered_by_expected(
-            a.column_name,
-            e.column_name
-          )
+        from expected
+        where expected.relation_name = direct_actual.relation_name
+          and expected.role_name = direct_actual.role_name
+          and expected.privilege = direct_actual.privilege
+          and expected.column_name is not distinct from direct_actual.column_name
+      )
+      union all
+      select 'effective_missing'::text, expected.*
+      from expected
+      where not exists (
+        select 1
+        from effective_actual
+        where effective_actual.relation_name = expected.relation_name
+          and effective_actual.role_name = expected.role_name
+          and effective_actual.privilege = expected.privilege
+          and effective_actual.column_name is not distinct from expected.column_name
+      )
+      union all
+      select 'effective_unexpected'::text, effective_actual.*
+      from effective_actual
+      where not exists (
+        select 1
+        from expected
+        where expected.relation_name = effective_actual.relation_name
+          and expected.role_name = effective_actual.role_name
+          and expected.privilege = effective_actual.privilege
+          and expected.column_name is not distinct from effective_actual.column_name
       )
     )
     select drift_kind, relation_name, role_name, privilege, column_name
@@ -338,34 +401,91 @@ fail_if_rows "public client relation ACL drift from reviewed catalog" "$public_c
 
 public_client_relation_dangerous_grants="$(
   psql "$DB_URL" -AtF $'\t' -c "
-    select n.nspname, c.relname, grantee.rolname, acl.privilege_type
-    from pg_class c
-    join pg_namespace n on n.oid = c.relnamespace
-    cross join lateral aclexplode(c.relacl) acl(grantor_oid, grantee_oid, privilege_type, is_grantable)
-    join pg_roles grantee on grantee.oid = acl.grantee_oid
-    where n.nspname = 'public'
-      and c.relkind in ('r', 'p', 'v', 'm')
-      and grantee.rolname in ('anon', 'authenticated')
-      and acl.privilege_type not in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
-    order by c.relname, grantee.rolname, acl.privilege_type;
+    with client_roles as (
+      select oid, rolname::text as role_name
+      from pg_roles
+      where rolname in ('anon', 'authenticated')
+    ),
+    relations as (
+      select relation.oid, relation.relname::text as relation_name
+      from pg_class relation
+      join pg_namespace namespace on namespace.oid = relation.relnamespace
+      where namespace.nspname = 'public'
+        and relation.relkind in ('r', 'p', 'v', 'm')
+    ),
+    dangerous_table_privileges(privilege) as (
+      values ('TRUNCATE'::text), ('REFERENCES'::text), ('TRIGGER'::text), ('MAINTAIN'::text)
+    ),
+    dangerous as (
+      select
+        relations.relation_name,
+        client_roles.role_name,
+        dangerous_table_privileges.privilege,
+        null::text as column_name
+      from relations
+      cross join client_roles
+      cross join dangerous_table_privileges
+      where has_table_privilege(
+        client_roles.oid,
+        relations.oid,
+        dangerous_table_privileges.privilege
+      )
+      union all
+      select
+        relations.relation_name,
+        client_roles.role_name,
+        'REFERENCES'::text,
+        attribute.attname::text
+      from relations
+      join pg_attribute attribute
+        on attribute.attrelid = relations.oid
+       and attribute.attnum > 0
+       and not attribute.attisdropped
+      cross join client_roles
+      where not has_table_privilege(client_roles.oid, relations.oid, 'REFERENCES')
+        and has_column_privilege(client_roles.oid, relations.oid, attribute.attnum, 'REFERENCES')
+    )
+    select relation_name, role_name, privilege, column_name
+    from dangerous
+    order by relation_name, role_name, privilege, column_name;
   "
 )"
-fail_if_rows "public relations grant anon/authenticated non-DML privileges" "$public_client_relation_dangerous_grants"
+fail_if_rows "public relations grant anon/authenticated effective non-DML privileges" "$public_client_relation_dangerous_grants"
 
 public_client_relation_public_grants="$(
   psql "$DB_URL" -AtF $'\t' -c "
-    select n.nspname, c.relname, acl.privilege_type
-    from pg_class c
-    join pg_namespace n on n.oid = c.relnamespace
-    cross join lateral aclexplode(c.relacl) acl(grantor_oid, grantee_oid, privilege_type, is_grantable)
-    where n.nspname = 'public'
-      and c.relkind in ('r', 'p', 'v', 'm')
-      and acl.grantee_oid = 0
-      and acl.privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER')
-    order by c.relname, acl.privilege_type;
+    with public_grants as (
+      select
+        relation.relname::text as relation_name,
+        acl.privilege_type,
+        null::text as column_name
+      from pg_class relation
+      join pg_namespace namespace on namespace.oid = relation.relnamespace
+      cross join lateral aclexplode(relation.relacl) acl
+      where namespace.nspname = 'public'
+        and relation.relkind in ('r', 'p', 'v', 'm')
+        and acl.grantee = 0
+      union all
+      select
+        relation.relname::text,
+        acl.privilege_type,
+        attribute.attname::text
+      from pg_attribute attribute
+      join pg_class relation on relation.oid = attribute.attrelid
+      join pg_namespace namespace on namespace.oid = relation.relnamespace
+      cross join lateral aclexplode(attribute.attacl) acl
+      where namespace.nspname = 'public'
+        and relation.relkind in ('r', 'p', 'v', 'm')
+        and attribute.attnum > 0
+        and not attribute.attisdropped
+        and acl.grantee = 0
+    )
+    select relation_name, privilege_type, column_name
+    from public_grants
+    order by relation_name, privilege_type, column_name;
   "
 )"
-fail_if_rows "PUBLIC role still holds public relation DML or dangerous privileges" "$public_client_relation_public_grants"
+fail_if_rows "PUBLIC role still holds public relation or column privileges" "$public_client_relation_public_grants"
 
 read_models_not_security_invoker="$(
   psql "$DB_URL" -AtF $'\t' -c "
@@ -460,91 +580,94 @@ storage_bucket_drift="$(
 )"
 fail_if_rows "storage buckets missing, unexpected, or with catalog property drift" "$storage_bucket_drift"
 
-public_storage_listing_policies="$(
+storage_objects_rls_disabled="$(
   psql "$DB_URL" -AtF $'\t' -c "
-    select policyname, roles::text, qual
-    from pg_policies
-    where schemaname = 'storage'
-      and tablename = 'objects'
-      and cmd = 'SELECT'
-      and ('public' = any(roles) or 'anon' = any(roles))
-    order by policyname;
+    select namespace.nspname, relation.relname
+    from pg_class relation
+    join pg_namespace namespace on namespace.oid = relation.relnamespace
+    where namespace.nspname = 'storage'
+      and relation.relname = 'objects'
+      and relation.relkind in ('r', 'p')
+      and not relation.relrowsecurity;
   "
 )"
-fail_if_rows "public/anon storage.objects SELECT policies that can expose object listings" "$public_storage_listing_policies"
+fail_if_rows "storage.objects does not enforce row-level security" "$storage_objects_rls_disabled"
 
-server_only_storage_client_policies="$(
+storage_object_policy_drift="$(
   psql "$DB_URL" -AtF $'\t' -c "
-    with catalog as (
-      select bucket_id
-      from app_private.storage_bucket_posture_catalog()
-      where posture = 'server-only'
-    )
-    select c.bucket_id, p.policyname, p.roles::text, p.cmd
-    from catalog c
-    join pg_policies p
-      on p.schemaname = 'storage'
-     and p.tablename = 'objects'
-    where (
-      'public' = any(p.roles)
-      or 'anon' = any(p.roles)
-      or 'authenticated' = any(p.roles)
-    )
-    and (
-      coalesce(p.qual, '') like ('%bucket_id = ''' || c.bucket_id || '''%')
-      or coalesce(p.with_check, '') like ('%bucket_id = ''' || c.bucket_id || '''%')
-    )
-    order by c.bucket_id, p.policyname, p.cmd;
+    select
+      drift_kind,
+      policy_name,
+      command,
+      role_names,
+      is_permissive,
+      using_expression,
+      with_check_expression
+    from app_private.storage_object_policy_contract_violations()
+    order by drift_kind, policy_name, command;
   "
 )"
-fail_if_rows "server-only storage buckets exposed through client storage.objects policies" "$server_only_storage_client_policies"
+fail_if_rows "client-reachable storage.objects policies drift from the exact reviewed contract" "$storage_object_policy_drift"
 
-private_client_storage_policy_gaps="$(
+storage_object_policy_posture_gaps="$(
   psql "$DB_URL" -AtF $'\t' -c "
-    with catalog as (
-      select bucket_id
+    with bucket_catalog as (
+      select bucket_id, posture
       from app_private.storage_bucket_posture_catalog()
-      where posture = 'private-client'
     ),
-    missing_authenticated as (
-      select c.bucket_id, 'missing_authenticated_policy'::text as issue
-      from catalog c
-      where not exists (
-        select 1
-        from pg_policies p
-        where p.schemaname = 'storage'
-          and p.tablename = 'objects'
-          and 'authenticated' = any(p.roles)
-          and (
-            coalesce(p.qual, '') like ('%bucket_id = ''' || c.bucket_id || '''%')
-            or coalesce(p.with_check, '') like ('%bucket_id = ''' || c.bucket_id || '''%')
-          )
-      )
+    policy_catalog as (
+      select *
+      from app_private.storage_object_policy_catalog()
     ),
-    public_or_anon_policies as (
-      select c.bucket_id, 'public_or_anon_policy'::text as issue, p.policyname, p.roles::text, p.cmd
-      from catalog c
-      join pg_policies p
-        on p.schemaname = 'storage'
-       and p.tablename = 'objects'
-      where (
-        'public' = any(p.roles)
-        or 'anon' = any(p.roles)
-      )
-      and (
-        coalesce(p.qual, '') like ('%bucket_id = ''' || c.bucket_id || '''%')
-        or coalesce(p.with_check, '') like ('%bucket_id = ''' || c.bucket_id || '''%')
-      )
+    gaps as (
+      select
+        policy_catalog.bucket_id,
+        policy_catalog.policy_name,
+        'policy_bucket_missing_from_posture_catalog'::text as issue
+      from policy_catalog
+      left join bucket_catalog using (bucket_id)
+      where bucket_catalog.bucket_id is null
+      union all
+      select
+        policy_catalog.bucket_id,
+        policy_catalog.policy_name,
+        'server_only_bucket_has_client_policy'::text
+      from policy_catalog
+      join bucket_catalog using (bucket_id)
+      where bucket_catalog.posture = 'server-only'
+      union all
+      select
+        policy_catalog.bucket_id,
+        policy_catalog.policy_name,
+        'policy_roles_are_not_exactly_authenticated'::text
+      from policy_catalog
+      where policy_catalog.role_names <> array['authenticated']::text[]
+      union all
+      select
+        policy_catalog.bucket_id,
+        policy_catalog.policy_name,
+        'reviewed_policy_is_restrictive'::text
+      from policy_catalog
+      where not policy_catalog.is_permissive
+      union all
+      select
+        bucket_catalog.bucket_id,
+        null::text,
+        'private_client_bucket_has_no_reviewed_policy'::text
+      from bucket_catalog
+      where bucket_catalog.posture = 'private-client'
+        and not exists (
+          select 1
+          from policy_catalog
+          where policy_catalog.bucket_id = bucket_catalog.bucket_id
+        )
     )
-    select bucket_id, issue, null::text as policyname, null::text as roles, null::text as cmd
-    from missing_authenticated
-    union all
-    select bucket_id, issue, policyname, roles, cmd
-    from public_or_anon_policies
-    order by bucket_id, issue, policyname, cmd;
+    select bucket_id, policy_name, issue
+    from gaps
+    order by bucket_id, policy_name, issue;
   "
 )"
-fail_if_rows "private-client storage buckets missing authenticated policies or exposed to public/anon" "$private_client_storage_policy_gaps"
+fail_if_rows "storage policy catalog violates bucket posture or exact client-role shape" "$storage_object_policy_posture_gaps"
 
 unexpected_auth_schema_grants="$(
   psql "$DB_URL" -AtF $'\t' -c "
