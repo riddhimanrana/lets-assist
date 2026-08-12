@@ -156,30 +156,24 @@ export async function updateProjectStatus(
       const cancelledAt = updateData.cancelled_at ?? new Date().toISOString();
       const serviceSupabase = getAdminClient();
 
-      // Integration note: codex/cancellation-worker-exactly-once replaces this
-      // post-transition enqueue and the cancelled status write above with one
-      // atomic RPC. Its merge must retain the CAS/affected-row proof before
-      // calendar cleanup instead of preserving this two-step boundary.
-      const { error: enqueueError } = await serviceSupabase
-        .from("project_cancellation_jobs")
-        .upsert(
-          {
-            project_id: projectId,
-            cancelled_at: cancelledAt,
-            cancellation_reason: cancellationReason!,
-            created_by: user.id,
-            status: "pending",
-            cursor: 0,
-            attempts: 0,
-            last_error: null,
-            processing_started_at: null,
-            completed_at: null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "project_id" },
-        );
+      // Enqueue through the service RPC rather than upserting the row here.
+      // The old client-shaped upsert reset status, cursor, attempts, and the
+      // lease timestamps on every conflict, so re-cancelling a project could
+      // stomp a live worker lease and re-drive an audience mid-flight. The RPC
+      // only ever revives a job that provably sent nothing more.
+      const { data: enqueueResult, error: enqueueError } =
+        await serviceSupabase.rpc("enqueue_project_cancellation_job", {
+          p_project_id: projectId,
+          p_cancelled_at: cancelledAt,
+          p_cancellation_reason: cancellationReason!,
+          p_created_by: user.id,
+        });
 
-      if (enqueueError) {
+      const enqueueAccepted = Boolean(
+        (enqueueResult as { accepted?: boolean } | null)?.accepted,
+      );
+
+      if (enqueueError || !enqueueAccepted) {
         if (process.env.NODE_ENV !== "test") {
           console.error(
             "Error enqueueing project cancellation job:",
