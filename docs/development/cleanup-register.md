@@ -47,6 +47,15 @@ implemented. The visible Development composer schedule/readback/archive
 lifecycle is accepted. It remains open only through the default-branch/hosted
 invocation and visible schedule → Feed publication gates; officers use manual
 publication until that evidence exists in the target environment.
+
+CLEAN-007 now has a private-first implementation merged through private PR #33
+at `2ce0a3d`. The root integration candidate adds a server-only, tenant-scoped,
+bounded batch of the canonical database decision preflight; queue, detail, and
+modal consume permission-shaped projections from that same source. Local
+evidence includes a clean empty replay and the full pgTAP suite,
+36 focused private tests, and a compiled Playwright queue → detail → modal
+journey. The finding remains active until the exact root gitlink is merged,
+root CI is green, and the hosted Development journey is accepted.
 CLEAN-016 remains open. The communications route now requires exact opt-in,
 authenticates before its isolated probe/flag/client, accepts no caller work
 coordinates, bounds each run, and is covered by the shared seven-route no-egress
