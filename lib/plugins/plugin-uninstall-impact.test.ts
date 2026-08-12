@@ -17,18 +17,15 @@ describe("describePluginUninstallImpact", () => {
     expect(impact.summary).toMatch(/cannot be undone/i);
   });
 
-  test("copy is truthful: platform's own operation does not request plugin-data deletion", () => {
+  test("copy guarantees ordinary uninstall does not execute plugin code or delete plugin data", () => {
     const impact = describePluginUninstallImpact({
       pluginName: "Example Plugin",
       dataAccessPurposes: [],
     });
 
-    // Does not claim the platform deleted plugin data.
-    expect(impact.summary).not.toMatch(/data.{0,40}(deleted|erased|removed)/i);
-    // Scopes the claim to the platform's own operation.
-    expect(impact.summary).toMatch(/platform.{0,60}does not request/i);
-    // Acknowledges lifecycle hooks are unconstrained.
-    expect(impact.summary).toMatch(/not constrained by the platform/i);
+    expect(impact.summary).toMatch(/does not run any of .+ code/i);
+    expect(impact.summary).toMatch(/does not delete stored plugin data/i);
+    expect(impact.summary).toMatch(/only removes the install record/i);
   });
 
   test("erasure copy states no self-service or support-triggered path, without implying a request channel exists", () => {
@@ -38,12 +35,12 @@ describe("describePluginUninstallImpact", () => {
     });
 
     expect(impact.summary).toMatch(
-      /no self-service or support-triggered path/i,
+      /automated, self-service, or support-triggered path/i,
     );
     expect(impact.summary).not.toMatch(/authorized request/i);
     expect(impact.summary).not.toMatch(/from this screen/i);
     expect(impact.retentionClause).toMatch(
-      /no self-service or support-triggered path/i,
+      /automated, self-service, or support-triggered path/i,
     );
     expect(impact.retentionClause).not.toMatch(/authorized request/i);
   });
@@ -82,11 +79,23 @@ describe("describePluginUninstallImpact", () => {
       dataAccessPurposes: [],
     });
 
-    expect(impact.summary).toMatch(/does not request plugin-data deletion/i);
+    expect(impact.summary).toMatch(/does not delete stored plugin data/i);
     expect(impact.dataCategories).toEqual([]);
     expect(
       impact.dataCategories.length + impact.additionalDataCategoryCount,
     ).toBe(0);
+  });
+
+  test("points to the distinct deletion action only when readiness makes it available", () => {
+    const impact = describePluginUninstallImpact({
+      pluginName: "Example Plugin",
+      dataAccessPurposes: [],
+      permanentDeletionAvailable: true,
+    });
+
+    expect(impact.retentionClause).toMatch(
+      /separate, explicit permanent data-deletion action is available/i,
+    );
   });
 
   test("deduplicates repeated purposes instead of counting them twice", () => {

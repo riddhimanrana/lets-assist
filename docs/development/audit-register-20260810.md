@@ -32,6 +32,8 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-009](#aud-009) | P2  | Gate coverage          | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads`                     | Confirmed                                                    |
 | [AUD-010](#aud-010) | P3  | Moderation             | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true                    | Confirmed, dead policy                                       |
 | [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                           | Confirmed                                                    |
+| [AUD-020](#aud-020) | P2  | Plugin data deletion   | Permanent deletion lacked a complete contract, authorization boundary, and truthful durable replay state            | **Fixed locally**; hosted Development pending                |
+| [AUD-021](#aud-021) | P2  | Plugin uninstall       | Ordinary uninstall could run arbitrary plugin code and therefore could not guarantee data retention                 | **Fixed locally**; hosted Development pending                |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -619,6 +621,44 @@ The two sets are also disjoint in what they touch: Codex's are all `csf_*`, whil
 - A full `db:test:redesign` replay in its own worktree, which needs its own isolated stack.
 - Reconciling its `app/organization/[id]/page.tsx` changes with the setup checklist added to the same file this session — a likely merge conflict.
 - Reviewing its 11 migrations and ~6,000 lines of new pgTAP on their merits.
+
+---
+
+<a id="aud-021"></a>
+
+## AUD-020 / AUD-021 — Plugin data lifecycle boundary {#aud-020}
+
+**Priority:** P2 · **Status:** Fixed locally; hosted Development pending
+
+Ordinary uninstall is now mechanically non-destructive: the transition core
+removes only the exact organization/plugin install row and never invokes
+`onUninstall`, `onDataDelete`, or any plugin code. Its audit evidence may
+therefore state `pluginDataRetained: true`. `onUninstall` remains only as
+compensation for a successful install hook followed by failed persistence.
+
+Permanent deletion is a separate MFA-aware organization-admin action. It
+revalidates current membership, registry, catalog, entitlement/forced/private
+state, absence of an install row, and an organization/plugin-bound confirmation
+under the control-plane transition lease. A complete manifest declaration must
+exactly cover every tenant database/storage target and declare idempotent retry
+semantics; missing or partial contracts fail closed.
+
+Migration `20260812064000_plugin_data_deletion_requests.sql` adds a private,
+RLS-enabled, service-only redacted receipt. Globally unique request keys are
+bound to actor/organization/plugin/fingerprint, per-scope processing is unique,
+and attempt claim tokens make completion compare-and-set. Processing after a
+crash is treated as ambiguous and never auto-replayed; only an explicitly
+reported `retryable_failed` receipt may run again. Hook outcome is finalized
+before independent audit attachment, so audit failure cannot turn successful
+destruction into a false failed/replayable operation.
+
+No private manifest declares the complete new contract in this root change.
+That is deliberately fail-safe: permanent deletion remains unavailable for
+private plugins until a separate private-repository review enumerates targets
+and external systems, lands there, and only then updates the root gitlink.
+Local evidence is green: 78 focused Bun tests, 59 focused pgTAP assertions, and
+a full local migration reset/replay pass. Hosted Development remains pending.
+Production was not read, written, queried, deployed, or tested.
 
 ---
 

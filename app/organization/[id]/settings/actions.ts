@@ -13,4 +13,5 @@ export {
   updateOrganizationPluginConfiguration,
   updateOrganizationPluginToLatest,
 } from "./server/plugin-mutations";
+export { permanentlyDeleteOrganizationPluginData } from "./server/plugin-data-deletion-mutation";
 export type { OrganizationPluginSettingsResult } from "./server/plugin-shared";

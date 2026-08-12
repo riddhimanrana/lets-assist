@@ -144,26 +144,21 @@ describe("plugin control-plane lifecycle ordering", () => {
     expect(harness.events).toEqual(["lifecycle:install", "persist:update"]);
   });
 
-  test("disable and uninstall hooks veto state changes", async () => {
-    for (const transition of [
-      { kind: "disable" },
-      { kind: "uninstall" },
-    ] as const) {
-      const harness = callbacks({
-        failLifecycle: (invocation) => invocation.hook === transition.kind,
-      });
-      const result = await applyPluginControlPlaneTransition({
-        current: currentInstall,
-        transition,
-        callbacks: harness.implementation,
-      });
+  test("disable hooks veto state changes", async () => {
+    const harness = callbacks({
+      failLifecycle: (invocation) => invocation.hook === "disable",
+    });
+    const result = await applyPluginControlPlaneTransition({
+      current: currentInstall,
+      transition: { kind: "disable" },
+      callbacks: harness.implementation,
+    });
 
-      expect(result.success).toBe(false);
-      expect(harness.events).toEqual([`lifecycle:${transition.kind}`]);
-    }
+    expect(result.success).toBe(false);
+    expect(harness.events).toEqual(["lifecycle:disable"]);
   });
 
-  test("disable and uninstall persist only after their hooks succeed", async () => {
+  test("disable persists only after its hook succeeds", async () => {
     const disableHarness = callbacks();
     const disabled = await applyPluginControlPlaneTransition({
       current: currentInstall,
@@ -175,18 +170,20 @@ describe("plugin control-plane lifecycle ordering", () => {
       "lifecycle:disable",
       "persist:update",
     ]);
+  });
 
-    const uninstallHarness = callbacks();
+  test("ordinary uninstall never invokes plugin lifecycle code", async () => {
+    const uninstallHarness = callbacks({
+      failLifecycle: (invocation) => invocation.hook === "uninstall",
+    });
     const uninstalled = await applyPluginControlPlaneTransition({
       current: currentInstall,
       transition: { kind: "uninstall" },
       callbacks: uninstallHarness.implementation,
     });
     expect(uninstalled.success).toBe(true);
-    expect(uninstallHarness.events).toEqual([
-      "lifecycle:uninstall",
-      "persist:remove",
-    ]);
+    expect(uninstalled.actions).toEqual(["install.removed"]);
+    expect(uninstallHarness.events).toEqual(["persist:remove"]);
   });
 
   test("config persistence failure invokes the inverse config hook", async () => {
@@ -376,7 +373,7 @@ describe("plugin control-plane lifecycle ordering", () => {
 });
 
 describe("plugin control-plane audit details", () => {
-  test("only install.removed asserts platform-controlled facts, and never a claim about plugin_data", () => {
+  test("install.removed records the platform-controlled no-hook data-retention invariant", () => {
     const actions: PluginControlPlaneAuditAction[] = [
       "install.created",
       "install.enabled",
@@ -393,11 +390,9 @@ describe("plugin control-plane audit details", () => {
         expect(details).toEqual({
           platformInstallRowRemoved: true,
           pluginDataDeletionNotRequested: true,
+          pluginDataRetained: true,
           configurationRemoved: false,
         });
-        // Neither key claims to know what an arbitrary onUninstall hook did
-        // to plugin_data — the platform cannot certify that.
-        expect(Object.keys(details)).not.toContain("pluginDataRetained");
       } else {
         expect(details).toEqual({});
       }

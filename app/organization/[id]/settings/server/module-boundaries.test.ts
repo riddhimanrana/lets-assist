@@ -13,6 +13,7 @@ describe("organization settings action modules", () => {
       "generateStaffLink",
       "getOrganizationPluginSettings",
       "getStaffLinkDetails",
+      "permanentlyDeleteOrganizationPluginData",
       "revokeStaffLink",
       "setOrganizationPluginInstallState",
       "uninstallOrganizationPlugin",
@@ -30,6 +31,7 @@ describe("organization settings action modules", () => {
       "app/organization/[id]/settings/server/profile.ts",
       "app/organization/[id]/settings/server/plugin-query.ts",
       "app/organization/[id]/settings/server/plugin-mutations.ts",
+      "app/organization/[id]/settings/server/plugin-data-deletion-mutation.ts",
     ]) {
       expect(read(path).split("\n").length).toBeLessThanOrEqual(800);
     }

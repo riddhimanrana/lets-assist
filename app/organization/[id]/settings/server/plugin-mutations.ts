@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
+import { getPluginDataDeletionReadiness } from "@/lib/plugins/plugin-data-deletion-readiness";
 import {
   describePluginUninstallImpact,
   extractDataAccessPurposes,
@@ -328,6 +329,9 @@ export async function uninstallOrganizationPlugin(options: {
       dataAccessPurposes: extractDataAccessPurposes(
         definition?.manifest.dataAccess,
       ),
+      permanentDeletionAvailable: definition
+        ? getPluginDataDeletionReadiness(definition).ready
+        : false,
     }).summary,
   };
 }

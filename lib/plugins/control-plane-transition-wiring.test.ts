@@ -187,19 +187,42 @@ describe("plugin control-plane action wiring", () => {
     expect(impactSource).toContain("already-queued work may still complete");
   });
 
-  test("erasure copy in plugin-uninstall-impact does not imply a support-triggered request channel", () => {
+  test("erasure copy in plugin-uninstall-impact does not imply a support-triggered request channel when unavailable", () => {
     const impactSource = read("lib/plugins/plugin-uninstall-impact.ts");
     expect(impactSource).not.toContain("authorized request");
-    expect(impactSource).toContain("no self-service or support-triggered path");
+    expect(impactSource).toContain(
+      "does not currently support an automated, self-service, or support-triggered path",
+    );
   });
 
-  test("runPluginDataDelete is defined in lifecycle but has no caller in the platform or submodule plugin files outside tests", () => {
+  test("plugin-uninstall-impact never claims uninstall's own hook is unconstrained by the platform", () => {
+    // Ordinary uninstall no longer runs any plugin code at all, so this copy
+    // must not resurrect the old "hook runs before removal, unconstrained by
+    // the platform" framing that justified treating retention as unprovable.
+    const impactSource = read("lib/plugins/plugin-uninstall-impact.ts");
+    expect(impactSource).not.toContain("not constrained by the platform");
+    expect(impactSource).toContain("does not run any of");
+  });
+
+  test("ordinary uninstall never invokes runPluginUninstall or any plugin lifecycle hook", () => {
+    const transitionCore = read("lib/plugins/control-plane-transition-core.ts");
+    expect(transitionCore).not.toContain("runPluginUninstall(");
+    expect(transitionCore).not.toMatch(
+      /runLifecycleSequence\(\s*\[\s*\{\s*hook:\s*["']uninstall["']/,
+    );
+    // The transition adapter and ordinary organization actions must not call
+    // the data-deletion hook either — only the dedicated, authorized
+    // permanent-deletion service may.
+    expect(transitionAdapter).not.toContain("runPluginDataDelete(");
+    expect(organizationActions).not.toContain("runPluginDataDelete(");
+  });
+
+  test("runPluginDataDelete has exactly one authorized caller: the permanent plugin-data deletion service", () => {
     const lifecycleSource = read("lib/plugins/lifecycle.ts");
     expect(lifecycleSource).toContain(
       "export async function runPluginDataDelete(",
     );
-    // The transition adapter and control-plane actions must NOT call it — it is unwired.
-    expect(transitionAdapter).not.toContain("runPluginDataDelete(");
-    expect(organizationActions).not.toContain("runPluginDataDelete(");
+    const deletionService = read("lib/plugins/plugin-data-deletion.ts");
+    expect(deletionService).toContain("runPluginDataDelete(");
   });
 });
