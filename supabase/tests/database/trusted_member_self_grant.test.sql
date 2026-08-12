@@ -27,14 +27,14 @@ INSERT INTO auth.users (
 )
 VALUES
   (
-    'fe000000-0000-4000-8000-000000000001',
+    'aafedcba-1234-4abc-8def-000000000001',
     'authenticated', 'authenticated', 'tm-applicant@local.test', now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
     '{}'::jsonb,
     now(), now()
   ),
   (
-    'fe000000-0000-4000-8000-000000000002',
+    'aafedcba-1234-4abc-8def-000000000002',
     'authenticated', 'authenticated', 'tm-superadmin@local.test', now(),
     '{"provider":"email","providers":["email"],"is_super_admin":true}'::jsonb,
     '{}'::jsonb,
@@ -110,12 +110,12 @@ SELECT extensions.ok(
 -- Behaviour: as the applicant
 -- ---------------------------------------------------------------------------
 
-SET LOCAL request.jwt.claims = '{"sub":"fe000000-0000-4000-8000-000000000001","role":"authenticated"}';
+SET LOCAL request.jwt.claims = '{"sub":"aafedcba-1234-4abc-8def-000000000001","role":"authenticated"}';
 SET LOCAL ROLE authenticated;
 
 SELECT extensions.throws_ok(
   $$INSERT INTO public.trusted_member (user_id, status, name, email, reason)
-    VALUES ('fe000000-0000-4000-8000-000000000001', true, 'A', 'a@local.test', 'r')$$,
+    VALUES ('aafedcba-1234-4abc-8def-000000000001', true, 'A', 'a@local.test', 'r')$$,
   '42501',
   'trusted member approval state is server-managed',
   'an applicant cannot insert an approved row'
@@ -123,7 +123,7 @@ SELECT extensions.throws_ok(
 
 SELECT extensions.throws_ok(
   $$INSERT INTO public.trusted_member (user_id, status, name, email, reason)
-    VALUES ('fe000000-0000-4000-8000-000000000001', false, 'A', 'a@local.test', 'r')$$,
+    VALUES ('aafedcba-1234-4abc-8def-000000000001', false, 'A', 'a@local.test', 'r')$$,
   '42501',
   'trusted member approval state is server-managed',
   'approval state is server-managed regardless of the value supplied'
@@ -131,20 +131,20 @@ SELECT extensions.throws_ok(
 
 SELECT extensions.lives_ok(
   $$INSERT INTO public.trusted_member (user_id, status, name, email, reason)
-    VALUES ('fe000000-0000-4000-8000-000000000001', NULL, 'A', 'a@local.test', 'r')$$,
+    VALUES ('aafedcba-1234-4abc-8def-000000000001', NULL, 'A', 'a@local.test', 'r')$$,
   'the real application path still works'
 );
 
 SELECT extensions.is(
   (SELECT status FROM public.trusted_member
-    WHERE user_id = 'fe000000-0000-4000-8000-000000000001'),
+    WHERE user_id = 'aafedcba-1234-4abc-8def-000000000001'),
   NULL::boolean,
   'a submitted application is pending'
 );
 
 SELECT extensions.throws_ok(
   $$UPDATE public.trusted_member SET status = true
-     WHERE user_id = 'fe000000-0000-4000-8000-000000000001'$$,
+     WHERE user_id = 'aafedcba-1234-4abc-8def-000000000001'$$,
   '42501',
   NULL,
   'an applicant cannot approve their own pending application'
@@ -152,13 +152,13 @@ SELECT extensions.throws_ok(
 
 SELECT extensions.is(
   (SELECT trusted_member FROM public.profiles
-    WHERE id = 'fe000000-0000-4000-8000-000000000001'),
+    WHERE id = 'aafedcba-1234-4abc-8def-000000000001'),
   NULL::boolean,
   'the profile flag was never flipped'
 );
 
 SELECT extensions.is(
-  public.is_trusted_member('fe000000-0000-4000-8000-000000000001'),
+  public.is_trusted_member('aafedcba-1234-4abc-8def-000000000001'),
   false,
   'the attempt conferred no trusted status'
 );
@@ -167,7 +167,7 @@ SELECT extensions.is(
 SELECT extensions.throws_ok(
   $$INSERT INTO public.organizations (name, username, description, type, created_by)
     VALUES ('Escalated', 'escalated-org', 'd', 'other',
-            'fe000000-0000-4000-8000-000000000001')$$,
+            'aafedcba-1234-4abc-8def-000000000001')$$,
   '42501',
   NULL,
   'the escalation does not unlock organization creation'
@@ -182,19 +182,19 @@ SET LOCAL ROLE service_role;
 
 SELECT extensions.lives_ok(
   $$UPDATE public.trusted_member SET status = true
-     WHERE user_id = 'fe000000-0000-4000-8000-000000000001'$$,
+     WHERE user_id = 'aafedcba-1234-4abc-8def-000000000001'$$,
   'the service-role approval path is unaffected'
 );
 
 SELECT extensions.is(
   (SELECT trusted_member FROM public.profiles
-    WHERE id = 'fe000000-0000-4000-8000-000000000001'),
+    WHERE id = 'aafedcba-1234-4abc-8def-000000000001'),
   true,
   'trg_tm_sync_profiles still propagates a genuine approval'
 );
 
 SELECT extensions.is(
-  public.is_trusted_member('fe000000-0000-4000-8000-000000000001'),
+  public.is_trusted_member('aafedcba-1234-4abc-8def-000000000001'),
   true,
   'an approved applicant is trusted'
 );
