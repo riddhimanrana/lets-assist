@@ -307,12 +307,11 @@ export async function getSpreadsheetMetadata(
     );
 
     if (!response.ok) {
-      const error = await response.text();
       logError(
         "Failed to fetch Google spreadsheet metadata",
-        new Error(error),
+        new Error(`Sheets returned ${response.status}`),
         {
-          sheet_id: sheetId,
+          status: response.status,
         },
       );
       return null;
@@ -330,10 +329,11 @@ export async function getSpreadsheetMetadata(
       sheetTitle: data.properties?.title || "Untitled Spreadsheet",
       tabs,
     };
-  } catch (error) {
-    logError("Exception while fetching Google spreadsheet metadata", error, {
-      sheet_id: sheetId,
-    });
+  } catch {
+    logError(
+      "Exception while fetching Google spreadsheet metadata",
+      new Error("Sheets metadata request failed"),
+    );
     return null;
   }
 }

@@ -80,6 +80,11 @@ import {
   type ReportType,
 } from "./reports/actions";
 import { ReportLayoutCustomizer } from "./reports/ReportLayoutCustomizer";
+import {
+  buildReportsGoogleSheetPicker,
+  type GoogleApiWindow,
+  type PickerCallbackData,
+} from "./reports/google-picker";
 import { type ReportLayoutConfig } from "./reports/report-layouts";
 import {
   createSheetSync,
@@ -101,44 +106,6 @@ type ReportsTabProps = {
   organizationSlug?: string;
   organizationName: string;
   userRole: string | null;
-};
-
-type PickerCallbackData = {
-  action: string;
-  docs?: Array<{ id?: string }>;
-};
-
-type GooglePickerView = {
-  setMimeTypes: (types: string) => void;
-  setOwnedByMe?: (ownedByMe: boolean) => void;
-  setEnableDrives?: (enabled: boolean) => void;
-  setIncludeFolders?: (enabled: boolean) => void;
-};
-
-type GooglePickerBuilder = {
-  setTitle: (title: string) => GooglePickerBuilder;
-  addView: (view: GooglePickerView) => GooglePickerBuilder;
-  setOAuthToken: (token: string) => GooglePickerBuilder;
-  setDeveloperKey: (key: string) => GooglePickerBuilder;
-  setOrigin: (origin: string) => GooglePickerBuilder;
-  setCallback: (
-    callback: (data: PickerCallbackData) => void,
-  ) => GooglePickerBuilder;
-  build: () => { setVisible: (visible: boolean) => void };
-};
-
-type GooglePickerNamespace = {
-  picker: {
-    ViewId: { SPREADSHEETS: string };
-    Action: { PICKED: string };
-    DocsView: new (viewId: string) => GooglePickerView;
-    PickerBuilder: new () => GooglePickerBuilder;
-  };
-};
-
-type GoogleApiWindow = Window & {
-  gapi?: { load: (name: string, options: { callback: () => void }) => void };
-  google?: GooglePickerNamespace;
 };
 
 const reportTypeLabels: Record<ReportType, string> = {
@@ -606,14 +573,9 @@ export default function ReportsTab({
 
     try {
       const tokenResult = await getSheetsAccessTokenForPicker(organizationId);
-      if (
-        !tokenResult.success ||
-        tokenResult.error ||
-        !tokenResult.accessToken
-      ) {
+      if (!tokenResult.success) {
         setSetupError(
-          tokenResult.error ||
-            "Unable to open Google Picker. Please reconnect with Sheets access and try again.",
+          tokenResult.error || "Unable to open Google Picker. Try again.",
         );
         return;
       }
@@ -642,12 +604,14 @@ export default function ReportsTab({
       );
       view.setMimeTypes("application/vnd.google-apps.spreadsheet");
 
-      const picker = new google.picker.PickerBuilder()
-        .setTitle("Select a Google Sheet")
-        .addView(view)
-        .setOAuthToken(tokenResult.accessToken)
-        .setDeveloperKey(pickerApiKey)
-        .setCallback(async (data: PickerCallbackData) => {
+      const picker = buildReportsGoogleSheetPicker({
+        builder: new google.picker.PickerBuilder(),
+        title: "Select a Google Sheet",
+        view,
+        accessToken: tokenResult.accessToken,
+        developerKey: pickerApiKey,
+        pickerAppId: tokenResult.pickerAppId,
+        callback: async (data: PickerCallbackData) => {
           if (data.action !== google.picker.Action.PICKED) {
             return;
           }
@@ -683,8 +647,8 @@ export default function ReportsTab({
             setSheetMetadata(null);
             setSetupError("Unable to load selected spreadsheet metadata.");
           }
-        })
-        .build();
+        },
+      });
 
       picker.setVisible(true);
     } finally {

@@ -93,6 +93,7 @@ Live Google acceptance is not complete. Until it is, use only synthetic/local so
 Operational rules:
 
 - The encrypted Google connection is scoped to the exact organization, CSF plugin, import purpose, and officer capability approved during OAuth. Google user-info must also verify the exact account `dvhighcsf@gmail.com`; a calendar-email label or officer assertion is not identity evidence. Every token use and refresh rechecks the binding.
+- Picker deployment configuration uses a Google OAuth web client and Browser API key from the same Cloud project. The server derives the required numeric Picker app ID from `GOOGLE_CLIENT_ID`; there is no separate public app-ID setting, and file authorization remains limited to `drive.file`.
 - A wrong, missing, or legacy-unverified account shows **Switch or reconnect**. Officers must not work around it with another organization's token.
 - **Import changes** creates a new immutable snapshot; there is no background sync or Sheet writeback.
 - Google Sheets are input-only in this release. Reports download locally as a formula-safe ZIP; there is no timestamped compatibility-tab or report-write destination.
@@ -212,6 +213,7 @@ Acceptance: per-cohort roster counts match the application grade distribution; s
 | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Wrong connected Google identity                          | Stop before file selection; reconnect the approved chapter account.                                                                                                            |
 | Google source says **Reconnect**                         | Reauthorize; keep existing reviewed records.                                                                                                                                   |
+| Google Picker says it is not configured                  | Stop and ask an administrator to verify `GOOGLE_CLIENT_ID`, the Picker API key, and their shared Google Cloud project; do not request a broader Drive scope.                   |
 | Intended secure-link email is absent/shared              | Close link creation and make an audited member correction first; never type a substitute.                                                                                      |
 | Missing or malformed imported point value                | Leave the row unresolved and correct the source mapping/value; never guess.                                                                                                    |
 | Invalid meeting timestamp                                | Correct with a reason before commit.                                                                                                                                           |

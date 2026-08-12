@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { listRegisteredPlugins } from "@/lib/plugins/registry";
 import { buildOrganizationPluginAdminSettings } from "@/lib/plugins/organization-plugin-settings";
+import { extractDataAccessPurposes } from "@/lib/plugins/plugin-uninstall-impact";
 import {
   isMissingPluginTableError,
   isOrganizationAdminForSettings,
@@ -119,6 +120,7 @@ export async function getOrganizationPluginSettings(
         ) ??
         plugin.manifest.dataScope ??
         [],
+      dataAccessPurposes: extractDataAccessPurposes(plugin.manifest.dataAccess),
       routes: plugin.manifest.routes ?? [],
       backendCapabilities: plugin.manifest.backendCapabilities ?? [],
       configSchema: plugin.manifest.configSchema ?? null,
@@ -168,6 +170,7 @@ export async function getOrganizationPluginSettings(
       ) ??
       plugin.manifest.dataScope ??
       [],
+    dataAccessPurposes: extractDataAccessPurposes(plugin.manifest.dataAccess),
     routes: plugin.manifest.routes ?? [],
     backendCapabilities: plugin.manifest.backendCapabilities ?? [],
     configSchema: plugin.manifest.configSchema ?? null,

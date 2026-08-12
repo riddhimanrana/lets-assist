@@ -670,6 +670,13 @@ export interface OrganizationPluginAdminSetting {
   ownerType: OrganizationPluginOwnerType;
   capabilityHighlights: string[];
   dataAccess: string[];
+  /**
+   * Human-readable `dataAccess[].purpose` values only, deduplicated
+   * server-side — never schema/relation identifiers. Feeds
+   * `describePluginUninstallImpact` so the uninstall confirmation dialog
+   * never has to interpolate internal relation names.
+   */
+  dataAccessPurposes: string[];
   visibility: OrganizationPluginVisibility;
   navLabel: string;
   version: string;
