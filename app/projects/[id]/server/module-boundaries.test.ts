@@ -5,6 +5,10 @@ import { join } from "node:path";
 const serverDirectory = import.meta.dir;
 const barrelPath = join(serverDirectory, "../actions.ts");
 const barrelSource = readFileSync(barrelPath, "utf8");
+const signupsClientSource = readFileSync(
+  join(serverDirectory, "../signups/SignupsClient.tsx"),
+  "utf8",
+);
 const implementationFiles = readdirSync(serverDirectory)
   .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"))
   .sort();
@@ -29,6 +33,7 @@ const PUBLIC_ACTIONS = [
   "getWaiverDefinition",
   "getWaiverDownloadUrl",
   "isProjectCreator",
+  "rejectSignup",
   "removeProjectWaiverPdf",
   "resendAnonymousConfirmationEmail",
   "saveWaiverDefinition",
@@ -56,6 +61,16 @@ describe("project action module boundaries", () => {
     expect(barrelSource).not.toContain('"use server"');
     expect(barrelSource).not.toContain("getAdminClient(");
     expect(barrelSource).not.toContain('.from("');
+  });
+
+  // Rejection used to be a browser UPDATE followed by a separate browser
+  // notification call, so a failed notification still looked like a successful
+  // rejection. The browser may now only ask the server for the whole outcome.
+  test("keeps signup rejection on the atomic server action", () => {
+    expect(signupsClientSource).toContain("await rejectSignup(signupId)");
+    expect(signupsClientSource).not.toContain("NotificationService");
+    expect(signupsClientSource).not.toMatch(/status:\s*["']rejected["']/u);
+    expect(signupsClientSource).not.toContain(".update(");
   });
 
   test("keeps every implementation module within the service/action budget", () => {

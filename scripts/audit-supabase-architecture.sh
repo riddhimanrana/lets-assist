@@ -381,7 +381,20 @@ fail_if_rows "auth schema tables directly granted to anon/authenticated roles" "
 
 unexpected_security_definer_exec="$(
   psql "$DB_URL" -AtF $'\t' -c "
-    with grants as (
+    with reviewed(proname, identity_arguments, rolname) as (
+      values
+        (
+          'publish_volunteer_hours_transactional',
+          'p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text',
+          'authenticated'
+        ),
+        (
+          'reject_project_signup',
+          'p_signup_id uuid, p_expected_user_id uuid, p_expected_project_id uuid',
+          'authenticated'
+        )
+    ),
+    grants as (
       select n.nspname, p.proname, pg_get_function_identity_arguments(p.oid) as identity_arguments, r.rolname
       from pg_proc p
       join pg_namespace n on n.oid = p.pronamespace
@@ -389,11 +402,13 @@ unexpected_security_definer_exec="$(
       where n.nspname = 'public'
         and p.prosecdef
         and has_function_privilege(r.rolname, p.oid, 'EXECUTE')
-        and not (
-          p.proname = 'publish_volunteer_hours_transactional'
-          and pg_get_function_identity_arguments(p.oid) =
-            'p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text'
-          and r.rolname = 'authenticated'
+        and not exists (
+          select 1
+          from reviewed
+          where reviewed.proname = p.proname
+            and reviewed.identity_arguments =
+              pg_get_function_identity_arguments(p.oid)
+            and reviewed.rolname = r.rolname
         )
     )
     select g.nspname, g.proname, g.identity_arguments, g.rolname
@@ -415,7 +430,8 @@ public_client_function_acl_drift="$(
         ('public.is_project_organizer(uuid,uuid)', 'authenticated'),
         ('public.is_super_admin()', 'authenticated'),
         ('public.is_trusted_member(uuid)', 'authenticated'),
-        ('public.publish_volunteer_hours_transactional(uuid,text,jsonb,text)', 'authenticated')
+        ('public.publish_volunteer_hours_transactional(uuid,text,jsonb,text)', 'authenticated'),
+        ('public.reject_project_signup(uuid,uuid,uuid)', 'authenticated')
     ),
     actual as (
       select
