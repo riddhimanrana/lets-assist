@@ -17,6 +17,7 @@ import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
 import { canUserManageProject, getProject } from "./access";
 import {
   validateRecurrenceRule,
+  validateProjectSchedule,
   validateProjectTimezone,
 } from "@/lib/projects/schedule-validation";
 
@@ -221,24 +222,62 @@ export async function cloneProject(projectId: string) {
     return { error: "You don't have permission to clone this project" };
   }
 
-  // Prepare new project data
-  const {
-    id: _,
-    created_at: __,
-    updated_at: ___,
-    creator_id: ____,
-    status: _____,
-    workflow_status: ______,
-    creator_calendar_event_id: _______,
-    creator_synced_at: ________,
-    published: _________,
-    certificates: __________,
-    ...clonableData
-  } = source;
+  const scheduleResult = validateProjectSchedule(
+    source.event_type,
+    source.schedule,
+  );
+  if (!scheduleResult.ok) {
+    return { error: `Cannot clone invalid schedule: ${scheduleResult.error}` };
+  }
 
+  const projectTimezone = source.project_timezone;
+  const timezoneResult = validateProjectTimezone(projectTimezone);
+  if (!timezoneResult.ok) {
+    return {
+      error: `Cannot clone invalid project timezone: ${timezoneResult.error}`,
+    };
+  }
+
+  let recurrenceRule = null;
+  if (source.recurrence_rule !== null) {
+    const ruleResult = validateRecurrenceRule(source.recurrence_rule);
+    if (!ruleResult.ok) {
+      return {
+        error: `Cannot clone invalid recurrence rule: ${ruleResult.error}`,
+      };
+    }
+    recurrenceRule = ruleResult.rule;
+  }
+
+  // A clone is a new project identity. Only reviewed user-facing configuration
+  // is copied; row identity, workflow/review state, publication state, calendar
+  // bindings, and recurrence lineage are deliberately rebuilt or cleared.
   const newProjectData = {
-    ...clonableData,
     title: `${source.title} (Copy)`,
+    description: source.description,
+    location: source.location,
+    location_data: source.location_data,
+    event_type: source.event_type,
+    schedule: scheduleResult.schedule,
+    verification_method: source.verification_method,
+    require_login: source.require_login,
+    enable_volunteer_comments: source.enable_volunteer_comments,
+    show_attendees_publicly: source.show_attendees_publicly,
+    waiver_required: source.waiver_required,
+    waiver_allow_upload: source.waiver_allow_upload,
+    waiver_disable_esignature: source.waiver_disable_esignature,
+    cover_image_url: source.cover_image_url,
+    documents: source.documents,
+    organization_id: source.organization_id,
+    visibility: source.visibility,
+    can_be_managed_by_staff: source.can_be_managed_by_staff,
+    project_timezone: projectTimezone,
+    restrict_to_org_domains: source.restrict_to_org_domains,
+    signup_form_schema: source.signup_form_schema,
+    recurrence_rule: recurrenceRule,
+    recurrence_parent_id: null,
+    recurrence_sequence: null,
+    recurrence_occurrence_date: null,
     creator_id: user.id,
     status: "draft",
     workflow_status: "draft",
@@ -419,6 +458,27 @@ export async function updateProject(
   "use server";
   try {
     const supabase = await createClient();
+
+    // Authentication and authorization first: unauthorized callers must not
+    // be able to trigger sanitization/parsing or probe field-level errors.
+    const { user, error: userError } = await getAuthUser();
+    if (userError || !user) {
+      return { error: "Unauthorized" };
+    }
+
+    // Verify project ownership
+    const { data: project } = await supabase
+      .from("projects")
+      .select(
+        "creator_id, organization_id, can_be_managed_by_staff, recurrence_parent_id, recurrence_rule, visibility",
+      )
+      .eq("id", projectId)
+      .single();
+
+    if (!project || !(await canUserManageProject(supabase, project, user.id))) {
+      return { error: "Unauthorized" };
+    }
+
     const sanitizedUpdates: Partial<Project> = {
       ...updates,
       ...(typeof updates.description === "string"
@@ -445,32 +505,17 @@ export async function updateProject(
       delete mutableSanitizedUpdates[field];
     }
 
-    // Authentication and authorization first: unauthorized callers must not
-    // be able to probe field-level validation errors.
-    const { user, error: userError } = await getAuthUser();
-    if (userError || !user) {
-      return { error: "Unauthorized" };
-    }
-
-    // Verify project ownership
-    const { data: project } = await supabase
-      .from("projects")
-      .select(
-        "creator_id, organization_id, can_be_managed_by_staff, recurrence_parent_id, recurrence_rule, visibility",
-      )
-      .eq("id", projectId)
-      .single();
-
-    if (!project || !(await canUserManageProject(supabase, project, user.id))) {
-      return { error: "Unauthorized" };
-    }
-
     // Validate project_timezone when being updated (explicit undefined means omitted).
     if (
-      Object.prototype.hasOwnProperty.call(sanitizedUpdates, "project_timezone") &&
+      Object.prototype.hasOwnProperty.call(
+        sanitizedUpdates,
+        "project_timezone",
+      ) &&
       sanitizedUpdates.project_timezone !== undefined
     ) {
-      const tzResult = validateProjectTimezone(sanitizedUpdates.project_timezone);
+      const tzResult = validateProjectTimezone(
+        sanitizedUpdates.project_timezone,
+      );
       if (!tzResult.ok) {
         return { error: `Invalid project timezone: ${tzResult.error}` };
       }
@@ -478,14 +523,20 @@ export async function updateProject(
 
     // Validate recurrence_rule when being updated (null clears the rule).
     if (
-      Object.prototype.hasOwnProperty.call(sanitizedUpdates, "recurrence_rule") &&
+      Object.prototype.hasOwnProperty.call(
+        sanitizedUpdates,
+        "recurrence_rule",
+      ) &&
       sanitizedUpdates.recurrence_rule !== null &&
       sanitizedUpdates.recurrence_rule !== undefined
     ) {
-      const ruleResult = validateRecurrenceRule(sanitizedUpdates.recurrence_rule);
+      const ruleResult = validateRecurrenceRule(
+        sanitizedUpdates.recurrence_rule,
+      );
       if (!ruleResult.ok) {
         return { error: `Invalid recurrence rule: ${ruleResult.error}` };
       }
+      sanitizedUpdates.recurrence_rule = ruleResult.rule;
     }
 
     const requestsPublicVisibility =
