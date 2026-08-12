@@ -7,7 +7,7 @@ mock.module("next/cache", () => ({ revalidatePath: () => {} }));
  * `createOrganization`/`checkOrgUsername` are the only Server Actions that
  * insert `organizations.username`. RLS ("Create org with serialized
  * cooldown") also lets a trusted member insert directly, so the database
- * constraints in `20260811234500_organization_username_reserved_slugs.sql`
+ * constraints in `20260812100000_organization_username_reserved_slugs.sql`
  * (proven in `organization_username_reserved_slugs.test.sql`) is the real
  * backstop -- but the Server Action must still refuse the reserved
  * usernames itself, with a truthful "reserved" error instead of the

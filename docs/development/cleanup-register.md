@@ -41,23 +41,23 @@ This register separates actionable repository defects from provider/account and 
 
 | ID | Priority | Finding | Owner | Evidence / exit gate |
 | -- | -------- | ------- | ----- | -------------------- |
-| AUD-HOURS-SERVICE | P1 | The authenticated REST `EXECUTE` capability on the public SECURITY DEFINER volunteer-hours publication function left a consequential publication transaction browser-callable. | Platform hours publication | `20260812041000_move_volunteer_hours_publication_to_service_boundary.sql` drops the four-argument authenticated overload, keeps the transaction private with a fixed path, exposes a fixed-path SECURITY INVOKER five-argument wrapper to `service_role` only, and has the Server Action supply the actor from its validated session while preserving receipt/outbox replay. The browser ACL catalog must retain project cancellation and capacity-aware unrejection, remove the old hours RPC, and never add the service-only wrapper. Focused source/pgTAP coverage is present; exact combined replay and hosted advisor verification remain pending. |
+| AUD-HOURS-SERVICE | P1 | The authenticated REST `EXECUTE` capability on the public SECURITY DEFINER volunteer-hours publication function left a consequential publication transaction browser-callable. | Platform hours publication | `20260812101000_move_volunteer_hours_publication_to_service_boundary.sql` drops the four-argument authenticated overload, keeps the transaction private with a fixed path, exposes a fixed-path SECURITY INVOKER five-argument wrapper to `service_role` only, and has the Server Action supply the actor from its validated session while preserving receipt/outbox replay. The browser ACL catalog must retain project cancellation and capacity-aware unrejection, remove the old hours RPC, and never add the service-only wrapper. Focused source/pgTAP coverage is present; exact combined replay and hosted advisor verification remain pending. |
 
 ### Integrated architecture findings
 
 | ID | Priority | Finding | Owner | Evidence / exit gate |
 | -- | -------- | ------- | ----- | -------------------- |
-| AUD-003-ACL | P1 | Future-object default privileges and historical existing-object relation/column ACL residue are separate exposure paths; `PUBLIC`, inherited grants, and dangerous whole-table privileges must not sit outside the reviewed browser contract. | Platform database security | Retain `20260812035110_public_client_relation_acl_catalog.sql`, the bidirectional direct/effective relation and `pg_attribute.attacl` catalog checks, identifier-safe regrants, zero dangerous/`PUBLIC` residue, shared pgTAP/source contracts, and exact combined replay before closure. |
-| AUD-009-STORAGE | P1 | Storage drift checks could miss unexpected buckets and broad client-reachable policies, including policies that reach server-only buckets. | Platform storage security | Retain `20260812033551_client_acl_and_storage_posture_catalogs.sql`, all eleven reviewed buckets and posture classes, exact canonical `pg_policy` shape, bidirectional bucket/property comparison, zero client policies on server-only buckets, exact private-client policy coverage, and the deferred exact replay/hosted verification boundary. |
+| AUD-003-ACL | P1 | Future-object default privileges and historical existing-object relation/column ACL residue are separate exposure paths; `PUBLIC`, inherited grants, and dangerous whole-table privileges must not sit outside the reviewed browser contract. | Platform database security | Retain `20260812100900_public_client_relation_acl_catalog.sql`, the bidirectional direct/effective relation and `pg_attribute.attacl` catalog checks, identifier-safe regrants, zero dangerous/`PUBLIC` residue, shared pgTAP/source contracts, and exact combined replay before closure. |
+| AUD-009-STORAGE | P1 | Storage drift checks could miss unexpected buckets and broad client-reachable policies, including policies that reach server-only buckets. | Platform storage security | Retain `20260812100800_client_acl_and_storage_posture_catalogs.sql`, all eleven reviewed buckets and posture classes, exact canonical `pg_policy` shape, bidirectional bucket/property comparison, zero client policies on server-only buckets, exact private-client policy coverage, and the deferred exact replay/hosted verification boundary. |
 
 ### Integrated project/auth findings
 
 | ID       | Priority | Finding | Owner | Evidence / exit gate |
 | -------- | -------- | ------- | ----- | -------------------- |
 | CLEAN-021 | P1 | Project cancellation uses permission-rechecked, conditional at-most-once dispatch over a frozen recipient/channel ledger; only proved pre-send failures retry, ambiguous outcomes never resend, legacy work is parked for review, and immutable snapshots survive parent deletion with separately guarded live references. | Platform project lifecycle | Preserve the snapshot-ledger audit exception, 90-day PII redaction, bounded organization-fair claims/reapers, and the documented manual/provider recovery boundaries; run the deferred database and hosted gates on the exact combined tree. |
-| AUD-022 | P1 | Direct project writes, recurrence pagination/catch-up, cloning, and feedback dispatch previously bypassed or weakened schedule and delivery invariants. | Platform project lifecycle | Retain strict shared schedule validation, authenticated-before-parse actions, clone allowlisting, stable keyset scans, bounded history fast-forward, phased feedback dispatch, exact signup-slot dates, and the forward migrations `20260811234700`/`20260811234800`; exact combined replay remains pending. |
+| AUD-022 | P1 | Direct project writes, recurrence pagination/catch-up, cloning, and feedback dispatch previously bypassed or weakened schedule and delivery invariants. | Platform project lifecycle | Retain strict shared schedule validation, authenticated-before-parse actions, clone allowlisting, stable keyset scans, bounded history fast-forward, phased feedback dispatch, exact signup-slot dates, and the forward migrations `20260812100200`/`20260812100300`; exact combined replay remains pending. |
 | AUD-023 | P1 | Project cancellation, signup unrejection, recurrence cancellation, and parent deletion could interleave across branch-local assumptions. | Platform project lifecycle | Retain the reconciled lock ordering, atomic capacity-aware unrejection, cancellation snapshot exception, source contracts, and cross-branch concurrency coverage from the ordered project series. |
-| AUD-024 | P1 | Browser roles held whole-table organization privileges that bypass RLS. | Platform organizations | `20260811234500_organization_username_reserved_slugs` revokes unsafe `TRUNCATE`, `REFERENCES`, and `TRIGGER` privileges while preserving reviewed RLS-gated DML; retain adversarial ACL coverage and require exact combined replay. |
+| AUD-024 | P1 | Browser roles held whole-table organization privileges that bypass RLS. | Platform organizations | `20260812100000_organization_username_reserved_slugs` revokes unsafe `TRUNCATE`, `REFERENCES`, and `TRIGGER` privileges while preserving reviewed RLS-gated DML; retain adversarial ACL coverage and require exact combined replay. |
 | AUD-025 | P2 | Organization username format could diverge across clients and direct writes. | Platform organizations | Retain the shared ASCII schema, Server Action coverage, `NOT VALID` database constraint, fixture inventory, and historical/hosted validation gates. |
 
 The combined Development tree contains implementation candidates for CLEAN-006
@@ -110,11 +110,12 @@ import evidence, blocks unsettled targets, applies an organization-first identit
 lock hierarchy, and covers same-organization and cross-organization races. The
 account-connection work recomputes confirmed-email, exact-name, and single-active-
 cohort corroboration under lock and fails closed. The pre-integration identity
-line passed an empty local replay, 90 focused pgTAP assertions, 103 focused source
-contracts, formatting, lint, typecheck, dependency audit, and strict submodule
-validation on 2026-08-12. That evidence does not establish the final release-
-integration tree. These findings remain active pending the final combined gates,
-compiled browser acceptance, and hosted Development verification.
+line passed its documented local replay, focused pgTAP/source contracts, static
+quality gates, dependency audit, and strict submodule validation on 2026-08-12.
+That evidence does not establish this release-integration tree or the upstream
+merged private gitlink. These findings remain active pending the final combined
+gates, compiled browser acceptance, upstream-feedback acceptance testing, and
+hosted Development verification.
 
 ## External/account blockers
 

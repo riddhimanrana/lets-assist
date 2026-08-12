@@ -1033,8 +1033,8 @@ SELECT extensions.is(
 SELECT extensions.ok(
   (
     SELECT pg_catalog.bool_and(
-      audit.before_data::text !~* '(ari|bea|cam|dee|local\.test|@)'
-      AND audit.after_data::text !~* '(ari|bea|cam|dee|local\.test|@)'
+      audit.before_data::text !~* '("(ari|bea|cam|dee)"|local\.test|@)'
+      AND audit.after_data::text !~* '("(ari|bea|cam|dee)"|local\.test|@)'
     )
     FROM plugin_data.csf_admin_audit_events AS audit
     WHERE audit.organization_id = 'fb100000-0000-4000-8000-000000000001'

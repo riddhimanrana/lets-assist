@@ -15,8 +15,10 @@
   deployment behind `dev.lets-assist.com`.
 - For that historical deployment, hosted Development matched the repository
   through `20260811132454` with zero local/remote mismatches. The current
-  release-integration repository contains 268 ordered migrations through
-  `20260812073000`; hosted parity for this newer ledger has not been checked.
+  Development database is at `20260812073000`, while the release-integration
+  repository continues with the unpublished ordered series through
+  `20260812101100`; hosted parity for the integration series has not been
+  checked.
   PR #130 removed the unused `pg_graphql` extension with `RESTRICT`; the
   historical post-apply Development schema dump contains no `pg_graphql`
   definition.

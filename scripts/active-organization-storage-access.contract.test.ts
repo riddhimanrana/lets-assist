@@ -6,13 +6,13 @@ const root = process.cwd();
 const read = (path: string) => readFileSync(join(root, path), "utf8");
 
 const hardeningMigration = read(
-  "supabase/migrations/20260812063639_harden_active_organization_storage_access.sql",
+  "supabase/migrations/20260812101100_harden_active_organization_storage_access.sql",
 );
 const storageCatalogMigration = read(
-  "supabase/migrations/20260812033551_client_acl_and_storage_posture_catalogs.sql",
+  "supabase/migrations/20260812100800_client_acl_and_storage_posture_catalogs.sql",
 );
 const relationCatalogMigration = read(
-  "supabase/migrations/20260812035110_public_client_relation_acl_catalog.sql",
+  "supabase/migrations/20260812100900_public_client_relation_acl_catalog.sql",
 );
 const paperScanMigration = read(
   "supabase/migrations/20260811100000_project_paper_signup_scans.sql",

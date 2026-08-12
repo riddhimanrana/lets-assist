@@ -6,14 +6,14 @@ const repositoryRoot = join(import.meta.dir, "../../..");
 const scheduleMigration = readFileSync(
   join(
     repositoryRoot,
-    "supabase/migrations/20260811234700_enforce_project_schedule_validation.sql",
+    "supabase/migrations/20260812100200_enforce_project_schedule_validation.sql",
   ),
   "utf8",
 );
 const feedbackMigration = readFileSync(
   join(
     repositoryRoot,
-    "supabase/migrations/20260811234800_feedback_dispatch_phases.sql",
+    "supabase/migrations/20260812100300_feedback_dispatch_phases.sql",
   ),
   "utf8",
 );

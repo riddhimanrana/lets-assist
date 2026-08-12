@@ -7,14 +7,14 @@ const architectureAudit = readFileSync(
 );
 const relationMigration = readFileSync(
   new URL(
-    "../supabase/migrations/20260812035110_public_client_relation_acl_catalog.sql",
+    "../supabase/migrations/20260812100900_public_client_relation_acl_catalog.sql",
     import.meta.url,
   ),
   "utf8",
 );
 const storageMigration = readFileSync(
   new URL(
-    "../supabase/migrations/20260812033551_client_acl_and_storage_posture_catalogs.sql",
+    "../supabase/migrations/20260812100800_client_acl_and_storage_posture_catalogs.sql",
     import.meta.url,
   ),
   "utf8",
@@ -451,7 +451,7 @@ const replayHistoricalStoragePolicyLedger = () => {
     .filter(
       (name) =>
         name.endsWith(".sql") &&
-        name < "20260812033551_client_acl_and_storage_posture_catalogs.sql",
+        name < "20260812100800_client_acl_and_storage_posture_catalogs.sql",
     )
     .sort()) {
     const migration = readFileSync(

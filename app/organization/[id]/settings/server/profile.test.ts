@@ -9,7 +9,7 @@ mock.module("next/cache", () => ({ revalidatePath: () => {} }));
  * update organizations") also lets an org admin update the row directly
  * through the Data API with no column-level `WITH CHECK` on username, so
  * the database constraint in
- * `20260811234500_organization_username_reserved_slugs.sql` (proven in
+ * `20260812100000_organization_username_reserved_slugs.sql` (proven in
  * `organization_username_reserved_slugs.test.sql`) is the real backstop --
  * but the Server Action must still refuse a rename onto a reserved
  * username itself, with a truthful "reserved" error, and must not block an

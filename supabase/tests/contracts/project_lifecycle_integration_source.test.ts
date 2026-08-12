@@ -41,10 +41,10 @@ describe("combined project lifecycle source contract", () => {
 
   test("unreject and cancellation share a deadlock-safe project boundary and active membership rule", () => {
     const unrejectMigration = read(
-      "supabase/migrations/20260811234600_atomic_signup_unreject_capacity.sql",
+      "supabase/migrations/20260812100100_atomic_signup_unreject_capacity.sql",
     );
     const cancellationMigration = read(
-      "supabase/migrations/20260812001000_project_cancellation_hostile_review_hardening.sql",
+      "supabase/migrations/20260812100500_project_cancellation_hostile_review_hardening.sql",
     );
     const unreject = sliceBetween(
       unrejectMigration,
@@ -108,7 +108,7 @@ describe("combined project lifecycle source contract", () => {
   test("the tenant FK audit permits only the guarded cancellation snapshot ledger", () => {
     const audit = read("scripts/audit-supabase-architecture.sh");
     const retention = read(
-      "supabase/migrations/20260812001200_preserve_cancellation_evidence_parent_deletion.sql",
+      "supabase/migrations/20260812100700_preserve_cancellation_evidence_parent_deletion.sql",
     );
     const tenantFkAudit = sliceBetween(
       audit,
@@ -163,13 +163,13 @@ describe("combined project lifecycle source contract", () => {
 
   test("branch foreign keys never SET NULL through a generated column", () => {
     const migrations = [
-      "20260811234600_atomic_signup_unreject_capacity.sql",
-      "20260811234700_enforce_project_schedule_validation.sql",
-      "20260811234800_feedback_dispatch_phases.sql",
-      "20260811235900_project_cancellation_durable_worker.sql",
-      "20260812001000_project_cancellation_hostile_review_hardening.sql",
-      "20260812001100_repair_project_signup_lifecycle_boundary.sql",
-      "20260812001200_preserve_cancellation_evidence_parent_deletion.sql",
+      "20260812100100_atomic_signup_unreject_capacity.sql",
+      "20260812100200_enforce_project_schedule_validation.sql",
+      "20260812100300_feedback_dispatch_phases.sql",
+      "20260812100400_project_cancellation_durable_worker.sql",
+      "20260812100500_project_cancellation_hostile_review_hardening.sql",
+      "20260812100600_repair_project_signup_lifecycle_boundary.sql",
+      "20260812100700_preserve_cancellation_evidence_parent_deletion.sql",
     ].map((file) => read(`supabase/migrations/${file}`));
     const source = migrations.join("\n");
     const generatedColumns = new Set(
@@ -202,10 +202,10 @@ describe("combined project lifecycle source contract", () => {
 
   test("cancellation evidence uses immutable snapshots and nullable live parent references", () => {
     const retention = read(
-      "supabase/migrations/20260812001200_preserve_cancellation_evidence_parent_deletion.sql",
+      "supabase/migrations/20260812100700_preserve_cancellation_evidence_parent_deletion.sql",
     );
     const hardening = read(
-      "supabase/migrations/20260812001000_project_cancellation_hostile_review_hardening.sql",
+      "supabase/migrations/20260812100500_project_cancellation_hostile_review_hardening.sql",
     );
 
     for (const column of [
@@ -259,7 +259,7 @@ describe("combined project lifecycle source contract", () => {
 
   test("signup approval stays open in progress without weakening cancellation", () => {
     const repair = read(
-      "supabase/migrations/20260812001100_repair_project_signup_lifecycle_boundary.sql",
+      "supabase/migrations/20260812100600_repair_project_signup_lifecycle_boundary.sql",
     );
     const boundary = sliceBetween(
       repair,
@@ -267,7 +267,7 @@ describe("combined project lifecycle source contract", () => {
       "REVOKE ALL ON FUNCTION app_private.enforce_project_signup_cancellation_boundary()",
     );
     const cancellation = read(
-      "supabase/migrations/20260812001000_project_cancellation_hostile_review_hardening.sql",
+      "supabase/migrations/20260812100500_project_cancellation_hostile_review_hardening.sql",
     );
 
     expect(repair).toContain("ALTER COLUMN status SET DEFAULT 'upcoming'");

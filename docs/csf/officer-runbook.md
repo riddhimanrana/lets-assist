@@ -1,7 +1,7 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** the August 11 tree's replay/build/DV+CSF browser gates and hosted Development acceptance are historical evidence only. This release-integration repository contains 268 ordered migrations through `20260812073000`; exact hosted parity and the final combined replay are pending. The historical Development environment had leaked-password protection enabled, the unused `pg_graphql` extension removed, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. Hosted enabled scheduled-post publication, live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, Production webhook rotation, and Production cutover remain pending.
+**Current status:** the August 11 tree's replay/build/DV+CSF browser gates and hosted Development acceptance are historical evidence only. Development is at `20260812073000`; this release-integration repository continues with the unpublished ordered series through `20260812101100`, so exact hosted parity and the final combined replay are pending. The historical Development environment had leaked-password protection enabled, the unused `pg_graphql` extension removed, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. Hosted enabled scheduled-post publication, live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, Production webhook rotation, and Production cutover remain pending.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
@@ -259,7 +259,7 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Complete green PR checks; least-privilege `PRIVATE_SUBMODULE_TOKEN`, GitGuardian disposition for the removed local-only fixture password, and authenticated Vercel Preview diagnosis remain open
 - [x] Post-hardening production build and full private-plugin unit-suite rerun
 - [ ] Persistent isolated Supabase development branch after explicit `$0.01344/hour` cost confirmation
-- [ ] Re-establish the stable Development alias and prove branch-scoped non-production Supabase parity against all 268 migrations through `20260812073000`; the earlier alias/parity evidence applies only to its historical tree
+- [ ] Re-establish the stable Development alias and prove branch-scoped non-production Supabase parity against the ordered ledger through `20260812101100`; the earlier alias/parity evidence applies only to its historical tree
 - [x] Authorize local and hosted Development Google origins/callbacks, including `http://localhost:3001` and `https://dev.lets-assist.com`
 - [ ] Confirm `dvhighcsf@gmail.com` in-product, then complete Picker, import, reconnect, revocation, and failure-state verification
 - [ ] Complete synthetic visible mutation lifecycle for every actor

@@ -353,7 +353,7 @@ describe("migration and pgTAP suite agree on the trim set", () => {
 
   test("the migration's character class expands to exactly these code points", () => {
     const migration = read(
-      "supabase/migrations/20260811234500_organization_username_reserved_slugs.sql",
+      "supabase/migrations/20260812100000_organization_username_reserved_slugs.sql",
     );
 
     // `'^[<class>]+'` -- the leading-edge half of the constraint's regex.
@@ -424,7 +424,7 @@ describe("migration and pgTAP suite agree on the trim set", () => {
 
   test("the migration reserves exactly the slugs this module reserves", () => {
     const migration = read(
-      "supabase/migrations/20260811234500_organization_username_reserved_slugs.sql",
+      "supabase/migrations/20260812100000_organization_username_reserved_slugs.sql",
     );
     const match = migration.match(/<> ALL \(ARRAY\[([^\]]+)\]\)/u);
     expect(match).not.toBeNull();

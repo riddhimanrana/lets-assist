@@ -24,9 +24,9 @@ cancelled project and is denied. There is no project-update/enqueue/snapshot
 split transaction.
 
 The replacement is an append-only hardening migration after
-`20260811235900_project_cancellation_durable_worker.sql`:
+`20260812100400_project_cancellation_durable_worker.sql`:
 
-- `20260812001000_project_cancellation_hostile_review_hardening.sql` first
+- `20260812100500_project_cancellation_hostile_review_hardening.sql` first
   removes execution from the predecessor RPCs and parks every legacy
   `pending` or `processing` job, including cursor zero. It never revives or
   resets those jobs.

@@ -616,11 +616,12 @@ Production, and do not treat a Development screenshot as Production evidence.
   row preview or commit has occurred.
 - The Development database was historically verified through
   `20260811132454`. The unused `pg_graphql` extension was absent from that
-  schema, and leaked-password protection was enabled. The current
-  release-integration repository contains 268 ordered migrations through
-  `20260812073000`, so hosted parity is not current. Treat hosted acceptance as
-  stale until an exact-head deployment is Ready, every outstanding migration is
-  applied in order, and repository/hosted parity is rechecked.
+  schema, and leaked-password protection was enabled. Development is now at
+  `20260812073000`; the release-integration repository continues with the
+  unpublished ordered series through `20260812101100`, so hosted parity is not
+  current. Treat hosted acceptance as stale until an exact-head deployment is
+  Ready, every outstanding migration is applied in order, and
+  repository/hosted parity is rechecked.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
 - Three controlled Development test messages produced three signature-verified
@@ -645,7 +646,7 @@ Do not use real chapter rows or credentials until every item is checked:
   Production databases, links, tokens, previews, and decisions isolated.
 - [ ] Verify the root tree is the approved exact commit and the private plugin
   remains a clean gitlink at its approved SHA.
-- [ ] Replay all 268 ordered migrations through `20260812073000` in the
+- [ ] Replay the ordered migration ledger through `20260812101100` in the
   authorized release gate and prove exact repository/Production ledger parity,
   advisors, function ACLs, relation ACLs, storage posture, and active-member
   storage authorization.
