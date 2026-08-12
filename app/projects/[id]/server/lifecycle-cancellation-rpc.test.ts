@@ -47,6 +47,8 @@ mock.module("./access", () => ({
     },
     error: null,
   }),
+}));
+mock.module("./access-helpers", () => ({
   canUserManageProject: async () => true,
 }));
 

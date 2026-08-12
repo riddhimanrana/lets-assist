@@ -6,7 +6,7 @@ Method: local gate execution, plus read-only catalog queries against both hosted
 
 Evidence: `.artifacts/audit-20260810/`.
 
-The staged repository-wide program also generates a fresh source inventory with `bun run audit:inventory` under `.artifacts/audit/surface-inventory/`. The inventory records exact root/private commit provenance and keeps source discovery separate from runtime catalog and hosted Development evidence.
+The staged repository-wide program also generates a fresh source inventory with `bun run audit:inventory` under `.artifacts/audit/surface-inventory/`. The inventory records exact root/private commits, root dirty state, and a SHA-256 digest over every inventory input while keeping source discovery separate from runtime catalog and hosted Development evidence.
 
 Priority scale: **P0** exploitable now against real users · **P1** security-relevant, not directly exploitable · **P2** correctness/maintainability · **P3** cosmetic or dead code.
 
@@ -27,6 +27,7 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-016](#aud-016) | P1  | Stored HTML            | The DV form-editor preview inserted persisted rich-text help content without sanitization                              | **Fixed on `development`**; exact CI green                   |
 | [AUD-017](#aud-017) | P1  | Next.js route contract | The paper-signup AI route exported an unsupported value, so clean isolated production builds failed type checking      | **Fixed on `development`**; exact CI green                   |
 | [AUD-018](#aud-018) | P1  | Guardian form          | Hydration could replace a guardian's reviewed availability and notes with SSR defaults before submission               | **Fixed on `development`**; exact CI green                   |
+| [AUD-030](#aud-030) | P0  | Server Actions         | File-level `"use server"` exposed internal waiver persistence and project-access helpers as direct POST surfaces       | **Fixed locally**; hosted Development pending                |
 | [AUD-007](#aud-007) | P2  | CI                     | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                                  | Fixed this session                                           |
 | [AUD-008](#aud-008) | P2  | Architecture           | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript       | Confirmed, by design                                         |
 | [AUD-009](#aud-009) | P1  | Gate coverage          | storage policy heuristics could miss broad client policies that reach every bucket, including server-only buckets      | Source re-amended after failed replay; rerun pending         |
@@ -512,6 +513,45 @@ the production build, database replay and pgTAP, DV/CSF database workflows,
 cron no-egress, the strengthened DV journey, the CSF browser lifecycle, trace
 validation, health verification, and owned teardown. Production remained
 excluded.
+
+---
+
+## AUD-030 — Internal project helpers exposed as Server Actions {#aud-030}
+
+**Priority:** P0 · **Confidence:** Confirmed (high) · **Status:** Fixed locally;
+hosted Development pending
+
+**Evidence and blast radius:** the baseline source inventory found
+`uploadWaiverAsset`, `getCurrentSignups`, `persistWaiverSignature`, and
+`cloneAnonymousWaiverSignatureToSignup` exported from file-level `"use server"`
+`waiver-assets.ts`. Next therefore registered them as directly POST-reachable
+Server Actions even though no UI imported them. The persistence paths use the
+service role and accepted caller-selected project, signup, anonymous identity,
+storage bucket/path, payload, and size limit inputs, so the exposure reached
+every project's waiver evidence rather than one user's session. No exploit was
+executed. The same baseline inventory and new AST boundary test identified an
+additional accidental action, `canUserManageProject`, whose client and project
+record parameters were intended only for trusted server orchestration. A clean
+nonfunctional Preview-mode build of baseline commit `2e61074` independently
+confirmed all five internal helpers in Next's compiled
+`server-reference-manifest.json`; this is runtime registration evidence, not an
+inference from the static inventory.
+
+**Resolution and verification:** the four waiver helpers and their unchanged
+implementation now live in server-only `waiver-persistence.ts`, which contains
+no `"use server"` directive; `signup.ts` is their action-orchestration consumer.
+`waiver-assets.ts` retains its file-level directive and exact two public PDF
+action signatures/results. The internal access helper now lives in server-only
+`access-helpers.ts`; the reviewed public access actions retain their file-level
+and inline boundaries. The module test now parses every file-level server module
+and rejects every exported async function outside `PUBLIC_ACTIONS`. Locally,
+`bun test "app/projects/[id]/server/module-boundaries.test.ts"` passed 5 tests /
+74 expectations and
+`bun test "lib/waiver/persistence-boundaries.test.ts"` passed 8 tests. Hosted
+Development was not deployed or tested. The fixed nonfunctional Preview-mode
+build passed and its compiled manifest retained only `uploadProjectWaiverPdf`
+and `removeProjectWaiverPdf` from this seven-name comparison. Production,
+providers, credentials, and live data were not accessed.
 
 ---
 
