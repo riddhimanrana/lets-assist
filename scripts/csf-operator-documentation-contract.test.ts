@@ -39,6 +39,10 @@ function readComponent(name: string) {
   return readFileSync(join(pluginComponents, name), "utf8");
 }
 
+function readRepositoryFile(name: string) {
+  return readFileSync(join(repositoryRoot, name), "utf8");
+}
+
 /**
  * Prose wraps at 80 columns, so a quoted label routinely straddles a newline.
  * Collapsing whitespace lets the contract be about the words the operator reads
@@ -46,6 +50,23 @@ function readComponent(name: string) {
  */
 function flow(text: string) {
   return text.replace(/\s+/gu, " ");
+}
+
+function between(text: string, start: string, end: string) {
+  const startIndex = text.indexOf(start);
+  const endIndex = text.indexOf(end, startIndex + start.length);
+  expect(startIndex).toBeGreaterThanOrEqual(0);
+  expect(endIndex).toBeGreaterThan(startIndex);
+  return text.slice(startIndex, endIndex);
+}
+
+function expectInOrder(text: string, labels: string[]) {
+  let cursor = 0;
+  for (const label of labels) {
+    const nextIndex = text.indexOf(label, cursor);
+    expect(nextIndex).toBeGreaterThanOrEqual(cursor);
+    cursor = nextIndex + label.length;
+  }
 }
 
 const operatorGuide = flow(readDoc("dvhs-fall-2026-operator-guide.md"));
@@ -268,9 +289,16 @@ const STUDENT_JOURNEY: LabelContract[] = [
     component: "CsfDashboardContentSection1Connect.tsx",
     labels: [
       "We found your CSF record — is this you?",
-      "Use this profile",
+      "Yes, connect this record",
       "Not me",
+      "Use this profile",
+      "Add profile details",
+      "Find my record",
     ],
+  },
+  {
+    component: "CsfDirectInvitationAcceptForm.tsx",
+    labels: ["Accept invitation"],
   },
 ];
 
@@ -328,6 +356,219 @@ describe("CSF operator documentation label contract", () => {
 });
 
 describe("CSF operator documentation truthfulness guards", () => {
+  test("the guide keeps the three student connection paths distinct", () => {
+    const candidateSource = readComponent(
+      "CsfDashboardContentSection1Connect.tsx",
+    );
+    expectInOrder(candidateSource, [
+      "We found your CSF record — is this you?",
+      "Not me",
+      "Yes, connect this record",
+    ]);
+    expect(readComponent("CsfDirectInvitationAcceptForm.tsx")).toContain(
+      "Accept invitation",
+    );
+    expectInOrder(candidateSource, ["Add profile details", "Find my record"]);
+
+    const candidatePath = between(
+      operatorGuide,
+      "**Candidate claim",
+      "**Direct student-specific invitation",
+    );
+    expectInOrder(candidatePath, [
+      "We found your CSF record — is this you?",
+      "Yes, connect this record",
+      "Not me",
+    ]);
+    expect(candidatePath).not.toContain("Use this profile");
+
+    const directPath = between(
+      operatorGuide,
+      "**Direct student-specific invitation",
+      "**No automatic match",
+    );
+    expect(directPath).toContain("Accept invitation");
+
+    const noMatchPath = between(
+      operatorGuide,
+      "**No automatic match",
+      "Use this profile",
+    );
+    expectInOrder(noMatchPath, [
+      "Add profile details",
+      "Find my record",
+      "Matches to review",
+    ]);
+  });
+
+  test("organization creation is documented from the guarded route and form", () => {
+    const page = readRepositoryFile("app/organization/create/page.tsx");
+    const organizations = readRepositoryFile(
+      "app/organization/OrganizationsDisplay.tsx",
+    );
+    const form = readRepositoryFile(
+      "app/organization/create/OrganizationCreator.tsx",
+    );
+    const actions = readRepositoryFile("app/organization/create/actions.ts");
+    expect(page).toContain('redirect("/login?redirect=/organization/create")');
+    expect(page).toContain("Only Trusted Members can create organizations.");
+    expect(organizations).toContain('href="/organization/create"');
+    expect(organizations).toContain("Create Organization");
+    for (const label of [
+      "Organization Name *",
+      "Username *",
+      "Description *",
+      "Website",
+      "Organization Type *",
+      "Create Organization",
+    ]) {
+      expect(form).toContain(label);
+    }
+    expect(form).toContain("router.push(`/organization/${data.username}`)");
+    expect(actions).toContain('role: "admin"');
+
+    const createPath = between(
+      operatorGuide,
+      "**Find or create the organization.",
+      "**Entitle the plugin",
+    );
+    expectInOrder(createPath, [
+      "**Organizations**",
+      "**Create Organization**",
+      "`/organization/create`",
+      "**Organization Name** = `DVHigh CSF`",
+      "**Username** = `dvhighcsf`",
+      "**Description**",
+      "**Website** = `https://www.dvhighcsf.org`",
+      "**Organization Type**",
+      "**Create Organization**",
+      "`admin`",
+      "`/organization/dvhighcsf`",
+    ]);
+  });
+
+  test("plugin entitlement and install use the current routes and controls", () => {
+    const controlPlane = readRepositoryFile(
+      "app/admin/plugins/PluginControlPlane.tsx",
+    );
+    const organizationPlugins = readRepositoryFile(
+      "app/organization/[id]/settings/OrganizationPluginSettings.tsx",
+    );
+    const pluginManifest = readComponent("../plugin-manifest.ts");
+    for (const label of [
+      "Access",
+      "Organization access",
+      "Starts at (optional)",
+      "Ends at (optional)",
+      "Force plugin for organization (managed install)",
+      "Save entitlement",
+    ]) {
+      expect(controlPlane).toContain(label);
+    }
+    expect(pluginManifest).toContain('name: "DVHS CSF"');
+    expect(pluginManifest).toContain("key: DVHS_CSF_PLUGIN_KEY");
+    const organizationPluginLabels = flow(organizationPlugins);
+    for (const label of [
+      "Organization Plugins",
+      "Open plugin marketplace",
+      "Available to install",
+      "Install",
+      "This plugin requests access to:",
+      "I approve installing this plugin and grant the requested access.",
+      "Install Plugin",
+    ]) {
+      expect(organizationPluginLabels).toContain(label);
+    }
+
+    const entitlementPath = between(
+      operatorGuide,
+      "**Entitle the plugin",
+      "**Install the plugin",
+    );
+    expectInOrder(entitlementPath, [
+      "`/admin/plugins`",
+      "**Catalog**",
+      "**Catalog source of truth**",
+      "**Access**",
+      "**Organization access**",
+      "**Organization** = `DVHigh CSF`",
+      "**Plugin** = `DVHS CSF`",
+      "**Status** = **Active**",
+      "**Force plugin for organization (managed install)**",
+      "**Save entitlement**",
+    ]);
+
+    const installPath = between(
+      operatorGuide,
+      "**Install the plugin",
+      "**Create the graduating classes",
+    );
+    expectInOrder(installPath, [
+      "`/organization/dvhighcsf/settings#organization-plugins`",
+      "**Organization Plugins**",
+      "**Open plugin marketplace**",
+      "**Available to install**",
+      "**DVHS CSF**",
+      "**Install**",
+      "**This plugin requests access to:**",
+      "**I approve installing this plugin and grant the requested access.**",
+      "**Install Plugin**",
+    ]);
+  });
+
+  test("future semesters are prepared without changing the current term", () => {
+    const createDialogs = readComponent("CsfClassTermCreateDialogs.tsx");
+    const terms = readComponent("CsfClassTerms.tsx");
+    const actions = readComponent("CsfClassTermActionsMenu.tsx");
+    expect(flow(createDialogs)).toContain(
+      "create its eight semester records automatically",
+    );
+    expect(terms).toContain("View semester history");
+    for (const label of [
+      "Term actions",
+      "Edit term",
+      "Term label",
+      "Start date",
+      "End date",
+      "Applications open",
+      "Applications close",
+      "Sheet tab",
+      "Status",
+      "Save term",
+      "Set as current",
+    ]) {
+      expect(actions).toContain(label);
+    }
+
+    const futurePath = between(
+      operatorGuide,
+      "**Prepare Spring 2027 and Fall 2027",
+      "Steps 4",
+    );
+    expectInOrder(futurePath, [
+      "**View semester history**",
+      "**Spring 2027** (`S27`)",
+      "**Fall 2027** (`F27`)",
+      "**Term actions → Edit term**",
+      "**Term label**",
+      "**Start date**",
+      "**End date**",
+      "**Applications open**",
+      "**Applications close**",
+      "**Sheet tab**",
+      "**Status**",
+      "**Save term**",
+      "**Set as current**",
+    ]);
+    expect(futurePath).toContain("do not select **Set as current**");
+  });
+
+  test("staff assignment has one navigation step", () => {
+    expect(
+      operatorGuide.match(/Open \*\*More → Staff access\*\*/gu)?.length ?? 0,
+    ).toBe(1);
+  });
+
   test("the capability preview is documented only where the UI renders it", () => {
     const dialogs = readComponent("CsfStaffPositionDialogs.tsx");
     // Only the edit dialog passes a baseline, so only editing can show a diff.

@@ -28,27 +28,63 @@ Do all of this once, in order, before the first student record exists. Stages
 1–3 of [onboarding a new chapter](new-chapter-onboarding.md) own the general
 procedure; this is the DVHS path through them.
 
-1. **Find or create the organization.** Open
+1. **Find or create the organization.** First open
    `/organization/dvhighcsf` on the environment you are working in. If it does
-   not exist there yet, a trusted member must create the organization first; its
-   creator becomes the organization `admin`.
-2. **Entitle the plugin** (platform super admin — onboarding Stage 1). In
-   `/admin/plugins`, confirm `dvhs-csf` is active and its latest version matches
-   the shipped manifest, then grant this organization an entitlement with an
-   open window.
-3. **Install the plugin** (organization admin — onboarding Stage 2). In the
-   organization's **Settings → Plugins**, review the declared permissions and
-   confirm the consent gate. After installing, verify that the seeded roles list
-   and point categories are populated. If either is empty the install hook
-   failed and was compensated: check `plugin_audit_logs` instead of continuing,
-   and never hand-seed the missing rows.
+   not exist, sign in as the accepted trusted member who will own setup; the
+   route states that only Trusted Members can create organizations. Open
+   **Organizations**, select **Create Organization**, and confirm the form route
+   is `/organization/create`. Under **Basic Information**, enter
+   **Organization Name** = `DVHigh CSF`, **Username** = `dvhighcsf`, the required
+   **Description** using only reviewed public chapter wording, **Website** =
+   `https://www.dvhighcsf.org`, and the required **Organization Type** selected
+   from the reviewed chapter classification. **Upload Logo** is optional; do not
+   invent a description, type, or private contact value. After the username
+   availability check succeeds, select **Create Organization**. The creator is
+   inserted as the organization `admin`, and the successful form opens
+   `/organization/dvhighcsf`.
+2. **Entitle the plugin** (platform super admin — onboarding Stage 1). Open
+   `/admin/plugins`. Under **Catalog** → **Catalog source of truth**, confirm
+   **DVHS CSF** has plugin key `dvhs-csf`, is **Active**, and its **Latest
+   version** matches the shipped manifest. Then open **Access** →
+   **Organization access** and set **Organization** = `DVHigh CSF`, **Plugin** =
+   `DVHS CSF`,
+   and **Status** = **Active**. Leave **Starts at (optional)** and **Ends at
+   (optional)** blank for the reviewed open window, leave **Force plugin for
+   organization (managed install)** off unless that separate behavior was
+   authorized, and select **Save entitlement**.
+3. **Install the plugin** (organization admin — onboarding Stage 2). Open
+   `/organization/dvhighcsf/settings#organization-plugins`, find **Organization
+   Plugins**, and select **Open plugin marketplace**. Under **Available to
+   install**, find **DVHS CSF** and select **Install**. In **Install DVHS CSF?**,
+   review **This plugin requests access to:**, check **I approve installing this
+   plugin and grant the requested access.**, and select **Install Plugin**.
+   After installing, verify that the seeded roles list and point categories are
+   populated. If either is empty the install hook failed and was compensated:
+   check `plugin_audit_logs` instead of continuing, and never hand-seed the
+   missing rows.
 4. **Create the graduating classes** (onboarding Stage 3). Open **Classes →
-   Semesters & setup** and select **Set up graduating class** once for each of
-   2027, 2028, 2029, and 2030. Each class is created together with its eight
-   semester records, freshman fall through senior spring. **Add one semester**
-   exists only to restore a missing or exceptional record.
+   Semesters & setup** and select **Set up graduating class**. In **Set up a
+   graduating class**, enter the required **Graduation year** and optional
+   **Display name**, then select **Create class and semesters**. Do this once
+   each for 2027, 2028, 2029, and 2030. Each class setup creates all eight
+   semester records automatically, freshman fall through senior spring; do not
+   add those terms individually. **Add one semester** is only for restoring a
+   genuinely missing record or creating an approved exceptional record. On that
+   exceptional form, leave **Current semester** unchecked unless the term is
+   meant to replace the current term immediately.
 5. **Make Fall 2026 current.** On the Fall 2026 term, open **Term actions** and
    select **Set as current**. Exactly one semester is current at a time.
+6. **Prepare Spring 2027 and Fall 2027 without making either current.** Under
+   each applicable class, open **View semester history**: prepare **Spring
+   2027** (`S27`) for Classes of 2027–2030 and **Fall 2027** (`F27`) for Classes
+   of 2028–2030. On each applicable row, open **Term actions → Edit term**.
+   Enter only approved values in **Term label**, **Start date**, **End date**,
+   **Applications open**, **Applications close**, **Sheet tab**, and **Status**,
+   then select **Save term**. Application dates must be both entered or both
+   blank. The dates and application window are shared semester values; the
+   Sheet tab and status belong to that class-semester row. Preparation does not
+   make the future term current: do not select **Set as current** for `S27` or
+   `F27` during Fall 2026 setup.
 
 Steps 4 and 5 are prerequisites, not preferences:
 
@@ -85,17 +121,31 @@ described in the next three sections.
 
 ### Choose exactly one of the three connection paths
 
-1. **Existing student account claim:** the signed-in student follows the
-   reviewed onboarding link, confirms **We found your CSF record — is this
-   you?**, and selects **Use this profile** only when both name and class are
-   exact; otherwise they select **Not me**.
-2. **Student-specific recovery link:** an officer uses **Student link → Create
-   a student-specific link → Create secure link**, then **Copy link**. Use
-   **Renew link** only to invalidate the old token; use **Cancel** when the link
-   must stop without replacement.
-3. **Reusable class rollout:** an officer uses **Class link → Create a reusable
-   class link → Create class link**, then **Copy link**. Use **Deactivate**
-   before replacing the one active class/semester link.
+1. **Candidate claim — exact record found:** the signed-in student follows the
+   reviewed reusable class link and sees **We found your CSF record — is this
+   you?**. After checking the displayed name and class, they select **Yes,
+   connect this record** only when both are exact; otherwise they select **Not
+   me**. Declining creates a review request and does not connect the account.
+2. **Direct student-specific invitation:** the student opens the private link
+   created for their one record, signs in with the exact verified address held
+   on that record, and selects **Accept invitation**. This path does not show the
+   reusable-link candidate confirmation.
+3. **No automatic match — reusable class link:** when no exact candidate is
+   available, the student selects **Add profile details**, enters only the
+   requested identity details, and selects **Find my record**. The request then
+   waits in **Matches to review** for officer review when required; it does not
+   let the student choose or connect a roster row.
+
+The lower generic **Use this profile** control belongs to a different card for
+an already-selected organization profile. It is not the candidate confirmation
+and must never be described as a substitute for **Yes, connect this record**.
+
+Officers still provision access through one of two link controls: **Student link
+→ Create a student-specific link → Create secure link → Copy link** for one
+known record, or **Class link → Create a reusable class link → Create class link
+→ Copy link** for class rollout. Use **Renew link** only to invalidate an old
+student token, **Cancel** to stop one without replacement, and **Deactivate**
+before replacing the one active class/semester reusable link.
 
 Similarity is never a fourth connection path. Any request that cannot satisfy
 the exact account/profile evidence enters **Matches to review**, where
@@ -186,15 +236,16 @@ about the student's path. Never complete a claim on a student's behalf.
 
 ## What the student does
 
-1. Open the link in a signed-out/private browser window.
+1. Open the reviewed class or student-specific link in a signed-out/private
+   browser window.
 2. Create a Let's Assist account or sign in using the exact verified email on
    the CSF record.
-3. At **We found your CSF record — is this you?**, verify the displayed name and
-   class.
-4. Select **Use this profile** only when both are correct. Select **Not me** if
-   anything conflicts.
-5. If the account cannot be connected automatically, submit the request and
-   wait for an officer decision.
+3. Follow the one path the page presents: **Yes, connect this record** / **Not
+   me** for an exact candidate, **Accept invitation** for a direct
+   student-specific invitation, or **Add profile details → Find my record** when
+   no automatic match exists.
+4. If the last path creates a request, wait for an officer decision; do not
+   submit another profile or try to choose a roster record.
 
 The student never chooses a roster record from a list and never assigns their
 own class or officer access.
