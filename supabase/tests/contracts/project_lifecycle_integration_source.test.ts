@@ -112,6 +112,7 @@ describe("combined project lifecycle source contract", () => {
       "20260811234800_feedback_dispatch_phases.sql",
       "20260811235900_project_cancellation_durable_worker.sql",
       "20260812001000_project_cancellation_hostile_review_hardening.sql",
+      "20260812001100_repair_project_signup_lifecycle_boundary.sql",
     ].map((file) => read(`supabase/migrations/${file}`));
     const source = migrations.join("\n");
     const generatedColumns = new Set(
@@ -142,6 +143,30 @@ describe("combined project lifecycle source contract", () => {
     ).toEqual([]);
   });
 
+  test("signup approval stays open in progress without weakening cancellation", () => {
+    const repair = read(
+      "supabase/migrations/20260812001100_repair_project_signup_lifecycle_boundary.sql",
+    );
+    const boundary = sliceBetween(
+      repair,
+      "CREATE OR REPLACE FUNCTION app_private.enforce_project_signup_cancellation_boundary()",
+      "REVOKE ALL ON FUNCTION app_private.enforce_project_signup_cancellation_boundary()",
+    );
+    const cancellation = read(
+      "supabase/migrations/20260812001000_project_cancellation_hostile_review_hardening.sql",
+    );
+
+    expect(repair).toContain("ALTER COLUMN status SET DEFAULT 'upcoming'");
+    expect(boundary).toContain("v_project_status IS NULL");
+    expect(boundary).toContain(
+      "v_project_status NOT IN ('upcoming', 'in-progress')",
+    );
+    expect(boundary).toContain("FOR UPDATE");
+    expect(cancellation).toContain(
+      "IF v_project.status IS DISTINCT FROM 'upcoming' THEN",
+    );
+  });
+
   test("lifecycle cron routes expose aggregates rather than row or provider details", () => {
     const recurrenceRoute = read(
       "app/api/cron/generate-recurring-projects/route.ts",
@@ -170,6 +195,7 @@ describe("combined project lifecycle source contract", () => {
       "project_cancellation_worker_concurrency.test.sql",
       "project_cancellation_worker_lock_order.test.sql",
       "project_lifecycle_integration_concurrency.test.sql",
+      "project_signup_lifecycle_boundary.test.sql",
       "public_function_acl_allowlist.test.sql",
     ];
     const assertion =

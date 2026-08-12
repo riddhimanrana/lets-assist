@@ -129,7 +129,7 @@ FROM extensions.dblink_get_result(
 
 SELECT extensions.ok(
   position(
-    'signups can only be approved for upcoming projects'
+    'signups can only be approved for active projects'
     IN extensions.dblink_error_message('cancellation_race_probe')
   ) > 0,
   'the losing approval is denied after cancellation commits'
