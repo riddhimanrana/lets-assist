@@ -17,6 +17,7 @@ mock.module("@/lib/plugins/registry", () => ({
   getPluginRegistry: () => ({ get: () => undefined }),
 }));
 mock.module("@/lib/plugins/lifecycle", () => ({
+  runProjectCreate: async () => undefined,
   runProjectClone: async () => undefined,
 }));
 mock.module("@/lib/plugins/resolve-org-plugins", () => ({

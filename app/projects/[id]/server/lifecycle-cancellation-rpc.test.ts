@@ -6,6 +6,7 @@ mock.module("@/lib/plugins/registry", () => ({
   getPluginRegistry: () => ({ get: () => null }),
 }));
 mock.module("@/lib/plugins/lifecycle", () => ({
+  runProjectCreate: async () => {},
   runProjectClone: async () => {},
 }));
 mock.module("@/lib/plugins/resolve-org-plugins", () => ({

@@ -3,17 +3,11 @@ import type { CreateNotificationResult } from "@/services/notifications-server";
 
 /** Database email outcomes. Only retryable_pre_send may become queued again. */
 export type CancellationEmailOutcome =
-  | "accepted"
-  | "retryable_pre_send"
-  | "failed"
-  | "unknown_outcome";
+  "accepted" | "retryable_pre_send" | "failed" | "unknown_outcome";
 
 /** Notification retries are safe because (user_id, dedupe_key) is unique. */
 export type CancellationNotificationOutcome =
-  | "delivered"
-  | "replayed"
-  | "retryable"
-  | "failed";
+  "delivered" | "replayed" | "retryable" | "failed";
 
 export type CancellationEmailSettlement = {
   outcome: CancellationEmailOutcome;

@@ -18,9 +18,11 @@ mock.module("@/lib/projects/waiver-validation", () => ({
 const USER_ID = "user-draft-test-1";
 const PROJECT_ID = "proj-draft-test-1";
 
-function makeSupabaseClient(opts: {
-  updateCalled?: { value: boolean };
-} = {}) {
+function makeSupabaseClient(
+  opts: {
+    updateCalled?: { value: boolean };
+  } = {},
+) {
   return {
     auth: {
       getUser: async () => ({
@@ -78,9 +80,7 @@ describe("updateDraft — validation before write", () => {
       createClient: async () => makeSupabaseClient({ updateCalled }),
     }));
 
-    const { updateDraft } = await import(
-      "@/app/projects/create/server/drafts"
-    );
+    const { updateDraft } = await import("@/app/projects/create/server/drafts");
 
     const result = await updateDraft(PROJECT_ID, {
       basicInfo: {
@@ -127,9 +127,7 @@ describe("updateDraft — validation before write", () => {
       createClient: async () => makeSupabaseClient({ updateCalled }),
     }));
 
-    const { updateDraft } = await import(
-      "@/app/projects/create/server/drafts"
-    );
+    const { updateDraft } = await import("@/app/projects/create/server/drafts");
 
     const result = await updateDraft(PROJECT_ID, {
       basicInfo: {
@@ -168,9 +166,7 @@ describe("updateDraft — validation before write", () => {
       createClient: async () => makeSupabaseClient({ updateCalled }),
     }));
 
-    const { updateDraft } = await import(
-      "@/app/projects/create/server/drafts"
-    );
+    const { updateDraft } = await import("@/app/projects/create/server/drafts");
 
     const result = await updateDraft(PROJECT_ID, {
       basicInfo: {
