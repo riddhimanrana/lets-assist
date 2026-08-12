@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(45);
+SELECT extensions.plan(53);
 
 SELECT extensions.ok(
   has_function_privilege(
@@ -19,6 +19,22 @@ SELECT extensions.ok(
     'EXECUTE'
   ),
   'browser-authenticated users cannot load private decision evidence directly'
+);
+SELECT extensions.ok(
+  has_function_privilege(
+    'service_role',
+    'plugin_data.csf_application_decision_readiness_page(uuid,uuid[])',
+    'EXECUTE'
+  ),
+  'the server role can load one bounded canonical readiness batch'
+);
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'authenticated',
+    'plugin_data.csf_application_decision_readiness_page(uuid,uuid[])',
+    'EXECUTE'
+  ),
+  'browser-authenticated users cannot batch private application readiness'
 );
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -257,6 +273,46 @@ SELECT extensions.ok(
   ),
   'the canonical preflight explains the missing course evidence'
 );
+SELECT extensions.is(
+  (
+    SELECT readiness
+    FROM plugin_data.csf_application_decision_readiness_page(
+      'ef100000-0000-4000-8000-000000000001',
+      ARRAY['ef600000-0000-4000-8000-000000000001'::uuid]
+    )
+  ),
+  plugin_data.csf_application_decision_readiness(
+    'ef100000-0000-4000-8000-000000000001',
+    'ef600000-0000-4000-8000-000000000001'
+  ),
+  'the queue exposes the exact missing-course database preflight'
+);
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_application_decision_readiness_page(
+      'ef100000-0000-4000-8000-000000000001',
+      ARRAY(
+        SELECT ('ab000000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid
+        FROM generate_series(1, 100) AS i
+        UNION ALL
+        SELECT 'ef600000-0000-4000-8000-000000000001'::uuid
+      )
+    )
+  ),
+  0,
+  'the readiness batch ignores every application id after the first 100'
+);
+SET LOCAL ROLE service_role;
+SELECT extensions.lives_ok(
+  $$ SELECT *
+     FROM plugin_data.csf_application_decision_readiness_page(
+       'ef100000-0000-4000-8000-000000000001',
+       ARRAY['ef600000-0000-4000-8000-000000000001'::uuid]
+     ) $$,
+  'the real server role can execute the bounded readiness batch'
+);
+RESET ROLE;
 SELECT extensions.throws_ok(
   $$ SELECT plugin_data.csf_decide_term_application(
     'ef100000-0000-4000-8000-000000000001',
@@ -301,6 +357,19 @@ SELECT extensions.ok(
     '$.blockers[*] ? (@ like_regex "current policy")'
   ),
   'a policy change makes the previously passed academic check stale'
+);
+SELECT extensions.ok(
+  (
+    SELECT jsonb_path_exists(
+      readiness,
+      '$.blockers[*] ? (@ like_regex "current policy")'
+    )
+    FROM plugin_data.csf_application_decision_readiness_page(
+      'ef100000-0000-4000-8000-000000000001',
+      ARRAY['ef600000-0000-4000-8000-000000000001'::uuid]
+    )
+  ),
+  'the queue exposes the same stale-policy blocker as the decision boundary'
 );
 SELECT extensions.throws_ok(
   $$ SELECT plugin_data.csf_decide_term_application(
@@ -385,6 +454,20 @@ SELECT extensions.ok(
   )->>'ready')::boolean,
   'current qualifying courses, current checks, and verified dues produce a ready preflight'
 );
+SELECT extensions.is(
+  (
+    SELECT readiness
+    FROM plugin_data.csf_application_decision_readiness_page(
+      'ef100000-0000-4000-8000-000000000001',
+      ARRAY['ef600000-0000-4000-8000-000000000001'::uuid]
+    )
+  ),
+  plugin_data.csf_application_decision_readiness(
+    'ef100000-0000-4000-8000-000000000001',
+    'ef600000-0000-4000-8000-000000000001'
+  ),
+  'the queue exposes the exact ready database preflight'
+);
 
 UPDATE plugin_data.csf_term_applications
 SET eligibility_status = 'ineligible'
@@ -400,6 +483,19 @@ SELECT extensions.ok(
     '$.blockers[*] ? (@ like_regex "Stored eligibility disagrees")'
   ),
   'stored and calculated eligibility disagreement is explicit and blocking'
+);
+SELECT extensions.ok(
+  (
+    SELECT jsonb_path_exists(
+      readiness,
+      '$.blockers[*] ? (@ like_regex "Stored eligibility disagrees")'
+    )
+    FROM plugin_data.csf_application_decision_readiness_page(
+      'ef100000-0000-4000-8000-000000000001',
+      ARRAY['ef600000-0000-4000-8000-000000000001'::uuid]
+    )
+  ),
+  'the queue exposes the same stored-versus-calculated blocker as the decision boundary'
 );
 
 UPDATE plugin_data.csf_term_applications

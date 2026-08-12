@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { CSF_ORGANIZATION_PATH, loginAs } from "./helpers";
+import {
+  CSF_ORGANIZATION_PATH,
+  expectNoBrowserFailures,
+  loginAs,
+  watchBrowserFailures,
+} from "./helpers";
 
 const filteredListPath =
   `${CSF_ORGANIZATION_PATH}?tab=csf-applications` +
@@ -89,4 +94,49 @@ test.describe("compact applications list and addressable review", () => {
     await page.getByRole("button", { name: "Back to applications" }).click();
     await expect(page).toHaveURL(listUrl);
   });
+});
+
+test("keeps the queue, detail, and decision modal on one database preflight", async ({
+  page,
+}) => {
+  const failures = watchBrowserFailures(page);
+  const path =
+    `${CSF_ORGANIZATION_PATH}?tab=csf-applications` +
+    "&csf_application_view=all" +
+    "&csf_application_q=Evan";
+  await loginAs(page, "admin", path);
+
+  const row = page
+    .locator('a[href*="csf_application="]')
+    .filter({ hasText: "Evan Chen" });
+  await expect(row).toHaveCount(1);
+  const queueNeed = row.locator('[aria-label^="Needs: "]');
+  await expect(queueNeed).toBeVisible();
+  const blocker = (await queueNeed.textContent())?.trim();
+  expect(blocker).toBeTruthy();
+
+  await row.click();
+  const stickyPreflight = page.getByRole("link", {
+    name: "Review decision preflight",
+  });
+  await expect(stickyPreflight).toContainText(blocker!);
+  await expect(
+    page
+      .getByRole("list", { name: "Application approval requirements" })
+      .getByText(blocker!, { exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Record decision" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog
+      .getByRole("list", { name: "Application approval requirements" })
+      .getByText(blocker!, { exact: true }),
+  ).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Reject" })).toBeEnabled();
+  await expect(
+    dialog.getByRole("button", { name: "Approve application" }),
+  ).toBeDisabled();
+
+  expectNoBrowserFailures(failures);
 });
