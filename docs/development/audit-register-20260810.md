@@ -6,6 +6,18 @@ Method: local gate execution, plus read-only catalog queries against both hosted
 
 Evidence: `.artifacts/audit-20260810/`.
 
+**Reconciliation against the current branch:** this document is a dated snapshot,
+not a description of the current tree. The branch is now `development` at
+`77d98ae` with the committed private gitlink `8c64dd1`, and its ledger contains
+250 forward migrations through `20260811233646` plus 100 pgTAP files under
+`supabase/tests/database`. Every commit, gitlink, deployment, migration-count,
+file-count, and assertion value below — including the `9b9abcd` scope commit, the
+`15ba480` / `8efdc9a` inventory pair, and the 218 / 222 / 49 ledger figures — is
+evidence for its own named run and carries no claim about this tip. AUD-019
+through AUD-021 were opened after this snapshot; their evidence lives in
+[the cleanup register](cleanup-register.md). Hosted Development and Production
+state is not re-derived here.
+
 The staged repository-wide program also generates a fresh source inventory with `bun run audit:inventory` under `.artifacts/audit/surface-inventory/`. The inventory records exact root/private commit provenance and keeps source discovery separate from runtime catalog and hosted Development evidence.
 
 Priority scale: **P0** exploitable now against real users · **P1** security-relevant, not directly exploitable · **P2** correctness/maintainability · **P3** cosmetic or dead code.
@@ -14,24 +26,24 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 
 ## Summary
 
-| ID                  | Pri | Area                   | Finding                                                                                                             | Status                                                       |
-| ------------------- | --- | ---------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| [AUD-001](#aud-001) | P0  | Core RLS               | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                  | **Fixed on `development`**; live in Production until cutover |
-| [AUD-002](#aud-002) | P0  | Core RLS               | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection            | **Fixed on `development`**; live in Production until cutover |
-| [AUD-003](#aud-003) | P1  | Grants                 | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions                   | **Merged on `development`**; catalog verification pending    |
-| [AUD-004](#aud-004) | P1  | Plugin audit           | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited  | **Fixed on `development`**                                   |
-| [AUD-005](#aud-005) | P3  | Plugin RLS             | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob            | Reclassified — designed behaviour, document the contract     |
-| [AUD-006](#aud-006) | P2  | Architecture           | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`**                                   |
-| [AUD-012](#aud-012) | P2  | Notifications          | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter   | **Fixed locally**; hosted Development pending                |
-| [AUD-015](#aud-015) | P1  | Hours publication      | Certificate publication trusts client identity and commits database/provider work non-atomically                    | **Fixed locally**; full and hosted Development gates pending |
-| [AUD-016](#aud-016) | P1  | Stored HTML            | The DV form-editor preview inserted persisted rich-text help content without sanitization                           | **Fixed on `development`**; exact CI green                   |
-| [AUD-017](#aud-017) | P1  | Next.js route contract | The paper-signup AI route exported an unsupported value, so clean isolated production builds failed type checking   | **Fixed on `development`**; exact CI green                   |
-| [AUD-018](#aud-018) | P1  | Guardian form          | Hydration could replace a guardian's reviewed availability and notes with SSR defaults before submission            | **Fixed on `development`**; exact CI green                   |
-| [AUD-007](#aud-007) | P2  | CI                     | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                               | Fixed this session                                           |
-| [AUD-008](#aud-008) | P2  | Architecture           | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript    | Confirmed, by design                                         |
-| [AUD-009](#aud-009) | P2  | Gate coverage          | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads`                     | Confirmed                                                    |
-| [AUD-010](#aud-010) | P3  | Moderation             | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true                    | Confirmed, dead policy                                       |
-| [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                           | Confirmed                                                    |
+| ID                  | Pri | Area                   | Finding                                                                                                             | Status                                                                             |
+| ------------------- | --- | ---------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| [AUD-001](#aud-001) | P0  | Core RLS               | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                  | **Fixed on `development`**; live in Production until cutover                       |
+| [AUD-002](#aud-002) | P0  | Core RLS               | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection            | **Fixed on `development`**; live in Production until cutover                       |
+| [AUD-003](#aud-003) | P1  | Grants                 | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions                   | **Merged on `development`**; catalog verification pending                          |
+| [AUD-004](#aud-004) | P1  | Plugin audit           | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited  | **Fixed on `development`**                                                         |
+| [AUD-005](#aud-005) | P3  | Plugin RLS             | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob            | Reclassified — designed behaviour, document the contract                           |
+| [AUD-006](#aud-006) | P2  | Architecture           | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`**                                                         |
+| [AUD-012](#aud-012) | P2  | Notifications          | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter   | **Merged on `development`** (PR #115, `cc2e24a`); hosted Development pending       |
+| [AUD-015](#aud-015) | P1  | Hours publication      | Certificate publication trusts client identity and commits database/provider work non-atomically                    | **Merged on `development`** (PR #120, `44e37b2`); hosted Development gates pending |
+| [AUD-016](#aud-016) | P1  | Stored HTML            | The DV form-editor preview inserted persisted rich-text help content without sanitization                           | **Fixed on `development`**; exact CI green                                         |
+| [AUD-017](#aud-017) | P1  | Next.js route contract | The paper-signup AI route exported an unsupported value, so clean isolated production builds failed type checking   | **Fixed on `development`**; exact CI green                                         |
+| [AUD-018](#aud-018) | P1  | Guardian form          | Hydration could replace a guardian's reviewed availability and notes with SSR defaults before submission            | **Fixed on `development`**; exact CI green                                         |
+| [AUD-007](#aud-007) | P2  | CI                     | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                               | Fixed this session                                                                 |
+| [AUD-008](#aud-008) | P2  | Architecture           | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript    | Confirmed, by design                                                               |
+| [AUD-009](#aud-009) | P2  | Gate coverage          | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads`                     | Confirmed                                                                          |
+| [AUD-010](#aud-010) | P3  | Moderation             | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true                    | Confirmed, dead policy                                                             |
+| [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                           | Confirmed                                                                          |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -275,7 +287,8 @@ Present in schema and, in several cases, in the admin UI — but consulted by no
 
 ## AUD-012 — Repeat notifications are silently suppressed {#aud-012}
 
-**Priority:** P2 · **Status:** Fixed locally; hosted Development pending
+**Priority:** P2 · **Status:** Merged on `development` through PR #115 at
+`cc2e24a`; hosted Development pending
 
 `services/notifications.ts` checks for an existing notification before inserting:
 
@@ -316,8 +329,8 @@ deployed, or tested.
 
 ## AUD-015 — Volunteer-hours publication is non-atomic and trusts client identity {#aud-015}
 
-**Priority:** P1 · **Confidence:** confirmed · **Status:** Fixed locally; hosted
-Development gates pending
+**Priority:** P1 · **Confidence:** confirmed · **Status:** Merged on
+`development` through PR #120 at `44e37b2`; hosted Development gates pending
 
 **Blast radius:** every manual project-session hours publication. The prior
 Server Action accepted browser-supplied `userId`, name, email, duration, and
