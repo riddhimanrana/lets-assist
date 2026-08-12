@@ -3,26 +3,40 @@ import { describe, expect, test } from "bun:test";
 import { describePluginUninstallImpact } from "./plugin-uninstall-impact";
 
 describe("describePluginUninstallImpact", () => {
-  test("asserts the true contract shape: workflows stop, settings removed, data retained", () => {
+  test("summary says workflows stop and settings are permanently removed", () => {
     const impact = describePluginUninstallImpact({
       pluginName: "Example Plugin",
       dataAccessPurposes: [],
     });
 
-    expect(impact.workflowsStop).toBe(true);
-    expect(impact.settingsRemoved).toBe(true);
-    expect(impact.dataRetained).toBe(true);
+    expect(impact.summary).toMatch(/stops its workflows/i);
+    expect(impact.summary).toMatch(/removes its saved settings/i);
+    expect(impact.summary).toMatch(/cannot be undone/i);
   });
 
-  test("never claims plugin_data is deleted or erasable from this screen", () => {
+  test("copy is truthful: platform's own operation does not request plugin-data deletion", () => {
     const impact = describePluginUninstallImpact({
       pluginName: "Example Plugin",
       dataAccessPurposes: [],
     });
 
+    // Does not claim the platform deleted plugin data.
     expect(impact.summary).not.toMatch(/data.{0,40}(deleted|erased|removed)/i);
-    expect(impact.summary).toMatch(/not deleted/i);
+    // Scopes the claim to the platform's own operation.
+    expect(impact.summary).toMatch(/platform.{0,60}does not request/i);
+    // Acknowledges lifecycle hooks are unconstrained.
+    expect(impact.summary).toMatch(/not constrained by the platform/i);
+  });
+
+  test("erasure copy says no self-service way anywhere in the product, not just on this screen", () => {
+    const impact = describePluginUninstallImpact({
+      pluginName: "Example Plugin",
+      dataAccessPurposes: [],
+    });
+
     expect(impact.summary).toMatch(/no self-service way/i);
+    expect(impact.summary).toMatch(/anywhere in the product/i);
+    expect(impact.summary).not.toMatch(/from this screen/i);
   });
 
   test("states settings removal is real and irreversible", () => {
@@ -47,7 +61,7 @@ describe("describePluginUninstallImpact", () => {
       "season tracking",
       "member profile extensions",
     ]);
-    expect(impact.totalDataCategoryCount).toBe(2);
+    expect(impact.dataCategories.length + impact.additionalDataCategoryCount).toBe(2);
     expect(impact.additionalDataCategoryCount).toBe(0);
   });
 
@@ -57,9 +71,9 @@ describe("describePluginUninstallImpact", () => {
       dataAccessPurposes: [],
     });
 
-    expect(impact.summary).toMatch(/any data it already stored/i);
+    expect(impact.summary).toMatch(/does not request plugin-data deletion/i);
     expect(impact.dataCategories).toEqual([]);
-    expect(impact.totalDataCategoryCount).toBe(0);
+    expect(impact.dataCategories.length + impact.additionalDataCategoryCount).toBe(0);
   });
 
   test("deduplicates repeated purposes instead of counting them twice", () => {
@@ -72,7 +86,7 @@ describe("describePluginUninstallImpact", () => {
       ],
     });
 
-    expect(impact.totalDataCategoryCount).toBe(2);
+    expect(impact.dataCategories.length + impact.additionalDataCategoryCount).toBe(2);
     expect(impact.dataCategories).toEqual([
       "season tracking",
       "member profile extensions",
@@ -85,8 +99,20 @@ describe("describePluginUninstallImpact", () => {
       dataAccessPurposes: ["", "   ", "season tracking"],
     });
 
-    expect(impact.totalDataCategoryCount).toBe(1);
+    expect(impact.dataCategories.length + impact.additionalDataCategoryCount).toBe(1);
     expect(impact.dataCategories).toEqual(["season tracking"]);
+  });
+
+  test("a pathologically long plugin name is truncated so all outputs are bounded", () => {
+    const longName = "A".repeat(5000);
+    const impact = describePluginUninstallImpact({
+      pluginName: longName,
+      dataAccessPurposes: [],
+    });
+
+    expect(impact.summary.length).toBeLessThan(1000);
+    // Name in summary is bounded, not the raw 5000-char string.
+    expect(impact.summary).not.toContain("A".repeat(81));
   });
 
   describe("bounded output for a plugin with many declared data-access relations", () => {
@@ -114,7 +140,7 @@ describe("describePluginUninstallImpact", () => {
       // ~4,966-character toast string for this exact shape. Bound the
       // summary far below either regardless of how many relations exist.
       expect(impact.summary.length).toBeLessThan(1000);
-      expect(impact.totalDataCategoryCount).toBe(RELATION_COUNT);
+      expect(impact.dataCategories.length + impact.additionalDataCategoryCount).toBe(RELATION_COUNT);
     });
 
     test("summary never leaks internal schema or relation names", () => {

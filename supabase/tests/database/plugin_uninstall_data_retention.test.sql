@@ -206,7 +206,7 @@ SELECT extensions.lives_ok(
       'user',
       '{"controlPlaneTransition": "uninstall", "platformInstallRowRemoved": true, "pluginDataDeletionNotRequested": true, "configurationRemoved": true}'::jsonb
     )$$,
-  'the uninstall is audited the way control-plane-transition.ts writes it'
+  'plugin_audit_logs schema accepts a hand-crafted install.removed row with known field values (see control-plane-transition-core.test.ts for production audit shape)'
 );
 
 -- ---------------------------------------------------------------------------
@@ -230,9 +230,11 @@ SELECT extensions.is(
 );
 
 -- ---------------------------------------------------------------------------
--- D. Audit truth: the install.removed row states only what the platform
--- controls, and never a certification about plugin_data that an arbitrary
--- onUninstall hook could contradict.
+-- D. Audit schema assertions against the hand-crafted row inserted in B.
+-- These verify the schema round-trip for the known field names only —
+-- they do NOT prove what the production TypeScript unit writes. The
+-- production audit shape (including the pluginDataRetained invariant) is
+-- owned by the unit tests in control-plane-transition-core.test.ts.
 -- ---------------------------------------------------------------------------
 
 SELECT extensions.is(
@@ -240,7 +242,7 @@ SELECT extensions.is(
     WHERE organization_id = 'eb100000-0000-4000-8000-000000000001'
       AND action = 'install.removed'),
   'true',
-  'the install.removed audit row records that the platform removed the install row itself'
+  'hand-crafted install.removed fixture carries platformInstallRowRemoved: true'
 );
 
 SELECT extensions.is(
@@ -248,7 +250,7 @@ SELECT extensions.is(
     WHERE organization_id = 'eb100000-0000-4000-8000-000000000001'
       AND action = 'install.removed'),
   'true',
-  'the install.removed audit row records that the platform never requested plugin_data erasure'
+  'hand-crafted install.removed fixture carries pluginDataDeletionNotRequested: true'
 );
 
 SELECT extensions.is(
@@ -256,7 +258,7 @@ SELECT extensions.is(
     WHERE organization_id = 'eb100000-0000-4000-8000-000000000001'
       AND action = 'install.removed'),
   'true',
-  'the install.removed audit row records that a non-empty configuration blob was removed, never its content'
+  'hand-crafted install.removed fixture carries configurationRemoved: true'
 );
 
 SELECT extensions.is(
@@ -264,7 +266,7 @@ SELECT extensions.is(
     WHERE organization_id = 'eb100000-0000-4000-8000-000000000001'
       AND action = 'install.removed'),
   'uninstall',
-  'the install.removed audit row still names the uninstall transition'
+  'hand-crafted install.removed fixture carries controlPlaneTransition: uninstall'
 );
 
 SELECT extensions.ok(
@@ -273,7 +275,7 @@ SELECT extensions.ok(
       WHERE organization_id = 'eb100000-0000-4000-8000-000000000001'
         AND action = 'install.removed') ? 'pluginDataRetained'
   ),
-  'the audit row never asserts pluginDataRetained -- that would certify behavior of an arbitrary onUninstall hook the platform does not control'
+  'hand-crafted fixture omits pluginDataRetained (production invariant is owned by control-plane-transition-core.test.ts)'
 );
 
 -- ---------------------------------------------------------------------------

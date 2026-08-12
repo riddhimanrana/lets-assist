@@ -1,5 +1,7 @@
 import type { OrganizationPluginDataAccessDeclaration } from "@/types/plugin";
 
+/** Defensive cap on plugin name written freely by the plugin author. */
+const MAX_PLUGIN_NAME_LENGTH = 80;
 /**
  * Deduplicated, human-readable purposes are shown directly in the short
  * summary sentence. Keeping this small is what bounds summary length no
@@ -28,28 +30,15 @@ export type DescribePluginUninstallImpactInput = {
 };
 
 export type PluginUninstallImpact = {
-  /** The install row's `enabled` state stops governing runtime access immediately. */
-  workflowsStop: true;
-  /** The install row's `configuration` is deleted with it and is not recoverable. */
-  settingsRemoved: true;
-  /**
-   * Uninstall removes only `organization_plugin_installs`. It never touches
-   * `plugin_data`, so anything the plugin already wrote there for this
-   * organization stays put and is scoped by the same organization_id it was
-   * written with.
-   */
-  dataRetained: true;
   /** Deduplicated, length-capped purposes, bounded to MAX_DISCLOSURE_CATEGORIES, for an optional detail list. */
   dataCategories: string[];
   /** How many additional deduplicated categories exist beyond `dataCategories`. */
   additionalDataCategoryCount: number;
-  /** Total deduplicated category count (dataCategories.length + additionalDataCategoryCount). */
-  totalDataCategoryCount: number;
   /**
-   * The retention + erasure-request sentence alone, for UI that renders the
-   * destructive "workflows stop, settings removed" warning as separate,
-   * differently-styled copy rather than folding it into one paragraph.
-   * Length-bounded regardless of declared category count.
+   * The data-handling sentence alone, for UI that renders the destructive
+   * "workflows stop, settings removed" warning as separate, differently-styled
+   * copy rather than folding it into one paragraph. Length-bounded regardless
+   * of declared category count.
    */
   retentionClause: string;
   /**
@@ -104,7 +93,8 @@ export function extractDataAccessPurposes(
 export function describePluginUninstallImpact(
   input: DescribePluginUninstallImpactInput,
 ): PluginUninstallImpact {
-  const { pluginName, dataAccessPurposes } = input;
+  const pluginName = truncate(input.pluginName, MAX_PLUGIN_NAME_LENGTH);
+  const { dataAccessPurposes } = input;
 
   const dedupedCategories = Array.from(
     new Set(
@@ -127,18 +117,18 @@ export function describePluginUninstallImpact(
     totalDataCategoryCount - summaryCategories.length,
   );
 
+  // The platform's own uninstall does not request plugin-data deletion — it
+  // only removes the install row and its configuration. The plugin's own hook
+  // runs before that removal with the service role and is not constrained by
+  // the platform, so the platform cannot certify what it does.
   const retentionFact = totalDataCategoryCount
-    ? `Data it already stored for your organization across ${totalDataCategoryCount} categor${totalDataCategoryCount === 1 ? "y" : "ies"} (${summaryCategories.join("; ")}${summaryOverflow > 0 ? `, +${summaryOverflow} more` : ""}) is not deleted — it stays scoped to your organization and remains if you reinstall.`
-    : "Any data it already stored for your organization is not deleted by uninstalling — it stays scoped to your organization and remains if you reinstall.";
-  const retentionClause = `${retentionFact} Permanently erasing that retained data is a separate, authorized request — there is currently no self-service way to request it from this screen.`;
+    ? `The platform's own uninstall does not request deletion of the ${totalDataCategoryCount} declared data categor${totalDataCategoryCount === 1 ? "y" : "ies"} (${summaryCategories.join("; ")}${summaryOverflow > 0 ? `, +${summaryOverflow} more` : ""}) — it removes only the install record and its configuration. The plugin's own hook runs before that removal and is not constrained by the platform.`
+    : "The platform's own uninstall does not request plugin-data deletion — it removes only the install record and its configuration. The plugin's own hook runs before that removal and is not constrained by the platform.";
+  const retentionClause = `${retentionFact} Permanently erasing stored plugin data requires a separate, authorized request — there is currently no self-service way to submit one anywhere in the product.`;
 
   return {
-    workflowsStop: true,
-    settingsRemoved: true,
-    dataRetained: true,
     dataCategories,
     additionalDataCategoryCount,
-    totalDataCategoryCount,
     retentionClause,
     summary: `Uninstalling ${pluginName} stops its workflows and permanently removes its saved settings immediately; that part cannot be undone. ${retentionClause}`,
   };

@@ -12,10 +12,6 @@ export type {
   OrganizationPluginLifecycleContext,
   OrganizationPluginLifecycleHooks,
 };
-export {
-  describePluginUninstallImpact,
-  type PluginUninstallImpact,
-} from "./plugin-uninstall-impact";
 
 function getLifecycleActionName(
   hookName: keyof OrganizationPluginLifecycleHooks,

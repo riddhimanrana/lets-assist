@@ -196,11 +196,12 @@ export async function uninstallOrganizationPlugin(options: {
   const { data: pluginCatalog, error: pluginCatalogError } =
     (await adminSupabase
       .from("plugins")
-      .select("key, visibility")
+      .select("key, name, visibility")
       .eq("key", pluginKey)
       .maybeSingle()) as {
       data: {
         key: string;
+        name: string;
         visibility: "global" | "private";
       } | null;
       error: SupabaseLikeError | null;
@@ -301,16 +302,19 @@ export async function uninstallOrganizationPlugin(options: {
     return {
       success: true,
       message:
-        "This plugin was already uninstalled. Any data it previously stored for your organization remains retained and scoped to your organization.",
+        "This plugin was already uninstalled. The platform's own operation did not request deletion of any stored plugin data; it remains scoped to your organization.",
     };
   }
 
   const definition = getRegisteredPlugin(pluginKey);
+  // Use the catalog name (same source as the dialog title) to avoid
+  // manifest/catalog drift when the two names differ.
+  const displayName = pluginCatalog?.name || definition?.manifest.name || pluginKey;
   return {
     success: true,
     message: definition
       ? describePluginUninstallImpact({
-          pluginName: definition.manifest.name,
+          pluginName: displayName,
           dataAccessPurposes: extractDataAccessPurposes(
             definition.manifest.dataAccess,
           ),
