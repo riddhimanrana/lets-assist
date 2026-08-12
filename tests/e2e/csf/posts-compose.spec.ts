@@ -16,7 +16,8 @@ const TITLE_PREFIX = "E2E compose";
 const composedTitle = `${TITLE_PREFIX} spring class update`;
 const composedBody =
   "Fictional class announcement composed by the browser suite. No real students are addressed.";
-// Replies cascade with their announcement, so cleanFeedPosts removes this too.
+// The fixture helper removes replies through the canonical audited RPC before
+// deleting their RESTRICT-protected announcement.
 const composedReply =
   "Follow-up from the browser suite: room moved to the fictional annex.";
 

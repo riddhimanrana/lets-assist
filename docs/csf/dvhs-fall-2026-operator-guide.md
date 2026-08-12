@@ -623,10 +623,13 @@ Production, and do not treat a Development screenshot as Production evidence.
 - Hosted Development Supabase has 272 ordered migrations through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`. Live advisors
   report 95 INFO / 0 WARN / 0 ERROR for security and 611 INFO / 0 WARN / 0 ERROR
-  for performance.
+  for performance. This repository branch carries one later forward migration,
+  `20260812152300_atomic_csf_post_replies`, which has not been accepted on
+  hosted Development.
 - The seven-argument metadata RPC exists, the old four-argument overload is
   absent, and only `service_role` can execute the current RPC; `anon` and
-  `authenticated` cannot. The missing RPC is no longer the Preview blocker.
+  `authenticated` cannot. The Drive metadata RPC is no longer the Preview
+  blocker.
 - The caller-summary correction is the private plugin fix merged by private PR
   #45 at `ca817bf`, and this root worktree's gitlink points to that commit
   locally. The Ready Development SHA above does not include that local gitlink
@@ -655,7 +658,7 @@ Do not use real chapter rows or credentials until every item is checked:
       Production databases, links, tokens, previews, and decisions isolated.
 - [ ] Verify the root tree is the approved exact commit and the private plugin
       remains a clean gitlink at its approved SHA.
-- [ ] Replay the ordered migration ledger through `20260812132725` in the
+- [ ] Replay the ordered migration ledger through `20260812152300` in the
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.

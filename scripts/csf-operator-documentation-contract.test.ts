@@ -695,13 +695,13 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
   });
 
-  test("current hosted Development status records parity and the preview seal blocker", () => {
+  test("current hosted Development status records the forward migration delta and preview seal blocker", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(272);
+    expect(migrations).toHaveLength(273);
     expect(migrations.at(-1)).toBe(
-      "20260812132725_csf_drive_metadata_compare_and_set_fence.sql",
+      "20260812152300_atomic_csf_post_replies.sql",
     );
 
     const currentState = between(
@@ -710,13 +710,11 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository has 272 ordered migrations through",
+      "repository branch has 273 ordered migrations through",
     );
+    expect(currentState).toContain("`20260812152300_atomic_csf_post_replies`");
     expect(currentState).toContain(
-      "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
-    );
-    expect(currentState).toContain(
-      "Hosted Development has 272 ordered migrations through",
+      "Hosted Development remains at 272 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
@@ -778,6 +776,10 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
     );
     expect(rehearsalState).toContain(
+      "`20260812152300_atomic_csf_post_replies`",
+    );
+    expect(rehearsalState).toContain("which has not been accepted on");
+    expect(rehearsalState).toContain(
       "seven-argument metadata RPC exists, the old four-argument overload is absent",
     );
     expect(rehearsalState).toContain(
@@ -811,7 +813,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Related references",
     );
     expect(cutover).toContain(
-      "Replay the ordered migration ledger through `20260812132725`",
+      "Replay the ordered migration ledger through `20260812152300`",
     );
   });
 
@@ -823,13 +825,10 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Hosted Development has 272 ordered migrations through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "repository branch has 272 ordered migrations through `20260812132725`",
+      "repository branch has 273 ordered migrations through `20260812152300`",
     );
     expect(productionCutoverRunbook).toContain(
-      "contains 36 Production-pending migrations",
-    );
-    expect(productionCutoverRunbook).not.toContain(
-      "one migration not yet accepted on hosted Development",
+      "contains 37 Production-pending migrations",
     );
     expect(productionCutoverRunbook).not.toContain(
       "Its 271-migration ledger proves ordered application",

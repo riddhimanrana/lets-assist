@@ -23,7 +23,7 @@ Clauses amended by this record are annotated “(amended v1.1)” in place. Wher
 ### Amendment 2 — Officer follow-up replies and the unified member stream (v1.2, August 7, 2026)
 
 - **Member comments remain excluded.** Nothing in this amendment gives members a composer; the Amendment 1 prohibition on member comments stands.
-- **Officer follow-up replies.** Officers holding `manage_posts` may append follow-up replies to their chapter’s published posts. A reply inherits the parent post’s audience, is **never emailed**, and carries no pin and no audience of its own. Anyone who can see the parent post can read its replies. Deleting a reply is limited to the reply’s author or an organization admin. Reply writes are audited.
+- **Officer follow-up replies.** Officers holding `manage_posts` may append follow-up replies to their chapter’s published posts. A reply inherits the parent post’s audience, is **never emailed**, and carries no pin and no audience of its own. Anyone who can see the parent post can read its replies. Deleting a reply is limited to the reply’s author or an organization admin. Add and delete are tenant-bound, permission-rechecked under the staff-access lock, atomic with their immutable audit receipt, and replay-safe through one stable request identifier.
 - **Unified member stream.** The member feed carries announcements and published activities as one reverse-chronological stream ordered by publication time. Deadlines and meetings do not enter the feed; they remain date-anchored agenda items in the rail.
 
 Clauses amended by this record are annotated “(see Amendment 2)” in place. Where earlier text conflicts with this record, this record wins.
