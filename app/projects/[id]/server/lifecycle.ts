@@ -651,14 +651,6 @@ export async function updateProject(
     const isRecurringParent =
       !project.recurrence_parent_id && !!project.recurrence_rule;
 
-    // Update the project
-    const { error: updateError } = await supabase
-      .from("projects")
-      .update(sanitizedUpdates)
-      .eq("id", projectId);
-
-    if (updateError) throw updateError;
-
     let cancelledOccurrences = 0;
 
     if (disablesRecurrence && isRecurringParent) {
@@ -671,44 +663,80 @@ export async function updateProject(
           .order("id");
 
       if (occurrenceReadError) {
-        console.error(
-          "Error reading recurring occurrences for cancellation:",
-          occurrenceReadError,
-        );
-      } else {
-        for (const occurrence of upcomingOccurrences ?? []) {
-          const { data: result, error: cancellationError } = await supabase.rpc(
-            "cancel_project_transactional",
-            {
-              p_project_id: occurrence.id,
-              p_cancellation_reason: "Recurring series ended by organizer",
-            },
+        if (process.env.NODE_ENV !== "test") {
+          console.error(
+            "Error reading recurring occurrences for cancellation:",
+            occurrenceReadError,
           );
-          const receipt = getExactCancellationReceipt(result);
+        }
+        return {
+          error: "Failed to read recurring occurrences",
+          endedRecurringSeries: false,
+          cancelledOccurrences,
+        };
+      }
 
-          if (cancellationError || !receipt) {
-            if (process.env.NODE_ENV !== "test") {
-              console.error("Error cancelling recurring occurrence:", {
-                code: cancellationError?.code,
-                projectId: occurrence.id,
-              });
-            }
-            continue;
+      let cancellationFailed = false;
+      for (const occurrence of upcomingOccurrences ?? []) {
+        const { data: result, error: cancellationError } = await supabase.rpc(
+          "cancel_project_transactional",
+          {
+            p_project_id: occurrence.id,
+            p_cancellation_reason: "Recurring series ended by organizer",
+          },
+        );
+        const receipt = getExactCancellationReceipt(result);
+
+        if (cancellationError || !receipt) {
+          cancellationFailed = true;
+          if (process.env.NODE_ENV !== "test") {
+            console.error("Error cancelling recurring occurrence:", {
+              code: cancellationError?.code,
+              projectId: occurrence.id,
+            });
           }
+          continue;
+        }
 
-          if (receipt.outcome === "cancelled") {
-            cancelledOccurrences += 1;
-            try {
-              await removeCalendarEventForProject(occurrence.id);
-            } catch (calendarError) {
-              console.error(
-                "Error removing calendar event for recurring occurrence:",
-                calendarError,
-              );
-            }
+        if (receipt.outcome === "cancelled") {
+          cancelledOccurrences += 1;
+          try {
+            await removeCalendarEventForProject(occurrence.id);
+          } catch (calendarError) {
+            console.error(
+              "Error removing calendar event for recurring occurrence:",
+              calendarError,
+            );
           }
         }
       }
+
+      if (cancellationFailed) {
+        return {
+          error: "Failed to cancel all recurring occurrences",
+          endedRecurringSeries: false,
+          cancelledOccurrences,
+        };
+      }
+    }
+
+    // For recurrence ending, this write intentionally happens only after every
+    // currently discoverable upcoming child reached a truthful cancelled state.
+    // Leaving the rule in place on any earlier failure makes a retry discoverable.
+    const { error: updateError } = await supabase
+      .from("projects")
+      .update(sanitizedUpdates)
+      .eq("id", projectId);
+
+    if (updateError) {
+      if (disablesRecurrence && isRecurringParent) {
+        return {
+          error: "Failed to end recurring series",
+          endedRecurringSeries: false,
+          cancelledOccurrences,
+        };
+      }
+      throw updateError;
     }
 
     return {
