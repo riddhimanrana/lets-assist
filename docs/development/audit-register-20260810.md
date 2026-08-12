@@ -32,6 +32,8 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-009](#aud-009) | P1  | Gate coverage          | storage policy heuristics could miss broad client policies that reach every bucket, including server-only buckets      | Source re-amended after failed replay; rerun pending         |
 | [AUD-010](#aud-010) | P3  | Moderation             | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true                       | Confirmed, dead policy                                       |
 | [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                              | Confirmed                                                    |
+| [AUD-020](#aud-020) | P2  | Plugin data deletion   | Permanent deletion lacked a complete contract, authorization boundary, and truthful durable replay state               | **Fixed locally**; hosted Development pending                |
+| [AUD-021](#aud-021) | P2  | Plugin uninstall       | Ordinary uninstall could run arbitrary plugin code and therefore could not guarantee data retention                    | **Fixed locally**; hosted Development pending                |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -625,6 +627,93 @@ The two sets are also disjoint in what they touch: Codex's are all `csf_*`, whil
 - A full `db:test:redesign` replay in its own worktree, which needs its own isolated stack.
 - Reconciling its `app/organization/[id]/page.tsx` changes with the setup checklist added to the same file this session — a likely merge conflict.
 - Reviewing its 11 migrations and ~6,000 lines of new pgTAP on their merits.
+
+---
+
+<a id="aud-021"></a>
+
+## AUD-020 / AUD-021 — Plugin data lifecycle boundary {#aud-020}
+
+**Priority:** P2 · **Status:** Fixed locally; hosted Development pending
+
+Ordinary uninstall is now mechanically non-destructive: the transition core
+removes only the exact organization/plugin install row and never invokes
+`onUninstall`, `onDataDelete`, or any plugin code. Its audit evidence may
+therefore state `pluginDataRetained: true`. `onUninstall` remains only as
+compensation for a successful install hook followed by failed persistence.
+
+Permanent deletion is a separate MFA-aware organization-admin action. It
+revalidates current membership, registry, catalog, entitlement/forced/private
+state, absence of an install row, and an organization/plugin-bound confirmation
+under the control-plane transition lease. A complete manifest declaration must
+exactly cover every tenant database/storage target and declare idempotent retry
+semantics; missing or partial contracts fail closed.
+
+Migration `20260812115556_plugin_data_deletion_requests.sql` adds a private,
+RLS-enabled, service-only redacted receipt. Globally unique request keys are
+bound to actor/organization/plugin/fingerprint, per-scope processing is unique,
+and attempt claim tokens make completion compare-and-set. Processing after a
+crash is treated as ambiguous and never auto-replayed; only an explicitly
+reported `retryable_failed` receipt may run again. Hook outcome is finalized
+before independent audit attachment, so audit failure cannot turn successful
+destruction into a false failed/replayable operation.
+
+No private manifest declares the complete new contract in this root change.
+That is deliberately fail-safe: permanent deletion remains unavailable for
+private plugins until a separate private-repository review enumerates targets
+and external systems, lands there, and only then updates the root gitlink.
+Local evidence is green: 78 focused Bun tests, 59 focused pgTAP assertions, and
+a full local migration reset/replay pass. Hosted Development remains pending.
+Production was not read, written, queried, deployed, or tested.
+
+---
+
+<a id="aud-029"></a>
+
+## AUD-029 — CSF post replies were not an atomic tenant boundary {#aud-029}
+
+**Priority:** P1 · **Status:** Audited source verified; exact integrated-branch and hosted Development verification pending
+
+`addCsfPostReplyAction` and `deleteCsfPostReplyAction` previously performed
+authorization, parent/reply reads, row mutation, and audit insertion as separate
+application statements. A process failure could commit the reply without its
+history, a lost response could duplicate an add, and a queued request could
+continue after current staff authority changed. The reply table also had
+independent organization and announcement foreign keys, so the database did not
+itself prove that both identifiers named the same tenant.
+
+Migration `20260812152300_atomic_csf_post_replies.sql` adds and validates the
+composite tenant-parent foreign key and moves add/delete plus the immutable
+audit receipt into one service-only transaction. The transaction authorizes
+before caller-controlled record inspection, takes the shared organization
+staff-access lock, pins the active host-membership row, rechecks
+`manage_posts`, locks the published parent or target reply, enforces current
+author-or-admin deletion, and binds the normalized intent to one request UUID.
+Exact retries return the original reply; conflicting reuse and stale committed
+state fail closed. Direct service-role INSERT, UPDATE, DELETE, TRUNCATE,
+REFERENCES, and TRIGGER privileges are removed while server-rendered SELECT is
+retained. Both parent foreign keys now use `ON DELETE RESTRICT`, so deleting an
+announcement cannot cascade around the reply boundary. The existing
+service-role-only plugin teardown RPC removes tenant replies explicitly under
+the same staff-access lock before delegating to its owner-only prior
+implementation; its public signature and exact fourteen-key result contract
+remain unchanged. Audit state stores hashes and bounded lengths, not reply
+text.
+
+The private action keeps its existing parameters and accepts one optional final
+request UUID. The UI retains that UUID across an unknown add/delete outcome and
+reuses it on an unchanged manual retry; changing the body discards the stale
+key. Private PR #44 merged first into the private repository's `development`
+branch at `d4188dd7`; the current root gitlink `ca817bf` contains that reply
+code plus the later preview-summary correction. Audited source evidence passes
+48 focused private tests (220 expectations), all 121 database files and 5,126
+pgTAP assertions, including observed two-connection advisory-lock waits for
+same-request replay and a staff-only `manage_posts` revocation. The exact
+integrated branch still requires fresh replay. Hosted Development migration,
+advisor, and browser acceptance also remain required before this finding
+closes.
+
+Production was not accessed or changed for this finding.
 
 ---
 

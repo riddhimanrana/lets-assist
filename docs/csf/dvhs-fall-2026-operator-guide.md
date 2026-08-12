@@ -10,15 +10,18 @@ Let's Assist accounts, assigning officer positions, or reconciling the Fall
 
 - Rehearse at `https://dev.lets-assist.com/organization/dvhighcsf`. Development
   uses a separate database. Automated fixtures must use only reserved synthetic
-  identities. Real chapter Sheets may be inspected in a read-only preview, but
-  do not commit their rows to Development.
+  identities. A preview may read a real chapter Sheet and persist a bounded
+  server-side preview job or snapshot, but it must not commit chapter rows to
+  Development.
 - Production is `https://lets-assist.com/organization/dvhighcsf`. Do not copy
   Development fixtures, links, or test decisions into Production.
 - The approved Google identity is exactly `dvhighcsf@gmail.com`. Stop at the
   Google chooser if another identity is selected.
-- A Google preview is read-only. Committing an import, connecting an account,
-  deciding an application, publishing policy, assigning staff access, or
-  sending email is a separate reviewed action.
+- A Google preview does not write to the source Sheet or commit imported rows.
+  It may persist the bounded preview job and immutable source snapshot needed
+  for review. Committing an import, connecting an account, deciding an
+  application, publishing policy, assigning staff access, or sending email is
+  a separate reviewed action.
 - Never paste a roster, connection token, transcript, receipt, or student row
   into chat, tickets, screenshots, tests, or repository files.
 
@@ -335,7 +338,9 @@ Use this source order:
 
 1. Preview, reconcile, and—only in the authorized Production cutover—commit the
    primary `CSF Application - Spring 2026 (Responses)` application seed first.
-   Its grade and semester values establish the initial class targets.
+   Choose **Applications** as the **Record type**. Its grade and semester values
+   establish the initial class targets. Do not first load a class-history sheet
+   as **Student roster** to manufacture a competing primary identity source.
 2. Only after that application seed is reviewed, process the historical
    Classes of 2027–2030 sheets as **Historical records**. Reconcile every
    overlap against the primary application result; never let a historical row
@@ -503,27 +508,47 @@ it into a Fall 2026 rule.
 
 ## Applications
 
-1. Open **Applications → Review queue** for daily decisions; use **All
-   applications** for search and history.
-2. Open the full review and inspect identity, source row, course calculations,
-   transcript/receipt access, checks, dues, private notes, and status history.
-3. Request information when evidence is missing. Verify dues separately from
-   academic eligibility.
-4. Approve only when the current server preflight reports no blocker. Reject,
-   withdraw, or use an adviser override only with the exact recorded reason.
-   Reload before retrying a lost response; never create membership manually to
-   compensate.
+1. Open **Applications → Review queue** for unresolved work. Use **All
+   applications** for search and decision history; neither view changes an
+   application.
+2. Open the application and review identity/source, academic evidence,
+   transcript and receipt access, **Application checks**, dues, notes, and
+   **Application history**. Dues evidence and academic eligibility are separate
+   facts.
+3. Read **Decision preflight**. It is the latest loaded state, not an
+   authorization token: the server reloads and rechecks the same evidence when
+   the decision is saved. If the action bar says **Approval blocked**, resolve
+   the named blocker or record an allowed adviser override through its
+   dedicated control; do not work around it by creating membership.
+4. Select **Record decision** and enter **Review notes**. **Request changes**
+   returns the application for correction, **Approve application** creates or
+   updates semester membership atomically, and **Reject** records a final
+   application decision. Approval does not mark semester requirements complete.
+5. If the result says **Decision already saved; reload required** or **Decision
+   request conflict; reload required**, select **Reload application** before
+   doing anything else. A missing response never authorizes a second manual
+   write.
+6. After saving, confirm **Decision record**, its reason, and **Term
+   membership**. Withdrawals and adviser overrides require their own current
+   evidence and recorded reason; never infer either from the imported response.
 
 ## Service activities and points
 
-1. Create an activity as a draft with its term, audience, date, location,
-   signup method, point type/value/cap, and evidence rule. Preview as a member,
-   then publish only when complete.
-2. In **Point submissions**, inspect the activity or club, numeric claim, and
-   proof. Use the reasoned **Request correction**, reject, adjust, or approve
-   action appropriate to the evidence.
-3. Confirm the numeric award in the student's **My CSF** view. Process an
-   appeal as a separate decision; do not rewrite the original history.
+1. Open **Activities** and use its creation control. Enter the reviewed term,
+   audience, date, location, signup mode, point type/value/cap, and proof rule.
+   Use **Save draft** while incomplete; draft activities remain officer-only.
+2. Review the saved details and member-facing signup/proof consequence. Select
+   **Publish activity** only when the record is complete. A row reading
+   **Published** is publication evidence; a saved draft is not.
+3. Open **Point submissions**. Select **Review**, inspect the activity or club,
+   claimed number, source relationship, and proof, then enter **Awarded points**
+   and **Review notes**. Use **Request changes**, **Reject**, or **Approve
+   award** according to the evidence. Review notes are required for rejection,
+   requested changes, and an adjusted award.
+4. Confirm the result in **CSF point awards** and in the student's **My CSF**
+   view. After **Request changes**, the member uses **Update and resubmit**; an
+   appeal is a separate decision. Neither rewrites the original submission or
+   award history.
 
 Every mutation rechecks the acting account, active membership, current open
 term, published policy, source relationship, cap, class, and finalized proof.
@@ -533,13 +558,20 @@ If any changed, reload and resolve the current blocker.
 
 1. Open **Classes**, choose the class, then **Stream**. A class audience targets
    only that cohort; members read published results in **Feed**.
-2. Publish the post before interpreting the separate email outcome. The result
-   must distinguish **Post published** from **Email queued** or **Email not
-   queued**; queue failure does not mean the post was lost.
-3. **Also send this as an email** freezes the reviewed term, audience, class,
-   content, consent topic, and recipient snapshot. Scheduled posts never queue
-   email. Use manual publication until the target environment has an accepted
-   enabled schedule → Feed transition.
+2. In the composer choose **Save as draft**, **Publish now**, or—only when the
+   authenticated publisher is available—**Schedule for later**. The final
+   button reads **Post saved**, **Publish post**, or **Schedule post** for that
+   choice.
+3. Interpret post persistence before the separate email result. **Post saved;
+   email not queued** means the post is durable even though email work was not
+   created. **Post saved; email status unknown** requires administrator review;
+   it does not authorize recreating the post.
+4. **Also send this as an email** requests a separate queue action for the
+   reviewed term, audience, class, content, consent topic, and recipient
+   snapshot. Read **Email queued**, **Email not queued**, or **Email queue status
+   unknown** literally. Queued still does not mean sent or delivered.
+5. Scheduled posts never queue email. Use **Publish now** until the target
+   environment has an accepted enabled schedule → **Feed** transition.
 
 ## Communications and email
 
@@ -552,7 +584,11 @@ If any changed, reload and resolve the current blocker.
    existing opt-outs are stored under that exact key; changing one takes a
    dedicated audited migration. A missing pair keeps broadcast queueing disabled
    for that audience rather than guessing a scope.
-4. Read the campaign's **Delivery** panel as three separate facts: its status,
+4. In **Campaigns**, create and review a draft, then select **Finalize content**.
+   That freezes content and still queues nothing. Select **Snapshot audience**
+   to record canonical included/excluded totals. Only after reviewing that
+   snapshot select **Finalize & queue**.
+5. Read the campaign's **Delivery** panel as three separate facts: its status,
    the **Recipient ledger** counts, and the **Provider attempts** counts.
 
 Queued is not sent, and sent is not delivered:
@@ -581,8 +617,8 @@ between them:
 | URL                      | `https://dev.lets-assist.com/organization/dvhighcsf` | `https://lets-assist.com/organization/dvhighcsf` |
 | Branch                   | `development`                                        | `main`                                           |
 | Database                 | separate Supabase Development branch                 | Production                                       |
-| Records                  | reserved synthetic identities only                   | real chapter records                             |
-| Real chapter Sheets      | read-only preview only; never commit rows            | commit only after the release gates pass         |
+| Records                  | synthetic data plus bounded preview artifacts        | real chapter records                             |
+| Real chapter Sheets      | read-only source; preview artifacts may persist      | commit only after the release gates pass         |
 | Links, tokens, decisions | rehearsal artifacts; never carried forward           | issued fresh                                     |
 
 A Development rehearsal proves the procedure, not the release. A green
@@ -592,6 +628,13 @@ still disabled, no chapter roster has been committed anywhere, and the release
 gates in [testing and release](testing-and-release.md) are open. Do not copy a
 Development fixture, connection link, import preview, or policy decision into
 Production, and do not treat a Development screenshot as Production evidence.
+
+At this guide's current evidence point, the repository and Development database
+have 273 migrations through `20260812152300`; Production has 236 through
+`20260811001500`. The Development Vercel alias still serves earlier code built
+from the 272-migration tree because the external 100-deployment-per-day project
+cap blocked its refresh. Database parity therefore does not close the hosted
+code gate.
 
 ## Development rehearsal state at this guide's verification point
 
@@ -610,18 +653,32 @@ Production, and do not treat a Development screenshot as Production evidence.
 - Help, Members, Staff access, Imports, and the three-section Communications
   workspace were clicked through on the deployed Development build. Help is
   filtered by exact position capabilities rather than broad route access.
-- Google Cloud origins, callbacks, and Drive/Sheets/Picker key restrictions are
-  configured. The in-product connection is **Not connected** until an operator
-  completes a fresh `dvhighcsf@gmail.com` password/verification handoff; no real
-  row preview or commit has occurred.
-- The Development database was historically verified through
-  `20260811132454`. The unused `pg_graphql` extension was absent from that
-  schema, and leaked-password protection was enabled. Development is now at
-  `20260812073000`; the release-integration repository continues with the
-  unpublished ordered series through `20260812101100`, so hosted parity is not
-  current. Treat hosted acceptance as stale until an exact-head deployment is
-  Ready, every outstanding migration is applied in order, and
-  repository/hosted parity is rechecked.
+- Google OAuth and Picker are connected. The real Spring 2026 application
+  workbook bounded `A1:Q518` was inspected and mapped. The saved source passed
+  the metadata RPC and appended 85 stored preview rows.
+- Preview failed while sealing because the caller summary wrongly stated the
+  reserved derived `rows` key. The run left one failed preview job; zero term
+  applications were committed. No names or email addresses are recorded in
+  this guide; real-source evidence remains aggregate-only.
+- `dev.lets-assist.com` still serves exact SHA
+  `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`. That deployment is Ready but
+  stale: its repository tree ended at 272 through
+  `20260812132725_csf_drive_metadata_compare_and_set_fence`, and the external
+  Vercel 100-deployment-per-day project cap prevented a refreshed deployment.
+- Hosted Development Supabase and this repository each have 273 ordered
+  migrations through `20260812152300_atomic_csf_post_replies`.
+- The 95 INFO / 0 WARN / 0 ERROR security and 611 INFO / 0 WARN / 0 ERROR
+  performance advisor counts were captured on the preceding 272-migration
+  Development shape. They have not been re-established for 273 and are not
+  current-parity evidence.
+- The seven-argument metadata RPC exists, the old four-argument overload is
+  absent, and only `service_role` can execute the current RPC; `anon` and
+  `authenticated` cannot. The Drive metadata RPC is no longer the Preview
+  blocker.
+- The caller-summary correction is the private plugin fix merged by private PR
+  #45 at `ca817bf`, and this root worktree's gitlink points to that commit
+  locally. The stale Ready Development SHA above does not include that local
+  gitlink update.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
 - Three controlled Development test messages produced three signature-verified
@@ -646,10 +703,22 @@ Do not use real chapter rows or credentials until every item is checked:
       Production databases, links, tokens, previews, and decisions isolated.
 - [ ] Verify the root tree is the approved exact commit and the private plugin
       remains a clean gitlink at its approved SHA.
-- [ ] Replay the ordered migration ledger through `20260812101100` in the
+- [ ] Run the read-only
+      `scripts/production-cutover-preflight.sql` with the reviewed Production
+      read-only URL. It must select the exact 236-row baseline, pass every
+      shared blocker, and name any cancellation-job transitions for explicit
+      review. Rehearse the full 37-migration transition on a Production-shaped
+      clone and verify the backup restore before scheduling the window.
+- [ ] At T-0 enable maintenance mode, stop writers and scheduled workers, take
+      the final snapshots, and pair the schema push with the exact compatible
+      application deployment. A partial or divergent ledger is a stop.
+- [ ] Replay the ordered migration ledger through `20260812152300` in the
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.
+- [ ] Re-run the preflight on the 273-row target and require the shared tenant
+      and receipt checks plus the target-only relation, constraint, and index
+      and extension-posture checks to pass before reopening writes.
 - [ ] Pass the final combined static, focused source, database, private-plugin,
       and browser gates; complete keyboard, focus, and screen-reader acceptance.
 - [ ] Confirm the super-admin entitlement and organization-admin install,
