@@ -654,7 +654,7 @@ Meeting and session timestamps use the shared compact Pacific-time formatter. Ra
 
 **Purpose:** Safely convert Drive/Sheet source data into normalized records.<br>
 **Primary users:** Import operators and adviser.<br>
-**Shows:** New import wizard, recent jobs, source, type, operator when recorded, preview/commit status, recorded created/updated/unresolved/error counts, abbreviated integrity digest when recorded, row reconciliation decisions/reasons, and retry or preview ancestry.<br>
+**Shows:** Google Sheets connection state, a derived read-only import progress strip, the latest preview with its counts and normalized snapshot, a paged normalized-row table, the new-import and local-upload source sections, and import history — recent jobs, source, type, operator when recorded, preview/commit status, recorded created/updated/unresolved/error counts, abbreviated integrity digest when recorded, row reconciliation decisions/reasons, and retry or preview ancestry.<br>
 **Primary actions:** Start import; continue reconciliation; commit valid rows; retry corrected rows.<br>
 **Secondary actions:** Open source; download sanitized error report; compare mapping; open generated records.<br>
 **Filters/search:** Source type, status, operator, date, term.<br>
@@ -665,7 +665,7 @@ Meeting and session timestamps use the shared compact Pacific-time formatter. Ra
 
 The selected job's status, blocker list, summary language, and commit control use the same server-derived readiness result. Historical row counts or a previously successful preview cannot override a current provider, provenance, mapping, target-resolution, or job-state blocker. Missing historical fields render as **Not recorded** or **Officer unavailable**, never as an invented zero, actor, or outcome.
 
-The wizard is specified in Section 12.
+The import workspace is specified in Section 12.
 
 ### 8.18 Reports
 
@@ -1057,7 +1057,7 @@ The same domain evaluator powers member UI, officer tables, reports, exports, an
 
 ---
 
-## 12. Import wizard and reconciliation semantics
+## 12. Import workspace and reconciliation semantics
 
 ### 12.1 Supported source types
 
@@ -1068,36 +1068,56 @@ The same domain evaluator powers member UI, officer tables, reports, exports, an
 - Returning-club applications and club audits/renewals
 - Partner-club member point sheets
 
-### 12.2 Wizard steps
+### 12.2 Workspace sections and controls
 
-#### Step 1 — Choose source
+The import workspace is not a step wizard. There is no navigable step sequence, no forward/back control between steps, and no client-held step state. It is a fixed stack of sections — connection, progress, preview, sources, results — whose visibility follows recorded server state.
 
-- Launch Google Drive Picker or choose a supported uploaded XLSX/CSV.
-- Select a canonical typed source and a fixed or per-row-derived target strategy. Mixed-grade application sources use immutable cohort/term targets resolved for each row.
-- Display exact provider file ID and name, owner when available, MIME type, modified time, safe link, and current access state.
+#### 12.2.1 Import progress strip
+
+- A non-interactive, read-only reflection of recorded job state, rendered only once a preview exists: **Source**, **Scope**, **Map**, **Preview**, **Reconcile**, **Commit**, **Result**.
+- Every stage is derived — source file name recorded; tab and range recorded; mapping snapshot at version ≥ 1; sealed snapshot; sealed with zero conflicts; a commit job exists; that job completed. A reload or a second officer sees the same position.
+- It carries no controls and grants no navigation. It must never be described, or implemented, as a step the operator advances.
+
+#### 12.2.2 Google Sheets connection
+
+- Named status: **Connected**, **Reconnect required**, **Not connected**, **Checking access**, with the connected address, last-checked time, and the approved chapter account.
+- Controls: **Recheck**; **Connect**, **Switch or reconnect**, or **Switch account** according to state; **Disconnect from CSF**; **Disconnect and revoke at Google**.
+- The connection is bound to the acting Let's Assist user, organization, plugin, import purpose, and capability. It is not an organization-wide switch and cannot be completed on another operator's behalf: an operator without their own verified connection sees **Not connected**.
+- A wrong, missing, or legacy-unverified identity names its own reason and blocks file selection until corrected.
+
+#### 12.2.3 Source section — new import or local upload
+
+- One collapsible **New Google Sheets import** section (**Start another import** once a preview exists) and a separate local-upload section for supported XLSX/CSV.
+- Typed **Record type** selection, restricted to the capabilities the operator holds: student roster, application responses, historical class workbook. Target strategy follows the type — mixed-grade application sources resolve immutable per-row cohort/term targets and state so instead of offering a class control.
+- Google Drive Picker selection displays exact provider file ID and name, owner when available, MIME type, modified time, safe link, and current access state.
+- Operator selects graduating class where applicable, semester, and a single sheet tab, then **Header row** and a bounded **A1 range**. An explicit range must name the same selected tab; unqualified ranges are canonically scoped to that tab.
 - Do not fetch every row before the operator confirms the source.
 
-#### Step 2 — Select sheet data
+#### 12.2.4 Range inspection and column mapping
 
-- List tabs and a limited header/sample preview.
-- Operator selects tab(s), header row, and A1 range. An explicit range must name the same selected tab; unqualified ranges are canonically scoped to that tab.
-- Platform detects supported templates but labels detection as a suggestion.
-
-#### Step 3 — Map columns
-
-- Destination fields are grouped: identity, semester, application, courses, files, attendance, activities, club data.
-- Required destinations show why they are required.
-- Mapping can split repeated course/activity columns and apply controlled transforms.
+- **Inspect columns** reads only the header row and a bounded sample below it. It reads neither the full import range nor any operational record.
+- The result names the workbook, tab, selected range, actually inspected range, sample row count, and column count, and states either headers-ready or an exact header-issue count.
+- Column mapping opens from that inspection. Destinations are grouped by domain — identity, semester, application, courses, files, attendance, activities, club data — and required destinations show why they are required.
+- Mappings bind by column position, so duplicate or empty header names stay distinct. Mapping can split repeated course/activity columns and apply controlled transforms.
 - Mapping version stores header signature and transformation configuration.
+- Column resolution may suggest a destination from a stable key, a configured header, an alias, or column shape, but a suggestion is never authority. The officer's explicit **Not mapped** answer is: a semantic field set to it resolves no column at all, and no alias or shape-based detection may reintroduce one. This matters most for email, where a discovered guardian, recovery, adviser, or invalid address would otherwise become matchable identity evidence for a field the officer deliberately left empty.
+- **Preview normalized rows** creates the preview. Creating a preview writes no operational student/application/service record.
 
-#### Step 4 — Preview and validate
+#### 12.2.5 Preview section
 
-- Create an immutable job snapshot with accessible file metadata, selected tabs/ranges, versioned mapping, raw rows, and row hashes.
-- Show valid, warning, invalid, candidate-match, duplicate, and conflict counts.
-- Preview normalized values beside source values, including resolved cohort and semester for every pending row.
-- No operational student/application/service record is written.
+- Creates an immutable job snapshot with accessible file metadata, selected tabs/ranges, versioned mapping, raw rows, and row hashes.
+- Header counts: **Rows**, **Ready**, **Existing**, **Needs review**. **Ready** displays zero until the preview is sealed, rather than implying readiness from an unsealed attempt.
+- A **Normalized snapshot** block states the normalized row count, abbreviated snapshot and source digests, child-manifest digest and tab count for multi-tab sources, a not-retained field count, and warning badges for hidden, filtered, and formula-only rows with their per-tab evidence. A recorded-but-unsealed attempt and a pre-snapshot preview each say so and require a fresh preview.
+- Normalized values are shown beside source values, including the resolved cohort and semester for every pending row.
 
-#### Step 5 — Resolve
+#### 12.2.6 Normalized rows and paging
+
+- The row table is a bounded display slice of one preview, ordered deterministically, with the position held in the URL so a page survives reload, sharing, and browser history.
+- Controls are **First rows**, **Previous rows**, and **Next rows**, in a labelled navigation region. A single-page preview renders none of them.
+- The control group states, on every page, that counts and import readiness describe the whole preview and not the visible page. A cursor that no longer selects rows says so and still offers **First rows**; it never renders as an empty preview.
+- No count, badge, blocker, or commit decision is ever derived from the visible page. Readiness is server-counted across the whole preview.
+
+#### 12.2.7 Reconciliation decisions
 
 - Exact stable ID or exact unique normalized verified email may match automatically.
 - Name plus class/year creates candidates only.
@@ -1105,29 +1125,33 @@ The same domain evaluator powers member UI, officer tables, reports, exports, an
 - Operator can select a candidate, create a new record, skip, or leave unresolved. A **Use match** decision stores a typed match outcome plus a required 4–500 character officer explanation of the evidence. A **Skip row** decision stores a typed skip outcome plus a required 4–500 character explanation of why the source row must not be imported.
 - A reviewed platform field that differs from the import is a conflict; resolution must explicitly keep platform or apply source with permission/reason.
 - Decision controls disable while pending, preserve the selected profile/reason after validation or transport failure, and clear only after confirmed success.
+- A recovery worklist is projected for rows whose outcome is unresolved or failed. It carries coordinates and recovery state only — no normalized payload, source cell values, email fields, or correlation identifier reaches the browser. **Recover stopped import** settles stale intents; blocked recovery rows hold the commit closed.
 
-#### Step 6 — Commit
+#### 12.2.8 Commit control
 
 - Commit reads the immutable preview, not a fresh unannounced source version.
 - If provider modified time changed, warn and require a new preview or explicit commit of the captured snapshot.
 - Commit remains blocked until the exact file ID/name, current access, selected tab/range, mapping version, and every pending row’s resolved cohort and semester are present. UI enforces readiness and the server rechecks it before creating the commit job.
-- The server returns the canonical blocker list used by job status, preview summary, and the commit control; a failed or stale job cannot be reinterpreted as ready from row counts alone.
-- Valid/resolved rows commit idempotently by source identity/hash.
+- The server returns the canonical blocker list used by job status, preview summary, and the commit control; a failed or stale job cannot be reinterpreted as ready from row counts alone. The first blocker is surfaced as **Import blocked**.
+- The control names the operation it performs rather than a generic import: **Verify source and commit** on a first commit, **Resume import** when an earlier commit of the same preview did not finish, **Finish import** when nothing remains to write, **Committed** once complete. A concurrent holder is disclosed instead of silently disabling the control.
+- Valid/resolved rows commit idempotently by source identity/hash. A resumed commit never rewrites an already-committed row.
 - Valid rows may commit while unresolved/invalid rows remain exceptions.
 - Each row records created/updated targets and correlation ID.
 
-#### Step 7 — Summary and retry
+#### 12.2.9 Results and history
 
 - Show created, updated, unchanged, skipped, unresolved, conflict, and failed totals.
 - Link to generated records and exception table.
 - “Retry corrected rows” creates a child job with `parent_job_id`; it never mutates the old job snapshot.
 - A sanitized error export excludes private raw fields not needed to correct the source.
-- History distinguishes preview ancestry from retry ancestry and includes row decisions with officer/reason/time when present. It abbreviates a recorded source digest and uses **Not recorded** rather than deriving missing historical facts from current rows or another run.
+- History is bounded and discloses its bound. It distinguishes preview ancestry from retry ancestry and includes row decisions with officer/reason/time when present. It abbreviates a recorded source digest and uses **Not recorded** rather than deriving missing historical facts from current rows or another run.
 
 ### 12.3 Idempotency and overwrite rules
 
-- `(organization, source, tab, row, row_hash, mapping_version)` identifies a previewed source version.
-- Recommitting the same resolved row returns the existing target result.
+- `(organization, source, tab, row, row_hash, mapping_version)` is the semantic identity of a previewed source version. It is the invariant the workspace, reconciliation, and commit reason about. It is assembled from columns recorded at two levels — `organization_id` and `source_id` on the preview job, `sheet_tab_name`, `row_number`, `row_hash`, and `mapping_version` on the row — and it is not itself a single database key.
+- The database enforces the coordinate half of that identity directly: `csf_sheet_import_rows_job_coordinate_idx` is `UNIQUE (job_id, sheet_tab_name, row_number)`, so one preview job holds at most one row per real source coordinate. Because a preview job carries exactly one source, that index is what makes the full tuple unique in practice.
+- Commit fencing is enforced separately and just as strictly: a commit job may hold at most one running attempt (`csf_commit_attempts_one_running_idx`), attempt numbers are unique per commit job, and every correlation identifier is unique.
+- Recommitting the same resolved row returns the existing target result. A resumed or retried commit never writes an already-committed row a second time.
 - A changed row creates a new source version and comparison, not an in-place rewrite of evidence.
 - Unreviewed imported fields may update according to declared duplicate policy.
 - Reviewed applications, verified dues, approved awards, resolved attendance, and closed memberships never change silently.

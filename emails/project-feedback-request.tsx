@@ -40,7 +40,7 @@ export default function ProjectFeedbackRequest({
   organizationName = null,
   feedbackUrl = "https://lets-assist.com/feedback/req-123?token=abc",
   unsubscribeUrl = "https://lets-assist.com/feedback/req-123/unsubscribe?token=abc",
-  eventDate = "January 15, 2026",
+  eventDate = null,
 }: ProjectFeedbackRequestProps) {
   const separator = feedbackUrl.includes("?") ? "&" : "?";
 

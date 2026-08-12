@@ -25,6 +25,7 @@ import {
   type MfaListFactorsLike,
 } from "@/lib/auth/mfa";
 import { createClient } from "@/lib/supabase/client";
+import { startGoogleIdentityLink } from "./google-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -268,28 +269,20 @@ function AuthenticationContent() {
     setIsConnecting(true);
 
     try {
-      const { error } = await supabase.auth.linkIdentity({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?from=authentication`,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-            login_hint: user?.email || "",
-          },
-        },
+      const result = await startGoogleIdentityLink(supabase.auth, undefined, {
+        loginHint: user?.email || "",
       });
 
-      if (error) {
-        throw error;
+      if (result.redirected) return;
+
+      if (result.error) {
+        throw result.error;
       }
 
       toast.info("Redirecting to Google to link your account...");
-    } catch (error) {
-      console.error("Error linking Google account:", error);
-      toast.error(
-        `Failed to link Google account. ${error instanceof Error ? error.message : "Please try again."}`,
-      );
+    } catch {
+      console.error("Google account linking failed");
+      toast.error("Failed to link Google account. Please try again.");
       setIsConnecting(false);
     }
   };

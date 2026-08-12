@@ -73,6 +73,20 @@ type WorkerProjectRow = FeedbackEligibilityProject &
     organization_id: string | null;
   };
 
+type FeedbackAdminClient = ReturnType<typeof getAdminClient>;
+
+class FeedbackDatabaseError extends Error {}
+
+function throwDatabaseError(context: string, error: unknown): never {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String(error.code)
+      : null;
+  // Database/provider messages can echo row values, addresses, or credentials.
+  // Keep failures actionable by operation and bounded code only.
+  throw new FeedbackDatabaseError(code ? `${context} (${code})` : context);
+}
+
 async function enqueueEligibleProjects(
   now: number,
 ): Promise<{ projectsScanned: number; enqueued: number }> {
@@ -80,7 +94,7 @@ async function enqueueEligibleProjects(
 
   // Coarse candidate filter only: status flips via the timezone-broken
   // process_projects(), so the real decision is getFeedbackEligibleAt's.
-  const { data: projects } = await admin
+  const { data: projects, error: projectsError } = await admin
     .from("projects")
     .select(
       "id, title, status, event_type, schedule, project_timezone, published, cancelled_at, organization_id, created_at",
@@ -89,6 +103,12 @@ async function enqueueEligibleProjects(
     .gte("created_at", new Date(now - 120 * 24 * 60 * 60 * 1000).toISOString())
     .order("created_at", { ascending: false })
     .limit(FEEDBACK_WORKER_MAX_PROJECTS_PER_RUN);
+  if (projectsError) {
+    throwDatabaseError(
+      "Failed loading feedback-eligible projects",
+      projectsError,
+    );
+  }
 
   let enqueued = 0;
   const candidates = (projects ?? []) as unknown as WorkerProjectRow[];
@@ -97,11 +117,17 @@ async function enqueueEligibleProjects(
     // A slot counts as published when its publish key is set; only slots
     // with attended signups matter for the "hold for hours" rule.
     const published = (project.published ?? {}) as Record<string, boolean>;
-    const { data: attendedSlots } = await admin
+    const { data: attendedSlots, error: attendedSlotsError } = await admin
       .from("project_signups")
       .select("schedule_id")
       .eq("project_id", project.id)
       .eq("status", "attended");
+    if (attendedSlotsError) {
+      throwDatabaseError(
+        `Failed loading attended signup slots for project ${project.id}`,
+        attendedSlotsError,
+      );
+    }
     const scheduleIds = new Set(
       (attendedSlots ?? []).map((row) => row.schedule_id),
     );
@@ -127,7 +153,19 @@ async function enqueueEligibleProjects(
         p_eligible_at: eligibleAt.toISOString(),
       },
     );
-    if (!error) enqueued += Number(inserted ?? 0);
+    if (error) {
+      throwDatabaseError(
+        `Failed enqueueing feedback requests for project ${project.id}`,
+        error,
+      );
+    }
+    const insertedCount = Number(inserted ?? 0);
+    if (!Number.isSafeInteger(insertedCount) || insertedCount < 0) {
+      throw new Error(
+        `Feedback enqueue returned an invalid count for project ${project.id}`,
+      );
+    }
+    enqueued += insertedCount;
   }
 
   return { projectsScanned: candidates.length, enqueued };
@@ -145,13 +183,32 @@ type ClaimRow = {
 type RecipientResolution =
   { ok: true; email: string; name: string } | { ok: false; reason: string };
 
+type FeedbackProject = Project & {
+  organization: { name: string | null } | null;
+};
+
+type PreparedFeedbackRequest = {
+  kind: "ready";
+  recipientEmail: string;
+  recipientName: string;
+  project: FeedbackProject;
+  feedbackUrl: string;
+  unsubscribeUrl: string;
+  eventDate: string | null;
+  titleForSubject: string;
+};
+
+type SkippedFeedbackRequest = {
+  kind: "skip";
+  reason: string;
+};
+
 async function resolveConsentedRecipient(
   claim: ClaimRow,
+  admin: FeedbackAdminClient,
 ): Promise<RecipientResolution> {
-  const admin = getAdminClient();
-
   if (claim.user_id) {
-    const [{ data: profile }, { data: settings }] = await Promise.all([
+    const [profileResult, settingsResult] = await Promise.all([
       admin
         .from("profiles")
         .select("email, full_name")
@@ -163,6 +220,20 @@ async function resolveConsentedRecipient(
         .eq("user_id", claim.user_id)
         .maybeSingle(),
     ]);
+    if (profileResult.error) {
+      throwDatabaseError(
+        `Failed resolving feedback profile for request ${claim.id}`,
+        profileResult.error,
+      );
+    }
+    if (settingsResult.error) {
+      throwDatabaseError(
+        `Failed resolving feedback consent for request ${claim.id}`,
+        settingsResult.error,
+      );
+    }
+    const profile = profileResult.data;
+    const settings = settingsResult.data;
     if (!profile?.email) return { ok: false, reason: "no_address" };
     // Absent settings row = default opted in (matching email-send.ts).
     if (
@@ -180,17 +251,124 @@ async function resolveConsentedRecipient(
   }
 
   if (claim.anonymous_id) {
-    const { data: anon } = await admin
+    const { data: anon, error: anonError } = await admin
       .from("anonymous_signups")
       .select("email, name, email_opt_out_at")
       .eq("id", claim.anonymous_id)
       .maybeSingle();
+    if (anonError) {
+      throwDatabaseError(
+        `Failed resolving anonymous feedback recipient for request ${claim.id}`,
+        anonError,
+      );
+    }
     if (!anon?.email) return { ok: false, reason: "no_address" };
     if (anon.email_opt_out_at) return { ok: false, reason: "opted_out" };
     return { ok: true, email: anon.email, name: anon.name || "Volunteer" };
   }
 
   return { ok: false, reason: "no_identity" };
+}
+
+async function prepareFeedbackRequest(input: {
+  admin: FeedbackAdminClient;
+  claim: ClaimRow;
+  siteUrl: string;
+}): Promise<PreparedFeedbackRequest | SkippedFeedbackRequest> {
+  const { admin, claim, siteUrl } = input;
+  const recipient = await resolveConsentedRecipient(claim, admin);
+  if (!recipient.ok) {
+    return { kind: "skip", reason: recipient.reason };
+  }
+
+  const { data: projectRow, error: projectError } = await admin
+    .from("projects")
+    .select(
+      "id, title, event_type, schedule, project_timezone, status, cancelled_at, organization:organizations (name)",
+    )
+    .eq("id", claim.project_id)
+    .maybeSingle();
+  if (projectError) {
+    throwDatabaseError(
+      `Failed loading project for feedback request ${claim.id}`,
+      projectError,
+    );
+  }
+  if (!projectRow) return { kind: "skip", reason: "project_missing" };
+  const project = projectRow as unknown as FeedbackProject;
+
+  const { data: signup, error: signupError } = await admin
+    .from("project_signups")
+    .select("project_id, schedule_id")
+    .eq("id", claim.signup_id)
+    .eq("project_id", claim.project_id)
+    .maybeSingle();
+  if (signupError) {
+    throwDatabaseError(
+      `Failed loading signup for feedback request ${claim.id}`,
+      signupError,
+    );
+  }
+  if (!signup) return { kind: "skip", reason: "signup_missing" };
+
+  const token = createProjectFeedbackToken({
+    projectId: claim.project_id,
+    requestId: claim.id,
+    subject: claim.user_id
+      ? { kind: "user", userId: claim.user_id }
+      : { kind: "anonymous", anonymousSignupId: claim.anonymous_id! },
+  });
+  const feedbackUrl = `${siteUrl}/feedback/${claim.id}?token=${encodeURIComponent(token)}`;
+  const unsubscribeUrl = `${siteUrl}/feedback/${claim.id}/unsubscribe?token=${encodeURIComponent(token)}`;
+
+  const timezone = project.project_timezone || "America/Los_Angeles";
+  const signupScheduleId =
+    typeof signup.schedule_id === "string" && signup.schedule_id.length > 0
+      ? signup.schedule_id
+      : null;
+  const exactScheduleWindow = signupScheduleId
+    ? getAttendanceScheduleWindow(project, signupScheduleId)
+    : null;
+  const availableScheduleIds = signupScheduleId
+    ? []
+    : listAttendanceScheduleIds(project);
+  const scheduleWindow =
+    exactScheduleWindow ??
+    (signupScheduleId === null && availableScheduleIds.length === 1
+      ? getAttendanceScheduleWindow(project, availableScheduleIds[0])
+      : null);
+
+  // The exact claimed signup is authoritative. A missing/legacy schedule_id
+  // may fall back only when the project has exactly one possible schedule;
+  // otherwise omit the date rather than fabricating one from a different slot.
+  let eventDate: string | null = null;
+  if (scheduleWindow) {
+    try {
+      eventDate = new Date(scheduleWindow.startsAt).toLocaleDateString(
+        "en-US",
+        {
+          timeZone: timezone,
+          dateStyle: "long",
+        },
+      );
+    } catch {
+      // Invalid legacy timezone/schedule metadata is genuinely ambiguous.
+    }
+  }
+
+  return {
+    kind: "ready",
+    recipientEmail: recipient.email,
+    recipientName: recipient.name,
+    project,
+    feedbackUrl,
+    unsubscribeUrl,
+    eventDate,
+    titleForSubject:
+      project.title.length > 60
+        ? `${project.title.slice(0, 57)}…`
+        : project.title,
+  };
 }
 
 export async function runProjectFeedbackWorker(options: {
@@ -211,9 +389,19 @@ export async function runProjectFeedbackWorker(options: {
 
   const { projectsScanned, enqueued } = await enqueueEligibleProjects(now);
 
-  const { data: reapedCount } = await admin.rpc(
+  const { data: reapedCount, error: reapError } = await admin.rpc(
     "reap_project_feedback_request_leases",
   );
+  if (reapError) {
+    throwDatabaseError("Failed reaping feedback request leases", reapError);
+  }
+  const normalizedReapedCount = Number(reapedCount ?? 0);
+  if (
+    !Number.isSafeInteger(normalizedReapedCount) ||
+    normalizedReapedCount < 0
+  ) {
+    throw new Error("Feedback lease reaper returned an invalid count");
+  }
 
   const outcomes: FeedbackWorkerOutcomes = {
     sent: 0,
@@ -225,11 +413,20 @@ export async function runProjectFeedbackWorker(options: {
   let claimed = 0;
   let deadlineReached = false;
 
-  const { data: claims } = await admin.rpc("claim_project_feedback_requests", {
-    p_worker_id: workerId,
-    p_limit: batchSize,
-    p_lease_seconds: FEEDBACK_WORKER_LEASE_SECONDS,
-  });
+  const { data: claims, error: claimError } = await admin.rpc(
+    "claim_project_feedback_requests_for_preparation",
+    {
+      p_worker_id: workerId,
+      p_limit: batchSize,
+      p_lease_seconds: FEEDBACK_WORKER_LEASE_SECONDS,
+    },
+  );
+  if (claimError) {
+    throwDatabaseError("Failed claiming feedback requests", claimError);
+  }
+  if (claims !== null && !Array.isArray(claims)) {
+    throw new Error("Feedback claim RPC returned an invalid payload");
+  }
 
   const settle = async (
     id: string,
@@ -237,13 +434,45 @@ export async function runProjectFeedbackWorker(options: {
     providerMessageId: string | null,
     failureCode: string | null,
   ) => {
-    await admin.rpc("settle_project_feedback_request", {
+    const { data, error } = await admin.rpc("settle_project_feedback_request", {
       p_id: id,
       p_worker_id: workerId,
       p_state: state,
       p_provider_message_id: providerMessageId,
       p_failure_code: failureCode,
     });
+    if (error) {
+      throwDatabaseError(`Failed settling feedback request ${id}`, error);
+    }
+    if (data !== state) {
+      throw new Error(
+        `Feedback settlement for ${id} requested ${state} but database reported ${String(data)}`,
+      );
+    }
+  };
+
+  const beginDispatch = async (id: string): Promise<number> => {
+    const { data, error } = await admin.rpc(
+      "begin_project_feedback_request_dispatch",
+      {
+        p_id: id,
+        p_worker_id: workerId,
+        p_lease_seconds: FEEDBACK_WORKER_LEASE_SECONDS,
+      },
+    );
+    if (error) {
+      throwDatabaseError(
+        `Failed beginning dispatch for feedback request ${id}`,
+        error,
+      );
+    }
+    const attempt = Number(data);
+    if (!Number.isSafeInteger(attempt) || attempt < 1 || attempt > 3) {
+      throw new Error(
+        `Feedback dispatch transition for ${id} returned an invalid attempt`,
+      );
+    }
+    return attempt;
   };
 
   for (const claim of (claims ?? []) as ClaimRow[]) {
@@ -258,116 +487,102 @@ export async function runProjectFeedbackWorker(options: {
       continue;
     }
 
+    let prepared: PreparedFeedbackRequest | SkippedFeedbackRequest;
+
     try {
-      const recipient = await resolveConsentedRecipient(claim);
-      if (!recipient.ok) {
-        await settle(claim.id, "skipped", null, recipient.reason);
-        outcomes.skipped += 1;
-        continue;
+      prepared = await prepareFeedbackRequest({ admin, claim, siteUrl });
+    } catch (error) {
+      console.error(`Feedback pre-send preparation failed for ${claim.id}`);
+      if (error instanceof FeedbackDatabaseError) {
+        await settle(claim.id, "queued", null, "pre_send_database_error");
+        outcomes.retryable += 1;
+      } else {
+        await settle(claim.id, "failed", null, "pre_send_error");
+        outcomes.failed += 1;
       }
+      continue;
+    }
 
-      const { data: projectRow } = await admin
-        .from("projects")
-        .select(
-          "id, title, event_type, schedule, project_timezone, status, cancelled_at, organization:organizations (name)",
-        )
-        .eq("id", claim.project_id)
-        .maybeSingle();
-      if (!projectRow) {
-        await settle(claim.id, "skipped", null, "project_missing");
-        outcomes.skipped += 1;
-        continue;
-      }
-      const project = projectRow as unknown as Project & {
-        organization: { name: string | null } | null;
-      };
+    if (prepared.kind === "skip") {
+      await settle(claim.id, "skipped", null, prepared.reason);
+      outcomes.skipped += 1;
+      continue;
+    }
 
-      const token = createProjectFeedbackToken({
-        projectId: claim.project_id,
-        requestId: claim.id,
-        subject: claim.user_id
-          ? { kind: "user", userId: claim.user_id }
-          : { kind: "anonymous", anonymousSignupId: claim.anonymous_id! },
-      });
-      const feedbackUrl = `${siteUrl}/feedback/${claim.id}?token=${encodeURIComponent(token)}`;
-      const unsubscribeUrl = `${siteUrl}/feedback/${claim.id}/unsubscribe?token=${encodeURIComponent(token)}`;
+    // This transition is the durable provider boundary. If it fails, no email
+    // is sent and the preparation lease remains safely requeueable.
+    const dispatchAttempt = await beginDispatch(claim.id);
 
-      const timezone = project.project_timezone || "America/Los_Angeles";
-      const scheduleIds = listAttendanceScheduleIds(project);
-      const firstWindow =
-        scheduleIds.length > 0
-          ? getAttendanceScheduleWindow(project, scheduleIds[0])
-          : null;
-      const eventDate = firstWindow
-        ? new Date(firstWindow.startsAt).toLocaleDateString("en-US", {
-            timeZone: timezone,
-            dateStyle: "long",
-          })
-        : null;
-
-      const titleForSubject =
-        project.title.length > 60
-          ? `${project.title.slice(0, 57)}…`
-          : project.title;
-
-      const result = await sendEmail({
-        to: recipient.email,
-        subject: `How did volunteering at ${titleForSubject} go?`,
+    let result: Awaited<ReturnType<typeof sendEmail>>;
+    try {
+      result = await sendEmail({
+        to: prepared.recipientEmail,
+        subject: `How did volunteering at ${prepared.titleForSubject} go?`,
         react: React.createElement(ProjectFeedbackRequest, {
-          volunteerName: recipient.name,
-          projectTitle: project.title,
-          organizationName: project.organization?.name ?? null,
-          feedbackUrl,
-          unsubscribeUrl,
-          eventDate,
+          volunteerName: prepared.recipientName,
+          projectTitle: prepared.project.title,
+          organizationName: prepared.project.organization?.name ?? null,
+          feedbackUrl: prepared.feedbackUrl,
+          unsubscribeUrl: prepared.unsubscribeUrl,
+          eventDate: prepared.eventDate,
         }),
         // userId deliberately omitted: sendEmail's preference gate is
         // unreachable from cron; consent was re-checked above.
         type: "project_updates",
         headers: {
-          "List-Unsubscribe": `<${unsubscribeUrl}>`,
+          "List-Unsubscribe": `<${prepared.unsubscribeUrl}>`,
           "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
         },
         tags: [{ name: "kind", value: "project_feedback_request" }],
-        idempotencyKey: `project-feedback:${claim.id}:${claim.attempts}`,
+        idempotencyKey: `project-feedback:${claim.id}:${dispatchAttempt}`,
       });
-
-      const settlement = settlementForSendResult(result);
-      await settle(
-        claim.id,
-        settlement.state,
-        settlement.providerMessageId,
-        settlement.failureCode,
-      );
-      switch (settlement.state) {
-        case "sent":
-          outcomes.sent += 1;
-          break;
-        case "skipped":
-          outcomes.skipped += 1;
-          break;
-        case "failed":
-          outcomes.failed += 1;
-          break;
-        case "queued":
-          outcomes.retryable += 1;
-          break;
-        case "unknown_outcome":
-          outcomes.unknown += 1;
-          break;
-      }
-    } catch (error) {
-      // A throw here means we cannot prove the provider was not reached.
-      console.error(`Feedback dispatch crashed for ${claim.id}:`, error);
+    } catch {
+      console.error(`Feedback dispatch crashed for ${claim.id}`);
       await settle(claim.id, "unknown_outcome", null, "dispatch_crashed");
       outcomes.unknown += 1;
+      continue;
+    }
+
+    const mappedSettlement = settlementForSendResult(result);
+    // A third definite rejection is still safe to classify, but no longer
+    // retryable. Settle it explicitly instead of creating a frozen queued row.
+    const settlement =
+      mappedSettlement.state === "queued" && dispatchAttempt >= 3
+        ? {
+            state: "failed" as const,
+            providerMessageId: null,
+            failureCode: "attempts_exhausted",
+          }
+        : mappedSettlement;
+    await settle(
+      claim.id,
+      settlement.state,
+      settlement.providerMessageId,
+      settlement.failureCode,
+    );
+    switch (settlement.state) {
+      case "sent":
+        outcomes.sent += 1;
+        break;
+      case "skipped":
+        outcomes.skipped += 1;
+        break;
+      case "failed":
+        outcomes.failed += 1;
+        break;
+      case "queued":
+        outcomes.retryable += 1;
+        break;
+      case "unknown_outcome":
+        outcomes.unknown += 1;
+        break;
     }
   }
 
   return {
     projectsScanned,
     enqueued,
-    reaped: Number(reapedCount ?? 0),
+    reaped: normalizedReapedCount,
     claimed,
     outcomes,
     deadlineReached,

@@ -13,6 +13,10 @@ import {
   normalizeRequireLoginForVerificationMethod,
   sanitizeDraftData,
 } from "./shared";
+import {
+  validateProjectTimezone,
+  validateRecurrenceRule,
+} from "@/lib/projects/schedule-validation";
 
 export async function finalizeProject(projectId: string) {
   "use server";
@@ -30,6 +34,15 @@ export async function finalizeProject(projectId: string) {
 export async function createProject(formData: FormData) {
   "use server";
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { error: "You must be logged in to create a project" };
+    }
+
     // Parse project data
     const projectDataStr = formData.get("projectData") as string;
     if (!projectDataStr) return { error: "Missing project data" };
@@ -57,7 +70,6 @@ export async function autoSaveDraft(
   "use server";
   try {
     const supabase = await createClient();
-    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     // Get current user
     const {
@@ -70,6 +82,8 @@ export async function autoSaveDraft(
         autosaved: false,
       };
     }
+
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     const waiverPdfError = getWaiverPdfRequirementError(sanitizedProjectData);
     if (waiverPdfError) {
@@ -135,11 +149,6 @@ export async function saveProjectAsNewDraft(formData: FormData) {
   try {
     const supabase = await createClient();
 
-    const projectDataStr = formData.get("projectData") as string;
-    if (!projectDataStr) return { error: "Missing project data" };
-    const projectData = JSON.parse(projectDataStr);
-    const sanitizedProjectData = sanitizeDraftData(projectData);
-
     // Get current user
     const {
       data: { user },
@@ -148,6 +157,11 @@ export async function saveProjectAsNewDraft(formData: FormData) {
     if (userError || !user) {
       return { error: "You must be logged in to save a draft" };
     }
+
+    const projectDataStr = formData.get("projectData") as string;
+    if (!projectDataStr) return { error: "Missing project data" };
+    const projectData = JSON.parse(projectDataStr);
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     const waiverPdfError = getWaiverPdfRequirementError(sanitizedProjectData);
     if (waiverPdfError) {
@@ -187,11 +201,6 @@ export async function saveProjectAsDraft(formData: FormData) {
   try {
     const supabase = await createClient();
 
-    const projectDataStr = formData.get("projectData") as string;
-    if (!projectDataStr) return { error: "Missing project data" };
-    const projectData = JSON.parse(projectDataStr);
-    const sanitizedProjectData = sanitizeDraftData(projectData);
-
     // Get current user
     const {
       data: { user },
@@ -200,6 +209,11 @@ export async function saveProjectAsDraft(formData: FormData) {
     if (userError || !user) {
       return { error: "You must be logged in to save a draft" };
     }
+
+    const projectDataStr = formData.get("projectData") as string;
+    if (!projectDataStr) return { error: "Missing project data" };
+    const projectData = JSON.parse(projectDataStr);
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     const waiverPdfError = getWaiverPdfRequirementError(sanitizedProjectData);
     if (waiverPdfError) {
@@ -357,17 +371,33 @@ export async function updateDraft(
     }
   }
 
-  // Build recurrence rule if enabled
-  const recurrenceRule = projectData.recurrence?.enabled
-    ? {
-        frequency: projectData.recurrence.frequency,
-        interval: projectData.recurrence.interval || 1,
-        end_type: projectData.recurrence.endType,
-        end_date: projectData.recurrence.endDate || null,
-        end_occurrences: projectData.recurrence.endOccurrences || null,
-        weekdays: projectData.recurrence.weekdays || [],
-      }
-    : null;
+  // Validate project_timezone server-side.
+  const rawTimezone =
+    projectData.basicInfo.projectTimezone || "America/Los_Angeles";
+  const timezoneResult = validateProjectTimezone(rawTimezone);
+  if (!timezoneResult.ok) {
+    return { error: `Invalid project timezone: ${timezoneResult.error}` };
+  }
+
+  // Build and validate recurrence rule if enabled.
+  let recurrenceRule:
+    | import("@/lib/projects/schedule-validation").ValidatedRecurrenceRule
+    | null = null;
+  if (projectData.recurrence?.enabled) {
+    const rawRule = {
+      frequency: projectData.recurrence.frequency,
+      interval: projectData.recurrence.interval,
+      end_type: projectData.recurrence.endType,
+      end_date: projectData.recurrence.endDate || null,
+      end_occurrences: projectData.recurrence.endOccurrences || null,
+      weekdays: projectData.recurrence.weekdays || [],
+    };
+    const ruleResult = validateRecurrenceRule(rawRule);
+    if (!ruleResult.ok) {
+      return { error: `Invalid recurrence rule: ${ruleResult.error}` };
+    }
+    recurrenceRule = ruleResult.rule;
+  }
 
   // Update the draft
   const baseUpdatePayload = {
@@ -387,8 +417,7 @@ export async function updateDraft(
     waiver_required: projectData.waiverRequired || false,
     waiver_allow_upload: projectData.waiverAllowUpload ?? true,
     visibility: targetVisibility,
-    project_timezone:
-      projectData.basicInfo.projectTimezone || "America/Los_Angeles",
+    project_timezone: rawTimezone,
     restrict_to_org_domains: projectData.restrictToOrgDomains || false,
     recurrence_rule: recurrenceRule,
   };

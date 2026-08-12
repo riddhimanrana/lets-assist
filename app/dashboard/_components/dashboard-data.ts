@@ -283,7 +283,7 @@ export async function loadVolunteerDashboardData() {
       project_id,
       schedule_id,
       status,
-      projects (
+      projects!project_signups_project_id_fkey (
         id,
         title,
         schedule,

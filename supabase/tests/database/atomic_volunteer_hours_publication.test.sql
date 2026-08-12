@@ -47,20 +47,36 @@ SELECT extensions.ok(
 
 SELECT extensions.ok(
   has_function_privilege(
+    'service_role',
+    'public.publish_volunteer_hours_transactional(uuid,uuid,text,jsonb,text)',
+    'EXECUTE'
+  ) AND NOT has_function_privilege(
     'authenticated',
-    'public.publish_volunteer_hours_transactional(uuid,text,jsonb,text)',
+    'public.publish_volunteer_hours_transactional(uuid,uuid,text,jsonb,text)',
+    'EXECUTE'
+  ) AND NOT has_function_privilege(
+    'anon',
+    'public.publish_volunteer_hours_transactional(uuid,uuid,text,jsonb,text)',
     'EXECUTE'
   ),
-  'authenticated organizers can enter the permission-rechecked publication RPC'
+  'only the server role can enter the explicit-actor publication RPC'
 );
 
 SELECT extensions.ok(
-  NOT has_function_privilege(
-    'anon',
-    'public.publish_volunteer_hours_transactional(uuid,text,jsonb,text)',
+  to_regprocedure(
+    'public.publish_volunteer_hours_transactional(uuid,text,jsonb,text)'
+  ) IS NULL
+  AND has_function_privilege(
+    'service_role',
+    'private.publish_volunteer_hours_transactional(uuid,uuid,text,jsonb,text)',
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'authenticated',
+    'private.publish_volunteer_hours_transactional(uuid,uuid,text,jsonb,text)',
     'EXECUTE'
   ),
-  'anonymous clients cannot publish hours'
+  'the authenticated overload is gone and the private transaction is service-only'
 );
 
 SELECT extensions.ok(
@@ -198,6 +214,7 @@ SELECT set_config(
 
 CREATE TEMP TABLE first_publication AS
 SELECT public.publish_volunteer_hours_transactional(
+  'ab000000-0000-4000-8000-000000000002',
   'ab200000-0000-4000-8000-000000000001',
   'oneTime',
   '[
@@ -266,6 +283,7 @@ SELECT extensions.is(
 
 CREATE TEMP TABLE replayed_publication AS
 SELECT public.publish_volunteer_hours_transactional(
+  'ab000000-0000-4000-8000-000000000002',
   'ab200000-0000-4000-8000-000000000001',
   'oneTime',
   '[
@@ -297,6 +315,7 @@ SELECT extensions.is(
 
 SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
+    'ab000000-0000-4000-8000-000000000002',
     'ab200000-0000-4000-8000-000000000002', 'oneTime',
     '[{"signupId":"ab300000-0000-4000-8000-000000000003","checkIn":"2030-08-12T16:00:00Z","checkOut":"2030-08-12T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
@@ -314,6 +333,7 @@ SELECT set_config(
 
 SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
+    'ab000000-0000-4000-8000-000000000005',
     'ab200000-0000-4000-8000-000000000003', 'oneTime',
     '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
@@ -331,6 +351,7 @@ SELECT set_config(
 
 SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
+    'ab000000-0000-4000-8000-000000000001',
     'ab200000-0000-4000-8000-000000000003', 'forged-session',
     '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
@@ -342,6 +363,7 @@ SELECT extensions.throws_ok(
 
 SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
+    'ab000000-0000-4000-8000-000000000001',
     'ab200000-0000-4000-8000-000000000003', 'oneTime',
     '[{"signupId":"ab300000-0000-4000-8000-000000000001","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
@@ -353,6 +375,7 @@ SELECT extensions.throws_ok(
 
 SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
+    'ab000000-0000-4000-8000-000000000001',
     'ab200000-0000-4000-8000-000000000003', 'oneTime',
     '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T16:00:10Z"}]'::jsonb,
     'hours-publication:v1:1212121212121212121212121212121212121212121212121212121212121212'
@@ -364,6 +387,7 @@ SELECT extensions.throws_ok(
 
 SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
+    'ab000000-0000-4000-8000-000000000001',
     'ab200000-0000-4000-8000-000000000003', 'oneTime',
     '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-14T17:00:00Z"}]'::jsonb,
     'hours-publication:v1:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
@@ -416,6 +440,7 @@ FOR EACH ROW EXECUTE FUNCTION pg_temp.inject_conflicting_hours_certificate();
 
 SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
+    'ab000000-0000-4000-8000-000000000001',
     'ab200000-0000-4000-8000-000000000003', 'oneTime',
     '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:9999999999999999999999999999999999999999999999999999999999999999'
@@ -438,6 +463,7 @@ SELECT extensions.is(
 
 CREATE TEMP TABLE alias_publication AS
 SELECT public.publish_volunteer_hours_transactional(
+  'ab000000-0000-4000-8000-000000000001',
   'ab200000-0000-4000-8000-000000000003',
   '0',
   '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T17:30:30Z"}]'::jsonb,
