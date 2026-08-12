@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/field";
 import { Controller } from "react-hook-form";
 import { createOrganization, checkOrgUsername } from "./actions";
+import { isReservedOrganizationSlug } from "@/lib/organization/reserved-slugs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/shared/ImageCropper";
@@ -352,7 +353,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                         setUsernameAvailable(null);
                       }}
                       onBlur={(e) => {
-                        if (e.target.value.toLowerCase() === "create") {
+                        if (isReservedOrganizationSlug(e.target.value)) {
                           setUsernameAvailable(false);
                           return;
                         }

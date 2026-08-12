@@ -7,6 +7,7 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { validateOrganizationAutojoinDomain } from "@/lib/organization/domain-policy";
+import { isReservedOrganizationSlug } from "@/lib/organization/reserved-slugs";
 
 const ALLOWED_FILE_TYPES = [
   "image/jpeg",
@@ -40,6 +41,10 @@ export async function checkUsernameAvailability(
   const supabase = await createClient();
 
   if (!username || username.length < 3) {
+    return false;
+  }
+
+  if (isReservedOrganizationSlug(username)) {
     return false;
   }
 
@@ -94,6 +99,13 @@ export async function updateOrganization(data: OrganizationUpdateData) {
   if (orgError || !currentOrg) {
     console.error("Error fetching organization:", orgError);
     return { error: "Organization not found" };
+  }
+
+  if (
+    data.username !== currentOrg.username &&
+    isReservedOrganizationSlug(data.username)
+  ) {
+    return { error: "That username is reserved and can't be used" };
   }
 
   try {
