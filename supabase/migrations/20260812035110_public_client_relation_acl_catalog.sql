@@ -1,6 +1,8 @@
 -- AUD-003 (existing-object residue): canonical public client relation grant
 -- catalog for architecture gates and pgTAP. Every entry is a reviewed subset of the
 -- effective anon/authenticated DML grants captured at 127.0.0.1:54322 on 2026-08-11.
+-- This relation/column ACL layer is intentionally independent of storage.objects
+-- policy reconciliation; each security catalog must fail or pass on its own truth.
 
 CREATE OR REPLACE FUNCTION app_private.client_relation_grant_catalog()
 RETURNS TABLE (

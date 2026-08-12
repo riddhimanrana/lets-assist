@@ -110,9 +110,92 @@ REVOKE ALL ON FUNCTION app_private.storage_bucket_posture_catalog()
 GRANT EXECUTE ON FUNCTION app_private.storage_bucket_posture_catalog()
   TO service_role;
 
+-- pg_get_expr() deparses names relative to the active search_path. Keep exactly
+-- one fixed-search-path reader for both contract capture and later comparison;
+-- otherwise a clean replay can report the same policy once missing and once
+-- unexpected merely because one side qualifies public/app_private references.
+CREATE OR REPLACE FUNCTION app_private.storage_object_policy_live_catalog()
+RETURNS TABLE (
+  policy_name text,
+  command text,
+  role_names text[],
+  is_permissive boolean,
+  using_expression text,
+  with_check_expression text,
+  is_client_reachable boolean
+)
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $$
+  WITH client_roles AS (
+    SELECT role_entry.oid
+    FROM pg_roles AS role_entry
+    WHERE role_entry.rolname IN ('anon', 'authenticated')
+  )
+  SELECT
+    policy.polname::text AS policy_name,
+    CASE policy.polcmd
+      WHEN 'r' THEN 'SELECT'
+      WHEN 'a' THEN 'INSERT'
+      WHEN 'w' THEN 'UPDATE'
+      WHEN 'd' THEN 'DELETE'
+      WHEN '*' THEN 'ALL'
+      ELSE policy.polcmd::text
+    END AS command,
+    ARRAY(
+      SELECT role_name
+      FROM (
+        SELECT CASE
+          WHEN policy_role.role_oid = 0 THEN 'public'::text
+          ELSE policy_role_entry.rolname::text
+        END AS role_name
+        FROM unnest(policy.polroles) AS policy_role(role_oid)
+        LEFT JOIN pg_roles AS policy_role_entry ON policy_role_entry.oid = policy_role.role_oid
+      ) AS policy_roles
+      ORDER BY role_name COLLATE "C"
+    ) AS role_names,
+    policy.polpermissive AS is_permissive,
+    pg_get_expr(policy.polqual, policy.polrelid) AS using_expression,
+    pg_get_expr(policy.polwithcheck, policy.polrelid) AS with_check_expression,
+    EXISTS (
+      SELECT 1
+      FROM unnest(policy.polroles) AS policy_role(role_oid)
+      CROSS JOIN client_roles
+      WHERE CASE
+        WHEN policy_role.role_oid = 0 THEN true
+        ELSE pg_has_role(client_roles.oid, policy_role.role_oid, 'USAGE')
+      END
+    ) AS is_client_reachable
+  FROM pg_policy AS policy
+  WHERE policy.polrelid = 'storage.objects'::regclass;
+$$;
+
+REVOKE ALL ON FUNCTION app_private.storage_object_policy_live_catalog()
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION app_private.storage_object_policy_live_catalog()
+  TO service_role;
+
+-- Converge every policy reachable by anon/authenticated, including PUBLIC and
+-- inherited-role policies, before recreating the complete reviewed surface.
+-- Server-only roles are deliberately untouched; service_role bypasses RLS.
+DO $$
+DECLARE
+  existing_policy record;
+BEGIN
+  FOR existing_policy IN
+    SELECT policy_name
+    FROM app_private.storage_object_policy_live_catalog()
+    WHERE is_client_reachable
+    ORDER BY policy_name
+  LOOP
+    EXECUTE format('DROP POLICY %I ON storage.objects', existing_policy.policy_name);
+  END LOOP;
+END;
+$$;
+
 -- Recreate the complete reviewed browser policy surface before snapshotting its
--- canonical pg_policy representation. The contract below is therefore derived
--- from reviewed DDL, never from possibly drifted live policy text.
+-- canonical pg_policy representation through the same reader used by the gate.
 DROP POLICY IF EXISTS "Authenticated users can upload own avatars" ON storage.objects;
 CREATE POLICY "Authenticated users can upload own avatars"
   ON storage.objects
@@ -443,7 +526,7 @@ CREATE POLICY "Project managers can delete paper signup scans"
     )
   );
 
-CREATE TABLE app_private.storage_object_policy_contract (
+CREATE TABLE IF NOT EXISTS app_private.storage_object_policy_contract (
   policy_name text PRIMARY KEY,
   command text NOT NULL CHECK (command IN ('SELECT', 'INSERT', 'UPDATE', 'DELETE')),
   role_names text[] NOT NULL CHECK (cardinality(role_names) > 0),
@@ -452,6 +535,8 @@ CREATE TABLE app_private.storage_object_policy_contract (
   with_check_expression text,
   bucket_id text NOT NULL
 );
+
+TRUNCATE TABLE app_private.storage_object_policy_contract;
 
 REVOKE ALL ON TABLE app_private.storage_object_policy_contract
   FROM PUBLIC, anon, authenticated;
@@ -493,33 +578,15 @@ INSERT INTO app_private.storage_object_policy_contract (
 )
 SELECT
   reviewed_policy.policy_name,
-  CASE policy.polcmd
-    WHEN 'r' THEN 'SELECT'
-    WHEN 'a' THEN 'INSERT'
-    WHEN 'w' THEN 'UPDATE'
-    WHEN 'd' THEN 'DELETE'
-    ELSE policy.polcmd::text
-  END,
-  ARRAY(
-    SELECT role_name
-    FROM (
-      SELECT CASE
-        WHEN policy_role.role_oid = 0 THEN 'public'::text
-        ELSE policy_role_entry.rolname::text
-      END AS role_name
-      FROM unnest(policy.polroles) AS policy_role(role_oid)
-      LEFT JOIN pg_roles AS policy_role_entry ON policy_role_entry.oid = policy_role.role_oid
-    ) AS policy_roles
-    ORDER BY role_name COLLATE "C"
-  ),
-  policy.polpermissive,
-  pg_get_expr(policy.polqual, policy.polrelid),
-  pg_get_expr(policy.polwithcheck, policy.polrelid),
+  policy.command,
+  policy.role_names,
+  policy.is_permissive,
+  policy.using_expression,
+  policy.with_check_expression,
   reviewed_policy.bucket_id
 FROM reviewed_policy
-JOIN pg_policy AS policy
-  ON policy.polrelid = 'storage.objects'::regclass
- AND policy.polname = reviewed_policy.policy_name;
+JOIN app_private.storage_object_policy_live_catalog() AS policy
+  ON policy.policy_name = reviewed_policy.policy_name;
 
 DO $$
 DECLARE
@@ -579,12 +646,7 @@ LANGUAGE sql
 STABLE
 SET search_path = ''
 AS $$
-  WITH client_roles AS (
-    SELECT role_entry.oid
-    FROM pg_roles AS role_entry
-    WHERE role_entry.rolname IN ('anon', 'authenticated')
-  ),
-  expected AS (
+  WITH expected AS (
     SELECT
       catalog.policy_name,
       catalog.command,
@@ -596,41 +658,14 @@ AS $$
   ),
   actual AS (
     SELECT
-      policy.polname::text AS policy_name,
-      CASE policy.polcmd
-        WHEN 'r' THEN 'SELECT'
-        WHEN 'a' THEN 'INSERT'
-        WHEN 'w' THEN 'UPDATE'
-        WHEN 'd' THEN 'DELETE'
-        WHEN '*' THEN 'ALL'
-        ELSE policy.polcmd::text
-      END AS command,
-      ARRAY(
-        SELECT role_name
-        FROM (
-          SELECT CASE
-            WHEN policy_role.role_oid = 0 THEN 'public'::text
-            ELSE policy_role_entry.rolname::text
-          END AS role_name
-          FROM unnest(policy.polroles) AS policy_role(role_oid)
-          LEFT JOIN pg_roles AS policy_role_entry ON policy_role_entry.oid = policy_role.role_oid
-        ) AS policy_roles
-        ORDER BY role_name COLLATE "C"
-      ) AS role_names,
-      policy.polpermissive AS is_permissive,
-      pg_get_expr(policy.polqual, policy.polrelid) AS using_expression,
-      pg_get_expr(policy.polwithcheck, policy.polrelid) AS with_check_expression
-    FROM pg_policy AS policy
-    WHERE policy.polrelid = 'storage.objects'::regclass
-      AND EXISTS (
-        SELECT 1
-        FROM unnest(policy.polroles) AS policy_role(role_oid)
-        CROSS JOIN client_roles
-        WHERE CASE
-          WHEN policy_role.role_oid = 0 THEN true
-          ELSE pg_has_role(client_roles.oid, policy_role.role_oid, 'USAGE')
-        END
-      )
+      policy.policy_name,
+      policy.command,
+      policy.role_names,
+      policy.is_permissive,
+      policy.using_expression,
+      policy.with_check_expression
+    FROM app_private.storage_object_policy_live_catalog() AS policy
+    WHERE policy.is_client_reachable
   ),
   missing AS (
     SELECT 'missing'::text AS drift_kind, expected.*

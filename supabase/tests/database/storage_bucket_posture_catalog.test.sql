@@ -5,7 +5,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(23);
+SELECT extensions.plan(25);
 
 SELECT extensions.results_eq(
   $$
@@ -60,13 +60,16 @@ SELECT extensions.ok(
 );
 
 SELECT extensions.ok(
-  to_regprocedure('app_private.storage_object_policy_catalog()') IS NOT NULL
+  to_regprocedure('app_private.storage_object_policy_live_catalog()') IS NOT NULL
+  AND to_regprocedure('app_private.storage_object_policy_catalog()') IS NOT NULL
   AND to_regprocedure('app_private.storage_object_policy_contract_violations()') IS NOT NULL,
-  'exact storage object policy catalog and drift function exist'
+  'fixed-context live reader, exact storage object policy catalog, and drift function exist'
 );
 
 SELECT extensions.ok(
-  NOT has_function_privilege('anon', 'app_private.storage_object_policy_catalog()', 'EXECUTE')
+  NOT has_function_privilege('anon', 'app_private.storage_object_policy_live_catalog()', 'EXECUTE')
+  AND NOT has_function_privilege('authenticated', 'app_private.storage_object_policy_live_catalog()', 'EXECUTE')
+  AND NOT has_function_privilege('anon', 'app_private.storage_object_policy_catalog()', 'EXECUTE')
   AND NOT has_function_privilege('authenticated', 'app_private.storage_object_policy_catalog()', 'EXECUTE')
   AND NOT has_table_privilege('anon', 'app_private.storage_object_policy_contract', 'SELECT')
   AND NOT has_table_privilege('authenticated', 'app_private.storage_object_policy_contract', 'SELECT'),
@@ -74,7 +77,8 @@ SELECT extensions.ok(
 );
 
 SELECT extensions.ok(
-  has_function_privilege('service_role', 'app_private.storage_object_policy_catalog()', 'EXECUTE')
+  has_function_privilege('service_role', 'app_private.storage_object_policy_live_catalog()', 'EXECUTE')
+  AND has_function_privilege('service_role', 'app_private.storage_object_policy_catalog()', 'EXECUTE')
   AND has_function_privilege('service_role', 'app_private.storage_object_policy_contract_violations()', 'EXECUTE')
   AND has_table_privilege('service_role', 'app_private.storage_object_policy_contract', 'SELECT'),
   'service_role can inspect the reviewed storage policy contract'
@@ -90,6 +94,38 @@ SELECT extensions.is(
   (SELECT count(*) FROM app_private.storage_object_policy_contract_violations()),
   0::bigint,
   'every client-reachable live policy exactly matches identity, command, roles, shape, qual, and check'
+);
+
+-- The snapshot and the drift gate must deparse through the same fixed
+-- search_path. A snapshot captured while public was visible would store
+-- unqualified relation names and report every authority recheck as both missing
+-- and unexpected on a clean replay.
+SELECT extensions.is(
+  (
+    SELECT count(*)
+    FROM app_private.storage_object_policy_catalog() AS reviewed
+    WHERE concat_ws(
+      ' ',
+      reviewed.using_expression,
+      reviewed.with_check_expression
+    ) ~ 'FROM (organization_members|projects) '
+  ),
+  0::bigint,
+  'no reviewed policy snapshot stores an unqualified public relation reference'
+);
+
+SELECT extensions.is(
+  (
+    SELECT count(*)
+    FROM app_private.storage_object_policy_catalog() AS reviewed
+    WHERE concat_ws(
+      ' ',
+      reviewed.using_expression,
+      reviewed.with_check_expression
+    ) LIKE ANY (ARRAY['%public.organization_members%', '%public.projects%'])
+  ),
+  15::bigint,
+  'all fifteen membership and project authority rechecks stay schema-qualified'
 );
 
 SELECT extensions.ok(
