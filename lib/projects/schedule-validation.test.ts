@@ -1,12 +1,71 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  isStrictCalendarDate,
+  isStrictClockTime,
   isValidIanaTimezone,
+  validateProjectSchedule,
   validateRecurrenceRule,
   validateProjectTimezone,
   RECURRENCE_INTERVAL_MAX,
   RECURRENCE_OCCURRENCE_MAX,
 } from "./schedule-validation";
+
+describe("strict project date and time grammar", () => {
+  test("calendar dates round-trip instead of normalizing", () => {
+    expect(isStrictCalendarDate("2026-02-28")).toBe(true);
+    expect(isStrictCalendarDate("2024-02-29")).toBe(true);
+    expect(isStrictCalendarDate("2026-02-29")).toBe(false);
+    expect(isStrictCalendarDate("2026-02-30")).toBe(false);
+    expect(isStrictCalendarDate("0000-01-01")).toBe(false);
+    expect(isStrictCalendarDate("2026-2-03")).toBe(false);
+  });
+
+  test("clock times require canonical, in-range HH:mm", () => {
+    expect(isStrictClockTime("00:00")).toBe(true);
+    expect(isStrictClockTime("23:59")).toBe(true);
+    expect(isStrictClockTime("99:99")).toBe(false);
+    expect(isStrictClockTime("24:00")).toBe(false);
+    expect(isStrictClockTime("9:00")).toBe(false);
+  });
+
+  test("project schedules are parsed to the selected event type", () => {
+    const result = validateProjectSchedule("oneTime", {
+      oneTime: {
+        date: "2026-09-15",
+        startTime: "09:00",
+        endTime: "11:00",
+        volunteers: 10,
+      },
+      multiDay: [],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      schedule: {
+        oneTime: {
+          date: "2026-09-15",
+          startTime: "09:00",
+          endTime: "11:00",
+          volunteers: 10,
+        },
+      },
+    });
+  });
+
+  test("project schedules reject invalid dates and times", () => {
+    expect(
+      validateProjectSchedule("oneTime", {
+        oneTime: {
+          date: "2026-02-30",
+          startTime: "99:99",
+          endTime: "11:00",
+          volunteers: 10,
+        },
+      }).ok,
+    ).toBe(false);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // isValidIanaTimezone
@@ -60,7 +119,9 @@ describe("isValidIanaTimezone", () => {
 
 describe("validateProjectTimezone", () => {
   test("accepts valid IANA zones", () => {
-    expect(validateProjectTimezone("America/Los_Angeles")).toEqual({ ok: true });
+    expect(validateProjectTimezone("America/Los_Angeles")).toEqual({
+      ok: true,
+    });
     expect(validateProjectTimezone("UTC")).toEqual({ ok: true });
     expect(validateProjectTimezone("Europe/London")).toEqual({ ok: true });
     expect(validateProjectTimezone("Asia/Kolkata")).toEqual({ ok: true });
@@ -169,15 +230,13 @@ describe("validateRecurrenceRule — frequency", () => {
   });
 
   test("invalid frequency is rejected", () => {
-    expect(
-      validateRecurrenceRule({ ...base, frequency: "hourly" }).ok,
-    ).toBe(false);
-    expect(
-      validateRecurrenceRule({ ...base, frequency: "" }).ok,
-    ).toBe(false);
-    expect(
-      validateRecurrenceRule({ ...base, frequency: "DAILY" }).ok,
-    ).toBe(false);
+    expect(validateRecurrenceRule({ ...base, frequency: "hourly" }).ok).toBe(
+      false,
+    );
+    expect(validateRecurrenceRule({ ...base, frequency: "" }).ok).toBe(false);
+    expect(validateRecurrenceRule({ ...base, frequency: "DAILY" }).ok).toBe(
+      false,
+    );
   });
 });
 
@@ -194,6 +253,26 @@ describe("validateRecurrenceRule — end_type", () => {
     );
   });
 
+  test("a supplied end_date is validated even when end_type is never", () => {
+    expect(
+      validateRecurrenceRule({
+        ...base,
+        end_type: "never",
+        end_date: "2026-02-30",
+      }).ok,
+    ).toBe(false);
+  });
+
+  test("unknown recurrence keys are rejected rather than silently stripped", () => {
+    expect(
+      validateRecurrenceRule({
+        ...base,
+        end_type: "never",
+        attacker_key: "ignored-before",
+      }).ok,
+    ).toBe(false);
+  });
+
   test("end_type on_date requires a valid end_date", () => {
     expect(
       validateRecurrenceRule({
@@ -206,11 +285,12 @@ describe("validateRecurrenceRule — end_type", () => {
 
   test("end_type on_date without end_date is rejected", () => {
     expect(
-      validateRecurrenceRule({ ...base, end_type: "on_date", end_date: null }).ok,
+      validateRecurrenceRule({ ...base, end_type: "on_date", end_date: null })
+        .ok,
     ).toBe(false);
-    expect(
-      validateRecurrenceRule({ ...base, end_type: "on_date" }).ok,
-    ).toBe(false);
+    expect(validateRecurrenceRule({ ...base, end_type: "on_date" }).ok).toBe(
+      false,
+    );
   });
 
   test("end_type on_date with unparseable end_date is rejected", () => {
@@ -368,8 +448,18 @@ describe("validateRecurrenceRule — corrupt-row isolation", () => {
   test("multiple corrupt rules each fail individually without short-circuiting later checks", () => {
     const corruptRules = [
       { frequency: "daily", interval: 0, end_type: "never" },
-      { frequency: "weekly", interval: 1, end_type: "on_date", end_date: "not-a-date" },
-      { frequency: "monthly", interval: 1, end_type: "after_occurrences", end_occurrences: 0 },
+      {
+        frequency: "weekly",
+        interval: 1,
+        end_type: "on_date",
+        end_date: "not-a-date",
+      },
+      {
+        frequency: "monthly",
+        interval: 1,
+        end_type: "after_occurrences",
+        end_occurrences: 0,
+      },
     ] as const;
 
     for (const corrupt of corruptRules) {
@@ -387,9 +477,7 @@ describe("validateRecurrenceRule — corrupt-row isolation", () => {
   });
 
   test("MAX_ITERATIONS_PER_PARENT is exported with a reasonable upper bound", async () => {
-    const mod = await import(
-      "@/app/api/cron/generate-recurring-projects/route"
-    );
+    const mod = await import("@/services/recurring-project-worker");
     const cap = mod.MAX_ITERATIONS_PER_PARENT;
     // Defense ceiling must be positive and not pathologically large.
     expect(cap).toBeGreaterThan(10);
