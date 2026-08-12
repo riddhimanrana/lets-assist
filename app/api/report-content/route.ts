@@ -1,17 +1,29 @@
-import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { getAdminClient } from "@/lib/supabase/admin";
+import { consumeAiQuota } from "@/lib/ai/rate-limit";
+import { getRequestIp } from "@/lib/ai/parse-project-rate-limit-config";
 import { notifyAdminsBatched } from "@/services/admin-notifications";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { logError, logInfo, flushLogs } from "@/lib/logger";
+import {
+  buildReportDescription,
+  contentReportSchema,
+  ContentReportBodyError,
+  normalizeReportedContentUrl,
+  readBoundedContentReportBody,
+} from "@/lib/moderation/content-report-submission";
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
+    const { user, error: authError } = await getAuthUser({ sensitive: true });
 
-    // Get authenticated user using getClaims() for better performance
-    const { user } = await getAuthUser();
-
+    if (authError) {
+      return NextResponse.json(
+        { error: "Authentication is temporarily unavailable." },
+        { status: 503, headers: { "Retry-After": "5" } },
+      );
+    }
     if (!user) {
       return NextResponse.json(
         { error: "You must be signed in to report content." },
@@ -19,117 +31,100 @@ export async function POST(request: Request) {
       );
     }
 
-    // Parse request body
-    const body = await request.json();
-    const { contentType, contentId, reason, description, url, metadata } = body;
-
-    // Validate required fields
-    if (!contentType || !contentId || !reason || !description) {
+    let body: unknown;
+    try {
+      body = await readBoundedContentReportBody(request);
+    } catch (bodyError) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Invalid report details" },
+        {
+          status:
+            bodyError instanceof ContentReportBodyError &&
+            bodyError.code === "too_large"
+              ? 413
+              : 400,
+        },
+      );
+    }
+    const parsed = contentReportSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid report details" },
+        { status: 400 },
+      );
+    }
+    const { contentType, contentId, reason } = parsed.data;
+    let normalizedContentUrl: string | undefined;
+    try {
+      normalizedContentUrl = normalizeReportedContentUrl(
+        parsed.data.url,
+        request.url,
+      );
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid report details" },
         { status: 400 },
       );
     }
 
-    // Validate content type
-    const validContentTypes = [
-      "project",
-      "profile",
-      "comment",
-      "image",
-      "organization",
-      "other",
-    ];
-    if (!validContentTypes.includes(contentType)) {
+    let quota: Awaited<ReturnType<typeof consumeAiQuota>>;
+    try {
+      quota = await consumeAiQuota({
+        feature: "moderation-content-report",
+        windowSeconds: 3_600,
+        buckets: [
+          { scope: "user", identifier: user.id, limit: 10 },
+          { scope: "ip", identifier: getRequestIp(request.headers), limit: 30 },
+        ],
+      });
+    } catch {
       return NextResponse.json(
-        { error: "Invalid content type" },
-        { status: 400 },
+        { error: "Reporting is temporarily unavailable." },
+        { status: 503, headers: { "Retry-After": "5" } },
+      );
+    }
+    if (!quota.allowed) {
+      const retryAfterSeconds = Math.max(
+        Math.ceil((new Date(quota.resetAt).getTime() - Date.now()) / 1_000),
+        1,
+      );
+      return NextResponse.json(
+        { error: "Too many reports. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": retryAfterSeconds.toString() },
+        },
       );
     }
 
-    // Validate reason
-    const validReasons = [
-      "spam",
-      "harassment",
-      "inappropriate_content",
-      "misinformation",
-      "copyright",
-      "privacy_violation",
-      "violence",
-      "hate_speech",
-      "other",
-    ];
-    if (!validReasons.includes(reason)) {
-      return NextResponse.json(
-        { error: "Invalid report reason" },
-        { status: 400 },
-      );
-    }
-
-    // Validate description length
-    if (description.trim().length < 10) {
-      return NextResponse.json(
-        { error: "Description must be at least 10 characters" },
-        { status: 400 },
-      );
-    }
-
-    if (description.length > 1000) {
-      return NextResponse.json(
-        { error: "Description must be less than 1000 characters" },
-        { status: 400 },
-      );
-    }
-
-    // Build enhanced description with URL and metadata
-    let enhancedDescription = description.trim();
-    if (url || metadata) {
-      const details: string[] = [enhancedDescription];
-
-      if (url) {
-        details.push(`\n\nContent URL: ${url}`);
-      }
-
-      if (metadata) {
-        if (metadata.title) details.push(`\nContent Title: ${metadata.title}`);
-        if (metadata.creator)
-          details.push(`\nContent Creator: ${metadata.creator}`);
-        if (metadata.context) details.push(`\nContext: ${metadata.context}`);
-        if (metadata.reportedAt)
-          details.push(`\nReported at: ${metadata.reportedAt}`);
-      }
-
-      enhancedDescription = details.join("");
-    }
-
-    // Determine priority based on reason
-    const highPriorityReasons = ["violence", "hate_speech"];
-    const priority = highPriorityReasons.includes(reason) ? "high" : "normal";
-
-    // Insert the report into content_reports table
-    const { data, error } = await supabase
+    const priority =
+      reason === "violence" || reason === "hate_speech" ? "high" : "normal";
+    const now = new Date().toISOString();
+    const { data, error } = await getAdminClient()
       .from("content_reports")
       .insert({
-        reporter_id: user?.id || null, // Allow anonymous reports
+        reporter_id: user.id,
         content_type: contentType,
         content_id: contentId,
-        reason: reason,
-        description: enhancedDescription,
+        reason,
+        description: buildReportDescription(parsed.data, normalizedContentUrl),
         status: "pending",
-        priority: priority,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        priority,
+        created_at: now,
+        updated_at: now,
       })
       .select()
       .single();
 
     if (error) {
-      logError("Failed to insert content report", error, {
-        reporter_id: user?.id,
-        content_type: contentType,
-        content_id: contentId,
-        reason,
-      });
+      logError(
+        "Failed to insert content report",
+        new Error("report_insert_failed"),
+        {
+          content_type: contentType,
+          reason,
+        },
+      );
 
       after(async () => {
         await flushLogs();
@@ -149,10 +144,10 @@ export async function POST(request: Request) {
         contentType,
         priority,
       });
-    } catch (notifError) {
+    } catch {
       logError(
         "Failed to send admin notification for content report",
-        notifError,
+        new Error("report_notification_failed"),
         {
           report_id: data.id,
           content_type: contentType,
@@ -164,9 +159,7 @@ export async function POST(request: Request) {
 
     logInfo("Content report submitted successfully", {
       report_id: data.id,
-      reporter_id: user?.id,
       content_type: contentType,
-      content_id: contentId,
       reason,
       priority,
     });
@@ -180,8 +173,11 @@ export async function POST(request: Request) {
       reportId: data.id,
       message: "Report submitted successfully",
     });
-  } catch (error) {
-    logError("Unexpected error in report-content API", error);
+  } catch {
+    logError(
+      "Unexpected error in report-content API",
+      new Error("report_request_failed"),
+    );
 
     after(async () => {
       await flushLogs();

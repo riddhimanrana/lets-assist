@@ -34,6 +34,7 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                              | Confirmed                                                    |
 | [AUD-020](#aud-020) | P2  | Plugin data deletion   | Permanent deletion lacked a complete contract, authorization boundary, and truthful durable replay state               | **Fixed locally**; hosted Development pending                |
 | [AUD-021](#aud-021) | P2  | Plugin uninstall       | Ordinary uninstall could run arbitrary plugin code and therefore could not guarantee data retention                    | **Fixed locally**; hosted Development pending                |
+| [AUD-034](#aud-034) | P1  | Moderation evidence    | Reporters could directly create, rewrite, or delete `content_reports` evidence                                         | **Fixed locally**; focused verification pending              |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -714,6 +715,54 @@ advisor, and browser acceptance also remain required before this finding
 closes.
 
 Production was not accessed or changed for this finding.
+
+---
+
+<a id="aud-034"></a>
+
+## AUD-034 — Content reports were client-written {#aud-034}
+
+**Priority:** P1 · **Status:** Fixed and verified locally; hosted Development pending
+
+Authenticated reporters previously held direct INSERT, UPDATE, and DELETE
+privileges and matching owner policies on `content_reports`. The forward
+migration removes all client write grants, independent column grants, and write
+policies while preserving owner-scoped SELECT and service-role CRUD. The report
+route now uses fresh authentication, strict bounded input, durable hashed
+user/IP quotas, and a service-role insert with server-owned initial moderation
+state. Notification failure remains a non-fatal partial side effect. pgTAP and
+focused route contracts cover the database and server boundaries. The complete
+empty replay, 124-file/5,194-assertion database corpus, local advisors,
+architecture/plugin audits, unit corpus, and production build pass. No provider,
+hosted Development, or Production resource was accessed.
+
+---
+
+<a id="aud-035"></a>
+
+## AUD-035 — Legacy plugin_data default ACLs could re-expose new private objects {#aud-035}
+
+**Priority:** P1 · **Status:** Fixed and verified locally; hosted Development pending
+
+The cutover preflight found that `authenticated` still appeared in the
+`plugin_data` default ACL for future tables, sequences, and functions, and one
+later trigger function retained `PUBLIC` and authenticated execution. Existing
+table/schema revocations therefore did not make the private schema durable
+against new migration-created objects.
+
+Migration `20260812190442_close_plugin_data_browser_default_acl.sql` revokes all
+schema and existing-object privileges from `PUBLIC`, `anon`, and
+`authenticated`, and removes those roles from the `postgres` migration role's
+future table, sequence, and function defaults. It preserves service-role access.
+The migration fails closed on residual function/default ACL exposure. A focused
+pgTAP contract also creates a future table, identity sequence, and function and
+proves neither browser role inherits access.
+
+During this verification, the read-only cutover preflight itself was also found
+to use unsupported `psql` `\quit 3` arguments, which PostgreSQL 18 treated as a
+successful quit. Every failure branch now raises a deliberate SQL error under
+`ON_ERROR_STOP`; an actual local target run returned exit 3 at the known
+pre-migration ACL violation. Production was not queried or changed.
 
 ---
 

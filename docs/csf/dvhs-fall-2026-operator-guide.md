@@ -629,8 +629,9 @@ gates in [testing and release](testing-and-release.md) are open. Do not copy a
 Development fixture, connection link, import preview, or policy decision into
 Production, and do not treat a Development screenshot as Production evidence.
 
-At this guide's current evidence point, the repository and Development database
-have 273 migrations through `20260812152300`; Production has 236 through
+At this guide's current evidence point, the repository has 275 migrations
+through `20260812190442`; the Development database has 273 through
+`20260812152300`; Production has 236 through
 `20260811001500`. The Development Vercel alias still serves earlier code built
 from the 272-migration tree because the external 100-deployment-per-day project
 cap blocked its refresh. Database parity therefore does not close the hosted
@@ -665,8 +666,9 @@ code gate.
   stale: its repository tree ended at 272 through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`, and the external
   Vercel 100-deployment-per-day project cap prevented a refreshed deployment.
-- Hosted Development Supabase and this repository each have 273 ordered
-  migrations through `20260812152300_atomic_csf_post_replies`.
+- Hosted Development Supabase has 273 ordered migrations through
+  `20260812152300_atomic_csf_post_replies`; this repository has 275 through
+  `20260812190442_close_plugin_data_browser_default_acl`.
 - The 95 INFO / 0 WARN / 0 ERROR security and 611 INFO / 0 WARN / 0 ERROR
   performance advisor counts were captured on the preceding 272-migration
   Development shape. They have not been re-established for 273 and are not
@@ -707,16 +709,16 @@ Do not use real chapter rows or credentials until every item is checked:
       `scripts/production-cutover-preflight.sql` with the reviewed Production
       read-only URL. It must select the exact 236-row baseline, pass every
       shared blocker, and name any cancellation-job transitions for explicit
-      review. Rehearse the full 37-migration transition on a Production-shaped
+      review. Rehearse the full 39-migration transition on a Production-shaped
       clone and verify the backup restore before scheduling the window.
 - [ ] At T-0 enable maintenance mode, stop writers and scheduled workers, take
       the final snapshots, and pair the schema push with the exact compatible
       application deployment. A partial or divergent ledger is a stop.
-- [ ] Replay the ordered migration ledger through `20260812152300` in the
+- [ ] Replay the ordered migration ledger through `20260812190442` in the
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.
-- [ ] Re-run the preflight on the 273-row target and require the shared tenant
+- [ ] Re-run the preflight on the 275-row target and require the shared tenant
       and receipt checks plus the target-only relation, constraint, and index
       and extension-posture checks to pass before reopening writes.
 - [ ] Pass the final combined static, focused source, database, private-plugin,
