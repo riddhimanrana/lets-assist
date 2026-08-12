@@ -105,6 +105,43 @@ describe("combined project lifecycle source contract", () => {
     }
   });
 
+  test("branch foreign keys never SET NULL through a generated column", () => {
+    const migrations = [
+      "20260811234600_atomic_signup_unreject_capacity.sql",
+      "20260811234700_enforce_project_schedule_validation.sql",
+      "20260811234800_feedback_dispatch_phases.sql",
+      "20260811235900_project_cancellation_durable_worker.sql",
+      "20260812001000_project_cancellation_hostile_review_hardening.sql",
+    ].map((file) => read(`supabase/migrations/${file}`));
+    const source = migrations.join("\n");
+    const generatedColumns = new Set(
+      [
+        ...source.matchAll(
+          /ADD COLUMN\s+(?:IF NOT EXISTS\s+)?([a-z0-9_]+)\s+uuid\s+GENERATED ALWAYS/gi,
+        ),
+      ].map((match) => match[1]),
+    );
+    const foreignKeys = [
+      ...source.matchAll(
+        /ADD CONSTRAINT\s+([a-z0-9_]+)\s+FOREIGN KEY\s*\(([^)]+)\)([\s\S]*?)(?=\s*ADD CONSTRAINT|;)/gi,
+      ),
+    ].map((match) => ({
+      name: match[1],
+      columns: match[2].split(",").map((column) => column.trim()),
+      definition: match[0],
+    }));
+
+    expect(
+      foreignKeys
+        .filter(
+          (foreignKey) =>
+            foreignKey.columns.some((column) => generatedColumns.has(column)) &&
+            /ON DELETE SET NULL\b/i.test(foreignKey.definition),
+        )
+        .map((foreignKey) => foreignKey.name),
+    ).toEqual([]);
+  });
+
   test("lifecycle cron routes expose aggregates rather than row or provider details", () => {
     const recurrenceRoute = read(
       "app/api/cron/generate-recurring-projects/route.ts",

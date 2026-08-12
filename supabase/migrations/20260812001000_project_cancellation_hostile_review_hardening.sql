@@ -98,8 +98,6 @@ CREATE UNIQUE INDEX projects_id_cancellation_tenant_uidx
   ON public.projects (id, cancellation_tenant_id);
 CREATE UNIQUE INDEX project_signups_id_project_organization_uidx
   ON public.project_signups (id, project_id, organization_id);
-CREATE UNIQUE INDEX project_signups_id_project_tenant_uidx
-  ON public.project_signups (id, project_id, cancellation_tenant_id);
 CREATE INDEX project_signups_organization_id_idx
   ON public.project_signups (organization_id)
   WHERE organization_id IS NOT NULL;
@@ -435,6 +433,13 @@ ALTER TABLE public.project_cancellation_deliveries
     FOREIGN KEY (project_id, cancellation_tenant_id)
     REFERENCES public.projects(id, cancellation_tenant_id)
     ON DELETE RESTRICT,
+  -- PostgreSQL 17 rejects SET NULL on a foreign key whose referencing columns
+  -- include a generated column, even when a column list would only clear
+  -- signup_id. These two ordinary-column keys are sufficient: project_id is
+  -- always checked, organization_id is additionally checked when non-null, and
+  -- cancellation_tenant_id is derived from those immutable coordinates on both
+  -- rows. Deleting the live signup may therefore clear only signup_id without
+  -- weakening project or tenant consistency.
   ADD CONSTRAINT project_cancellation_deliveries_signup_project_fkey
     FOREIGN KEY (signup_id, project_id)
     REFERENCES public.project_signups(id, project_id)
@@ -443,10 +448,6 @@ ALTER TABLE public.project_cancellation_deliveries
     FOREIGN KEY (signup_id, project_id, organization_id)
     REFERENCES public.project_signups(id, project_id, organization_id)
     MATCH SIMPLE ON DELETE SET NULL (signup_id),
-  ADD CONSTRAINT project_cancellation_deliveries_signup_project_tenant_fkey
-    FOREIGN KEY (signup_id, project_id, cancellation_tenant_id)
-    REFERENCES public.project_signups(id, project_id, cancellation_tenant_id)
-    ON DELETE SET NULL (signup_id),
   ADD CONSTRAINT project_cancellation_deliveries_user_id_fkey
     FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL,
   ADD CONSTRAINT project_cancellation_deliveries_anonymous_id_fkey
