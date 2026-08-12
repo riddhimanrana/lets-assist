@@ -1,0 +1,152 @@
+import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const root = process.cwd();
+
+function read(path: string) {
+  return readFileSync(join(root, path), "utf8");
+}
+
+function sliceBetween(source: string, start: string, end: string) {
+  const startIndex = source.indexOf(start);
+  const endIndex = source.indexOf(end, startIndex + start.length);
+
+  expect(startIndex).toBeGreaterThanOrEqual(0);
+  expect(endIndex).toBeGreaterThan(startIndex);
+  return source.slice(startIndex, endIndex);
+}
+
+describe("combined project lifecycle source contract", () => {
+  test("cancellation owns only its transactional RPC while other status writes retain exact CAS proof", () => {
+    const lifecycle = read("app/projects/[id]/server/lifecycle.ts");
+    const statusAction = sliceBetween(
+      lifecycle,
+      "export async function updateProjectStatus(",
+      "export async function cloneProject(",
+    );
+
+    expect(statusAction.match(/cancel_project_transactional/g)).toHaveLength(1);
+    expect(statusAction).not.toContain("enqueue_project_cancellation_job");
+    expect(statusAction).not.toContain('from("project_cancellation_jobs")');
+    expect(statusAction).toContain('.eq("status", project.status)');
+    expect(statusAction).toContain("updatedProject.id !== projectId");
+    expect(statusAction).toMatch(
+      /receipt\.outcome === "cancelled"[\s\S]*removeCalendarEventForProject/,
+    );
+    expect(statusAction).toMatch(
+      /receipt\.outcome === "cancelled"[\s\S]*receipt\.jobStatus === "pending"[\s\S]*fetch\(/,
+    );
+  });
+
+  test("unreject and cancellation share a deadlock-safe project boundary and active membership rule", () => {
+    const unrejectMigration = read(
+      "supabase/migrations/20260811234600_atomic_signup_unreject_capacity.sql",
+    );
+    const cancellationMigration = read(
+      "supabase/migrations/20260812001000_project_cancellation_hostile_review_hardening.sql",
+    );
+    const unreject = sliceBetween(
+      unrejectMigration,
+      "CREATE OR REPLACE FUNCTION public.unreject_project_signup_with_capacity(",
+      "REVOKE ALL ON FUNCTION public.unreject_project_signup_with_capacity",
+    );
+    const cancellation = sliceBetween(
+      cancellationMigration,
+      "CREATE FUNCTION public.cancel_project_transactional(",
+      "COMMENT ON FUNCTION public.cancel_project_transactional",
+    );
+
+    const slotLock = unreject.indexOf("pg_advisory_xact_lock");
+    const projectLock = unreject.indexOf(
+      "-- Lock the project before the signup",
+    );
+    const signupLock = unreject.indexOf("-- Lock and refresh the exact signup");
+
+    expect(slotLock).toBeGreaterThanOrEqual(0);
+    expect(projectLock).toBeGreaterThan(slotLock);
+    expect(signupLock).toBeGreaterThan(projectLock);
+    expect(unreject.slice(projectLock, signupLock)).toContain("FOR UPDATE");
+    expect(unreject.slice(signupLock)).toContain("FOR UPDATE");
+    expect(cancellation).toContain(
+      "COALESCE(members.status, 'active') = 'active'",
+    );
+    expect(cancellation).toContain("FOR SHARE OF members");
+    expect(cancellation).toMatch(
+      /FROM public\.projects AS projects[\s\S]*FOR UPDATE;[\s\S]*SET status = 'cancelled'/,
+    );
+  });
+
+  test("ending recurrence delegates child cancellation instead of competing with the ledger", () => {
+    const lifecycle = read("app/projects/[id]/server/lifecycle.ts");
+    const updateAction = lifecycle.slice(
+      lifecycle.indexOf("export async function updateProject("),
+    );
+
+    expect(updateAction).toMatch(/rpc\(\s*"cancel_project_transactional"/);
+    expect(updateAction).not.toContain('status: "cancelled"');
+    expect(updateAction).toMatch(
+      /receipt\.outcome === "cancelled"[\s\S]*removeCalendarEventForProject\(occurrence\.id\)/,
+    );
+  });
+
+  test("the additive architecture catalogs retain both authenticated lifecycle authorities", () => {
+    const audit = read("scripts/audit-supabase-architecture.sh");
+    const aclTest = read(
+      "supabase/tests/database/public_function_acl_allowlist.test.sql",
+    );
+
+    for (const signature of [
+      "public.cancel_project_transactional(uuid,text)",
+      "public.unreject_project_signup_with_capacity(uuid)",
+    ]) {
+      expect(audit).toContain(signature);
+      expect(aclTest).toContain(signature);
+    }
+  });
+
+  test("lifecycle cron routes expose aggregates rather than row or provider details", () => {
+    const recurrenceRoute = read(
+      "app/api/cron/generate-recurring-projects/route.ts",
+    );
+    const cancellationRoute = read(
+      "app/api/cron/project-cancellations/route.ts",
+    );
+    const feedbackRoute = read(
+      "app/api/cron/project-feedback-followups/route.ts",
+    );
+
+    expect(recurrenceRoute).toContain("failedProjects: result.errors.length");
+    expect(recurrenceRoute).not.toContain("errors: result.errors");
+    expect(recurrenceRoute).not.toContain("error.message");
+    expect(cancellationRoute).toContain("Aggregates only");
+    expect(feedbackRoute).toContain("Aggregates only");
+  });
+
+  test("every integrated pgTAP plan exactly matches its authored assertions", () => {
+    const files = [
+      "project_signup_unreject_capacity.test.sql",
+      "project_signup_unreject_capacity_concurrency.test.sql",
+      "project_schedule_validation.test.sql",
+      "project_feedback_requests.test.sql",
+      "project_cancellation_durable_worker.test.sql",
+      "project_cancellation_worker_concurrency.test.sql",
+      "project_cancellation_worker_lock_order.test.sql",
+      "project_lifecycle_integration_concurrency.test.sql",
+      "public_function_acl_allowlist.test.sql",
+    ];
+    const assertion =
+      /extensions\.(?:has_function|is|lives_ok|ok|results_eq|throws_ok)\(/g;
+
+    for (const file of files) {
+      const source = read(`supabase/tests/database/${file}`);
+      const planned = Number(
+        source.match(/extensions\.plan\((\d+)\)/)?.[1] ?? "NaN",
+      );
+      const authored = source.match(assertion)?.length ?? 0;
+
+      expect(Number.isNaN(planned), file).toBe(false);
+      expect(authored, file).toBe(planned);
+    }
+  });
+});

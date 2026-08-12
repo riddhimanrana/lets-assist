@@ -680,16 +680,18 @@ BEGIN
 
   v_permitted := v_project.creator_id = v_actor_id;
   IF NOT v_permitted AND v_project.organization_id IS NOT NULL THEN
-    SELECT EXISTS (
-      SELECT 1
-      FROM public.organization_members AS members
-      WHERE members.organization_id = v_project.organization_id
-        AND members.user_id = v_actor_id
-        AND (
-          members.role = 'admin'
-          OR (members.role = 'staff' AND v_project.can_be_managed_by_staff IS TRUE)
-        )
-    ) INTO v_permitted;
+    PERFORM members.user_id
+    FROM public.organization_members AS members
+    WHERE members.organization_id = v_project.organization_id
+      AND members.user_id = v_actor_id
+      AND COALESCE(members.status, 'active') = 'active'
+      AND (
+        members.role = 'admin'
+        OR (members.role = 'staff' AND v_project.can_be_managed_by_staff IS TRUE)
+      )
+    FOR SHARE OF members;
+
+    v_permitted := FOUND;
   END IF;
 
   IF NOT v_permitted THEN

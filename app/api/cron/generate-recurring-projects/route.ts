@@ -51,15 +51,14 @@ export async function POST(request: NextRequest) {
         message: "Recurring projects processed",
         processedProjects: result.processedProjects,
         createdOccurrences: result.createdOccurrences,
+        failedProjects: result.errors.length,
         executionTimeMs: executionTime,
-        errors: result.errors,
       },
       { status: 200 },
     );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+  } catch {
     return NextResponse.json(
-      { error: "Internal server error", message },
+      { error: "Internal server error" },
       { status: 500 },
     );
   }

@@ -329,12 +329,12 @@ async function prepareFeedbackRequest(input: {
   const exactScheduleWindow = signupScheduleId
     ? getAttendanceScheduleWindow(project, signupScheduleId)
     : null;
-  const availableScheduleIds = exactScheduleWindow
+  const availableScheduleIds = signupScheduleId
     ? []
     : listAttendanceScheduleIds(project);
   const scheduleWindow =
     exactScheduleWindow ??
-    (availableScheduleIds.length === 1
+    (signupScheduleId === null && availableScheduleIds.length === 1
       ? getAttendanceScheduleWindow(project, availableScheduleIds[0])
       : null);
 

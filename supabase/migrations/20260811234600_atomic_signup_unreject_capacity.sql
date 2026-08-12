@@ -15,6 +15,7 @@ SET search_path = ''
 AS $$
 DECLARE
   v_actor_id uuid := auth.uid();
+  v_signup_snapshot record;
   v_signup record;
   v_project record;
   v_window record;
@@ -28,18 +29,18 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Lock the exact state being transitioned. Two requests for the same signup
-  -- cannot both observe rejected, while different signups continue to the one
-  -- shared per-slot lock below.
+  -- Read only the lock coordinates first. The row is deliberately not locked
+  -- yet: cancellation owns the project row before it freezes signup-backed
+  -- deliveries, so holding a signup lock while waiting for the project would
+  -- invert that order and could deadlock on the delivery foreign-key check.
   SELECT
     signups.id,
     signups.project_id,
     signups.schedule_id,
     signups.status
-  INTO v_signup
+  INTO v_signup_snapshot
   FROM public.project_signups AS signups
-  WHERE signups.id = p_signup_id
-  FOR UPDATE;
+  WHERE signups.id = p_signup_id;
 
   IF NOT FOUND THEN
     RETURN NEXT;
@@ -51,18 +52,22 @@ BEGIN
   -- cannot turn a capacity race into an advisory-lock/row-lock deadlock.
   -- A blank schedule has no capacity key; it is reported only after the
   -- permission check below so unauthorized callers learn nothing about it.
-  IF NULLIF(BTRIM(v_signup.schedule_id), '') IS NOT NULL THEN
+  IF NULLIF(BTRIM(v_signup_snapshot.schedule_id), '') IS NOT NULL THEN
     PERFORM pg_advisory_xact_lock(
       hashtextextended(
         'lets-assist-project-signup:'
-          || v_signup.project_id::text
+          || v_signup_snapshot.project_id::text
           || ':'
-          || v_signup.schedule_id,
+          || v_signup_snapshot.schedule_id,
         0
       )
     );
   END IF;
 
+  -- Lock the project before the signup. Cancellation takes this same project
+  -- lock before it reads the audience, while every capacity consumer takes the
+  -- advisory slot lock first. This common order prevents both overbooking and
+  -- the cancellation/unreject project-signup lock inversion.
   SELECT
     projects.creator_id,
     projects.organization_id,
@@ -71,8 +76,29 @@ BEGIN
     projects.pause_signups
   INTO v_project
   FROM public.projects AS projects
-  WHERE projects.id = v_signup.project_id
-  FOR SHARE;
+  WHERE projects.id = v_signup_snapshot.project_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    outcome := 'refused';
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  -- Lock and refresh the exact signup only after the project lock. If its slot
+  -- coordinates changed after the initial read, fail closed rather than using
+  -- an advisory lock for stale capacity coordinates.
+  SELECT
+    signups.id,
+    signups.project_id,
+    signups.schedule_id,
+    signups.status
+  INTO v_signup
+  FROM public.project_signups AS signups
+  WHERE signups.id = p_signup_id
+    AND signups.project_id = v_signup_snapshot.project_id
+    AND signups.schedule_id IS NOT DISTINCT FROM v_signup_snapshot.schedule_id
+  FOR UPDATE;
 
   IF NOT FOUND THEN
     outcome := 'refused';

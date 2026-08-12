@@ -77,8 +77,6 @@ export async function canUserManageProject(
 
   if (membershipError) return false;
 
-  if (membershipError) return false;
-
   return canManageProjectAccess({
     creatorId: project.creator_id ?? null,
     userId,

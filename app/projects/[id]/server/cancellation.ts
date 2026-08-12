@@ -139,7 +139,6 @@ export async function createRejectionNotification(
   signupId: string,
 ): Promise<NotificationResult> {
   "use server";
-  "use server";
   const supabase = await createClient();
 
   try {

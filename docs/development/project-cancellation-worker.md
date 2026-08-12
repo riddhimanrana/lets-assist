@@ -108,6 +108,8 @@ Coverage lives in:
   cancellation-versus-approval and concurrent reapers;
 - `project_cancellation_worker_lock_order.test.sql` for bounded candidate CTEs,
   canonical lock order, round-robin claims, and exhausted-state invariants;
+- `project_lifecycle_integration_concurrency.test.sql` for atomic unreject versus
+  cancellation in both commit orders and inactive-manager denial;
 - the stateful Bun worker tests for checked RPC results, notification replay,
   safe pre-send exhaustion, unknown outcomes, fairness, and aggregate privacy.
 
