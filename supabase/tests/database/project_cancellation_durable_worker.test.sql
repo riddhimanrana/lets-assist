@@ -4,7 +4,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(36);
+SELECT extensions.plan(50);
 
 -- ACL and empty-search-path boundary.
 SELECT extensions.ok(
@@ -575,6 +575,201 @@ SELECT extensions.is(
   )->>'status',
   'needs_review',
   'finalizer refuses recipient-count mismatch'
+);
+
+-- Parent deletion detaches only live references. Snapshot identifiers and the
+-- delivery-to-job evidence chain remain immutable.
+SELECT extensions.throws_ok(
+  $$UPDATE public.project_cancellation_jobs
+    SET project_id_snapshot = 'da200000-0000-4000-8000-000000000099'
+    WHERE project_id = 'da200000-0000-4000-8000-000000000001'$$,
+  '23514',
+  NULL,
+  'an immutable project snapshot cannot be rewritten'
+);
+
+SELECT extensions.throws_ok(
+  $$UPDATE public.project_cancellation_jobs
+    SET live_project_id = NULL
+    WHERE project_id = 'da200000-0000-4000-8000-000000000001'$$,
+  '55000',
+  'project cancellation live project reference may only detach after parent deletion',
+  'a live parent reference cannot be cleared before parent deletion'
+);
+
+SELECT extensions.lives_ok(
+  $$DELETE FROM public.projects
+    WHERE id = 'da200000-0000-4000-8000-000000000001'$$,
+  'a cancelled project can be deleted without deleting cancellation evidence'
+);
+
+SELECT extensions.ok(
+  (SELECT live_project_id IS NULL
+          AND project_id = 'da200000-0000-4000-8000-000000000001'
+          AND project_id_snapshot = 'da200000-0000-4000-8000-000000000001'
+          AND live_organization_id = 'da100000-0000-4000-8000-000000000001'
+   FROM public.project_cancellation_jobs
+   WHERE project_id = 'da200000-0000-4000-8000-000000000001'),
+  'project deletion nulls only the job live reference'
+);
+
+SELECT extensions.ok(
+  (SELECT count(*) = 2
+          AND bool_and(live_project_id IS NULL)
+          AND bool_and(project_id_snapshot = project_id)
+   FROM public.project_cancellation_deliveries
+   WHERE project_id = 'da200000-0000-4000-8000-000000000001'),
+  'project deletion retains every delivery and its immutable project identifier'
+);
+
+SELECT extensions.lives_ok(
+  $$DELETE FROM public.organizations
+    WHERE id = 'da100000-0000-4000-8000-000000000001'$$,
+  'organization deletion can cascade projects while retaining cancellation evidence'
+);
+
+SELECT extensions.ok(
+  (SELECT live_organization_id IS NULL
+          AND organization_id = 'da100000-0000-4000-8000-000000000001'
+          AND organization_id_snapshot = 'da100000-0000-4000-8000-000000000001'
+          AND cancellation_tenant_id = organization_id_snapshot
+   FROM public.project_cancellation_jobs
+   WHERE project_id = 'da200000-0000-4000-8000-000000000001'),
+  'organization deletion nulls only the job live tenant reference'
+);
+
+SELECT extensions.ok(
+  (SELECT count(*) = 2
+          AND bool_and(live_organization_id IS NULL)
+          AND bool_and(organization_id_snapshot = organization_id)
+   FROM public.project_cancellation_deliveries
+   WHERE project_id = 'da200000-0000-4000-8000-000000000001'),
+  'organization deletion retains deliveries while detaching their live tenant'
+);
+
+INSERT INTO public.projects (
+  id, creator_id, title, location, description, event_type,
+  verification_method, schedule, require_login, status
+) VALUES (
+  'da200000-0000-4000-8000-000000000006',
+  'da000000-0000-4000-8000-000000000001',
+  'Account cascade cancellation', 'Local', 'Account fixture', 'oneTime',
+  'manual',
+  '{"oneTime":{"date":"2030-08-25","startTime":"10:00","endTime":"12:00","volunteers":20}}',
+  true, 'upcoming'
+);
+
+INSERT INTO public.project_signups
+  (id, project_id, user_id, schedule_id, status, created_at)
+VALUES (
+  'da400000-0000-4000-8000-000000000006',
+  'da200000-0000-4000-8000-000000000006',
+  'da000000-0000-4000-8000-000000000003',
+  'oneTime', 'approved', now()
+);
+
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"da000000-0000-4000-8000-000000000001","role":"authenticated"}',
+  true
+);
+SET LOCAL ROLE authenticated;
+SELECT public.cancel_project_transactional(
+  'da200000-0000-4000-8000-000000000006', 'Account removal'
+);
+RESET ROLE;
+
+SELECT extensions.lives_ok(
+  $$DELETE FROM auth.users
+    WHERE id = 'da000000-0000-4000-8000-000000000001'$$,
+  'creator account deletion can cascade a cancelled project without losing its ledger'
+);
+
+SELECT extensions.ok(
+  NOT EXISTS (
+    SELECT 1 FROM public.projects
+    WHERE id = 'da200000-0000-4000-8000-000000000006'
+  )
+  AND EXISTS (
+    SELECT 1 FROM public.project_cancellation_jobs
+    WHERE project_id = 'da200000-0000-4000-8000-000000000006'
+      AND project_id_snapshot = project_id
+      AND live_project_id IS NULL
+      AND organization_id_snapshot IS NULL
+      AND cancellation_tenant_id = project_id_snapshot
+  )
+  AND EXISTS (
+    SELECT 1 FROM public.project_cancellation_deliveries
+    WHERE project_id = 'da200000-0000-4000-8000-000000000006'
+      AND project_id_snapshot = project_id
+      AND live_project_id IS NULL
+      AND signup_id IS NULL
+      AND user_id = 'da000000-0000-4000-8000-000000000003'
+  ),
+  'account deletion removes its project but preserves personal-project cancellation truth'
+);
+
+CREATE TEMP TABLE deleted_parent_job_claim AS
+SELECT *
+FROM public.claim_project_cancellation_jobs('deleted-parent-worker', 1, 120);
+
+SELECT extensions.is(
+  (SELECT project_id
+   FROM deleted_parent_job_claim
+   WHERE project_id = 'da200000-0000-4000-8000-000000000006'),
+  'da200000-0000-4000-8000-000000000006'::uuid,
+  'a retained pending job remains claimable by its immutable project identifier'
+);
+
+CREATE TEMP TABLE deleted_parent_delivery_claim AS
+SELECT *
+FROM public.claim_project_cancellation_deliveries(
+  (SELECT id FROM deleted_parent_job_claim),
+  'deleted-parent-worker',
+  10,
+  120
+);
+
+SELECT extensions.is(
+  (SELECT count(*) FROM deleted_parent_delivery_claim),
+  1::bigint,
+  'retained delivery work remains claimable after creator-account deletion'
+);
+
+SELECT public.mark_project_cancellation_email_sending(
+  (SELECT id FROM deleted_parent_delivery_claim), 'deleted-parent-worker'
+);
+SELECT public.settle_project_cancellation_delivery(
+  (SELECT id FROM deleted_parent_delivery_claim),
+  'deleted-parent-worker', 'accepted', 'delivered', 'deleted-parent-provider', NULL
+);
+
+SELECT extensions.is(
+  public.finalize_project_cancellation_job(
+    (SELECT id FROM deleted_parent_job_claim), 'deleted-parent-worker'
+  )->>'status',
+  'completed',
+  'retained delivery work can settle and finalize after creator-account deletion'
+);
+
+SELECT extensions.ok(
+  EXISTS (
+    SELECT 1 FROM public.project_cancellation_deliveries
+    WHERE project_id = 'da200000-0000-4000-8000-000000000001'
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.project_cancellation_deliveries AS deliveries
+    LEFT JOIN public.project_cancellation_jobs AS jobs
+      ON jobs.id = deliveries.job_id
+     AND jobs.project_id_snapshot = deliveries.project_id_snapshot
+     AND jobs.cancellation_tenant_id = deliveries.cancellation_tenant_id
+    WHERE jobs.id IS NULL
+       OR deliveries.project_id_snapshot IS DISTINCT FROM deliveries.project_id
+       OR deliveries.organization_id_snapshot
+          IS DISTINCT FROM deliveries.organization_id
+  ),
+  'retained deliveries have no orphaned or cross-tenant snapshot evidence'
 );
 
 SELECT extensions.ok(
