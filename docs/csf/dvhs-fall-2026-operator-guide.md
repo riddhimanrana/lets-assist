@@ -614,14 +614,18 @@ Production, and do not treat a Development screenshot as Production evidence.
   configured. The in-product connection is **Not connected** until an operator
   completes a fresh `dvhighcsf@gmail.com` password/verification handoff; no real
   row preview or commit has occurred.
-- The Development database was historically verified through
-  `20260811132454`. The unused `pg_graphql` extension was absent from that
-  schema, and leaked-password protection was enabled. Development is now at
-  `20260812073000`; the release-integration repository continues with the
-  unpublished ordered series through `20260812101100`, so hosted parity is not
-  current. Treat hosted acceptance as stale until an exact-head deployment is
-  Ready, every outstanding migration is applied in order, and
-  repository/hosted parity is rechecked.
+- The root Development tree at this verification point is exact SHA
+  `d05b7ef259b59c3fe5bf8ab3b460358e834490b4`, with the private gitlink at exact
+  SHA `6fc8398e33bba8bc2c874e0969274fb37bab3fcb`.
+- Hosted Development Supabase has 269 ordered migrations through
+  `20260812104754_harden_project_transaction_rpc_boundaries`. Live advisors
+  report 94 INFO / 0 WARN / 0 ERROR for security and 616 INFO / 0 WARN / 0 ERROR
+  for performance.
+- `dev.lets-assist.com` is still serving READY SHA
+  `097bd4e194b1d14b0c9beb1ab3af9b91e5584c27`. The Vercel team exceeded 100
+  deployments per day, and Vercel refuses another deployment for 24 hours.
+  This exact code/database mismatch blocks hosted acceptance and every
+  real-data preview or commit. It is not deployment readiness.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
 - Three controlled Development test messages produced three signature-verified
@@ -646,7 +650,7 @@ Do not use real chapter rows or credentials until every item is checked:
       Production databases, links, tokens, previews, and decisions isolated.
 - [ ] Verify the root tree is the approved exact commit and the private plugin
       remains a clean gitlink at its approved SHA.
-- [ ] Replay the ordered migration ledger through `20260812101100` in the
+- [ ] Replay the ordered migration ledger through `20260812104754` in the
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.

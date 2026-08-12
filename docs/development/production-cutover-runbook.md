@@ -1,34 +1,39 @@
 # Production cutover runbook
 
-Promoting the current `development` iteration to Production. This carries **174 pending migrations** — Production sits at `20260603035734` (49 applied) while the repository ledger is at 223.
+Production has 236 ordered migrations through `20260811001500`.
+Development and the repository have 269 ordered migrations through
+`20260812104754`. That is 33 pending migrations before any later
+documentation-only commit.
 
-**This runbook is preparation. Executing it requires explicit release authorization** ([deployment boundaries](deployment.md)). Nothing in it has been run against Production.
+**This runbook is preparation. Executing it requires explicit release
+authorization** ([deployment boundaries](deployment.md)). Production remains
+untouched. No release may proceed until hosted Development exact-SHA browser and
+provider gates are green.
 
 ## Two facts that shape everything
 
 **1. The schema push and the application deploy are one release, not two.**
 
-`origin/main` is far behind `development`, and several pending migrations revoke grants the currently-deployed application depends on:
-
-| Migration        | Revokes                                                                                       |
-| ---------------- | --------------------------------------------------------------------------------------------- |
-| `20260701055524` | All `plugin_data` access from `authenticated`                                                 |
-| `20260712014700` | Table-wide `SELECT` on `organizations` from `anon`/`authenticated`, replaced by column grants |
-| `20260712021110` | `INSERT`/`UPDATE` on `user_emails`                                                            |
-| `20260712013500` | Direct `organization_members` deletes                                                         |
-
-The deployed `main` build breaks the moment those land. Schedule them as a single window, with the application release ready _before_ the push starts.
+The 33 pending migrations and their exact application release SHA must be
+treated as one change. Do not push the schema independently or infer application
+compatibility from the migration ledger. Schedule one window, with the exact
+application release ready before the push starts.
 
 **2. Migrations are forward-only.** There is no down migration. Rollback means a point-in-time restore, or a corrective forward migration. Never delete a migration that may have run remotely.
 
-## Known-live defects this release closes
+## Historical defects already closed in the Production baseline
 
-Both were confirmed against Production by read-only catalog inspection during the 2026-08-10 audit, and both are exploitable today. See the [audit register](audit-register-20260810.md).
+Both were confirmed against Production by read-only catalog inspection during
+the 2026-08-10 audit. Their forward fixes are now included in the current
+Production baseline through `20260811001500`. Keep them in rehearsal coverage
+because the cutover still builds on that baseline. See the
+[audit register](audit-register-20260810.md).
 
 - **AUD-001** — `public.trusted_member` accepts a client-supplied `status`, so any signed-in user who has not yet applied can self-grant trusted status and unlock organization and project creation.
 - **AUD-002** — the `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)`, so anyone holding the public anon key can inject a notification for any user, with an attacker-chosen title, body, and action URL.
 
-`supabase db push` has no per-migration selector, so neither can ship through the normal pipeline without the whole backlog. If the cutover slips, the alternative is applying AUD-002's two policy statements out of band under a written change record; `20260810220200` and `20260810220100` are both written to be idempotent so the ledger re-applies them as a no-op.
+The fixing migrations, `20260810220100` and `20260810220200`, are historical
+context rather than part of the current 33-migration pending set.
 
 ---
 
@@ -71,15 +76,21 @@ Read-only throughout. Capture the whole output into the change record. The block
 
 ## Rehearsal
 
-**The Supabase `development` branch is not a rehearsal.** It reached 218 by replaying an empty database, which proves the migrations are self-consistent and nothing more. It does not exercise data-dependent DDL, the destructive DML in `20260712021110`, lock behaviour at production table sizes, or the 49→223 transition specifically.
+**The Supabase `development` branch is not a rehearsal.** Its 269-migration
+ledger proves ordered application against the Development database, not the
+Production-shaped 236→269 transition. It does not exercise data-dependent DDL,
+lock behaviour at Production table sizes, or Production data.
 
 **Preferred path — a data-cloned branch from Production.**
 
 1. `get_cost` → `confirm_cost` for a branch, and keep the `confirm_cost_id`. This is a _second_ concurrent branch alongside the persistent `development` one; budget for it and delete it promptly.
 2. `create_branch({ project_id: 'fotdmeakexgrkronxlof', name: 'cutover-rehearsal-<date>', confirm_cost_id })`.
 3. **Verify it is a clone, not a replay** — `list_migrations` on the new ref.
-   - **49 rows, head `20260603035734`** → a genuine clone. Continue.
-   - **223 rows** → it was built by replaying the repository, which is the artifact you already have and proves nothing new. Abandon and use the fallback.
+   - **236 rows, head `20260811001500`** → a genuine current-baseline clone.
+     Continue.
+   - **269 rows, head `20260812104754`** → it was built by replaying the
+     repository, which is the artifact you already have and proves nothing new.
+     Abandon and use the fallback.
 
    Do not skip this. It is the single most important step here.
 
@@ -88,14 +99,24 @@ Read-only throughout. Capture the whole output into the change record. The block
 6. Push, and time it:
    ```bash
    supabase link --project-ref <branch-ref>
-   supabase db push --linked --dry-run      # expect exactly 174 pending
+   supabase db push --linked --dry-run      # expect exactly 33 pending
    time supabase db push --linked --yes 2>&1 | tee rehearsal.log
    ```
-7. Capture: total and per-file wall clock; the row count deleted by `20260712021110`; `SELECT ... FROM pg_index WHERE NOT indisvalid` (must be empty); `verify-supabase-migration-parity.mjs`; `get_advisors` (expect the same ~90 `INFO` shape, zero ERROR/WARN); and `supabase db diff --linked` — compare that last one against the destructive drift recorded in [the redesign audit](../architecture/supabase-redesign-audit.md). **That diff is the artifact that retires the open drift item.**
+7. Capture: total and per-file wall clock; `SELECT ... FROM pg_index WHERE NOT
+indisvalid` (must be empty); `verify-supabase-migration-parity.mjs`;
+   `get_advisors` (compare with Development's 94 INFO/0 WARN/0 ERROR security
+   and 616 INFO/0 WARN/0 ERROR performance snapshot); and
+   `supabase db diff --linked` — compare that last one against the destructive
+   drift recorded in
+   [the redesign audit](../architecture/supabase-redesign-audit.md). **That diff
+   is the artifact that retires the open drift item.**
 8. Point a preview deployment of the release SHA at the branch and run `test:e2e:csf`, `plugin:test:isolation`, `dev:test:cron`, and the manual smoke list.
 9. `delete_branch` as soon as it is signed off.
 
-**Fallback**, if step 3 or 4 shows it is not a data clone: restore the backup dumps into a local Postgres 17, seed `supabase_migrations.schema_migrations` with Production's 49 versions, then dry-run and apply. Costs nothing and reuses the backup artifacts — one exercise, two purposes.
+**Fallback**, if step 3 or 4 shows it is not a data clone: restore the backup
+dumps into a local Postgres 17, seed `supabase_migrations.schema_migrations`
+with Production's 236 versions, then dry-run and apply. Costs nothing and reuses
+the backup artifacts — one exercise, two purposes.
 
 Record the fallback's fidelity gap: local `auth`, `storage`, and `realtime` schemas are container-managed and will not match Production's GoTrue and Storage versions. Restore Production's `auth.users` **data** onto the local `auth` schema; never its DDL.
 

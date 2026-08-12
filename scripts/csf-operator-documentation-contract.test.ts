@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -72,6 +72,10 @@ function expectInOrder(text: string, labels: string[]) {
 const operatorGuide = flow(readDoc("dvhs-fall-2026-operator-guide.md"));
 const officerRunbook = flow(readDoc("officer-runbook.md"));
 const productContract = flow(readDoc("product-contract.md"));
+const testingAndRelease = flow(readDoc("testing-and-release.md"));
+const productionCutoverRunbook = flow(
+  readRepositoryFile("docs/development/production-cutover-runbook.md"),
+);
 
 type LabelContract = {
   /** The component that renders it. */
@@ -688,6 +692,62 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
     expect(productContract).toContain(
       "Recommitting the same resolved row returns the existing target result.",
+    );
+  });
+
+  test("current hosted Development status matches the repository ledger and stale deployment blocker", () => {
+    const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
+      .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
+      .sort();
+    expect(migrations).toHaveLength(269);
+    expect(migrations.at(-1)).toBe(
+      "20260812104754_harden_project_transaction_rpc_boundaries.sql",
+    );
+
+    const currentState = between(
+      testingAndRelease,
+      "## Current hosted Development state",
+      "## Historical August 11 hosted Development amendment",
+    );
+    expect(currentState).toContain(
+      "269 ordered migrations through `20260812104754_harden_project_transaction_rpc_boundaries`",
+    );
+    expect(currentState).toContain(
+      "94 INFO, 0 WARN, and 0 ERROR security findings",
+    );
+    expect(currentState).toContain(
+      "616 INFO, 0 WARN, and 0 ERROR performance findings",
+    );
+    expect(currentState).toContain("`dev.lets-assist.com`");
+    expect(currentState).toContain(
+      "`097bd4e194b1d14b0c9beb1ab3af9b91e5584c27`",
+    );
+    expect(currentState).toContain("100 deployments per day");
+    expect(currentState).toContain(
+      "Hosted acceptance and real-data preview/commit remain blocked",
+    );
+  });
+
+  test("production cutover baseline tracks the exact pending migration range", () => {
+    expect(productionCutoverRunbook).toContain(
+      "Production has 236 ordered migrations through `20260811001500`",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "Development and the repository have 269 ordered migrations through `20260812104754`",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "33 pending migrations before any later documentation-only commit",
+    );
+    expect(productionCutoverRunbook).not.toContain("174 pending migrations");
+    expect(productionCutoverRunbook).not.toContain(
+      "repository ledger is at 223",
+    );
+    expect(productionCutoverRunbook).not.toContain(
+      "expect exactly 174 pending",
+    );
+    expect(productionCutoverRunbook).toContain("Production remains untouched");
+    expect(productionCutoverRunbook).toContain(
+      "No release may proceed until hosted Development exact-SHA browser and provider gates are green",
     );
   });
 });
