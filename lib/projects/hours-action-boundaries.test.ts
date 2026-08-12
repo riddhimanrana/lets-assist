@@ -10,8 +10,12 @@ const certificateIssuanceSource = readFileSync(
   `${process.cwd()}/app/projects/[id]/hours/certificate-issuance.ts`,
   "utf8",
 );
+const publicationServiceSource = readFileSync(
+  `${process.cwd()}/lib/projects/hours-publication-service.ts`,
+  "utf8",
+);
 
-test("publishing hours delegates identity and permission checks to one transactional RPC", () => {
+test("publishing hours authenticates before crossing the service-only RPC boundary", () => {
   const publishStart = actionsSource.indexOf(
     "export async function publishVolunteerHours",
   );
@@ -21,15 +25,43 @@ test("publishing hours delegates identity and permission checks to one transacti
   const publishSource = actionsSource.slice(publishStart, resendStart);
 
   assert.ok(publishStart >= 0);
-  assert.match(publishSource, /publish_volunteer_hours_transactional/u);
+  const authenticateIndex = publishSource.indexOf("supabase.auth.getUser");
+  const transactionIndex = publishSource.indexOf(
+    "publishVolunteerHoursTransaction",
+  );
+  const emailDrainIndex = publishSource.indexOf("drainPublicationEmails");
+
+  assert.ok(authenticateIndex >= 0 && authenticateIndex < transactionIndex);
+  assert.ok(transactionIndex < emailDrainIndex);
+  assert.match(publishSource, /actorId: user\.id/u);
   assert.match(publishSource, /publicationRequestKey/u);
   assert.match(publishSource, /normalizeHoursTimestamp/u);
   assert.match(publishSource, /drainPublicationEmails/u);
+  assert.doesNotMatch(publishSource, /supabase\.rpc/u);
   assert.doesNotMatch(publishSource, /\.from\("certificates"\)\.insert/u);
   assert.doesNotMatch(publishSource, /\.from\("projects"\)\.update/u);
   assert.doesNotMatch(publishSource, /volunteer_name ===/u);
   assert.doesNotMatch(publishSource, /volunteer\.userId/u);
   assert.doesNotMatch(publishSource, /volunteer\.email/u);
+});
+
+test("the publication service uses one exact service-role request for bounded receipt recovery", () => {
+  assert.match(publicationServiceSource, /import "server-only"/u);
+  assert.match(publicationServiceSource, /getAdminClient\(\)/u);
+  assert.match(publicationServiceSource, /p_actor_id: input\.actorId/u);
+  assert.match(
+    publicationServiceSource,
+    /await admin\.rpc\("publish_volunteer_hours_transactional", rpcArguments\)/u,
+  );
+  assert.match(
+    publicationServiceSource,
+    /executeReplaySafeHoursPublicationRpc/u,
+  );
+  assert.doesNotMatch(publicationServiceSource, /auth\.uid|auth\.getUser/u);
+  assert.doesNotMatch(
+    publicationServiceSource,
+    /sendEmail|drainPublicationEmails/u,
+  );
 });
 
 test("certificate resend is permission checked and scoped to one project session", () => {

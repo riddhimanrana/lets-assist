@@ -814,11 +814,6 @@ unexpected_security_definer_exec="$(
           r.rolname = 'authenticated'
           and (
             (
-              p.proname = 'publish_volunteer_hours_transactional'
-              and pg_get_function_identity_arguments(p.oid) =
-                'p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text'
-            )
-            or (
               p.proname = 'unreject_project_signup_with_capacity'
               and pg_get_function_identity_arguments(p.oid) = 'p_signup_id uuid'
             )
@@ -850,7 +845,6 @@ public_client_function_acl_drift="$(
         ('public.is_project_organizer(uuid,uuid)', 'authenticated'),
         ('public.is_super_admin()', 'authenticated'),
         ('public.is_trusted_member(uuid)', 'authenticated'),
-        ('public.publish_volunteer_hours_transactional(uuid,text,jsonb,text)', 'authenticated'),
         ('public.unreject_project_signup_with_capacity(uuid)', 'authenticated')
     ),
     actual as (

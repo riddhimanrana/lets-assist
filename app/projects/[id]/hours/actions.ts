@@ -16,6 +16,11 @@ import {
   settleHoursDeliveryWithRetry,
 } from "@/lib/projects/hours-publication-delivery";
 import {
+  publishVolunteerHoursTransaction,
+  type PublicationDelivery,
+  type TransactionalPublication,
+} from "@/lib/projects/hours-publication-service";
+import {
   getPublishStateKey,
   sendCertificatePublishedEmails,
 } from "./certificate-issuance";
@@ -55,28 +60,6 @@ export type HoursPublicationResult = {
   receiptId?: string;
 };
 
-type PublicationDelivery = {
-  deliveryId: string;
-  state: string;
-  payloadPrepared: boolean;
-  idempotencyKey: string;
-  certificateId: string;
-  volunteerName: string | null;
-  volunteerEmail: string | null;
-  eventStart: string;
-  eventEnd: string;
-};
-
-type TransactionalPublication = {
-  outcome: "accepted" | "replayed";
-  receiptId: string;
-  requestKey: string;
-  certificatesCreated: number;
-  projectTitle: string;
-  projectTimezone: string | null;
-  deliveries: PublicationDelivery[];
-};
-
 async function canUserManageProjectHours(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
@@ -101,21 +84,6 @@ async function canUserManageProjectHours(
     organizationRole,
     canBeManagedByStaff: project.can_be_managed_by_staff,
   });
-}
-
-function isTransactionalPublication(
-  value: unknown,
-): value is TransactionalPublication {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Record<string, unknown>;
-  return (
-    (candidate.outcome === "accepted" || candidate.outcome === "replayed") &&
-    typeof candidate.receiptId === "string" &&
-    typeof candidate.requestKey === "string" &&
-    typeof candidate.certificatesCreated === "number" &&
-    typeof candidate.projectTitle === "string" &&
-    Array.isArray(candidate.deliveries)
-  );
 }
 
 function publicationRequestKey(
@@ -508,38 +476,41 @@ export async function publishVolunteerHours(
     }
 
     const requestKey = publicationRequestKey(projectId, sessionId, entries);
-    const { data, error } = await supabase.rpc(
-      "publish_volunteer_hours_transactional",
-      {
-        p_project_id: projectId,
-        p_schedule_id: sessionId,
-        p_entries: entries,
-        p_request_key: requestKey,
-      },
-    );
+    const transaction = await publishVolunteerHoursTransaction({
+      actorId: user.id,
+      projectId,
+      scheduleId: sessionId,
+      entries,
+      requestKey,
+    });
 
-    if (error) {
+    if (!transaction.publication && !transaction.invalidResponse) {
       logWarn("Volunteer-hours publication rejected", {
         project_id: projectId,
         request_key_suffix: requestKey.slice(-12),
-        error_code: error.code,
+        error_code: transaction.errorCode ?? undefined,
+        rpc_attempt_count: transaction.attempts,
       });
       return {
         outcome: "rejected",
         success: false,
         error:
-          error.code === "42501"
+          transaction.errorCode === "42501"
             ? "Unauthorized: You cannot publish hours for this project."
             : "The hours could not be published. Refresh the project and verify the session data before trying again.",
         requestKey,
       };
     }
 
-    if (!isTransactionalPublication(data)) {
+    if (!transaction.publication) {
       logError(
         "Volunteer-hours publication returned an invalid receipt",
         new Error("invalid transactional publication result"),
-        { project_id: projectId, request_key_suffix: requestKey.slice(-12) },
+        {
+          project_id: projectId,
+          request_key_suffix: requestKey.slice(-12),
+          rpc_attempt_count: transaction.attempts,
+        },
       );
       return {
         outcome: "rejected",
@@ -550,6 +521,7 @@ export async function publishVolunteerHours(
       };
     }
 
+    const data = transaction.publication;
     const emailResult = await drainPublicationEmails(data);
     const outcome: HoursPublicationOutcome = hoursPublicationOutcome(
       data.outcome,
