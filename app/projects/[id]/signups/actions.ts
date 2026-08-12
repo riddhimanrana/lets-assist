@@ -3,6 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
+import {
+  activeOrganizationRole,
+  canManageProjectAccess,
+} from "@/lib/projects/management-access";
 import { buildSignaturePreviewSummary } from "@/lib/waiver/signature-preview";
 import type {
   SignaturePayload,
@@ -88,7 +92,7 @@ export async function getOrganizerSignupsWithWaiverStatus(
 
   const { data: project, error: projectError } = await admin
     .from("projects")
-    .select("id, creator_id, organization_id")
+    .select("id, creator_id, organization_id, can_be_managed_by_staff")
     .eq("id", projectId)
     .limit(1)
     .maybeSingle();
@@ -101,12 +105,15 @@ export async function getOrganizerSignupsWithWaiverStatus(
     return { error: "Project not found" };
   }
 
-  let hasPermission = project.creator_id === user.id;
+  // This roster is read with the admin client, so it must be gated by the same
+  // policy that gates moderating it. Staff are admitted only while the creator
+  // still allows staff management, and only while their membership is active.
+  let organizationRole: string | null = null;
 
-  if (!hasPermission && project.organization_id) {
+  if (project.organization_id && project.creator_id !== user.id) {
     const { data: orgMember, error: orgError } = await supabase
       .from("organization_members")
-      .select("role")
+      .select("role, status")
       .eq("organization_id", project.organization_id)
       .eq("user_id", user.id)
       .limit(1)
@@ -116,12 +123,17 @@ export async function getOrganizerSignupsWithWaiverStatus(
       console.error("Error checking organizer org membership:", orgError);
     }
 
-    if (orgMember && ["admin", "staff"].includes(orgMember.role)) {
-      hasPermission = true;
-    }
+    organizationRole = activeOrganizationRole(orgMember);
   }
 
-  if (!hasPermission) {
+  if (
+    !canManageProjectAccess({
+      creatorId: project.creator_id,
+      userId: user.id,
+      organizationRole,
+      canBeManagedByStaff: project.can_be_managed_by_staff,
+    })
+  ) {
     return { error: "Unauthorized" };
   }
 

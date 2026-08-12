@@ -8,7 +8,10 @@ import { type SignupStatus } from "@/types";
 import { removeCalendarEventForSignup } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
-import { canManageProjectAccess } from "@/lib/projects/management-access";
+import {
+  activeOrganizationRole,
+  canManageProjectAccess,
+} from "@/lib/projects/management-access";
 
 // Add this new function to unreject a signup
 export async function unrejectSignup(signupId: string) {
@@ -37,7 +40,8 @@ export async function unrejectSignup(signupId: string) {
     }
 
     // Organization staff manage a project only while its creator allows it, so
-    // the flag is part of the permission decision rather than the role alone.
+    // the flag is part of the permission decision rather than the role alone,
+    // and only an active membership carries a role at all.
     let organizationRole: string | null = null;
     if (
       signup.project?.organization_id &&
@@ -45,11 +49,11 @@ export async function unrejectSignup(signupId: string) {
     ) {
       const { data: orgMember } = await supabase
         .from("organization_members")
-        .select("role")
+        .select("role, status")
         .eq("organization_id", signup.project.organization_id)
         .eq("user_id", user.id)
         .maybeSingle();
-      organizationRole = orgMember?.role ?? null;
+      organizationRole = activeOrganizationRole(orgMember);
     }
 
     if (
