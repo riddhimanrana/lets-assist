@@ -8,7 +8,7 @@
 -- poisoning it enabled against certificates_verified_signup_unique, and the
 -- collateral write paths (TRUNCATE, anon grants, type/ownership promotion by
 -- UPDATE) are all refused -- while the self-reported owner flow and the
--- canonical organizer publication RPC still work.
+-- canonical server-only organizer publication RPC still works.
 --
 -- All fixtures are synthetic and roll back with this test.
 
@@ -180,11 +180,19 @@ SELECT extensions.ok(
 
 SELECT extensions.ok(
   has_function_privilege(
-    'authenticated',
-    'public.publish_volunteer_hours_transactional(uuid,text,jsonb,text)',
+    'service_role',
+    'public.publish_volunteer_hours_transactional(uuid,uuid,text,jsonb,text)',
     'EXECUTE'
-  ),
-  'the canonical organizer publication RPC keeps its authenticated EXECUTE grant'
+  )
+  AND NOT has_function_privilege(
+    'authenticated',
+    'public.publish_volunteer_hours_transactional(uuid,uuid,text,jsonb,text)',
+    'EXECUTE'
+  )
+  AND to_regprocedure(
+    'public.publish_volunteer_hours_transactional(uuid,text,jsonb,text)'
+  ) IS NULL,
+  'the canonical organizer publication RPC is service-only and the browser overload is gone'
 );
 
 SELECT extensions.ok(
@@ -501,13 +509,14 @@ SELECT extensions.is(
 -- The organizer's canonical path still publishes
 -- ---------------------------------------------------------------------------
 
-SET LOCAL ROLE authenticated;
+SET LOCAL ROLE service_role;
 SET LOCAL "request.jwt.claim.sub" = 'ce000000-0000-4000-8000-000000000002';
 SET LOCAL "request.jwt.claims" =
-  '{"sub":"ce000000-0000-4000-8000-000000000002","role":"authenticated"}';
+  '{"sub":"ce000000-0000-4000-8000-000000000002","role":"service_role"}';
 
 SELECT extensions.is(
   public.publish_volunteer_hours_transactional(
+    'ce000000-0000-4000-8000-000000000002',
     'ce200000-0000-4000-8000-000000000002',
     'oneTime',
     '[{"signupId":"ce300000-0000-4000-8000-000000000002","checkIn":"2030-09-02T16:00:00Z","checkOut":"2030-09-02T19:00:00Z"}]'::jsonb,
@@ -549,14 +558,15 @@ VALUES (
   true, 'ce000000-0000-4000-8000-000000000004', 'verified', 'qr-code'
 );
 
-SET LOCAL ROLE authenticated;
+SET LOCAL ROLE service_role;
 SET LOCAL "request.jwt.claim.sub" = 'ce000000-0000-4000-8000-000000000002';
 SET LOCAL "request.jwt.claims" =
-  '{"sub":"ce000000-0000-4000-8000-000000000002","role":"authenticated"}';
+  '{"sub":"ce000000-0000-4000-8000-000000000002","role":"service_role"}';
 
 SELECT extensions.throws_ok(
   $$
     SELECT public.publish_volunteer_hours_transactional(
+      'ce000000-0000-4000-8000-000000000002',
       'ce200000-0000-4000-8000-000000000003',
       'oneTime',
       '[{"signupId":"ce300000-0000-4000-8000-000000000003","checkIn":"2030-09-04T16:00:00Z","checkOut":"2030-09-04T19:00:00Z"}]'::jsonb,
@@ -573,13 +583,14 @@ RESET ROLE;
 DELETE FROM public.certificates
 WHERE id = 'ce400000-0000-4000-8000-000000000003';
 
-SET LOCAL ROLE authenticated;
+SET LOCAL ROLE service_role;
 SET LOCAL "request.jwt.claim.sub" = 'ce000000-0000-4000-8000-000000000002';
 SET LOCAL "request.jwt.claims" =
-  '{"sub":"ce000000-0000-4000-8000-000000000002","role":"authenticated"}';
+  '{"sub":"ce000000-0000-4000-8000-000000000002","role":"service_role"}';
 
 SELECT extensions.is(
   public.publish_volunteer_hours_transactional(
+    'ce000000-0000-4000-8000-000000000002',
     'ce200000-0000-4000-8000-000000000003',
     'oneTime',
     '[{"signupId":"ce300000-0000-4000-8000-000000000003","checkIn":"2030-09-04T16:00:00Z","checkOut":"2030-09-04T19:00:00Z"}]'::jsonb,

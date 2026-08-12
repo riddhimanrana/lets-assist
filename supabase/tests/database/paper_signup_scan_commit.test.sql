@@ -119,7 +119,7 @@ VALUES
      'endTime', '12:00',
      'volunteers', 2
    )),
-   true, 'completed');
+   true, 'upcoming');
 
 -- Org-owned project that opted out of staff management.
 INSERT INTO public.projects (
@@ -137,7 +137,7 @@ VALUES
      'endTime', '12:00',
      'volunteers', 5
    )),
-   true, 'completed',
+   true, 'upcoming',
    'b5300000-0000-4000-8000-000000000001', false);
 
 -- Existing digital signup for the account-holding volunteer.
@@ -145,6 +145,13 @@ INSERT INTO public.project_signups (id, project_id, user_id, schedule_id, status
 VALUES ('b5200000-0000-4000-8000-000000000001',
         'b5100000-0000-4000-8000-000000000001',
         'b5000000-0000-4000-8000-000000000002', 'oneTime', 'approved');
+
+UPDATE public.projects
+SET status = 'completed'
+WHERE id IN (
+  'b5100000-0000-4000-8000-000000000001',
+  'b5100000-0000-4000-8000-000000000002'
+);
 
 INSERT INTO public.project_paper_scan_batches (id, project_id, schedule_id, created_by, status)
 VALUES

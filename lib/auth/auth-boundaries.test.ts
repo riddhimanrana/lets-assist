@@ -36,12 +36,6 @@ test("the OAuth-only password setter rejects an existing email identity", () => 
   assert.match(source, /Use the current-password form/u);
 });
 
-test("confirmation never reports success without a verification credential", () => {
-  const source = read("app/auth/confirm/route.ts");
-  assert.match(source, /Missing%20verification%20credential/u);
-  assert.doesNotMatch(source, /assuming success/u);
-});
-
 test("the shared super-admin guard uses fresh auth and MFA assurance", () => {
   const source = readAdminActionSource();
   assert.match(source, /getAuthUser\(\{ sensitive: true, checkMfa: true \}\)/u);

@@ -27,6 +27,15 @@ export type DescribePluginUninstallImpactInput = {
    * never have to interpolate that kind of string into UI copy.
    */
   dataAccessPurposes: string[];
+  /**
+   * Whether a separate, explicit permanent-deletion action is currently
+   * available for this plugin — i.e. the manifest declares reviewed
+   * retention/deletion semantics AND the plugin implements `onDataDelete`
+   * (see `getPluginDataDeletionReadiness`). Controls whether the closing
+   * sentence points at that action or truthfully says no deletion path
+   * exists yet, instead of a single copy pretending to cover every plugin.
+   */
+  permanentDeletionAvailable?: boolean;
 };
 
 export type PluginUninstallImpact = {
@@ -77,11 +86,14 @@ export function extractDataAccessPurposes(
 /**
  * Describe what uninstalling a plugin actually does, for confirmation
  * copy and post-action messaging. This does not run any lifecycle hook and
- * does not touch the database — it states the platform's own contract:
- * `runPluginUninstall`/`removeInstall` (see control-plane-transition-core.ts)
- * only ever delete the install row. Permanent erasure of `plugin_data` is a
- * distinct, currently unwired hook (`onDataDelete` / `runPluginDataDelete`),
- * so this deliberately does not claim a self-service way to request it.
+ * does not touch `plugin_data` — it states the platform's own contract:
+ * ordinary uninstall (see `control-plane-transition-core.ts`) only ever
+ * removes the install row and its configuration and never invokes plugin
+ * code, so declared data is always retained by uninstall itself. Permanent
+ * erasure of `plugin_data` is a distinct, explicit action
+ * (`runPermanentPluginDataDeletion` / `onDataDelete`) with its own fresh-auth,
+ * org-admin, and typed-confirmation requirements; this only states whether
+ * that action currently exists for the plugin in question.
  *
  * Takes plain data rather than a full `OrganizationPluginDefinition` so the
  * confirmation dialog (client component, working from the admin-settings
@@ -94,7 +106,7 @@ export function describePluginUninstallImpact(
   input: DescribePluginUninstallImpactInput,
 ): PluginUninstallImpact {
   const pluginName = truncate(input.pluginName, MAX_PLUGIN_NAME_LENGTH);
-  const { dataAccessPurposes } = input;
+  const { dataAccessPurposes, permanentDeletionAvailable } = input;
 
   const dedupedCategories = Array.from(
     new Set(
@@ -117,14 +129,16 @@ export function describePluginUninstallImpact(
     totalDataCategoryCount - summaryCategories.length,
   );
 
-  // The platform's own uninstall does not request plugin-data deletion — it
-  // only removes the install row and its configuration. The plugin's own hook
-  // runs before that removal with the service role and is not constrained by
-  // the platform, so the platform cannot certify what it does.
+  // Ordinary uninstall never runs plugin code and never touches
+  // `plugin_data` — it only removes the install row and its configuration.
+  // Declared data categories are therefore always retained by this action.
   const retentionFact = totalDataCategoryCount
-    ? `The platform's own uninstall does not request deletion of the ${totalDataCategoryCount} declared data categor${totalDataCategoryCount === 1 ? "y" : "ies"} (${summaryCategories.join("; ")}${summaryOverflow > 0 ? `, +${summaryOverflow} more` : ""}) — it removes only the install record and its configuration. The plugin's own hook runs before that removal and is not constrained by the platform.`
-    : "The platform's own uninstall does not request plugin-data deletion — it removes only the install record and its configuration. The plugin's own hook runs before that removal and is not constrained by the platform.";
-  const retentionClause = `${retentionFact} The product currently has no self-service or support-triggered path to permanently erase stored plugin data.`;
+    ? `Uninstalling does not run any of ${pluginName}'s code and does not delete the ${totalDataCategoryCount} declared data categor${totalDataCategoryCount === 1 ? "y" : "ies"} (${summaryCategories.join("; ")}${summaryOverflow > 0 ? `, +${summaryOverflow} more` : ""}) it stores for your organization — it only removes the install record and its configuration.`
+    : `Uninstalling does not run any of ${pluginName}'s code and does not delete stored plugin data — it only removes the install record and its configuration.`;
+  const deletionPathClause = permanentDeletionAvailable
+    ? "A separate, explicit permanent data-deletion action is available for this plugin if you want that stored data erased."
+    : "This plugin does not currently support an automated, self-service, or support-triggered path to permanently erase that stored data.";
+  const retentionClause = `${retentionFact} ${deletionPathClause}`;
 
   return {
     dataCategories,

@@ -31,6 +31,12 @@ async function redirectToSuccess(
   redirect(redirectUrl.toString());
 }
 
+function redirectToError(origin: string, message?: string) {
+  const errorUrl = new URL("/error", origin);
+  if (message) errorUrl.searchParams.set("message", message);
+  redirect(errorUrl.toString());
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const token_hash = searchParams.get("token_hash");
@@ -102,12 +108,12 @@ export async function GET(request: NextRequest) {
       if (type === "signup" && isExpiredLinkError(error.message ?? "")) {
         return redirectToExpiredLink();
       }
-      return redirect(`/error?message=${encodeURIComponent(error.message)}`);
+      return redirectToError(authOrigin, error.message);
     }
 
     const trustedUser = await getTrustedUser();
     if (!trustedUser) {
-      return redirect("/error?message=Unable%20to%20load%20verified%20user");
+      return redirectToError(authOrigin, "Unable to load verified user");
     }
 
     const primarySync = await syncPrimaryUserEmail(trustedUser.id);
@@ -116,8 +122,9 @@ export async function GET(request: NextRequest) {
         "Primary email synchronization failed after code exchange:",
         primarySync.status,
       );
-      return redirect(
-        "/error?message=Unable%20to%20synchronize%20verified%20email",
+      return redirectToError(
+        authOrigin,
+        "Unable to synchronize verified email",
       );
     }
 
@@ -133,14 +140,14 @@ export async function GET(request: NextRequest) {
 
   if (!token_hash && !token && !code) {
     console.warn("Confirmation hit without a verification credential");
-    return redirect("/error?message=Missing%20verification%20credential");
+    return redirectToError(authOrigin, "Missing verification credential");
   }
 
   const tokenValue = token_hash ?? token;
 
   if (!tokenValue) {
     console.error("Missing token for verification");
-    return redirect("/error");
+    return redirectToError(authOrigin);
   }
 
   const { error } = await supabase.auth.verifyOtp({
@@ -153,13 +160,13 @@ export async function GET(request: NextRequest) {
     if (type === "signup" && isExpiredLinkError(error.message ?? "")) {
       return redirectToExpiredLink();
     }
-    return redirect(`/error?message=${encodeURIComponent(error.message)}`);
+    return redirectToError(authOrigin, error.message);
   }
 
   const trustedUser = await getTrustedUser();
 
   if (!trustedUser) {
-    return redirect("/error?message=Unable%20to%20load%20verified%20user");
+    return redirectToError(authOrigin, "Unable to load verified user");
   }
 
   const primarySync = await syncPrimaryUserEmail(trustedUser.id);
@@ -168,9 +175,7 @@ export async function GET(request: NextRequest) {
       "Primary email synchronization failed after confirmation:",
       primarySync.status,
     );
-    return redirect(
-      "/error?message=Unable%20to%20synchronize%20verified%20email",
-    );
+    return redirectToError(authOrigin, "Unable to synchronize verified email");
   }
 
   if (type === "email_change") {

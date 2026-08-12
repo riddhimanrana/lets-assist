@@ -42,9 +42,18 @@ import {
 } from "@/components/ui/field";
 import { Controller } from "react-hook-form";
 import { createOrganization, checkOrgUsername } from "./actions";
+import {
+  isReservedOrganizationSlug,
+  usernameUnavailableMessage,
+} from "@/lib/organization/reserved-slugs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/shared/ImageCropper";
+import {
+  ORGANIZATION_USERNAME_MAX_LENGTH,
+  ORGANIZATION_USERNAME_MIN_LENGTH,
+  organizationUsernameSchema,
+} from "@/lib/organization/username";
 
 // Constants for form validation
 const CONSTANTS = {
@@ -53,9 +62,8 @@ const CONSTANTS = {
     MAX: 64,
   },
   USERNAME: {
-    MIN: 3,
-    MAX: 32,
-    REGEX: /^[a-zA-Z0-9_.-]+$/,
+    MIN: ORGANIZATION_USERNAME_MIN_LENGTH,
+    MAX: ORGANIZATION_USERNAME_MAX_LENGTH,
   },
   WEBSITE: {
     MAX: 100,
@@ -90,26 +98,7 @@ const orgCreationSchema = z.object({
       message: "Name cannot be only whitespace",
     }),
 
-  username: z
-    .string()
-    .min(
-      CONSTANTS.USERNAME.MIN,
-      `Username must be at least ${CONSTANTS.USERNAME.MIN} characters`,
-    )
-    .max(
-      CONSTANTS.USERNAME.MAX,
-      `Username cannot exceed ${CONSTANTS.USERNAME.MAX} characters`,
-    )
-    .regex(CONSTANTS.USERNAME.REGEX, {
-      message:
-        "Username can only contain letters, numbers, underscores, dots and hyphens",
-    })
-    .refine((value) => !value.includes(".."), {
-      message: "Username cannot contain consecutive dots",
-    })
-    .refine((value) => !value.startsWith(".") && !value.endsWith("."), {
-      message: "Username cannot start or end with a dot",
-    }),
+  username: organizationUsernameSchema,
 
   description: z
     .string()
@@ -352,8 +341,18 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                         setUsernameAvailable(null);
                       }}
                       onBlur={(e) => {
-                        if (e.target.value.toLowerCase() === "create") {
+                        // A reserved username is not "taken" and never
+                        // becomes available, so it is answered here without
+                        // a round trip -- and answered in words, not just
+                        // with the same red icon a taken username gets,
+                        // since the submit button is disabled either way.
+                        if (isReservedOrganizationSlug(e.target.value)) {
                           setUsernameAvailable(false);
+                          form.setError("username", {
+                            type: "manual",
+                            message: usernameUnavailableMessage(true),
+                          });
+                          field.onBlur();
                           return;
                         }
                         field.onBlur();

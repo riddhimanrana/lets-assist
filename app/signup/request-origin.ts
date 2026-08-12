@@ -64,6 +64,17 @@ function parseRequestHost(requestHost: string | null | undefined) {
   return parseOrigin(`http://${candidate}`);
 }
 
+function parseRequestOrigin(
+  requestHost: string | null | undefined,
+  protocol: "http:" | "https:",
+) {
+  if (!requestHost) return null;
+  const candidate = requestHost.trim();
+  if (!candidate || candidate.length > 255) return null;
+  if (/[\s,/\\@?#]/u.test(candidate)) return null;
+  return parseOrigin(`${protocol}//${candidate}`);
+}
+
 /**
  * The origin that both stores the PKCE verifier and receives the emailed
  * confirmation link. Returns `configuredOrigin` unchanged unless the request
@@ -100,26 +111,95 @@ export function resolveAuthRequestOrigin({
   return `${configured.protocol}//${request.host}`;
 }
 
-/** Only `NEXT_PUBLIC_SITE_URL` and `VERCEL_URL` are read. */
+/** `NEXT_PUBLIC_SITE_URL`, `VERCEL_URL`, `VERCEL`, and `VERCEL_ENV` are read. */
 export type SiteOriginEnv = Readonly<Record<string, string | undefined>>;
+
+/**
+ * A site origin must be a plain `http`/`https` origin: no userinfo, no path
+ * beyond the root, no query string, no fragment. A value that is merely
+ * "close" -- a stray path, embedded credentials, a non-http(s) scheme -- is
+ * not good enough: anything that doesn't validate as exactly an origin is
+ * treated as absent, the same as an unset variable, so it can never reach a
+ * redirect unchanged.
+ */
+function parseValidSiteOrigin(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return null;
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  if (url.username || url.password) return null;
+  if (url.search || url.hash) return null;
+  if (url.pathname !== "/" && url.pathname !== "") return null;
+
+  // `URL#origin` has no trailing slash and no path/query/hash, so this is
+  // already the canonical form.
+  return url.origin;
+}
+
+/**
+ * Detected from Vercel's own system environment variables, never from
+ * anything the request controls. `VERCEL` and `VERCEL_ENV` are set on every
+ * Vercel deployment (Production, Preview, and `vercel dev`); `VERCEL_URL` is
+ * checked too as a defensive third signal, since it is set whenever the
+ * other two are.
+ */
+function isHostedDeploymentEnvironment(env: SiteOriginEnv): boolean {
+  return Boolean(env.VERCEL || env.VERCEL_ENV || env.VERCEL_URL);
+}
 
 /**
  * The deployment's canonical origin. This is the trusted half of the selection
  * above: it comes from configuration only, never from the request.
+ *
+ * A configured `NEXT_PUBLIC_SITE_URL` always wins when it validates; a
+ * platform-issued `VERCEL_URL` is the next fallback. Only when neither
+ * resolves to a valid origin does the environment matter:
+ *
+ * - A hosted (Vercel) deployment throws rather than silently falling back to
+ *   a loopback origin -- redirecting a Production or Preview user's browser
+ *   to `localhost` is never an acceptable failure mode.
+ * - A non-Vercel `NODE_ENV=production` deployment also throws: `localhost`
+ *   is never correct for a production server regardless of whether Vercel's
+ *   own signals are present.
+ * - A local, non-hosted, non-production process keeps the loopback fallback,
+ *   since that is the one deployment shape where `localhost` is correct.
  */
 export function resolveConfiguredSiteOrigin(
   env: SiteOriginEnv = process.env,
 ): string {
-  const configuredSiteUrl = env.NEXT_PUBLIC_SITE_URL?.trim();
-  const vercelSiteUrl = env.VERCEL_URL
-    ? `https://${env.VERCEL_URL}`
-    : undefined;
+  const configuredSiteOrigin = parseValidSiteOrigin(env.NEXT_PUBLIC_SITE_URL);
+  if (configuredSiteOrigin) return configuredSiteOrigin;
 
-  return (
-    configuredSiteUrl ||
-    vercelSiteUrl ||
-    "http://localhost:3000"
-  ).replace(/\/+$/u, "");
+  const vercelSiteOrigin = env.VERCEL_URL
+    ? parseValidSiteOrigin(`https://${env.VERCEL_URL}`)
+    : null;
+  if (vercelSiteOrigin) return vercelSiteOrigin;
+
+  if (isHostedDeploymentEnvironment(env)) {
+    throw new Error(
+      "No valid site origin is configured for this hosted deployment: " +
+        "NEXT_PUBLIC_SITE_URL and VERCEL_URL are both missing or malformed. " +
+        "Refusing to fall back to a loopback origin.",
+    );
+  }
+
+  if (env.NODE_ENV === "production") {
+    throw new Error(
+      "No valid site origin is configured for this production deployment: " +
+        "NEXT_PUBLIC_SITE_URL is missing or malformed. " +
+        "Refusing to fall back to a loopback origin.",
+    );
+  }
+
+  return "http://localhost:3000";
 }
 
 /**
@@ -137,4 +217,101 @@ export function resolveAuthRedirectOrigin(
     configuredOrigin: resolveConfiguredSiteOrigin(env),
     requestHost,
   });
+}
+
+/**
+ * Return the trusted navigation that must happen before a PKCE producer, or
+ * `null` when the browser is already on the origin that will receive the
+ * callback. The request host is used only for an equality check and the narrow
+ * loopback carve-out; it never contributes to a hosted redirect destination.
+ */
+export function resolveAuthProducerNavigation({
+  authOrigin,
+  requestHost,
+  destinationPath,
+}: {
+  authOrigin: string;
+  requestHost: string | null | undefined;
+  destinationPath: string;
+}): string | null {
+  const target = parseOrigin(authOrigin);
+  if (
+    !target ||
+    (target.protocol !== "http:" && target.protocol !== "https:")
+  ) {
+    throw new Error("Auth producer origin is not a valid HTTP(S) origin");
+  }
+
+  const current = parseRequestOrigin(
+    requestHost,
+    target.protocol as "http:" | "https:",
+  );
+  if (current?.origin === target.origin) return null;
+
+  const safePath =
+    destinationPath.startsWith("/") && !destinationPath.startsWith("//")
+      ? destinationPath
+      : "/";
+  return new URL(safePath, target.origin).toString();
+}
+
+/**
+ * The origin a client-initiated OAuth flow -- currently only linking a
+ * Google identity from account settings (`AuthenticationClient.tsx`) --
+ * must hand Supabase as `redirectTo`.
+ *
+ * That call writes its PKCE verifier as a cookie on whatever origin the
+ * browser is actually running on at the moment it's made, before any
+ * navigation happens, so the callback has to land back on that same origin
+ * to read it -- exactly like the emailed signup/confirmation link. Handing
+ * Supabase the page's raw `window.location.origin` unconditionally would
+ * let that diverge from what `/auth/callback` resolves to
+ * (`resolveAuthRedirectOrigin`, which never trusts the request on a hosted
+ * deployment): a browser that reached the app through a stale alias or any
+ * non-canonical host would start the flow on one origin and have the
+ * server finish it on the canonical one, stranding the verifier cookie.
+ *
+ * This mirrors `resolveAuthRequestOrigin`'s contract with the client's own
+ * signals in place of a request `Host` header, so the two stay consistent:
+ * a loopback developer keeps the loopback origin the browser is actually
+ * on (matching the server's loopback swap); every hosted deployment is
+ * pinned to the canonical configured origin instead of the page's ambient
+ * location, so the flow always originates on the same origin the callback
+ * will land on. `NEXT_PUBLIC_SITE_URL` is the only signal read -- it is the
+ * one canonical-origin input that is actually available in the browser
+ * bundle (`VERCEL_URL` is not `NEXT_PUBLIC_`-prefixed and is never
+ * inlined), which is why this does not simply delegate to
+ * `resolveConfiguredSiteOrigin`.
+ */
+type ClientLocation = Readonly<Pick<Location, "host" | "origin">>;
+
+export function resolveClientAuthOrigin(
+  publicSiteUrl: string | undefined = process.env.NEXT_PUBLIC_SITE_URL,
+  browserLocation: ClientLocation | undefined = typeof window === "undefined"
+    ? undefined
+    : window.location,
+): string {
+  const configured = parseValidSiteOrigin(publicSiteUrl);
+
+  if (!browserLocation) {
+    // SSR: use configured if available; localhost is only appropriate for
+    // local non-hosted development where no valid canonical URL is configured.
+    return configured ?? "http://localhost:3000";
+  }
+
+  if (configured) {
+    // Configured canonical exists: pin hosted deployments to it and apply the
+    // narrow loopback-spelling swap for local development.
+    return resolveAuthRequestOrigin({
+      configuredOrigin: configured,
+      requestHost: browserLocation.host,
+    });
+  }
+
+  // No configured canonical in browser context: derive the origin from the
+  // page's actual location rather than inventing localhost:3000. A hosted
+  // preview with no NEXT_PUBLIC_SITE_URL inlined at build time would otherwise
+  // hand Supabase a dead redirectTo that the user can never reach.
+  const windowOrigin = parseValidSiteOrigin(browserLocation.origin);
+  return windowOrigin ?? "http://localhost:3000";
 }

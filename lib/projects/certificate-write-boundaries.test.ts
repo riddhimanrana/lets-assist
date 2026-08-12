@@ -108,7 +108,7 @@ test("verified certificate issuance stays on privileged, re-authorizing code", (
   );
 
   const publish = readFileSync("app/projects/[id]/hours/actions.ts", "utf8");
-  assert.match(publish, /publish_volunteer_hours_transactional/u);
+  assert.match(publish, /publishVolunteerHoursTransaction/u);
   assert.doesNotMatch(publish, /\.from\("certificates"\)\s*\.insert/u);
 });
 

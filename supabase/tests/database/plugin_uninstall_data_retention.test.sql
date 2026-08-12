@@ -27,9 +27,8 @@
 -- install row and rejoins the same, never-deleted plugin_data row; and the
 -- install.removed audit row carries only the facts the platform actually
 -- controls (platformInstallRowRemoved, pluginDataDeletionNotRequested,
--- configurationRemoved) rather than a certification of what an arbitrary
--- onUninstall hook did to plugin_data, which the platform cannot make
--- since that hook runs first, with the service role, unconstrained
+-- pluginDataRetained, configurationRemoved). Ordinary uninstall executes no
+-- plugin hook, so retention by that operation is a mechanical invariant
 -- (pluginControlPlaneAuditDetails, unit-tested in
 -- control-plane-transition-core.test.ts).
 --
@@ -204,7 +203,7 @@ SELECT extensions.lives_ok(
       'install.removed',
       'eb000000-0000-4000-8000-000000000001',
       'user',
-      '{"controlPlaneTransition": "uninstall", "platformInstallRowRemoved": true, "pluginDataDeletionNotRequested": true, "configurationRemoved": true}'::jsonb
+      '{"controlPlaneTransition": "uninstall", "platformInstallRowRemoved": true, "pluginDataDeletionNotRequested": true, "pluginDataRetained": true, "configurationRemoved": true}'::jsonb
     )$$,
   'plugin_audit_logs schema accepts a hand-crafted install.removed row with known field values (see control-plane-transition-core.test.ts for production audit shape)'
 );
@@ -270,12 +269,13 @@ SELECT extensions.is(
 );
 
 SELECT extensions.ok(
-  NOT (
-    (SELECT details FROM public.plugin_audit_logs
+  (
+    SELECT details ->> 'pluginDataRetained'
+    FROM public.plugin_audit_logs
       WHERE organization_id = 'eb100000-0000-4000-8000-000000000001'
-        AND action = 'install.removed') ? 'pluginDataRetained'
-  ),
-  'hand-crafted fixture omits pluginDataRetained (production invariant is owned by control-plane-transition-core.test.ts)'
+        AND action = 'install.removed'
+  ) = 'true',
+  'hand-crafted fixture carries the production pluginDataRetained invariant'
 );
 
 -- ---------------------------------------------------------------------------

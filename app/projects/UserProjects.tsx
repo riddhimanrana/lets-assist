@@ -134,7 +134,7 @@ export default async function UserProjects() {
       id,
       status,
       schedule_id,
-      projects (
+      projects!project_signups_project_id_fkey (
         *,
         organizations(name, logo_url, username),
         published

@@ -531,7 +531,7 @@ SELECT extensions.throws_ok(
     VALUES (
       'fd100000-0000-4000-8000-000000000005',
       'Self-Verified Boundary Organization',
-      'self-verified-boundary-organization',
+      'self-verified-boundary-org',
       'school',
       '701005',
       true,
