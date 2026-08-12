@@ -5,11 +5,20 @@
 -- automatically exposed through PostgREST and only RLS contained it.
 -- 20260701054111 closed the same hole for plugin_data; `public` was never done.
 --
--- Scope, deliberately matching the migration: the grantors asserted are the two
--- that migrations create objects as. `supabase_admin` keeps its own default
--- ACLs because `postgres` is not superuser on hosted Supabase and cannot alter
--- them. FUNCTIONS are not asserted because Postgres grants EXECUTE to PUBLIC as
--- a built-in default that ALTER DEFAULT PRIVILEGES was verified not to
+-- Scope: the migration-grantor assertions cover the two roles that migrations
+-- create objects as (`postgres`, `service_role`). `supabase_admin` has its own
+-- default ACL that `postgres` cannot modify on hosted Supabase because `postgres`
+-- is not a superuser there. The correct statement for that cleanup would be:
+--
+--   ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
+--     REVOKE TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLES
+--     FROM authenticated, anon;
+--
+-- Since that cannot be executed in a migration, this suite adds a catalog
+-- assertion that verifies `supabase_admin` carries no such grants in the current
+-- environment. If a future platform update introduces them, this test surfaces
+-- it immediately. FUNCTIONS are not asserted because Postgres grants EXECUTE to
+-- PUBLIC as a built-in default that ALTER DEFAULT PRIVILEGES was verified not to
 -- suppress; new SECURITY DEFINER functions carry their own explicit REVOKE
 -- instead, which the SECURITY DEFINER allowlist in
 -- scripts/audit-supabase-architecture.sh checks.
@@ -18,7 +27,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(5);
+SELECT extensions.plan(6);
 
 -- ---------------------------------------------------------------------------
 -- Catalog: no migration-owned default ACL may name a client role
@@ -36,6 +45,23 @@ SELECT extensions.is(
   ),
   0::bigint,
   'no migration-owned table or sequence default in public grants a client role'
+);
+
+-- supabase_admin's own default ACL cannot be changed by postgres (not a
+-- superuser on hosted Supabase). This assertion documents the current state
+-- so any platform-side change that introduces blanket grants surfaces here.
+SELECT extensions.is(
+  (
+    SELECT count(*)
+    FROM pg_default_acl d
+    CROSS JOIN LATERAL unnest(d.defaclacl) AS entry(acl)
+    WHERE d.defaclnamespace = 'public'::regnamespace
+      AND d.defaclrole = 'supabase_admin'::regrole
+      AND d.defaclobjtype IN ('r', 'S')
+      AND (acl::text LIKE '%anon=%' OR acl::text LIKE '%authenticated=%')
+  ),
+  0::bigint,
+  'supabase_admin has no table/sequence default in public granting a client role'
 );
 
 -- ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(302);
+SELECT extensions.plan(307);
 
 -- The Server Action boundary is not the only way to write
 -- `organizations.username`: RLS lets a trusted member INSERT an
@@ -488,23 +488,48 @@ SELECT extensions.lives_ok(
 
 RESET ROLE;
 
--- `authenticated` no longer holds TRUNCATE, REFERENCES, or TRIGGER on this
--- table -- none of RLS, the INSERT cooldown policy, or the admin UPDATE
--- policy constrain any of the three, so holding them let any authenticated
--- user bypass every RLS policy on this table (e.g. `TRUNCATE
--- public.organizations`, wiping every organization in one statement).
-WITH revoked_privileges(privilege_name) AS (
+-- `authenticated` and `anon` no longer hold TRUNCATE, REFERENCES, or TRIGGER
+-- on this table. None of RLS, the INSERT cooldown policy, or the admin UPDATE
+-- policy constrain any of these -- RLS never fires for TRUNCATE -- so holding
+-- them let any authenticated user bypass every RLS policy on this table (e.g.
+-- `TRUNCATE public.organizations`, wiping every organization in one statement).
+-- The TRUNCATE revoke is defense-in-depth: PostgREST exposes no TRUNCATE verb,
+-- so no unmodified client can issue one. The durable root-cause fix is the
+-- default ACL cleanup in 20260810220400; this revoke covers the residual grant
+-- on this specific existing table.
+WITH revoked_role(role_name) AS (
+  VALUES ('authenticated'), ('anon')
+),
+revoked_privilege(privilege_name) AS (
   VALUES ('TRUNCATE'), ('REFERENCES'), ('TRIGGER')
 )
 SELECT extensions.ok(
-  NOT has_table_privilege('authenticated', 'public.organizations', privilege_name),
-  format('authenticated cannot %s public.organizations', privilege_name)
+  NOT has_table_privilege(role_name, 'public.organizations', privilege_name),
+  format('%s cannot %s public.organizations', role_name, privilege_name)
 )
-FROM revoked_privileges;
+FROM revoked_role CROSS JOIN revoked_privilege;
+
+-- MAINTAIN (PG 17+): revoked for both authenticated and anon. On PG < 17 the
+-- privilege does not exist, so effective absence is trivially true.
+SELECT extensions.ok(
+  CASE current_setting('server_version_num')::int >= 170000
+    WHEN TRUE THEN NOT has_table_privilege('authenticated', 'public.organizations', 'MAINTAIN')
+    ELSE TRUE
+  END,
+  'authenticated cannot MAINTAIN public.organizations'
+);
+
+SELECT extensions.ok(
+  CASE current_setting('server_version_num')::int >= 170000
+    WHEN TRUE THEN NOT has_table_privilege('anon', 'public.organizations', 'MAINTAIN')
+    ELSE TRUE
+  END,
+  'anon cannot MAINTAIN public.organizations'
+);
 
 -- The row-level-security-gated privileges this migration does not touch are
--- still held, so the "Create org with serialized cooldown" and "Allow
--- admins to update organizations" policies keep working.
+-- still held for authenticated, so the "Create org with serialized cooldown"
+-- and "Allow admins to update organizations" policies keep working.
 WITH retained_privileges(privilege_name) AS (
   VALUES ('INSERT'), ('UPDATE'), ('DELETE')
 )
