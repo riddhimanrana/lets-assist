@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(19);
+SELECT extensions.plan(30);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -24,7 +24,9 @@ VALUES
   ('f9000000-0000-4000-8000-000000000007', 'authenticated', 'authenticated',
    'review-volunteer-three@local.test', now(), '{}', '{}', now(), now()),
   ('f9000000-0000-4000-8000-000000000008', 'authenticated', 'authenticated',
-   'review-active-staff@local.test', now(), '{}', '{}', now(), now());
+   'review-active-staff@local.test', now(), '{}', '{}', now(), now()),
+  ('f9000000-0000-4000-8000-000000000009', 'authenticated', 'authenticated',
+   'review-null-status-admin@local.test', now(), '{}', '{}', now(), now());
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES (
@@ -44,7 +46,9 @@ VALUES
   ('f9100000-0000-4000-8000-000000000001',
    'f9000000-0000-4000-8000-000000000004', 'admin', 'active'),
   ('f9100000-0000-4000-8000-000000000001',
-   'f9000000-0000-4000-8000-000000000008', 'staff', 'active');
+   'f9000000-0000-4000-8000-000000000008', 'staff', 'active'),
+  ('f9100000-0000-4000-8000-000000000001',
+   'f9000000-0000-4000-8000-000000000009', 'admin', NULL);
 
 INSERT INTO public.projects (
   id, creator_id, organization_id, title, location, description, event_type,
@@ -91,7 +95,13 @@ VALUES
    'f9000000-0000-4000-8000-000000000006', 'oneTime', 'approved'),
   ('f9300000-0000-4000-8000-000000000004',
    'f9200000-0000-4000-8000-000000000004',
-   'f9000000-0000-4000-8000-000000000007', 'oneTime', 'approved');
+   'f9000000-0000-4000-8000-000000000007', 'oneTime', 'approved'),
+  ('f9300000-0000-4000-8000-000000000005',
+   'f9200000-0000-4000-8000-000000000001',
+   'f9000000-0000-4000-8000-000000000007', 'oneTime', 'cancelled'),
+  ('f9300000-0000-4000-8000-000000000006',
+   'f9200000-0000-4000-8000-000000000001',
+   'f9000000-0000-4000-8000-000000000009', 'oneTime', 'pending');
 
 UPDATE public.projects
 SET status = CASE id
@@ -106,6 +116,32 @@ WHERE id IN (
 UPDATE public.projects
 SET can_be_managed_by_staff = false
 WHERE id = 'f9200000-0000-4000-8000-000000000001';
+
+INSERT INTO public.projects (
+  id, creator_id, organization_id, title, location, description, event_type,
+  verification_method, schedule, require_login, status, recurrence_rule,
+  recurrence_parent_id, recurrence_sequence, recurrence_occurrence_date
+)
+VALUES
+  (
+    'f9200000-0000-4000-8000-000000000005',
+    'f9000000-0000-4000-8000-000000000001',
+    'f9100000-0000-4000-8000-000000000001',
+    'Recurring parent', 'Local', 'Review fixture', 'oneTime', 'manual',
+    '{"oneTime":{"date":"2031-08-16","startTime":"10:00","endTime":"12:00","volunteers":10}}',
+    true, 'upcoming',
+    '{"frequency":"weekly","interval":1,"end_type":"never"}',
+    NULL, NULL, NULL
+  ),
+  (
+    'f9200000-0000-4000-8000-000000000006',
+    'f9000000-0000-4000-8000-000000000001',
+    'f9100000-0000-4000-8000-000000000001',
+    'Recurring child', 'Local', 'Review fixture', 'oneTime', 'manual',
+    '{"oneTime":{"date":"2031-08-23","startTime":"10:00","endTime":"12:00","volunteers":10}}',
+    true, 'upcoming', NULL,
+    'f9200000-0000-4000-8000-000000000005', 1, '2031-08-23'
+  );
 
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" =
@@ -130,6 +166,7 @@ SELECT extensions.is(
   'suspended organization staff have no project organizer authority'
 );
 
+SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" =
   '{"sub":"f9000000-0000-4000-8000-000000000001","role":"authenticated"}';
 SELECT extensions.is(
@@ -164,6 +201,31 @@ SELECT extensions.is(
 );
 
 SET LOCAL "request.jwt.claims" =
+  '{"sub":"f9000000-0000-4000-8000-000000000009","role":"authenticated"}';
+SELECT extensions.is(
+  public.is_project_organizer(
+    'f9200000-0000-4000-8000-000000000001',
+    'f9000000-0000-4000-8000-000000000009'
+  ),
+  false,
+  'a null membership status grants no project authority'
+);
+
+UPDATE public.organization_members
+SET status = 'active'
+WHERE organization_id = 'f9100000-0000-4000-8000-000000000001'
+  AND user_id = 'f9000000-0000-4000-8000-000000000009';
+RESET ROLE;
+SELECT extensions.is(
+  (SELECT status FROM public.organization_members
+   WHERE organization_id = 'f9100000-0000-4000-8000-000000000001'
+     AND user_id = 'f9000000-0000-4000-8000-000000000009'),
+  NULL::text,
+  'an inactive actor cannot reactivate their own tenant authority'
+);
+
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
   '{"sub":"f9000000-0000-4000-8000-000000000001","role":"authenticated"}';
 SELECT extensions.throws_ok(
   $$UPDATE public.projects
@@ -172,6 +234,19 @@ SELECT extensions.throws_ok(
   '42501',
   'project cancellation requires cancel_project_transactional',
   'authenticated Data API updates cannot bypass the cancellation transaction'
+);
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f9000000-0000-4000-8000-000000000001","role":"authenticated"}';
+SELECT extensions.throws_ok(
+  $$UPDATE public.projects
+    SET status = 'upcoming'
+    WHERE id = 'f9200000-0000-4000-8000-000000000003'$$,
+  '42501',
+  'cancelled projects cannot be reopened directly',
+  'authenticated organizers cannot revive a cancelled project outside a reviewed recovery flow'
 );
 RESET ROLE;
 
@@ -223,6 +298,22 @@ SELECT extensions.throws_ok(
   '42501',
   'signup approval requires a capacity-safe transactional RPC',
   'authenticated managers cannot directly reapprove rejected signups'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE public.project_signups
+    SET status = 'approved'
+    WHERE id = 'f9300000-0000-4000-8000-000000000005'$$,
+  '42501',
+  'signup approval requires a capacity-safe transactional RPC',
+  'authenticated managers cannot directly revive cancelled signups as approved'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE public.project_signups
+    SET status = 'attended'
+    WHERE id = 'f9300000-0000-4000-8000-000000000006'$$,
+  '42501',
+  'attendance requires an approved signup',
+  'authenticated managers cannot skip approval and mark a pending signup attended'
 );
 RESET ROLE;
 
@@ -303,6 +394,69 @@ SELECT extensions.results_eq(
   $$,
   'denied attendance transitions preserve approved state'
 );
+
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f9000000-0000-4000-8000-000000000001","role":"authenticated"}';
+CREATE TEMP TABLE recurring_series_receipt AS
+SELECT public.end_recurring_project_series_transactional(
+  'f9200000-0000-4000-8000-000000000005'
+) AS receipt;
+RESET ROLE;
+
+SELECT extensions.is(
+  (SELECT receipt->>'outcome' FROM recurring_series_receipt),
+  'ended',
+  'series ending returns the exact committed outcome'
+);
+SELECT extensions.is(
+  (SELECT recurrence_rule FROM public.projects
+   WHERE id = 'f9200000-0000-4000-8000-000000000005'),
+  NULL::jsonb,
+  'series ending clears the parent recurrence rule'
+);
+SELECT extensions.is(
+  (SELECT status FROM public.projects
+   WHERE id = 'f9200000-0000-4000-8000-000000000006'),
+  'cancelled',
+  'series ending cancels the upcoming child in the same transaction'
+);
+SELECT extensions.is(
+  (SELECT count(*) FROM public.project_cancellation_jobs
+   WHERE project_id = 'f9200000-0000-4000-8000-000000000006'),
+  1::bigint,
+  'series ending records one durable cancellation job for the child'
+);
+SET LOCAL ROLE service_role;
+SELECT extensions.throws_ok(
+  $$INSERT INTO public.projects (
+      id, creator_id, title, location, description, event_type,
+      verification_method, schedule, require_login, status,
+      recurrence_parent_id, recurrence_sequence, recurrence_occurrence_date
+    ) VALUES (
+      'f9200000-0000-4000-8000-000000000007',
+      'f9000000-0000-4000-8000-000000000001',
+      'Stale generated child', 'Local', 'Review fixture', 'oneTime', 'manual',
+      '{"oneTime":{"date":"2031-08-30","startTime":"10:00","endTime":"12:00","volunteers":10}}',
+      true, 'upcoming',
+      'f9200000-0000-4000-8000-000000000005', 2, '2031-08-30'
+    )$$,
+  '55000',
+  'recurrence parent is no longer active',
+  'a stale generator cannot insert a child after the parent rule is cleared'
+);
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f9000000-0000-4000-8000-000000000001","role":"authenticated"}';
+SELECT extensions.is(
+  public.end_recurring_project_series_transactional(
+    'f9200000-0000-4000-8000-000000000005'
+  )->>'outcome',
+  'replayed',
+  'a retry after a lost response is replay-safe for calendar cleanup'
+);
+RESET ROLE;
 
 SELECT * FROM extensions.finish();
 
