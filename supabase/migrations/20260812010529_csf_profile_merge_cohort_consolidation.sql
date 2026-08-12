@@ -56,6 +56,144 @@ REVOKE ALL ON FUNCTION plugin_data.csf_lock_identity_mutation(uuid)
 COMMENT ON FUNCTION plugin_data.csf_lock_identity_mutation(uuid) IS
   'Owner-internal first lock for organization-scoped CSF identity mutations. Uses the legacy-stable atomic-profile-write key so profile writes, invitation acceptance, merge, import, claim, and connection operations share one hierarchy.';
 
+-- One fail-closed classifier owns the import-row policy everywhere below.
+-- Settled writes and explicit terminal skips are evidence, not current
+-- ownership. A reviewed decision that may still write, retry, or require
+-- reconciliation cannot be redirected after an identity merge.
+CREATE OR REPLACE FUNCTION plugin_data.csf_profile_merge_import_row_disposition(
+  p_commit_frozen_at timestamptz,
+  p_commit_target_profile_id uuid,
+  p_matched_profile_id uuid,
+  p_commit_attempt_id uuid,
+  p_commit_retry_count integer,
+  p_commit_outcome_state text,
+  p_import_status text,
+  p_commit_outcome_resolution text
+)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+SET search_path = ''
+AS $$
+  SELECT CASE
+    WHEN p_commit_outcome_state = 'succeeded'
+      AND p_import_status IN ('created', 'updated')
+      AND (
+        (
+          p_commit_frozen_at IS NULL
+          AND p_commit_target_profile_id IS NULL
+          AND p_commit_attempt_id IS NULL
+          AND p_commit_outcome_resolution = 'historical_accepted'
+        )
+        OR (
+          p_commit_frozen_at IS NOT NULL
+          AND p_commit_attempt_id IS NOT NULL
+          AND (
+            (
+              p_commit_target_profile_id IS NOT NULL
+              AND p_matched_profile_id IS NOT DISTINCT FROM p_commit_target_profile_id
+            )
+            OR (
+              p_commit_target_profile_id IS NULL
+              AND p_import_status = 'created'
+              AND p_matched_profile_id IS NOT NULL
+            )
+          )
+        )
+      )
+      THEN 'immutable_history'
+    WHEN p_commit_outcome_state = 'failed'
+      AND p_import_status = 'skipped'
+      AND p_commit_outcome_resolution = 'terminally_skipped'
+      AND p_commit_frozen_at IS NOT NULL
+      AND p_matched_profile_id IS NOT DISTINCT FROM p_commit_target_profile_id
+      AND p_commit_attempt_id IS NULL
+      AND p_commit_retry_count > 0
+      THEN 'immutable_history'
+    WHEN p_commit_frozen_at IS NULL
+      AND p_commit_target_profile_id IS NULL
+      AND p_commit_outcome_state = 'not_started'
+      THEN 'live_rewrite'
+    ELSE 'preflight_blocker'
+  END
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_profile_merge_import_row_disposition(
+  timestamptz, uuid, uuid, uuid, integer, text, text, text
+) FROM PUBLIC, anon, authenticated, service_role;
+
+COMMENT ON FUNCTION plugin_data.csf_profile_merge_import_row_disposition(
+  timestamptz, uuid, uuid, uuid, integer, text, text, text
+) IS
+  'Owner-internal fail-closed classifier for profile references held by sheet-import rows: unfrozen not-started matches move, settled success/terminal-skip evidence remains, and every recoverable or malformed remainder blocks.';
+
+CREATE OR REPLACE FUNCTION plugin_data.csf_profile_merge_import_target_conflicts(
+  p_organization_id uuid,
+  p_source_profile_id uuid
+)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = ''
+AS $$
+  WITH blocked AS (
+    SELECT import_row.*
+    FROM plugin_data.csf_sheet_import_rows AS import_row
+    WHERE import_row.organization_id = p_organization_id
+      AND (
+        import_row.matched_profile_id = p_source_profile_id
+        OR import_row.commit_target_profile_id = p_source_profile_id
+      )
+      AND plugin_data.csf_profile_merge_import_row_disposition(
+        import_row.commit_frozen_at,
+        import_row.commit_target_profile_id,
+        import_row.matched_profile_id,
+        import_row.commit_attempt_id,
+        import_row.commit_retry_count,
+        import_row.commit_outcome_state,
+        import_row.import_status,
+        import_row.commit_outcome_resolution
+      ) = 'preflight_blocker'
+  ), summary AS (
+    SELECT
+      pg_catalog.count(*) AS row_count,
+      pg_catalog.count(*) FILTER (
+        WHERE matched_profile_id = p_source_profile_id
+      ) AS matched_profile_count,
+      pg_catalog.count(*) FILTER (
+        WHERE commit_target_profile_id = p_source_profile_id
+      ) AS frozen_target_count,
+      pg_catalog.array_agg(DISTINCT commit_outcome_state ORDER BY commit_outcome_state)
+        AS outcome_states,
+      pg_catalog.array_agg(DISTINCT import_status ORDER BY import_status)
+        AS import_statuses
+    FROM blocked
+  )
+  SELECT CASE
+    WHEN summary.row_count = 0 THEN '[]'::jsonb
+    ELSE pg_catalog.jsonb_build_array(
+      pg_catalog.jsonb_build_object(
+        'type', 'outstanding_import_commit_target',
+        'label', 'Finish or reconcile the outstanding sheet import before merging these student records.',
+        'rowCount', summary.row_count,
+        'matchedProfileCount', summary.matched_profile_count,
+        'frozenTargetCount', summary.frozen_target_count,
+        'outcomeStates', pg_catalog.to_jsonb(summary.outcome_states),
+        'importStatuses', pg_catalog.to_jsonb(summary.import_statuses)
+      )
+    )
+  END
+  FROM summary
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_profile_merge_import_target_conflicts(uuid, uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+
+COMMENT ON FUNCTION plugin_data.csf_profile_merge_import_target_conflicts(uuid, uuid) IS
+  'Owner-internal canonical profile-merge blocker for frozen, retryable, in-flight, ambiguous, or malformed import targets. Returns bounded non-PII state counts only.';
+
 -- This is the complete current-schema inventory of references to a CSF
 -- profile. Every reference is deliberately classified as an atomic rewrite,
 -- immutable historical retention, or an execution blocker. Counts are scoped
@@ -144,9 +282,20 @@ AS $$
       ),
       pg_catalog.jsonb_build_object(
         'reference', 'plugin_data.csf_sheet_import_rows.matched_profile_id',
-        'scope', 'mutable reconciliation result only',
+        'scope', 'unfrozen not-started reconciliation result with no frozen target',
         'sourceCount', (SELECT pg_catalog.count(*) FROM plugin_data.csf_sheet_import_rows AS referenced_row
-          WHERE referenced_row.organization_id = p_organization_id AND referenced_row.matched_profile_id = p_source_profile_id)
+          WHERE referenced_row.organization_id = p_organization_id
+            AND referenced_row.matched_profile_id = p_source_profile_id
+            AND plugin_data.csf_profile_merge_import_row_disposition(
+              referenced_row.commit_frozen_at,
+              referenced_row.commit_target_profile_id,
+              referenced_row.matched_profile_id,
+              referenced_row.commit_attempt_id,
+              referenced_row.commit_retry_count,
+              referenced_row.commit_outcome_state,
+              referenced_row.import_status,
+              referenced_row.commit_outcome_resolution
+            ) = 'live_rewrite')
       ),
       pg_catalog.jsonb_build_object(
         'reference', 'plugin_data.csf_partner_submission_rows.profile_id',
@@ -262,10 +411,38 @@ AS $$
           WHERE referenced_row.organization_id = p_organization_id AND referenced_row.profile_id = p_source_profile_id)
       ),
       pg_catalog.jsonb_build_object(
-        'reference', 'plugin_data.csf_sheet_import_rows.commit_target_profile_id',
-        'scope', 'frozen reviewed import-commit target',
+        'reference', 'plugin_data.csf_sheet_import_rows.matched_profile_id',
+        'scope', 'settled successful or terminally skipped import evidence',
         'sourceCount', (SELECT pg_catalog.count(*) FROM plugin_data.csf_sheet_import_rows AS referenced_row
-          WHERE referenced_row.organization_id = p_organization_id AND referenced_row.commit_target_profile_id = p_source_profile_id)
+          WHERE referenced_row.organization_id = p_organization_id
+            AND referenced_row.matched_profile_id = p_source_profile_id
+            AND plugin_data.csf_profile_merge_import_row_disposition(
+              referenced_row.commit_frozen_at,
+              referenced_row.commit_target_profile_id,
+              referenced_row.matched_profile_id,
+              referenced_row.commit_attempt_id,
+              referenced_row.commit_retry_count,
+              referenced_row.commit_outcome_state,
+              referenced_row.import_status,
+              referenced_row.commit_outcome_resolution
+            ) = 'immutable_history')
+      ),
+      pg_catalog.jsonb_build_object(
+        'reference', 'plugin_data.csf_sheet_import_rows.commit_target_profile_id',
+        'scope', 'settled successful or terminally skipped frozen target evidence',
+        'sourceCount', (SELECT pg_catalog.count(*) FROM plugin_data.csf_sheet_import_rows AS referenced_row
+          WHERE referenced_row.organization_id = p_organization_id
+            AND referenced_row.commit_target_profile_id = p_source_profile_id
+            AND plugin_data.csf_profile_merge_import_row_disposition(
+              referenced_row.commit_frozen_at,
+              referenced_row.commit_target_profile_id,
+              referenced_row.matched_profile_id,
+              referenced_row.commit_attempt_id,
+              referenced_row.commit_retry_count,
+              referenced_row.commit_outcome_state,
+              referenced_row.import_status,
+              referenced_row.commit_outcome_resolution
+            ) = 'immutable_history')
       ),
       pg_catalog.jsonb_build_object(
         'reference', 'plugin_data.csf_partner_club_representatives.profile_id',
@@ -273,6 +450,42 @@ AS $$
         'sourceCount', (SELECT pg_catalog.count(*) FROM plugin_data.csf_partner_club_representatives AS referenced_row
           WHERE referenced_row.organization_id = p_organization_id AND referenced_row.profile_id = p_source_profile_id
             AND referenced_row.status IN ('revoked', 'expired'))
+      )
+    ),
+    'preflightBlockedReferences', pg_catalog.jsonb_build_array(
+      pg_catalog.jsonb_build_object(
+        'reference', 'plugin_data.csf_sheet_import_rows.matched_profile_id',
+        'scope', 'frozen, retryable, in-flight, ambiguous, or malformed import target',
+        'sourceCount', (SELECT pg_catalog.count(*) FROM plugin_data.csf_sheet_import_rows AS referenced_row
+          WHERE referenced_row.organization_id = p_organization_id
+            AND referenced_row.matched_profile_id = p_source_profile_id
+            AND plugin_data.csf_profile_merge_import_row_disposition(
+              referenced_row.commit_frozen_at,
+              referenced_row.commit_target_profile_id,
+              referenced_row.matched_profile_id,
+              referenced_row.commit_attempt_id,
+              referenced_row.commit_retry_count,
+              referenced_row.commit_outcome_state,
+              referenced_row.import_status,
+              referenced_row.commit_outcome_resolution
+            ) = 'preflight_blocker')
+      ),
+      pg_catalog.jsonb_build_object(
+        'reference', 'plugin_data.csf_sheet_import_rows.commit_target_profile_id',
+        'scope', 'frozen, retryable, in-flight, ambiguous, or malformed import target',
+        'sourceCount', (SELECT pg_catalog.count(*) FROM plugin_data.csf_sheet_import_rows AS referenced_row
+          WHERE referenced_row.organization_id = p_organization_id
+            AND referenced_row.commit_target_profile_id = p_source_profile_id
+            AND plugin_data.csf_profile_merge_import_row_disposition(
+              referenced_row.commit_frozen_at,
+              referenced_row.commit_target_profile_id,
+              referenced_row.matched_profile_id,
+              referenced_row.commit_attempt_id,
+              referenced_row.commit_retry_count,
+              referenced_row.commit_outcome_state,
+              referenced_row.import_status,
+              referenced_row.commit_outcome_resolution
+            ) = 'preflight_blocker')
       )
     ),
     'preflightBlockers', pg_catalog.jsonb_build_array(
@@ -284,7 +497,8 @@ AS $$
       'verified_account_binding',
       'active_point_submission_claim_unique_key',
       'active_staff_assignment_unique_key',
-      'open_point_appeal_unique_key'
+      'open_point_appeal_unique_key',
+      'outstanding_import_commit_target'
     )
   )
 $$;
@@ -325,6 +539,7 @@ DECLARE
   v_point_conflicts jsonb;
   v_staff_conflicts jsonb;
   v_appeal_conflicts jsonb;
+  v_import_conflicts jsonb;
   v_reference_plan jsonb;
 BEGIN
   v_preview := plugin_data.csf_profile_merge_preview_identity_base(
@@ -501,6 +716,19 @@ BEGIN
     AND source_row.status IN ('submitted', 'under_review');
   v_retained := v_retained || v_appeal_conflicts;
 
+  -- The import recovery ledger owns the target while a frozen decision may
+  -- still write, retry, or require reconciliation. Settled success/terminal
+  -- skip evidence is deliberately retained; only the classifier's remaining
+  -- state is a blocker here and in locked execution's recheck.
+  v_import_conflicts := plugin_data.csf_profile_merge_import_target_conflicts(
+    p_organization_id,
+    p_source_profile_id
+  );
+  IF pg_catalog.jsonb_typeof(v_import_conflicts) <> 'array' THEN
+    RAISE EXCEPTION 'The CSF import-target merge preflight did not return canonical conflicts.';
+  END IF;
+  v_retained := v_retained || v_import_conflicts;
+
   v_reference_plan := plugin_data.csf_profile_merge_reference_plan(
     p_organization_id,
     p_source_profile_id
@@ -531,6 +759,309 @@ BEGIN
   );
 END;
 $$;
+
+-- The historical July implementation owns the original reference rewrites.
+-- Replace only its now-internal copy so the append-only historical migration
+-- stays untouched while the import-row rewrite obeys the current recovery
+-- ledger. The surrounding wrapper supplies the organization/import row locks
+-- and records the exact live-row count.
+CREATE OR REPLACE FUNCTION plugin_data.csf_merge_profiles_identity_base(
+  p_organization_id uuid,
+  p_source_profile_id uuid,
+  p_target_profile_id uuid,
+  p_reason text,
+  p_actor_user_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_source plugin_data.csf_profiles%ROWTYPE;
+  v_target plugin_data.csf_profiles%ROWTYPE;
+  v_preview jsonb;
+  v_review_id uuid := gen_random_uuid();
+  v_correlation_id uuid := gen_random_uuid();
+  v_now timestamptz := now();
+  v_moved_accounts integer := 0;
+  v_moved_records integer := 0;
+  v_moved_import_matches integer := 0;
+  v_row_count integer := 0;
+BEGIN
+  IF p_source_profile_id = p_target_profile_id THEN
+    RAISE EXCEPTION 'Choose two different CSF student records.';
+  END IF;
+  IF nullif(btrim(p_reason), '') IS NULL OR length(btrim(p_reason)) < 8 THEN
+    RAISE EXCEPTION 'Explain why these two CSF student records are duplicates.';
+  END IF;
+
+  PERFORM 1
+  FROM plugin_data.csf_profiles AS profile
+  WHERE profile.organization_id = p_organization_id
+    AND profile.id IN (p_source_profile_id, p_target_profile_id)
+  ORDER BY profile.id
+  FOR UPDATE;
+
+  SELECT profile.* INTO v_source
+  FROM plugin_data.csf_profiles AS profile
+  WHERE profile.organization_id = p_organization_id
+    AND profile.id = p_source_profile_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Source CSF student record not found.'; END IF;
+
+  SELECT profile.* INTO v_target
+  FROM plugin_data.csf_profiles AS profile
+  WHERE profile.organization_id = p_organization_id
+    AND profile.id = p_target_profile_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Target CSF student record not found.'; END IF;
+  IF v_source.record_status <> 'active' THEN RAISE EXCEPTION 'The source CSF student record has already been merged.'; END IF;
+  IF v_target.record_status <> 'active' THEN RAISE EXCEPTION 'The target CSF student record is not active.'; END IF;
+
+  v_preview := plugin_data.csf_profile_merge_preview(
+    p_organization_id,
+    p_source_profile_id,
+    p_target_profile_id
+  );
+  IF coalesce((v_preview->>'canMerge')::boolean, false) = false THEN
+    RAISE EXCEPTION USING
+      MESSAGE = 'These CSF student records have conflicts that must be resolved before merging.',
+      DETAIL = (v_preview->'conflicts')::text,
+      HINT = 'Review the duplicate semester, attendance, signup, class, or verified-account records.';
+  END IF;
+
+  INSERT INTO plugin_data.csf_profile_merge_reviews (
+    id, organization_id, source_profile_id, target_profile_id, reason,
+    evidence, status, requested_by, reviewed_by, reviewed_at, notes,
+    correlation_id, source_snapshot, target_snapshot, conflict_snapshot,
+    created_at, updated_at
+  ) VALUES (
+    v_review_id,
+    p_organization_id,
+    p_source_profile_id,
+    p_target_profile_id,
+    btrim(p_reason),
+    jsonb_build_object('preview', v_preview),
+    'approved',
+    p_actor_user_id,
+    p_actor_user_id,
+    v_now,
+    'Completed through the audited member correction workflow.',
+    v_correlation_id,
+    v_preview->'source',
+    v_preview->'target',
+    v_preview->'conflicts',
+    v_now,
+    v_now
+  );
+
+  -- Collapse duplicate account rows for the same user into the target row,
+  -- retaining the source row as revoked evidence rather than deleting it.
+  UPDATE plugin_data.csf_profile_accounts AS target_account
+  SET status = CASE
+        WHEN source_account.status = 'verified' THEN 'verified'
+        WHEN target_account.status = 'verified' THEN 'verified'
+        WHEN source_account.status = 'pending' THEN 'pending'
+        ELSE target_account.status
+      END,
+      is_primary = CASE
+        WHEN source_account.status = 'verified' AND source_account.is_primary THEN true
+        ELSE target_account.is_primary
+      END,
+      linked_by = coalesce(target_account.linked_by, source_account.linked_by),
+      linked_at = least(target_account.linked_at, source_account.linked_at),
+      revoked_at = CASE
+        WHEN source_account.status = 'verified' OR target_account.status = 'verified' THEN NULL
+        ELSE target_account.revoked_at
+      END,
+      notes = concat_ws(E'\n', nullif(target_account.notes, ''), 'Duplicate account row consolidated during profile merge ' || v_correlation_id::text || '.')
+  FROM plugin_data.csf_profile_accounts AS source_account
+  WHERE source_account.organization_id = p_organization_id
+    AND source_account.profile_id = p_source_profile_id
+    AND target_account.organization_id = p_organization_id
+    AND target_account.profile_id = p_target_profile_id
+    AND target_account.user_id = source_account.user_id;
+
+  UPDATE plugin_data.csf_profile_accounts AS source_account
+  SET status = 'revoked',
+      is_primary = false,
+      revoked_at = v_now,
+      notes = concat_ws(E'\n', nullif(source_account.notes, ''), 'Superseded by profile merge ' || v_correlation_id::text || '.')
+  WHERE source_account.organization_id = p_organization_id
+    AND source_account.profile_id = p_source_profile_id
+    AND EXISTS (
+      SELECT 1
+      FROM plugin_data.csf_profile_accounts AS target_account
+      WHERE target_account.organization_id = p_organization_id
+        AND target_account.profile_id = p_target_profile_id
+        AND target_account.user_id = source_account.user_id
+    );
+
+  UPDATE plugin_data.csf_profile_accounts
+  SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id
+    AND profile_id = p_source_profile_id
+    AND status <> 'revoked';
+  GET DIAGNOSTICS v_moved_accounts = ROW_COUNT;
+
+  UPDATE plugin_data.csf_term_applications SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_term_memberships SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_profile_cohort_memberships SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_point_submissions SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_credit_records SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_point_appeals SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_submission_files SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_meeting_attendance SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_opportunity_signups SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_partner_submission_rows SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_profile_activity_events SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_profile_restrictions SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_staff_positions SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_application_files SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_dues_records SET profile_id = p_target_profile_id
+  WHERE organization_id = p_organization_id AND profile_id = p_source_profile_id;
+  GET DIAGNOSTICS v_row_count = ROW_COUNT; v_moved_records := v_moved_records + v_row_count;
+
+  UPDATE plugin_data.csf_sheet_import_rows AS import_row
+  SET matched_profile_id = p_target_profile_id
+  WHERE import_row.organization_id = p_organization_id
+    AND import_row.matched_profile_id = p_source_profile_id
+    AND plugin_data.csf_profile_merge_import_row_disposition(
+      import_row.commit_frozen_at,
+      import_row.commit_target_profile_id,
+      import_row.matched_profile_id,
+      import_row.commit_attempt_id,
+      import_row.commit_retry_count,
+      import_row.commit_outcome_state,
+      import_row.import_status,
+      import_row.commit_outcome_resolution
+    ) = 'live_rewrite';
+  GET DIAGNOSTICS v_moved_import_matches = ROW_COUNT;
+
+  UPDATE plugin_data.csf_profile_link_requests
+  SET matched_profile_id = CASE WHEN matched_profile_id = p_source_profile_id THEN p_target_profile_id ELSE matched_profile_id END,
+      candidate_profile_ids = array_replace(candidate_profile_ids, p_source_profile_id, p_target_profile_id),
+      updated_at = v_now
+  WHERE organization_id = p_organization_id
+    AND (
+      matched_profile_id = p_source_profile_id
+      OR p_source_profile_id = ANY(candidate_profile_ids)
+    );
+
+  UPDATE plugin_data.csf_profile_merge_reviews
+  SET status = 'cancelled',
+      reviewed_by = p_actor_user_id,
+      reviewed_at = v_now,
+      notes = concat_ws(E'\n', nullif(notes, ''), 'Cancelled because the source profile was merged by review ' || v_review_id::text || '.'),
+      updated_at = v_now
+  WHERE organization_id = p_organization_id
+    AND id <> v_review_id
+    AND status = 'pending'
+    AND (source_profile_id = p_source_profile_id OR target_profile_id = p_source_profile_id);
+
+  UPDATE plugin_data.csf_profiles
+  SET source_summary = coalesce(source_summary, '{}'::jsonb) || jsonb_build_object(
+        'mergedProfiles',
+        coalesce(source_summary->'mergedProfiles', '[]'::jsonb) || jsonb_build_array(jsonb_build_object(
+          'profileId', v_source.id,
+          'mergedAt', v_now,
+          'correlationId', v_correlation_id,
+          'sourceSummary', v_source.source_summary
+        ))
+      ),
+      updated_at = v_now
+  WHERE organization_id = p_organization_id
+    AND id = p_target_profile_id;
+
+  UPDATE plugin_data.csf_profiles
+  SET record_status = 'merged',
+      merged_into_profile_id = p_target_profile_id,
+      merged_at = v_now,
+      merged_by = p_actor_user_id,
+      merge_reason = btrim(p_reason),
+      updated_at = v_now
+  WHERE organization_id = p_organization_id
+    AND id = p_source_profile_id;
+
+  INSERT INTO plugin_data.csf_admin_audit_events (
+    organization_id, actor_user_id, action, target_type, target_id,
+    before_data, after_data, correlation_id, reason_code
+  ) VALUES (
+    p_organization_id,
+    p_actor_user_id,
+    'profile.merge',
+    'csf_profiles',
+    p_target_profile_id,
+    v_preview->'target',
+    jsonb_build_object(
+      'sourceProfileId', p_source_profile_id,
+      'targetProfileId', p_target_profile_id,
+      'reason', btrim(p_reason),
+      'reviewId', v_review_id,
+      'movedAccounts', v_moved_accounts,
+      'movedRecords', v_moved_records,
+      'sourceProvenancePreserved', true
+    ),
+    v_correlation_id,
+    'duplicate_profile_merged'
+  );
+
+  RETURN jsonb_build_object(
+    'sourceProfileId', p_source_profile_id,
+    'targetProfileId', p_target_profile_id,
+    'reviewId', v_review_id,
+    'movedAccounts', v_moved_accounts,
+    'movedRecords', v_moved_records,
+    'importRowLiveMatches', v_moved_import_matches,
+    'correlationId', v_correlation_id
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_merge_profiles_identity_base(
+  uuid, uuid, uuid, text, uuid
+) FROM PUBLIC, anon, authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
 -- Locked owner-internal merge implementation
@@ -564,6 +1095,7 @@ DECLARE
   v_correction_requests integer := 0;
   v_live_representatives integer := 0;
   v_preferences integer := 0;
+  v_import_live_matches integer := 0;
   v_live_source_references bigint := 0;
   v_reference_rewrites jsonb;
   v_retained_history jsonb;
@@ -596,6 +1128,37 @@ BEGIN
   ORDER BY profile.id
   FOR UPDATE;
 
+  -- Stabilize the exact import evidence set before preview. Claim now takes the
+  -- same organization lock before its coordinate/row locks; this row order then
+  -- agrees with the commit worklist. If claim won first, preview sees a blocker.
+  -- If merge won first, claim freezes the rewritten target after merge commits.
+  PERFORM 1
+  FROM plugin_data.csf_sheet_import_rows AS import_row
+  WHERE import_row.organization_id = p_organization_id
+    AND (
+      import_row.matched_profile_id = p_source_profile_id
+      OR import_row.commit_target_profile_id = p_source_profile_id
+    )
+  ORDER BY import_row.job_id, import_row.sheet_tab_name,
+    import_row.row_number, import_row.id
+  FOR UPDATE;
+
+  SELECT pg_catalog.count(*)::integer
+  INTO v_import_live_matches
+  FROM plugin_data.csf_sheet_import_rows AS import_row
+  WHERE import_row.organization_id = p_organization_id
+    AND import_row.matched_profile_id = p_source_profile_id
+    AND plugin_data.csf_profile_merge_import_row_disposition(
+      import_row.commit_frozen_at,
+      import_row.commit_target_profile_id,
+      import_row.matched_profile_id,
+      import_row.commit_attempt_id,
+      import_row.commit_retry_count,
+      import_row.commit_outcome_state,
+      import_row.import_status,
+      import_row.commit_outcome_resolution
+    ) = 'live_rewrite';
+
   -- Gate on the canonical preview BEFORE consolidating. Consolidation deletes
   -- the shared source rows; running this check afterwards would let a source
   -- that is active in a class the target only archived slip past both this
@@ -609,7 +1172,7 @@ BEGIN
     RAISE EXCEPTION USING
       MESSAGE = 'These CSF student records have conflicts that must be resolved before merging.',
       DETAIL = (v_preview -> 'conflicts')::text,
-      HINT = 'Review the duplicate semester, attendance, signup, class, point claim, appeal, staff assignment, or verified-account records.';
+      HINT = 'Review the duplicate semester, attendance, signup, class, point claim, appeal, staff assignment, verified-account, or outstanding import recovery records.';
   END IF;
 
   -- Consolidate exact duplicates deterministically. The target keeps the
@@ -740,6 +1303,13 @@ BEGIN
     p_reason,
     p_actor_user_id
   );
+  IF NULLIF(v_result ->> 'importRowLiveMatches', '')::integer
+    IS DISTINCT FROM v_import_live_matches THEN
+    RAISE EXCEPTION
+      'Profile merge planned % live import match rewrite(s) but executed %.',
+      v_import_live_matches,
+      COALESCE(NULLIF(v_result ->> 'importRowLiveMatches', '')::integer, -1);
+  END IF;
 
   -- These later schema references did not exist when the historical merge
   -- implementation was written. They are current ownership projections, so
@@ -806,7 +1376,31 @@ BEGIN
     UNION ALL SELECT pg_catalog.count(*) FROM plugin_data.csf_meeting_attendance AS referenced_row
       WHERE referenced_row.organization_id = p_organization_id AND referenced_row.profile_id = p_source_profile_id
     UNION ALL SELECT pg_catalog.count(*) FROM plugin_data.csf_sheet_import_rows AS referenced_row
-      WHERE referenced_row.organization_id = p_organization_id AND referenced_row.matched_profile_id = p_source_profile_id
+      WHERE referenced_row.organization_id = p_organization_id
+        AND referenced_row.matched_profile_id = p_source_profile_id
+        AND plugin_data.csf_profile_merge_import_row_disposition(
+          referenced_row.commit_frozen_at,
+          referenced_row.commit_target_profile_id,
+          referenced_row.matched_profile_id,
+          referenced_row.commit_attempt_id,
+          referenced_row.commit_retry_count,
+          referenced_row.commit_outcome_state,
+          referenced_row.import_status,
+          referenced_row.commit_outcome_resolution
+        ) <> 'immutable_history'
+    UNION ALL SELECT pg_catalog.count(*) FROM plugin_data.csf_sheet_import_rows AS referenced_row
+      WHERE referenced_row.organization_id = p_organization_id
+        AND referenced_row.commit_target_profile_id = p_source_profile_id
+        AND plugin_data.csf_profile_merge_import_row_disposition(
+          referenced_row.commit_frozen_at,
+          referenced_row.commit_target_profile_id,
+          referenced_row.matched_profile_id,
+          referenced_row.commit_attempt_id,
+          referenced_row.commit_retry_count,
+          referenced_row.commit_outcome_state,
+          referenced_row.import_status,
+          referenced_row.commit_outcome_resolution
+        ) <> 'immutable_history'
     UNION ALL SELECT pg_catalog.count(*) FROM plugin_data.csf_partner_submission_rows AS referenced_row
       WHERE referenced_row.organization_id = p_organization_id AND referenced_row.profile_id = p_source_profile_id
     UNION ALL SELECT pg_catalog.count(*) FROM plugin_data.csf_profile_link_requests AS referenced_row
@@ -848,6 +1442,7 @@ BEGIN
   v_reference_rewrites := pg_catalog.jsonb_build_object(
     'priorMergeTombstones', v_prior_tombstones,
     'profileLinkCandidateArrays', v_candidate_arrays,
+    'importRowLiveMatches', v_import_live_matches,
     'directInvitations', v_direct_invitations,
     'applicationCorrectionRequests', v_correction_requests,
     'livePartnerRepresentatives', v_live_representatives,
@@ -939,7 +1534,8 @@ BEGIN
 
   RETURN v_result || pg_catalog.jsonb_build_object(
     'movedRecords', COALESCE((v_result ->> 'movedRecords')::integer, 0)
-      + v_prior_tombstones + v_candidate_arrays + v_direct_invitations
+      + v_prior_tombstones + v_candidate_arrays + v_import_live_matches
+      + v_direct_invitations
       + v_correction_requests + v_live_representatives + v_preferences,
     'referenceRewriteCounts', v_reference_rewrites,
     'retainedHistory', v_retained_history,
@@ -1367,6 +1963,37 @@ BEGIN
 END;
 $$;
 
+-- Freezing an import target is an identity mutation too. Take the organization
+-- lock before the historical claim function takes its commit coordinate and
+-- preview-row locks, so merge and freeze cannot pass each other's preflights.
+ALTER FUNCTION plugin_data.csf_claim_import_commit_attempt(
+  uuid, uuid, uuid, integer, uuid
+) RENAME TO csf_claim_import_commit_attempt_identity_base;
+
+CREATE OR REPLACE FUNCTION plugin_data.csf_claim_import_commit_attempt(
+  p_organization_id uuid,
+  p_preview_job_id uuid,
+  p_actor_user_id uuid,
+  p_lease_seconds integer,
+  p_evidence_token uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  PERFORM plugin_data.csf_lock_identity_mutation(p_organization_id);
+  RETURN plugin_data.csf_claim_import_commit_attempt_identity_base(
+    p_organization_id,
+    p_preview_job_id,
+    p_actor_user_id,
+    p_lease_seconds,
+    p_evidence_token
+  );
+END;
+$$;
+
 -- ---------------------------------------------------------------------------
 -- Execution privileges
 -- ---------------------------------------------------------------------------
@@ -1431,6 +2058,12 @@ REVOKE ALL ON FUNCTION plugin_data.csf_import_application_response_row(
 ) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION plugin_data.csf_resolve_profile_link_request(uuid, uuid, uuid, text, text, uuid)
   FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION plugin_data.csf_claim_import_commit_attempt_identity_base(
+  uuid, uuid, uuid, integer, uuid
+) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION plugin_data.csf_claim_import_commit_attempt(
+  uuid, uuid, uuid, integer, uuid
+) FROM PUBLIC, anon, authenticated;
 
 GRANT EXECUTE ON FUNCTION plugin_data.csf_profile_merge_preview(uuid, uuid, uuid)
   TO service_role;
@@ -1462,13 +2095,16 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_import_application_response_row(
 ) TO service_role;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_resolve_profile_link_request(uuid, uuid, uuid, text, text, uuid)
   TO service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_claim_import_commit_attempt(
+  uuid, uuid, uuid, integer, uuid
+) TO service_role;
 
 COMMENT ON FUNCTION plugin_data.csf_profile_merge_preview_identity_base(uuid, uuid, uuid) IS
   'Owner-internal identity preview (20260809212049): relationship conflicts plus exact identity corroboration, before cohort consolidation is accounted for.';
 COMMENT ON FUNCTION plugin_data.csf_profile_merge_preview(uuid, uuid, uuid) IS
-  'Canonical merge preview: identity corroboration is unchanged, exact shared cohorts are consolidatable, the active-cohort union and every profile-key uniqueness rule (including active point claims, active staff assignments, and open point appeals) are canonical blockers, and the complete current-schema profile-reference plan is disclosed.';
+  'Canonical merge preview: identity corroboration is unchanged, exact shared cohorts are consolidatable, the active-cohort union, every profile-key uniqueness rule, and every outstanding/retryable/ambiguous frozen import target are canonical blockers; settled import evidence is retained and the complete current-schema profile-reference plan is disclosed.';
 COMMENT ON FUNCTION plugin_data.csf_merge_profiles(uuid, uuid, uuid, text, uuid) IS
-  'Owner-internal compatibility implementation: revalidates authority, acquires the organization identity lock before ordered profile rows, rechecks the canonical preview, consolidates exact cohort duplicates, rewrites every current ownership reference, retains classified immutable history, and aborts unless zero unintended live source references remain. Service callers use the request-aware overload.';
+  'Owner-internal compatibility implementation: revalidates authority, acquires the organization identity lock before ordered profile/import rows, rechecks the canonical preview, consolidates exact cohort duplicates, rewrites every current ownership reference including only unfrozen not-started import matches, retains settled import and other immutable history, and aborts unless zero unintended live source references remain. Service callers use the request-aware overload.';
 COMMENT ON FUNCTION plugin_data.csf_merge_profiles(uuid, uuid, uuid, text, uuid, uuid) IS
   'Request-aware profile merge with organization identity lock first, request replay lock second, and the canonical locked merge last. Signature and replay semantics are preserved.';
 COMMENT ON FUNCTION plugin_data.csf_submit_profile_link_request(
@@ -1497,5 +2133,9 @@ COMMENT ON FUNCTION plugin_data.csf_import_application_response_row(
 ) IS 'Atomic reviewed application-response import under the organization identity lock.';
 COMMENT ON FUNCTION plugin_data.csf_resolve_profile_link_request(uuid, uuid, uuid, text, text, uuid) IS
   'Identity-corroborated connection resolution under the organization identity lock. Same-organization identity changes serialize; unrelated organizations do not take global table locks.';
+COMMENT ON FUNCTION plugin_data.csf_claim_import_commit_attempt(
+  uuid, uuid, uuid, integer, uuid
+) IS
+  'Import-commit claim under the organization identity lock before the historical coordinate and preview-row locks, so a profile merge and target freeze cannot pass conflicting preflights.';
 
 COMMIT;

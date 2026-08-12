@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(32);
+SELECT extensions.plan(49);
 
 -- ---------------------------------------------------------------------------
 -- Exact current-schema profile-reference catalog
@@ -112,9 +112,15 @@ SELECT extensions.ok(
         LATERAL pg_catalog.jsonb_array_elements(
           payload->'immutableHistoryRetentions'
         ) AS entry
+      UNION
+      SELECT entry->>'reference'
+      FROM merge_reference_plan,
+        LATERAL pg_catalog.jsonb_array_elements(
+          payload->'preflightBlockedReferences'
+        ) AS entry
     )
   ),
-  'every current FK appears in the canonical rewrite-or-history plan'
+  'every current FK appears in the canonical rewrite, history, or blocker plan'
 );
 SELECT extensions.ok(
   EXISTS (
@@ -169,12 +175,14 @@ SELECT extensions.ok(
     WHERE entry->>'reference' =
       'plugin_data.csf_sheet_import_rows.commit_target_profile_id'
   ),
-  'closure, outbound-audience, and frozen import-target references are deliberately retained as immutable history'
+  'closure, outbound-audience, and settled frozen import-target references are deliberately retained as immutable history'
 );
 SELECT extensions.ok(
   (SELECT payload->'preflightBlockers' FROM merge_reference_plan)
-    ? 'active_point_submission_claim_unique_key',
-  'the catalog names the active point-claim unique index as a canonical blocker'
+    ? 'active_point_submission_claim_unique_key'
+  AND (SELECT payload->'preflightBlockers' FROM merge_reference_plan)
+    ? 'outstanding_import_commit_target',
+  'the catalog names active point claims and outstanding import targets as canonical blockers'
 );
 SELECT extensions.ok(
   (SELECT payload->'preflightBlockers' FROM merge_reference_plan)
@@ -242,6 +250,19 @@ INSERT INTO plugin_data.csf_profiles (
   ('fb300000-0000-4000-8000-000000000011', 'fb100000-0000-4000-8000-000000000001', 'Fox', 'Ridge', 'fox.ridge@local.test', 'fox', 'ridge', 'fox.ridge@local.test'),
   ('fb300000-0000-4000-8000-000000000012', 'fb100000-0000-4000-8000-000000000001', 'Fox', 'Ridge', 'fox.ridge@local.test', 'fox', 'ridge', 'fox.ridge@local.test');
 
+INSERT INTO plugin_data.csf_profiles (
+  id, organization_id, first_name, last_name, school_email,
+  normalized_first_name, normalized_last_name, normalized_school_email
+) VALUES
+  ('fb300000-0000-4000-8000-000000000013', 'fb100000-0000-4000-8000-000000000001', 'Gale', 'Reed', 'gale.reed@local.test', 'gale', 'reed', 'gale.reed@local.test'),
+  ('fb300000-0000-4000-8000-000000000014', 'fb100000-0000-4000-8000-000000000001', 'Gale', 'Reed', 'gale.reed@local.test', 'gale', 'reed', 'gale.reed@local.test'),
+  ('fb300000-0000-4000-8000-000000000015', 'fb100000-0000-4000-8000-000000000001', 'Hale', 'Moss', 'hale.moss@local.test', 'hale', 'moss', 'hale.moss@local.test'),
+  ('fb300000-0000-4000-8000-000000000016', 'fb100000-0000-4000-8000-000000000001', 'Hale', 'Moss', 'hale.moss@local.test', 'hale', 'moss', 'hale.moss@local.test'),
+  ('fb300000-0000-4000-8000-000000000017', 'fb100000-0000-4000-8000-000000000001', 'Ivo', 'Glen', 'ivo.glen@local.test', 'ivo', 'glen', 'ivo.glen@local.test'),
+  ('fb300000-0000-4000-8000-000000000018', 'fb100000-0000-4000-8000-000000000001', 'Ivo', 'Glen', 'ivo.glen@local.test', 'ivo', 'glen', 'ivo.glen@local.test'),
+  ('fb300000-0000-4000-8000-000000000019', 'fb100000-0000-4000-8000-000000000001', 'Jules', 'Fern', 'jules.fern@local.test', 'jules', 'fern', 'jules.fern@local.test'),
+  ('fb300000-0000-4000-8000-000000000020', 'fb100000-0000-4000-8000-000000000001', 'Jules', 'Fern', 'jules.fern@local.test', 'jules', 'fern', 'jules.fern@local.test');
+
 INSERT INTO plugin_data.csf_point_submissions (
   id, organization_id, profile_id, term_id, opportunity_id,
   source, description, claimed_points, status
@@ -274,6 +295,513 @@ INSERT INTO plugin_data.csf_point_appeals (
 ) VALUES
   ('fbc00000-0000-4000-8000-000000000001', 'fb100000-0000-4000-8000-000000000001', 'fb300000-0000-4000-8000-000000000011', 'fb200000-0000-4000-8000-000000000001', 'fb500000-0000-4000-8000-000000000001', 'Synthetic source open appeal.', 2, 'submitted', 'fb000000-0000-4000-8000-000000000001'),
   ('fbc00000-0000-4000-8000-000000000002', 'fb100000-0000-4000-8000-000000000001', 'fb300000-0000-4000-8000-000000000012', 'fb200000-0000-4000-8000-000000000001', 'fb500000-0000-4000-8000-000000000001', 'Synthetic target open appeal.', 2, 'under_review', 'fb000000-0000-4000-8000-000000000001');
+
+-- ---------------------------------------------------------------------------
+-- Frozen import-target lifecycle agreement
+-- ---------------------------------------------------------------------------
+
+INSERT INTO plugin_data.csf_sheet_sources (
+  id, organization_id, source_type, title, provider, settings
+) VALUES (
+  'fbd00000-0000-4000-8000-000000000001',
+  'fb100000-0000-4000-8000-000000000001',
+  'student_roster', 'Synthetic profile-merge import ledger',
+  'uploaded_csv', '{}'::jsonb
+);
+
+INSERT INTO plugin_data.csf_sheet_import_jobs (
+  id, organization_id, source_id, initiated_by, mode, status, source_type
+) VALUES (
+  'fbe00000-0000-4000-8000-000000000001',
+  'fb100000-0000-4000-8000-000000000001',
+  'fbd00000-0000-4000-8000-000000000001',
+  'fb000000-0000-4000-8000-000000000001',
+  'preview', 'completed', 'student_roster'
+);
+
+INSERT INTO plugin_data.csf_sheet_import_jobs (
+  id, organization_id, source_id, initiated_by, mode, status, source_type,
+  preview_job_id, summary, started_at, commit_actor_user_id,
+  commit_actor_snapshot
+) VALUES (
+  'fbe00000-0000-4000-8000-000000000002',
+  'fb100000-0000-4000-8000-000000000001',
+  'fbd00000-0000-4000-8000-000000000001',
+  'fb000000-0000-4000-8000-000000000001',
+  'commit', 'running', 'student_roster',
+  'fbe00000-0000-4000-8000-000000000001',
+  jsonb_build_object('previewJobId', 'fbe00000-0000-4000-8000-000000000001'),
+  now(), 'fb000000-0000-4000-8000-000000000001',
+  jsonb_build_object('fixture', 'profile_merge_import_states')
+);
+
+INSERT INTO plugin_data.csf_sheet_import_commit_attempts (
+  id, organization_id, commit_job_id, attempt_number, correlation_id,
+  actor_user_id, actor_snapshot, status, lease_expires_at
+) VALUES (
+  'fbf00000-0000-4000-8000-000000000001',
+  'fb100000-0000-4000-8000-000000000001',
+  'fbe00000-0000-4000-8000-000000000002', 1,
+  'fbf10000-0000-4000-8000-000000000001',
+  'fb000000-0000-4000-8000-000000000001',
+  jsonb_build_object('fixture', 'profile_merge_import_states'),
+  'running', now() + interval '1 hour'
+);
+
+UPDATE plugin_data.csf_sheet_import_jobs
+SET active_commit_attempt_id = 'fbf00000-0000-4000-8000-000000000001'
+WHERE id = 'fbe00000-0000-4000-8000-000000000002';
+
+INSERT INTO plugin_data.csf_sheet_import_rows (
+  id, organization_id, job_id, source_id, sheet_tab_name, row_number,
+  row_hash, matched_profile_id, import_status,
+  commit_frozen_at, commit_frozen_by_job_id, commit_frozen_row_hash,
+  commit_frozen_source_id, commit_frozen_payload_hash,
+  commit_frozen_actor_user_id, commit_frozen_actor_snapshot,
+  commit_target_profile_id, commit_resolution_snapshot,
+  commit_intent_attempt_id, commit_intent_correlation_id,
+  commit_intent_started_at, commit_attempt_id, commit_outcome_state,
+  commit_outcome_code, commit_outcome_resolution,
+  commit_outcome_resolved_by, commit_outcome_resolved_at,
+  commit_outcome_unresolved, commit_outcome_note,
+  commit_retry_count, commit_last_failed_attempt_id
+) VALUES
+  -- Mutable: never frozen and never started.
+  (
+    'fbd10000-0000-4000-8000-000000000001',
+    'fb100000-0000-4000-8000-000000000001',
+    'fbe00000-0000-4000-8000-000000000001',
+    'fbd00000-0000-4000-8000-000000000001', 'Roster', 1,
+    repeat('1', 64), 'fb300000-0000-4000-8000-000000000013', 'pending',
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, 'not_started', NULL, NULL, NULL, NULL,
+    false, NULL, 0, NULL
+  ),
+  -- Immutable terminal success with the reviewed target and write lineage.
+  (
+    'fbd10000-0000-4000-8000-000000000002',
+    'fb100000-0000-4000-8000-000000000001',
+    'fbe00000-0000-4000-8000-000000000001',
+    'fbd00000-0000-4000-8000-000000000001', 'Roster', 2,
+    repeat('2', 64), 'fb300000-0000-4000-8000-000000000013', 'updated',
+    now(), 'fbe00000-0000-4000-8000-000000000002', repeat('2', 64),
+    'fbd00000-0000-4000-8000-000000000001', repeat('a', 64),
+    'fb000000-0000-4000-8000-000000000001', '{}'::jsonb,
+    'fb300000-0000-4000-8000-000000000013', '{}'::jsonb,
+    'fbf00000-0000-4000-8000-000000000001',
+    'fbf10000-0000-4000-8000-000000000001', now(),
+    'fbf00000-0000-4000-8000-000000000001', 'succeeded',
+    'row_updated', NULL, NULL, NULL, false, NULL, 0, NULL
+  ),
+  -- Immutable terminal skip after a deterministic failure was settled.
+  (
+    'fbd10000-0000-4000-8000-000000000003',
+    'fb100000-0000-4000-8000-000000000001',
+    'fbe00000-0000-4000-8000-000000000001',
+    'fbd00000-0000-4000-8000-000000000001', 'Roster', 3,
+    repeat('3', 64), 'fb300000-0000-4000-8000-000000000013', 'skipped',
+    now(), 'fbe00000-0000-4000-8000-000000000002', repeat('3', 64),
+    'fbd00000-0000-4000-8000-000000000001', repeat('b', 64),
+    'fb000000-0000-4000-8000-000000000001', '{}'::jsonb,
+    'fb300000-0000-4000-8000-000000000013', '{}'::jsonb,
+    'fbf00000-0000-4000-8000-000000000001',
+    'fbf10000-0000-4000-8000-000000000001', now(), NULL, 'failed',
+    'row_commit_failed', 'terminally_skipped',
+    'fb000000-0000-4000-8000-000000000001', now(),
+    false, 'Synthetic terminal skip.', 1,
+    'fbf00000-0000-4000-8000-000000000001'
+  ),
+  -- Retryable deterministic failure: the original frozen target must not move.
+  (
+    'fbd10000-0000-4000-8000-000000000004',
+    'fb100000-0000-4000-8000-000000000001',
+    'fbe00000-0000-4000-8000-000000000001',
+    'fbd00000-0000-4000-8000-000000000001', 'Roster', 4,
+    repeat('4', 64), 'fb300000-0000-4000-8000-000000000015', 'error',
+    now(), 'fbe00000-0000-4000-8000-000000000002', repeat('4', 64),
+    'fbd00000-0000-4000-8000-000000000001', repeat('c', 64),
+    'fb000000-0000-4000-8000-000000000001', '{}'::jsonb,
+    'fb300000-0000-4000-8000-000000000015', '{}'::jsonb,
+    'fbf00000-0000-4000-8000-000000000001',
+    'fbf10000-0000-4000-8000-000000000001', now(),
+    'fbf00000-0000-4000-8000-000000000001', 'failed',
+    'row_commit_failed', NULL, NULL, NULL, false,
+    'Synthetic retryable failure.', 0, NULL
+  ),
+  -- Frozen but not attempted.
+  (
+    'fbd10000-0000-4000-8000-000000000005',
+    'fb100000-0000-4000-8000-000000000001',
+    'fbe00000-0000-4000-8000-000000000001',
+    'fbd00000-0000-4000-8000-000000000001', 'Roster', 5,
+    repeat('5', 64), 'fb300000-0000-4000-8000-000000000015', 'pending',
+    now(), 'fbe00000-0000-4000-8000-000000000002', repeat('5', 64),
+    'fbd00000-0000-4000-8000-000000000001', repeat('d', 64),
+    'fb000000-0000-4000-8000-000000000001', '{}'::jsonb,
+    'fb300000-0000-4000-8000-000000000015', '{}'::jsonb,
+    NULL, NULL, NULL, NULL, 'frozen', NULL, NULL, NULL, NULL,
+    false, NULL, 0, NULL
+  ),
+  -- A write may already be landing.
+  (
+    'fbd10000-0000-4000-8000-000000000006',
+    'fb100000-0000-4000-8000-000000000001',
+    'fbe00000-0000-4000-8000-000000000001',
+    'fbd00000-0000-4000-8000-000000000001', 'Roster', 6,
+    repeat('6', 64), 'fb300000-0000-4000-8000-000000000017', 'pending',
+    now(), 'fbe00000-0000-4000-8000-000000000002', repeat('6', 64),
+    'fbd00000-0000-4000-8000-000000000001', repeat('e', 64),
+    'fb000000-0000-4000-8000-000000000001', '{}'::jsonb,
+    'fb300000-0000-4000-8000-000000000017', '{}'::jsonb,
+    'fbf00000-0000-4000-8000-000000000001',
+    'fbf10000-0000-4000-8000-000000000001', now(), NULL, 'in_flight',
+    NULL, NULL, NULL, NULL, false, NULL, 0, NULL
+  ),
+  -- Ambiguous current and pre-ledger outcomes both require review.
+  (
+    'fbd10000-0000-4000-8000-000000000007',
+    'fb100000-0000-4000-8000-000000000001',
+    'fbe00000-0000-4000-8000-000000000001',
+    'fbd00000-0000-4000-8000-000000000001', 'Roster', 7,
+    repeat('7', 64), 'fb300000-0000-4000-8000-000000000019', 'pending',
+    now(), 'fbe00000-0000-4000-8000-000000000002', repeat('7', 64),
+    'fbd00000-0000-4000-8000-000000000001', repeat('f', 64),
+    'fb000000-0000-4000-8000-000000000001', '{}'::jsonb,
+    'fb300000-0000-4000-8000-000000000019', '{}'::jsonb,
+    'fbf00000-0000-4000-8000-000000000001',
+    'fbf10000-0000-4000-8000-000000000001', now(), NULL, 'unknown',
+    NULL, NULL, NULL, NULL, true, 'Synthetic ambiguous result.', 0, NULL
+  ),
+  (
+    'fbd10000-0000-4000-8000-000000000008',
+    'fb100000-0000-4000-8000-000000000001',
+    'fbe00000-0000-4000-8000-000000000001',
+    'fbd00000-0000-4000-8000-000000000001', 'Roster', 8,
+    repeat('8', 64), 'fb300000-0000-4000-8000-000000000019', 'updated',
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, 'historical_unknown', NULL, NULL, NULL, NULL,
+    true, 'Synthetic pre-ledger review.', 0, NULL
+  );
+
+SELECT extensions.is(
+  ARRAY[
+    plugin_data.csf_profile_merge_import_row_disposition(
+      NULL, NULL, 'fb300000-0000-4000-8000-000000000013',
+      NULL, 0, 'not_started', 'pending', NULL
+    ),
+    plugin_data.csf_profile_merge_import_row_disposition(
+      now(), 'fb300000-0000-4000-8000-000000000013',
+      'fb300000-0000-4000-8000-000000000013',
+      'fbf00000-0000-4000-8000-000000000001', 0,
+      'succeeded', 'updated', NULL
+    ),
+    plugin_data.csf_profile_merge_import_row_disposition(
+      now(), 'fb300000-0000-4000-8000-000000000014',
+      'fb300000-0000-4000-8000-000000000013',
+      'fbf00000-0000-4000-8000-000000000001', 0,
+      'succeeded', 'updated', NULL
+    ),
+    plugin_data.csf_profile_merge_import_row_disposition(
+      now(), 'fb300000-0000-4000-8000-000000000013',
+      'fb300000-0000-4000-8000-000000000013',
+      NULL, 1, 'failed', 'skipped', 'terminally_skipped'
+    ),
+    plugin_data.csf_profile_merge_import_row_disposition(
+      now(), 'fb300000-0000-4000-8000-000000000015',
+      'fb300000-0000-4000-8000-000000000015',
+      NULL, 0, 'frozen', 'pending', NULL
+    ),
+    plugin_data.csf_profile_merge_import_row_disposition(
+      now(), 'fb300000-0000-4000-8000-000000000015',
+      'fb300000-0000-4000-8000-000000000015',
+      'fbf00000-0000-4000-8000-000000000001', 0,
+      'failed', 'error', NULL
+    ),
+    plugin_data.csf_profile_merge_import_row_disposition(
+      now(), 'fb300000-0000-4000-8000-000000000017',
+      'fb300000-0000-4000-8000-000000000017',
+      NULL, 0, 'in_flight', 'pending', NULL
+    ),
+    plugin_data.csf_profile_merge_import_row_disposition(
+      now(), 'fb300000-0000-4000-8000-000000000019',
+      'fb300000-0000-4000-8000-000000000019',
+      NULL, 0, 'unknown', 'pending', NULL
+    ),
+    plugin_data.csf_profile_merge_import_row_disposition(
+      NULL, NULL, 'fb300000-0000-4000-8000-000000000019',
+      NULL, 0, 'historical_unknown', 'updated', NULL
+    )
+  ],
+  ARRAY[
+    'live_rewrite', 'immutable_history', 'preflight_blocker',
+    'immutable_history',
+    'preflight_blocker', 'preflight_blocker', 'preflight_blocker',
+    'preflight_blocker', 'preflight_blocker'
+  ]::text[],
+  'one fail-closed classifier owns every import-row merge disposition'
+);
+
+SELECT extensions.ok(
+  (plugin_data.csf_profile_merge_preview(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb300000-0000-4000-8000-000000000013',
+    'fb300000-0000-4000-8000-000000000014'
+  )->>'canMerge')::boolean,
+  'settled success and terminal-skip evidence do not block a live-match merge'
+);
+
+WITH ready_plan AS (
+  SELECT plugin_data.csf_profile_merge_reference_plan(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb300000-0000-4000-8000-000000000013'
+  ) AS payload
+)
+SELECT extensions.ok(
+  (
+    SELECT (entry->>'sourceCount')::integer = 1
+    FROM ready_plan,
+      LATERAL jsonb_array_elements(payload->'sameTransactionRewrites') AS entry
+    WHERE entry->>'reference' =
+      'plugin_data.csf_sheet_import_rows.matched_profile_id'
+  )
+  AND (
+    SELECT (entry->>'sourceCount')::integer = 2
+    FROM ready_plan,
+      LATERAL jsonb_array_elements(payload->'immutableHistoryRetentions') AS entry
+    WHERE entry->>'reference' =
+      'plugin_data.csf_sheet_import_rows.matched_profile_id'
+  )
+  AND (
+    SELECT (entry->>'sourceCount')::integer = 2
+    FROM ready_plan,
+      LATERAL jsonb_array_elements(payload->'immutableHistoryRetentions') AS entry
+    WHERE entry->>'reference' =
+      'plugin_data.csf_sheet_import_rows.commit_target_profile_id'
+  )
+  AND (
+    SELECT pg_catalog.sum((entry->>'sourceCount')::integer) = 0
+    FROM ready_plan,
+      LATERAL jsonb_array_elements(payload->'preflightBlockedReferences') AS entry
+    WHERE entry->>'reference' LIKE 'plugin_data.csf_sheet_import_rows.%'
+  ),
+  'the catalog counts one live rewrite, two retained matches, two retained targets, and no blocker'
+);
+
+SELECT extensions.is(
+  plugin_data.csf_merge_profiles(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb300000-0000-4000-8000-000000000013',
+    'fb300000-0000-4000-8000-000000000014',
+    'Settled imports remain evidence while the live match moves.',
+    'fb000000-0000-4000-8000-000000000001',
+    'fb600000-0000-4000-8000-000000000007'
+  )->>'targetProfileId',
+  'fb300000-0000-4000-8000-000000000014',
+  'execution agrees with the ready preview without touching frozen evidence'
+);
+
+SELECT extensions.ok(
+  (SELECT matched_profile_id = 'fb300000-0000-4000-8000-000000000014'
+      AND commit_target_profile_id IS NULL
+    FROM plugin_data.csf_sheet_import_rows
+    WHERE id = 'fbd10000-0000-4000-8000-000000000001')
+  AND (SELECT pg_catalog.bool_and(
+      matched_profile_id = 'fb300000-0000-4000-8000-000000000013'
+      AND commit_target_profile_id = 'fb300000-0000-4000-8000-000000000013'
+    )
+    FROM plugin_data.csf_sheet_import_rows
+    WHERE id IN (
+      'fbd10000-0000-4000-8000-000000000002',
+      'fbd10000-0000-4000-8000-000000000003'
+    ))
+  AND (SELECT record_status = 'merged'
+      AND merged_into_profile_id = 'fb300000-0000-4000-8000-000000000014'
+    FROM plugin_data.csf_profiles
+    WHERE id = 'fb300000-0000-4000-8000-000000000013'),
+  'only the live match moves; settled matched and frozen targets remain on the source tombstone'
+);
+
+SELECT extensions.ok(
+  EXISTS (
+    SELECT 1
+    FROM plugin_data.csf_profile_merge_reviews AS review
+    WHERE review.organization_id = 'fb100000-0000-4000-8000-000000000001'
+      AND review.source_profile_id = 'fb300000-0000-4000-8000-000000000013'
+      AND (review.evidence->'referenceRewriteCounts'->>'importRowLiveMatches')::integer = 1
+      AND jsonb_path_exists(
+        review.evidence,
+        '$.retainedHistoryAfterMerge[*] ? (@.reference == "plugin_data.csf_sheet_import_rows.matched_profile_id" && @.sourceCount == 2)'
+      )
+      AND jsonb_path_exists(
+        review.evidence,
+        '$.retainedHistoryAfterMerge[*] ? (@.reference == "plugin_data.csf_sheet_import_rows.commit_target_profile_id" && @.sourceCount == 2)'
+      )
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM plugin_data.csf_admin_audit_events AS audit
+    WHERE audit.organization_id = 'fb100000-0000-4000-8000-000000000001'
+      AND audit.target_type = 'csf_profile_reference_rewrites'
+      AND audit.before_data->>'sourceProfileId' = 'fb300000-0000-4000-8000-000000000013'
+      AND (audit.after_data->'referenceRewriteCounts'->>'importRowLiveMatches')::integer = 1
+  ),
+  'review and audit evidence record the exact live rewrite and retained-history counts'
+);
+
+SELECT extensions.ok(
+  NOT (plugin_data.csf_profile_merge_preview(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb300000-0000-4000-8000-000000000015',
+    'fb300000-0000-4000-8000-000000000016'
+  )->>'canMerge')::boolean,
+  'preview blocks retryable failed and not-yet-attempted frozen targets'
+);
+
+SELECT extensions.ok(
+  plugin_data.csf_profile_merge_preview(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb300000-0000-4000-8000-000000000015',
+    'fb300000-0000-4000-8000-000000000016'
+  )->'conflicts' @> '[{
+    "type": "outstanding_import_commit_target",
+    "rowCount": 2,
+    "matchedProfileCount": 2,
+    "frozenTargetCount": 2,
+    "outcomeStates": ["failed", "frozen"],
+    "importStatuses": ["error", "pending"]
+  }]'::jsonb,
+  'the failed/frozen blocker exposes exact bounded state counts without row identity'
+);
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_merge_profiles(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb300000-0000-4000-8000-000000000015',
+    'fb300000-0000-4000-8000-000000000016',
+    'Retryable import recovery must settle before identity consolidation.',
+    'fb000000-0000-4000-8000-000000000001',
+    'fb600000-0000-4000-8000-000000000008'
+  ) $$,
+  'P0001',
+  'These CSF student records have conflicts that must be resolved before merging.',
+  'execution rechecks and refuses the same failed/frozen import blocker'
+);
+
+SELECT extensions.ok(
+  (SELECT pg_catalog.count(*) = 2
+    FROM plugin_data.csf_sheet_import_rows
+    WHERE id IN (
+      'fbd10000-0000-4000-8000-000000000004',
+      'fbd10000-0000-4000-8000-000000000005'
+    )
+      AND matched_profile_id = 'fb300000-0000-4000-8000-000000000015'
+      AND commit_target_profile_id = 'fb300000-0000-4000-8000-000000000015')
+  AND (SELECT record_status = 'active'
+    FROM plugin_data.csf_profiles
+    WHERE id = 'fb300000-0000-4000-8000-000000000015'),
+  'blocked failed/frozen execution preserves targets, recovery state, and the active source'
+);
+
+SELECT extensions.ok(
+  NOT (plugin_data.csf_profile_merge_preview(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb300000-0000-4000-8000-000000000017',
+    'fb300000-0000-4000-8000-000000000018'
+  )->>'canMerge')::boolean,
+  'preview blocks an in-flight frozen target whose write may be landing'
+);
+
+SELECT extensions.ok(
+  plugin_data.csf_profile_merge_preview(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb300000-0000-4000-8000-000000000017',
+    'fb300000-0000-4000-8000-000000000018'
+  )->'conflicts' @> '[{
+    "type": "outstanding_import_commit_target",
+    "rowCount": 1,
+    "matchedProfileCount": 1,
+    "frozenTargetCount": 1,
+    "outcomeStates": ["in_flight"],
+    "importStatuses": ["pending"]
+  }]'::jsonb,
+  'the in-flight blocker reports the exact recovery state and reference counts'
+);
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_merge_profiles(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb300000-0000-4000-8000-000000000017',
+    'fb300000-0000-4000-8000-000000000018',
+    'An in-flight import must settle before identity consolidation.',
+    'fb000000-0000-4000-8000-000000000001',
+    'fb600000-0000-4000-8000-000000000009'
+  ) $$,
+  'P0001',
+  'These CSF student records have conflicts that must be resolved before merging.',
+  'execution rechecks and refuses the same in-flight import blocker'
+);
+
+SELECT extensions.ok(
+  (SELECT matched_profile_id = 'fb300000-0000-4000-8000-000000000017'
+      AND commit_target_profile_id = 'fb300000-0000-4000-8000-000000000017'
+      AND commit_outcome_state = 'in_flight'
+    FROM plugin_data.csf_sheet_import_rows
+    WHERE id = 'fbd10000-0000-4000-8000-000000000006')
+  AND (SELECT record_status = 'active'
+    FROM plugin_data.csf_profiles
+    WHERE id = 'fb300000-0000-4000-8000-000000000017'),
+  'blocked in-flight execution cannot corrupt intent or recovery evidence'
+);
+
+SELECT extensions.ok(
+  NOT (plugin_data.csf_profile_merge_preview(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb300000-0000-4000-8000-000000000019',
+    'fb300000-0000-4000-8000-000000000020'
+  )->>'canMerge')::boolean
+  AND plugin_data.csf_profile_merge_preview(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb300000-0000-4000-8000-000000000019',
+    'fb300000-0000-4000-8000-000000000020'
+  )->'conflicts' @> '[{
+    "type": "outstanding_import_commit_target",
+    "rowCount": 2,
+    "matchedProfileCount": 2,
+    "frozenTargetCount": 1,
+    "outcomeStates": ["historical_unknown", "unknown"],
+    "importStatuses": ["pending", "updated"]
+  }]'::jsonb,
+  'current and historical unknown outcomes remain review-blocked with exact counts'
+);
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_merge_profiles(
+    'fb100000-0000-4000-8000-000000000001',
+    'fb300000-0000-4000-8000-000000000019',
+    'fb300000-0000-4000-8000-000000000020',
+    'Unknown import outcomes require review before identity consolidation.',
+    'fb000000-0000-4000-8000-000000000001',
+    'fb600000-0000-4000-8000-000000000010'
+  ) $$,
+  'P0001',
+  'These CSF student records have conflicts that must be resolved before merging.',
+  'execution rechecks and refuses the same unknown import blocker'
+);
+
+SELECT extensions.ok(
+  (SELECT pg_catalog.count(*) = 2
+    FROM plugin_data.csf_sheet_import_rows
+    WHERE id IN (
+      'fbd10000-0000-4000-8000-000000000007',
+      'fbd10000-0000-4000-8000-000000000008'
+    )
+      AND matched_profile_id = 'fb300000-0000-4000-8000-000000000019'
+      AND commit_outcome_unresolved)
+  AND (SELECT record_status = 'active'
+    FROM plugin_data.csf_profiles
+    WHERE id = 'fb300000-0000-4000-8000-000000000019'),
+  'blocked unknown execution preserves review state and the active source'
+);
 
 SELECT extensions.ok(
   NOT (plugin_data.csf_profile_merge_preview(

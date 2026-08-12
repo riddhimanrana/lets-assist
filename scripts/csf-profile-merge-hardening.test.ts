@@ -89,6 +89,55 @@ describe("CSF profile-merge hardening source contract", () => {
     expect(referenceTest).toContain("open point-appeal collision");
   });
 
+  test("classifies import targets once and rewrites only unfrozen live matches", () => {
+    expect(migration).toContain("csf_profile_merge_import_row_disposition");
+    expect(migration).toContain("THEN 'immutable_history'");
+    expect(migration).toContain("THEN 'live_rewrite'");
+    expect(migration).toContain("ELSE 'preflight_blocker'");
+    expect(migration).toContain("outstanding_import_commit_target");
+    expect(migration).toContain(
+      "CREATE OR REPLACE FUNCTION plugin_data.csf_merge_profiles_identity_base",
+    );
+    expect(migration).toContain(
+      "UPDATE plugin_data.csf_sheet_import_rows AS import_row",
+    );
+    expect(migration).toContain("= 'live_rewrite';");
+    expect(migration).toContain("<> 'immutable_history'");
+    expect(migration).toContain("'importRowLiveMatches'");
+    expect(migration).toContain("'preflightBlockedReferences'");
+  });
+
+  test("covers settled, retryable, frozen, in-flight, and unknown import rows behaviorally", () => {
+    for (const state of [
+      "'succeeded'",
+      "'failed'",
+      "'frozen'",
+      "'in_flight'",
+      "'unknown'",
+      "'historical_unknown'",
+      "'terminally_skipped'",
+    ]) {
+      expect(referenceTest).toContain(state);
+    }
+
+    expect(referenceTest).toContain(
+      "settled success and terminal-skip evidence do not block",
+    );
+    expect(referenceTest).toContain(
+      "only the live match moves; settled matched and frozen targets remain",
+    );
+    expect(referenceTest).toContain(
+      "execution rechecks and refuses the same failed/frozen import blocker",
+    );
+    expect(referenceTest).toContain(
+      "execution rechecks and refuses the same in-flight import blocker",
+    );
+    expect(referenceTest).toContain(
+      "execution rechecks and refuses the same unknown import blocker",
+    );
+    expect(referenceTest).toContain("SELECT extensions.plan(49)");
+  });
+
   test("has one organization-first lock hierarchy and no global table locks", () => {
     expect(migration).toContain("csf_lock_identity_mutation");
     expect(migration).toContain("plugin_data.csf_upsert_profile:");
@@ -97,6 +146,12 @@ describe("CSF profile-merge hardening source contract", () => {
     expect(concurrencyTest).toContain("same-organization atomic profile edit");
     expect(concurrencyTest).toContain("cross-organization profile edit");
     expect(concurrencyTest).toContain("serializes behind the profile claim");
+    expect(migration).toContain(
+      "RENAME TO csf_claim_import_commit_attempt_identity_base",
+    );
+    expect(migration).toContain(
+      "ORDER BY import_row.job_id, import_row.sheet_tab_name",
+    );
   });
 
   test("keeps internal wrappers private and public signatures service-only", () => {
@@ -109,6 +164,7 @@ describe("CSF profile-merge hardening source contract", () => {
       "csf_import_class_history_row_v2_identity_base",
       "csf_import_student_roster_row_identity_base",
       "csf_import_application_response_row_identity_base",
+      "csf_claim_import_commit_attempt_identity_base",
     ]) {
       expect(migration).toContain(
         `REVOKE ALL ON FUNCTION plugin_data.${internalName}`,
