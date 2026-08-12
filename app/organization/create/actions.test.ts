@@ -7,7 +7,7 @@ mock.module("next/cache", () => ({ revalidatePath: () => {} }));
  * `createOrganization`/`checkOrgUsername` are the only Server Actions that
  * insert `organizations.username`. RLS ("Create org with serialized
  * cooldown") also lets a trusted member insert directly, so the database
- * constraint in `20260811190000_organization_username_reserved_slugs.sql`
+ * constraints in `20260811234500_organization_username_reserved_slugs.sql`
  * (proven in `organization_username_reserved_slugs.test.sql`) is the real
  * backstop -- but the Server Action must still refuse the reserved
  * usernames itself, with a truthful "reserved" error instead of the
@@ -162,6 +162,22 @@ describe("checkOrgUsername", () => {
     existingUsernames.add("taken-org");
     expect(await checkOrgUsername("taken-org")).toBe(false);
   });
+
+  test("rejects every invalid format without querying the database", async () => {
+    for (const value of [
+      "ab",
+      "a".repeat(33),
+      ".abc",
+      "abc.",
+      "ab..cd",
+      "with space",
+      "abc😀",
+      `ab${String.fromCodePoint(0x1d400)}`,
+    ]) {
+      expect(await checkOrgUsername(value)).toBe(false);
+    }
+    expect(organizationsSelectCalls).toBe(0);
+  });
 });
 
 describe("createOrganization reserved-slug enforcement", () => {
@@ -211,6 +227,28 @@ describe("createOrganization reserved-slug enforcement", () => {
     expect(insertedOrganizations[0]?.username).toBe("acme-nonprofit");
     expect(insertedMembers).toHaveLength(1);
     expect(insertedMembers[0]?.role).toBe("admin");
+  });
+
+  test("a direct Server Action call rejects ASCII, length, dot, and astral violations before insert", async () => {
+    for (const username of [
+      "ab",
+      "a".repeat(33),
+      ".abc",
+      "abc.",
+      "ab..cd",
+      "slash/name",
+      "abc😀",
+      `ab${String.fromCodePoint(0x1d400)}`,
+    ]) {
+      const result = await createOrganization({
+        ...baseCreateData,
+        username,
+      });
+      expect(result.error).toBeString();
+      expect(result.error).not.toBe("Username is already taken");
+    }
+    expect(insertedOrganizations).toHaveLength(0);
+    expect(insertedMembers).toHaveLength(0);
   });
 
   test("an unauthenticated caller is rejected before the reserved-slug check runs", async () => {

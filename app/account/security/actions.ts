@@ -6,7 +6,7 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { deleteUserWithCleanup } from "@/lib/supabase/delete-user-with-cleanup";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { passwordSchema } from "@/lib/auth/password-policy";
-import { resolveConfiguredSiteOrigin } from "@/app/signup/request-origin";
+import { runOnCanonicalAuthOrigin } from "@/app/signup/canonical-auth-request";
 
 // Zod schema for password update (for users with existing password)
 const updatePasswordSchema = z
@@ -203,34 +203,27 @@ export async function updateEmailAction(formData: FormData) {
     return { error: { server: ["Not authenticated"] } as ActionErrorResponse };
   }
 
-  const supabase = await createClient();
+  return runOnCanonicalAuthOrigin("/account/security", async (origin) => {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.updateUser(
+      { email: validatedFields.data.newEmail },
+      {
+        // Supabase will automatically append token_hash and type parameters to this URL
+        emailRedirectTo: `${origin}/auth/confirm?type=email_change`,
+      },
+    );
 
-  // The one validated site-origin resolver. This replaces a raw
-  // `NEXT_PUBLIC_SITE_URL` read with a `localhost:3000` fallback plus a
-  // hard `NODE_ENV === "development"` override: the override pinned local
-  // development to port 3000 even when the stack was configured for another
-  // loopback port (the isolated stack runs on 3012), and the fallback would
-  // have mailed a `localhost` link from a hosted deployment whose origin was
-  // missing or malformed. The configured origin is now honored in every
-  // environment, and a hosted deployment with none fails loudly.
-  const { error } = await supabase.auth.updateUser(
-    { email: validatedFields.data.newEmail },
-    {
-      // Supabase will automatically append token_hash and type parameters to this URL
-      emailRedirectTo: `${resolveConfiguredSiteOrigin()}/auth/confirm?type=email_change`,
-    },
-  );
+    if (error) {
+      console.error("Update email error:", error);
+      return { error: { server: [error.message] } as ActionErrorResponse };
+    }
 
-  if (error) {
-    console.error("Update email error:", error);
-    return { error: { server: [error.message] } as ActionErrorResponse };
-  }
-
-  return {
-    success: true,
-    message:
-      "Verification email sent to your new address. Please check your inbox and click the link to complete the change.",
-  };
+    return {
+      success: true,
+      message:
+        "Verification email sent to your new address. Please check your inbox and click the link to complete the change.",
+    };
+  });
 }
 
 export async function emailDataExport() {

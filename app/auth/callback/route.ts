@@ -253,7 +253,9 @@ export async function GET(request: Request) {
           // Sign out to clear the session that was just created
           await supabase.auth.signOut();
 
-          const redirectUrl = new URL(`${authOrigin}/auth/verification-success`);
+          const redirectUrl = new URL(
+            `${authOrigin}/auth/verification-success`,
+          );
           redirectUrl.searchParams.set("type", "signup");
           if (userEmail) {
             redirectUrl.searchParams.set("email", userEmail);

@@ -10,7 +10,7 @@ import {
   normalizeEmailAlias,
 } from "@/lib/auth/email-alias-verification";
 import { syncPrimaryUserEmail } from "@/lib/auth/primary-email";
-import { resolveConfiguredSiteOrigin } from "@/app/signup/request-origin";
+import { runOnCanonicalAuthOrigin } from "@/app/signup/canonical-auth-request";
 import { sendEmail } from "@/services/email";
 import EmailVerificationCode from "@/emails/email-verification-code";
 import * as React from "react";
@@ -210,7 +210,6 @@ export async function setPrimaryEmailAction(
     return { success: false, error: "Not authenticated" };
   }
 
-  const supabase = await createClient();
   const admin = getAdminClient();
 
   const { data: aliasRecord, error: aliasError } = await admin
@@ -236,53 +235,53 @@ export async function setPrimaryEmailAction(
     };
   }
 
-  // The one validated site-origin resolver: a hosted deployment with no
-  // usable configured origin raises rather than silently mailing a
-  // `localhost` confirmation link, and a malformed value is treated as
-  // absent instead of being interpolated into the link.
-  const redirectUrl = `${resolveConfiguredSiteOrigin()}/auth/confirm?type=email_change`;
+  return runOnCanonicalAuthOrigin("/account/security", async (origin) => {
+    const supabase = await createClient();
+    const { data: updateData, error: updateError } =
+      await supabase.auth.updateUser(
+        {
+          email: normalizedEmail,
+        },
+        {
+          emailRedirectTo: `${origin}/auth/confirm?type=email_change`,
+        },
+      );
 
-  const { data: updateData, error: updateError } =
-    await supabase.auth.updateUser(
-      {
-        email: normalizedEmail,
-      },
-      {
-        emailRedirectTo: redirectUrl,
-      },
-    );
+    if (updateError) {
+      console.error("auth.updateUser failed:", updateError);
+      return {
+        success: false,
+        error: updateError.message || "Failed to update primary email",
+      };
+    }
 
-  if (updateError) {
-    console.error("auth.updateUser failed:", updateError);
-    return {
-      success: false,
-      error: updateError.message || "Failed to update primary email",
-    };
-  }
+    const confirmedEmail = updateData?.user?.email?.toLowerCase?.();
+    const pendingEmail = (
+      updateData?.user as { new_email?: string }
+    )?.new_email?.toLowerCase?.();
+    const needsConfirmation =
+      confirmedEmail !== normalizedEmail && pendingEmail === normalizedEmail;
 
-  const confirmedEmail = updateData?.user?.email?.toLowerCase?.();
-  const pendingEmail = (
-    updateData?.user as { new_email?: string }
-  )?.new_email?.toLowerCase?.();
-  const needsConfirmation =
-    confirmedEmail !== normalizedEmail && pendingEmail === normalizedEmail;
+    if (needsConfirmation) {
+      return {
+        success: true,
+        needsConfirmation: true,
+        pendingEmail: normalizedEmail,
+      };
+    }
 
-  if (needsConfirmation) {
+    const primarySync = await syncPrimaryUserEmail(user.id);
+    if (!primarySync.success) {
+      return {
+        success: false,
+        error: "Failed to synchronize the primary email",
+      };
+    }
+
     return {
       success: true,
-      needsConfirmation: true,
-      pendingEmail: normalizedEmail,
     };
-  }
-
-  const primarySync = await syncPrimaryUserEmail(user.id);
-  if (!primarySync.success) {
-    return { success: false, error: "Failed to synchronize the primary email" };
-  }
-
-  return {
-    success: true,
-  };
+  });
 }
 
 export async function getLinkedIdentitiesAction() {

@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(307);
+SELECT extensions.plan(323);
 
 -- The Server Action boundary is not the only way to write
 -- `organizations.username`: RLS lets a trusted member INSERT an
@@ -20,6 +20,18 @@ SELECT extensions.ok(
       AND convalidated
   ),
   'organization usernames have a validated reserved-slug constraint'
+);
+
+SELECT extensions.ok(
+  EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.organizations'::regclass
+      AND conname = 'organizations_username_valid_format_check'
+      AND contype = 'c'
+      AND NOT convalidated
+  ),
+  'organization usernames have a forward-only format constraint pending historical validation'
 );
 
 INSERT INTO auth.users (
@@ -359,31 +371,24 @@ SELECT extensions.throws_ok(
   'a direct insert cannot claim the reserved username via leading/trailing U+2028 padding'
 );
 
--- Ordinary usernames are unaffected: one that merely contains a reserved
--- word, and one with an interior (non-edge) control character -- only the
--- edges are trimmed, matching `trim()`, so a reserved word broken up by an
--- interior TAB never normalizes to a bare reserved word. Both share user
--- 002's single organization-creation slot (the "Create org with serialized
--- cooldown" RLS policy allows one direct INSERT per user in this suite), so
--- they are proven together in one accepted row rather than two.
+-- An ordinary ASCII username that merely contains a reserved word remains
+-- valid. User 002 has a single organization-creation slot under the real RLS
+-- policy, so this one accepted row proves the positive direct-insert path.
 SELECT extensions.lives_ok(
-  format(
-    $$
-      INSERT INTO public.organizations (
-        id, name, username, type, join_code, created_by
-      )
-      VALUES (
-        'fe100000-0000-4000-8000-000000000007',
-        'Creators Collective',
-        %L,
-        'nonprofit',
-        '801007',
-        'fe000000-0000-4000-8000-000000000002'
-      )
-    $$,
-    'creators-' || chr(9) || 'collective'
-  ),
-  'an ordinary username containing both a reserved word and an interior control character is accepted'
+  $$
+    INSERT INTO public.organizations (
+      id, name, username, type, join_code, created_by
+    )
+    VALUES (
+      'fe100000-0000-4000-8000-000000000007',
+      'Creators Collective',
+      'creators-collective',
+      'nonprofit',
+      '801007',
+      'fe000000-0000-4000-8000-000000000002'
+    )
+  $$,
+  'an ordinary ASCII username containing a reserved word remains accepted'
 );
 
 RESET ROLE;
@@ -424,6 +429,63 @@ SELECT extensions.is(
   'organization-reserved-slug-fixture',
   'the rejected renames leave the organization username unchanged'
 );
+
+-- Format enforcement is exercised through the real authenticated UPDATE
+-- path, not by re-evaluating a copied regular expression. The astral cases
+-- prove PostgreSQL rejects both an emoji and a compatibility character above
+-- U+FFFF; the ASCII constraint therefore does not depend on Node/PostgreSQL
+-- Unicode normalization parity.
+CREATE TEMP TABLE organization_username_invalid_case (
+  label text PRIMARY KEY,
+  username text NOT NULL
+);
+
+INSERT INTO organization_username_invalid_case (label, username) VALUES
+  ('a direct update rejects a two-character username', 'ab'),
+  ('a direct update rejects a 33-character username', repeat('a', 33)),
+  ('a direct update rejects a leading dot', '.abc'),
+  ('a direct update rejects a trailing dot', 'abc.'),
+  ('a direct update rejects consecutive dots', 'ab..cd'),
+  ('a direct update rejects ASCII whitespace', 'with space'),
+  ('a direct update rejects a URL path separator', 'slash/name'),
+  ('a direct update rejects a control character', 'line' || chr(10) || 'break'),
+  ('a direct update rejects an astral emoji', 'abc' || chr(128512)),
+  ('a direct update rejects an astral compatibility letter', 'ab' || chr(119808)),
+  ('a direct update rejects full-width non-ASCII letters', 'ａｂｃ');
+
+SELECT extensions.throws_ok(
+  format(
+    'UPDATE public.organizations SET username = %L WHERE id = %L',
+    c.username,
+    'fe100000-0000-4000-8000-000000000001'
+  ),
+  '23514',
+  'new row for relation "organizations" violates check constraint "organizations_username_valid_format_check"',
+  c.label
+)
+FROM organization_username_invalid_case c
+ORDER BY c.label;
+
+CREATE TEMP TABLE organization_username_valid_case (
+  label text PRIMARY KEY,
+  username text NOT NULL
+);
+
+INSERT INTO organization_username_valid_case (label, username) VALUES
+  ('a direct update accepts the three-character lower boundary', 'abc'),
+  ('a direct update accepts every documented ASCII punctuation class', 'A_b.c-9'),
+  ('a direct update accepts the 32-character upper boundary', repeat('a', 32));
+
+SELECT extensions.lives_ok(
+  format(
+    'UPDATE public.organizations SET username = %L WHERE id = %L',
+    c.username,
+    'fe100000-0000-4000-8000-000000000001'
+  ),
+  c.label
+)
+FROM organization_username_valid_case c
+ORDER BY c.label;
 
 SELECT extensions.lives_ok(
   $$
@@ -508,6 +570,18 @@ SELECT extensions.ok(
   format('%s cannot %s public.organizations', role_name, privilege_name)
 )
 FROM revoked_role CROSS JOIN revoked_privilege;
+
+SELECT extensions.ok(
+  NOT EXISTS (
+    SELECT 1
+    FROM pg_class c
+    CROSS JOIN LATERAL aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) acl
+    WHERE c.oid = 'public.organizations'::regclass
+      AND acl.grantee = 0
+      AND acl.privilege_type IN ('TRUNCATE', 'REFERENCES', 'TRIGGER', 'MAINTAIN')
+  ),
+  'PUBLIC has no whole-table maintenance or DDL privilege on public.organizations'
+);
 
 -- MAINTAIN (PG 17+): revoked for both authenticated and anon. On PG < 17 the
 -- privilege does not exist, so effective absence is trivially true.

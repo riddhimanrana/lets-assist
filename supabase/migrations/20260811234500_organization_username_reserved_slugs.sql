@@ -34,16 +34,16 @@
 -- That aggregate covers only exact post-normalization equality, which is
 -- precisely what this constraint tests. It says nothing about usernames
 -- that merely resemble a reserved word, and nothing about the unrelated
--- global username *format* question tracked as AUD-021 in the cleanup
+-- global username *format* question tracked separately in the cleanup
 -- register.
 --
 -- The comparison normalizes case, Unicode compatibility variants (NFKC),
 -- and leading/trailing whitespace before comparing, in exactly that order,
 -- matching normalizeOrganizationSlugForReservedCheck in the application
--- layer (`value.normalize("NFKC").trim().toLowerCase()`): the ordinary
--- username format (ASCII letters, digits, `_`, `.`, `-`) is only enforced
--- client-side, so a direct write is not guaranteed to be ASCII, or even to
--- avoid whitespace entirely.
+-- layer (`value.normalize("NFKC").trim().toLowerCase()`). The separate format
+-- constraint below is intentionally NOT VALID, so historical rows are not
+-- guaranteed to be ASCII or even to avoid whitespace entirely; this validated
+-- reserved-route invariant must remain correct independently.
 --
 -- The trim has to be exactly JavaScript's, not an approximation of it. Any
 -- code point `String.prototype.trim()` strips but this constraint keeps is
@@ -107,8 +107,30 @@ ALTER TABLE public.organizations
     ) <> ALL (ARRAY['create', 'join'])
   );
 
--- `authenticated` still holds TRUNCATE, REFERENCES, TRIGGER, and (on PG 17+)
--- MAINTAIN on `public.organizations`, left over from the initial baseline
+-- The product contract is ASCII letters/digits plus `_`, `.`, and `-`, from
+-- 3 through 32 characters, with no leading, trailing, or consecutive dot.
+-- Server Actions and both forms share the same schema, but authenticated RLS
+-- paths and service-role writes can bypass those actions, so the table must
+-- enforce the same rule.
+--
+-- This constraint is intentionally NOT VALID. No hosted/shared inspection is
+-- authorized for this change, so historical rows cannot safely be claimed to
+-- conform. PostgreSQL still enforces a NOT VALID CHECK for every new row and
+-- every updated row; a later, separately authorized migration can validate it
+-- after a read-only inventory proves the historical data clean. This forward
+-- form closes direct-write bypasses without making an unverified assertion
+-- about existing Development or Production data.
+ALTER TABLE public.organizations
+  ADD CONSTRAINT organizations_username_valid_format_check
+  CHECK (
+    char_length(username) BETWEEN 3 AND 32
+    AND username COLLATE "C" ~ '^[A-Za-z0-9_.-]+$'
+    AND username !~ '(^\.|\.$|\.\.)'
+  ) NOT VALID;
+
+-- Browser roles and PUBLIC must not hold TRUNCATE, REFERENCES, TRIGGER, or
+-- (on PG 17+) MAINTAIN on `public.organizations`. Historical grants originated
+-- in the initial baseline
 -- schema's blanket `GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,
 -- UPDATE ... TO authenticated` (20260325181408_20260325_initial_baseline_schema.sql).
 -- 20260701180752_organization_public_read_models_and_policy_hardening.sql
@@ -153,7 +175,8 @@ ALTER TABLE public.organizations
 -- session needs. Revoking is a pure privilege narrowing with no data to
 -- validate against and no legitimate application code path depends on it,
 -- unlike the reserved-slug CHECK constraint above.
-REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.organizations FROM authenticated, anon;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.organizations
+  FROM PUBLIC, authenticated, anon;
 
 -- MAINTAIN was introduced in PostgreSQL 17 and allows running VACUUM,
 -- ANALYZE, REINDEX, and CLUSTER on a table without full ownership. On
@@ -163,7 +186,7 @@ REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.organizations FROM authenticated,
 DO $$
 BEGIN
   IF current_setting('server_version_num')::int >= 170000 THEN
-    REVOKE MAINTAIN ON public.organizations FROM authenticated, anon;
+    REVOKE MAINTAIN ON public.organizations FROM PUBLIC, authenticated, anon;
   END IF;
 END;
 $$;

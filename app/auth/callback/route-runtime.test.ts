@@ -137,10 +137,15 @@ mock.module("@/lib/supabase/admin", () => ({
     from: (tableName: string) => {
       if (tableName === "banned_emails") {
         return table({
-          select: { data: state.banned ? { email: "banned" } : null, error: null },
+          select: {
+            data: state.banned ? { email: "banned" } : null,
+            error: null,
+          },
         });
       }
-      throw new Error(`route-runtime.test.ts: unexpected admin table "${tableName}"`);
+      throw new Error(
+        `route-runtime.test.ts: unexpected admin table "${tableName}"`,
+      );
     },
   }),
 }));
@@ -345,7 +350,9 @@ describe("GET /auth/callback (runtime)", () => {
 
   test("fallback: no code and no error still redirects to /error on the trusted origin, never the evil Host", async () => {
     try {
-      const response = await GET(request("/auth/callback", { host: EVIL_HOST }));
+      const response = await GET(
+        request("/auth/callback", { host: EVIL_HOST }),
+      );
       const url = location(response);
       expect(url.origin).toBe(HOSTED);
       expect(url.pathname).toBe("/error");
@@ -357,7 +364,9 @@ describe("GET /auth/callback (runtime)", () => {
   test("every redirect across these scenarios stays on the trusted origin for a spoofed Host, never on evil.example", async () => {
     try {
       const responses = await Promise.all([
-        GET(request("/auth/callback?code=x&type=recovery", { host: EVIL_HOST })),
+        GET(
+          request("/auth/callback?code=x&type=recovery", { host: EVIL_HOST }),
+        ),
         GET(request("/auth/callback?error=e", { host: EVIL_HOST })),
         GET(request("/auth/callback", { host: EVIL_HOST })),
       ]);
@@ -548,7 +557,9 @@ describe("GET /auth/callback (hosted environments and fail-closed configuration)
       const response = await GET(
         request("/auth/callback?code=abc123", { host: EVIL_HOST }),
       );
-      expect(location(response).origin).toBe("https://branch-abc123.vercel.app");
+      expect(location(response).origin).toBe(
+        "https://branch-abc123.vercel.app",
+      );
     } finally {
       restoreEnv();
     }

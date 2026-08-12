@@ -64,6 +64,17 @@ function parseRequestHost(requestHost: string | null | undefined) {
   return parseOrigin(`http://${candidate}`);
 }
 
+function parseRequestOrigin(
+  requestHost: string | null | undefined,
+  protocol: "http:" | "https:",
+) {
+  if (!requestHost) return null;
+  const candidate = requestHost.trim();
+  if (!candidate || candidate.length > 255) return null;
+  if (/[\s,/\\@?#]/u.test(candidate)) return null;
+  return parseOrigin(`${protocol}//${candidate}`);
+}
+
 /**
  * The origin that both stores the PKCE verifier and receives the emailed
  * confirmation link. Returns `configuredOrigin` unchanged unless the request
@@ -209,6 +220,42 @@ export function resolveAuthRedirectOrigin(
 }
 
 /**
+ * Return the trusted navigation that must happen before a PKCE producer, or
+ * `null` when the browser is already on the origin that will receive the
+ * callback. The request host is used only for an equality check and the narrow
+ * loopback carve-out; it never contributes to a hosted redirect destination.
+ */
+export function resolveAuthProducerNavigation({
+  authOrigin,
+  requestHost,
+  destinationPath,
+}: {
+  authOrigin: string;
+  requestHost: string | null | undefined;
+  destinationPath: string;
+}): string | null {
+  const target = parseOrigin(authOrigin);
+  if (
+    !target ||
+    (target.protocol !== "http:" && target.protocol !== "https:")
+  ) {
+    throw new Error("Auth producer origin is not a valid HTTP(S) origin");
+  }
+
+  const current = parseRequestOrigin(
+    requestHost,
+    target.protocol as "http:" | "https:",
+  );
+  if (current?.origin === target.origin) return null;
+
+  const safePath =
+    destinationPath.startsWith("/") && !destinationPath.startsWith("//")
+      ? destinationPath
+      : "/";
+  return new URL(safePath, target.origin).toString();
+}
+
+/**
  * The origin a client-initiated OAuth flow -- currently only linking a
  * Google identity from account settings (`AuthenticationClient.tsx`) --
  * must hand Supabase as `redirectTo`.
@@ -236,12 +283,17 @@ export function resolveAuthRedirectOrigin(
  * inlined), which is why this does not simply delegate to
  * `resolveConfiguredSiteOrigin`.
  */
+type ClientLocation = Readonly<Pick<Location, "host" | "origin">>;
+
 export function resolveClientAuthOrigin(
   publicSiteUrl: string | undefined = process.env.NEXT_PUBLIC_SITE_URL,
+  browserLocation: ClientLocation | undefined = typeof window === "undefined"
+    ? undefined
+    : window.location,
 ): string {
   const configured = parseValidSiteOrigin(publicSiteUrl);
 
-  if (typeof window === "undefined") {
+  if (!browserLocation) {
     // SSR: use configured if available; localhost is only appropriate for
     // local non-hosted development where no valid canonical URL is configured.
     return configured ?? "http://localhost:3000";
@@ -252,7 +304,7 @@ export function resolveClientAuthOrigin(
     // narrow loopback-spelling swap for local development.
     return resolveAuthRequestOrigin({
       configuredOrigin: configured,
-      requestHost: window.location.host,
+      requestHost: browserLocation.host,
     });
   }
 
@@ -260,6 +312,6 @@ export function resolveClientAuthOrigin(
   // page's actual location rather than inventing localhost:3000. A hosted
   // preview with no NEXT_PUBLIC_SITE_URL inlined at build time would otherwise
   // hand Supabase a dead redirectTo that the user can never reach.
-  const windowOrigin = parseValidSiteOrigin(window.location.origin);
+  const windowOrigin = parseValidSiteOrigin(browserLocation.origin);
   return windowOrigin ?? "http://localhost:3000";
 }

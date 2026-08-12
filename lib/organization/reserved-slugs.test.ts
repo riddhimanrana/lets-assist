@@ -23,10 +23,7 @@ describe("RESERVED_ORGANIZATION_SLUGS", () => {
   test("covers exactly the static/special child routes of app/organization", () => {
     // `[id]` is the only dynamic segment; every other child directory is a
     // platform route that a username would collide with.
-    expect([...RESERVED_ORGANIZATION_SLUGS].sort()).toEqual([
-      "create",
-      "join",
-    ]);
+    expect([...RESERVED_ORGANIZATION_SLUGS].sort()).toEqual(["create", "join"]);
   });
 });
 
@@ -63,9 +60,7 @@ describe("isReservedOrganizationSlug", () => {
 
   test("rejects Unicode compatibility variants that normalize to a reserved word", () => {
     // Full-width Latin letters (U+FF43 etc.) NFKC-normalize to ASCII.
-    expect(isReservedOrganizationSlug("ｃｒｅａｔｅ")).toBe(
-      true,
-    );
+    expect(isReservedOrganizationSlug("ｃｒｅａｔｅ")).toBe(true);
     expect(isReservedOrganizationSlug("ｊｏｉｎ")).toBe(true);
     // A single ligature codepoint (U+FB01 "fi") NFKC-decomposes to "fi".
     expect(isReservedOrganizationSlug("ﬁ")).toBe(false); // sanity: "fi" alone isn't reserved
@@ -113,11 +108,9 @@ describe("normalizeOrganizationSlugForReservedCheck", () => {
     expect(normalizeOrganizationSlugForReservedCheck("  Create  ")).toBe(
       "create",
     );
-    expect(
-      normalizeOrganizationSlugForReservedCheck(
-        "ＣＲＥＡＴＥ",
-      ),
-    ).toBe("create");
+    expect(normalizeOrganizationSlugForReservedCheck("ＣＲＥＡＴＥ")).toBe(
+      "create",
+    );
   });
 
   test("is idempotent", () => {
@@ -360,7 +353,7 @@ describe("migration and pgTAP suite agree on the trim set", () => {
 
   test("the migration's character class expands to exactly these code points", () => {
     const migration = read(
-      "supabase/migrations/20260811190000_organization_username_reserved_slugs.sql",
+      "supabase/migrations/20260811234500_organization_username_reserved_slugs.sql",
     );
 
     // `'^[<class>]+'` -- the leading-edge half of the constraint's regex.
@@ -431,7 +424,7 @@ describe("migration and pgTAP suite agree on the trim set", () => {
 
   test("the migration reserves exactly the slugs this module reserves", () => {
     const migration = read(
-      "supabase/migrations/20260811190000_organization_username_reserved_slugs.sql",
+      "supabase/migrations/20260811234500_organization_username_reserved_slugs.sql",
     );
     const match = migration.match(/<> ALL \(ARRAY\[([^\]]+)\]\)/u);
     expect(match).not.toBeNull();

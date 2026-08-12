@@ -89,18 +89,18 @@ describe("organization username unavailable copy", () => {
   test("the reserved message is the truthful one for every reserved spelling", () => {
     for (const value of ["create", "JOIN", "  Create  ", "ｊｏｉｎ"]) {
       expect(isReservedOrganizationSlug(value)).toBe(true);
-      expect(usernameUnavailableMessage(isReservedOrganizationSlug(value))).toBe(
-        "That username is reserved and can't be used",
-      );
+      expect(
+        usernameUnavailableMessage(isReservedOrganizationSlug(value)),
+      ).toBe("That username is reserved and can't be used");
     }
   });
 
   test("an ordinary unavailable username still reports the taken message", () => {
     for (const value of ["creators", "joint-venture", "lets-assist"]) {
       expect(isReservedOrganizationSlug(value)).toBe(false);
-      expect(usernameUnavailableMessage(isReservedOrganizationSlug(value))).toBe(
-        "Username is already taken",
-      );
+      expect(
+        usernameUnavailableMessage(isReservedOrganizationSlug(value)),
+      ).toBe("Username is already taken");
     }
   });
 

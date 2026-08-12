@@ -1,8 +1,20 @@
 import { describe, expect, mock, test, beforeEach } from "bun:test";
 
 mock.module("server-only", () => ({}));
+
+let requestHost = "localhost:3000";
+const redirects: string[] = [];
+
+class RedirectSignal extends Error {}
+
 mock.module("next/headers", () => ({
-  headers: async () => new Map(),
+  headers: async () => new Headers({ host: requestHost }),
+}));
+mock.module("next/navigation", () => ({
+  redirect: (destination: string) => {
+    redirects.push(destination);
+    throw new RedirectSignal(destination);
+  },
 }));
 
 let capturedResetEmail: string | undefined;
@@ -33,9 +45,15 @@ function makeFormData(fields: Record<string, string>): FormData {
 }
 
 beforeEach(() => {
+  requestHost = "localhost:3000";
+  redirects.length = 0;
   capturedResetEmail = undefined;
   capturedResetOptions = undefined;
   supabaseResetError = null;
+  process.env.NEXT_PUBLIC_SITE_URL = "http://localhost:3000";
+  delete process.env.VERCEL_URL;
+  delete process.env.VERCEL;
+  delete process.env.VERCEL_ENV;
 });
 
 describe("requestPasswordReset", () => {
@@ -88,25 +106,36 @@ describe("requestPasswordReset", () => {
 
 describe("requestPasswordReset origin resolution is above the enumeration try/catch", () => {
   test("a misconfigured hosted deployment propagates a config error rather than returning fake success", async () => {
-    // Simulate a hosted deployment with no valid NEXT_PUBLIC_SITE_URL: the
-    // resolver throws before the Supabase call, so the error is NOT swallowed
-    // by the email-enumeration catch. This test verifies the placement of
-    // resolveConfiguredSiteOrigin() relative to the try/catch by checking the
-    // source text — the structural assertion that guards against re-entrant
-    // regressions where the call drifts back inside the catch scope.
-    const { readFileSync } = await import("node:fs");
-    const { join } = await import("node:path");
-    const source = readFileSync(
-      join(import.meta.dir, "actions.ts"),
-      "utf8",
-    );
+    process.env.VERCEL = "1";
+    process.env.VERCEL_ENV = "production";
+    delete process.env.NEXT_PUBLIC_SITE_URL;
 
-    // The resolver call must appear before the `try {` that wraps the
-    // Supabase call and swallows auth errors as email-enumeration protection.
-    const resolveIndex = source.indexOf("resolveConfiguredSiteOrigin()");
-    const tryIndex = source.indexOf("try {");
-    expect(resolveIndex).toBeGreaterThan(-1);
-    expect(tryIndex).toBeGreaterThan(-1);
-    expect(resolveIndex).toBeLessThan(tryIndex);
+    await expect(
+      requestPasswordReset(makeFormData({ email: "user@example.com" })),
+    ).rejects.toThrow(/No valid site origin is configured/u);
+    expect(capturedResetEmail).toBeUndefined();
+  });
+
+  test("a stale hosted alias redirects before the recovery provider writes a verifier", async () => {
+    process.env.NEXT_PUBLIC_SITE_URL = "https://lets-assist.com";
+    requestHost = "stale.example";
+
+    await expect(
+      requestPasswordReset(makeFormData({ email: "user@example.com" })),
+    ).rejects.toBeInstanceOf(RedirectSignal);
+
+    expect(redirects).toEqual(["https://lets-assist.com/reset-password"]);
+    expect(capturedResetEmail).toBeUndefined();
+  });
+
+  test("same-port loopback recovery uses the verifier cookie's host", async () => {
+    process.env.NEXT_PUBLIC_SITE_URL = "http://localhost:3012";
+    requestHost = "127.0.0.1:3012";
+
+    await requestPasswordReset(makeFormData({ email: "user@example.com" }));
+
+    expect(new URL(capturedResetOptions?.redirectTo as string).origin).toBe(
+      "http://127.0.0.1:3012",
+    );
   });
 });

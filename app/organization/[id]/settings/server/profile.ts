@@ -11,6 +11,7 @@ import {
   isReservedOrganizationSlug,
   usernameUnavailableMessage,
 } from "@/lib/organization/reserved-slugs";
+import { validateOrganizationUsername } from "@/lib/organization/username";
 
 const ALLOWED_FILE_TYPES = [
   "image/jpeg",
@@ -41,15 +42,13 @@ export async function checkUsernameAvailability(
   username: string,
 ): Promise<boolean> {
   "use server";
-  const supabase = await createClient();
-
-  if (!username || username.length < 3) {
-    return false;
-  }
-
   if (isReservedOrganizationSlug(username)) {
     return false;
   }
+
+  if (!validateOrganizationUsername(username).ok) return false;
+
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("organizations")
@@ -109,6 +108,11 @@ export async function updateOrganization(data: OrganizationUpdateData) {
     isReservedOrganizationSlug(data.username)
   ) {
     return { error: usernameUnavailableMessage(true) };
+  }
+
+  const usernameValidation = validateOrganizationUsername(data.username);
+  if (!usernameValidation.ok) {
+    return { error: usernameValidation.error };
   }
 
   try {

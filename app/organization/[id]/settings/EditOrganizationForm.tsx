@@ -54,13 +54,16 @@ import {
 import type { Organization } from "@/types";
 
 import { hasOrganizationFormChanges } from "./organization-form-change";
+import {
+  ORGANIZATION_USERNAME_MAX_LENGTH,
+  organizationUsernameSchema,
+} from "@/lib/organization/username";
 
 // Constants
-const USERNAME_MAX_LENGTH = 32;
+const USERNAME_MAX_LENGTH = ORGANIZATION_USERNAME_MAX_LENGTH;
 const NAME_MAX_LENGTH = 64;
 const WEBSITE_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 650;
-const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
 
 const ORG_TYPE_LABELS: Record<string, string> = {
   nonprofit: "Nonprofit Organization",
@@ -86,17 +89,7 @@ const orgUpdateSchema = z.object({
     .min(2, "Name must be at least 2 characters")
     .max(NAME_MAX_LENGTH, `Name cannot exceed ${NAME_MAX_LENGTH} characters`),
 
-  username: z
-    .string()
-    .min(3, "Username must be at least 3 characters")
-    .max(
-      USERNAME_MAX_LENGTH,
-      `Username cannot exceed ${USERNAME_MAX_LENGTH} characters`,
-    )
-    .regex(
-      USERNAME_REGEX,
-      "Username can only contain letters, numbers, underscores, dots and hyphens",
-    ),
+  username: organizationUsernameSchema,
 
   description: z
     .string()
