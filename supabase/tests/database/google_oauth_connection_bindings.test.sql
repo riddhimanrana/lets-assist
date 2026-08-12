@@ -321,7 +321,7 @@ INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES (
   'ab100000-0000-4000-8000-000000000002',
   'Google Unambiguous Backfill Organization',
-  'google-unambiguous-backfill-organization',
+  'google-backfill-unambiguous',
   'school',
   '982902'
 );
@@ -420,14 +420,14 @@ VALUES
   (
     'ab100000-0000-4000-8000-000000000003',
     'Google Ambiguous Backfill Organization One',
-    'google-ambiguous-backfill-organization-one',
+    'google-backfill-ambiguous-one',
     'school',
     '982903'
   ),
   (
     'ab100000-0000-4000-8000-000000000004',
     'Google Ambiguous Backfill Organization Two',
-    'google-ambiguous-backfill-organization-two',
+    'google-backfill-ambiguous-two',
     'school',
     '982904'
   );

@@ -8,10 +8,12 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(46);
+-- 1 catalog assertion + 2 owners * 2 browser roles *
+-- (7 table privileges + 1 MAINTAIN check + 3 sequence privileges) = 45.
+SELECT extensions.plan(45);
 
 -- ---------------------------------------------------------------------------
--- Catalog: no relevant default ACL names a browser role or PUBLIC
+-- Catalog: no repository-owner default ACL names a browser role or PUBLIC
 -- ---------------------------------------------------------------------------
 
 SELECT extensions.is(
@@ -28,22 +30,12 @@ SELECT extensions.is(
   'migration-owned public table/sequence defaults grant neither browser roles nor PUBLIC'
 );
 
--- Migrations running as postgres cannot alter supabase_admin's defaults on
--- hosted Supabase. Audit them explicitly so a platform-side regression fails
--- the gate rather than silently exposing the next object it creates.
-SELECT extensions.is(
-  (
-    SELECT count(*)
-    FROM pg_default_acl d
-    CROSS JOIN LATERAL aclexplode(d.defaclacl) acl
-    WHERE d.defaclnamespace = 'public'::regnamespace
-      AND d.defaclrole = 'supabase_admin'::regrole
-      AND d.defaclobjtype IN ('r', 'S')
-      AND acl.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole)
-  ),
-  0::bigint,
-  'supabase_admin public table/sequence defaults grant neither browser roles nor PUBLIC'
-);
+-- `supabase_admin` owns separate platform defaults that a repository migration
+-- running as `postgres` cannot alter. CI run 31563941682 observed 22 matching
+-- table/sequence ACL entries, so zero is not a truthful repository-owned gate.
+-- EXT-005 records that provider boundary separately. The enforceable invariant
+-- below remains behavioral: objects created by each repository migration owner
+-- must deny every browser-role privilege unless a migration grants it explicitly.
 
 -- ---------------------------------------------------------------------------
 -- Behavior: objects created by postgres

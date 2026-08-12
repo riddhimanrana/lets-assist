@@ -107,7 +107,7 @@ INSERT INTO public.organizations (
 VALUES (
   'fe100000-0000-4000-8000-000000000001',
   'Organization Reserved Slug Fixture',
-  'organization-reserved-slug-fixture',
+  'reserved-slug-fixture',
   'school',
   '801001',
   'fe000000-0000-4000-8000-000000000001'
@@ -426,7 +426,7 @@ SELECT extensions.is(
     FROM public.organizations
     WHERE id = 'fe100000-0000-4000-8000-000000000001'
   ),
-  'organization-reserved-slug-fixture',
+  'reserved-slug-fixture',
   'the rejected renames leave the organization username unchanged'
 );
 
@@ -490,7 +490,7 @@ ORDER BY c.label;
 SELECT extensions.lives_ok(
   $$
     UPDATE public.organizations
-    SET username = 'organization-reserved-slug-fixture-renamed'
+    SET username = 'reserved-slug-fixture-renamed'
     WHERE id = 'fe100000-0000-4000-8000-000000000001'
   $$,
   'a direct update to a non-reserved username is accepted'
@@ -502,7 +502,7 @@ SELECT extensions.is(
     FROM public.organizations
     WHERE id = 'fe100000-0000-4000-8000-000000000001'
   ),
-  'organization-reserved-slug-fixture-renamed',
+  'reserved-slug-fixture-renamed',
   'the accepted rename is persisted'
 );
 
@@ -539,7 +539,7 @@ SELECT extensions.lives_ok(
     VALUES (
       'fe100000-0000-4000-8000-000000000009',
       'Service Role Ordinary Organization',
-      'service-role-ordinary-organization',
+      'service-role-ordinary-org',
       'school',
       '801009',
       'fe000000-0000-4000-8000-000000000001'

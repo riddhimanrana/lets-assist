@@ -44,7 +44,7 @@ INSERT INTO public.organizations (id, name, username, type, join_code)
 SELECT
   organization_id,
   'CSF Close Serialization',
-  'csf-close-serialization-' || left(replace(organization_id::text, '-', ''), 12),
+  'csf-close-serial-' || left(replace(organization_id::text, '-', ''), 12),
   'school',
   (
     100000

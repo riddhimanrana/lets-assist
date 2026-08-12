@@ -91,7 +91,7 @@ INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES (
   'ac100000-0000-4000-8000-000000000001',
   'Google Identity Test Organization',
-  'google-identity-test-organization',
+  'google-identity-test-org',
   'school',
   '982951'
 );
