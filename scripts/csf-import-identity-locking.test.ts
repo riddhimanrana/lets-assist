@@ -3,13 +3,21 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const repositoryRoot = join(import.meta.dir, "..");
-const migration = readFileSync(
+const identityLockMigration = readFileSync(
   join(
     repositoryRoot,
     "supabase/migrations/20260812030000_csf_import_identity_lock_order.sql",
   ),
   "utf8",
 );
+const privilegeRepairMigration = readFileSync(
+  join(
+    repositoryRoot,
+    "supabase/migrations/20260812065621_csf_import_wrapper_privilege_repair.sql",
+  ),
+  "utf8",
+);
+const migration = `${identityLockMigration}\n${privilegeRepairMigration}`;
 const raceTest = readFileSync(
   join(
     repositoryRoot,
@@ -17,6 +25,29 @@ const raceTest = readFileSync(
   ),
   "utf8",
 );
+const applicationImportTest = readFileSync(
+  join(
+    repositoryRoot,
+    "supabase/tests/database/csf_application_import.test.sql",
+  ),
+  "utf8",
+);
+const strictPointsTest = readFileSync(
+  join(
+    repositoryRoot,
+    "supabase/tests/database/csf_class_history_strict_points.test.sql",
+  ),
+  "utf8",
+);
+const canonicalOfficerFixtures = [
+  "csf_application_import.test.sql",
+  "csf_class_history_import.test.sql",
+  "csf_atomic_import_reconciliation.test.sql",
+  "csf_contextual_commit_readiness.test.sql",
+  "csf_contextual_commit_evidence.test.sql",
+  "csf_contextual_commit_lock_order.test.sql",
+  "csf_partner_audit_provenance_state_machine.test.sql",
+] as const;
 
 const IMPORT_IDENTITY_BOUNDARIES = [
   "csf_claim_import_commit_attempt",
@@ -34,9 +65,10 @@ function functionBody(name: string) {
   const start = migration.lastIndexOf(
     `CREATE OR REPLACE FUNCTION plugin_data.${name}(`,
   );
-  expect(start, `${name} must be replaced by the forward migration`).toBeGreaterThan(
-    -1,
-  );
+  expect(
+    start,
+    `${name} must be replaced by the forward migration`,
+  ).toBeGreaterThan(-1);
   const end = migration.indexOf("\n$$;", start);
   expect(end, `${name} must have a complete body`).toBeGreaterThan(start);
   return migration.slice(start, end);
@@ -57,11 +89,16 @@ describe("CSF import identity lock hierarchy", () => {
       const identity = body.indexOf("csf_lock_identity_mutation(");
       const authorization = body.indexOf("csf_assert_import_actor");
       expect(identity, `${name} has no identity lock`).toBeGreaterThan(-1);
-      expect(authorization, `${name} has no post-lock actor check`).toBeGreaterThan(
-        identity,
-      );
+      expect(
+        authorization,
+        `${name} has no post-lock actor check`,
+      ).toBeGreaterThan(identity);
 
-      for (const laterLock of ["FOR UPDATE", "FOR SHARE", "pg_advisory_xact_lock"]) {
+      for (const laterLock of [
+        "FOR UPDATE",
+        "FOR SHARE",
+        "pg_advisory_xact_lock",
+      ]) {
         const position = body.indexOf(laterLock);
         if (position >= 0) {
           expect(
@@ -97,7 +134,7 @@ describe("CSF import identity lock hierarchy", () => {
     }
   });
 
-  test("internal historical bodies are unreachable and canonical signatures stay service-only", () => {
+  test("internal historical bodies and central row primitives stay behind the service fence", () => {
     for (const name of [
       "csf_commit_import_row_for_attempt_identity_base",
       "csf_reconcile_sheet_import_row_identity_base",
@@ -106,8 +143,27 @@ describe("CSF import identity lock hierarchy", () => {
     ]) {
       expect(migration).toContain(`REVOKE ALL ON FUNCTION plugin_data.${name}`);
     }
-    for (const name of IMPORT_IDENTITY_BOUNDARIES) {
+    for (const name of [
+      "csf_claim_import_commit_attempt",
+      "csf_commit_import_row_for_attempt",
+      "csf_reconcile_sheet_import_row",
+      "csf_commit_meeting_attendance_import",
+      "csf_commit_partner_audit_import",
+      "csf_import_class_history_row",
+    ]) {
       expect(migration).toContain(
+        `GRANT EXECUTE ON FUNCTION plugin_data.${name}`,
+      );
+    }
+    for (const name of [
+      "csf_import_application_response_row",
+      "csf_import_student_roster_row",
+      "csf_import_class_history_row_v2",
+    ]) {
+      expect(privilegeRepairMigration).toContain(
+        `REVOKE ALL ON FUNCTION plugin_data.${name}`,
+      );
+      expect(privilegeRepairMigration).not.toContain(
         `GRANT EXECUTE ON FUNCTION plugin_data.${name}`,
       );
     }
@@ -115,11 +171,35 @@ describe("CSF import identity lock hierarchy", () => {
     expect(migration).not.toContain(" TO authenticated");
   });
 
+  test("officer fixtures model active membership while validation-only fixtures use the owner delegate", () => {
+    for (const fixture of canonicalOfficerFixtures) {
+      const source = readFileSync(
+        join(repositoryRoot, "supabase/tests/database", fixture),
+        "utf8",
+      );
+      expect(
+        source,
+        `${fixture} needs an organization officer fixture`,
+      ).toContain("INSERT INTO public.organization_members");
+    }
+    expect(applicationImportTest).toContain("'admin', 'active'");
+    expect(applicationImportTest).toContain("'admin', 'removed'");
+    expect(applicationImportTest).toContain(
+      "an inactive officer cannot act through the application import boundary",
+    );
+    expect(strictPointsTest).toContain(
+      "plugin_data.csf_import_class_history_row_v2_identity_base(",
+    );
+    expect(strictPointsTest).not.toContain(
+      "INSERT INTO public.organization_members",
+    );
+  });
+
   test("real dblink races cover every commit family and tombstone postcondition", () => {
     expect(raceTest).toContain("CREATE EXTENSION IF NOT EXISTS dblink");
-    expect(raceTest.match(/dblink_send_query/g)?.length ?? 0).toBeGreaterThanOrEqual(
-      4,
-    );
+    expect(
+      raceTest.match(/dblink_send_query/g)?.length ?? 0,
+    ).toBeGreaterThanOrEqual(4);
     for (const name of [
       "csf_commit_import_row_for_attempt",
       "csf_reconcile_sheet_import_row",

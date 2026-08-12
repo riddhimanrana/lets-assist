@@ -35,6 +35,15 @@ VALUES (
   '995101'
 );
 
+INSERT INTO public.organization_members (
+  organization_id, user_id, role, status
+) VALUES (
+  'e1100000-0000-4000-8000-000000000001',
+  'e1000000-0000-4000-8000-000000000001',
+  'admin',
+  'active'
+);
+
 INSERT INTO plugin_data.csf_terms (
   id, organization_id, code, label, school_year, semester
 ) VALUES (
