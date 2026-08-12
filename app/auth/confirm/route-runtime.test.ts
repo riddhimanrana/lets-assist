@@ -37,10 +37,12 @@ const state: {
   exchangeError: { message?: string; code?: string } | null;
   verifyError: { message?: string } | null;
   user: { id: string; email: string } | null;
+  primarySyncSuccess: boolean;
 } = {
   exchangeError: null,
   verifyError: null,
   user: null,
+  primarySyncSuccess: true,
 };
 
 mock.module("@/lib/supabase/server", () => ({
@@ -55,7 +57,10 @@ mock.module("@/lib/supabase/server", () => ({
 }));
 
 mock.module("@/lib/auth/primary-email", () => ({
-  syncPrimaryUserEmail: async () => ({ success: true, status: "synced" }),
+  syncPrimaryUserEmail: async () => ({
+    success: state.primarySyncSuccess,
+    status: state.primarySyncSuccess ? "synced" : "failed",
+  }),
 }));
 
 const { GET } = await import("./route");
@@ -96,6 +101,7 @@ beforeEach(() => {
   state.exchangeError = null;
   state.verifyError = null;
   state.user = { id: "user-1", email: "confirm@local.test" };
+  state.primarySyncSuccess = true;
   originalEnv = {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
     VERCEL_URL: process.env.VERCEL_URL,
@@ -183,6 +189,61 @@ describe("GET /auth/confirm (runtime)", () => {
         host: EVIL_HOST,
       });
       expect(new URL(destination).origin).toBe(HOSTED);
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  test("every negative branch redirects to an absolute URL on the trusted origin", async () => {
+    try {
+      const cases: Array<{
+        path: string;
+        arrange: () => void;
+      }> = [
+        {
+          path: "/auth/confirm?code=bad&type=email_change",
+          arrange: () => {
+            state.exchangeError = { message: "provider detail" };
+          },
+        },
+        {
+          path: "/auth/confirm?code=ok&type=email_change",
+          arrange: () => {
+            state.user = null;
+          },
+        },
+        {
+          path: "/auth/confirm?code=ok&type=email_change",
+          arrange: () => {
+            state.primarySyncSuccess = false;
+          },
+        },
+        {
+          path: "/auth/confirm",
+          arrange: () => {},
+        },
+        {
+          path: "/auth/confirm?token_hash=bad&type=email_change",
+          arrange: () => {
+            state.verifyError = { message: "provider detail" };
+          },
+        },
+      ];
+
+      for (const testCase of cases) {
+        state.exchangeError = null;
+        state.verifyError = null;
+        state.user = { id: "user-1", email: "confirm@local.test" };
+        state.primarySyncSuccess = true;
+        testCase.arrange();
+
+        const destination = await redirectedTo(testCase.path, {
+          host: EVIL_HOST,
+        });
+        const url = new URL(destination);
+        expect(url.origin).toBe(HOSTED);
+        expect(url.pathname).toBe("/error");
+      }
     } finally {
       restoreEnv();
     }

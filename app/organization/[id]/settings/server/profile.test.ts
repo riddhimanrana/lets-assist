@@ -9,7 +9,7 @@ mock.module("next/cache", () => ({ revalidatePath: () => {} }));
  * update organizations") also lets an org admin update the row directly
  * through the Data API with no column-level `WITH CHECK` on username, so
  * the database constraint in
- * `20260811190000_organization_username_reserved_slugs.sql` (proven in
+ * `20260811234500_organization_username_reserved_slugs.sql` (proven in
  * `organization_username_reserved_slugs.test.sql`) is the real backstop --
  * but the Server Action must still refuse a rename onto a reserved
  * username itself, with a truthful "reserved" error, and must not block an
@@ -67,9 +67,7 @@ function serverClient() {
           select: () => ({
             eq: (_column: string, value: string) => ({
               maybeSingle: async () => ({
-                data: existingUsernames.has(value)
-                  ? { username: value }
-                  : null,
+                data: existingUsernames.has(value) ? { username: value } : null,
                 error: null,
               }),
             }),
@@ -112,9 +110,8 @@ mock.module("@/lib/supabase/admin", () => ({
   getAdminClient: () => adminClient(),
 }));
 
-const { updateOrganization, checkUsernameAvailability } = await import(
-  "./profile"
-);
+const { updateOrganization, checkUsernameAvailability } =
+  await import("./profile");
 
 const baseUpdateData = {
   id: "org-1",
@@ -149,6 +146,21 @@ describe("checkUsernameAvailability", () => {
 
   test("reports an available, non-reserved username as available", async () => {
     expect(await checkUsernameAvailability("new-org-name")).toBe(true);
+  });
+
+  test("rejects invalid ASCII, length, dot, and astral formats", async () => {
+    for (const value of [
+      "ab",
+      "a".repeat(33),
+      ".abc",
+      "abc.",
+      "ab..cd",
+      "with space",
+      "abc😀",
+      `ab${String.fromCodePoint(0x1d400)}`,
+    ]) {
+      expect(await checkUsernameAvailability(value)).toBe(false);
+    }
   });
 });
 
@@ -186,6 +198,26 @@ describe("updateOrganization reserved-slug enforcement", () => {
     expect(result).toEqual({ success: true });
     expect(updateCalled).toBe(true);
     expect(appliedUpdate?.username).toBe("acme-renamed");
+  });
+
+  test("a direct Server Action call rejects every invalid username before update", async () => {
+    for (const username of [
+      "ab",
+      "a".repeat(33),
+      ".abc",
+      "abc.",
+      "ab..cd",
+      "slash/name",
+      "abc😀",
+      `ab${String.fromCodePoint(0x1d400)}`,
+    ]) {
+      const result = await updateOrganization({
+        ...baseUpdateData,
+        username,
+      });
+      expect(result.error).toBeString();
+    }
+    expect(updateCalled).toBe(false);
   });
 
   test("saving unrelated fields without changing the username is unaffected by the reserved check", async () => {

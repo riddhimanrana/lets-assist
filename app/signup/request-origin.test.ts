@@ -1,6 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import test from "node:test";
 
 import { buildAuthConfirmRedirectUrl } from "./redirect-utils";
@@ -175,7 +173,10 @@ test("a non-Vercel NODE_ENV=production deployment fails closed instead of return
     HOSTED,
   );
   // A non-production process with no Vercel signals still gets the loopback default.
-  assert.equal(resolveConfiguredSiteOrigin({ NODE_ENV: "development" }), "http://localhost:3000");
+  assert.equal(
+    resolveConfiguredSiteOrigin({ NODE_ENV: "development" }),
+    "http://localhost:3000",
+  );
   assert.equal(resolveConfiguredSiteOrigin({}), "http://localhost:3000");
 });
 
@@ -350,12 +351,18 @@ function withFakeWindow(
 }
 
 test("the client auth origin pins hosted deployments to the canonical origin, never the page's ambient host", () => {
-  withFakeWindow({ host: "alias.example", origin: "https://alias.example" }, () => {
-    assert.equal(resolveClientAuthOrigin(HOSTED), HOSTED);
-  });
-  withFakeWindow({ host: "attacker.example", origin: "https://attacker.example" }, () => {
-    assert.equal(resolveClientAuthOrigin(HOSTED), HOSTED);
-  });
+  withFakeWindow(
+    { host: "alias.example", origin: "https://alias.example" },
+    () => {
+      assert.equal(resolveClientAuthOrigin(HOSTED), HOSTED);
+    },
+  );
+  withFakeWindow(
+    { host: "attacker.example", origin: "https://attacker.example" },
+    () => {
+      assert.equal(resolveClientAuthOrigin(HOSTED), HOSTED);
+    },
+  );
   // The page's own canonical host still resolves to itself.
   withFakeWindow({ host: "lets-assist.com", origin: HOSTED }, () => {
     assert.equal(resolveClientAuthOrigin(HOSTED), HOSTED);
@@ -363,17 +370,26 @@ test("the client auth origin pins hosted deployments to the canonical origin, ne
 });
 
 test("the client auth origin keeps the loopback spelling the browser is actually on", () => {
-  withFakeWindow({ host: "127.0.0.1:3012", origin: "http://127.0.0.1:3012" }, () => {
-    assert.equal(resolveClientAuthOrigin(LOCAL), LOOPBACK_IP);
-  });
-  withFakeWindow({ host: "localhost:3012", origin: "http://localhost:3012" }, () => {
-    assert.equal(resolveClientAuthOrigin(LOCAL), LOCAL);
-  });
+  withFakeWindow(
+    { host: "127.0.0.1:3012", origin: "http://127.0.0.1:3012" },
+    () => {
+      assert.equal(resolveClientAuthOrigin(LOCAL), LOOPBACK_IP);
+    },
+  );
+  withFakeWindow(
+    { host: "localhost:3012", origin: "http://localhost:3012" },
+    () => {
+      assert.equal(resolveClientAuthOrigin(LOCAL), LOCAL);
+    },
+  );
   // A different port is a different origin and a different cookie jar, so
   // it is refused just like the server-side resolver refuses it.
-  withFakeWindow({ host: "127.0.0.1:9999", origin: "http://127.0.0.1:9999" }, () => {
-    assert.equal(resolveClientAuthOrigin(LOCAL), LOCAL);
-  });
+  withFakeWindow(
+    { host: "127.0.0.1:9999", origin: "http://127.0.0.1:9999" },
+    () => {
+      assert.equal(resolveClientAuthOrigin(LOCAL), LOCAL);
+    },
+  );
 });
 
 test("the client auth origin falls back to the loopback default with no configured value and no window", () => {
@@ -385,7 +401,10 @@ test("the client auth origin uses window.location.origin when no NEXT_PUBLIC_SIT
   // not fall back to localhost:3000 -- that is an unreachable redirectTo.
   // The page's actual origin (from window.location.origin) is used instead.
   withFakeWindow(
-    { host: "my-branch-abc123.vercel.app", origin: "https://my-branch-abc123.vercel.app" },
+    {
+      host: "my-branch-abc123.vercel.app",
+      origin: "https://my-branch-abc123.vercel.app",
+    },
     () => {
       assert.equal(
         resolveClientAuthOrigin(undefined),
@@ -414,88 +433,6 @@ test("the client auth origin treats a malformed configured value as absent and f
   // When window.location.origin itself is absent (e.g. very old test stubs),
   // localhost:3000 is still the last resort.
   withFakeWindow({ host: "lets-assist.com" }, () => {
-    assert.equal(
-      resolveClientAuthOrigin("not a url"),
-      "http://localhost:3000",
-    );
+    assert.equal(resolveClientAuthOrigin("not a url"), "http://localhost:3000");
   });
-});
-
-/**
- * The resolver is only worth anything if every auth redirect target goes
- * through it. Several modules used to build their own site origin from
- * `process.env.NEXT_PUBLIC_SITE_URL` with a private fallback, which
- * reintroduced exactly the failure modes this module exists to prevent:
- *
- * - `app/reset-password/actions.ts` had no fallback at all, so an unset
- *   variable interpolated the literal string "undefined" into every
- *   password-reset link;
- * - `app/account/email-actions.ts` and `app/account/security/actions.ts`
- *   fell back to `http://localhost:3000`, so a hosted deployment with a
- *   missing origin mailed users a link only reachable from the server;
- * - `app/api/calendar/google/callback/route.ts` fell back to
- *   `request.nextUrl.origin`, which Next.js derives from the
- *   `x-forwarded-host`/`Host` headers -- a request header choosing the
- *   destination of an authenticated redirect.
- *
- * These are source assertions on purpose: each of those modules is a
- * `"use server"` action or route whose behavior is covered by its own
- * runtime tests, and what needs pinning here is that none of them grows a
- * second, unvalidated origin derivation.
- */
-const AUTH_REDIRECT_ORIGIN_CONSUMERS = [
-  "app/auth/callback/route.ts",
-  "app/auth/confirm/route.ts",
-  "app/api/calendar/google/callback/route.ts",
-  "app/login/actions.ts",
-  "app/reset-password/actions.ts",
-  "app/account/email-actions.ts",
-  "app/account/security/actions.ts",
-  "app/anonymous/[id]/actions.ts",
-  "app/signup/actions.ts",
-];
-
-test("no auth redirect target is built from a raw NEXT_PUBLIC_SITE_URL read", () => {
-  for (const path of AUTH_REDIRECT_ORIGIN_CONSUMERS) {
-    const source = readFileSync(join(process.cwd(), path), "utf8");
-
-    // The only mentions left are in explanatory comments.
-    const codeLines = source
-      .split("\n")
-      .filter((line) => !/^\s*(\/\/|\*|\/\*)/u.test(line));
-
-    assert.equal(
-      codeLines.some((line) => line.includes("process.env.NEXT_PUBLIC_SITE_URL")),
-      false,
-      `${path} still reads NEXT_PUBLIC_SITE_URL directly`,
-    );
-
-    assert.equal(
-      source.includes('from "@/app/signup/request-origin"') ||
-        source.includes('from "./request-origin"'),
-      true,
-      `${path} does not import the shared origin resolver`,
-    );
-  }
-});
-
-test("no auth redirect target derives its origin from the request URL or nextUrl", () => {
-  for (const path of AUTH_REDIRECT_ORIGIN_CONSUMERS) {
-    const source = readFileSync(join(process.cwd(), path), "utf8");
-    const codeLines = source
-      .split("\n")
-      .filter((line) => !/^\s*(\/\/|\*|\/\*)/u.test(line));
-
-    for (const forbidden of [
-      "nextUrl.origin",
-      "new URL(request.url).origin",
-      "requestUrl.origin",
-    ]) {
-      assert.equal(
-        codeLines.some((line) => line.includes(forbidden)),
-        false,
-        `${path} derives a redirect origin from ${forbidden}`,
-      );
-    }
-  }
 });

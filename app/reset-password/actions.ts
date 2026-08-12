@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { resolveConfiguredSiteOrigin } from "@/app/signup/request-origin";
+import { runOnCanonicalAuthOrigin } from "@/app/signup/canonical-auth-request";
 
 const resetPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -14,7 +14,12 @@ type ErrorResponse = {
   email?: string[];
 };
 
-export async function requestPasswordReset(formData: FormData) {
+type ResetPasswordResult =
+  { success: true; error?: never } | { success?: never; error: ErrorResponse };
+
+export async function requestPasswordReset(
+  formData: FormData,
+): Promise<ResetPasswordResult> {
   const turnstileToken = formData.get("turnstileToken") as string;
 
   const validatedFields = resetPasswordSchema.safeParse({
@@ -28,39 +33,35 @@ export async function requestPasswordReset(formData: FormData) {
     };
   }
 
-  // Resolve the canonical origin BEFORE entering the email-enumeration
-  // try/catch below. If the deployment is misconfigured (missing or malformed
-  // NEXT_PUBLIC_SITE_URL on a hosted deployment) this throws as a real server
-  // error rather than being caught and returned to the caller as a fake
-  // success, which would mask the configuration problem entirely.
-  const origin = resolveConfiguredSiteOrigin();
-  const supabase = await createClient();
+  return runOnCanonicalAuthOrigin("/reset-password", async (origin) => {
+    const supabase = await createClient();
 
-  try {
-    const resetOptions: { redirectTo: string; captchaToken?: string } = {
-      redirectTo: `${origin}/auth/callback?type=recovery`,
-    };
+    try {
+      const resetOptions: { redirectTo: string; captchaToken?: string } = {
+        redirectTo: `${origin}/auth/callback?type=recovery`,
+      };
 
-    if (turnstileToken) {
-      resetOptions.captchaToken = turnstileToken;
-    }
+      if (turnstileToken) {
+        resetOptions.captchaToken = turnstileToken;
+      }
 
-    // Send password reset email. Provider and user-existence errors are
-    // intentionally swallowed here to prevent email enumeration.
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      validatedFields.data.email,
-      resetOptions,
-    );
+      // Send password reset email. Provider and user-existence errors are
+      // intentionally swallowed here to prevent email enumeration.
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        validatedFields.data.email,
+        resetOptions,
+      );
 
-    if (error) {
+      if (error) {
+        console.error("Password reset error:", error);
+      }
+
+      return { success: true };
+    } catch (error) {
+      // Network or unexpected runtime errors: still return success to avoid
+      // leaking whether the email address exists, but log the real cause.
       console.error("Password reset error:", error);
+      return { success: true };
     }
-
-    return { success: true };
-  } catch (error) {
-    // Network or unexpected runtime errors: still return success to avoid
-    // leaking whether the email address exists, but log the real cause.
-    console.error("Password reset error:", error);
-    return { success: true };
-  }
+  });
 }

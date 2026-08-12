@@ -26,7 +26,9 @@ export const RESERVED_ORGANIZATION_SLUGS: ReadonlySet<string> = new Set([
  * full-width or ligature spellings that normalize to plain ASCII) must not
  * be a way to smuggle a reserved slug past this check, even though the
  * ordinary username format only allows ASCII letters, numbers, `_`, `.`, and
- * `-`: nothing enforces that format on a direct database write.
+ * `-`. The separate format constraint is intentionally not validated against
+ * historical rows yet, so this normalization remains necessary for the
+ * independently validated reserved-route invariant.
  */
 export function normalizeOrganizationSlugForReservedCheck(
   value: string,
