@@ -25,16 +25,31 @@ mock.module("./access", () => ({
   canUserManageProject: async () => true,
 }));
 
-const occurrenceIds = ["occurrence-1", "occurrence-2", "occurrence-3"];
+const parentId = "f9200000-0000-4000-8000-000000000001";
+const occurrenceIds = [
+  "f9210000-0000-4000-8000-000000000001",
+  "f9210000-0000-4000-8000-000000000002",
+  "f9210000-0000-4000-8000-000000000003",
+];
 const rpcCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
-const projectUpdates: Record<string, unknown>[] = [];
+const projectUpdates: Array<{
+  payload: Record<string, unknown>;
+  filters: Array<{ column: string; value: unknown }>;
+  selected: string;
+  maybeSingleCalled: boolean;
+}> = [];
 const calendarRemovals: string[] = [];
 const lifecycleOperations: string[] = [];
-const cancelledOccurrenceIds = new Set<string>();
-let occurrenceReadError: { code: string } | null = null;
-let cancellationFailures = new Set<string>();
 let parentRecurrenceRule: Record<string, unknown> | null = null;
-let parentUpdateError: { code: string } | null = null;
+let parentUpdateResult: {
+  data: { id: string } | null;
+  error: { code: string } | null;
+};
+let rpcResponses: Array<{
+  data: unknown;
+  error: { code: string } | null;
+  commitsSeriesEnd?: boolean;
+}> = [];
 
 mock.module("@/utils/calendar-helpers", () => ({
   removeCalendarEventForProject: async (projectId: string) => {
@@ -47,33 +62,21 @@ function projectBuilder() {
   let selected = "";
   let updatePayload: Record<string, unknown> = {};
   const filters: Array<{ column: string; value: unknown }> = [];
+  let updateRecorded = false;
 
-  const resolve = () => {
+  const resolve = (maybeSingleCalled = false) => {
     if (operation === "update") {
-      lifecycleOperations.push("update-parent");
-      projectUpdates.push(updatePayload);
-      if (
-        !parentUpdateError &&
-        Object.prototype.hasOwnProperty.call(updatePayload, "recurrence_rule")
-      ) {
-        parentRecurrenceRule =
-          (updatePayload.recurrence_rule as Record<string, unknown> | null) ??
-          null;
+      if (!updateRecorded) {
+        updateRecorded = true;
+        lifecycleOperations.push("update-parent");
+        projectUpdates.push({
+          payload: updatePayload,
+          filters: [...filters],
+          selected,
+          maybeSingleCalled,
+        });
       }
-      return { data: null, error: parentUpdateError };
-    }
-    if (
-      selected === "id" &&
-      filters.some(({ column }) => column === "recurrence_parent_id")
-    ) {
-      return {
-        data: occurrenceReadError
-          ? null
-          : occurrenceIds
-              .filter((id) => !cancelledOccurrenceIds.has(id))
-              .map((id) => ({ id })),
-        error: occurrenceReadError,
-      };
+      return parentUpdateResult;
     }
     return {
       data: {
@@ -102,10 +105,9 @@ function projectBuilder() {
       filters.push({ column, value });
       return builder;
     },
-    order() {
-      return Promise.resolve(resolve());
-    },
+    order: async () => ({ data: [], error: null }),
     single: async () => resolve(),
+    maybeSingle: async () => resolve(true),
     then(
       onfulfilled?: ((value: ReturnType<typeof resolve>) => unknown) | null,
       onrejected?: ((reason: unknown) => unknown) | null,
@@ -124,27 +126,12 @@ mock.module("@/lib/supabase/server", () => ({
       return projectBuilder();
     },
     rpc: async (name: string, args: Record<string, unknown>) => {
-      lifecycleOperations.push(`cancel-${String(args.p_project_id)}`);
+      lifecycleOperations.push("end-series");
       rpcCalls.push({ name, args });
-      const projectId = String(args.p_project_id);
-      if (cancellationFailures.has(projectId)) {
-        return { data: null, error: { code: "40001" } };
-      }
-      if (cancelledOccurrenceIds.has(projectId)) {
-        return {
-          data: {
-            outcome: "already_cancelled",
-            jobStatus: "processing",
-            accepted: true,
-          },
-          error: null,
-        };
-      }
-      cancelledOccurrenceIds.add(projectId);
-      return {
-        data: { outcome: "cancelled", jobStatus: "pending", accepted: true },
-        error: null,
-      };
+      const response = rpcResponses.shift();
+      if (!response) throw new Error("Missing RPC response fixture");
+      if (response.commitsSeriesEnd) parentRecurrenceRule = null;
+      return { data: response.data, error: response.error };
     },
   }),
 }));
@@ -156,20 +143,29 @@ beforeEach(() => {
   projectUpdates.length = 0;
   calendarRemovals.length = 0;
   lifecycleOperations.length = 0;
-  cancelledOccurrenceIds.clear();
-  occurrenceReadError = null;
-  cancellationFailures = new Set();
-  parentUpdateError = null;
   parentRecurrenceRule = {
     frequency: "weekly",
     interval: 1,
     end_type: "never",
   };
+  parentUpdateResult = { data: { id: parentId }, error: null };
+  rpcResponses = [
+    {
+      data: {
+        outcome: "ended",
+        endedRecurringSeries: true,
+        cancelledOccurrences: 3,
+        calendarCleanupProjectIds: occurrenceIds,
+      },
+      error: null,
+      commitsSeriesEnd: true,
+    },
+  ];
 });
 
 describe("recurring-series cancellation integration", () => {
-  test("cancels every child before clearing the parent recurrence rule", async () => {
-    const result = await updateProject("series-parent", {
+  test("uses the transactional series boundary and skips an ordinary update when only recurrence is cleared", async () => {
+    const result = await updateProject(parentId, {
       recurrence_rule: null,
     });
 
@@ -177,109 +173,51 @@ describe("recurring-series cancellation integration", () => {
       success: true,
       endedRecurringSeries: true,
       cancelledOccurrences: 3,
-    });
-    expect(rpcCalls).toEqual(
-      occurrenceIds.map((id) => ({
-        name: "cancel_project_transactional",
-        args: {
-          p_project_id: id,
-          p_cancellation_reason: "Recurring series ended by organizer",
-        },
-      })),
-    );
-    expect(calendarRemovals).toEqual(occurrenceIds);
-    expect(lifecycleOperations).toEqual([
-      "cancel-occurrence-1",
-      "cancel-occurrence-2",
-      "cancel-occurrence-3",
-      "update-parent",
-    ]);
-    expect(projectUpdates).toHaveLength(1);
-    expect(projectUpdates[0]).toEqual({ recurrence_rule: null });
-    expect(projectUpdates[0]).not.toHaveProperty("status");
-  });
-
-  test("keeps the parent discoverable when child discovery fails", async () => {
-    occurrenceReadError = { code: "57014" };
-
-    const result = await updateProject("series-parent", {
-      recurrence_rule: null,
-    });
-
-    expect(result).toEqual({
-      error: "Failed to read recurring occurrences",
-      endedRecurringSeries: false,
-      cancelledOccurrences: 0,
-    });
-    expect(rpcCalls).toHaveLength(0);
-    expect(projectUpdates).toHaveLength(0);
-    expect(parentRecurrenceRule).not.toBeNull();
-  });
-
-  test("reports a partial cancellation and a retry finishes remaining children", async () => {
-    cancellationFailures.add("occurrence-2");
-
-    const first = await updateProject("series-parent", {
-      recurrence_rule: null,
-    });
-
-    expect(first).toEqual({
-      error: "Failed to cancel all recurring occurrences",
-      endedRecurringSeries: false,
-      cancelledOccurrences: 2,
-    });
-    expect(projectUpdates).toHaveLength(0);
-    expect(parentRecurrenceRule).not.toBeNull();
-    expect(cancelledOccurrenceIds).toEqual(
-      new Set(["occurrence-1", "occurrence-3"]),
-    );
-
-    cancellationFailures.clear();
-    rpcCalls.length = 0;
-    calendarRemovals.length = 0;
-
-    const retry = await updateProject("series-parent", {
-      recurrence_rule: null,
-    });
-
-    expect(retry).toEqual({
-      success: true,
-      endedRecurringSeries: true,
-      cancelledOccurrences: 1,
     });
     expect(rpcCalls).toEqual([
       {
-        name: "cancel_project_transactional",
-        args: {
-          p_project_id: "occurrence-2",
-          p_cancellation_reason: "Recurring series ended by organizer",
-        },
+        name: "end_recurring_project_series_transactional",
+        args: { p_project_id: parentId },
       },
     ]);
-    expect(calendarRemovals).toEqual(["occurrence-2"]);
-    expect(projectUpdates).toEqual([{ recurrence_rule: null }]);
+    expect(calendarRemovals).toEqual(occurrenceIds);
+    expect(lifecycleOperations).toEqual(["end-series"]);
+    expect(projectUpdates).toHaveLength(0);
     expect(parentRecurrenceRule).toBeNull();
   });
 
-  test("keeps the parent discoverable when clearing its rule fails", async () => {
-    parentUpdateError = { code: "40001" };
+  test("replays calendar cleanup after the transaction committed but its response was lost", async () => {
+    rpcResponses = [
+      {
+        data: null,
+        error: { code: "57014" },
+        commitsSeriesEnd: true,
+      },
+      {
+        data: {
+          outcome: "replayed",
+          endedRecurringSeries: true,
+          cancelledOccurrences: 0,
+          calendarCleanupProjectIds: occurrenceIds,
+        },
+        error: null,
+      },
+    ];
 
-    const first = await updateProject("series-parent", {
+    const unknownResponse = await updateProject(parentId, {
       recurrence_rule: null,
     });
 
-    expect(first).toEqual({
+    expect(unknownResponse).toEqual({
       error: "Failed to end recurring series",
       endedRecurringSeries: false,
-      cancelledOccurrences: 3,
+      cancelledOccurrences: 0,
     });
-    expect(cancelledOccurrenceIds).toEqual(new Set(occurrenceIds));
-    expect(parentRecurrenceRule).not.toBeNull();
+    expect(parentRecurrenceRule).toBeNull();
+    expect(calendarRemovals).toEqual([]);
+    expect(projectUpdates).toHaveLength(0);
 
-    parentUpdateError = null;
-    projectUpdates.length = 0;
-
-    const retry = await updateProject("series-parent", {
+    const retry = await updateProject(parentId, {
       recurrence_rule: null,
     });
 
@@ -288,7 +226,108 @@ describe("recurring-series cancellation integration", () => {
       endedRecurringSeries: true,
       cancelledOccurrences: 0,
     });
-    expect(projectUpdates).toEqual([{ recurrence_rule: null }]);
+    expect(rpcCalls).toEqual([
+      {
+        name: "end_recurring_project_series_transactional",
+        args: { p_project_id: parentId },
+      },
+      {
+        name: "end_recurring_project_series_transactional",
+        args: { p_project_id: parentId },
+      },
+    ]);
+    expect(calendarRemovals).toEqual(occurrenceIds);
+    expect(projectUpdates).toHaveLength(0);
+  });
+
+  test("rejects a malformed transactional receipt", async () => {
+    rpcResponses = [
+      {
+        data: {
+          outcome: "ended",
+          endedRecurringSeries: true,
+          cancelledOccurrences: "3",
+          calendarCleanupProjectIds: occurrenceIds,
+        },
+        error: null,
+        commitsSeriesEnd: true,
+      },
+    ];
+
+    const result = await updateProject(parentId, {
+      recurrence_rule: null,
+    });
+
+    expect(result).toEqual({
+      error: "Failed to end recurring series",
+      endedRecurringSeries: false,
+      cancelledOccurrences: 0,
+    });
+    expect(calendarRemovals).toEqual([]);
+    expect(projectUpdates).toHaveLength(0);
     expect(parentRecurrenceRule).toBeNull();
+  });
+
+  test("requires an exact parent row when updating other sanitized fields", async () => {
+    parentUpdateResult = { data: null, error: null };
+
+    const result = await updateProject(parentId, {
+      recurrence_rule: null,
+      title: "Renamed series",
+    });
+
+    expect(result).toEqual({
+      error: "Failed to update project",
+      endedRecurringSeries: true,
+      cancelledOccurrences: 3,
+    });
+    expect(projectUpdates).toEqual([
+      {
+        payload: { title: "Renamed series" },
+        filters: [{ column: "id", value: parentId }],
+        selected: "id",
+        maybeSingleCalled: true,
+      },
+    ]);
+    expect(calendarRemovals).toEqual(occurrenceIds);
+  });
+
+  test("updates remaining fields without writing recurrence_rule again", async () => {
+    const result = await updateProject(parentId, {
+      recurrence_rule: null,
+      title: "Renamed series",
+    });
+
+    expect(result).toEqual({
+      success: true,
+      endedRecurringSeries: true,
+      cancelledOccurrences: 3,
+    });
+    expect(projectUpdates).toEqual([
+      {
+        payload: { title: "Renamed series" },
+        filters: [{ column: "id", value: parentId }],
+        selected: "id",
+        maybeSingleCalled: true,
+      },
+    ]);
+  });
+
+  test("fails closed when the transactional RPC returns an error", async () => {
+    rpcResponses = [{ data: null, error: { code: "40001" } }];
+
+    const result = await updateProject(parentId, {
+      recurrence_rule: null,
+      title: "Must not be written",
+    });
+
+    expect(result).toEqual({
+      error: "Failed to end recurring series",
+      endedRecurringSeries: false,
+      cancelledOccurrences: 0,
+    });
+    expect(calendarRemovals).toEqual([]);
+    expect(projectUpdates).toHaveLength(0);
+    expect(parentRecurrenceRule).not.toBeNull();
   });
 });

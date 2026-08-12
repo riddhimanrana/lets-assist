@@ -840,6 +840,7 @@ public_client_function_acl_drift="$(
         ('public.can_insert_project(uuid,text,uuid)', 'authenticated'),
         ('public.can_keep_or_set_public_visibility(uuid,uuid)', 'authenticated'),
         ('public.cancel_project_transactional(uuid,text)', 'authenticated'),
+        ('public.end_recurring_project_series_transactional(uuid)', 'authenticated'),
         ('public.get_public_attendees(uuid)', 'anon'),
         ('public.get_public_attendees(uuid)', 'authenticated'),
         ('public.is_project_organizer(uuid,uuid)', 'authenticated'),
