@@ -113,6 +113,7 @@ describe("combined project lifecycle source contract", () => {
       "20260811235900_project_cancellation_durable_worker.sql",
       "20260812001000_project_cancellation_hostile_review_hardening.sql",
       "20260812001100_repair_project_signup_lifecycle_boundary.sql",
+      "20260812001200_preserve_cancellation_evidence_parent_deletion.sql",
     ].map((file) => read(`supabase/migrations/${file}`));
     const source = migrations.join("\n");
     const generatedColumns = new Set(
@@ -141,6 +142,63 @@ describe("combined project lifecycle source contract", () => {
         )
         .map((foreignKey) => foreignKey.name),
     ).toEqual([]);
+  });
+
+  test("cancellation evidence uses immutable snapshots and nullable live parent references", () => {
+    const retention = read(
+      "supabase/migrations/20260812001200_preserve_cancellation_evidence_parent_deletion.sql",
+    );
+    const hardening = read(
+      "supabase/migrations/20260812001000_project_cancellation_hostile_review_hardening.sql",
+    );
+
+    for (const column of [
+      "project_id_snapshot",
+      "organization_id_snapshot",
+      "live_project_id",
+      "live_organization_id",
+    ]) {
+      expect(retention).toContain(column);
+    }
+    expect(retention).toMatch(
+      /project_cancellation_jobs_live_project_id_fkey[\s\S]*ON DELETE SET NULL/,
+    );
+    expect(retention).toMatch(
+      /project_cancellation_deliveries_live_project_id_fkey[\s\S]*ON DELETE SET NULL/,
+    );
+    expect(hardening).toMatch(
+      /project_cancellation_deliveries_job_id_fkey[\s\S]*ON DELETE RESTRICT/,
+    );
+    expect(retention).not.toContain(
+      "DROP CONSTRAINT project_cancellation_deliveries_job_id_fkey",
+    );
+    expect(retention).toMatch(
+      /UPDATE public\.project_cancellation_jobs[\s\S]*live_project_id = CASE[\s\S]*WHEN EXISTS \([\s\S]*FROM public\.projects/,
+    );
+    expect(retention).not.toContain("live_project_id = project_id,");
+    expect(retention).not.toMatch(
+      /project_cancellation_(?:jobs|deliveries)_(?:project|organization)_id_fkey[\s\S]{0,160}ON DELETE RESTRICT/,
+    );
+  });
+
+  test("organization deletion proves database truth before removing its logo", () => {
+    const profile = read("app/organization/[id]/settings/server/profile.ts");
+    const deletion = profile.slice(
+      profile.indexOf("export async function deleteOrganization("),
+      profile.indexOf("export async function generateStaffLink("),
+    );
+    const databaseDelete = deletion.indexOf(".delete()");
+    const deletionProof = deletion.indexOf('.select("id")', databaseDelete);
+    const logoRemoval = deletion.indexOf('.from("organization-logos")');
+
+    expect(databaseDelete).toBeGreaterThanOrEqual(0);
+    expect(deletion.slice(0, databaseDelete)).not.toContain(
+      '.from("organization-logos")',
+    );
+    expect(deletionProof).toBeGreaterThan(databaseDelete);
+    expect(deletion).toContain(".maybeSingle()");
+    expect(logoRemoval).toBeGreaterThan(deletionProof);
+    expect(deletion).toContain("deletedOrganization.id !== organizationId");
   });
 
   test("signup approval stays open in progress without weakening cancellation", () => {

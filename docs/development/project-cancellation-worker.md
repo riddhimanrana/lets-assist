@@ -45,14 +45,19 @@ pseudonymous identity hash, exact trimmed destination and destination hash,
 and which channels were owed. Duplicate approved signups for one registered
 user produce one delivery row.
 
-The live signup, account, or anonymous-signup foreign keys are nullable and use
-safe `SET NULL` behavior. Deleting one of those records does not delete the
-delivery ledger or its frozen evidence. The live signup uses ordinary-column
-project and organization keys: together they prove its derived tenant while it
-exists, then clear only `signup_id` on deletion. The generated tenant coordinate
-is deliberately excluded from that `SET NULL` foreign key because PostgreSQL 17
-rejects that action for a constraint containing a generated column. Composite
-project/job tenant keys remain restricted.
+Project and organization identifiers on both ledgers are immutable snapshots,
+not live foreign keys. Separate nullable `live_project_id` and
+`live_organization_id` references prove the parent relationship while it
+exists, then use guarded `SET NULL` actions after project, creator-account, or
+organization deletion. The live signup, account, and anonymous-signup
+references follow the same evidence-preserving pattern on deliveries. Deleting
+any live parent never deletes the ledger or changes its snapshot identifiers.
+
+Delivery-to-job snapshot coordinates remain `RESTRICT`: a delivery can never
+be orphaned or moved across a project/tenant boundary, and no parent cascade
+can erase the job that owns it. The generated tenant coordinate is deliberately
+excluded from every `SET NULL` foreign key because PostgreSQL 17 rejects that
+action for a constraint containing a generated column.
 
 The exact address is service-only retention data. Once both owed channels are
 terminal, a bounded skip-locked retention RPC removes it after 90 days while
@@ -105,8 +110,9 @@ maxima.
 Coverage lives in:
 
 - `project_cancellation_durable_worker.test.sql` for transactional cancellation,
-  ACLs, frozen/deletion-safe evidence, channel truth, constraints, indexes, and
-  finalization denial;
+  ACLs, frozen/deletion-safe evidence across project/account/organization
+  deletion, channel truth, no orphan/cross-tenant evidence, constraints,
+  indexes, and finalization denial;
 - `project_cancellation_worker_concurrency.test.sql` for two-session
   cancellation-versus-approval and concurrent reapers;
 - `project_cancellation_worker_lock_order.test.sql` for bounded candidate CTEs,
