@@ -17,6 +17,8 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { describePluginUninstallImpact } from "@/lib/plugins/plugin-uninstall-impact";
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -304,6 +306,16 @@ export default function OrganizationPluginSettings({
   const isPluginActionSubmitting =
     Boolean(activePluginActionId) && updatingActionId === activePluginActionId;
 
+  const uninstallImpact = useMemo(() => {
+    if (!activePluginAction || isInstallAction) {
+      return null;
+    }
+    return describePluginUninstallImpact({
+      pluginName: activePluginAction.name,
+      dataAccessPurposes: activePluginAction.dataAccessPurposes,
+    });
+  }, [activePluginAction, isInstallAction]);
+
   const configFields = useMemo<ConfigFieldDescriptor[]>(() => {
     if (!activeSettingsPlugin?.configSchema) {
       return [];
@@ -446,7 +458,7 @@ export default function OrganizationPluginSettings({
     const actionId = `${pluginKey}:${intent}`;
     setUpdatingActionId(actionId);
 
-    const response =
+    const response: { success: boolean; error?: string; message?: string } =
       intent === "install"
         ? await setOrganizationPluginInstallState({
             organizationId,
@@ -467,9 +479,8 @@ export default function OrganizationPluginSettings({
     if (intent === "install") {
       toast.success(`${pluginName} installed successfully`);
     } else {
-      const uninstallMessage = (response as { message?: string }).message;
       toast.success(`${pluginName} uninstalled`, {
-        description: uninstallMessage,
+        description: response.message,
       });
     }
 
@@ -1195,18 +1206,46 @@ export default function OrganizationPluginSettings({
                     <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
                     <div className="flex flex-col gap-2 text-sm leading-relaxed">
                       <p className="text-destructive font-medium">
-                        All plugin workflows will stop and your saved
-                        settings will be permanently removed. This cannot be
-                        undone.
+                        All plugin workflows will stop and your saved settings
+                        will be permanently removed. This cannot be undone.
                       </p>
-                      <p className="text-muted-foreground">
-                        {activePluginAction.dataAccess.length > 0
-                          ? `Data this plugin already stored for your organization (${activePluginAction.dataAccess.join(", ")}) is not deleted — it stays in your organization and reappears if you reinstall.`
-                          : "Any data this plugin already stored for your organization is not deleted — it stays in your organization and reappears if you reinstall."}{" "}
-                        Permanently erasing that data is a separate,
-                        authorized request; there is currently no
-                        self-service way to request it from this screen.
-                      </p>
+                      {uninstallImpact ? (
+                        <>
+                          <p className="text-muted-foreground">
+                            {uninstallImpact.retentionClause}
+                          </p>
+                          {uninstallImpact.dataCategories.length > 0 ? (
+                            <div className="mt-1 flex max-h-32 flex-col gap-1.5 overflow-y-auto rounded-md border bg-background/50 p-3">
+                              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Retained data categories
+                              </p>
+                              <ul className="flex flex-col gap-1">
+                                {uninstallImpact.dataCategories.map(
+                                  (category) => (
+                                    <li
+                                      key={category}
+                                      className="text-xs text-foreground"
+                                    >
+                                      {category}
+                                    </li>
+                                  ),
+                                )}
+                              </ul>
+                              {uninstallImpact.additionalDataCategoryCount >
+                              0 ? (
+                                <p className="text-xs text-muted-foreground">
+                                  +{uninstallImpact.additionalDataCategoryCount}{" "}
+                                  more categor
+                                  {uninstallImpact.additionalDataCategoryCount ===
+                                  1
+                                    ? "y"
+                                    : "ies"}
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 )}

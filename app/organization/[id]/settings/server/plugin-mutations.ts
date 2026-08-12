@@ -6,7 +6,10 @@ import { revalidatePath } from "next/cache";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
-import { describePluginUninstallImpact } from "@/lib/plugins/plugin-uninstall-impact";
+import {
+  describePluginUninstallImpact,
+  extractDataAccessPurposes,
+} from "@/lib/plugins/plugin-uninstall-impact";
 import { transitionOrganizationPluginInstall } from "@/lib/plugins/control-plane-transition";
 import {
   applyConfigDefaults,
@@ -289,11 +292,29 @@ export async function uninstallOrganizationPlugin(options: {
   revalidatePath(`/organization/${organizationId}`);
   revalidatePath(`/organization/${organizationId}/settings`);
 
+  if (!transitionResult.changed) {
+    // No install row existed for this organization/plugin pair by the time
+    // this ran (a retried request, a lost first response, a double click).
+    // Nothing was removed and no hook ran this time — say so truthfully
+    // instead of repeating the "just uninstalled" copy for an action that
+    // didn't happen.
+    return {
+      success: true,
+      message:
+        "This plugin was already uninstalled. Any data it previously stored for your organization remains retained and scoped to your organization.",
+    };
+  }
+
   const definition = getRegisteredPlugin(pluginKey);
   return {
     success: true,
     message: definition
-      ? describePluginUninstallImpact(definition).summary
+      ? describePluginUninstallImpact({
+          pluginName: definition.manifest.name,
+          dataAccessPurposes: extractDataAccessPurposes(
+            definition.manifest.dataAccess,
+          ),
+        }).summary
       : undefined,
   };
 }

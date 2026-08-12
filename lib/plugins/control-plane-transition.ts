@@ -351,7 +351,9 @@ async function transitionOrganizationPluginInstallWithLease(
       actor_type: input.actor.type,
       details: {
         controlPlaneTransition: input.transition.kind,
-        ...pluginControlPlaneAuditDetails(action),
+        ...pluginControlPlaneAuditDetails(action, {
+          configuration: current?.configuration,
+        }),
       },
     });
   }

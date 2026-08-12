@@ -87,15 +87,33 @@ export class PluginControlPlaneConcurrencyError extends Error {
 
 /**
  * Extra audit detail for one control-plane action, merged alongside the
- * transition kind. Uninstall never deletes plugin_data — only the install
- * row — so its audit row records that truthfully rather than leaving a
- * reader to guess.
+ * transition kind.
+ *
+ * For `install.removed`, this deliberately does NOT assert
+ * `pluginDataRetained: true`. The platform's own DELETE only ever removes
+ * `organization_plugin_installs`, but `onUninstall` is an arbitrary plugin
+ * hook that runs first, with the service role, and nothing constrains what
+ * it does to `plugin_data` — the platform cannot certify a guarantee about
+ * code it does not control. The two facts below are ones the platform
+ * actually controls and can certify: its own row removal happened, and it
+ * did not invoke the separate erasure path
+ * (`onDataDelete`/`runPluginDataDelete`) as part of this transition.
  */
 export function pluginControlPlaneAuditDetails(
   action: PluginControlPlaneAuditAction,
+  context?: { configuration?: Record<string, unknown> },
 ): Record<string, unknown> {
   if (action === "install.removed") {
-    return { pluginDataRetained: true };
+    return {
+      platformInstallRowRemoved: true,
+      pluginDataDeletionNotRequested: true,
+      // A boolean fact, never the configuration content itself — the
+      // configuration blob can hold plugin-defined values that should not
+      // be persisted verbatim into an audit log.
+      configurationRemoved: Boolean(
+        context?.configuration && Object.keys(context.configuration).length > 0,
+      ),
+    };
   }
   return {};
 }
@@ -286,6 +304,15 @@ export async function applyPluginControlPlaneTransition(input: {
   }
 
   if (!current) {
+    if (transition.kind === "uninstall") {
+      // A repeat uninstall (lost response, retried request, double click)
+      // observes no install row and has nothing left to do. Refusing here
+      // would be a false error for an already-satisfied request; silently
+      // "succeeding" while rerunning the uninstall hook or re-emitting
+      // install.removed would be worse, since neither happened. Report the
+      // one thing that is true: no change.
+      return { success: true, changed: false, actions: [] };
+    }
     return {
       success: false,
       changed: false,

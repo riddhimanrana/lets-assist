@@ -309,11 +309,59 @@ describe("plugin control-plane lifecycle ordering", () => {
     ]);
   });
 
-  test("a repeat uninstall with no current install is refused, not silently accepted", async () => {
+  test("a repeat uninstall with no current install is an idempotent no-op, not an error", async () => {
     const harness = callbacks();
     const result = await applyPluginControlPlaneTransition({
       current: null,
       transition: { kind: "uninstall" },
+      callbacks: harness.implementation,
+    });
+
+    expect(result).toEqual({ success: true, changed: false, actions: [] });
+    // No hook reran and no persistence call was issued: nothing was there
+    // to compensate, so nothing should have executed.
+    expect(harness.events).toEqual([]);
+  });
+
+  test("disable with no current install is still refused, unlike uninstall", async () => {
+    const harness = callbacks();
+    const result = await applyPluginControlPlaneTransition({
+      current: null,
+      transition: { kind: "disable" },
+      callbacks: harness.implementation,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      changed: false,
+      actions: [],
+      error: "Plugin is not installed for this organization.",
+    });
+    expect(harness.events).toEqual([]);
+  });
+
+  test("config_update with no current install is still refused, unlike uninstall", async () => {
+    const harness = callbacks();
+    const result = await applyPluginControlPlaneTransition({
+      current: null,
+      transition: { kind: "config_update", configuration: { mode: "new" } },
+      callbacks: harness.implementation,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      changed: false,
+      actions: [],
+      error: "Plugin is not installed for this organization.",
+    });
+    expect(harness.events).toEqual([]);
+  });
+
+  test("version_update with no current install is still refused, unlike uninstall", async () => {
+    const harness = callbacks();
+    const result = await applyPluginControlPlaneTransition({
+      current: null,
+      transition: { kind: "version_update", targetVersion: "2.0.0" },
       callbacks: harness.implementation,
     });
 
@@ -328,7 +376,7 @@ describe("plugin control-plane lifecycle ordering", () => {
 });
 
 describe("plugin control-plane audit details", () => {
-  test("only install.removed asserts plugin_data retention", () => {
+  test("only install.removed asserts platform-controlled facts, and never a claim about plugin_data", () => {
     const actions: PluginControlPlaneAuditAction[] = [
       "install.created",
       "install.enabled",
@@ -342,10 +390,33 @@ describe("plugin control-plane audit details", () => {
     for (const action of actions) {
       const details = pluginControlPlaneAuditDetails(action);
       if (action === "install.removed") {
-        expect(details).toEqual({ pluginDataRetained: true });
+        expect(details).toEqual({
+          platformInstallRowRemoved: true,
+          pluginDataDeletionNotRequested: true,
+          configurationRemoved: false,
+        });
+        // Neither key claims to know what an arbitrary onUninstall hook did
+        // to plugin_data — the platform cannot certify that.
+        expect(Object.keys(details)).not.toContain("pluginDataRetained");
       } else {
         expect(details).toEqual({});
       }
     }
+  });
+
+  test("install.removed records whether a non-empty configuration existed, never its content", () => {
+    const withConfig = pluginControlPlaneAuditDetails("install.removed", {
+      configuration: { apiKey: "secret-value", mode: "strict" },
+    });
+    expect(withConfig.configurationRemoved).toBe(true);
+    expect(JSON.stringify(withConfig)).not.toContain("secret-value");
+
+    const emptyConfig = pluginControlPlaneAuditDetails("install.removed", {
+      configuration: {},
+    });
+    expect(emptyConfig.configurationRemoved).toBe(false);
+
+    const noConfig = pluginControlPlaneAuditDetails("install.removed", {});
+    expect(noConfig.configurationRemoved).toBe(false);
   });
 });
