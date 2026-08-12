@@ -265,7 +265,7 @@ SELECT extensions.throws_ok(
     SET status = 'approved'
     WHERE id = 'da400000-0000-4000-8000-000000000004'$$,
   '55000',
-  'signups can only be approved for upcoming projects',
+  'signups can only be approved for active projects',
   'approval after cancellation cannot escape the frozen audience'
 );
 
