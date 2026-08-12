@@ -3,23 +3,31 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** This repository branch carries 273 ordered migrations through the
-new atomic post-reply boundary, while hosted Development remains at 272 through
-`20260812132725` and `dev.lets-assist.com` remains Ready on the exact
-development SHA. Google OAuth and Picker are connected. The real Spring 2026
-application Preview passed the metadata RPC and stored 85 preview rows, then
-failed at the seal because the caller supplied a reserved derived summary key.
-Zero term applications were committed. Production remains untouched.
+**Status:** This repository branch carries 274 ordered migrations through the
+CSF activity and partner-club authorization recheck under lock, while hosted
+Development remains at 272 through `20260812132725` and
+`dev.lets-assist.com` remains Ready on the exact development SHA. The local
+isolated replay passed all 123 pgTAP files and 5,208 assertions; hosted
+acceptance remains pending. Google OAuth and Picker are connected. The real
+Spring 2026 application Preview passed the metadata RPC and stored 85 preview
+rows, then failed at the seal because the caller supplied a reserved derived
+summary key. Zero term applications were committed. Production remains
+untouched.
 
 **Latest contract amendment:** August 12, 2026; this current-state amendment supersedes stale claims about Development ledger parity, advisor counts, and the code served by the Development alias. Historical counts below remain evidence for their named runs only.
 
 ## Current hosted Development state
 
-- The repository branch has 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`.
+- The repository branch has 274 ordered migrations through
+  `20260812162732_recheck_csf_activity_partner_authorization_under_lock`.
+- The local isolated replay passed all 123 pgTAP files and 5,208 assertions
+  against that 274-migration ledger. This local result does not establish hosted
+  acceptance.
 - Hosted Development remains at 272 ordered migrations through
-  `20260812132725_csf_drive_metadata_compare_and_set_fence`; the atomic CSF
-  reply boundary has not been applied there.
+  `20260812132725_csf_drive_metadata_compare_and_set_fence`;
+  `20260812152300_atomic_csf_post_replies` and
+  `20260812162732_recheck_csf_activity_partner_authorization_under_lock` have
+  not been applied there.
 - The current Development Supabase advisor snapshot reports 95 INFO, 0 WARN,
   and 0 ERROR security findings, plus 611 INFO, 0 WARN, and 0 ERROR performance
   findings.
@@ -365,10 +373,11 @@ The current officer procedure is documented in the [officer runbook](officer-run
 - Development uses a distinct hosted Supabase project. Its database has 272
   ordered migrations through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`, while this
-  repository branch has 273 through
-  `20260812152300_atomic_csf_post_replies`. The Ready alias serves development
-  SHA `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, which does not contain the
-  forward atomic-reply migration.
+  repository branch has 274 through
+  `20260812162732_recheck_csf_activity_partner_authorization_under_lock`. The
+  Ready alias serves development SHA
+  `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, which does not contain the
+  forward atomic-reply or activity/partner authorization-recheck migrations.
   Preview reached 85 stored rows before the seal failure; no term application
   commit occurred. No additional paid branch was created.
 - Production Supabase, Production Vercel, `main`, the Production DVHS CSF tenant, Gmail mailbox, Classroom, website, Instagram, and officer-maintained Sheets were not mutated.

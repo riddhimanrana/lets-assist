@@ -76,6 +76,9 @@ const testingAndRelease = flow(readDoc("testing-and-release.md"));
 const productionCutoverRunbook = flow(
   readRepositoryFile("docs/development/production-cutover-runbook.md"),
 );
+const cleanupRegister = flow(
+  readRepositoryFile("docs/development/cleanup-register.md"),
+);
 
 type LabelContract = {
   /** The component that renders it. */
@@ -699,9 +702,9 @@ describe("CSF operator documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(273);
+    expect(migrations).toHaveLength(274);
     expect(migrations.at(-1)).toBe(
-      "20260812152300_atomic_csf_post_replies.sql",
+      "20260812162732_recheck_csf_activity_partner_authorization_under_lock.sql",
     );
 
     const currentState = between(
@@ -710,9 +713,14 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 273 ordered migrations through",
+      "repository branch has 274 ordered migrations through",
     );
-    expect(currentState).toContain("`20260812152300_atomic_csf_post_replies`");
+    expect(currentState).toContain(
+      "`20260812162732_recheck_csf_activity_partner_authorization_under_lock`",
+    );
+    expect(currentState).toContain(
+      "local isolated replay passed all 123 pgTAP files and 5,208 assertions",
+    );
     expect(currentState).toContain(
       "Hosted Development remains at 272 ordered migrations through",
     );
@@ -758,6 +766,18 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Preview failed before reading or importing rows because the seven-argument RPC was missing",
     );
     expect(currentState).toContain("Production remains untouched");
+
+    const externalGates = between(
+      testingAndRelease,
+      "### External and action-time gates",
+      "## Artifact index",
+    );
+    expect(externalGates).toContain(
+      "repository branch has 274 through `20260812162732_recheck_csf_activity_partner_authorization_under_lock`",
+    );
+    expect(externalGates).toContain(
+      "does not contain the forward atomic-reply or activity/partner authorization-recheck migrations",
+    );
   });
 
   test("the Development rehearsal and cutover ledger carry the same current evidence", () => {
@@ -778,7 +798,15 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(rehearsalState).toContain(
       "`20260812152300_atomic_csf_post_replies`",
     );
-    expect(rehearsalState).toContain("which has not been accepted on");
+    expect(rehearsalState).toContain(
+      "`20260812162732_recheck_csf_activity_partner_authorization_under_lock`",
+    );
+    expect(rehearsalState).toContain(
+      "local isolated replay passed all 123 pgTAP files and 5,208 assertions",
+    );
+    expect(rehearsalState).toContain(
+      "neither migration has been accepted on hosted Development",
+    );
     expect(rehearsalState).toContain(
       "seven-argument metadata RPC exists, the old four-argument overload is absent",
     );
@@ -813,7 +841,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Related references",
     );
     expect(cutover).toContain(
-      "Replay the ordered migration ledger through `20260812152300`",
+      "Replay the ordered migration ledger through `20260812162732`",
     );
   });
 
@@ -825,10 +853,16 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Hosted Development has 272 ordered migrations through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "repository branch has 273 ordered migrations through `20260812152300`",
+      "repository branch has 274 ordered migrations through `20260812162732`",
     );
     expect(productionCutoverRunbook).toContain(
-      "contains 37 Production-pending migrations",
+      "contains 38 Production-pending migrations",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "local isolated replay passed all 123 pgTAP files and 5,208 assertions",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "hosted acceptance remains pending",
     );
     expect(productionCutoverRunbook).not.toContain(
       "Its 271-migration ledger proves ordered application",
@@ -844,5 +878,20 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(productionCutoverRunbook).toContain(
       "No release may proceed until hosted Development exact-SHA browser and provider gates are green",
     );
+  });
+
+  test("AUD-032 distinguishes completed local replay from pending hosted acceptance", () => {
+    const aud032 = between(
+      cleanupRegister,
+      "| AUD-032",
+      "### Integrated project/auth findings",
+    );
+    expect(aud032).toContain(
+      "`20260812162732_recheck_csf_activity_partner_authorization_under_lock.sql`",
+    );
+    expect(aud032).toContain(
+      "local isolated replay passed all 123 pgTAP files and 5,208 assertions",
+    );
+    expect(aud032).toContain("hosted Development acceptance remains pending");
   });
 });
