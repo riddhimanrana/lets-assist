@@ -298,12 +298,22 @@ export async function runProjectFeedbackWorker(options: {
         scheduleIds.length > 0
           ? getAttendanceScheduleWindow(project, scheduleIds[0])
           : null;
-      const eventDate = firstWindow
-        ? new Date(firstWindow.startsAt).toLocaleDateString("en-US", {
-            timeZone: timezone,
-            dateStyle: "long",
-          })
-        : null;
+
+      // Format the event date outside the provider-ambiguity catch below so
+      // that a deterministic formatting failure (e.g. an invalid stored timezone
+      // that slipped past prior validation) never produces unknown_outcome —
+      // the email still sends, just without the date field.
+      let eventDate: string | null = null;
+      if (firstWindow) {
+        try {
+          eventDate = new Date(firstWindow.startsAt).toLocaleDateString(
+            "en-US",
+            { timeZone: timezone, dateStyle: "long" },
+          );
+        } catch {
+          // Deterministic formatting failure; eventDate stays null.
+        }
+      }
 
       const titleForSubject =
         project.title.length > 60

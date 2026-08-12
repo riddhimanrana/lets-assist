@@ -240,7 +240,7 @@ function buildProjectDateTime(
   }
 
   try {
-    return new TZDate(
+    const ms = new TZDate(
       year,
       month - 1,
       day,
@@ -249,6 +249,9 @@ function buildProjectDateTime(
       0,
       timezone,
     ).getTime();
+    // TZDate may return NaN for an unrecognised timezone rather than throwing
+    // in some runtime environments; treat NaN the same as a construction error.
+    return Number.isNaN(ms) ? null : ms;
   } catch {
     return null;
   }
