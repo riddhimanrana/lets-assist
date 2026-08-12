@@ -42,7 +42,10 @@ import {
 } from "@/components/ui/field";
 import { Controller } from "react-hook-form";
 import { createOrganization, checkOrgUsername } from "./actions";
-import { isReservedOrganizationSlug } from "@/lib/organization/reserved-slugs";
+import {
+  isReservedOrganizationSlug,
+  usernameUnavailableMessage,
+} from "@/lib/organization/reserved-slugs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/shared/ImageCropper";
@@ -353,8 +356,18 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                         setUsernameAvailable(null);
                       }}
                       onBlur={(e) => {
+                        // A reserved username is not "taken" and never
+                        // becomes available, so it is answered here without
+                        // a round trip -- and answered in words, not just
+                        // with the same red icon a taken username gets,
+                        // since the submit button is disabled either way.
                         if (isReservedOrganizationSlug(e.target.value)) {
                           setUsernameAvailable(false);
+                          form.setError("username", {
+                            type: "manual",
+                            message: usernameUnavailableMessage(true),
+                          });
+                          field.onBlur();
                           return;
                         }
                         field.onBlur();

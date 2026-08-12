@@ -5,13 +5,17 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
 import { requireAuth } from "@/lib/supabase/auth-helpers";
 import { revalidatePath } from "next/cache";
+import { resolveConfiguredSiteOrigin } from "@/app/signup/request-origin";
 
-const getSiteUrl = () => {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/u, "") ||
-    "http://localhost:3000"
-  );
-};
+/**
+ * The confirmation links built below are auth redirect targets, so they use
+ * the one validated site-origin resolver rather than reading
+ * `NEXT_PUBLIC_SITE_URL` directly: a malformed value is treated as absent
+ * instead of being pasted into a link, and a hosted deployment with no
+ * usable configured origin fails loudly instead of mailing a `localhost`
+ * link a real user can never open.
+ */
+const getSiteUrl = () => resolveConfiguredSiteOrigin();
 
 async function transferAnonymousDataToUser(
   anonymousId: string,

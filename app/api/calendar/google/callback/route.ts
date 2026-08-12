@@ -31,19 +31,26 @@ import {
   validateGoogleOAuthCallbackIdentity,
 } from "@/lib/auth/google-oauth-csf-identity";
 import { canReuseExistingGoogleRefreshToken } from "./connection-selection";
+import { resolveAuthRedirectOrigin } from "@/app/signup/request-origin";
 
+/**
+ * Every redirect this handler emits is built on this origin, so it must
+ * never come from the request on a hosted deployment. The previous version
+ * fell back to `request.nextUrl.origin` whenever `NEXT_PUBLIC_SITE_URL` was
+ * unset or malformed, and `NextRequest#nextUrl` is derived from the
+ * `x-forwarded-host`/`Host` headers -- so a misconfigured deployment turned
+ * a header into the destination this handler sends an authenticated
+ * browser to, carrying the OAuth result in its query string.
+ *
+ * `resolveAuthRedirectOrigin` is the same selection `/auth/callback` and
+ * `/auth/confirm` use: the validated configured origin always, except on a
+ * loopback deployment answering the same loopback service and port, where
+ * the request's own loopback spelling is kept because that is the cookie
+ * origin. A hosted deployment with no usable configured origin raises
+ * instead of redirecting anywhere.
+ */
 function getCallbackBaseUrl(request: NextRequest): string {
-  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-
-  if (configuredSiteUrl) {
-    try {
-      return new URL(configuredSiteUrl).origin;
-    } catch {
-      // Fall back to the request origin when local configuration is malformed.
-    }
-  }
-
-  return request.nextUrl.origin;
+  return resolveAuthRedirectOrigin(request.headers.get("host"));
 }
 
 function redirectAndConsumeOAuthState(destination: string | URL): NextResponse {

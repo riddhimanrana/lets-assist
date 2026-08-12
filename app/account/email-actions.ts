@@ -10,6 +10,7 @@ import {
   normalizeEmailAlias,
 } from "@/lib/auth/email-alias-verification";
 import { syncPrimaryUserEmail } from "@/lib/auth/primary-email";
+import { resolveConfiguredSiteOrigin } from "@/app/signup/request-origin";
 import { sendEmail } from "@/services/email";
 import EmailVerificationCode from "@/emails/email-verification-code";
 import * as React from "react";
@@ -235,8 +236,11 @@ export async function setPrimaryEmailAction(
     };
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const redirectUrl = `${siteUrl.replace(/\/$/, "")}/auth/confirm?type=email_change`;
+  // The one validated site-origin resolver: a hosted deployment with no
+  // usable configured origin raises rather than silently mailing a
+  // `localhost` confirmation link, and a malformed value is treated as
+  // absent instead of being interpolated into the link.
+  const redirectUrl = `${resolveConfiguredSiteOrigin()}/auth/confirm?type=email_change`;
 
   const { data: updateData, error: updateError } =
     await supabase.auth.updateUser(
