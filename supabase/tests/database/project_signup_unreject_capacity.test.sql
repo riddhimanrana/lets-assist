@@ -12,13 +12,18 @@ SELECT extensions.has_function(
 );
 SELECT extensions.ok(
   (
-    SELECT proc.prosecdef
-      AND proc.proconfig = ARRAY['search_path=""']::text[]
-    FROM pg_catalog.pg_proc AS proc
-    WHERE proc.oid =
-      'public.unreject_project_signup_with_capacity(uuid)'::regprocedure
+    SELECT NOT public_proc.prosecdef
+      AND public_proc.proconfig = ARRAY['search_path=""']::text[]
+      AND private_proc.prosecdef
+      AND private_proc.proconfig = ARRAY['search_path=""']::text[]
+    FROM pg_catalog.pg_proc AS public_proc
+    CROSS JOIN pg_catalog.pg_proc AS private_proc
+    WHERE public_proc.oid =
+        'public.unreject_project_signup_with_capacity(uuid)'::regprocedure
+      AND private_proc.oid =
+        to_regprocedure('private.unreject_project_signup_with_capacity(uuid)')
   ),
-  'the transition is SECURITY DEFINER with an empty search path'
+  'the old public signature is a fixed-path invoker over a fixed-path private definer'
 );
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -36,13 +41,25 @@ SELECT extensions.ok(
   ),
   'authenticated organizers can invoke the self-authorizing transition'
 );
-SELECT extensions.ok(
-  NOT has_function_privilege(
-    'service_role',
-    'public.unreject_project_signup_with_capacity(uuid)',
-    'EXECUTE'
-  ),
-  'the service role cannot substitute a caller identity for unrejection'
+SELECT extensions.results_eq(
+  $$
+    SELECT COALESCE(roles.rolname, 'PUBLIC')::text COLLATE "C"
+    FROM pg_catalog.pg_proc AS proc
+    CROSS JOIN LATERAL pg_catalog.aclexplode(
+      COALESCE(
+        proc.proacl,
+        pg_catalog.acldefault('f', proc.proowner)
+      )
+    ) AS privilege
+    LEFT JOIN pg_catalog.pg_roles AS roles ON roles.oid = privilege.grantee
+    WHERE proc.oid =
+      to_regprocedure('private.unreject_project_signup_with_capacity(uuid)')
+      AND privilege.privilege_type = 'EXECUTE'
+      AND privilege.grantee <> proc.proowner
+    ORDER BY 1
+  $$,
+  $$ VALUES ('authenticated'::text COLLATE "C") $$,
+  'authenticated is the exact non-owner executor of the unexposed private transaction'
 );
 SELECT extensions.results_eq(
   $$
