@@ -695,13 +695,13 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
   });
 
-  test("current hosted Development status records the 272-vs-271 ledger and preview blocker", () => {
+  test("current hosted Development status records the forward migration delta and preview seal blocker", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(272);
+    expect(migrations).toHaveLength(273);
     expect(migrations.at(-1)).toBe(
-      "20260812132725_csf_drive_metadata_compare_and_set_fence.sql",
+      "20260812152300_atomic_csf_post_replies.sql",
     );
 
     const currentState = between(
@@ -710,39 +710,52 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository has 272 ordered migrations through",
+      "repository branch has 273 ordered migrations through",
+    );
+    expect(currentState).toContain("`20260812152300_atomic_csf_post_replies`");
+    expect(currentState).toContain(
+      "Hosted Development remains at 272 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
     );
     expect(currentState).toContain(
-      "Hosted Development has 271 ordered migrations through",
+      "95 INFO, 0 WARN, and 0 ERROR security findings",
     );
     expect(currentState).toContain(
-      "`20260812115556_plugin_data_deletion_requests`",
-    );
-    expect(currentState).toContain(
-      "94 INFO, 0 WARN, and 0 ERROR security findings",
-    );
-    expect(currentState).toContain(
-      "616 INFO, 0 WARN, and 0 ERROR performance findings",
+      "611 INFO, 0 WARN, and 0 ERROR performance findings",
     );
     expect(currentState).toContain("`dev.lets-assist.com`");
     expect(currentState).toContain(
-      "`2e61074ffa8e4de5466f362c0629541320b4edb5`",
+      "`cf330e5faa844d63a2f41c8f0be4d1c727d51a47`",
+    );
+    expect(currentState).toContain(
+      "seven-argument metadata RPC exists, its old four-argument overload is absent",
+    );
+    expect(currentState).toContain(
+      "only `service_role` can execute the current RPC",
     );
     expect(currentState).toContain("Google OAuth and Picker are connected");
     expect(currentState).toContain("Spring 2026 application workbook");
     expect(currentState).toContain("`A1:Q518`");
     expect(currentState).toContain("inspected and mapped");
     expect(currentState).toContain(
+      "passed the metadata RPC and appended 85 stored preview rows",
+    );
+    expect(currentState).toContain(
+      "failed while sealing because the caller summary wrongly stated the reserved derived `rows` key",
+    );
+    expect(currentState).toContain("one failed preview job");
+    expect(currentState).toContain("zero term applications were committed");
+    expect(currentState).toContain("No names or email addresses");
+    expect(currentState).toContain(
+      "private plugin fix merged by private PR #45 at `ca817bf`",
+    );
+    expect(currentState).toContain(
+      "root worktree's gitlink points to that commit locally",
+    );
+    expect(currentState).not.toContain(
       "Preview failed before reading or importing rows because the seven-argument RPC was missing",
-    );
-    expect(currentState).toContain(
-      "one saved source, zero import jobs, zero import rows, zero applications",
-    );
-    expect(currentState).toContain(
-      "existing profile count remained unchanged at two",
     );
     expect(currentState).toContain("Production remains untouched");
   });
@@ -754,24 +767,43 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Production cutover checklist",
     );
     expect(rehearsalState).toContain(
-      "`2e61074ffa8e4de5466f362c0629541320b4edb5`",
+      "`cf330e5faa844d63a2f41c8f0be4d1c727d51a47`",
     );
     expect(rehearsalState).toContain(
-      "Hosted Development Supabase has 271 ordered migrations through",
+      "Hosted Development Supabase has 272 ordered migrations through",
     );
     expect(rehearsalState).toContain(
-      "`20260812115556_plugin_data_deletion_requests`",
+      "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
+    );
+    expect(rehearsalState).toContain(
+      "`20260812152300_atomic_csf_post_replies`",
+    );
+    expect(rehearsalState).toContain("which has not been accepted on");
+    expect(rehearsalState).toContain(
+      "seven-argument metadata RPC exists, the old four-argument overload is absent",
+    );
+    expect(rehearsalState).toContain(
+      "only `service_role` can execute the current RPC",
     );
     expect(rehearsalState).toContain("Google OAuth and Picker are connected");
     expect(rehearsalState).toContain("`A1:Q518`");
     expect(rehearsalState).toContain(
+      "passed the metadata RPC and appended 85 stored preview rows",
+    );
+    expect(rehearsalState).toContain(
+      "failed while sealing because the caller summary wrongly stated the reserved derived `rows` key",
+    );
+    expect(rehearsalState).toContain("one failed preview job");
+    expect(rehearsalState).toContain("zero term applications were committed");
+    expect(rehearsalState).toContain("No names or email addresses");
+    expect(rehearsalState).toContain(
+      "private plugin fix merged by private PR #45 at `ca817bf`",
+    );
+    expect(rehearsalState).toContain(
+      "root worktree's gitlink points to that commit locally",
+    );
+    expect(rehearsalState).not.toContain(
       "Preview failed before reading or importing rows because the seven-argument RPC was missing",
-    );
-    expect(rehearsalState).toContain(
-      "one saved source, zero import jobs, zero import rows, zero applications",
-    );
-    expect(rehearsalState).toContain(
-      "existing profile count remained unchanged at two",
     );
     expect(rehearsalState).toContain("Production was not changed");
 
@@ -781,7 +813,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Related references",
     );
     expect(cutover).toContain(
-      "Replay the ordered migration ledger through `20260812132725`",
+      "Replay the ordered migration ledger through `20260812152300`",
     );
   });
 
@@ -790,13 +822,16 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Production has 236 ordered migrations through `20260811001500`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Hosted Development has 271 ordered migrations through `20260812115556`",
+      "Hosted Development has 272 ordered migrations through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "repository branch has 272 ordered migrations through `20260812132725`",
+      "repository branch has 273 ordered migrations through `20260812152300`",
     );
     expect(productionCutoverRunbook).toContain(
-      "contains 36 Production-pending migrations and one migration not yet accepted on hosted Development",
+      "contains 37 Production-pending migrations",
+    );
+    expect(productionCutoverRunbook).not.toContain(
+      "Its 271-migration ledger proves ordered application",
     );
     expect(productionCutoverRunbook).not.toContain("174 pending migrations");
     expect(productionCutoverRunbook).not.toContain(

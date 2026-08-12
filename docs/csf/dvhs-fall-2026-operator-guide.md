@@ -581,7 +581,7 @@ between them:
 | URL                      | `https://dev.lets-assist.com/organization/dvhighcsf` | `https://lets-assist.com/organization/dvhighcsf` |
 | Branch                   | `development`                                        | `main`                                           |
 | Database                 | separate Supabase Development branch                 | Production                                       |
-| Records                  | reserved synthetic identities only                   | real chapter records                             |
+| Records                  | synthetic records plus preview-only real source rows | real chapter records                             |
 | Real chapter Sheets      | read-only preview only; never commit rows            | commit only after the release gates pass         |
 | Links, tokens, decisions | rehearsal artifacts; never carried forward           | issued fresh                                     |
 
@@ -611,20 +611,29 @@ Production, and do not treat a Development screenshot as Production evidence.
   workspace were clicked through on the deployed Development build. Help is
   filtered by exact position capabilities rather than broad route access.
 - Google OAuth and Picker are connected. The real Spring 2026 application
-  workbook bounded `A1:Q518` was inspected and mapped. Preview failed before
-  reading or importing rows because the seven-argument RPC was missing.
-- Aggregate proof is one saved source, zero import jobs, zero import rows, zero
-  applications, and the existing profile count remained unchanged at two. No
-  real chapter row was imported or committed.
+  workbook bounded `A1:Q518` was inspected and mapped. The saved source passed
+  the metadata RPC and appended 85 stored preview rows.
+- Preview failed while sealing because the caller summary wrongly stated the
+  reserved derived `rows` key. The run left one failed preview job; zero term
+  applications were committed. No names or email addresses are recorded in
+  this guide; real-source evidence remains aggregate-only.
 - The root Development tree at this verification point is exact SHA
-  `2e61074ffa8e4de5466f362c0629541320b4edb5`.
-- Hosted Development Supabase has 271 ordered migrations through
-  `20260812115556_plugin_data_deletion_requests`. Live advisors
-  report 94 INFO / 0 WARN / 0 ERROR for security and 616 INFO / 0 WARN / 0 ERROR
-  for performance.
-- `dev.lets-assist.com` serves that exact development SHA. The one-migration
-  hosted database gap and missing seven-argument RPC block Preview before any
-  row read or import; this is not Production readiness.
+  `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, and its deployment is Ready at
+  `dev.lets-assist.com`.
+- Hosted Development Supabase has 272 ordered migrations through
+  `20260812132725_csf_drive_metadata_compare_and_set_fence`. Live advisors
+  report 95 INFO / 0 WARN / 0 ERROR for security and 611 INFO / 0 WARN / 0 ERROR
+  for performance. This repository branch carries one later forward migration,
+  `20260812152300_atomic_csf_post_replies`, which has not been accepted on
+  hosted Development.
+- The seven-argument metadata RPC exists, the old four-argument overload is
+  absent, and only `service_role` can execute the current RPC; `anon` and
+  `authenticated` cannot. The Drive metadata RPC is no longer the Preview
+  blocker.
+- The caller-summary correction is the private plugin fix merged by private PR
+  #45 at `ca817bf`, and this root worktree's gitlink points to that commit
+  locally. The Ready Development SHA above does not include that local gitlink
+  update.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
 - Three controlled Development test messages produced three signature-verified
@@ -649,7 +658,7 @@ Do not use real chapter rows or credentials until every item is checked:
       Production databases, links, tokens, previews, and decisions isolated.
 - [ ] Verify the root tree is the approved exact commit and the private plugin
       remains a clean gitlink at its approved SHA.
-- [ ] Replay the ordered migration ledger through `20260812132725` in the
+- [ ] Replay the ordered migration ledger through `20260812152300` in the
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.

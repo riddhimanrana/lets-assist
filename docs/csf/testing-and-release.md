@@ -3,30 +3,44 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** The repository has 272 ordered migrations while hosted Development has 271. `dev.lets-assist.com` serves the exact development SHA. Google OAuth and
-Picker are connected and the real Spring 2026 application workbook was inspected
-and mapped, but Preview is blocked by the missing seven-argument RPC before any
-row read or import. Production remains untouched.
+**Status:** This repository branch carries 273 ordered migrations through the
+new atomic post-reply boundary, while hosted Development remains at 272 through
+`20260812132725` and `dev.lets-assist.com` remains Ready on the exact
+development SHA. Google OAuth and Picker are connected. The real Spring 2026
+application Preview passed the metadata RPC and stored 85 preview rows, then
+failed at the seal because the caller supplied a reserved derived summary key.
+Zero term applications were committed. Production remains untouched.
 
 **Latest contract amendment:** August 12, 2026; this current-state amendment supersedes stale claims about Development ledger parity, advisor counts, and the code served by the Development alias. Historical counts below remain evidence for their named runs only.
 
 ## Current hosted Development state
 
-- The repository has 272 ordered migrations through
-  `20260812132725_csf_drive_metadata_compare_and_set_fence`. Hosted Development
-  has 271 ordered migrations through
-  `20260812115556_plugin_data_deletion_requests`.
-- The current Development Supabase advisor snapshot reports 94 INFO, 0 WARN,
-  and 0 ERROR security findings, plus 616 INFO, 0 WARN, and 0 ERROR performance
+- The repository branch has 273 ordered migrations through
+  `20260812152300_atomic_csf_post_replies`.
+- Hosted Development remains at 272 ordered migrations through
+  `20260812132725_csf_drive_metadata_compare_and_set_fence`; the atomic CSF
+  reply boundary has not been applied there.
+- The current Development Supabase advisor snapshot reports 95 INFO, 0 WARN,
+  and 0 ERROR security findings, plus 611 INFO, 0 WARN, and 0 ERROR performance
   findings.
 - `dev.lets-assist.com` serves exact development SHA
-  `2e61074ffa8e4de5466f362c0629541320b4edb5`.
+  `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose deployment is Ready.
+- The seven-argument metadata RPC exists, its old four-argument overload is
+  absent, and only `service_role` can execute the current RPC; `anon` and
+  `authenticated` cannot.
 - Google OAuth and Picker are connected. The real Spring 2026 application
   workbook bounded `A1:Q518` was inspected and mapped.
-- Preview failed before reading or importing rows because the seven-argument RPC
-  was missing. Aggregate proof is one saved source, zero import jobs, zero import
-  rows, zero applications, and the existing profile count remained unchanged at
-  two. This hosted database ledger gap remains the Preview blocker. Production
+- The saved real source passed the metadata RPC and appended 85 stored preview
+  rows. Preview then failed while sealing because the caller summary wrongly
+  stated the reserved derived `rows` key. The run left one failed preview job;
+  zero term applications were committed.
+- No names or email addresses are recorded here. Real-source evidence remains
+  aggregate-only.
+- The caller-summary correction is the private plugin fix merged by private PR
+  #45 at `ca817bf`, and this root worktree's gitlink points to that commit
+  locally. The Ready Development SHA above does not include that local gitlink
+  update.
+- The Drive metadata RPC is no longer the current Preview blocker. Production
   remains untouched.
 
 ## Historical August 11 hosted Development amendment
@@ -259,7 +273,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
 | Organization creation and plugin install | Synthetic organization created; entitlement/install/uninstall/reinstall completed                  | N/A                                            | N/A                                                                                                                     | N/A                            | N/A                                   | Passed locally; install idempotency verified                                                                                      |
 | Staff positions and role denial          | Fictional admin and all templates seeded                                                           | Adviser actor seeded                           | Every distinct template plus all documented seats seeded; all officer-role navigation and direct-route scenarios passed | Applicant actor seeded         | Approved-member actor seeded          | Navigation/direct-URL boundaries passed; seat-assignment mutation lifecycle remains pending                                       |
 | Fall 2026 semester setup                 | Classes 2026–2030 created; Fall 2026 current; dates, policy v1, and one fictional deadline entered | Draft/publish and reopen authority implemented | Read/edit capability separated                                                                                          | Own status only                | Own published policy only             | Partial: controls and atomic contracts implemented; clean database replay passed                                                  |
-| Imports and reconciliation               | UI and database contracts covered; meeting and partner-club commits are atomic                     | Adviser capability exists                      | Data/meeting/club role contracts exist                                                                                  | Denied by navigation           | Denied by navigation                  | Partial: Google consent, Picker, and real Drive import execution pending                                                          |
+| Imports and reconciliation               | UI and database contracts covered; meeting and partner-club commits are atomic                     | Adviser capability exists                      | Data/meeting/club role contracts exist                                                                                  | Denied by navigation           | Denied by navigation                  | Partial: real-source Preview stored 85 rows and failed at sealing; reconciliation and commit remain pending                       |
 | Application lifecycle                    | Compact list, full-page detail, effective eligibility, and sticky actions automated                | Override capability covered in database tests  | Activity Coordinator denied; role navigation passed                                                                     | Own status only                | Own status only                       | Partial: read-only browser acceptance passed; decision mutation lifecycle pending                                                 |
 | Member connection and correction         | Directory captured                                                                                 | Capability contracts exist                     | Officer navigation boundaries passed                                                                                    | Exact claim and decline passed | My CSF captured                       | Partial: officer resolution, unlink/relink, secure-link create/renew/acceptance, and duplicate-merge mutations remain pending     |
 | Activities and points                    | Service UI captured                                                                                | Capability contracts exist                     | Activity Coordinator Service-only navigation passed                                                                     | Published read                 | My CSF and member navigation captured | Partial: mutation/appeal/proof lifecycle pending                                                                                  |
@@ -284,12 +298,12 @@ The current officer procedure is documented in the [officer runbook](officer-run
 - [x] Latest focused hardening gate: 73/73 Bun tests with 761 expectations; root typecheck clean; focused ESLint clean
 - [x] Formatting, source organization, typecheck, and lint: 0 errors and 0 warnings
 - [x] `bun run csf:test:workflows`, `bun run csf:test:scale`, and the 5-route cron probe passed locally; cron recorded 269 assertions, zero dispatch, and zero egress
-- [ ] Supabase advisor closeout: the current Development snapshot is 94 INFO/0 WARN/0 ERROR for security and 616 INFO/0 WARN/0 ERROR for performance; Production still requires its release-time post-apply advisor check
+- [ ] Supabase advisor closeout: the current Development snapshot is 95 INFO/0 WARN/0 ERROR for security and 611 INFO/0 WARN/0 ERROR for performance; Production still requires its release-time post-apply advisor check
 - [x] Post-hardening private-plugin isolation browser/API smoke
 - [x] Exact detached private gitlink, registry/runtime contracts, and strict submodule validation pass
 - [x] `bun audit --production`: no vulnerabilities
 - [ ] Complete visible signup → organization/install → import → application → points → meetings/clubs → close/reopen mutation lifecycle
-- [ ] Live Google OAuth, account chooser, Picker, reconnect/revocation, and Drive failure-state execution
+- [ ] Complete Google reconnect/revocation and Drive failure-state execution; connected OAuth/Picker and one real-source Preview retry are current Development evidence
 - [ ] Native Google Slides process suite; gated by incomplete `T35`
 - [ ] Zero P0/P1 defects across the unexecuted mutation/Google scope; ordinary read-only browser acceptance has no uncaught browser error
 
@@ -344,15 +358,19 @@ The current officer procedure is documented in the [officer runbook](officer-run
 
 ### External and action-time gates
 
-- Google Cloud configuration and the account chooser were inspected, but no live chapter consent, Picker selection, Drive read/import, token refresh, reconnect/revocation, 403/429 exercise, or Google write was performed.
-- Development uses a distinct hosted Supabase project. Its database has 269
+- The exact chapter Google account is connected and a live Picker selection plus
+  bounded Drive Preview read ran in hosted Development. Token refresh,
+  reconnect/revocation, 403/429 exercise, and every Google write remain
+  unexecuted.
+- Development uses a distinct hosted Supabase project. Its database has 272
   ordered migrations through
-  `20260812104754_harden_project_transaction_rpc_boundaries`; this repository
-  branch has 271 through `20260812115556_plugin_data_deletion_requests`. The Vercel alias
-  remains stale at code SHA
-  `097bd4e194b1d14b0c9beb1ab3af9b91e5584c27` because the account exceeded 100
-  deployments per day, so hosted acceptance and real-data preview/commit remain
-  blocked. No additional paid branch was created.
+  `20260812132725_csf_drive_metadata_compare_and_set_fence`, while this
+  repository branch has 273 through
+  `20260812152300_atomic_csf_post_replies`. The Ready alias serves development
+  SHA `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, which does not contain the
+  forward atomic-reply migration.
+  Preview reached 85 stored rows before the seal failure; no term application
+  commit occurred. No additional paid branch was created.
 - Production Supabase, Production Vercel, `main`, the Production DVHS CSF tenant, Gmail mailbox, Classroom, website, Instagram, and officer-maintained Sheets were not mutated.
 - No Vela service, Supabase stack, container, volume, network, port, credential, or database was accessed or reused.
 
@@ -376,4 +394,7 @@ The August behavioral run skips only the 3 opt-in screenshot-capture cases. The 
 The gallery intentionally omits earlier screenshots containing the real platform
 administrator identity or the chapter inbox. No Google chooser, consent screen,
 real student row, transcript, receipt, or proof is included in the curated handoff.
-No live Google workflow or complete visible mutation lifecycle was executed, no Slides were created, and no remote system was mutated.
+A live Google Preview workflow was executed only in hosted Development. It
+stopped at the failed seal with one failed job, 85 stored preview rows, and zero
+committed term applications. No complete visible mutation lifecycle was
+executed, no Slides were created, and Production was not mutated.
