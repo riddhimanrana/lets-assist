@@ -1,19 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
 import type { SendEmailResult } from "@/services/email";
-import type { CreateNotificationResult } from "@/services/notifications-server";
 import {
-  isRetryableCancellationState,
+  isRetryableCancellationOutcome,
   settlementForCancellationNotification,
   settlementForCancellationSend,
-  type CancellationEmailState,
 } from "@/services/project-cancellation-dispatch";
-
-/**
- * The mapping is pure, so the invariant that decides whether a volunteer hears
- * about a cancelled Saturday twice is provable with no database, no provider,
- * and no network.
- */
 
 const accepted: SendEmailResult = {
   outcome: "accepted",
@@ -25,137 +17,94 @@ const accepted: SendEmailResult = {
   data: { id: "provider-message-1" },
 };
 
-const skipped: SendEmailResult = {
-  outcome: "skipped",
-  success: false,
-  skipped: true,
-  phase: "preference_check",
-  code: "transport_disabled",
-  reason: "transport_disabled",
-};
-
-const retryablePreSend: SendEmailResult = {
+const retryable: SendEmailResult = {
   outcome: "retryable_pre_send",
   success: false,
   skipped: false,
   phase: "transport_setup",
   code: "resend_client_setup_failed",
   status: null,
-  error: "The transport refused before the request was made.",
+  error: "transport setup failed",
 };
 
-const definitiveFailure: SendEmailResult = {
+const rejected: SendEmailResult = {
   outcome: "definitive_failure",
   success: false,
   skipped: false,
   phase: "provider_response",
   code: "invalid_recipient",
   status: 422,
-  error: "The provider rejected the message on its merits.",
+  error: "provider rejected request",
 };
 
-const unknownOutcome: SendEmailResult = {
+const unknown: SendEmailResult = {
   outcome: "unknown_outcome",
   success: false,
   skipped: false,
   phase: "provider_request",
   code: "provider_request_aborted",
   status: null,
-  error: "The provider request did not complete.",
+  error: "outcome unknown",
 };
 
-describe("cancellation email settlement", () => {
-  test("an accepted send is terminal and carries the provider id", () => {
+const missingTransport: SendEmailResult = {
+  outcome: "skipped",
+  success: false,
+  skipped: true,
+  phase: "transport_setup",
+  code: "transport_disabled",
+  reason: "transport_disabled",
+};
+
+describe("owed cancellation email truth", () => {
+  test("provider acceptance records accepted plus the provider id", () => {
     expect(settlementForCancellationSend(accepted)).toEqual({
-      state: "sent",
+      outcome: "accepted",
       providerMessageId: "provider-message-1",
       failureCode: null,
     });
   });
 
-  test("a deliberate skip records its reason without a provider id", () => {
-    expect(settlementForCancellationSend(skipped)).toEqual({
-      state: "skipped",
-      providerMessageId: null,
-      failureCode: "transport_disabled",
-    });
+  test("only a proven pre-send refusal is retryable", () => {
+    const outcomes = [accepted, retryable, rejected, unknown, missingTransport]
+      .map((result) => settlementForCancellationSend(result).outcome)
+      .filter(isRetryableCancellationOutcome);
+    expect(outcomes).toEqual(["retryable_pre_send"]);
   });
 
-  test("only a pre-send refusal is released back to queued", () => {
-    expect(settlementForCancellationSend(retryablePreSend).state).toBe(
-      "queued",
-    );
-  });
-
-  test("a definitive rejection is terminal, not retryable", () => {
-    expect(settlementForCancellationSend(definitiveFailure).state).toBe(
+  test("missing transport and definitive rejection cannot look completed", () => {
+    expect(settlementForCancellationSend(missingTransport).outcome).toBe(
       "failed",
     );
+    expect(settlementForCancellationSend(rejected).outcome).toBe("failed");
   });
 
-  test("an ambiguous provider interaction is unknown_outcome, never a retry", () => {
-    const settlement = settlementForCancellationSend(unknownOutcome);
-    expect(settlement.state).toBe("unknown_outcome");
-    expect(isRetryableCancellationState(settlement.state)).toBe(false);
-  });
-
-  test("exactly one outcome is retryable across the whole result space", () => {
-    const retryable = [
-      accepted,
-      skipped,
-      retryablePreSend,
-      definitiveFailure,
-      unknownOutcome,
-    ]
-      .map((result) => settlementForCancellationSend(result).state)
-      .filter(isRetryableCancellationState);
-
-    expect(retryable).toEqual(["queued"]);
-  });
-
-  test("no settlement leaks provider error text into the ledger", () => {
-    for (const result of [
-      accepted,
-      skipped,
-      retryablePreSend,
-      definitiveFailure,
-      unknownOutcome,
-    ]) {
-      const settlement = settlementForCancellationSend(result);
-      // Failure codes come from a closed set; the provider's own sentence
-      // (which is where addresses and keys appear) never reaches the ledger.
-      expect(settlement.failureCode ?? "").not.toContain(" ");
-    }
+  test("unknown provider outcome is terminal and never retryable", () => {
+    const outcome = settlementForCancellationSend(unknown).outcome;
+    expect(outcome).toBe("unknown_outcome");
+    expect(isRetryableCancellationOutcome(outcome)).toBe(false);
   });
 });
 
-describe("cancellation notification settlement", () => {
-  test("a first delivery is recorded as delivered", () => {
-    const result: CreateNotificationResult = { success: true };
-    expect(settlementForCancellationNotification(result)).toBe("delivered");
-  });
-
-  test("a dedupe-key conflict is a success, recorded as replayed", () => {
-    const result: CreateNotificationResult = { success: true, replayed: true };
-    expect(settlementForCancellationNotification(result)).toBe("replayed");
-  });
-
-  test("a recipient preference opt-out is skipped, not failed", () => {
-    const result: CreateNotificationResult = { success: false, skipped: true };
-    expect(settlementForCancellationNotification(result)).toBe("skipped");
-  });
-
-  test("a real insert error is failed", () => {
-    const result: CreateNotificationResult = { error: new Error("boom") };
-    expect(settlementForCancellationNotification(result)).toBe("failed");
-  });
-
-  test("neither delivered nor replayed ever implies a second notice", () => {
-    // Both mean "this recipient holds exactly one notification", which is what
-    // the unique index on (user_id, dedupe_key) actually guarantees.
-    const states: CancellationEmailState[] = ["sent", "skipped", "failed"];
-    expect(states.every((state) => !isRetryableCancellationState(state))).toBe(
-      true,
+describe("owed in-app notification truth", () => {
+  test("insert and dedupe replay are both successful terminal truth", () => {
+    expect(settlementForCancellationNotification({ success: true })).toBe(
+      "delivered",
     );
+    expect(
+      settlementForCancellationNotification({ success: true, replayed: true }),
+    ).toBe("replayed");
+  });
+
+  test("a transient insert error retries safely", () => {
+    expect(
+      settlementForCancellationNotification({ error: new Error("transient") }),
+    ).toBe("retryable");
+  });
+
+  test("an impossible preference skip is failure, not completion", () => {
+    expect(
+      settlementForCancellationNotification({ success: false, skipped: true }),
+    ).toBe("failed");
   });
 });

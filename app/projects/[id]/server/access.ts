@@ -68,12 +68,14 @@ export async function canUserManageProject(
     });
   }
 
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabase
     .from("organization_members")
     .select("role")
     .eq("organization_id", orgId)
     .eq("user_id", userId)
     .single();
+
+  if (membershipError) return false;
 
   return canManageProjectAccess({
     creatorId: project.creator_id ?? null,

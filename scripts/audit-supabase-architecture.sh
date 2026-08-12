@@ -390,10 +390,19 @@ unexpected_security_definer_exec="$(
         and p.prosecdef
         and has_function_privilege(r.rolname, p.oid, 'EXECUTE')
         and not (
-          p.proname = 'publish_volunteer_hours_transactional'
-          and pg_get_function_identity_arguments(p.oid) =
-            'p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text'
-          and r.rolname = 'authenticated'
+          r.rolname = 'authenticated'
+          and (
+            (
+              p.proname = 'publish_volunteer_hours_transactional'
+              and pg_get_function_identity_arguments(p.oid) =
+                'p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text'
+            )
+            or (
+              p.proname = 'cancel_project_transactional'
+              and pg_get_function_identity_arguments(p.oid) =
+                'p_project_id uuid, p_cancellation_reason text'
+            )
+          )
         )
     )
     select g.nspname, g.proname, g.identity_arguments, g.rolname
@@ -410,6 +419,7 @@ public_client_function_acl_drift="$(
         ('public.can_insert_project(uuid)', 'authenticated'),
         ('public.can_insert_project(uuid,text,uuid)', 'authenticated'),
         ('public.can_keep_or_set_public_visibility(uuid,uuid)', 'authenticated'),
+        ('public.cancel_project_transactional(uuid,text)', 'authenticated'),
         ('public.get_public_attendees(uuid)', 'anon'),
         ('public.get_public_attendees(uuid)', 'authenticated'),
         ('public.is_project_organizer(uuid,uuid)', 'authenticated'),
