@@ -43,7 +43,8 @@ export async function loadCsfFeedFixture(): Promise<CsfFeedFixture> {
     .eq("organization_id", organization.id)
     .eq("role", "admin")
     .eq("status", "active")
-    .order("created_at", { ascending: true })
+    .order("joined_at", { ascending: true })
+    .order("user_id", { ascending: true })
     .limit(1)
     .single();
   if (organizationAdminError || !organizationAdmin) {
