@@ -150,13 +150,16 @@ function isHostedDeploymentEnvironment(env: SiteOriginEnv): boolean {
  *
  * A configured `NEXT_PUBLIC_SITE_URL` always wins when it validates; a
  * platform-issued `VERCEL_URL` is the next fallback. Only when neither
- * resolves to a valid origin does the environment matter: a hosted (Vercel)
- * deployment throws rather than silently falling back to a loopback origin
- * -- redirecting a Production or Preview user's browser to `localhost` is
- * never an acceptable failure mode, and a raised error fails the request
- * loudly instead of completing an auth redirect to an unreachable host. A
- * local, non-hosted process keeps the loopback fallback, since that is the
- * one deployment shape where `localhost` is the correct answer.
+ * resolves to a valid origin does the environment matter:
+ *
+ * - A hosted (Vercel) deployment throws rather than silently falling back to
+ *   a loopback origin -- redirecting a Production or Preview user's browser
+ *   to `localhost` is never an acceptable failure mode.
+ * - A non-Vercel `NODE_ENV=production` deployment also throws: `localhost`
+ *   is never correct for a production server regardless of whether Vercel's
+ *   own signals are present.
+ * - A local, non-hosted, non-production process keeps the loopback fallback,
+ *   since that is the one deployment shape where `localhost` is correct.
  */
 export function resolveConfiguredSiteOrigin(
   env: SiteOriginEnv = process.env,
@@ -173,6 +176,14 @@ export function resolveConfiguredSiteOrigin(
     throw new Error(
       "No valid site origin is configured for this hosted deployment: " +
         "NEXT_PUBLIC_SITE_URL and VERCEL_URL are both missing or malformed. " +
+        "Refusing to fall back to a loopback origin.",
+    );
+  }
+
+  if (env.NODE_ENV === "production") {
+    throw new Error(
+      "No valid site origin is configured for this production deployment: " +
+        "NEXT_PUBLIC_SITE_URL is missing or malformed. " +
         "Refusing to fall back to a loopback origin.",
     );
   }
@@ -228,15 +239,27 @@ export function resolveAuthRedirectOrigin(
 export function resolveClientAuthOrigin(
   publicSiteUrl: string | undefined = process.env.NEXT_PUBLIC_SITE_URL,
 ): string {
-  const configuredOrigin =
-    parseValidSiteOrigin(publicSiteUrl) ?? "http://localhost:3000";
+  const configured = parseValidSiteOrigin(publicSiteUrl);
 
   if (typeof window === "undefined") {
-    return configuredOrigin;
+    // SSR: use configured if available; localhost is only appropriate for
+    // local non-hosted development where no valid canonical URL is configured.
+    return configured ?? "http://localhost:3000";
   }
 
-  return resolveAuthRequestOrigin({
-    configuredOrigin,
-    requestHost: window.location.host,
-  });
+  if (configured) {
+    // Configured canonical exists: pin hosted deployments to it and apply the
+    // narrow loopback-spelling swap for local development.
+    return resolveAuthRequestOrigin({
+      configuredOrigin: configured,
+      requestHost: window.location.host,
+    });
+  }
+
+  // No configured canonical in browser context: derive the origin from the
+  // page's actual location rather than inventing localhost:3000. A hosted
+  // preview with no NEXT_PUBLIC_SITE_URL inlined at build time would otherwise
+  // hand Supabase a dead redirectTo that the user can never reach.
+  const windowOrigin = parseValidSiteOrigin(window.location.origin);
+  return windowOrigin ?? "http://localhost:3000";
 }

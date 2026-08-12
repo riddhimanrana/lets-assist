@@ -215,7 +215,19 @@ export async function signup(formData: FormData) {
         "If this address can be registered, a confirmation email is on its way. Otherwise, sign in or request another verification email.",
     };
   } catch (error) {
-    return { error: { server: [(error as Error).message] } };
+    // Do not surface internal resolver/config error text to an unauthenticated
+    // caller: the raw message could reveal deployment details (e.g. which
+    // environment variables are missing). Known, user-facing error conditions
+    // are returned explicitly above this catch block; anything reaching here
+    // is unexpected and should be retried or escalated to support.
+    console.error("Signup error:", error);
+    return {
+      error: {
+        server: [
+          "Unable to complete registration. Please try again or contact support.",
+        ],
+      },
+    };
   }
 }
 

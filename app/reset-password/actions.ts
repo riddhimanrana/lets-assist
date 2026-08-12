@@ -28,39 +28,39 @@ export async function requestPasswordReset(formData: FormData) {
     };
   }
 
+  // Resolve the canonical origin BEFORE entering the email-enumeration
+  // try/catch below. If the deployment is misconfigured (missing or malformed
+  // NEXT_PUBLIC_SITE_URL on a hosted deployment) this throws as a real server
+  // error rather than being caught and returned to the caller as a fake
+  // success, which would mask the configuration problem entirely.
+  const origin = resolveConfiguredSiteOrigin();
   const supabase = await createClient();
 
   try {
-    // Pass the CAPTCHA token to Supabase - it will handle verification
-    // Read through the validated resolver, not `process.env` directly: an
-    // unset `NEXT_PUBLIC_SITE_URL` used to interpolate the literal string
-    // "undefined" into the recovery link, mailing every user a dead reset
-    // URL, and a malformed one would have been pasted in unchanged.
     const resetOptions: { redirectTo: string; captchaToken?: string } = {
-      redirectTo: `${resolveConfiguredSiteOrigin()}/auth/callback?type=recovery`,
+      redirectTo: `${origin}/auth/callback?type=recovery`,
     };
 
     if (turnstileToken) {
       resetOptions.captchaToken = turnstileToken;
     }
 
-    // Send password reset email
+    // Send password reset email. Provider and user-existence errors are
+    // intentionally swallowed here to prevent email enumeration.
     const { error } = await supabase.auth.resetPasswordForEmail(
       validatedFields.data.email,
       resetOptions,
     );
 
     if (error) {
-      // Don't expose if email exists or not for security
-      // Just return success even if email doesn't exist
       console.error("Password reset error:", error);
     }
 
-    // Always return success to not leak email existence
     return { success: true };
   } catch (error) {
+    // Network or unexpected runtime errors: still return success to avoid
+    // leaking whether the email address exists, but log the real cause.
     console.error("Password reset error:", error);
-    // Still return success to not leak email existence
     return { success: true };
   }
 }

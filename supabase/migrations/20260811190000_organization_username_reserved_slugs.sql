@@ -107,25 +107,44 @@ ALTER TABLE public.organizations
     ) <> ALL (ARRAY['create', 'join'])
   );
 
--- `authenticated` still holds TRUNCATE, REFERENCES, and TRIGGER on
--- `public.organizations`, left over from the initial baseline schema's
--- blanket `GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ...
--- TO authenticated` (20260325181408_20260325_initial_baseline_schema.sql).
+-- `authenticated` still holds TRUNCATE, REFERENCES, TRIGGER, and (on PG 17+)
+-- MAINTAIN on `public.organizations`, left over from the initial baseline
+-- schema's blanket `GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,
+-- UPDATE ... TO authenticated` (20260325181408_20260325_initial_baseline_schema.sql).
 -- 20260701180752_organization_public_read_models_and_policy_hardening.sql
 -- and 20260712014700_close_organization_and_plugin_data_api_bypasses.sql
 -- already narrowed `anon` and revoked `SELECT` from both `anon` and
--- `authenticated`, but never revisited these three privileges for
--- `authenticated`.
+-- `authenticated`, but never revisited these privileges for either role.
 --
 -- None of RLS, the "Create org with serialized cooldown" INSERT policy, or
--- the "Allow admins to update organizations" UPDATE policy constrain these
--- three: RLS policies gate row-level INSERT/UPDATE/DELETE/SELECT, but
--- PostgreSQL never consults RLS for TRUNCATE, and REFERENCES/TRIGGER are
--- whole-table DDL privileges RLS was never designed to gate at all. Holding
--- TRUNCATE means every authenticated user -- not just an org admin, not
--- just a trusted member, literally anyone with a session -- can run
--- `TRUNCATE public.organizations` and delete every organization in one
--- statement, bypassing every RLS policy on this table entirely.
+-- the "Allow admins to update organizations" UPDATE policy constrain any of
+-- these: RLS policies gate row-level INSERT/UPDATE/DELETE/SELECT, but
+-- PostgreSQL never consults RLS for TRUNCATE, and REFERENCES/TRIGGER/MAINTAIN
+-- are whole-table DDL privileges RLS was never designed to gate at all.
+--
+-- The TRUNCATE revoke here is defense-in-depth: PostgREST exposes no TRUNCATE
+-- verb through the Data API, so no unmodified client can issue a truncate via
+-- the normal REST surface. The durable root cause is the blanket default ACL
+-- set by the baseline and closed by 20260810220400_revoke_public_default_
+-- privileges.sql for future tables; this revoke removes the residual privilege
+-- from this specific existing table. Both are necessary: the default ACL fix
+-- protects new tables going forward, while this revoke protects the existing
+-- organizations table retroactively.
+--
+-- 20260810220400 revoked the equivalent per-`postgres`/`service_role` default
+-- ACL for future tables in `public` but could not touch `supabase_admin`'s
+-- own default ACL because `postgres` is not a superuser on hosted Supabase
+-- and ALTER DEFAULT PRIVILEGES cannot alter another role's defaults without
+-- superuser. The correct statement for that cleanup would be:
+--
+--   ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
+--     REVOKE TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLES
+--     FROM authenticated, anon;
+--
+-- but it cannot be executed in a migration running as `postgres`. A catalog
+-- test in supabase/tests/database/public_default_privileges.test.sql asserts
+-- that supabase_admin carries no such grants in the current environment, so
+-- any future change that introduces them surfaces immediately.
 --
 -- The application never truncates this table, creates a trigger on it, or
 -- owns another table that would add a foreign key referencing it through
@@ -134,4 +153,17 @@ ALTER TABLE public.organizations
 -- session needs. Revoking is a pure privilege narrowing with no data to
 -- validate against and no legitimate application code path depends on it,
 -- unlike the reserved-slug CHECK constraint above.
-REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.organizations FROM authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.organizations FROM authenticated, anon;
+
+-- MAINTAIN was introduced in PostgreSQL 17 and allows running VACUUM,
+-- ANALYZE, REINDEX, and CLUSTER on a table without full ownership. On
+-- PG 17+ it may have been granted via supabase_admin's existing ACL
+-- inheritance. Revoke it conditionally so the migration is safe to run on
+-- both PG 16 and PG 17+.
+DO $$
+BEGIN
+  IF current_setting('server_version_num')::int >= 170000 THEN
+    REVOKE MAINTAIN ON public.organizations FROM authenticated, anon;
+  END IF;
+END;
+$$;

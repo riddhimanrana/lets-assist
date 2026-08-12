@@ -290,6 +290,60 @@ describe("normalization parity with the database constraint", () => {
       }
     }
   });
+
+  /**
+   * The exhaustive BMP scan above proves parity only for U+0001..U+FFFF.
+   * Astral code points (U+10000 and above) are outside that range and their
+   * Unicode properties -- including NFKC compatibility decompositions -- can
+   * differ between Node's bundled ICU version and PostgreSQL's Unicode build.
+   * A future Unicode version could assign a new astral code point whose NFKC
+   * form is an ASCII word, creating a gap that neither the BMP scan nor the
+   * pgTAP BMP scan would catch. This block documents the current state with
+   * spot checks; it is NOT a completeness guarantee for astral code points.
+   *
+   * The Node ICU / PostgreSQL Unicode skew arises because:
+   *   - Node bundles a specific ICU data snapshot (compile-time pinned).
+   *   - PostgreSQL uses its own Unicode table, also compile-time pinned.
+   *   - When either is updated to a newer Unicode version, previously
+   *     unassigned code points may acquire compatibility decompositions.
+   *   - The BMP scan is exhaustive and self-consistent within one runtime,
+   *     but it cannot detect cross-runtime divergence for astral points.
+   *
+   * U+1CCDA and U+1CCE3 are currently unassigned astral code points with no
+   * NFKC compatibility decomposition under Node's current ICU build. They do
+   * not trim (String.prototype.trim does not strip any astral code point),
+   * and padding a reserved word with them is not caught by the check. These
+   * properties are stable only until a Unicode version assigns them.
+   *
+   * The pgTAP BMP scan in organization_username_reserved_slugs.test.sql
+   * covers U+0001..U+FFFF with the same caveats; the comment there mirrors
+   * this documentation.
+   */
+  test("astral spot checks -- BMP parity proof does not cover > U+FFFF (Node ICU vs PG Unicode skew)", () => {
+    const astralSpots = [
+      0x1ccda, // currently unassigned; no NFKC decomposition under Node ICU
+      0x1cce3, // currently unassigned; no NFKC decomposition under Node ICU
+    ];
+
+    for (const code of astralSpots) {
+      const ch = String.fromCodePoint(code);
+
+      // String.prototype.trim does not strip any astral code point.
+      expect({ code: hex(code), trimmed: ch.trim() === "" }).toEqual({
+        code: hex(code),
+        trimmed: false,
+      });
+
+      // Under current Node ICU, these do not NFKC-normalize to a reserved word.
+      for (const word of RESERVED_WORDS) {
+        expect({
+          code: hex(code),
+          word,
+          reserved: isReservedOrganizationSlug(`${ch}${word}${ch}`),
+        }).toEqual({ code: hex(code), word, reserved: false });
+      }
+    }
+  });
 });
 
 /**

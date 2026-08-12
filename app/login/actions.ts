@@ -7,6 +7,7 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { applyStaffInviteForUser } from "@/lib/organization/staff-invite";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { applyVerifiedDomainAffiliation } from "@/lib/organization/verified-domain-affiliation";
+import { resolveConfiguredSiteOrigin } from "@/app/signup/request-origin";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -18,7 +19,7 @@ export async function signInWithGoogle(
   redirectAfterAuth?: string | null,
   inviteContext?: { staffToken?: string; orgUsername?: string } | null,
 ) {
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || "";
+  const origin = resolveConfiguredSiteOrigin();
   const supabase = await createClient();
 
   let redirectTo = `${origin}/auth/callback`;

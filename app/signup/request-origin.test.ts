@@ -156,6 +156,29 @@ test("the configured origin comes from configuration only", () => {
   );
 });
 
+test("a non-Vercel NODE_ENV=production deployment fails closed instead of returning localhost", () => {
+  // `localhost` is never a valid auth redirect target for a production
+  // deployment, regardless of whether Vercel's own environment signals exist.
+  assert.throws(() => resolveConfiguredSiteOrigin({ NODE_ENV: "production" }));
+  assert.throws(() =>
+    resolveConfiguredSiteOrigin({
+      NODE_ENV: "production",
+      NEXT_PUBLIC_SITE_URL: "not a url",
+    }),
+  );
+  // A valid configured origin is always trusted, even in non-Vercel production.
+  assert.equal(
+    resolveConfiguredSiteOrigin({
+      NODE_ENV: "production",
+      NEXT_PUBLIC_SITE_URL: HOSTED,
+    }),
+    HOSTED,
+  );
+  // A non-production process with no Vercel signals still gets the loopback default.
+  assert.equal(resolveConfiguredSiteOrigin({ NODE_ENV: "development" }), "http://localhost:3000");
+  assert.equal(resolveConfiguredSiteOrigin({}), "http://localhost:3000");
+});
+
 test("a malformed configured site URL is treated as absent, not returned unchanged", () => {
   // Non-hosted (no Vercel signal): falls through to the loopback default,
   // same as an unset or blank NEXT_PUBLIC_SITE_URL.
@@ -309,9 +332,12 @@ test("the confirm link keeps redirectAfterAuth on the selected origin", () => {
  * `window.location.host` in place of a request `Host` header. There is no
  * DOM in this test file, so `window` is faked and removed around each case.
  */
-function withFakeWindow(host: string, run: () => void) {
+function withFakeWindow(
+  location: { host: string; origin?: string },
+  run: () => void,
+) {
   const original = (globalThis as { window?: unknown }).window;
-  (globalThis as { window?: unknown }).window = { location: { host } };
+  (globalThis as { window?: unknown }).window = { location };
   try {
     run();
   } finally {
@@ -324,28 +350,28 @@ function withFakeWindow(host: string, run: () => void) {
 }
 
 test("the client auth origin pins hosted deployments to the canonical origin, never the page's ambient host", () => {
-  withFakeWindow("alias.example", () => {
+  withFakeWindow({ host: "alias.example", origin: "https://alias.example" }, () => {
     assert.equal(resolveClientAuthOrigin(HOSTED), HOSTED);
   });
-  withFakeWindow("attacker.example", () => {
+  withFakeWindow({ host: "attacker.example", origin: "https://attacker.example" }, () => {
     assert.equal(resolveClientAuthOrigin(HOSTED), HOSTED);
   });
   // The page's own canonical host still resolves to itself.
-  withFakeWindow("lets-assist.com", () => {
+  withFakeWindow({ host: "lets-assist.com", origin: HOSTED }, () => {
     assert.equal(resolveClientAuthOrigin(HOSTED), HOSTED);
   });
 });
 
 test("the client auth origin keeps the loopback spelling the browser is actually on", () => {
-  withFakeWindow("127.0.0.1:3012", () => {
+  withFakeWindow({ host: "127.0.0.1:3012", origin: "http://127.0.0.1:3012" }, () => {
     assert.equal(resolveClientAuthOrigin(LOCAL), LOOPBACK_IP);
   });
-  withFakeWindow("localhost:3012", () => {
+  withFakeWindow({ host: "localhost:3012", origin: "http://localhost:3012" }, () => {
     assert.equal(resolveClientAuthOrigin(LOCAL), LOCAL);
   });
   // A different port is a different origin and a different cookie jar, so
   // it is refused just like the server-side resolver refuses it.
-  withFakeWindow("127.0.0.1:9999", () => {
+  withFakeWindow({ host: "127.0.0.1:9999", origin: "http://127.0.0.1:9999" }, () => {
     assert.equal(resolveClientAuthOrigin(LOCAL), LOCAL);
   });
 });
@@ -354,8 +380,40 @@ test("the client auth origin falls back to the loopback default with no configur
   assert.equal(resolveClientAuthOrigin(undefined), "http://localhost:3000");
 });
 
-test("the client auth origin treats a malformed configured value as absent", () => {
-  withFakeWindow("lets-assist.com", () => {
+test("the client auth origin uses window.location.origin when no NEXT_PUBLIC_SITE_URL is configured", () => {
+  // A hosted preview with no NEXT_PUBLIC_SITE_URL inlined at build time must
+  // not fall back to localhost:3000 -- that is an unreachable redirectTo.
+  // The page's actual origin (from window.location.origin) is used instead.
+  withFakeWindow(
+    { host: "my-branch-abc123.vercel.app", origin: "https://my-branch-abc123.vercel.app" },
+    () => {
+      assert.equal(
+        resolveClientAuthOrigin(undefined),
+        "https://my-branch-abc123.vercel.app",
+      );
+      assert.equal(
+        resolveClientAuthOrigin("not a url"),
+        "https://my-branch-abc123.vercel.app",
+      );
+    },
+  );
+});
+
+test("the client auth origin treats a malformed configured value as absent and falls back to window.location.origin", () => {
+  // When NEXT_PUBLIC_SITE_URL is malformed AND the browser is on a hosted
+  // origin, window.location.origin is the correct fallback -- not localhost.
+  withFakeWindow(
+    { host: "lets-assist.com", origin: "https://lets-assist.com" },
+    () => {
+      assert.equal(
+        resolveClientAuthOrigin("not a url"),
+        "https://lets-assist.com",
+      );
+    },
+  );
+  // When window.location.origin itself is absent (e.g. very old test stubs),
+  // localhost:3000 is still the last resort.
+  withFakeWindow({ host: "lets-assist.com" }, () => {
     assert.equal(
       resolveClientAuthOrigin("not a url"),
       "http://localhost:3000",
@@ -389,6 +447,7 @@ const AUTH_REDIRECT_ORIGIN_CONSUMERS = [
   "app/auth/callback/route.ts",
   "app/auth/confirm/route.ts",
   "app/api/calendar/google/callback/route.ts",
+  "app/login/actions.ts",
   "app/reset-password/actions.ts",
   "app/account/email-actions.ts",
   "app/account/security/actions.ts",
