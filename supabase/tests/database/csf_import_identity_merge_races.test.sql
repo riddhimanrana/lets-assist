@@ -315,6 +315,8 @@ COMMIT;
 INSERT INTO import_merge_race_results (label, payload)
 SELECT 'central_merge', payload
 FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
+SELECT *
+FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
 SELECT extensions.is(
   (SELECT payload::jsonb ->> 'targetProfileId' FROM import_merge_race_results WHERE label = 'central_merge'),
   'fe400000-0000-4000-8000-000000000002',
@@ -347,9 +349,11 @@ COMMIT;
 INSERT INTO import_merge_race_results (label, payload)
 SELECT 'reconcile', payload
 FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
-SELECT extensions.unlike(
-  (SELECT payload FROM import_merge_race_results WHERE label = 'reconcile'),
-  '%40P01%',
+SELECT *
+FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
+SELECT extensions.ok(
+  (SELECT payload FROM import_merge_race_results WHERE label = 'reconcile')
+    NOT LIKE '%40P01%',
   'queued reconciliation finishes without a deadlock'
 );
 SELECT extensions.ok(
@@ -387,9 +391,11 @@ COMMIT;
 INSERT INTO import_merge_race_results (label, payload)
 SELECT 'meeting', payload
 FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
-SELECT extensions.unlike(
-  (SELECT payload FROM import_merge_race_results WHERE label = 'meeting'),
-  '%40P01%',
+SELECT *
+FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
+SELECT extensions.ok(
+  (SELECT payload FROM import_merge_race_results WHERE label = 'meeting')
+    NOT LIKE '%40P01%',
   'queued meeting attendance commit finishes without a deadlock'
 );
 SELECT extensions.is(
@@ -425,9 +431,11 @@ COMMIT;
 INSERT INTO import_merge_race_results (label, payload)
 SELECT 'partner', payload
 FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
-SELECT extensions.unlike(
-  (SELECT payload FROM import_merge_race_results WHERE label = 'partner'),
-  '%40P01%',
+SELECT *
+FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
+SELECT extensions.ok(
+  (SELECT payload FROM import_merge_race_results WHERE label = 'partner')
+    NOT LIKE '%40P01%',
   'queued partner audit commit finishes without a deadlock'
 );
 SELECT extensions.is(
