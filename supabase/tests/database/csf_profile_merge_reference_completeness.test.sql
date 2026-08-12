@@ -1018,6 +1018,11 @@ SELECT extensions.is(
     SELECT pg_catalog.count(*)::integer
     FROM plugin_data.csf_profile_merge_reviews AS review
     WHERE review.organization_id = 'fb100000-0000-4000-8000-000000000001'
+      AND review.source_profile_id IN (
+        'fb300000-0000-4000-8000-000000000003',
+        'fb300000-0000-4000-8000-000000000005',
+        'fb300000-0000-4000-8000-000000000007'
+      )
       AND review.status = 'approved'
       AND (review.evidence->>'zeroLiveSourceReferences')::boolean
       AND review.evidence ? 'profileReferencePlan'
