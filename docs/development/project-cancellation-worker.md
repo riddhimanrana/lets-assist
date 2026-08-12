@@ -1,109 +1,116 @@
 # Project cancellation worker
 
-When an organizer cancels a project, every approved volunteer is owed one
-notice: a transactional email and, for registered users, one in-app
-notification. "One" is the hard part. This worker is the durable, exactly-once
-implementation of that promise.
+Cancelling an upcoming project atomically freezes what the platform owes each
+approved recipient. A registered user is owed one deduplicated in-app
+notification; any recipient with an eligible frozen address is also owed one
+email dispatch attempt.
 
-## What replaced what
+This is a conditional at-most-once automatic dispatch design. It does not
+guarantee receipt. Provider acceptance is not delivery, and an ambiguous
+provider outcome is deliberately never sent again automatically.
 
-The previous worker read `status = 'pending'` jobs, then set them to
-`processing` afterwards, best-effort. It paged recipients with
-`.range(cursor, cursor + n)` over `project_signups` filtered on a mutable
-`status`, and kept no per-recipient record. That gave three separate ways to
-mail somebody twice or nobody at all:
+## Transaction boundary
 
-- the inline kick fired by the cancelling Server Action and the scheduled cron
-  run could read the same job in the same instant;
-- an approval or withdrawal between two pages shifted every later row, so the
-  window skipped a volunteer or repeated one;
-- a crash between the provider call and the cursor write re-sent the whole
-  batch on the next run.
+`public.cancel_project_transactional(uuid, text)` is the only cancellation
+authority. As the authenticated caller, it locks the project, rechecks project
+management permission, permits only `upcoming -> cancelled`, records the
+cancellation, deduplicates the then-approved audience, and inserts the job and
+delivery ledger in one transaction. A repeat call returns the existing state
+without resetting an in-flight or terminal job.
 
-## The model
+Approval transitions take the same project-row lock. If approval and
+cancellation race, the winner commits first; a losing approval observes the
+cancelled project and is denied. There is no project-update/enqueue/snapshot
+split transaction.
 
-`supabase/migrations/20260811235900_project_cancellation_durable_worker.sql`
-moves the guarantee into the database:
+The replacement is an append-only hardening migration after
+`20260811235900_project_cancellation_durable_worker.sql`:
 
-- `public.project_cancellation_jobs` gains explicit states, a worker-owned
-  lease, an attempt bound, and a fairness coordinate. Claims go through
-  `claim_project_cancellation_jobs`, which is atomic and bounded via
+- `20260812001000_project_cancellation_hostile_review_hardening.sql` first
+  removes execution from the predecessor RPCs and parks every legacy
+  `pending` or `processing` job, including cursor zero. It never revives or
+  resets those jobs.
+- Job claims use a bounded, organization-aware round-robin candidate CTE and
   `FOR UPDATE SKIP LOCKED`.
-- `public.project_cancellation_deliveries` is a per-recipient ledger. Its
-  unique indexes — one row per `(job_id, signup_id)`, and at most one per
-  identity per job — are the at-most-once guarantee. It stores a sha256 of the
-  address, never the address.
-- The audience is **snapshotted once**, under the job lock, by
-  `initialize_project_cancellation_audience`. Recipients are then drained by
-  keyset over `(created_at, id)`; no offset appears anywhere.
-- Each recipient carries one deterministic notification dedupe key,
-  `project-cancelled:<project id>`, which the notification service's unique
-  index on `(user_id, dedupe_key)` turns into a no-op on any replay.
+- Each job drains only a per-job quantum before the worker advances to the next
+  claimed job, under one global delivery budget.
+- All service state changes go through reviewed security-definer RPCs. The
+  service role may inspect the ledgers but cannot mutate either table directly.
 
-`services/project-cancellation-worker.ts` owns transport;
-`services/project-cancellation-dispatch.ts` owns the pure result mapping. The
-route at `app/api/cron/project-cancellations` returns aggregates only — no job,
-delivery, or recipient identifier and no provider text ever leaves it.
+## Frozen delivery truth
 
-## The asymmetry that matters
+The cancellation transaction stores immutable project and recipient evidence:
+project title, cancellation instant and reason, signup snapshot ID,
+pseudonymous identity hash, exact trimmed destination and destination hash,
+and which channels were owed. Duplicate approved signups for one registered
+user produce one delivery row.
 
-A job lease and a delivery lease expire into different states, deliberately.
+The live signup, account, or anonymous-signup foreign keys are nullable and use
+safe `SET NULL` behavior. Deleting one of those records does not delete the
+delivery ledger or its frozen evidence. Composite project/job/signup tenant
+keys reject cross-project and cross-organization rows; project and job ledger
+references are restricted.
 
-- A **job** never reaches the provider; it only selects work. An expired job
-  lease is released back to `pending` by `reap_project_cancellation_job_leases`
-  and re-claimed on the next tick.
-- A **delivery** lease is held across the provider call. An expired one is
-  settled as terminal `unknown_outcome` by
-  `reap_project_cancellation_delivery_leases` and is **never re-sent**, because
-  the mail may already have arrived.
+The exact address is service-only retention data. Once both owed channels are
+terminal, a bounded skip-locked retention RPC removes it after 90 days while
+retaining its hash and immutable identity evidence.
 
-Only a failure that provably preceded the provider request —
-`retryable_pre_send`, or the worker running out of its time budget — may return
-a recipient to `queued`.
+## Channel outcomes
 
-## Frozen audience semantics
+Email and notification truth are independent:
 
-Two consequences of snapshotting are intentional, and neither is silent:
+- notification inserts use `(user_id, dedupe_key)` replay protection. A
+  transient or ambiguous insert result is safe to retry; ordinary notification
+  preferences cannot suppress this required cancellation notice;
+- only a failure proved to occur before a provider request may retry email,
+  with the same logical idempotency key and a maximum of three attempts;
+- provider acceptance is recorded as `accepted`, a definitive rejection or
+  missing transport as `failed`, and an unknown result as `unknown_outcome`;
+- `accepted` and `unknown_outcome` email states are never sent again merely to
+  retry the other channel;
+- a job can be `completed` only when its non-null audience snapshot count
+  exactly matches the ledger and every owed channel has successful terminal
+  truth. Failed or ambiguous owed work goes to bounded failure/review.
 
-- an approval recorded **after** the snapshot is not added. That volunteer
-  signed up after the project was already cancelled.
-- a withdrawal recorded after the snapshot does **not** remove the row. The
-  person was approved when the organizer cancelled and is owed the notice.
+The scheduled route returns aggregate counts only. It never returns a project,
+job, recipient, destination, or provider identifier.
 
-Address, consent, project state, and project ownership are all revalidated at
-send time; membership is not re-decided mid-run.
+## Lease recovery
 
-## Operating it
+Every run invokes bounded deterministic reapers before claims. Their candidate
+CTEs order rows, apply a limit, and use `FOR UPDATE SKIP LOCKED`.
 
-Every run reaps both lease kinds before it claims anything, so stuck work is
-discoverable from an ordinary tick even when no job is pending.
+- A job lease can return to `pending` because claiming a job performs no
+  external side effect. Exhausted jobs become `failed` without resetting their
+  attempts.
+- An expired delivery lease that had entered `sending` becomes terminal
+  `unknown_outcome`; it is not re-sent. A lease that provably remained before
+  send may return to idle, but its third channel attempt terminalizes instead
+  of spinning.
 
-A job that finishes with any ambiguous recipient becomes `needs_review` with
-`last_error = 'ambiguous_provider_outcome'` rather than `completed`. That state
-is a human's queue, not a retry queue: re-driving it would re-send. There is no
-operator surface for it yet — see CLEAN-021 in
-[the cleanup register](cleanup-register.md).
+All paths that touch both ledgers lock the job before deliveries. Delivery-only
+settlement and reaping never acquire a later job lock.
 
-Jobs that predate this migration were parked as `needs_review` for the same
-reason: their cursor left no record of who had already been mailed.
+## Operating and coverage
 
-Environment: `PROJECT_CANCELLATION_WORKER_ENABLED`,
-`PROJECT_CANCELLATION_WORKER_SECRET_TOKEN` (or the shared `CRON_TOKEN`),
+Configuration uses `PROJECT_CANCELLATION_WORKER_ENABLED`,
+`PROJECT_CANCELLATION_WORKER_SECRET_TOKEN` (or `CRON_TOKEN`),
 `PROJECT_CANCELLATION_WORKER_BATCH_SIZE`, and
-`PROJECT_CANCELLATION_WORKER_MAX_JOBS`. The last two are clamped to the
-worker's own maxima; the route accepts no caller-supplied work coordinates.
+`PROJECT_CANCELLATION_WORKER_MAX_JOBS`. Caller values are clamped to worker
+maxima.
 
-## Coverage
+Coverage lives in:
 
-- `supabase/tests/database/project_cancellation_durable_worker.test.sql` —
-  the state machine, the frozen audience, keyset paging, crash recovery, and
-  zero duplicates.
-- `supabase/tests/database/project_cancellation_worker_concurrency.test.sql` —
-  two real sessions racing through `dblink`.
-- `supabase/tests/database/project_cancellation_worker_lock_order.test.sql` —
-  canonical lock order, fairness, and the lease asymmetry, asserted against the
-  function source.
-- `services/project-cancellation-dispatch.test.ts`,
-  `services/project-cancellation-worker.test.ts`, and
-  `app/api/cron/project-cancellations/route.test.ts` — privacy, boundedness,
-  and no real sends.
+- `project_cancellation_durable_worker.test.sql` for transactional cancellation,
+  ACLs, frozen/deletion-safe evidence, channel truth, constraints, indexes, and
+  finalization denial;
+- `project_cancellation_worker_concurrency.test.sql` for two-session
+  cancellation-versus-approval and concurrent reapers;
+- `project_cancellation_worker_lock_order.test.sql` for bounded candidate CTEs,
+  canonical lock order, round-robin claims, and exhausted-state invariants;
+- the stateful Bun worker tests for checked RPC results, notification replay,
+  safe pre-send exhaustion, unknown outcomes, fairness, and aggregate privacy.
+
+The SQL migration and pgTAP suites still require isolated CI replay. They were
+authored but not executed in this worktree because this task forbids every
+database command.

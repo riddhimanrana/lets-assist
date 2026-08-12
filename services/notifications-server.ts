@@ -22,6 +22,11 @@ export type CreateNotificationResult =
   | { success: false; skipped: true }
   | { error: unknown };
 
+export type CreateNotificationOptions = {
+  /** Required transactional notices bypass ordinary project-update preferences. */
+  respectPreferences?: boolean;
+};
+
 /**
  * Deliver a notification from a server context.
  *
@@ -40,29 +45,32 @@ export type CreateNotificationResult =
 export async function createNotificationForUser(
   notification: NotificationData,
   userId: string,
+  options: CreateNotificationOptions = {},
 ): Promise<CreateNotificationResult> {
   const supabase = getAdminClient();
   const severity = notification.severity ?? "info";
 
   try {
-    const { data: preferences, error: preferencesError } = await supabase
-      .from("notification_settings")
-      .select("*")
-      .eq("user_id", userId)
-      .single<NotificationPreferences>();
+    if (options.respectPreferences !== false) {
+      const { data: preferences, error: preferencesError } = await supabase
+        .from("notification_settings")
+        .select("*")
+        .eq("user_id", userId)
+        .single<NotificationPreferences>();
 
-    // PGRST116 is "no rows returned": a user with no settings row has opted out
-    // of nothing, so delivery continues.
-    if (preferencesError && preferencesError.code !== "PGRST116") {
-      console.error(
-        "Error fetching notification settings:",
-        preferencesError.message,
-      );
-      return { error: preferencesError };
-    }
+      // PGRST116 is "no rows returned": a user with no settings row has opted
+      // out of nothing, so ordinary delivery continues.
+      if (preferencesError && preferencesError.code !== "PGRST116") {
+        console.error(
+          "Error fetching notification settings:",
+          preferencesError.message,
+        );
+        return { error: preferencesError };
+      }
 
-    if (preferences?.[notification.type] === false) {
-      return { success: false, skipped: true };
+      if (preferences?.[notification.type] === false) {
+        return { success: false, skipped: true };
+      }
     }
 
     const { error: insertError } = await supabase.from("notifications").insert({

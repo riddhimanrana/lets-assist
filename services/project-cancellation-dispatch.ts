@@ -1,94 +1,75 @@
 import type { SendEmailResult } from "@/services/email";
 import type { CreateNotificationResult } from "@/services/notifications-server";
 
-/**
- * Pure mappings from a send result and a notification result to the
- * project_cancellation_deliveries state machine.
- *
- * Kept apart from the worker so the one rule that actually protects volunteers
- * is testable without a database, a provider, or a network:
- *
- *   unknown_outcome NEVER maps to a retryable state.
- *
- * An ambiguous provider interaction may already have delivered the cancellation
- * email. Retrying it is how someone learns twice that their Saturday was
- * called off. Only `retryable_pre_send` — refused before the request was ever
- * made — may go back to 'queued'.
- */
+/** Database email outcomes. Only retryable_pre_send may become queued again. */
+export type CancellationEmailOutcome =
+  | "accepted"
+  | "retryable_pre_send"
+  | "failed"
+  | "unknown_outcome";
 
-/** 'queued' releases the lease for a later attempt; every other state is terminal. */
-export type CancellationEmailState =
-  "sent" | "skipped" | "failed" | "unknown_outcome" | "queued";
+/** Notification retries are safe because (user_id, dedupe_key) is unique. */
+export type CancellationNotificationOutcome =
+  | "delivered"
+  | "replayed"
+  | "retryable"
+  | "failed";
 
-export type CancellationNotificationState =
-  "delivered" | "replayed" | "skipped" | "failed";
-
-export type CancellationDeliverySettlement = {
-  state: CancellationEmailState;
+export type CancellationEmailSettlement = {
+  outcome: CancellationEmailOutcome;
   providerMessageId: string | null;
   failureCode: string | null;
 };
 
 export function settlementForCancellationSend(
   result: SendEmailResult,
-): CancellationDeliverySettlement {
+): CancellationEmailSettlement {
   switch (result.outcome) {
     case "accepted":
       return {
-        state: "sent",
+        outcome: "accepted",
         providerMessageId: result.messageId,
         failureCode: null,
       };
-    case "skipped":
-      return {
-        state: "skipped",
-        providerMessageId: null,
-        failureCode: result.reason,
-      };
     case "retryable_pre_send":
-      // The provider was never reached (or refused before acceptance), so the
-      // lease may be released without any chance of a duplicate.
       return {
-        state: "queued",
-        providerMessageId: null,
-        failureCode: result.code,
-      };
-    case "definitive_failure":
-      return {
-        state: "failed",
+        outcome: "retryable_pre_send",
         providerMessageId: null,
         failureCode: result.code,
       };
     case "unknown_outcome":
       return {
-        state: "unknown_outcome",
+        outcome: "unknown_outcome",
+        providerMessageId: null,
+        failureCode: result.code,
+      };
+    case "definitive_failure":
+      return {
+        outcome: "failed",
+        providerMessageId: null,
+        failureCode: result.code,
+      };
+    case "skipped":
+      // Cancellation mail is obligatory for a frozen eligible destination.
+      // Disabled/missing transport therefore means failure, never completion.
+      return {
+        outcome: "failed",
         providerMessageId: null,
         failureCode: result.code,
       };
   }
 }
 
-/**
- * The in-app notice is idempotent by construction: the deterministic dedupe key
- * carries a unique index per recipient, so a replay is a success the worker can
- * record rather than an error it has to suppress. 'replayed' and 'delivered'
- * therefore both mean "this person has exactly one cancellation notice".
- */
 export function settlementForCancellationNotification(
   result: CreateNotificationResult,
-): CancellationNotificationState {
-  if ("error" in result) return "failed";
-  if (result.success === false) return "skipped";
+): CancellationNotificationOutcome {
+  if ("error" in result) return "retryable";
+  if (result.success === false) return "failed";
   return result.replayed ? "replayed" : "delivered";
 }
 
-/**
- * Whether a settled email state leaves the recipient reachable by a later run.
- * Exposed so the worker's counters and the route's aggregate response cannot
- * describe an ambiguous send as a retry.
- */
-export function isRetryableCancellationState(
-  state: CancellationEmailState,
+export function isRetryableCancellationOutcome(
+  outcome: CancellationEmailOutcome,
 ): boolean {
-  return state === "queued";
+  return outcome === "retryable_pre_send";
 }
