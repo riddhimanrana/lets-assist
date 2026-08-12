@@ -1516,6 +1516,7 @@ These invariants are mandatory across schema, server actions, UI, imports, tests
 38. Unknown email outcomes are reconciled only from durable provider evidence and are never blindly resent. Quarantine resolution acknowledges triage with immutable history but does not apply or rewrite the provider event.
 39. A stored `scheduled` post is not evidence of publication, feed visibility, or email queueing. Automatic publication is available only where the authorized, retry-safe, audited due-post transition is explicitly enabled and its hosted invocation has been accepted; scheduled posts never queue email.
 40. Point lifecycle mutations reauthorize current actor/ownership, open term, active membership, published policy, source, cap, and finalized-proof conditions at the database boundary as applicable.
+41. Profile merge inventories every current schema reference, moves live ownership atomically, deliberately retains immutable snapshots, and refuses every uniqueness collision in the same canonical preview rechecked under the first organization identity lock; success proves no unintended live source reference remains.
 
 ---
 
@@ -1795,7 +1796,7 @@ This amendment records the repository implementation associated with v1.3. It do
 
 ### 24.1 Implemented contract changes under combined verification
 
-- Profile merge and officer account connection now compute hard conflicts server-side and require corroborating identity evidence. The UI treats suggestions as search aids and directs officers to the audited correction workflow when email/cohort/account evidence conflicts.
+- Profile merge and officer account connection now compute hard conflicts server-side and require corroborating identity evidence. Merge preview also owns the complete current reference catalog, every profile-key uniqueness rule (including active point claims, active staff assignments, and open point appeals), immutable-history classification, and exact live-reference rewrite plan. Consequential identity mutations share one organization-first lock hierarchy, and merge success requires a zero-live-source proof. The UI treats suggestions as search aids and directs officers to the audited correction workflow when email/cohort/account evidence conflicts.
 - Application queue, detail, confirmation, and database decision paths share current academic/check readiness. Ordinary approval refuses missing, failed, stale, or internally contradictory evidence.
 - Reusable class links and student-specific secure links use stable client request identifiers. A student-specific link accepts only one current unique email on the selected active profile, records link readiness rather than fabricated send telemetry, and revalidates the profile/email/link state before replaying success.
 - Semester policy editing exposes and persists the six operative List I/II/III × A/B grade-point values while preserving valid advanced keys. Application calculation normalizes plus/minus grades to the base letter.
@@ -1808,7 +1809,7 @@ This amendment records the repository implementation associated with v1.3. It do
 
 ### 24.2 Deliberately open boundary
 
-- The combined forward migration ledger and all pgTAP files must pass from a fresh isolated database after every concurrent lane lands. Focused green tests are supporting evidence, not a substitute for that replay.
+- The combined forward migration ledger and all pgTAP files must pass from a fresh isolated database after every concurrent lane lands. The profile-reference catalog, production-shaped successful merge, point-state agreement matrix, and real dblink edit/claim lock-order suites are authored but unexecuted until that gate. Focused green or source tests are supporting evidence, not a substitute for the replay.
 - The complete synthetic visible lifecycle and new sanitized delta screenshot pack remain open. They must cover signup/claim, direct links, connection/merge conflict, application decisions, imports/history, policy grades, point lifecycle, class posts/email partial outcomes, communications recovery, Google states without live mutation, close/reopen, reports, role denials, and accessibility.
 - No Development/Preview or Production deployment, live Google read/write, Resend send, real student source, or officer-maintained Sheet mutation is authorized by this amendment.
 - Scheduled post persistence is not publication evidence. The publisher implementation and repository scheduler are accepted, but officers use the manual path in any environment that lacks exact opt-in, successful hosted invocation, and visible schedule → Feed evidence. No queued email may be attributed to a future schedule.
