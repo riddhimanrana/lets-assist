@@ -99,9 +99,9 @@ describe("Production cutover preflight source contract", () => {
     const executableLines = preflight
       .split("\n")
       .filter((line) => !line.trimStart().startsWith("--"));
-    expect(executableLines.filter((line) => /^\s*BEGIN\b/iu.test(line))).toEqual(
-      ["BEGIN TRANSACTION READ ONLY;"],
-    );
+    expect(
+      executableLines.filter((line) => /^\s*BEGIN\b/iu.test(line)),
+    ).toEqual(["BEGIN TRANSACTION READ ONLY;"]);
     expect(preflight).toContain('psql -X "$PRODUCTION_READONLY_URL"');
     expect(
       executableLines.filter((line) => /^\s*ROLLBACK\b/iu.test(line)),
@@ -188,9 +188,10 @@ describe("Production cutover preflight source contract", () => {
   test("carries the repository security gates into the target preflight", () => {
     const functionAclBlock = architectureAudit.slice(
       architectureAudit.indexOf("public_client_function_acl_drift="),
-      architectureAudit.indexOf("summary=", architectureAudit.indexOf(
-        "public_client_function_acl_drift=",
-      )),
+      architectureAudit.indexOf(
+        "summary=",
+        architectureAudit.indexOf("public_client_function_acl_drift="),
+      ),
     );
     const expectedClientFunctions = [
       ...functionAclBlock.matchAll(
@@ -210,9 +211,7 @@ describe("Production cutover preflight source contract", () => {
 
     expect(expectedClientFunctions.length).toBeGreaterThan(0);
     expect(preflightClientFunctions).toEqual(expectedClientFunctions);
-    expect(preflight).toContain(
-      "S1  plugin_data RLS and browser isolation",
-    );
+    expect(preflight).toContain("S1  plugin_data RLS and browser isolation");
     expect(preflight).toContain("NOT relation.relrowsecurity");
     expect(preflight).toContain(
       "has_schema_privilege(client.role_name, namespace.oid, 'USAGE')",
@@ -220,9 +219,7 @@ describe("Production cutover preflight source contract", () => {
     expect(preflight).toContain(
       "has_function_privilege(client.role_name, function_record.oid, 'EXECUTE')",
     );
-    expect(preflightFunctionAclBlock).toContain(
-      "security_invoker=true",
-    );
+    expect(preflightFunctionAclBlock).toContain("security_invoker=true");
     expect(preflightFunctionAclBlock).toContain("function_record.prosecdef");
   });
 
@@ -303,16 +300,12 @@ describe("Production cutover preflight source contract", () => {
     expect(readMigration("20260811073000")).toContain(
       "CSF webhook environment isolation requires every draft campaign",
     );
-    expect(preflight).toContain(
-      "Open CSF communications missing environment",
-    );
+    expect(preflight).toContain("Open CSF communications missing environment");
 
     expect(readMigration("20260811081506")).toContain(
       "cannot enforce verified certificate uniqueness",
     );
-    expect(preflight).toContain(
-      "Duplicate verified certificates per signup",
-    );
+    expect(preflight).toContain("Duplicate verified certificates per signup");
 
     expect(readMigration("20260811161000")).toContain(
       "one-active-link-per-class-and-semester index cannot be created",
@@ -347,9 +340,7 @@ describe("Production cutover preflight source contract", () => {
     expect(readMigration("20260811132454")).toContain(
       "DROP EXTENSION IF EXISTS pg_graphql RESTRICT",
     );
-    expect(preflight).toContain(
-      "External dependencies on pg_graphql objects",
-    );
+    expect(preflight).toContain("External dependencies on pg_graphql objects");
     expect(
       preflight.match(
         /SELECT 'pg_catalog\.pg_extension'::regclass AS classid, oid AS objid/gu,
@@ -363,7 +354,9 @@ describe("Production cutover preflight source contract", () => {
     expect(aclMigration).toContain(
       "client relation ACL catalog preflight found",
     );
-    expect(preflight).toContain("Reviewed public client grants still effective");
+    expect(preflight).toContain(
+      "Reviewed public client grants still effective",
+    );
     const d10GuardPrefix = [
       "\\if :baseline_ledger",
       "  \\echo ''",

@@ -849,9 +849,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(currentState).toContain(
       "external Vercel 100-deployment-per-day project cap",
     );
-    expect(currentState).toContain(
-      "alias is not exact-current-code evidence",
-    );
+    expect(currentState).toContain("alias is not exact-current-code evidence");
     expect(currentState).toContain(
       "95 INFO, 0 WARN, and 0 ERROR security findings",
     );
