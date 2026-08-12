@@ -1,12 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const repositoryRoot = join(import.meta.dir, "../../..");
 const read = (path: string) => readFileSync(join(repositoryRoot, path), "utf8");
 
+const MIGRATION_VERSION = "20260812225436";
 const migration = read(
-  "supabase/migrations/20260812225436_recheck_csf_activity_partner_authorization_under_lock.sql",
+  `supabase/migrations/${MIGRATION_VERSION}_recheck_csf_activity_partner_authorization_under_lock.sql`,
 );
 const concurrencyTest = read(
   "supabase/tests/database/csf_activity_partner_authorization_recheck.test.sql",
@@ -146,7 +147,19 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
   test("the consolidated migration is later than every currently open migration", () => {
     // #158 carries the latest open migration version. A stale or backdated
     // version would replay before it and silently lose this repair.
-    expect("20260812225436" > "20260812215733").toBe(true);
+    const openMigrationBranchHeads = ["20260812215733"];
+    const repositoryVersions = readdirSync(
+      join(repositoryRoot, "supabase/migrations"),
+    )
+      .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
+      .map((name) => name.slice(0, 14))
+      .sort();
+
+    expect(repositoryVersions.at(-1)).toBe(MIGRATION_VERSION);
+    for (const head of openMigrationBranchHeads) {
+      expect(MIGRATION_VERSION.localeCompare(head)).toBeGreaterThan(0);
+    }
+    expect(repositoryVersions).not.toContain("20260812162732");
     expect(migration).not.toContain("20260812162732");
   });
 

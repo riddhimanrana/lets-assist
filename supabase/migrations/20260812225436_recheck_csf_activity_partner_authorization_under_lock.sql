@@ -1,4 +1,4 @@
--- AUD-032: close the whole CSF activity and partner-club authority class.
+-- AUD-036: close the whole CSF activity and partner-club authority class.
 --
 -- A staff-only actor could pass an activity or partner-club permission check,
 -- wait behind a later request, business, or row lock, and then commit after a
