@@ -241,7 +241,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
 
 ### August 9 combined gate
 
-- [ ] Fresh isolated replay for the exact combined migration ledger, including application/merge/direct-link/post request receipts, point authority, Google identity/disconnect, communications quarantine, frozen class campaign scope, and all existing pgTAP files
+- [ ] Fresh isolated replay for the exact combined migration ledger, including application/merge/direct-link/post request receipts, frozen import-target merge agreement, point authority, Google identity/disconnect, communications quarantine, frozen class campaign scope, and all existing pgTAP files
 - [ ] Root/private lint, typecheck, focused/full tests, strict private gitlink validation, and production build from the final combined tree
 - [ ] Browser role/navigation delta proving **Classes → Stream** for every `manage_posts` template and **Feed** for members, with no active Classroom wording
 - [ ] Visible student-specific link create/copy/renew/replay using only an exact recorded profile email and no send telemetry
