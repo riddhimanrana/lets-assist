@@ -39,9 +39,10 @@ This register separates actionable repository defects from provider/account and 
 
 The combined Development tree contains implementation candidates for CLEAN-006
 through CLEAN-014. CLEAN-006 no longer claims the earlier replay or visible
-acceptance: hostile review invalidated that evidence, and its amended migration
-and new pgTAP/browser coverage require a fresh isolated replay and compiled
-refusal + success journeys. CLEAN-013 retains its prior named local evidence but
+acceptance: hostile review invalidated that evidence. Its amended migration now
+also preserves settled frozen import evidence and blocks every unsettled target,
+but the exact migration plus new pgTAP/browser coverage still require a fresh
+isolated replay and compiled refusal + success journeys. CLEAN-013 retains its prior named local evidence but
 remains active until hosted Development acceptance. The other rows still require
 their named exit gates. Focused
 tests or a locally edited contract alone do not close a finding. CLEAN-015's
