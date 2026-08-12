@@ -146,4 +146,49 @@ describe("plugin control-plane action wiring", () => {
     };
     expect(packageJson.dependencies?.["server-only"]).toBe("0.0.1");
   });
+
+  test("uninstallOrganizationPlugin returns an explicit changed discriminator — not derived from message content", () => {
+    const source = exportedFunctionSource(organizationActions, "uninstallOrganizationPlugin");
+    // Both the no-op and real-removal paths must carry an explicit changed field.
+    expect(source).toContain("changed: false,");
+    expect(source).toContain("changed: true,");
+    // The return type signature must include changed.
+    expect(source).toContain("changed?: boolean");
+  });
+
+  test("OrganizationPluginSettings uses response.changed to select the toast title, not message parsing", () => {
+    // Real removal → "X uninstalled"; idempotent no-op → "X was already uninstalled".
+    expect(organizationPluginSettings).toContain("response.changed === false");
+    expect(organizationPluginSettings).toContain("was already uninstalled");
+    // Must NOT rely on inspecting the message string to decide the title.
+    expect(organizationPluginSettings).not.toMatch(/response\.message.*uninstall/i);
+  });
+
+  test("uninstall dialog copy does not claim all workflows stop", () => {
+    expect(organizationPluginSettings).not.toMatch(/all plugin workflows will stop/i);
+    expect(organizationPluginSettings).not.toMatch(/stops its workflows/i);
+    expect(organizationPluginSettings).toContain("already-queued work may still complete");
+  });
+
+  test("plugin-uninstall-impact summary never says all workflows stop", () => {
+    const impactSource = read("lib/plugins/plugin-uninstall-impact.ts");
+    expect(impactSource).not.toContain("stops its workflows");
+    expect(impactSource).not.toContain("All plugin workflows will stop");
+    expect(impactSource).toContain("disables plugin surfaces");
+    expect(impactSource).toContain("already-queued work may still complete");
+  });
+
+  test("erasure copy in plugin-uninstall-impact does not imply a support-triggered request channel", () => {
+    const impactSource = read("lib/plugins/plugin-uninstall-impact.ts");
+    expect(impactSource).not.toContain("authorized request");
+    expect(impactSource).toContain("no self-service or support-triggered path");
+  });
+
+  test("runPluginDataDelete is defined in lifecycle but has no caller in the platform or submodule plugin files outside tests", () => {
+    const lifecycleSource = read("lib/plugins/lifecycle.ts");
+    expect(lifecycleSource).toContain("export async function runPluginDataDelete(");
+    // The transition adapter and control-plane actions must NOT call it — it is unwired.
+    expect(transitionAdapter).not.toContain("runPluginDataDelete(");
+    expect(organizationActions).not.toContain("runPluginDataDelete(");
+  });
 });

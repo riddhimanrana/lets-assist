@@ -3,13 +3,16 @@ import { describe, expect, test } from "bun:test";
 import { describePluginUninstallImpact } from "./plugin-uninstall-impact";
 
 describe("describePluginUninstallImpact", () => {
-  test("summary says workflows stop and settings are permanently removed", () => {
+  test("summary says plugin surfaces are disabled and settings removed, not that all workflows stop", () => {
     const impact = describePluginUninstallImpact({
       pluginName: "Example Plugin",
       dataAccessPurposes: [],
     });
 
-    expect(impact.summary).toMatch(/stops its workflows/i);
+    expect(impact.summary).not.toMatch(/stops its workflows/i);
+    expect(impact.summary).not.toMatch(/all.{0,20}workflows.{0,20}stop/i);
+    expect(impact.summary).toMatch(/disables plugin surfaces/i);
+    expect(impact.summary).toMatch(/already-queued work may still complete/i);
     expect(impact.summary).toMatch(/removes its saved settings/i);
     expect(impact.summary).toMatch(/cannot be undone/i);
   });
@@ -28,15 +31,17 @@ describe("describePluginUninstallImpact", () => {
     expect(impact.summary).toMatch(/not constrained by the platform/i);
   });
 
-  test("erasure copy says no self-service way anywhere in the product, not just on this screen", () => {
+  test("erasure copy states no self-service or support-triggered path, without implying a request channel exists", () => {
     const impact = describePluginUninstallImpact({
       pluginName: "Example Plugin",
       dataAccessPurposes: [],
     });
 
-    expect(impact.summary).toMatch(/no self-service way/i);
-    expect(impact.summary).toMatch(/anywhere in the product/i);
+    expect(impact.summary).toMatch(/no self-service or support-triggered path/i);
+    expect(impact.summary).not.toMatch(/authorized request/i);
     expect(impact.summary).not.toMatch(/from this screen/i);
+    expect(impact.retentionClause).toMatch(/no self-service or support-triggered path/i);
+    expect(impact.retentionClause).not.toMatch(/authorized request/i);
   });
 
   test("states settings removal is real and irreversible", () => {

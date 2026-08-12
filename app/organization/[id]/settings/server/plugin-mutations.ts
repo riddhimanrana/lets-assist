@@ -174,7 +174,7 @@ export async function setOrganizationPluginInstallState(options: {
 export async function uninstallOrganizationPlugin(options: {
   organizationId: string;
   pluginKey: string;
-}): Promise<{ success: boolean; error?: string; message?: string }> {
+}): Promise<{ success: boolean; error?: string; message?: string; changed?: boolean }> {
   "use server";
   const { organizationId, pluginKey } = options;
   const { user } = await getAuthUser();
@@ -301,6 +301,7 @@ export async function uninstallOrganizationPlugin(options: {
     // didn't happen.
     return {
       success: true,
+      changed: false,
       message:
         "This plugin was already uninstalled. The platform's own operation did not request deletion of any stored plugin data; it remains scoped to your organization.",
     };
@@ -309,17 +310,17 @@ export async function uninstallOrganizationPlugin(options: {
   const definition = getRegisteredPlugin(pluginKey);
   // Use the catalog name (same source as the dialog title) to avoid
   // manifest/catalog drift when the two names differ.
-  const displayName = pluginCatalog?.name || definition?.manifest.name || pluginKey;
+  const displayName = pluginCatalog?.name ?? definition?.manifest.name ?? pluginKey;
+  // definition is guaranteed non-null here (transitionOrganizationPluginInstall
+  // returns success:false when the plugin isn't registered), but optional
+  // chaining handles the technically-unreachable null without a defensive branch.
   return {
     success: true,
-    message: definition
-      ? describePluginUninstallImpact({
-          pluginName: displayName,
-          dataAccessPurposes: extractDataAccessPurposes(
-            definition.manifest.dataAccess,
-          ),
-        }).summary
-      : undefined,
+    changed: true,
+    message: describePluginUninstallImpact({
+      pluginName: displayName,
+      dataAccessPurposes: extractDataAccessPurposes(definition?.manifest.dataAccess),
+    }).summary,
   };
 }
 

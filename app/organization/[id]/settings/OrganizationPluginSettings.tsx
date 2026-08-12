@@ -459,7 +459,7 @@ export default function OrganizationPluginSettings({
     setUpdatingActionId(actionId);
 
     try {
-      const response: { success: boolean; error?: string; message?: string } =
+      const response: { success: boolean; error?: string; message?: string; changed?: boolean } =
         intent === "install"
           ? await setOrganizationPluginInstallState({
               organizationId,
@@ -478,6 +478,10 @@ export default function OrganizationPluginSettings({
 
       if (intent === "install") {
         toast.success(`${pluginName} installed successfully`);
+      } else if (response.changed === false) {
+        toast.success(`${pluginName} was already uninstalled`, {
+          description: response.message,
+        });
       } else {
         toast.success(`${pluginName} uninstalled`, {
           description: response.message,
@@ -1115,7 +1119,14 @@ export default function OrganizationPluginSettings({
           }
         }}
       >
-        <AlertDialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-x-hidden overflow-y-auto p-0 sm:max-w-md">
+        <AlertDialogContent
+        className="max-h-[calc(100dvh-2rem)] gap-0 overflow-x-hidden overflow-y-auto p-0 sm:max-w-md"
+        aria-describedby={
+          !isInstallAction
+            ? "plugin-action-desc plugin-uninstall-retention-clause"
+            : "plugin-action-desc"
+        }
+      >
           {activePluginAction ? (
             <>
               <div className="flex flex-col items-center text-center px-6 pt-8 pb-6">
@@ -1138,7 +1149,7 @@ export default function OrganizationPluginSettings({
                     : `Uninstall ${activePluginAction.name}?`}
                 </AlertDialogTitle>
 
-                <AlertDialogDescription className="mt-2 text-center text-sm text-muted-foreground w-[90%]">
+                <AlertDialogDescription id="plugin-action-desc" className="mt-2 text-center text-sm text-muted-foreground w-[90%]">
                   {isInstallAction
                     ? `Are you sure you want to add this plugin to your organization?`
                     : "This will remove the plugin and its saved settings immediately. The platform's own operation does not request plugin-data deletion — see the data handling note below."}
@@ -1207,19 +1218,18 @@ export default function OrganizationPluginSettings({
                   </>
                 ) : (
                   <div
-                    role="region"
+                    role="group"
                     aria-label="Data handling information"
                     className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 flex items-start gap-3"
                   >
                     <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
                     <div className="flex flex-col gap-2 text-sm leading-relaxed">
                       <p className="text-destructive font-medium">
-                        All plugin workflows will stop and your saved settings
-                        will be permanently removed. This cannot be undone.
+                        {"Plugin surfaces are disabled immediately and saved settings permanently removed. This cannot be undone; already-queued work may still complete."}
                       </p>
                       {uninstallImpact ? (
                         <>
-                          <p className="text-muted-foreground">
+                          <p id="plugin-uninstall-retention-clause" className="text-muted-foreground">
                             {uninstallImpact.retentionClause}
                           </p>
                           {uninstallImpact.dataCategories.length > 0 ? (

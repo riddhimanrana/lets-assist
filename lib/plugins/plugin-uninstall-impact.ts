@@ -124,12 +124,12 @@ export function describePluginUninstallImpact(
   const retentionFact = totalDataCategoryCount
     ? `The platform's own uninstall does not request deletion of the ${totalDataCategoryCount} declared data categor${totalDataCategoryCount === 1 ? "y" : "ies"} (${summaryCategories.join("; ")}${summaryOverflow > 0 ? `, +${summaryOverflow} more` : ""}) — it removes only the install record and its configuration. The plugin's own hook runs before that removal and is not constrained by the platform.`
     : "The platform's own uninstall does not request plugin-data deletion — it removes only the install record and its configuration. The plugin's own hook runs before that removal and is not constrained by the platform.";
-  const retentionClause = `${retentionFact} Permanently erasing stored plugin data requires a separate, authorized request — there is currently no self-service way to submit one anywhere in the product.`;
+  const retentionClause = `${retentionFact} The product currently has no self-service or support-triggered path to permanently erase stored plugin data.`;
 
   return {
     dataCategories,
     additionalDataCategoryCount,
     retentionClause,
-    summary: `Uninstalling ${pluginName} stops its workflows and permanently removes its saved settings immediately; that part cannot be undone. ${retentionClause}`,
+    summary: `Uninstalling ${pluginName} immediately removes its saved settings and disables plugin surfaces; already-queued work may still complete. This cannot be undone. ${retentionClause}`,
   };
 }
