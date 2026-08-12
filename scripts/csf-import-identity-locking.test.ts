@@ -1,8 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const repositoryRoot = join(import.meta.dir, "..");
+const migrationsDirectory = join(repositoryRoot, "supabase/migrations");
+const trackedMigrations = readdirSync(migrationsDirectory)
+  .filter((filename) => filename.endsWith(".sql"))
+  .map((filename) => ({
+    filename,
+    source: readFileSync(join(migrationsDirectory, filename), "utf8"),
+  }));
 const identityLockMigration = readFileSync(
   join(
     repositoryRoot,
@@ -75,6 +82,20 @@ function functionBody(name: string) {
 }
 
 describe("CSF import identity lock hierarchy", () => {
+  test("never schema-qualifies PostgreSQL syntax-only conditional expressions", () => {
+    const syntaxOnlyConditional =
+      /\bpg_catalog\.(?:coalesce|nullif|greatest|least)\s*\(/iu;
+    const violations = trackedMigrations.flatMap(({ filename, source }) =>
+      source
+        .split("\n")
+        .flatMap((line, index) =>
+          syntaxOnlyConditional.test(line) ? [`${filename}:${index + 1}`] : [],
+        ),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
   test("inventories every profile-affecting import claim, writer, and commit", () => {
     for (const name of IMPORT_IDENTITY_BOUNDARIES) {
       expect(functionBody(name)).toContain(

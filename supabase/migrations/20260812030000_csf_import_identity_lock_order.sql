@@ -22,13 +22,13 @@ AS $$
 DECLARE
   v_profile_ids uuid[];
 BEGIN
-  SELECT pg_catalog.coalesce(
+  SELECT coalesce(
     pg_catalog.array_agg(DISTINCT requested.profile_id ORDER BY requested.profile_id),
     ARRAY[]::uuid[]
   )
   INTO v_profile_ids
   FROM pg_catalog.unnest(
-    pg_catalog.coalesce(p_profile_ids, ARRAY[]::uuid[])
+    coalesce(p_profile_ids, ARRAY[]::uuid[])
   ) AS requested(profile_id)
   WHERE requested.profile_id IS NOT NULL;
 
@@ -155,7 +155,7 @@ BEGIN
   );
 
   IF p_profile_id IS NULL THEN
-    SELECT pg_catalog.coalesce(
+    SELECT coalesce(
       pg_catalog.array_agg(profile.id ORDER BY profile.id),
       ARRAY[]::uuid[]
     )
@@ -249,7 +249,7 @@ BEGIN
   PERFORM plugin_data.csf_assert_import_actor_for_job(
     p_organization_id, p_actor_user_id, p_preview_job_id
   );
-  SELECT pg_catalog.coalesce(
+  SELECT coalesce(
     pg_catalog.array_agg(
       DISTINCT import_row.matched_profile_id
       ORDER BY import_row.matched_profile_id
@@ -292,7 +292,7 @@ BEGIN
   PERFORM plugin_data.csf_lock_identity_mutation(p_organization_id);
 
   SELECT
-    pg_catalog.coalesce(
+    coalesce(
       nullif(attempt.actor_snapshot->>'claimedBy', '')::uuid,
       attempt.actor_user_id
     ),
@@ -387,7 +387,7 @@ BEGIN
   PERFORM plugin_data.csf_assert_import_actor_for_job(
     p_organization_id, p_actor_user_id, p_preview_job_id
   );
-  SELECT pg_catalog.coalesce(
+  SELECT coalesce(
     pg_catalog.array_agg(
       DISTINCT import_row.matched_profile_id
       ORDER BY import_row.matched_profile_id
@@ -434,7 +434,7 @@ BEGIN
   PERFORM plugin_data.csf_assert_import_actor(
     p_organization_id, p_actor_user_id, 'partner_club_audit'
   );
-  SELECT pg_catalog.coalesce(
+  SELECT coalesce(
     pg_catalog.array_agg(
       DISTINCT partner_row.profile_id
       ORDER BY partner_row.profile_id
