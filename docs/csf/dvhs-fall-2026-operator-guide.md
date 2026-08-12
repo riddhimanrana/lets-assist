@@ -610,22 +610,21 @@ Production, and do not treat a Development screenshot as Production evidence.
 - Help, Members, Staff access, Imports, and the three-section Communications
   workspace were clicked through on the deployed Development build. Help is
   filtered by exact position capabilities rather than broad route access.
-- Google Cloud origins, callbacks, and Drive/Sheets/Picker key restrictions are
-  configured. The in-product connection is **Not connected** until an operator
-  completes a fresh `dvhighcsf@gmail.com` password/verification handoff; no real
-  row preview or commit has occurred.
+- Google OAuth and Picker are connected. The real Spring 2026 application
+  workbook bounded `A1:Q518` was inspected and mapped. Preview failed before
+  reading or importing rows because the seven-argument RPC was missing.
+- Aggregate proof is one saved source, zero import jobs, zero import rows, zero
+  applications, and the existing profile count remained unchanged at two. No
+  real chapter row was imported or committed.
 - The root Development tree at this verification point is exact SHA
-  `d05b7ef259b59c3fe5bf8ab3b460358e834490b4`, with the private gitlink at exact
-  SHA `6fc8398e33bba8bc2c874e0969274fb37bab3fcb`.
-- Hosted Development Supabase has 269 ordered migrations through
-  `20260812104754_harden_project_transaction_rpc_boundaries`. Live advisors
+  `2e61074ffa8e4de5466f362c0629541320b4edb5`.
+- Hosted Development Supabase has 271 ordered migrations through
+  `20260812115556_plugin_data_deletion_requests`. Live advisors
   report 94 INFO / 0 WARN / 0 ERROR for security and 616 INFO / 0 WARN / 0 ERROR
   for performance.
-- `dev.lets-assist.com` is still serving READY SHA
-  `097bd4e194b1d14b0c9beb1ab3af9b91e5584c27`. The Vercel team exceeded 100
-  deployments per day, and Vercel refuses another deployment for 24 hours.
-  This exact code/database mismatch blocks hosted acceptance and every
-  real-data preview or commit. It is not deployment readiness.
+- `dev.lets-assist.com` serves that exact development SHA. The one-migration
+  hosted database gap and missing seven-argument RPC block Preview before any
+  row read or import; this is not Production readiness.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
 - Three controlled Development test messages produced three signature-verified
@@ -650,7 +649,7 @@ Do not use real chapter rows or credentials until every item is checked:
       Production databases, links, tokens, previews, and decisions isolated.
 - [ ] Verify the root tree is the approved exact commit and the private plugin
       remains a clean gitlink at its approved SHA.
-- [ ] Replay the ordered migration ledger through `20260812115556` in the
+- [ ] Replay the ordered migration ledger through `20260812132725` in the
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.

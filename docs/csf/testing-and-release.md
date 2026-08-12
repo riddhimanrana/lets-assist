@@ -3,27 +3,32 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** This change carries 271 ordered migrations, while the Development database remains at 269 and the Vercel deployment at `dev.lets-assist.com` is stale. Hosted database, browser/provider, and real-data acceptance are blocked; Production remains untouched.
+**Status:** The repository has 272 ordered migrations while hosted Development has
+271. `dev.lets-assist.com` serves the exact development SHA. Google OAuth and
+Picker are connected and the real Spring 2026 application workbook was inspected
+and mapped, but Preview is blocked by the missing seven-argument RPC before any
+row read or import. Production remains untouched.
 
 **Latest contract amendment:** August 12, 2026; this current-state amendment supersedes stale claims about Development ledger parity, advisor counts, and the code served by the Development alias. Historical counts below remain evidence for their named runs only.
 
 ## Current hosted Development state
 
-- The repository branch has 271 ordered migrations through
-  `20260812115556_plugin_data_deletion_requests`. Hosted Development remains at
-  269 through `20260812104754_harden_project_transaction_rpc_boundaries`; the
-  staff authorization race fix and service-only deletion receipt have not been
-  applied there.
+- The repository has 272 ordered migrations through
+  `20260812132725_csf_drive_metadata_compare_and_set_fence`. Hosted Development
+  has 271 ordered migrations through
+  `20260812115556_plugin_data_deletion_requests`.
 - The current Development Supabase advisor snapshot reports 94 INFO, 0 WARN,
   and 0 ERROR security findings, plus 616 INFO, 0 WARN, and 0 ERROR performance
   findings.
-- `dev.lets-assist.com` is still serving code SHA
-  `097bd4e194b1d14b0c9beb1ab3af9b91e5584c27`. Vercel exceeded the account
-  limit of 100 deployments per day before the current repository SHA could be
-  deployed.
-- Hosted acceptance and real-data preview/commit remain blocked until the
-  Development alias serves the exact repository SHA and its browser/provider
-  gates pass. Production remains untouched.
+- `dev.lets-assist.com` serves exact development SHA
+  `2e61074ffa8e4de5466f362c0629541320b4edb5`.
+- Google OAuth and Picker are connected. The real Spring 2026 application
+  workbook bounded `A1:Q518` was inspected and mapped.
+- Preview failed before reading or importing rows because the seven-argument RPC
+  was missing. Aggregate proof is one saved source, zero import jobs, zero import
+  rows, zero applications, and the existing profile count remained unchanged at
+  two. This hosted database ledger gap remains the Preview blocker. Production
+  remains untouched.
 
 ## Historical August 11 hosted Development amendment
 
