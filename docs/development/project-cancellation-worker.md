@@ -47,9 +47,12 @@ user produce one delivery row.
 
 The live signup, account, or anonymous-signup foreign keys are nullable and use
 safe `SET NULL` behavior. Deleting one of those records does not delete the
-delivery ledger or its frozen evidence. Composite project/job/signup tenant
-keys reject cross-project and cross-organization rows; project and job ledger
-references are restricted.
+delivery ledger or its frozen evidence. The live signup uses ordinary-column
+project and organization keys: together they prove its derived tenant while it
+exists, then clear only `signup_id` on deletion. The generated tenant coordinate
+is deliberately excluded from that `SET NULL` foreign key because PostgreSQL 17
+rejects that action for a constraint containing a generated column. Composite
+project/job tenant keys remain restricted.
 
 The exact address is service-only retention data. Once both owed channels are
 terminal, a bounded skip-locked retention RPC removes it after 90 days while

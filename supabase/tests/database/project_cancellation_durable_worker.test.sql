@@ -4,7 +4,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(35);
+SELECT extensions.plan(36);
 
 -- ACL and empty-search-path boundary.
 SELECT extensions.ok(
@@ -59,6 +59,21 @@ SELECT extensions.ok(
   to_regprocedure('public.enqueue_project_cancellation_job(uuid,timestamptz,text,uuid)') IS NULL
   AND to_regprocedure('public.initialize_project_cancellation_audience(uuid,text)') IS NULL,
   'split enqueue and snapshot RPCs no longer exist'
+);
+
+SELECT extensions.ok(
+  NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_constraint AS constraints
+    JOIN LATERAL unnest(constraints.conkey) AS key_columns(attnum) ON true
+    JOIN pg_catalog.pg_attribute AS attributes
+      ON attributes.attrelid = constraints.conrelid
+     AND attributes.attnum = key_columns.attnum
+    WHERE constraints.contype = 'f'
+      AND constraints.confdeltype = 'n'
+      AND attributes.attgenerated <> ''
+  ),
+  'SET NULL foreign keys never contain generated referencing columns'
 );
 
 -- Synthetic identities and projects.
@@ -358,6 +373,10 @@ SELECT extensions.is(
 
 SELECT extensions.ok(
   (SELECT user_id IS NULL AND signup_id IS NULL
+          AND signup_id_snapshot IS NOT NULL
+          AND project_id = 'da200000-0000-4000-8000-000000000001'
+          AND organization_id = 'da100000-0000-4000-8000-000000000001'
+          AND cancellation_tenant_id = 'da100000-0000-4000-8000-000000000001'
           AND recipient_email = 'frozen-user@local.test'
           AND recipient_identity_hash ~ '^[0-9a-f]{64}$'
    FROM public.project_cancellation_deliveries
@@ -373,6 +392,10 @@ WHERE id = 'da300000-0000-4000-8000-000000000001';
 
 SELECT extensions.ok(
   (SELECT anonymous_id IS NULL AND signup_id IS NULL
+          AND signup_id_snapshot = 'da400000-0000-4000-8000-000000000003'
+          AND project_id = 'da200000-0000-4000-8000-000000000001'
+          AND organization_id = 'da100000-0000-4000-8000-000000000001'
+          AND cancellation_tenant_id = 'da100000-0000-4000-8000-000000000001'
           AND recipient_email = 'frozen-anon@local.test'
    FROM public.project_cancellation_deliveries
    WHERE recipient_kind = 'anonymous'

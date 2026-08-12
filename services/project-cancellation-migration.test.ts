@@ -9,6 +9,18 @@ const migration = readFileSync(
   "utf8",
 );
 
+function foreignKeyDefinitions(source: string) {
+  return [
+    ...source.matchAll(
+      /ADD CONSTRAINT\s+([a-z0-9_]+)\s+FOREIGN KEY\s*\(([^)]+)\)([\s\S]*?)(?=\s*ADD CONSTRAINT|;)/gi,
+    ),
+  ].map((match) => ({
+    name: match[1],
+    columns: match[2].split(",").map((column) => column.trim()),
+    definition: match[0],
+  }));
+}
+
 describe("project cancellation forward-upgrade ordering", () => {
   test("parks every legacy pending/processing job before replacement claims exist", () => {
     const revoke = migration.indexOf(
@@ -73,5 +85,37 @@ describe("project cancellation forward-upgrade ordering", () => {
     expect(migration).not.toContain(
       "GRANT EXECUTE ON FUNCTION public.cancel_project_transactional(uuid, text)\n  TO service_role",
     );
+  });
+
+  test("keeps signup deletion safe without SET NULL over generated columns", () => {
+    const generatedColumns = new Set(
+      [
+        ...migration.matchAll(
+          /ADD COLUMN\s+(?:IF NOT EXISTS\s+)?([a-z0-9_]+)\s+uuid\s+GENERATED ALWAYS/gi,
+        ),
+      ].map((match) => match[1]),
+    );
+    const foreignKeys = foreignKeyDefinitions(migration);
+    const generatedSetNullKeys = foreignKeys.filter(
+      (foreignKey) =>
+        foreignKey.columns.some((column) => generatedColumns.has(column)) &&
+        /ON DELETE SET NULL\b/i.test(foreignKey.definition),
+    );
+    const byName = new Map(
+      foreignKeys.map((foreignKey) => [foreignKey.name, foreignKey.definition]),
+    );
+
+    expect(generatedSetNullKeys.map((foreignKey) => foreignKey.name)).toEqual(
+      [],
+    );
+    expect(
+      byName.get("project_cancellation_deliveries_signup_project_fkey"),
+    ).toContain("ON DELETE SET NULL (signup_id)");
+    expect(
+      byName.get("project_cancellation_deliveries_signup_tenant_fkey"),
+    ).toContain("MATCH SIMPLE ON DELETE SET NULL (signup_id)");
+    expect(
+      byName.has("project_cancellation_deliveries_signup_project_tenant_fkey"),
+    ).toBe(false);
   });
 });
