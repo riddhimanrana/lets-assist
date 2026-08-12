@@ -10,9 +10,7 @@ import type { Project } from "@/types";
 // Helpers
 // ---------------------------------------------------------------------------
 
-function oneTimeProject(
-  overrides: Partial<Project> = {},
-): Project {
+function oneTimeProject(overrides: Partial<Project> = {}): Project {
   return {
     id: "00000000-0000-0000-0000-000000000001",
     title: "Test Project",
@@ -92,6 +90,40 @@ describe("getAttendanceScheduleWindow — timezone handling", () => {
     if (window) {
       expect(window.startsAt).toBe(Date.UTC(2026, 8, 15, 16, 0, 0));
       expect(window.endsAt).toBe(Date.UTC(2026, 8, 15, 19, 0, 0));
+    }
+  });
+
+  test("rejects calendar-normalized dates instead of rolling into March", () => {
+    const project = oneTimeProject({
+      project_timezone: "UTC",
+      schedule: {
+        oneTime: {
+          date: "2026-02-30",
+          startTime: "09:00",
+          endTime: "12:00",
+          volunteers: 10,
+        },
+      },
+    });
+
+    expect(getAttendanceScheduleWindow(project, "oneTime")).toBeNull();
+  });
+
+  test("rejects out-of-range and non-canonical clock times", () => {
+    for (const invalidTime of ["99:99", "24:00", "9:00", "09:00:00"]) {
+      const project = oneTimeProject({
+        project_timezone: "UTC",
+        schedule: {
+          oneTime: {
+            date: "2026-09-15",
+            startTime: invalidTime,
+            endTime: "12:00",
+            volunteers: 10,
+          },
+        },
+      });
+
+      expect(getAttendanceScheduleWindow(project, "oneTime")).toBeNull();
     }
   });
 

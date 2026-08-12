@@ -34,6 +34,15 @@ export async function finalizeProject(projectId: string) {
 export async function createProject(formData: FormData) {
   "use server";
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { error: "You must be logged in to create a project" };
+    }
+
     // Parse project data
     const projectDataStr = formData.get("projectData") as string;
     if (!projectDataStr) return { error: "Missing project data" };
@@ -61,7 +70,6 @@ export async function autoSaveDraft(
   "use server";
   try {
     const supabase = await createClient();
-    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     // Get current user
     const {
@@ -74,6 +82,8 @@ export async function autoSaveDraft(
         autosaved: false,
       };
     }
+
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     const waiverPdfError = getWaiverPdfRequirementError(sanitizedProjectData);
     if (waiverPdfError) {
@@ -139,11 +149,6 @@ export async function saveProjectAsNewDraft(formData: FormData) {
   try {
     const supabase = await createClient();
 
-    const projectDataStr = formData.get("projectData") as string;
-    if (!projectDataStr) return { error: "Missing project data" };
-    const projectData = JSON.parse(projectDataStr);
-    const sanitizedProjectData = sanitizeDraftData(projectData);
-
     // Get current user
     const {
       data: { user },
@@ -152,6 +157,11 @@ export async function saveProjectAsNewDraft(formData: FormData) {
     if (userError || !user) {
       return { error: "You must be logged in to save a draft" };
     }
+
+    const projectDataStr = formData.get("projectData") as string;
+    if (!projectDataStr) return { error: "Missing project data" };
+    const projectData = JSON.parse(projectDataStr);
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     const waiverPdfError = getWaiverPdfRequirementError(sanitizedProjectData);
     if (waiverPdfError) {
@@ -191,11 +201,6 @@ export async function saveProjectAsDraft(formData: FormData) {
   try {
     const supabase = await createClient();
 
-    const projectDataStr = formData.get("projectData") as string;
-    if (!projectDataStr) return { error: "Missing project data" };
-    const projectData = JSON.parse(projectDataStr);
-    const sanitizedProjectData = sanitizeDraftData(projectData);
-
     // Get current user
     const {
       data: { user },
@@ -204,6 +209,11 @@ export async function saveProjectAsDraft(formData: FormData) {
     if (userError || !user) {
       return { error: "You must be logged in to save a draft" };
     }
+
+    const projectDataStr = formData.get("projectData") as string;
+    if (!projectDataStr) return { error: "Missing project data" };
+    const projectData = JSON.parse(projectDataStr);
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     const waiverPdfError = getWaiverPdfRequirementError(sanitizedProjectData);
     if (waiverPdfError) {
@@ -370,8 +380,9 @@ export async function updateDraft(
   }
 
   // Build and validate recurrence rule if enabled.
-  let recurrenceRule: import("@/lib/projects/schedule-validation").ValidatedRecurrenceRule | null =
-    null;
+  let recurrenceRule:
+    | import("@/lib/projects/schedule-validation").ValidatedRecurrenceRule
+    | null = null;
   if (projectData.recurrence?.enabled) {
     const rawRule = {
       frequency: projectData.recurrence.frequency,
