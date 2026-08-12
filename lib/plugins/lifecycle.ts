@@ -271,4 +271,3 @@ export async function runPluginOnSignup(
     pluginKey: plugin.manifest.key,
   });
 }
-

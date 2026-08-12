@@ -37,10 +37,14 @@ describe("describePluginUninstallImpact", () => {
       dataAccessPurposes: [],
     });
 
-    expect(impact.summary).toMatch(/no self-service or support-triggered path/i);
+    expect(impact.summary).toMatch(
+      /no self-service or support-triggered path/i,
+    );
     expect(impact.summary).not.toMatch(/authorized request/i);
     expect(impact.summary).not.toMatch(/from this screen/i);
-    expect(impact.retentionClause).toMatch(/no self-service or support-triggered path/i);
+    expect(impact.retentionClause).toMatch(
+      /no self-service or support-triggered path/i,
+    );
     expect(impact.retentionClause).not.toMatch(/authorized request/i);
   });
 
@@ -66,7 +70,9 @@ describe("describePluginUninstallImpact", () => {
       "season tracking",
       "member profile extensions",
     ]);
-    expect(impact.dataCategories.length + impact.additionalDataCategoryCount).toBe(2);
+    expect(
+      impact.dataCategories.length + impact.additionalDataCategoryCount,
+    ).toBe(2);
     expect(impact.additionalDataCategoryCount).toBe(0);
   });
 
@@ -78,7 +84,9 @@ describe("describePluginUninstallImpact", () => {
 
     expect(impact.summary).toMatch(/does not request plugin-data deletion/i);
     expect(impact.dataCategories).toEqual([]);
-    expect(impact.dataCategories.length + impact.additionalDataCategoryCount).toBe(0);
+    expect(
+      impact.dataCategories.length + impact.additionalDataCategoryCount,
+    ).toBe(0);
   });
 
   test("deduplicates repeated purposes instead of counting them twice", () => {
@@ -91,7 +99,9 @@ describe("describePluginUninstallImpact", () => {
       ],
     });
 
-    expect(impact.dataCategories.length + impact.additionalDataCategoryCount).toBe(2);
+    expect(
+      impact.dataCategories.length + impact.additionalDataCategoryCount,
+    ).toBe(2);
     expect(impact.dataCategories).toEqual([
       "season tracking",
       "member profile extensions",
@@ -104,7 +114,9 @@ describe("describePluginUninstallImpact", () => {
       dataAccessPurposes: ["", "   ", "season tracking"],
     });
 
-    expect(impact.dataCategories.length + impact.additionalDataCategoryCount).toBe(1);
+    expect(
+      impact.dataCategories.length + impact.additionalDataCategoryCount,
+    ).toBe(1);
     expect(impact.dataCategories).toEqual(["season tracking"]);
   });
 
@@ -145,7 +157,9 @@ describe("describePluginUninstallImpact", () => {
       // ~4,966-character toast string for this exact shape. Bound the
       // summary far below either regardless of how many relations exist.
       expect(impact.summary.length).toBeLessThan(1000);
-      expect(impact.dataCategories.length + impact.additionalDataCategoryCount).toBe(RELATION_COUNT);
+      expect(
+        impact.dataCategories.length + impact.additionalDataCategoryCount,
+      ).toBe(RELATION_COUNT);
     });
 
     test("summary never leaks internal schema or relation names", () => {

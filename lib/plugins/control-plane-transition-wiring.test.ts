@@ -148,7 +148,10 @@ describe("plugin control-plane action wiring", () => {
   });
 
   test("uninstallOrganizationPlugin returns an explicit changed discriminator — not derived from message content", () => {
-    const source = exportedFunctionSource(organizationActions, "uninstallOrganizationPlugin");
+    const source = exportedFunctionSource(
+      organizationActions,
+      "uninstallOrganizationPlugin",
+    );
     // Both the no-op and real-removal paths must carry an explicit changed field.
     expect(source).toContain("changed: false,");
     expect(source).toContain("changed: true,");
@@ -161,13 +164,19 @@ describe("plugin control-plane action wiring", () => {
     expect(organizationPluginSettings).toContain("response.changed === false");
     expect(organizationPluginSettings).toContain("was already uninstalled");
     // Must NOT rely on inspecting the message string to decide the title.
-    expect(organizationPluginSettings).not.toMatch(/response\.message.*uninstall/i);
+    expect(organizationPluginSettings).not.toMatch(
+      /response\.message.*uninstall/i,
+    );
   });
 
   test("uninstall dialog copy does not claim all workflows stop", () => {
-    expect(organizationPluginSettings).not.toMatch(/all plugin workflows will stop/i);
+    expect(organizationPluginSettings).not.toMatch(
+      /all plugin workflows will stop/i,
+    );
     expect(organizationPluginSettings).not.toMatch(/stops its workflows/i);
-    expect(organizationPluginSettings).toContain("already-queued work may still complete");
+    expect(organizationPluginSettings).toContain(
+      "already-queued work may still complete",
+    );
   });
 
   test("plugin-uninstall-impact summary never says all workflows stop", () => {
@@ -186,7 +195,9 @@ describe("plugin control-plane action wiring", () => {
 
   test("runPluginDataDelete is defined in lifecycle but has no caller in the platform or submodule plugin files outside tests", () => {
     const lifecycleSource = read("lib/plugins/lifecycle.ts");
-    expect(lifecycleSource).toContain("export async function runPluginDataDelete(");
+    expect(lifecycleSource).toContain(
+      "export async function runPluginDataDelete(",
+    );
     // The transition adapter and control-plane actions must NOT call it — it is unwired.
     expect(transitionAdapter).not.toContain("runPluginDataDelete(");
     expect(organizationActions).not.toContain("runPluginDataDelete(");

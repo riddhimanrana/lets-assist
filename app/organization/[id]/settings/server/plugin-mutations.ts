@@ -174,7 +174,12 @@ export async function setOrganizationPluginInstallState(options: {
 export async function uninstallOrganizationPlugin(options: {
   organizationId: string;
   pluginKey: string;
-}): Promise<{ success: boolean; error?: string; message?: string; changed?: boolean }> {
+}): Promise<{
+  success: boolean;
+  error?: string;
+  message?: string;
+  changed?: boolean;
+}> {
   "use server";
   const { organizationId, pluginKey } = options;
   const { user } = await getAuthUser();
@@ -310,7 +315,8 @@ export async function uninstallOrganizationPlugin(options: {
   const definition = getRegisteredPlugin(pluginKey);
   // Use the catalog name (same source as the dialog title) to avoid
   // manifest/catalog drift when the two names differ.
-  const displayName = pluginCatalog?.name ?? definition?.manifest.name ?? pluginKey;
+  const displayName =
+    pluginCatalog?.name ?? definition?.manifest.name ?? pluginKey;
   // definition is guaranteed non-null here (transitionOrganizationPluginInstall
   // returns success:false when the plugin isn't registered), but optional
   // chaining handles the technically-unreachable null without a defensive branch.
@@ -319,7 +325,9 @@ export async function uninstallOrganizationPlugin(options: {
     changed: true,
     message: describePluginUninstallImpact({
       pluginName: displayName,
-      dataAccessPurposes: extractDataAccessPurposes(definition?.manifest.dataAccess),
+      dataAccessPurposes: extractDataAccessPurposes(
+        definition?.manifest.dataAccess,
+      ),
     }).summary,
   };
 }
