@@ -121,6 +121,25 @@ describe("combined project lifecycle source contract", () => {
     }
   });
 
+  test("the ledger tail preserves review hardening after integrated replacements", () => {
+    const tail = read(
+      "supabase/migrations/20260812110723_preserve_project_lifecycle_review_hardening.sql",
+    );
+
+    expect(tail).toContain("v_attending boolean");
+    expect(tail).toMatch(
+      /IF v_approving OR v_attending THEN[\s\S]*FOR UPDATE;/,
+    );
+    expect(tail).toMatch(
+      /IF v_attending[\s\S]*v_project_status IN \('inactive', 'cancelled'\)/,
+    );
+    expect(tail).toContain("attempts = GREATEST(v_job.attempts - 1, 0)");
+    expect(tail).toContain("SET search_path = ''");
+    expect(tail).toContain(
+      "REVOKE ALL ON FUNCTION public.finalize_project_cancellation_job(uuid, text)",
+    );
+  });
+
   test("the tenant FK audit permits only the guarded cancellation snapshot ledger", () => {
     const audit = read("scripts/audit-supabase-architecture.sh");
     const retention = read(
