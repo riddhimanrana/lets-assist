@@ -29,7 +29,7 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-018](#aud-018) | P1  | Guardian form          | Hydration could replace a guardian's reviewed availability and notes with SSR defaults before submission            | **Fixed on `development`**; exact CI green                   |
 | [AUD-007](#aud-007) | P2  | CI                     | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                               | Fixed this session                                           |
 | [AUD-008](#aud-008) | P2  | Architecture           | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript    | Confirmed, by design                                         |
-| [AUD-009](#aud-009) | P2  | Gate coverage          | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads`                     | Confirmed                                                    |
+| [AUD-009](#aud-009) | P2  | Gate coverage          | bucket allowlist omitted `csf-private` and `paper-signup-scans`; LEFT JOIN hid unexpected buckets                   | **Fixed locally**; hosted Development pending                |
 | [AUD-010](#aud-010) | P3  | Moderation             | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true                    | Confirmed, dead policy                                       |
 | [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                           | Confirmed                                                    |
 
@@ -223,13 +223,13 @@ That is a correct and defensible deny-all posture, and it is what produces the 9
 
 ## AUD-009 — Bucket drift detection has two blind spots {#aud-009}
 
-**Priority:** P2 · **Status:** Confirmed
+**Priority:** P2 · **Status:** Fixed locally; hosted Development pending
 
-`scripts/audit-supabase-architecture.sh` (~lines 302-368) enumerates nine expected buckets; `csf-private` is not among them, and the "server-only buckets exposed through client policies" pattern matches only `data-exports` and `waiver-signatures`. `plugin_form_uploads` has the same gap.
+`scripts/audit-supabase-architecture.sh` (~lines 302-368) enumerated nine expected buckets and already included `plugin_form_uploads`, but it omitted `csf-private` and `paper-signup-scans`. The property-drift query used a catalog-to-live `LEFT JOIN`, so buckets present in `storage.buckets` but absent from the allowlist were invisible. The server-only client-policy pattern matched only `data-exports` and `waiver-signatures`, so a new client policy on `csf-private` would also have stayed green.
 
-Current posture is correct — `csf-private` is `public = false` with zero object policies — but if it flipped to public, or gained a `storage.objects` policy, the gate would stay green.
+**Resolution:** `20260812033551_client_acl_and_storage_posture_catalogs.sql` adds `app_private.storage_bucket_posture_catalog()` as the reviewed source for all eleven buckets, their public/MIME/size properties, and posture classes: six `public`, two `private-client` (`paper-signup-scans`, `plugin_form_uploads`), and three `server-only` (`csf-private`, `data-exports`, `waiver-signatures`). The architecture gate now compares live `storage.buckets` to that catalog bidirectionally — missing, unexpected, and property drift — and enforces posture-specific `storage.objects` policy classes without brittle `auth.uid()` source-text checks. Server-only buckets must have zero client policies; private-client buckets must have authenticated policies and no public/anon policies.
 
-**Fix:** add both buckets to the expected-bucket enumeration and the client-policy pattern set. Verify by adding a policy locally and confirming the gate fails. Plan Task 2.6.
+**Local evidence, 2026-08-11:** the forward migration replayed on local Supabase Postgres; `storage_bucket_posture_catalog.test.sql` passed ten focused pgTAP assertions covering all eleven catalog buckets, the three posture classes, and rollback-safe adversarial probes for rogue buckets, server-only authenticated policy drift, and flipped public flags; `db:audit:architecture` passed on the same stack. This is local evidence only; hosted Development catalog verification remains pending.
 
 ---
 

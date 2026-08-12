@@ -420,36 +420,82 @@ fail_if_rows "public read-model views without security_invoker=true" "$read_mode
 
 storage_bucket_drift="$(
   psql "$DB_URL" -AtF $'\t' -c "
-    with expected(id, is_public, file_size_limit, allowed_mime_types) as (
-      values
-        ('avatars', true, 10485760::bigint, array['image/png', 'image/jpeg', 'image/jpg', 'image/webp']::text[]),
-        ('organization-logos', true, 10485760::bigint, array['image/png', 'image/jpeg', 'image/jpg', 'image/webp']::text[]),
-        ('project-images', true, 20971520::bigint, array['image/png', 'image/jpeg', 'image/jpg', 'image/webp']::text[]),
-        ('project-documents', true, 20971520::bigint, array['application/pdf']::text[]),
-        ('waiver-uploads', true, 20971520::bigint, array['application/pdf']::text[]),
-        ('waivers', true, 20971520::bigint, array['application/pdf']::text[]),
-        ('data-exports', false, 52428800::bigint, array['application/zip']::text[]),
-        ('plugin_form_uploads', false, 10485760::bigint, array['application/pdf', 'image/jpeg', 'image/png']::text[]),
-        ('waiver-signatures', false, 10485760::bigint, array['application/pdf', 'image/png', 'image/jpeg', 'image/jpg']::text[])
+    with expected as (
+      select bucket_id, is_public, file_size_limit, allowed_mime_types, posture
+      from app_private.storage_bucket_posture_catalog()
+    ),
+    actual as (
+      select
+        b.id as bucket_id,
+        b.public as is_public,
+        b.file_size_limit,
+        b.allowed_mime_types
+      from storage.buckets b
+    ),
+    drift as (
+      select
+        'missing'::text as drift_kind,
+        e.bucket_id,
+        e.is_public as expected_public,
+        null::boolean as actual_public,
+        e.file_size_limit as expected_file_size_limit,
+        null::bigint as actual_file_size_limit,
+        e.allowed_mime_types as expected_allowed_mime_types,
+        null::text[] as actual_allowed_mime_types,
+        e.posture as expected_posture,
+        null::text as actual_posture
+      from expected e
+      left join actual a on a.bucket_id = e.bucket_id
+      where a.bucket_id is null
+      union all
+      select
+        'unexpected'::text,
+        a.bucket_id,
+        null::boolean,
+        a.is_public,
+        null::bigint,
+        a.file_size_limit,
+        null::text[],
+        a.allowed_mime_types,
+        null::text,
+        null::text
+      from actual a
+      left join expected e on e.bucket_id = a.bucket_id
+      where e.bucket_id is null
+      union all
+      select
+        'property_drift'::text,
+        e.bucket_id,
+        e.is_public,
+        a.is_public,
+        e.file_size_limit,
+        a.file_size_limit,
+        e.allowed_mime_types,
+        a.allowed_mime_types,
+        e.posture,
+        null::text
+      from expected e
+      join actual a on a.bucket_id = e.bucket_id
+      where e.is_public is distinct from a.is_public
+         or e.file_size_limit is distinct from a.file_size_limit
+         or coalesce(e.allowed_mime_types, array[]::text[])
+           is distinct from coalesce(a.allowed_mime_types, array[]::text[])
     )
     select
-      e.id,
-      e.is_public as expected_public,
-      b.public as actual_public,
-      e.file_size_limit as expected_file_size_limit,
-      b.file_size_limit as actual_file_size_limit,
-      e.allowed_mime_types as expected_allowed_mime_types,
-      b.allowed_mime_types as actual_allowed_mime_types
-    from expected e
-    left join storage.buckets b on b.id = e.id
-    where b.id is null
-       or b.public is distinct from e.is_public
-       or b.file_size_limit is distinct from e.file_size_limit
-       or coalesce(b.allowed_mime_types, array[]::text[]) <> e.allowed_mime_types
-    order by e.id;
+      drift_kind,
+      bucket_id,
+      expected_public,
+      actual_public,
+      expected_file_size_limit,
+      actual_file_size_limit,
+      expected_allowed_mime_types,
+      actual_allowed_mime_types,
+      expected_posture
+    from drift
+    order by drift_kind, bucket_id;
   "
 )"
-fail_if_rows "storage buckets missing or with unexpected public/private/MIME/size posture" "$storage_bucket_drift"
+fail_if_rows "storage buckets missing, unexpected, or with catalog property drift" "$storage_bucket_drift"
 
 public_storage_listing_policies="$(
   psql "$DB_URL" -AtF $'\t' -c "
@@ -466,25 +512,76 @@ fail_if_rows "public/anon storage.objects SELECT policies that can expose object
 
 server_only_storage_client_policies="$(
   psql "$DB_URL" -AtF $'\t' -c "
-    select policyname, roles::text, cmd, coalesce(qual, with_check, '')
-    from pg_policies
-    where schemaname = 'storage'
-      and tablename = 'objects'
-      and (
-        coalesce(qual, '') like '%data-exports%'
-        or coalesce(with_check, '') like '%data-exports%'
-        or coalesce(qual, '') like '%waiver-signatures%'
-        or coalesce(with_check, '') like '%waiver-signatures%'
-      )
-      and (
-        'public' = any(roles)
-        or 'anon' = any(roles)
-        or 'authenticated' = any(roles)
-      )
-    order by policyname, cmd;
+    with catalog as (
+      select bucket_id
+      from app_private.storage_bucket_posture_catalog()
+      where posture = 'server-only'
+    )
+    select c.bucket_id, p.policyname, p.roles::text, p.cmd
+    from catalog c
+    join pg_policies p
+      on p.schemaname = 'storage'
+     and p.tablename = 'objects'
+    where (
+      'public' = any(p.roles)
+      or 'anon' = any(p.roles)
+      or 'authenticated' = any(p.roles)
+    )
+    and (
+      coalesce(p.qual, '') like ('%bucket_id = ''' || c.bucket_id || '''%')
+      or coalesce(p.with_check, '') like ('%bucket_id = ''' || c.bucket_id || '''%')
+    )
+    order by c.bucket_id, p.policyname, p.cmd;
   "
 )"
 fail_if_rows "server-only storage buckets exposed through client storage.objects policies" "$server_only_storage_client_policies"
+
+private_client_storage_policy_gaps="$(
+  psql "$DB_URL" -AtF $'\t' -c "
+    with catalog as (
+      select bucket_id
+      from app_private.storage_bucket_posture_catalog()
+      where posture = 'private-client'
+    ),
+    missing_authenticated as (
+      select c.bucket_id, 'missing_authenticated_policy'::text as issue
+      from catalog c
+      where not exists (
+        select 1
+        from pg_policies p
+        where p.schemaname = 'storage'
+          and p.tablename = 'objects'
+          and 'authenticated' = any(p.roles)
+          and (
+            coalesce(p.qual, '') like ('%bucket_id = ''' || c.bucket_id || '''%')
+            or coalesce(p.with_check, '') like ('%bucket_id = ''' || c.bucket_id || '''%')
+          )
+      )
+    ),
+    public_or_anon_policies as (
+      select c.bucket_id, 'public_or_anon_policy'::text as issue, p.policyname, p.roles::text, p.cmd
+      from catalog c
+      join pg_policies p
+        on p.schemaname = 'storage'
+       and p.tablename = 'objects'
+      where (
+        'public' = any(p.roles)
+        or 'anon' = any(p.roles)
+      )
+      and (
+        coalesce(p.qual, '') like ('%bucket_id = ''' || c.bucket_id || '''%')
+        or coalesce(p.with_check, '') like ('%bucket_id = ''' || c.bucket_id || '''%')
+      )
+    )
+    select bucket_id, issue, null::text as policyname, null::text as roles, null::text as cmd
+    from missing_authenticated
+    union all
+    select bucket_id, issue, policyname, roles, cmd
+    from public_or_anon_policies
+    order by bucket_id, issue, policyname, cmd;
+  "
+)"
+fail_if_rows "private-client storage buckets missing authenticated policies or exposed to public/anon" "$private_client_storage_policy_gaps"
 
 unexpected_auth_schema_grants="$(
   psql "$DB_URL" -AtF $'\t' -c "
