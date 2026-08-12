@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isReservedOrganizationSlug } from "@/lib/organization/reserved-slugs";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -10,6 +11,10 @@ export async function GET(request: NextRequest) {
       { error: "Username parameter is required" },
       { status: 400 },
     );
+  }
+
+  if (isReservedOrganizationSlug(username)) {
+    return NextResponse.json({ available: false });
   }
 
   const supabase = await createClient();

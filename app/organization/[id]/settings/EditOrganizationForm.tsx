@@ -36,6 +36,7 @@ import {
 import { Controller } from "react-hook-form";
 import { Switch } from "@/components/ui/switch";
 import { updateOrganization, checkUsernameAvailability } from "./actions";
+import { isReservedOrganizationSlug } from "@/lib/organization/reserved-slugs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/shared/ImageCropper";
@@ -211,6 +212,11 @@ export default function EditOrganizationForm({
 
     if (value.length < 3) {
       setUsernameAvailable(null);
+      return;
+    }
+
+    if (isReservedOrganizationSlug(value)) {
+      setUsernameAvailable(false);
       return;
     }
 

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { customAlphabet } from "nanoid";
 import { hasSuperAdminMetadata } from "@/lib/auth/super-admin";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { isReservedOrganizationSlug } from "@/lib/organization/reserved-slugs";
 
 // Generate a random 6-digit code
 const generateJoinCode = customAlphabet("0123456789", 6);
@@ -48,6 +49,10 @@ export async function checkOrgUsername(username: string): Promise<boolean> {
   const supabase = await createClient();
 
   if (!username || username.length < 3) {
+    return false;
+  }
+
+  if (isReservedOrganizationSlug(username)) {
     return false;
   }
 
@@ -128,6 +133,10 @@ export async function createOrganization(data: OrganizationCreationData) {
         ? "Super admins can create up to two organizations every 14 days."
         : "You can only create one organization every 14 days.",
     };
+  }
+
+  if (isReservedOrganizationSlug(data.username)) {
+    return { error: "That username is reserved and can't be used" };
   }
 
   // Double-check username availability
