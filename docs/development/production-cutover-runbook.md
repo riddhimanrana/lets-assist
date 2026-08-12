@@ -1,9 +1,10 @@
 # Production cutover runbook
 
-Production has 236 ordered migrations through `20260811001500`.
-Development and the repository have 269 ordered migrations through
-`20260812104754`. That is 33 pending migrations before any later
-documentation-only commit.
+Production has 236 ordered migrations through `20260811001500`. Hosted
+Development has 269 ordered migrations through `20260812104754`. This
+repository branch has 270 ordered migrations through `20260812114638`, so it
+contains 34 Production-pending migrations and one migration not yet accepted
+on hosted Development.
 
 **This runbook is preparation. Executing it requires explicit release
 authorization** ([deployment boundaries](deployment.md)). Production remains
@@ -14,7 +15,7 @@ provider gates are green.
 
 **1. The schema push and the application deploy are one release, not two.**
 
-The 33 pending migrations and their exact application release SHA must be
+The 34 pending migrations and their exact application release SHA must be
 treated as one change. Do not push the schema independently or infer application
 compatibility from the migration ledger. Schedule one window, with the exact
 application release ready before the push starts.
@@ -33,7 +34,7 @@ because the cutover still builds on that baseline. See the
 - **AUD-002** — the `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)`, so anyone holding the public anon key can inject a notification for any user, with an attacker-chosen title, body, and action URL.
 
 The fixing migrations, `20260810220100` and `20260810220200`, are historical
-context rather than part of the current 33-migration pending set.
+context rather than part of the current 34-migration pending set.
 
 ---
 
@@ -78,7 +79,7 @@ Read-only throughout. Capture the whole output into the change record. The block
 
 **The Supabase `development` branch is not a rehearsal.** Its 269-migration
 ledger proves ordered application against the Development database, not the
-Production-shaped 236→269 transition. It does not exercise data-dependent DDL,
+repository branch's Production-shaped 236→270 transition. It does not exercise data-dependent DDL,
 lock behaviour at Production table sizes, or Production data.
 
 **Preferred path — a data-cloned branch from Production.**
@@ -88,8 +89,8 @@ lock behaviour at Production table sizes, or Production data.
 3. **Verify it is a clone, not a replay** — `list_migrations` on the new ref.
    - **236 rows, head `20260811001500`** → a genuine current-baseline clone.
      Continue.
-   - **269 rows, head `20260812104754`** → it was built by replaying the
-     repository, which is the artifact you already have and proves nothing new.
+   - **270 rows, head `20260812114638`** → it was built by replaying the
+     repository branch, which is the artifact you already have and proves nothing new.
      Abandon and use the fallback.
 
    Do not skip this. It is the single most important step here.
@@ -99,7 +100,7 @@ lock behaviour at Production table sizes, or Production data.
 6. Push, and time it:
    ```bash
    supabase link --project-ref <branch-ref>
-   supabase db push --linked --dry-run      # expect exactly 33 pending
+   supabase db push --linked --dry-run      # expect exactly 34 pending
    time supabase db push --linked --yes 2>&1 | tee rehearsal.log
    ```
 7. Capture: total and per-file wall clock; `SELECT ... FROM pg_index WHERE NOT
