@@ -10,6 +10,10 @@ import {
   isBefore,
   parseISO,
 } from "date-fns";
+import { validateRecurrenceRule } from "@/lib/projects/schedule-validation";
+
+/** Hard ceiling on while-loop iterations per parent to protect against corrupt legacy rows. */
+export const MAX_ITERATIONS_PER_PARENT = 500;
 
 function createServiceClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -139,7 +143,11 @@ function calculateNextDate(
   currentDate: Date,
   rule: RecurrenceRule,
 ): Date | null {
-  const interval = rule.interval || 1;
+  // Use the raw interval without a falsy-fallback; validation ensures it is a
+  // positive integer before this function is ever reached.
+  const interval = typeof rule.interval === "number" && rule.interval >= 1
+    ? rule.interval
+    : 1;
 
   switch (rule.frequency) {
     case "daily":
@@ -389,8 +397,19 @@ async function processRecurringProjects(): Promise<{
     parentsProcessed++;
 
     try {
-      const rule = parent.recurrence_rule;
-      if (!rule) continue;
+      const rawRule = parent.recurrence_rule;
+      if (!rawRule) continue;
+
+      // Validate rule before processing; treat corrupt legacy rows as bounded
+      // faults so the rest of the run continues without a hot-CPU loop.
+      const ruleValidation = validateRecurrenceRule(rawRule);
+      if (!ruleValidation.ok) {
+        errors.push(
+          `Skipping parent ${parent.title} (invalid recurrence_rule: ${ruleValidation.error})`,
+        );
+        continue;
+      }
+      const rule = ruleValidation.rule;
 
       const latestOccurrenceResult = await supabase
         .from("projects")
@@ -431,12 +450,20 @@ async function processRecurringProjects(): Promise<{
       }
 
       let nextDate = calculateNextDate(lastDate, rule);
+      let iterationCount = 0;
 
       while (
         nextDate &&
         isBefore(nextDate, lookAheadDate) &&
         shouldGenerateOccurrence(rule, nextDate, currentSequence)
       ) {
+        if (++iterationCount > MAX_ITERATIONS_PER_PARENT) {
+          errors.push(
+            `Iteration cap (${MAX_ITERATIONS_PER_PARENT}) reached for ${parent.title}; skipping remaining occurrences.`,
+          );
+          break;
+        }
+
         if (isBefore(today, nextDate)) {
           const formattedNextDate = format(nextDate, "yyyy-MM-dd");
 

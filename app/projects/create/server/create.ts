@@ -16,6 +16,10 @@ import {
   normalizeRequireLoginForVerificationMethod,
   omitProjectColumns,
 } from "./shared";
+import {
+  validateRecurrenceRule,
+  validateProjectTimezone,
+} from "@/lib/projects/schedule-validation";
 
 export async function createBasicProject(
   projectData: EventFormState & { userNow?: string },
@@ -187,17 +191,35 @@ export async function createBasicProject(
       );
     }
 
-    // Build recurrence rule if enabled
-    const recurrenceRule = projectData.recurrence?.enabled
-      ? {
-          frequency: projectData.recurrence.frequency,
-          interval: projectData.recurrence.interval || 1,
-          end_type: projectData.recurrence.endType,
-          end_date: projectData.recurrence.endDate || null,
-          end_occurrences: projectData.recurrence.endOccurrences || null,
-          weekdays: projectData.recurrence.weekdays || [],
-        }
-      : null;
+    // Validate project_timezone (server is authoritative).
+    const rawTimezone =
+      projectData.basicInfo.projectTimezone || "America/Los_Angeles";
+    const timezoneValidation = validateProjectTimezone(rawTimezone);
+    if (!timezoneValidation.ok) {
+      return { error: `Invalid project timezone: ${timezoneValidation.error}` };
+    }
+    const projectTimezone = rawTimezone;
+
+    // Build and validate recurrence rule if enabled.
+    let recurrenceRule: import("@/lib/projects/schedule-validation").ValidatedRecurrenceRule | null =
+      null;
+    if (projectData.recurrence?.enabled) {
+      const rawRule = {
+        frequency: projectData.recurrence.frequency,
+        interval: projectData.recurrence.interval,
+        end_type: projectData.recurrence.endType,
+        end_date: projectData.recurrence.endDate || null,
+        end_occurrences: projectData.recurrence.endOccurrences || null,
+        weekdays: projectData.recurrence.weekdays || [],
+      };
+      const ruleValidation = validateRecurrenceRule(rawRule);
+      if (!ruleValidation.ok) {
+        return {
+          error: `Invalid recurrence rule: ${ruleValidation.error}`,
+        };
+      }
+      recurrenceRule = ruleValidation.rule;
+    }
 
     const baseProjectPayload = {
       creator_id: user.id,
@@ -220,8 +242,7 @@ export async function createBasicProject(
       organization_id: organizationId || null, // Save organization_id if provided
       visibility: requestedVisibility, // Public requires Trusted Member. Unlisted / org-only do not.
       published: publishedState, // Add the published state tracking
-      project_timezone:
-        projectData.basicInfo.projectTimezone || "America/Los_Angeles", // Save project timezone with fallback
+      project_timezone: projectTimezone,
       restrict_to_org_domains: projectData.restrictToOrgDomains || false, // Add domain restriction flag
       workflow_status: isDraft ? "draft" : "published", // Support draft saving
       recurrence_rule: recurrenceRule, // Support recurring projects
