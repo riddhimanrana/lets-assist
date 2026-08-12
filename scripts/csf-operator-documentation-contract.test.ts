@@ -699,7 +699,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(270);
+    expect(migrations).toHaveLength(271);
     expect(migrations.at(-1)).toBe(
       "20260812115556_plugin_data_deletion_requests.sql",
     );
@@ -710,7 +710,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 270 ordered migrations through",
+      "repository branch has 271 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260812115556_plugin_data_deletion_requests`",
@@ -743,10 +743,10 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Hosted Development has 269 ordered migrations through `20260812104754`",
     );
     expect(productionCutoverRunbook).toContain(
-      "repository branch has 270 ordered migrations through `20260812115556`",
+      "repository branch has 271 ordered migrations through `20260812115556`",
     );
     expect(productionCutoverRunbook).toContain(
-      "contains 34 Production-pending migrations",
+      "contains 35 Production-pending migrations",
     );
     expect(productionCutoverRunbook).not.toContain("174 pending migrations");
     expect(productionCutoverRunbook).not.toContain(
