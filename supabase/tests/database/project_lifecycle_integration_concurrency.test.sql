@@ -35,7 +35,7 @@ VALUES (
   'Project Lifecycle Integration Org',
   'project-lifecycle-integration-org',
   'nonprofit',
-  'PLI001'
+  '783001'
 );
 
 INSERT INTO public.organization_members (organization_id, user_id, role, status)
