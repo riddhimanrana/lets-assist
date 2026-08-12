@@ -34,6 +34,10 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                              | Confirmed                                                    |
 | [AUD-020](#aud-020) | P2  | Plugin data deletion   | Permanent deletion lacked a complete contract, authorization boundary, and truthful durable replay state               | **Fixed locally**; hosted Development pending                |
 | [AUD-021](#aud-021) | P2  | Plugin uninstall       | Ordinary uninstall could run arbitrary plugin code and therefore could not guarantee data retention                    | **Fixed locally**; hosted Development pending                |
+| [AUD-031](#aud-031) | P1  | Organization RLS       | Inactive membership rows still granted helper-backed tenant authority and could support self-reactivation              | **Fixed locally**; hosted Development pending                |
+| [AUD-032](#aud-032) | P1  | Project status         | Browser writes could bypass cancellation atomicity or revive cancelled projects, and failures were console-only        | **Fixed locally**; hosted Development pending                |
+| [AUD-033](#aud-033) | P1  | Recurrence             | Series ending and child generation lacked one serialized parent boundary and exposed a public definer                  | **Fixed locally**; hosted Development pending                |
+| [AUD-034](#aud-034) | P1  | Cancellation worker    | Healthy pagination spent the abandoned-lease retry budget and could amplify retries                                    | **Fixed locally**; hosted Development pending                |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -714,6 +718,125 @@ advisor, and browser acceptance also remain required before this finding
 closes.
 
 Production was not accessed or changed for this finding.
+
+---
+
+<a id="aud-031"></a>
+
+## AUD-031 — Inactive membership retained shared tenant authority {#aud-031}
+
+**Severity:** P1 · **Confidence:** confirmed · **Status:** fixed locally; hosted
+Development verification pending
+
+The four shared `private` organization helpers selected membership rows without
+requiring `status = 'active'`. Because organization-member updates and multiple
+public/plugin RLS policies call those definer helpers, an inactive admin or
+staff actor could still satisfy tenant authorization, including the update
+policy governing their own membership row.
+
+**Local evidence:** the hostile fixture covers an inactive administrator's
+self-reactivation, inactive staff denial, a separately active cross-tenant
+administrator, and active same-tenant admin/staff controls. The lifecycle source
+contract passes, as do the fresh isolated replay and the complete 126-file,
+5,222-assertion pgTAP suite.
+
+**Local resolution candidate:** `20260812215733_reconcile_project_lifecycle_boundaries.sql`
+replaces all four helpers with fixed-path definitions that require the exact
+organization, current user, reviewed role, and explicit active status. It
+reapplies explicit function ACLs without changing the stronger
+`app_private.is_project_organizer` or `app_private.can_manage_project`
+definitions owned by current Development.
+
+**Hosted resolution:** not applied or verified on hosted Development. Production
+was not accessed.
+
+---
+
+<a id="aud-032"></a>
+
+## AUD-032 — Cancelled projects could bypass or reverse lifecycle authority {#aud-032}
+
+**Severity:** P1 · **Confidence:** confirmed · **Status:** fixed locally; hosted
+Development verification pending
+
+The general authenticated project update surface could enter `cancelled`
+without the transaction that freezes its audience/outbox, or move a cancelled
+row back to another status. `ProjectDetails.tsx` also persisted calculated
+status directly through the browser client and reported authorization failures
+only in the console.
+
+**Local evidence:** focused lifecycle TypeScript coverage, the full unit suite,
+fresh replay, and hostile pgTAP pass. The database fixture exercises direct
+cancellation, direct revival, preserved state/outbox truth, and the reviewed
+transactional cancellation path.
+
+**Local resolution candidate:** the project trigger reserves cancellation and
+revival for privileged reviewed transactions. The details page keeps its route
+and caller signature but invokes the existing authorization-aware Server Action
+and exposes a refresh action when current authorization or state rejects the
+write.
+
+**Hosted resolution:** not applied or verified on hosted Development. Production
+was not accessed.
+
+---
+
+<a id="aud-033"></a>
+
+## AUD-033 — Recurrence ending lacked one serialized private transaction {#aud-033}
+
+**Severity:** P1 · **Confidence:** confirmed · **Status:** fixed locally; hosted
+Development verification pending
+
+A recurrence worker could decide to create a child without locking the parent
+against series ending. The first repair also exposed the complete privileged
+series transaction as a client-executable public SECURITY DEFINER function,
+contrary to the current public-function boundary.
+
+**Local evidence:** the source contract asserts the parent lock, private call to
+the canonical cancellation transaction, fixed empty paths, public invoker
+wrapper, and absence of a public definer. The pgTAP transaction and two-session
+serialization proofs, architecture audit, fresh replay, and local #152 merge
+simulation pass. The combined tree retains both reviewed public ACL rows and
+orders the `161500` rejection transaction before the `215733` union guard.
+
+**Local resolution candidate:** a parent trigger serializes child materialization
+with one private SECURITY DEFINER end-series transaction. The public signature
+is preserved as a self-authorizing SECURITY INVOKER wrapper, callable only by
+`authenticated`; `PUBLIC`, `anon`, and `service_role` are explicitly revoked.
+
+**Hosted resolution:** not applied or verified on hosted Development. Production
+was not accessed.
+
+---
+
+<a id="aud-034"></a>
+
+## AUD-034 — Healthy pagination consumed the cancellation failure budget {#aud-034}
+
+**Severity:** P1 · **Confidence:** confirmed · **Status:** fixed locally; hosted
+Development verification pending
+
+The job claim increment represented both an ordinary bounded page and an
+abandoned lease. Large healthy jobs could therefore reach five attempts and
+fail merely because the worker honored its per-run delivery budget, while
+retries multiplied across later runs.
+
+**Local evidence:** the stateful worker suite passes 20 tests / 90 assertions,
+including more than five healthy one-delivery runs, five abandoned leases,
+per-job round-robin quanta under one global maximum, terminal pre-send
+exhaustion, and no accepted-email resend. Focused pgTAP covering healthy
+finalizer refunds and true abandoned-lease exhaustion passes, as do the fresh
+replay and complete local database suite.
+
+**Local resolution candidate:** an owned, unexpired finalizer refunds the
+provisional claim with `GREATEST(attempts - 1, 0)`. Only a lease that reaches the
+reaper retains an attempt. The worker preserves one clamped
+`maxDeliveries` counter across all claimed jobs and one unique per-delivery
+provider idempotency key.
+
+**Hosted resolution:** not applied or verified on hosted Development. No
+provider request was made, and Production was not accessed.
 
 ---
 

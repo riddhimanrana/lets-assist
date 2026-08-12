@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(30);
+SELECT extensions.plan(45);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -26,16 +26,26 @@ VALUES
   ('f9000000-0000-4000-8000-000000000008', 'authenticated', 'authenticated',
    'review-active-staff@local.test', now(), '{}', '{}', now(), now()),
   ('f9000000-0000-4000-8000-000000000009', 'authenticated', 'authenticated',
-   'review-null-status-admin@local.test', now(), '{}', '{}', now(), now());
+   'review-null-status-admin@local.test', now(), '{}', '{}', now(), now()),
+  ('f9000000-0000-4000-8000-000000000010', 'authenticated', 'authenticated',
+   'review-cross-tenant-admin@local.test', now(), '{}', '{}', now(), now());
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
-VALUES (
-  'f9100000-0000-4000-8000-000000000001',
-  'Lifecycle Review Findings',
-  'lifecycle-review-findings',
-  'nonprofit',
-  '785001'
-);
+VALUES
+  (
+    'f9100000-0000-4000-8000-000000000001',
+    'Lifecycle Review Findings',
+    'lifecycle-review-findings',
+    'nonprofit',
+    '785001'
+  ),
+  (
+    'f9100000-0000-4000-8000-000000000002',
+    'Lifecycle Cross Tenant',
+    'lifecycle-cross-tenant',
+    'nonprofit',
+    '785002'
+  );
 
 INSERT INTO public.organization_members (organization_id, user_id, role, status)
 VALUES
@@ -48,7 +58,9 @@ VALUES
   ('f9100000-0000-4000-8000-000000000001',
    'f9000000-0000-4000-8000-000000000008', 'staff', 'active'),
   ('f9100000-0000-4000-8000-000000000001',
-   'f9000000-0000-4000-8000-000000000009', 'admin', NULL);
+   'f9000000-0000-4000-8000-000000000009', 'admin', NULL),
+  ('f9100000-0000-4000-8000-000000000002',
+   'f9000000-0000-4000-8000-000000000010', 'admin', 'active');
 
 INSERT INTO public.projects (
   id, creator_id, organization_id, title, location, description, event_type,
@@ -154,7 +166,28 @@ SELECT extensions.is(
   false,
   'inactive organization administrators have no project organizer authority'
 );
+SELECT extensions.is(
+  private.is_org_admin('f9100000-0000-4000-8000-000000000001'),
+  false,
+  'inactive organization administrators have no shared admin authority'
+);
+SELECT extensions.lives_ok(
+  $$UPDATE public.organization_members
+    SET status = 'active'
+    WHERE organization_id = 'f9100000-0000-4000-8000-000000000001'
+      AND user_id = 'f9000000-0000-4000-8000-000000000002'$$,
+  'an inactive administrator self-reactivation attempt is denied without disclosure'
+);
+RESET ROLE;
+SELECT extensions.is(
+  (SELECT status FROM public.organization_members
+   WHERE organization_id = 'f9100000-0000-4000-8000-000000000001'
+     AND user_id = 'f9000000-0000-4000-8000-000000000002'),
+  'inactive',
+  'denied administrator self-reactivation preserves inactive status'
+);
 
+SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" =
   '{"sub":"f9000000-0000-4000-8000-000000000003","role":"authenticated"}';
 SELECT extensions.is(
@@ -164,6 +197,11 @@ SELECT extensions.is(
   ),
   false,
   'suspended organization staff have no project organizer authority'
+);
+SELECT extensions.is(
+  private.is_org_staff_or_admin('f9100000-0000-4000-8000-000000000001'),
+  false,
+  'inactive staff have no shared staff authority'
 );
 
 SET LOCAL ROLE authenticated;
@@ -188,6 +226,11 @@ SELECT extensions.is(
   true,
   'active organization administrators retain organizer authority'
 );
+SELECT extensions.is(
+  private.is_org_admin('f9100000-0000-4000-8000-000000000001'),
+  true,
+  'active organization administrators retain shared admin authority'
+);
 
 SET LOCAL "request.jwt.claims" =
   '{"sub":"f9000000-0000-4000-8000-000000000008","role":"authenticated"}';
@@ -198,6 +241,26 @@ SELECT extensions.is(
   ),
   false,
   'active staff cannot manage a project whose creator disabled staff management'
+);
+SELECT extensions.is(
+  private.is_org_staff_or_admin('f9100000-0000-4000-8000-000000000001'),
+  true,
+  'active organization staff retain shared staff authority'
+);
+
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f9000000-0000-4000-8000-000000000010","role":"authenticated"}';
+SELECT extensions.is(
+  private.is_org_member('f9100000-0000-4000-8000-000000000001'),
+  false,
+  'an active administrator from another tenant has no membership authority here'
+);
+SELECT extensions.lives_ok(
+  $$UPDATE public.organization_members
+    SET status = 'active'
+    WHERE organization_id = 'f9100000-0000-4000-8000-000000000001'
+      AND user_id = 'f9000000-0000-4000-8000-000000000002'$$,
+  'cross-tenant administrator updates are denied without tenant disclosure'
 );
 
 SET LOCAL "request.jwt.claims" =
@@ -312,8 +375,16 @@ SELECT extensions.throws_ok(
     SET status = 'attended'
     WHERE id = 'f9300000-0000-4000-8000-000000000006'$$,
   '42501',
-  'attendance requires an approved signup',
-  'authenticated managers cannot skip approval and mark a pending signup attended'
+  'attendance requires a server-authorized operation',
+  'authenticated managers cannot directly mark a pending signup attended'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE public.project_signups
+    SET status = 'rejected'
+    WHERE id = 'f9300000-0000-4000-8000-000000000001'$$,
+  '42501',
+  'signup rejection requires the server-authorized operation',
+  'authenticated managers cannot directly reject a signup'
 );
 RESET ROLE;
 
@@ -359,7 +430,22 @@ SELECT extensions.is(
   'approved',
   'the reviewed service-role transition persists approved state'
 );
+RESET ROLE;
 
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f9000000-0000-4000-8000-000000000004","role":"authenticated"}';
+SELECT extensions.throws_ok(
+  $$UPDATE public.project_signups
+    SET status = 'attended'
+    WHERE id = 'f9300000-0000-4000-8000-000000000001'$$,
+  '42501',
+  'attendance requires a server-authorized operation',
+  'authenticated managers cannot directly mark approved signups attended'
+);
+RESET ROLE;
+
+SET LOCAL ROLE service_role;
 SELECT extensions.throws_ok(
   $$UPDATE public.project_signups
     SET status = 'attended'
@@ -393,6 +479,75 @@ SELECT extensions.results_eq(
     ('f9300000-0000-4000-8000-000000000004'::uuid, 'approved'::text)
   $$,
   'denied attendance transitions preserve approved state'
+);
+
+SELECT extensions.ok(
+  (
+    SELECT proc.prosecdef
+      AND proc.proconfig = ARRAY['search_path=""']::text[]
+    FROM pg_catalog.pg_proc AS proc
+    WHERE proc.oid =
+      'private.end_recurring_project_series_transactional()'::regprocedure
+  ),
+  'the private series-end trigger helper is fixed-path SECURITY DEFINER'
+);
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'anon',
+    'private.end_recurring_project_series_transactional()',
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'authenticated',
+    'private.end_recurring_project_series_transactional()',
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'service_role',
+    'private.end_recurring_project_series_transactional()',
+    'EXECUTE'
+  ),
+  'the private series-end trigger helper has no role execute grants'
+);
+SELECT extensions.ok(
+  (
+    SELECT NOT proc.prosecdef
+      AND proc.proconfig = ARRAY['search_path=""']::text[]
+    FROM pg_catalog.pg_proc AS proc
+    WHERE proc.oid =
+      'public.end_recurring_project_series_transactional(uuid)'::regprocedure
+  ),
+  'the public series-end wrapper is fixed-path SECURITY INVOKER'
+);
+SELECT extensions.ok(
+  has_function_privilege(
+    'authenticated',
+    'public.end_recurring_project_series_transactional(uuid)',
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'anon',
+    'public.end_recurring_project_series_transactional(uuid)',
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'service_role',
+    'public.end_recurring_project_series_transactional(uuid)',
+    'EXECUTE'
+  ),
+  'only authenticated can execute the public series-end wrapper'
+);
+SELECT extensions.ok(
+  EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_trigger AS trigger
+    WHERE trigger.tgrelid = 'public.projects'::regclass
+      AND trigger.tgname = 'projects_end_recurring_series_transactional'
+      AND trigger.tgfoid =
+        'private.end_recurring_project_series_transactional()'::regprocedure
+      AND NOT trigger.tgisinternal
+  ),
+  'the project recurrence transition invokes the ungranted private helper'
 );
 
 SET LOCAL ROLE authenticated;

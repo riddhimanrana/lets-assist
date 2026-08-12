@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(40);
+SELECT extensions.plan(41);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -422,7 +422,7 @@ SELECT extensions.throws_ok(
     WHERE id = 'ad200000-0000-4000-8000-000000000004'
   $$,
   '42501',
-  'participants may only cancel their own signup',
+  'attendance requires a server-authorized operation',
   'a participant cannot forge attended status'
 );
 SELECT extensions.throws_ok(
@@ -518,13 +518,26 @@ SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" =
   '{"sub":"ad000000-0000-4000-8000-000000000001","role":"authenticated"}';
 
-SELECT extensions.lives_ok(
+-- Approval and rejection both belong to their reviewed transactional RPCs.
+SELECT extensions.throws_ok(
   $$
     UPDATE public.project_signups
     SET status = 'rejected'
     WHERE id = 'ad200000-0000-4000-8000-000000000004'
   $$,
-  'a project manager retains signup status moderation'
+  '42501',
+  'signup rejection requires the server-authorized operation',
+  'a project manager cannot bypass transactional rejection'
+);
+SELECT extensions.throws_ok(
+  $$
+    UPDATE public.project_signups
+    SET status = 'approved'
+    WHERE id = 'ad200000-0000-4000-8000-000000000004'
+  $$,
+  '42501',
+  'signup approval requires a capacity-safe transactional RPC',
+  'a project manager cannot bypass transactional approval'
 );
 SELECT extensions.is(
   (
@@ -532,8 +545,8 @@ SELECT extensions.is(
     FROM public.project_signups AS signups
     WHERE signups.id = 'ad200000-0000-4000-8000-000000000004'
   ),
-  'rejected',
-  'manager status moderation persists'
+  'cancelled',
+  'a rejected browser-direct transition does not persist'
 );
 
 RESET ROLE;

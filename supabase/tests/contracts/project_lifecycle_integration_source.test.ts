@@ -82,11 +82,16 @@ describe("combined project lifecycle source contract", () => {
     const updateAction = lifecycle.slice(
       lifecycle.indexOf("export async function updateProject("),
     );
-    const hardeningMigration = read(
-      "supabase/migrations/20260812094008_harden_project_lifecycle_review_findings.sql",
+    const repairMigration = read(
+      "supabase/migrations/20260812215733_reconcile_project_lifecycle_boundaries.sql",
     );
-    const seriesEndFunction = sliceBetween(
-      hardeningMigration,
+    const privateSeriesEndFunction = sliceBetween(
+      repairMigration,
+      "CREATE OR REPLACE FUNCTION private.end_recurring_project_series_transactional()",
+      "REVOKE ALL ON FUNCTION private.end_recurring_project_series_transactional",
+    );
+    const publicSeriesEndFunction = sliceBetween(
+      repairMigration,
       "CREATE OR REPLACE FUNCTION public.end_recurring_project_series_transactional(",
       "REVOKE ALL ON FUNCTION public.end_recurring_project_series_transactional",
     );
@@ -98,11 +103,23 @@ describe("combined project lifecycle source contract", () => {
     expect(updateAction).toMatch(
       /receipt\.calendarCleanupProjectIds[\s\S]*removeCalendarEventForProject\(cleanupProjectId\)/,
     );
-    expect(seriesEndFunction).toMatch(
-      /v_receipt\s*:=\s*public\.cancel_project_transactional\(/,
+    expect(privateSeriesEndFunction).toMatch(
+      /v_receipt\s*:=\s*private\.cancel_project_transactional\(/,
     );
-    expect(seriesEndFunction).toContain("FOR UPDATE");
-    expect(seriesEndFunction).toContain("SET recurrence_rule = NULL");
+    expect(privateSeriesEndFunction).toContain("FOR UPDATE");
+    expect(privateSeriesEndFunction).toContain("SECURITY DEFINER");
+    expect(privateSeriesEndFunction).toContain("RETURNS trigger");
+    expect(publicSeriesEndFunction).toContain("SECURITY INVOKER");
+    expect(publicSeriesEndFunction).not.toContain("SECURITY DEFINER");
+    expect(publicSeriesEndFunction).toContain("FOR UPDATE");
+    expect(publicSeriesEndFunction).toContain("members.status = 'active'");
+    expect(publicSeriesEndFunction).toContain("SET recurrence_rule = NULL");
+    expect(repairMigration).toContain(
+      "EXECUTE FUNCTION private.end_recurring_project_series_transactional()",
+    );
+    expect(repairMigration).toMatch(
+      /REVOKE ALL ON FUNCTION private\.end_recurring_project_series_transactional\(\)[\s\S]*?FROM PUBLIC, anon, authenticated, service_role;[\s\S]*?COMMENT ON FUNCTION private\.end_recurring_project_series_transactional\(\)/,
+    );
   });
 
   test("the additive catalogs retain lifecycle authorities without SECURITY DEFINER exceptions", () => {
@@ -110,8 +127,11 @@ describe("combined project lifecycle source contract", () => {
     const aclTest = read(
       "supabase/tests/database/public_function_acl_allowlist.test.sql",
     );
-    const boundaryMigration = read(
+    const transactionBoundaryMigration = read(
       "supabase/migrations/20260812104754_harden_project_transaction_rpc_boundaries.sql",
+    );
+    const lifecycleBoundaryMigration = read(
+      "supabase/migrations/20260812215733_reconcile_project_lifecycle_boundaries.sql",
     );
     const securityDefinerAudit = sliceBetween(
       audit,
@@ -132,48 +152,71 @@ describe("combined project lifecycle source contract", () => {
       "unreject_project_signup_with_capacity",
     );
     expect(securityDefinerAudit).not.toContain("cancel_project_transactional");
-    expect(boundaryMigration).toContain(
+    expect(transactionBoundaryMigration).toContain(
       "ALTER FUNCTION public.cancel_project_transactional(uuid, text)\n  SET SCHEMA private",
     );
-    expect(boundaryMigration).toContain(
+    expect(transactionBoundaryMigration).toContain(
       "CREATE OR REPLACE FUNCTION public.cancel_project_transactional(",
     );
-    expect(boundaryMigration).toContain(
+    expect(transactionBoundaryMigration).toContain(
       "ALTER FUNCTION public.unreject_project_signup_with_capacity(uuid)\n  SET SCHEMA private",
     );
-    expect(boundaryMigration).toContain(
+    expect(transactionBoundaryMigration).toContain(
       "CREATE OR REPLACE FUNCTION public.unreject_project_signup_with_capacity(",
     );
     expect(
-      boundaryMigration.match(
+      transactionBoundaryMigration.match(
         /LANGUAGE sql\nSECURITY INVOKER\nSET search_path = ''/g,
       ),
     ).toHaveLength(2);
-    expect(boundaryMigration.match(/SET search_path = ''/g)).toHaveLength(2);
-    expect(boundaryMigration).toContain(
+    expect(
+      transactionBoundaryMigration.match(/SET search_path = ''/g),
+    ).toHaveLength(2);
+    expect(lifecycleBoundaryMigration).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.end_recurring_project_series_transactional\([\s\S]*?LANGUAGE plpgsql\nSECURITY INVOKER\nSET search_path = ''/,
+    );
+    expect(lifecycleBoundaryMigration).not.toMatch(
+      /GRANT EXECUTE ON FUNCTION private\.end_recurring_project_series_transactional/,
+    );
+    expect(transactionBoundaryMigration).toContain(
       "DROP INDEX public.projects_id_organization_id_uidx",
     );
-    expect(boundaryMigration).not.toContain(
+    expect(transactionBoundaryMigration).not.toContain(
       "DROP INDEX public.projects_id_organization_id_key",
     );
   });
 
-  test("the ledger tail preserves review hardening after integrated replacements", () => {
-    const tail = read(
-      "supabase/migrations/20260812110723_preserve_project_lifecycle_review_hardening.sql",
+  test("the forward repair preserves the union of lifecycle and rejection hardening", () => {
+    const repair = read(
+      "supabase/migrations/20260812215733_reconcile_project_lifecycle_boundaries.sql",
     );
 
-    expect(tail).toContain("v_attending boolean");
-    expect(tail).toMatch(
+    expect(repair).toContain("v_attending boolean");
+    expect(repair).toMatch(
       /IF v_approving OR v_attending THEN[\s\S]*FOR UPDATE;/,
     );
-    expect(tail).toMatch(
+    expect(repair).toMatch(
       /IF v_attending[\s\S]*v_project_status IN \('inactive', 'cancelled'\)/,
     );
-    expect(tail).toContain("attempts = GREATEST(v_job.attempts - 1, 0)");
-    expect(tail).toContain("SET search_path = ''");
-    expect(tail).toContain(
+    expect(repair).toMatch(
+      /IF NEW\.status = 'approved'[\s\S]*signup approval requires a capacity-safe transactional RPC/,
+    );
+    expect(repair).toMatch(
+      /IF NEW\.status = 'rejected'[\s\S]*signup rejection requires the server-authorized operation/,
+    );
+    expect(repair).toMatch(
+      /IF NEW\.status = 'attended'[\s\S]*attendance requires a server-authorized operation/,
+    );
+    expect(repair).toContain("attempts = GREATEST(v_job.attempts - 1, 0)");
+    expect(repair).toContain("SET search_path = ''");
+    expect(repair).toContain(
       "REVOKE ALL ON FUNCTION public.finalize_project_cancellation_job(uuid, text)",
+    );
+    expect(repair).not.toContain(
+      "CREATE OR REPLACE FUNCTION app_private.is_project_organizer(",
+    );
+    expect(repair).not.toContain(
+      "CREATE OR REPLACE FUNCTION app_private.can_manage_project(",
     );
   });
 

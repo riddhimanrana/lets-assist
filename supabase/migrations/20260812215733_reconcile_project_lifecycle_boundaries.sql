@@ -1,57 +1,15 @@
--- Close the four project-lifecycle Data API gaps found during review without
--- changing the reviewed RPC signatures or service-role mutation paths.
+-- Reconcile the project-lifecycle hostile-review findings after the integrated
+-- Development ledger and the atomic signup-rejection boundary. This migration
+-- deliberately does not replace app_private.is_project_organizer or
+-- app_private.can_manage_project: 20260812101100 owns their stronger active-
+-- membership and Storage-aware definitions.
 
--- Organization management authority requires a currently active membership.
--- Project creation remains an independent source of authority.
-CREATE OR REPLACE FUNCTION app_private.is_project_organizer(
-  p_project_id uuid,
-  p_user uuid
-)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-  SELECT COALESCE(
-    p_user IS NOT NULL
-    AND EXISTS (
-      SELECT 1
-      FROM public.projects AS projects
-      WHERE projects.id = p_project_id
-        AND (
-          projects.creator_id = p_user
-          OR EXISTS (
-            SELECT 1
-            FROM public.organization_members AS members
-            WHERE members.organization_id = projects.organization_id
-              AND members.user_id = p_user
-              AND members.status = 'active'
-              AND (
-                members.role = 'admin'
-                OR (
-                  members.role = 'staff'
-                  AND projects.can_be_managed_by_staff = true
-                )
-              )
-          )
-        )
-    ),
-    false
-  );
-$$;
+BEGIN;
 
-REVOKE ALL ON FUNCTION app_private.is_project_organizer(uuid, uuid)
-  FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION app_private.is_project_organizer(uuid, uuid)
-  TO authenticated, service_role;
-
-COMMENT ON FUNCTION app_private.is_project_organizer(uuid, uuid) IS
-  'Returns creator authority, active admin authority, or active staff authority for staff-manageable projects.';
-
--- All shared membership helpers must agree that only an explicitly active row
--- grants tenant authority. Otherwise an inactive actor can use the member-row
--- UPDATE policy to reactivate themselves before reaching project RLS.
+-- Every shared organization helper must require an explicitly active
+-- membership. These helpers feed organization-member RLS as well as plugin
+-- policies, so a deactivated actor must not use their own row to reactivate
+-- tenant authority or cross into another organization.
 CREATE OR REPLACE FUNCTION private.get_user_org_role(p_org_id uuid)
 RETURNS text
 LANGUAGE sql
@@ -131,10 +89,19 @@ GRANT EXECUTE ON FUNCTION private.get_user_org_role(uuid),
   private.is_org_admin(uuid)
   TO authenticated, service_role;
 
--- The authenticated projects UPDATE policy is intentionally broad enough for
--- ordinary project editing. Keep cancellation behind the SECURITY DEFINER RPC,
--- whose owner context bypasses this client guard while it atomically writes the
--- status transition, audience snapshot, and outbox.
+COMMENT ON FUNCTION private.get_user_org_role(uuid) IS
+  'Returns the current user role only for an explicitly active membership in the exact organization.';
+COMMENT ON FUNCTION private.is_org_member(uuid) IS
+  'Returns true only for an explicitly active current-user membership in the exact organization.';
+COMMENT ON FUNCTION private.is_org_staff_or_admin(uuid) IS
+  'Returns true only for explicitly active staff or admin membership in the exact organization.';
+COMMENT ON FUNCTION private.is_org_admin(uuid) IS
+  'Returns true only for explicitly active admin membership in the exact organization.';
+
+-- Ordinary authenticated project edits remain RLS-authorized, but cancellation
+-- owns a frozen audience/outbox transaction and cancelled projects have no
+-- browser-direct revival path. SECURITY DEFINER cancellation runs as postgres,
+-- so the reviewed transaction remains permitted.
 CREATE OR REPLACE FUNCTION private.protect_project_ownership_columns()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -174,10 +141,11 @@ GRANT EXECUTE ON FUNCTION private.protect_project_ownership_columns()
   TO postgres;
 
 COMMENT ON FUNCTION private.protect_project_ownership_columns() IS
-  'Protects project ownership coordinates and requires client cancellation to use the atomic cancellation RPC.';
+  'Protects project ownership and prevents browser-direct cancellation or revival while permitting reviewed privileged transactions.';
 
--- Managers retain direct moderation for non-capacity-consuming transitions,
--- but pending/rejected approval must use the canonical slot advisory lock.
+-- This is the full union of the approval, attendance, and rejection browser
+-- guards. Consequential status transitions use their reviewed server/RPC paths;
+-- only a participant's own pending/approved cancellation remains client-direct.
 CREATE OR REPLACE FUNCTION private.protect_project_signup_client_mutation()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -221,18 +189,18 @@ BEGIN
   END IF;
 
   IF NEW.status IS DISTINCT FROM OLD.status THEN
-    IF NEW.status = 'approved'
-      AND OLD.status IS DISTINCT FROM 'approved'
-    THEN
+    IF NEW.status = 'approved' THEN
       RAISE EXCEPTION 'signup approval requires a capacity-safe transactional RPC'
         USING ERRCODE = '42501';
     END IF;
 
-    IF NEW.status = 'attended'
-      AND OLD.status IS DISTINCT FROM 'attended'
-      AND OLD.status IS DISTINCT FROM 'approved'
-    THEN
-      RAISE EXCEPTION 'attendance requires an approved signup'
+    IF NEW.status = 'attended' THEN
+      RAISE EXCEPTION 'attendance requires a server-authorized operation'
+        USING ERRCODE = '42501';
+    END IF;
+
+    IF NEW.status = 'rejected' THEN
+      RAISE EXCEPTION 'signup rejection requires the server-authorized operation'
         USING ERRCODE = '42501';
     END IF;
 
@@ -263,11 +231,11 @@ GRANT EXECUTE ON FUNCTION private.protect_project_signup_client_mutation()
   TO service_role;
 
 COMMENT ON FUNCTION private.protect_project_signup_client_mutation() IS
-  'Restricts client signup edits and routes capacity-consuming approvals through their transactional RPCs.';
+  'Restricts browser signup edits and routes approval, attendance, and rejection through reviewed transactional or server-authorized paths.';
 
--- Approval and first attendance both change cancellation-audience state. They
--- therefore take the same project row lock as cancellation and fail closed
--- after the project becomes inactive.
+-- Approval and first attendance both change the audience truth observed by
+-- cancellation. They therefore share the project-row lock and fail closed after
+-- the project becomes inactive or cancelled.
 CREATE OR REPLACE FUNCTION app_private.enforce_project_signup_cancellation_boundary()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -351,10 +319,11 @@ GRANT EXECUTE ON FUNCTION app_private.enforce_project_signup_cancellation_bounda
   TO postgres;
 
 COMMENT ON FUNCTION app_private.enforce_project_signup_cancellation_boundary() IS
-  'Serializes signup approval and approved-to-attended transitions with project cancellation and rejects inactive or cancelled attendance.';
+  'Serializes signup approval and attendance with project cancellation and rejects inactive or cancelled attendance.';
 
--- A stale recurrence worker must serialize with series ending before inserting
--- a child. Once the parent rule is cleared, no later child may be materialized.
+-- A stale recurrence generator must lock and recheck the exact parent before it
+-- can materialize a child. Series ending holds the same parent lock while it
+-- cancels every upcoming occurrence and then clears the recurrence rule.
 CREATE OR REPLACE FUNCTION private.enforce_active_recurrence_parent()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -401,19 +370,75 @@ FOR EACH ROW
 WHEN (NEW.recurrence_parent_id IS NOT NULL)
 EXECUTE FUNCTION private.enforce_active_recurrence_parent();
 
-CREATE OR REPLACE FUNCTION public.end_recurring_project_series_transactional(
-  p_project_id uuid
-)
-RETURNS jsonb
+CREATE OR REPLACE FUNCTION private.end_recurring_project_series_transactional()
+RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_actor_id uuid := auth.uid();
-  v_parent public.projects%ROWTYPE;
   v_child record;
   v_receipt jsonb;
+BEGIN
+  IF OLD.recurrence_rule IS NULL
+    OR NEW.recurrence_rule IS NOT NULL
+    OR NEW.recurrence_parent_id IS NOT NULL
+  THEN
+    RETURN NEW;
+  END IF;
+
+  FOR v_child IN
+    SELECT children.id
+    FROM public.projects AS children
+    WHERE children.recurrence_parent_id = OLD.id
+      AND children.status = 'upcoming'
+    ORDER BY children.id
+    FOR UPDATE
+  LOOP
+    v_receipt := private.cancel_project_transactional(
+      v_child.id,
+      'Recurring series ended by organizer'
+    );
+
+    IF COALESCE(v_receipt->>'outcome', '') NOT IN ('cancelled', 'already_cancelled') THEN
+      RAISE EXCEPTION 'recurring occurrence cancellation was not accepted'
+        USING ERRCODE = '40001';
+    END IF;
+  END LOOP;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.end_recurring_project_series_transactional()
+  FROM PUBLIC, anon, authenticated, service_role;
+
+COMMENT ON FUNCTION private.end_recurring_project_series_transactional() IS
+  'Ungranted fixed-path trigger helper that atomically cancels upcoming children while the invoker-authorized parent update holds the recurrence serialization lock.';
+
+DROP TRIGGER IF EXISTS projects_end_recurring_series_transactional
+  ON public.projects;
+CREATE TRIGGER projects_end_recurring_series_transactional
+BEFORE UPDATE OF recurrence_rule ON public.projects
+FOR EACH ROW
+WHEN (
+  OLD.recurrence_rule IS NOT NULL
+  AND NEW.recurrence_rule IS NULL
+  AND NEW.recurrence_parent_id IS NULL
+)
+EXECUTE FUNCTION private.end_recurring_project_series_transactional();
+
+CREATE OR REPLACE FUNCTION public.end_recurring_project_series_transactional(
+  p_project_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+DECLARE
+  v_actor_id uuid := auth.uid();
+  v_parent public.projects%ROWTYPE;
   v_cancelled_ids jsonb := '[]'::jsonb;
   v_cancelled_count integer := 0;
 BEGIN
@@ -436,25 +461,25 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  IF NOT (
-    v_parent.creator_id = v_actor_id
-    OR EXISTS (
-      SELECT 1
-      FROM public.organization_members AS members
-      WHERE members.organization_id = v_parent.organization_id
-        AND members.user_id = v_actor_id
-        AND members.status = 'active'
-        AND (
-          members.role = 'admin'
-          OR (
-            members.role = 'staff'
-            AND v_parent.can_be_managed_by_staff IS TRUE
-          )
+  IF v_parent.creator_id IS DISTINCT FROM v_actor_id THEN
+    PERFORM members.user_id
+    FROM public.organization_members AS members
+    WHERE members.organization_id = v_parent.organization_id
+      AND members.user_id = v_actor_id
+      AND members.status = 'active'
+      AND (
+        members.role = 'admin'
+        OR (
+          members.role = 'staff'
+          AND v_parent.can_be_managed_by_staff IS TRUE
         )
-    )
-  ) THEN
-    RAISE EXCEPTION 'recurring project permission denied'
-      USING ERRCODE = '42501';
+      )
+    FOR SHARE OF members;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'recurring project permission denied'
+        USING ERRCODE = '42501';
+    END IF;
   END IF;
 
   IF v_parent.recurrence_rule IS NULL THEN
@@ -472,27 +497,13 @@ BEGIN
     );
   END IF;
 
-  FOR v_child IN
-    SELECT children.id
-    FROM public.projects AS children
-    WHERE children.recurrence_parent_id = p_project_id
-      AND children.status = 'upcoming'
-    ORDER BY children.id
-    FOR UPDATE
-  LOOP
-    v_receipt := public.cancel_project_transactional(
-      v_child.id,
-      'Recurring series ended by organizer'
-    );
-
-    IF COALESCE(v_receipt->>'outcome', '') NOT IN ('cancelled', 'already_cancelled') THEN
-      RAISE EXCEPTION 'recurring occurrence cancellation was not accepted'
-        USING ERRCODE = '40001';
-    END IF;
-
-    v_cancelled_count := v_cancelled_count + 1;
-    v_cancelled_ids := v_cancelled_ids || jsonb_build_array(v_child.id);
-  END LOOP;
+  SELECT
+    COALESCE(jsonb_agg(children.id ORDER BY children.id), '[]'::jsonb),
+    count(*)::integer
+  INTO v_cancelled_ids, v_cancelled_count
+  FROM public.projects AS children
+  WHERE children.recurrence_parent_id = p_project_id
+    AND children.status = 'upcoming';
 
   UPDATE public.projects AS parents
   SET recurrence_rule = NULL
@@ -516,7 +527,119 @@ $$;
 REVOKE ALL ON FUNCTION public.end_recurring_project_series_transactional(uuid)
   FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.end_recurring_project_series_transactional(uuid)
-  TO authenticated, service_role;
+  TO authenticated;
 
 COMMENT ON FUNCTION public.end_recurring_project_series_transactional(uuid) IS
-  'Permission-rechecks, serializes recurrence generation, cancels every upcoming child, and clears the parent rule atomically.';
+  'Authenticated SECURITY INVOKER transaction that locks and authorizes the recurrence parent before its ungranted private trigger atomically cancels upcoming children.';
+
+-- A job claim is a provisional lease attempt. Reaching the owned, unexpired
+-- finalizer proves a healthy bounded pass, including a paginated pass that
+-- returns open work to pending. Only abandoned leases retain an attempt.
+REVOKE ALL ON FUNCTION public.finalize_project_cancellation_job(uuid, text)
+  FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.finalize_project_cancellation_job(
+  p_job_id uuid,
+  p_worker_id text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_job public.project_cancellation_jobs%ROWTYPE;
+  v_total integer := 0;
+  v_open integer := 0;
+  v_unknown integer := 0;
+  v_failed integer := 0;
+  v_status text;
+  v_error text;
+  v_now timestamptz := pg_catalog.clock_timestamp();
+BEGIN
+  IF p_job_id IS NULL OR NULLIF(btrim(COALESCE(p_worker_id, '')), '') IS NULL THEN
+    RAISE EXCEPTION 'finalize_project_cancellation_job: invalid input'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT jobs.* INTO v_job
+  FROM public.project_cancellation_jobs AS jobs
+  WHERE jobs.id = p_job_id
+    AND jobs.status = 'processing'
+    AND jobs.lease_owner = p_worker_id
+    AND jobs.lease_expires_at > v_now
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN pg_catalog.jsonb_build_object('finalized', false, 'reason', 'lease_lost');
+  END IF;
+
+  SELECT
+    count(*)::integer,
+    count(*) FILTER (
+      WHERE deliveries.work_state = 'leased'
+         OR deliveries.email_state IN ('queued', 'sending')
+         OR deliveries.notification_state = 'queued'
+    )::integer,
+    count(*) FILTER (WHERE deliveries.email_state = 'unknown_outcome')::integer,
+    count(*) FILTER (
+      WHERE deliveries.email_state = 'failed'
+         OR deliveries.notification_state = 'failed'
+    )::integer
+  INTO v_total, v_open, v_unknown, v_failed
+  FROM public.project_cancellation_deliveries AS deliveries
+  WHERE deliveries.job_id = p_job_id;
+
+  IF v_job.audience_snapshot_at IS NULL THEN
+    v_status := 'needs_review';
+    v_error := 'audience_snapshot_missing';
+  ELSIF v_job.recipient_count IS DISTINCT FROM v_total THEN
+    v_status := 'needs_review';
+    v_error := 'audience_count_mismatch';
+  ELSIF v_open > 0 THEN
+    v_status := 'pending';
+    v_error := NULL;
+  ELSIF v_unknown > 0 THEN
+    v_status := 'needs_review';
+    v_error := 'ambiguous_provider_outcome';
+  ELSIF v_failed > 0 THEN
+    v_status := 'needs_review';
+    v_error := 'owed_channel_failed';
+  ELSE
+    v_status := 'completed';
+    v_error := NULL;
+  END IF;
+
+  UPDATE public.project_cancellation_jobs AS jobs
+  SET status = v_status,
+      attempts = GREATEST(v_job.attempts - 1, 0),
+      lease_owner = NULL,
+      lease_expires_at = NULL,
+      processing_started_at = NULL,
+      completed_at = CASE
+        WHEN v_status IN ('completed', 'needs_review', 'failed') THEN v_now
+        ELSE NULL
+      END,
+      last_error = v_error,
+      updated_at = v_now
+  WHERE jobs.id = p_job_id;
+
+  RETURN pg_catalog.jsonb_build_object(
+    'finalized', true,
+    'status', v_status,
+    'open', v_open,
+    'unknown', v_unknown,
+    'failed', v_failed
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.finalize_project_cancellation_job(uuid, text)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.finalize_project_cancellation_job(uuid, text)
+  TO service_role;
+
+COMMENT ON FUNCTION public.finalize_project_cancellation_job(uuid, text) IS
+  'Finalizes an owned cancellation-job lease and refunds its provisional attempt so only abandoned leases consume the bounded failure budget.';
+
+COMMIT;
