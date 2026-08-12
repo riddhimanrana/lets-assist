@@ -269,6 +269,86 @@ const IMPORTS: LabelContract[] = [
   },
 ];
 
+const APPLICATIONS: LabelContract[] = [
+  {
+    component: "CsfApplicationsWorkspaceSupporting.tsx",
+    labels: ["Application checks"],
+  },
+  {
+    component: "CsfApplicationsWorkspaceReview.tsx",
+    labels: [
+      "Application history",
+      "Decision preflight",
+      "Decision record",
+      "Term membership",
+      "Approval blocked",
+    ],
+  },
+  {
+    component: "CsfApplicationReviewDialog.tsx",
+    labels: [
+      "Record decision",
+      "Review notes",
+      "Request changes",
+      "Approve application",
+      "Reject",
+      "Decision already saved; reload required",
+      "Decision request conflict; reload required",
+      "Reload application",
+    ],
+  },
+];
+
+const SERVICE_AND_POINTS: LabelContract[] = [
+  {
+    component: "CsfFormControls.tsx",
+    labels: ["Save draft", "Publish activity"],
+  },
+  {
+    component: "CsfServiceActivitiesView.tsx",
+    labels: ["Published"],
+  },
+  {
+    component: "CsfServicePointsView.tsx",
+    labels: ["Point submissions", "CSF point awards"],
+  },
+  {
+    component: "CsfSubmissionReviewDialog.tsx",
+    labels: [
+      "Review",
+      "Awarded points",
+      "Review notes",
+      "Request changes",
+      "Reject",
+      "Approve award",
+    ],
+  },
+  {
+    component: "CsfPointCorrectionDialog.tsx",
+    labels: ["Update and resubmit"],
+  },
+];
+
+const POSTS: LabelContract[] = [
+  {
+    component: "CsfPostComposeDialog.tsx",
+    labels: [
+      "Save as draft",
+      "Publish now",
+      "Schedule for later",
+      "Post saved",
+      "Publish post",
+      "Schedule post",
+      "Also send this as an email",
+      "Post saved; email not queued",
+      "Post saved; email status unknown",
+      "Email queued",
+      "Email not queued",
+      "Email queue status unknown",
+    ],
+  },
+];
+
 const COMMUNICATIONS: LabelContract[] = [
   {
     component: "CsfCommunicationsWorkspace.tsx",
@@ -281,13 +361,13 @@ const COMMUNICATIONS: LabelContract[] = [
   {
     component: "CsfCommunicationsCampaigns.tsx",
     labels: [
+      "Finalize content",
+      "Snapshot audience",
       "Finalize & queue",
+      "Recipient ledger",
+      "Provider attempts",
       "This action does not call the email provider.",
     ],
-  },
-  {
-    component: "CsfPostComposeDialog.tsx",
-    labels: ["Also send this as an email"],
   },
 ];
 
@@ -351,6 +431,18 @@ describe("CSF operator documentation label contract", () => {
 
   test("google connection and the import workspace", () => {
     assertContract(IMPORTS);
+  });
+
+  test("applications preserve preflight, decision, and reload labels", () => {
+    assertContract(APPLICATIONS);
+  });
+
+  test("activities and point reviews preserve their decision labels", () => {
+    assertContract(SERVICE_AND_POINTS);
+  });
+
+  test("post persistence and email queue outcomes remain separate", () => {
+    assertContract(POSTS);
   });
 
   test("communications sections, settings, and queueing", () => {
@@ -623,6 +715,29 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
   });
 
+  test("the application seed precedes class-history records and commit", () => {
+    const sourceOrder = between(
+      operatorGuide,
+      "## Import the reviewed Fall 2026 starting records",
+      "### Connect Google first",
+    );
+    expectInOrder(sourceOrder, [
+      "`CSF Application - Spring 2026 (Responses)`",
+      "**Applications** as the **Record type**",
+      "Classes of 2027–2030",
+      "**Historical records**",
+    ]);
+    expect(sourceOrder).toContain(
+      "Do not first load a class-history sheet as **Student roster**",
+    );
+    expect(sourceOrder).toContain(
+      "**Preview**, **Reconcile**, and **Commit** are separate boundaries",
+    );
+    expect(sourceOrder).toContain(
+      "a clean preview neither imports rows nor authorizes a commit",
+    );
+  });
+
   test("queueing is never documented as delivery", () => {
     const campaigns = readComponent("CsfCommunicationsCampaigns.tsx");
     expect(campaigns).toContain(
@@ -633,6 +748,11 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
     expect(operatorGuide).toContain(
       "Queued is not sent, and sent is not delivered",
+    );
+    expect(operatorGuide).toContain("Post saved; email not queued");
+    expect(operatorGuide).toContain("Post saved; email status unknown");
+    expect(operatorGuide).toContain(
+      "Queued still does not mean sent or delivered",
     );
   });
 
@@ -698,7 +818,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
   });
 
-  test("current hosted Development status records the forward migration delta and preview seal blocker", () => {
+  test("current status separates repository, hosted database, and stale deployed code", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -725,8 +845,19 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Hosted Development remains at 272 ordered migrations through",
     );
     expect(currentState).toContain(
+      "Production remains at 236 ordered migrations through `20260811001500`",
+    );
+    expect(currentState).toContain("38-migration cutover has not run");
+    expect(currentState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
     );
+    expect(currentState).toContain(
+      "Ready repository tree ended at 272 through",
+    );
+    expect(currentState).toContain(
+      "external Vercel 100-deployment-per-day project cap",
+    );
+    expect(currentState).toContain("alias is not exact-current-code evidence");
     expect(currentState).toContain(
       "95 INFO, 0 WARN, and 0 ERROR security findings",
     );
@@ -778,6 +909,15 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(externalGates).toContain(
       "does not contain the forward atomic-reply or activity/partner authorization-recheck migrations",
     );
+    expect(testingAndRelease).toContain(
+      "That table is the superseded July source snapshot",
+    );
+    expect(testingAndRelease).toContain(
+      "current reviewed Spring 2026 application source is bounded to `A1:Q518`",
+    );
+    expect(testingAndRelease).toContain(
+      "earlier 618-row/23-column shape must not be used",
+    );
   });
 
   test("the Development rehearsal and cutover ledger carry the same current evidence", () => {
@@ -801,11 +941,19 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(rehearsalState).toContain(
       "`20260812162732_recheck_csf_activity_partner_authorization_under_lock`",
     );
+    expect(rehearsalState).toContain("repository has 274 through");
     expect(rehearsalState).toContain(
       "local isolated replay passed all 123 pgTAP files and 5,208 assertions",
     );
     expect(rehearsalState).toContain(
-      "neither migration has been accepted on hosted Development",
+      "neither has been accepted on hosted Development",
+    );
+    expect(rehearsalState).toContain(
+      "external Vercel 100-deployment-per-day project cap",
+    );
+    expect(rehearsalState).toContain("deployment is Ready but stale");
+    expect(rehearsalState).toContain(
+      "Live advisors on the hosted 272-migration shape",
     );
     expect(rehearsalState).toContain(
       "seven-argument metadata RPC exists, the old four-argument overload is absent",
@@ -843,6 +991,12 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(cutover).toContain(
       "Replay the ordered migration ledger through `20260812162732`",
     );
+    expect(cutover).toContain(
+      "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
+    );
+    expect(cutover).toContain("exact 236-row baseline");
+    expect(cutover).toContain("full 38-migration transition");
+    expect(cutover).toContain("preflight on the 274-row target");
   });
 
   test("production cutover baseline tracks the exact pending migration range", () => {
@@ -863,6 +1017,43 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
     expect(productionCutoverRunbook).toContain(
       "hosted acceptance remains pending",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "repository ledger ended at 272 through `20260812132725`",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "external Vercel 100-deployment-per-day project cap",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "Database parity is not application-deployment parity",
+    );
+    const preflightRunbook = between(
+      productionCutoverRunbook,
+      "## Preflight",
+      "## Rehearsal",
+    );
+    expect(preflightRunbook).toMatch(
+      /set -euo pipefail[\s\S]*?psql -X "\$PRODUCTION_READONLY_URL"[\s\S]*?\| tee preflight-/u,
+    );
+    const rehearsalRunbook = between(
+      productionCutoverRunbook,
+      "## Rehearsal",
+      "## Backup",
+    );
+    expect(rehearsalRunbook).toMatch(
+      /set -euo pipefail[\s\S]*?supabase link --project-ref <branch-ref>[\s\S]*?supabase db push --linked --dry-run[\s\S]*?time supabase db push --linked --yes 2>&1 \| tee rehearsal\.log/u,
+    );
+    const backupRunbook = between(
+      productionCutoverRunbook,
+      "## Backup",
+      "## The window",
+    );
+    expect(backupRunbook).toContain("set -euo pipefail");
+    expect(productionCutoverRunbook).toContain(
+      "only D6 has the script's explicit reviewed-transition acceptance path",
+    );
+    expect(productionCutoverRunbook).not.toContain(
+      "passes, or each deviation is adjudicated in writing",
     );
     expect(productionCutoverRunbook).not.toContain(
       "Its 271-migration ledger proves ordered application",
