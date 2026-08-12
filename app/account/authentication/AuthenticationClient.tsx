@@ -25,6 +25,7 @@ import {
   type MfaListFactorsLike,
 } from "@/lib/auth/mfa";
 import { createClient } from "@/lib/supabase/client";
+import { resolveClientAuthOrigin } from "@/app/signup/request-origin";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -271,7 +272,7 @@ function AuthenticationContent() {
       const { error } = await supabase.auth.linkIdentity({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?from=authentication`,
+          redirectTo: `${resolveClientAuthOrigin()}/auth/callback?from=authentication`,
           queryParams: {
             access_type: "offline",
             prompt: "consent",

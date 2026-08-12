@@ -36,7 +36,10 @@ import {
 import { Controller } from "react-hook-form";
 import { Switch } from "@/components/ui/switch";
 import { updateOrganization, checkUsernameAvailability } from "./actions";
-import { isReservedOrganizationSlug } from "@/lib/organization/reserved-slugs";
+import {
+  isReservedOrganizationSlug,
+  usernameUnavailableMessage,
+} from "@/lib/organization/reserved-slugs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/shared/ImageCropper";
@@ -215,8 +218,14 @@ export default function EditOrganizationForm({
       return;
     }
 
+    // Same as the create form: a reserved username is answered in words,
+    // not just with the red icon a taken username also gets.
     if (isReservedOrganizationSlug(value)) {
       setUsernameAvailable(false);
+      form.setError("username", {
+        type: "manual",
+        message: usernameUnavailableMessage(true),
+      });
       return;
     }
 
@@ -296,11 +305,20 @@ export default function EditOrganizationForm({
     try {
       // Only check username availability if it changed
       if (data.username !== currentUsername) {
+        if (isReservedOrganizationSlug(data.username)) {
+          form.setError("username", {
+            type: "manual",
+            message: usernameUnavailableMessage(true),
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
         const isAvailable = await checkUsernameAvailability(data.username);
         if (!isAvailable) {
           form.setError("username", {
             type: "manual",
-            message: "Username is already taken",
+            message: usernameUnavailableMessage(false),
           });
           setIsSubmitting(false);
           return;

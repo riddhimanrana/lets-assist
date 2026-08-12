@@ -5,7 +5,10 @@ import { revalidatePath } from "next/cache";
 import { customAlphabet } from "nanoid";
 import { hasSuperAdminMetadata } from "@/lib/auth/super-admin";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { isReservedOrganizationSlug } from "@/lib/organization/reserved-slugs";
+import {
+  isReservedOrganizationSlug,
+  usernameUnavailableMessage,
+} from "@/lib/organization/reserved-slugs";
 
 // Generate a random 6-digit code
 const generateJoinCode = customAlphabet("0123456789", 6);
@@ -136,13 +139,13 @@ export async function createOrganization(data: OrganizationCreationData) {
   }
 
   if (isReservedOrganizationSlug(data.username)) {
-    return { error: "That username is reserved and can't be used" };
+    return { error: usernameUnavailableMessage(true) };
   }
 
   // Double-check username availability
   const isUsernameAvailable = await checkOrgUsername(data.username);
   if (!isUsernameAvailable) {
-    return { error: "Username is already taken" };
+    return { error: usernameUnavailableMessage(false) };
   }
 
   // New organizations are unverified. A platform review must happen before an

@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { resolveConfiguredSiteOrigin } from "@/app/signup/request-origin";
 
 const resetPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -31,8 +32,12 @@ export async function requestPasswordReset(formData: FormData) {
 
   try {
     // Pass the CAPTCHA token to Supabase - it will handle verification
+    // Read through the validated resolver, not `process.env` directly: an
+    // unset `NEXT_PUBLIC_SITE_URL` used to interpolate the literal string
+    // "undefined" into the recovery link, mailing every user a dead reset
+    // URL, and a malformed one would have been pasted in unchanged.
     const resetOptions: { redirectTo: string; captchaToken?: string } = {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?type=recovery`,
+      redirectTo: `${resolveConfiguredSiteOrigin()}/auth/callback?type=recovery`,
     };
 
     if (turnstileToken) {
