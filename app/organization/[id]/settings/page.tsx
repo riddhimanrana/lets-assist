@@ -202,7 +202,10 @@ export default async function OrganizationSettingsPage({ params }: Props) {
             organizationName={organization.name}
           />
 
-          <OrganizationPluginSettings organizationId={organization.id} />
+          <OrganizationPluginSettings
+            organizationId={organization.id}
+            organizationName={organization.name}
+          />
 
           {/* Member Data Management */}
           <Card>

@@ -650,7 +650,7 @@ Do not use real chapter rows or credentials until every item is checked:
       Production databases, links, tokens, previews, and decisions isolated.
 - [ ] Verify the root tree is the approved exact commit and the private plugin
       remains a clean gitlink at its approved SHA.
-- [ ] Replay the ordered migration ledger through `20260812114638` in the
+- [ ] Replay the ordered migration ledger through `20260812115556` in the
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.

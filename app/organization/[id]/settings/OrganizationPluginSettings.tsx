@@ -10,6 +10,7 @@ import {
   Puzzle,
   Search,
   Settings2,
+  ShieldAlert,
   Store,
   Trash2,
   Wrench,
@@ -18,6 +19,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { describePluginUninstallImpact } from "@/lib/plugins/plugin-uninstall-impact";
+
+import { PluginPermanentDeletionDialog } from "./PluginPermanentDeletionDialog";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -90,6 +93,7 @@ import {
 
 type OrganizationPluginSettingsProps = {
   organizationId: string;
+  organizationName: string;
 };
 
 type MarketplaceFilter = "all" | "installed" | "available" | "updates";
@@ -230,6 +234,7 @@ function formatLastUpdated(lastUpdatedAt: string | null | undefined): string {
 
 export default function OrganizationPluginSettings({
   organizationId,
+  organizationName,
 }: OrganizationPluginSettingsProps) {
   const [result, setResult] = useState<OrganizationPluginSettingsResult | null>(
     null,
@@ -243,6 +248,8 @@ export default function OrganizationPluginSettings({
   const [pluginActionConfirmation, setPluginActionConfirmation] =
     useState<PluginActionConfirmation>(null);
   const [installConsentChecked, setInstallConsentChecked] = useState(false);
+  const [pluginPendingDataDeletion, setPluginPendingDataDeletion] =
+    useState<OrganizationPluginAdminSetting | null>(null);
   const [settingsPluginKey, setSettingsPluginKey] = useState<string | null>(
     null,
   );
@@ -313,6 +320,7 @@ export default function OrganizationPluginSettings({
     return describePluginUninstallImpact({
       pluginName: activePluginAction.name,
       dataAccessPurposes: activePluginAction.dataAccessPurposes,
+      permanentDeletionAvailable: activePluginAction.dataDeletionAvailable,
     });
   }, [activePluginAction, isInstallAction]);
 
@@ -436,6 +444,12 @@ export default function OrganizationPluginSettings({
   ) => {
     setInstallConsentChecked(false);
     setPluginActionConfirmation({ plugin, intent });
+  };
+
+  const handleRequestDataDeletion = (
+    plugin: OrganizationPluginAdminSetting,
+  ) => {
+    setPluginPendingDataDeletion(plugin);
   };
 
   const handleConfirmPluginAction = async () => {
@@ -667,24 +681,39 @@ export default function OrganizationPluginSettings({
             ) : null}
           </div>
 
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => handleRequestPluginAction(plugin, "install")}
-            disabled={isInstallUpdating || !canInstall}
-          >
-            {isInstallUpdating ? (
-              <>
-                <Loader2 data-icon="inline-start" className="animate-spin" />
-                Installing…
-              </>
-            ) : (
-              <>
-                <Store data-icon="inline-start" />
-                Install
-              </>
-            )}
-          </Button>
+          <div className="flex flex-col items-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => handleRequestPluginAction(plugin, "install")}
+              disabled={isInstallUpdating || !canInstall}
+            >
+              {isInstallUpdating ? (
+                <>
+                  <Loader2 data-icon="inline-start" className="animate-spin" />
+                  Installing…
+                </>
+              ) : (
+                <>
+                  <Store data-icon="inline-start" />
+                  Install
+                </>
+              )}
+            </Button>
+
+            {plugin.dataDeletionAvailable ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                onClick={() => handleRequestDataDeletion(plugin)}
+              >
+                <ShieldAlert data-icon="inline-start" />
+                Delete retained data
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
     );
@@ -1162,7 +1191,7 @@ export default function OrganizationPluginSettings({
                 >
                   {isInstallAction
                     ? `Are you sure you want to add this plugin to your organization?`
-                    : "This will remove the plugin and its saved settings immediately. The platform's own operation does not request plugin-data deletion — see the data handling note below."}
+                    : "This removes the install record and saved settings immediately. Uninstall runs no plugin code and deletes no plugin data — see the retention note below."}
                 </AlertDialogDescription>
               </div>
 
@@ -1735,6 +1764,17 @@ export default function OrganizationPluginSettings({
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <PluginPermanentDeletionDialog
+        organizationId={organizationId}
+        organizationName={organizationName}
+        plugin={pluginPendingDataDeletion}
+        onClose={() => setPluginPendingDataDeletion(null)}
+        onDeleted={() => {
+          setPluginPendingDataDeletion(null);
+          void loadSettings();
+        }}
+      />
     </>
   );
 }

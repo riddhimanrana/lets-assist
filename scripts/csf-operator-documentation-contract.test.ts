@@ -699,9 +699,9 @@ describe("CSF operator documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(270);
+    expect(migrations).toHaveLength(271);
     expect(migrations.at(-1)).toBe(
-      "20260812114638_recheck_csf_staff_authorization_under_lock.sql",
+      "20260812115556_plugin_data_deletion_requests.sql",
     );
 
     const currentState = between(
@@ -710,14 +710,14 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 270 ordered migrations through",
+      "repository branch has 271 ordered migrations through",
     );
     expect(currentState).toContain(
-      "`20260812114638_recheck_csf_staff_authorization_under_lock`",
+      "`20260812115556_plugin_data_deletion_requests`",
     );
-    expect(currentState).toContain("Development remains at 269 through");
+    expect(currentState).toContain("Hosted Development remains at");
     expect(currentState).toContain(
-      "`20260812104754_harden_project_transaction_rpc_boundaries`",
+      "269 through `20260812104754_harden_project_transaction_rpc_boundaries`",
     );
     expect(currentState).toContain(
       "94 INFO, 0 WARN, and 0 ERROR security findings",
@@ -743,10 +743,10 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Hosted Development has 269 ordered migrations through `20260812104754`",
     );
     expect(productionCutoverRunbook).toContain(
-      "repository branch has 270 ordered migrations through `20260812114638`",
+      "repository branch has 271 ordered migrations through `20260812115556`",
     );
     expect(productionCutoverRunbook).toContain(
-      "contains 34 Production-pending migrations",
+      "contains 35 Production-pending migrations",
     );
     expect(productionCutoverRunbook).not.toContain("174 pending migrations");
     expect(productionCutoverRunbook).not.toContain(
