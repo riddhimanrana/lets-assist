@@ -59,9 +59,9 @@ INSERT INTO plugin_data.csf_terms (
   'F33', 'Fall 2033', '2033-2034', 'fall'
 );
 
--- The third profile is `merged`, which is what makes the rollback fixture reach a raise
--- INSIDE the write loop -- after the receipt has been consumed. Readiness cannot see it:
--- the row names a member and a semester, so nothing about it is unreconciled.
+-- The third profile remains active so the identity-lock wrapper admits it. A targeted
+-- trigger below raises on the first business write, after the receipt has been consumed,
+-- which proves transaction rollback without asking the wrapper to accept a merge tombstone.
 INSERT INTO plugin_data.csf_profiles (
   id, organization_id, first_name, last_name, normalized_first_name, normalized_last_name,
   record_status, merged_into_profile_id, merged_at, merged_by, merge_reason
@@ -70,12 +70,9 @@ INSERT INTO plugin_data.csf_profiles (
    'Proved', 'Attendee', 'proved', 'attendee', 'active', NULL, NULL, NULL, NULL),
   ('e3300000-0000-4000-8000-000000000002', 'e3100000-0000-4000-8000-000000000001',
    'Proved', 'Auditee', 'proved', 'auditee', 'active', NULL, NULL, NULL, NULL),
-  -- `csf_profiles_merge_state_check` makes a merged record without its merge attribution
-  -- unrepresentable, so the whole four-column state is written rather than the status alone.
   ('e3300000-0000-4000-8000-000000000003', 'e3100000-0000-4000-8000-000000000001',
-   'Merged', 'Attendee', 'merged', 'attendee', 'merged',
-   'e3300000-0000-4000-8000-000000000001', now(),
-   'e3000000-0000-4000-8000-000000000001', 'Merged before the evidence fixture ran.');
+   'Rollback', 'Attendee', 'rollback', 'attendee', 'active',
+   NULL, NULL, NULL, NULL);
 
 INSERT INTO plugin_data.csf_term_meetings (
   id, organization_id, term_id, meeting_key, label, meeting_date
@@ -177,8 +174,8 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
    '{"meetingId":"e3400000-0000-4000-8000-000000000001","submittedName":"Proved Attendee"}',
    'evidence-proved-meeting-hash', 'e3300000-0000-4000-8000-000000000001', 'pending',
    'e3d00000-0000-4000-8000-000000000001'),
-  -- Names a member and a semester, so readiness passes it. The member is `merged`, which
-  -- only the write loop notices -- after the receipt has been spent.
+  -- Names an active member and a semester, so readiness and identity revalidation pass it.
+  -- The targeted commit-job trigger below is the post-consume failure.
   ('e3700000-0000-4000-8000-000000000002', 'e3100000-0000-4000-8000-000000000001',
    'e3600000-0000-4000-8000-000000000002', 'e3500000-0000-4000-8000-000000000002',
    'e3200000-0000-4000-8000-000000000001', 'Responses', 2, '{"Name":"Merged Attendee"}',
@@ -490,25 +487,42 @@ SELECT extensions.is(
 -- E. A raise AFTER the consume rolls the consume back with it.
 --
 -- This is the property that makes "spend the receipt inside the commit transaction" mean
--- something. The row below passes readiness -- it names a member and a semester -- and is
--- refused by the write loop, which is downstream of the consume. If the spend survived
--- that rollback, an officer would have to obtain a fresh receipt to retry a commit that
--- never happened.
+-- something. The row below passes readiness and active-profile revalidation. A trigger on
+-- the commit-job insert then raises downstream of the consume. If the spend survived that
+-- rollback, an officer would have to obtain a fresh receipt to retry a commit that never
+-- happened.
 -- ---------------------------------------------------------------------------
+CREATE FUNCTION pg_temp.fail_contextual_commit_after_evidence_consume()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.mode = 'commit'
+     AND NEW.summary->>'previewJobId' = 'e3600000-0000-4000-8000-000000000002' THEN
+    RAISE EXCEPTION 'synthetic post-consume commit failure';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER fail_contextual_commit_after_evidence_consume
+BEFORE INSERT ON plugin_data.csf_sheet_import_jobs
+FOR EACH ROW EXECUTE FUNCTION pg_temp.fail_contextual_commit_after_evidence_consume();
+
 SELECT extensions.throws_ok(
   $$
     SELECT plugin_data.csf_commit_meeting_attendance_import(
       'e3100000-0000-4000-8000-000000000001',
       'e3600000-0000-4000-8000-000000000002',
       'e3000000-0000-4000-8000-000000000001',
-      'Attempted to commit a row naming a merged member.',
+      'Attempted a commit that fails after consuming source evidence.',
       'e3d00000-0000-4000-8000-000000000002',
       'e3e00000-0000-4000-8000-000000000005'
     )
   $$,
   'P0001',
-  NULL,
-  'a commit that raises inside the write loop is refused'
+  'synthetic post-consume commit failure',
+  'a commit that raises after consuming its receipt is refused'
 );
 SELECT extensions.is(
   (SELECT consumed_at FROM plugin_data.csf_sheet_source_evidence_tokens
@@ -529,6 +543,9 @@ SELECT extensions.is(
   0,
   'and no commit job survived it either'
 );
+
+DROP TRIGGER fail_contextual_commit_after_evidence_consume
+  ON plugin_data.csf_sheet_import_jobs;
 
 -- ---------------------------------------------------------------------------
 -- F. The partner path: a linked preview is held to the same receipt.

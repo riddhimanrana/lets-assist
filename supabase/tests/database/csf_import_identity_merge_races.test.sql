@@ -260,7 +260,34 @@ END;
 $$;
 
 SELECT extensions.dblink_connect(
-  'import_race_worker',
+  'central_race_worker',
+  'hostaddr=' || host(inet_server_addr()) ||
+  ' port=' || current_setting('port') ||
+  ' dbname=' || current_database() ||
+  ' user=' || current_user ||
+  ' password=' || current_user ||
+  ' sslmode=disable'
+);
+SELECT extensions.dblink_connect(
+  'reconcile_race_worker',
+  'hostaddr=' || host(inet_server_addr()) ||
+  ' port=' || current_setting('port') ||
+  ' dbname=' || current_database() ||
+  ' user=' || current_user ||
+  ' password=' || current_user ||
+  ' sslmode=disable'
+);
+SELECT extensions.dblink_connect(
+  'meeting_race_worker',
+  'hostaddr=' || host(inet_server_addr()) ||
+  ' port=' || current_setting('port') ||
+  ' dbname=' || current_database() ||
+  ' user=' || current_user ||
+  ' password=' || current_user ||
+  ' sslmode=disable'
+);
+SELECT extensions.dblink_connect(
+  'partner_race_worker',
   'hostaddr=' || host(inet_server_addr()) ||
   ' port=' || current_setting('port') ||
   ' dbname=' || current_database() ||
@@ -291,7 +318,7 @@ SELECT extensions.ok(
 );
 
 SELECT extensions.dblink_send_query(
-  'import_race_worker',
+  'central_race_worker',
   $query$
   SELECT plugin_data.csf_merge_profiles(
     'fe100000-0000-4000-8000-000000000001'::uuid,
@@ -305,7 +332,7 @@ SELECT extensions.dblink_send_query(
 );
 SELECT pg_catalog.pg_sleep(0.25);
 SELECT extensions.is(
-  extensions.dblink_is_busy('import_race_worker'),
+  extensions.dblink_is_busy('central_race_worker'),
   1,
   'profile merge serializes behind the central row commit'
 );
@@ -314,9 +341,8 @@ COMMIT;
 
 INSERT INTO import_merge_race_results (label, payload)
 SELECT 'central_merge', payload
-FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
-SELECT *
-FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
+FROM extensions.dblink_get_result('central_race_worker', false) AS result(payload text);
+SELECT extensions.dblink_disconnect('central_race_worker');
 SELECT extensions.is(
   (SELECT payload::jsonb ->> 'targetProfileId' FROM import_merge_race_results WHERE label = 'central_merge'),
   'fe400000-0000-4000-8000-000000000002',
@@ -335,12 +361,12 @@ SELECT plugin_data.csf_merge_profiles(
   'feb00000-0000-4000-8000-000000000002'
 );
 SELECT extensions.dblink_send_query(
-  'import_race_worker',
+  'reconcile_race_worker',
   $$SELECT plugin_data.csf_test_capture_import_merge_race('reconcile')$$
 );
 SELECT pg_catalog.pg_sleep(0.25);
 SELECT extensions.is(
-  extensions.dblink_is_busy('import_race_worker'),
+  extensions.dblink_is_busy('reconcile_race_worker'),
   1,
   'reconciliation serializes behind profile merge'
 );
@@ -348,12 +374,10 @@ COMMIT;
 
 INSERT INTO import_merge_race_results (label, payload)
 SELECT 'reconcile', payload
-FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
-SELECT *
-FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
+FROM extensions.dblink_get_result('reconcile_race_worker', false) AS result(payload text);
+SELECT extensions.dblink_disconnect('reconcile_race_worker');
 SELECT extensions.ok(
-  (SELECT payload FROM import_merge_race_results WHERE label = 'reconcile')
-    NOT LIKE '%40P01%',
+  (SELECT payload NOT LIKE '%40P01%' FROM import_merge_race_results WHERE label = 'reconcile'),
   'queued reconciliation finishes without a deadlock'
 );
 SELECT extensions.ok(
@@ -377,12 +401,12 @@ SELECT plugin_data.csf_merge_profiles(
   'feb00000-0000-4000-8000-000000000003'
 );
 SELECT extensions.dblink_send_query(
-  'import_race_worker',
+  'meeting_race_worker',
   $$SELECT plugin_data.csf_test_capture_import_merge_race('meeting')$$
 );
 SELECT pg_catalog.pg_sleep(0.25);
 SELECT extensions.is(
-  extensions.dblink_is_busy('import_race_worker'),
+  extensions.dblink_is_busy('meeting_race_worker'),
   1,
   'meeting attendance commit serializes behind profile merge'
 );
@@ -390,12 +414,10 @@ COMMIT;
 
 INSERT INTO import_merge_race_results (label, payload)
 SELECT 'meeting', payload
-FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
-SELECT *
-FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
+FROM extensions.dblink_get_result('meeting_race_worker', false) AS result(payload text);
+SELECT extensions.dblink_disconnect('meeting_race_worker');
 SELECT extensions.ok(
-  (SELECT payload FROM import_merge_race_results WHERE label = 'meeting')
-    NOT LIKE '%40P01%',
+  (SELECT payload NOT LIKE '%40P01%' FROM import_merge_race_results WHERE label = 'meeting'),
   'queued meeting attendance commit finishes without a deadlock'
 );
 SELECT extensions.is(
@@ -417,12 +439,12 @@ SELECT plugin_data.csf_merge_profiles(
   'feb00000-0000-4000-8000-000000000004'
 );
 SELECT extensions.dblink_send_query(
-  'import_race_worker',
+  'partner_race_worker',
   $$SELECT plugin_data.csf_test_capture_import_merge_race('partner')$$
 );
 SELECT pg_catalog.pg_sleep(0.25);
 SELECT extensions.is(
-  extensions.dblink_is_busy('import_race_worker'),
+  extensions.dblink_is_busy('partner_race_worker'),
   1,
   'partner audit commit serializes behind profile merge'
 );
@@ -430,12 +452,10 @@ COMMIT;
 
 INSERT INTO import_merge_race_results (label, payload)
 SELECT 'partner', payload
-FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
-SELECT *
-FROM extensions.dblink_get_result('import_race_worker', false) AS result(payload text);
+FROM extensions.dblink_get_result('partner_race_worker', false) AS result(payload text);
+SELECT extensions.dblink_disconnect('partner_race_worker');
 SELECT extensions.ok(
-  (SELECT payload FROM import_merge_race_results WHERE label = 'partner')
-    NOT LIKE '%40P01%',
+  (SELECT payload NOT LIKE '%40P01%' FROM import_merge_race_results WHERE label = 'partner'),
   'queued partner audit commit finishes without a deadlock'
 );
 SELECT extensions.is(
@@ -529,7 +549,6 @@ SELECT extensions.is(
   'zero live references remain on merged sources'
 );
 
-SELECT extensions.dblink_disconnect('import_race_worker');
 DROP FUNCTION plugin_data.csf_test_capture_import_merge_race(text);
 
 SELECT * FROM extensions.finish();
