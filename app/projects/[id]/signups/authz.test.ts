@@ -65,9 +65,23 @@ describe("organizer roster loader authorization", () => {
     expect(rosterLoaderSource).not.toMatch(/role\s*===\s*["']staff["']/u);
   });
 
-  test("unrejectSignup decides on the same active membership", () => {
-    expect(cancellationSource).toContain('.select("role, status")');
-    expect(cancellationSource).toContain("activeOrganizationRole(orgMember)");
+  test("rejection leaves the decision to the server transaction", () => {
+    expect(cancellationSource).toContain(
+      'supabase.rpc("reject_project_signup"',
+    );
+    expect(cancellationSource).toContain("p_signup_id: signupId");
+    expect(cancellationSource).not.toContain("p_expected_user_id");
+    expect(cancellationSource).not.toContain("p_expected_project_id");
+    expect(cancellationSource).not.toMatch(/status:\s*["']rejected["']/u);
+  });
+
+  test("the compatibility notification action cannot address a recipient", () => {
+    expect(cancellationSource).not.toMatch(
+      /from\s+["']@\/services\/notifications(?:-server)?["']/u,
+    );
+    expect(cancellationSource).toMatch(
+      /createRejectionNotification\([\s\S]*?return rejectSignupTransactionally\(signupId\)/u,
+    );
   });
 });
 

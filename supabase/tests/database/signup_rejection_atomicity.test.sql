@@ -6,12 +6,18 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(54);
+SELECT extensions.plan(49);
 
+SELECT extensions.has_function(
+  'public',
+  'reject_project_signup',
+  ARRAY['uuid'],
+  'the client-callable rejection boundary exposes only the signup identifier'
+);
 SELECT extensions.ok(
   has_function_privilege(
     'authenticated',
-    'public.reject_project_signup(uuid,uuid,uuid)',
+    'public.reject_project_signup(uuid)',
     'EXECUTE'
   ),
   'authenticated managers can enter the permission-rechecked rejection RPC'
@@ -19,18 +25,57 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'anon',
-    'public.reject_project_signup(uuid,uuid,uuid)',
+    'public.reject_project_signup(uuid)',
     'EXECUTE'
   ),
   'anonymous clients cannot reject a signup'
 );
 SELECT extensions.ok(
-  has_function_privilege(
+  NOT has_function_privilege(
     'service_role',
-    'public.reject_project_signup(uuid,uuid,uuid)',
+    'public.reject_project_signup(uuid)',
+    'EXECUTE'
+  ) AND NOT has_function_privilege(
+    'service_role',
+    'private.reject_project_signup(uuid)',
     'EXECUTE'
   ),
-  'the reviewed server role can execute the rejection RPC'
+  'rejection is a client-session operation, so service_role is not an executor'
+);
+SELECT extensions.results_eq(
+  $$
+    SELECT COALESCE(roles.rolname, 'PUBLIC')::text COLLATE "C"
+    FROM pg_catalog.pg_proc AS proc
+    CROSS JOIN LATERAL pg_catalog.aclexplode(
+      COALESCE(
+        proc.proacl,
+        pg_catalog.acldefault('f', proc.proowner)
+      )
+    ) AS privilege
+    LEFT JOIN pg_catalog.pg_roles AS roles ON roles.oid = privilege.grantee
+    WHERE proc.oid = 'public.reject_project_signup(uuid)'::regprocedure
+      AND privilege.privilege_type = 'EXECUTE'
+      AND privilege.grantee <> proc.proowner
+    ORDER BY 1
+  $$,
+  $$ VALUES ('authenticated'::text COLLATE "C") $$,
+  'authenticated is the exact non-owner executor of the public wrapper'
+);
+SELECT extensions.ok(
+  (
+    SELECT NOT proc.prosecdef
+      AND EXISTS (
+        SELECT 1
+        FROM unnest(coalesce(proc.proconfig, ARRAY[]::text[])) AS config(value)
+        WHERE config.value = 'search_path=""'
+      )
+    FROM pg_catalog.pg_proc AS proc
+    JOIN pg_catalog.pg_namespace AS namespace
+      ON namespace.oid = proc.pronamespace
+    WHERE namespace.nspname = 'public'
+      AND proc.proname = 'reject_project_signup'
+  ),
+  'the exposed rejection RPC is a SECURITY INVOKER wrapper with a fixed search_path'
 );
 SELECT extensions.ok(
   (
@@ -43,22 +88,22 @@ SELECT extensions.ok(
     FROM pg_catalog.pg_proc AS proc
     JOIN pg_catalog.pg_namespace AS namespace
       ON namespace.oid = proc.pronamespace
-    WHERE namespace.nspname = 'public'
+    WHERE namespace.nspname = 'private'
       AND proc.proname = 'reject_project_signup'
   ),
-  'the rejection RPC is SECURITY DEFINER with an empty fixed search_path'
+  'the privileged transaction is SECURITY DEFINER, in private, with an empty fixed search_path'
 );
 SELECT extensions.ok(
-  NOT has_function_privilege(
+  has_function_privilege(
     'authenticated',
-    'private.project_signup_rejection_result(uuid,uuid,text,text,text)',
+    'private.reject_project_signup(uuid)',
     'EXECUTE'
   ) AND NOT has_function_privilege(
     'anon',
-    'private.project_signup_rejection_result(uuid,uuid,text,text,text)',
+    'private.reject_project_signup(uuid)',
     'EXECUTE'
   ),
-  'the outcome envelope helper stays out of reach of client roles'
+  'only the client role the wrapper runs as reaches the private transaction'
 );
 
 INSERT INTO auth.users (
@@ -86,14 +131,23 @@ VALUES
    'rejection-statusless-admin@local.test', now(), '{}', '{}', now(), now());
 
 INSERT INTO public.organizations (id, name, username, type, join_code, created_by)
-VALUES (
-  'af100000-0000-4000-8000-000000000001',
-  'Rejection Boundary Organization',
-  'rejection-boundary-organization',
-  'school',
-  '740101',
-  'af000000-0000-4000-8000-000000000001'
-);
+VALUES
+  (
+    'af100000-0000-4000-8000-000000000001',
+    'Rejection Boundary Organization',
+    'rejection-boundary-organization',
+    'school',
+    '740101',
+    'af000000-0000-4000-8000-000000000001'
+  ),
+  (
+    'af100000-0000-4000-8000-000000000002',
+    'Cross Tenant Rejection Organization',
+    'rejection-boundary-two',
+    'nonprofit',
+    '740102',
+    'af000000-0000-4000-8000-000000000006'
+  );
 
 INSERT INTO public.organization_members (organization_id, user_id, role, status)
 VALUES
@@ -157,6 +211,24 @@ VALUES
     true,
     'af100000-0000-4000-8000-000000000001',
     false
+  ),
+  (
+    'af200000-0000-4000-8000-000000000003',
+    'af000000-0000-4000-8000-000000000006',
+    'Cross-tenant rejection fixture', 'Local', 'Rejection fixture',
+    'oneTime', 'manual',
+    jsonb_build_object('oneTime', jsonb_build_object(
+      'date', to_char(
+        (clock_timestamp() AT TIME ZONE 'America/Los_Angeles') + interval '1 day',
+        'YYYY-MM-DD'
+      ),
+      'startTime', '10:00',
+      'endTime', '12:00',
+      'volunteers', 10
+    )),
+    true,
+    'af100000-0000-4000-8000-000000000002',
+    true
   );
 
 INSERT INTO public.anonymous_signups (id, project_id, email, name, token)
@@ -198,19 +270,15 @@ VALUES
    'af000000-0000-4000-8000-000000000004', NULL, 'direct-update-slot', 'pending'),
   ('af300000-0000-4000-8000-000000000011',
    'af200000-0000-4000-8000-000000000001',
-   'af000000-0000-4000-8000-000000000004', NULL, 'inactive-approve-slot',
+   'af000000-0000-4000-8000-000000000004', NULL, 'inactive-admin-slot',
    'pending'),
-  ('af300000-0000-4000-8000-000000000012',
-   'af200000-0000-4000-8000-000000000001',
-   'af000000-0000-4000-8000-000000000004', NULL, 'inactive-unreject-slot',
-   'rejected'),
   ('af300000-0000-4000-8000-000000000013',
    'af200000-0000-4000-8000-000000000001',
-   'af000000-0000-4000-8000-000000000004', NULL, 'inactive-cancel-slot',
+   'af000000-0000-4000-8000-000000000004', NULL, 'inactive-staff-slot',
    'approved'),
   ('af300000-0000-4000-8000-000000000014',
    'af200000-0000-4000-8000-000000000001',
-   'af000000-0000-4000-8000-000000000004', NULL, 'statusless-approve-slot',
+   'af000000-0000-4000-8000-000000000004', NULL, 'statusless-admin-slot',
    'pending'),
   ('af300000-0000-4000-8000-000000000015',
    'af200000-0000-4000-8000-000000000001',
@@ -230,6 +298,10 @@ VALUES
   ('af300000-0000-4000-8000-000000000019',
    'af200000-0000-4000-8000-000000000001',
    'af000000-0000-4000-8000-000000000004', NULL, 'admin-direct-reject-slot',
+   'pending'),
+  ('af300000-0000-4000-8000-000000000020',
+   'af200000-0000-4000-8000-000000000003',
+   'af000000-0000-4000-8000-000000000004', NULL, 'cross-tenant-slot',
    'pending');
 
 -- ---------------------------------------------------------------------------
@@ -438,7 +510,7 @@ SELECT extensions.throws_ok(
 );
 
 -- ---------------------------------------------------------------------------
--- Source state, unknown signups, and the compatibility assertions
+-- Source state, unknown signups, and cross-tenant identifiers
 -- ---------------------------------------------------------------------------
 
 SELECT set_config(
@@ -457,54 +529,38 @@ SELECT extensions.throws_ok(
   'only a pending or approved signup can be rejected',
   'a cancelled signup is not a legitimate rejection source'
 );
-SELECT extensions.throws_ok(
-  $$SELECT public.reject_project_signup(
-    'af300000-0000-4000-8000-000000000009',
-    'af000000-0000-4000-8000-000000000006'
-  )$$,
-  '22023',
-  'signup does not match the supplied volunteer',
-  'a forged recipient cannot be attached to a real signup'
+SELECT set_config(
+  'request.jwt.claim.sub', 'af000000-0000-4000-8000-000000000002', true
 );
+
 SELECT extensions.throws_ok(
-  $$SELECT public.reject_project_signup(
-    'af300000-0000-4000-8000-000000000009',
-    'af000000-0000-4000-8000-000000000004',
-    'af200000-0000-4000-8000-000000000002'
-  )$$,
-  '22023',
-  'signup does not match the supplied project',
-  'a forged project cannot be attached to a real signup'
+  $$SELECT public.reject_project_signup('af300000-0000-4000-8000-000000000020')$$,
+  '42501',
+  'not authorized to reject this signup',
+  'an admin cannot forge a signup identifier from another tenant'
 );
 SELECT extensions.is(
   (
     SELECT signups.status
     FROM public.project_signups AS signups
-    WHERE signups.id = 'af300000-0000-4000-8000-000000000009'
+    WHERE signups.id = 'af300000-0000-4000-8000-000000000020'
   ),
-  'approved',
-  'the mismatched assertions had no side effect'
+  'pending',
+  'the cross-tenant rejection attempt has no side effect'
 );
 SELECT extensions.is(
   (
     SELECT count(*)
     FROM public.notifications AS notifications
-    WHERE notifications.user_id = 'af000000-0000-4000-8000-000000000006'
+    WHERE notifications.data ->> 'signupId' =
+      'af300000-0000-4000-8000-000000000020'
   ),
   0::bigint,
-  'the forged recipient was never notified'
+  'the cross-tenant rejection attempt cannot address a notification'
 );
-SELECT extensions.is(
-  (
-    SELECT result ->> 'outcome'
-    FROM public.reject_project_signup(
-      'af300000-0000-4000-8000-000000000009',
-      'af000000-0000-4000-8000-000000000004',
-      'af200000-0000-4000-8000-000000000001'
-    ) AS result
-  ),
-  'accepted',
-  'identifiers that do match the locked signup proceed'
+
+SELECT set_config(
+  'request.jwt.claim.sub', 'af000000-0000-4000-8000-000000000001', true
 );
 
 -- ---------------------------------------------------------------------------
@@ -583,167 +639,65 @@ SELECT extensions.is(
 
 RESET ROLE;
 
--- anon keeps UPDATE on project_signups so an anonymous volunteer can cancel
--- their own signup, so the invariant worth asserting for that role is that no
--- such update can land on 'rejected'.
-SET LOCAL ROLE anon;
-
-UPDATE public.project_signups
-SET status = 'rejected'
-WHERE id = 'af300000-0000-4000-8000-000000000010';
-
-RESET ROLE;
-
-SELECT extensions.is(
-  (
-    SELECT signups.status
-    FROM public.project_signups AS signups
-    WHERE signups.id = 'af300000-0000-4000-8000-000000000010'
-  ),
-  'pending',
-  'an anonymous client cannot reach the rejected state through a direct update'
+SELECT extensions.ok(
+  NOT has_table_privilege('anon', 'public.project_signups', 'UPDATE'),
+  'an anonymous client has no signup UPDATE privilege to reach the rejected state with'
 );
 
 -- ---------------------------------------------------------------------------
--- The moderation the guard still allows also requires an active membership
+-- A membership that is no longer active cannot reject
 --
--- public.project_signups' UPDATE policy admits any admin or flag-enabled staff
--- through app_private.is_project_organizer, which ignores membership status, so
--- these updates do reach the trigger. Each denial below is therefore raised by
--- private.protect_project_signup_client_mutation rather than filtered out by
--- RLS, which is what makes it defence in depth for the Server Action gate.
+-- The rejection transaction re-derives this under the project lock rather than
+-- trusting app_private.can_manage_project, so it needs its own proof.
 -- ---------------------------------------------------------------------------
-
-SELECT extensions.ok(
-  has_function_privilege(
-    'authenticated',
-    'app_private.can_moderate_project_signup(uuid,uuid)',
-    'EXECUTE'
-  ) AND NOT has_function_privilege(
-    'anon',
-    'app_private.can_moderate_project_signup(uuid,uuid)',
-    'EXECUTE'
-  ),
-  'the guard predicate is reachable by the client role that runs the guard, and by no other'
-);
-SELECT extensions.ok(
-  (
-    SELECT proc.prosecdef
-      AND EXISTS (
-        SELECT 1
-        FROM unnest(coalesce(proc.proconfig, ARRAY[]::text[])) AS config(value)
-        WHERE config.value = 'search_path=""'
-      )
-    FROM pg_catalog.pg_proc AS proc
-    JOIN pg_catalog.pg_namespace AS namespace
-      ON namespace.oid = proc.pronamespace
-    WHERE namespace.nspname = 'app_private'
-      AND proc.proname = 'can_moderate_project_signup'
-  ),
-  'the guard predicate decides independently of the client role''s own row visibility'
-);
 
 SELECT set_config(
   'request.jwt.claim.sub', 'af000000-0000-4000-8000-000000000007', true
 );
-SET LOCAL ROLE authenticated;
 
 SELECT extensions.throws_ok(
-  $$
-    UPDATE public.project_signups
-    SET status = 'approved'
-    WHERE id = 'af300000-0000-4000-8000-000000000011'
-  $$,
+  $$SELECT public.reject_project_signup('af300000-0000-4000-8000-000000000011')$$,
   '42501',
-  'participants may only cancel their own signup',
-  'a deactivated organization admin cannot approve somebody else''s signup'
-);
-SELECT extensions.throws_ok(
-  $$
-    UPDATE public.project_signups
-    SET status = 'cancelled'
-    WHERE id = 'af300000-0000-4000-8000-000000000013'
-  $$,
-  '42501',
-  'participants may only cancel their own signup',
-  'a deactivated organization admin cannot cancel somebody else''s signup'
-);
-
-RESET ROLE;
-
-SELECT extensions.is(
-  (
-    SELECT signups.status
-    FROM public.project_signups AS signups
-    WHERE signups.id = 'af300000-0000-4000-8000-000000000011'
-  ),
-  'pending',
-  'the refused approval changed nothing'
-);
-SELECT extensions.is(
-  (
-    SELECT signups.status
-    FROM public.project_signups AS signups
-    WHERE signups.id = 'af300000-0000-4000-8000-000000000013'
-  ),
-  'approved',
-  'the refused cancellation changed nothing'
+  'not authorized to reject this signup',
+  'a deactivated organization admin cannot reject a signup'
 );
 
 SELECT set_config(
   'request.jwt.claim.sub', 'af000000-0000-4000-8000-000000000008', true
 );
-SET LOCAL ROLE authenticated;
 
 SELECT extensions.throws_ok(
-  $$
-    UPDATE public.project_signups
-    SET status = 'approved'
-    WHERE id = 'af300000-0000-4000-8000-000000000012'
-  $$,
+  $$SELECT public.reject_project_signup('af300000-0000-4000-8000-000000000013')$$,
   '42501',
-  'participants may only cancel their own signup',
-  'deactivated staff cannot unreject a signup even where staff management is allowed'
+  'not authorized to reject this signup',
+  'deactivated staff cannot reject even where staff management is allowed'
 );
 
-RESET ROLE;
-
-SELECT extensions.is(
-  (
-    SELECT signups.status
-    FROM public.project_signups AS signups
-    WHERE signups.id = 'af300000-0000-4000-8000-000000000012'
-  ),
-  'rejected',
-  'the refused unrejection left the rejection standing'
-);
-
+-- status is nullable, so the unset case has to be provable rather than assumed
+-- unreachable: it must fail closed instead of being read as active.
 SELECT set_config(
   'request.jwt.claim.sub', 'af000000-0000-4000-8000-000000000009', true
 );
-SET LOCAL ROLE authenticated;
 
 SELECT extensions.throws_ok(
-  $$
-    UPDATE public.project_signups
-    SET status = 'approved'
-    WHERE id = 'af300000-0000-4000-8000-000000000014'
-  $$,
+  $$SELECT public.reject_project_signup('af300000-0000-4000-8000-000000000014')$$,
   '42501',
-  'participants may only cancel their own signup',
+  'not authorized to reject this signup',
   'an admin membership with no status fails closed instead of being read as active'
 );
 
-RESET ROLE;
-
 SELECT extensions.is(
   (
-    SELECT signups.status
+    SELECT array_agg(signups.status ORDER BY signups.id)
     FROM public.project_signups AS signups
-    WHERE signups.id = 'af300000-0000-4000-8000-000000000014'
+    WHERE signups.id IN (
+      'af300000-0000-4000-8000-000000000011',
+      'af300000-0000-4000-8000-000000000013',
+      'af300000-0000-4000-8000-000000000014'
+    )
   ),
-  'pending',
-  'the status-less membership changed nothing'
+  ARRAY['pending', 'approved', 'pending'],
+  'no refused rejection changed a signup'
 );
 
 -- ---------------------------------------------------------------------------

@@ -33,10 +33,9 @@ export type OrganizationMembershipRow = {
  * Only an explicitly active membership confers anything: `invited`, `inactive`,
  * anything future, and an absent or null status all fail closed. The database
  * side of this policy — public.reject_project_signup and
- * app_private.can_moderate_project_signup — compares `status` for equality for
- * the same reason. Returning null instead of a boolean keeps the single policy
- * decision inside canManageProjectAccess rather than duplicating it per call
- * site.
+ * app_private.is_project_organizer — compares `status` for equality for the same
+ * reason. Returning null instead of a boolean keeps the single policy decision
+ * inside canManageProjectAccess rather than duplicating it per call site.
  */
 export function activeOrganizationRole(
   membership: OrganizationMembershipRow | undefined,
