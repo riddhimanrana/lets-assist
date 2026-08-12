@@ -549,7 +549,9 @@ test.describe("CSF identity safety", () => {
 
     await expect(dialog).toBeHidden();
     await expect(
-      page.getByText("The duplicate record was merged."),
+      page.getByText(
+        "Duplicate CSF member record merged into the selected canonical record.",
+      ),
     ).toBeVisible();
 
     const plugin = fixture.admin.schema("plugin_data");
