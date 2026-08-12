@@ -83,9 +83,11 @@ profile-merge work catalogs current-schema references, preserves settled frozen
 import evidence, blocks unsettled targets, applies an organization-first identity
 lock hierarchy, and covers same-organization and cross-organization races. The
 account-connection work recomputes confirmed-email, exact-name, and single-active-
-cohort corroboration under lock and fails closed. These findings remain active
-until the combined root/private tree passes fresh replay, focused pgTAP and browser
-acceptance, and hosted Development verification.
+cohort corroboration under lock and fails closed. The exact combined root/private
+tree passed an empty local replay, 90 focused pgTAP assertions, 103 focused source
+contracts, formatting, lint, typecheck, dependency audit, and strict submodule
+validation on 2026-08-12. These findings remain active pending compiled browser
+acceptance and hosted Development verification.
 
 ## External/account blockers
 
