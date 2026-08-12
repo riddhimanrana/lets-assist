@@ -40,22 +40,7 @@ export async function updateProjectStatus(
     return { error: "Project not found" };
   }
 
-  // Check if user has permission
-  let hasPermission = project.creator_id === user.id;
-  if (project.organization && !hasPermission) {
-    const { data: orgMember } = await supabase
-      .from("organization_members")
-      .select("role")
-      .eq("organization_id", project.organization.id)
-      .eq("user_id", user.id)
-      .single();
-
-    if (orgMember?.role) {
-      hasPermission = ["admin", "staff"].includes(orgMember.role);
-    }
-  }
-
-  if (!hasPermission) {
+  if (!(await canUserManageProject(supabase, project, user.id))) {
     return { error: "You don't have permission to update this project" };
   }
 
@@ -82,13 +67,19 @@ export async function updateProjectStatus(
     updateData.cancellation_reason = cancellationReason;
   }
 
-  const { error: updateError } = await supabase
+  const { data: updatedProject, error: updateError } = await supabase
     .from("projects")
     .update(updateData)
-    .eq("id", projectId);
+    .eq("id", projectId)
+    .select("id")
+    .maybeSingle();
 
   if (updateError) {
     console.error("Error updating project status:", updateError);
+    return { error: "Failed to update project status" };
+  }
+
+  if (!updatedProject) {
     return { error: "Failed to update project status" };
   }
 
