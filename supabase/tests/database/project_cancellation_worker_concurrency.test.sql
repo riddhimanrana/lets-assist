@@ -28,7 +28,7 @@ WHERE id::text LIKE 'cb000000-0000-4000-8000-00000000000%';
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES ('cb100000-0000-4000-8000-000000000001',
-        'Cancellation Race Org', 'cancel-race-org', 'nonprofit', 'CXR001');
+        'Cancellation Race Org', 'cancel-race-org', 'nonprofit', '782001');
 
 INSERT INTO public.projects (
   id, creator_id, organization_id, title, location, description, event_type,

@@ -27,17 +27,17 @@ SELECT extensions.ok(
   'worker mutation RPCs remain service-only'
 );
 
-SELECT extensions.is(
-  (
-    SELECT config
+SELECT extensions.ok(
+  EXISTS (
+    SELECT 1
     FROM pg_catalog.pg_proc AS proc
-    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = proc.pronamespace
-    CROSS JOIN LATERAL unnest(proc.proconfig) AS config
-    WHERE namespace.nspname = 'public'
-      AND proc.proname = 'cancel_project_transactional'
-      AND config LIKE 'search_path=%'
+    CROSS JOIN LATERAL
+      unnest(coalesce(proc.proconfig, ARRAY[]::text[])) AS config
+    WHERE proc.oid =
+      'public.cancel_project_transactional(uuid,text)'::regprocedure
+      AND split_part(config, '=', 1) = 'search_path'
+      AND btrim(substring(config FROM position('=' IN config) + 1), '"') = ''
   ),
-  'search_path='::text,
   'cancellation authority has an empty search_path'
 );
 
@@ -98,7 +98,7 @@ END
 WHERE id::text LIKE 'da000000-0000-4000-8000-00000000000%';
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
-VALUES ('da100000-0000-4000-8000-000000000001', 'Cancellation Org', 'cancel-org', 'nonprofit', 'CXL001');
+VALUES ('da100000-0000-4000-8000-000000000001', 'Cancellation Org', 'cancel-org', 'nonprofit', '781001');
 
 INSERT INTO public.projects (
   id, creator_id, organization_id, title, location, description, event_type,
@@ -478,7 +478,7 @@ SELECT extensions.ok(
 -- A bounded claim cannot let one organization consume the first round.
 INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES ('da100000-0000-4000-8000-000000000002',
-        'Fair Cancellation Org', 'fair-cancel-org', 'nonprofit', 'CXL002');
+        'Fair Cancellation Org', 'fair-cancel-org', 'nonprofit', '781002');
 
 INSERT INTO public.projects (
   id, creator_id, organization_id, title, location, description, event_type,

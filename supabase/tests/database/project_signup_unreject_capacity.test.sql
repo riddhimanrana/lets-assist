@@ -83,7 +83,7 @@ VALUES (
   'Atomic Unreject Organization',
   'atomic-unreject-organization',
   'nonprofit',
-  'URJ001'
+  '784001'
 );
 
 INSERT INTO public.organization_members (

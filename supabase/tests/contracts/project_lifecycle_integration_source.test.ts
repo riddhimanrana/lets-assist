@@ -243,6 +243,33 @@ describe("combined project lifecycle source contract", () => {
     expect(feedbackRoute).toContain("Aggregates only");
   });
 
+  test("integrated organization fixtures use canonical six-digit join codes", () => {
+    const files = [
+      "project_signup_unreject_capacity.test.sql",
+      "project_cancellation_durable_worker.test.sql",
+      "project_cancellation_worker_concurrency.test.sql",
+      "project_lifecycle_integration_concurrency.test.sql",
+    ];
+    const organizationInsert =
+      /INSERT INTO public\.organizations\s*\(\s*id,\s*name,\s*username,\s*type,\s*join_code\s*\)\s*VALUES([\s\S]*?);/g;
+    const organizationTuple =
+      /\(\s*'[^']+'\s*,\s*'[^']+'\s*,\s*'[^']+'\s*,\s*'[^']+'\s*,\s*'([^']+)'\s*\)/g;
+
+    for (const file of files) {
+      const source = read(`supabase/tests/database/${file}`);
+      const joinCodes = [...source.matchAll(organizationInsert)].flatMap(
+        ([, values]) =>
+          [...values.matchAll(organizationTuple)].map((match) => match[1]),
+      );
+
+      expect(joinCodes.length, file).toBeGreaterThan(0);
+      expect(
+        joinCodes.every((joinCode) => /^\d{6}$/.test(joinCode)),
+        `${file}: ${joinCodes.join(", ")}`,
+      ).toBe(true);
+    }
+  });
+
   test("every integrated pgTAP plan exactly matches its authored assertions", () => {
     const files = [
       "project_signup_unreject_capacity.test.sql",
