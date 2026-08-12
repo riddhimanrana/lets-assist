@@ -2901,7 +2901,7 @@ INSERT INTO csf_intended_import_acl (signature, service_role_execute) VALUES
   ('plugin_data.csf_assert_sheet_source_settings(jsonb)', false),
   ('plugin_data.csf_register_sheet_source(uuid, uuid, uuid, text, jsonb)', true),
   ('plugin_data.csf_record_sheet_source_sync(uuid, uuid, uuid, text, text, text, boolean)', true),
-  ('plugin_data.csf_refresh_sheet_source_drive_metadata(uuid, uuid, uuid, jsonb)', true),
+  ('plugin_data.csf_refresh_sheet_source_drive_metadata(uuid, uuid, uuid, text, text, text, jsonb)', true),
   ('plugin_data.csf_attach_sheet_source_generation(uuid, uuid, uuid, uuid, integer, text, integer, integer)', true),
   ('plugin_data.csf_reconcile_sheet_source_generation(uuid, uuid, uuid, uuid, integer, text, integer, integer)', true),
   ('plugin_data.csf_js_number_text(double precision)', false),

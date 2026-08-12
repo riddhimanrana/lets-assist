@@ -695,13 +695,13 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
   });
 
-  test("current hosted Development status matches the repository ledger and stale deployment blocker", () => {
+  test("current hosted Development status records the 272-vs-271 ledger and preview blocker", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(271);
+    expect(migrations).toHaveLength(272);
     expect(migrations.at(-1)).toBe(
-      "20260812115556_plugin_data_deletion_requests.sql",
+      "20260812132725_csf_drive_metadata_compare_and_set_fence.sql",
     );
 
     const currentState = between(
@@ -710,14 +710,16 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 271 ordered migrations through",
+      "repository has 272 ordered migrations through",
+    );
+    expect(currentState).toContain(
+      "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
+    );
+    expect(currentState).toContain(
+      "Hosted Development has 271 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260812115556_plugin_data_deletion_requests`",
-    );
-    expect(currentState).toContain("Hosted Development remains at");
-    expect(currentState).toContain(
-      "269 through `20260812104754_harden_project_transaction_rpc_boundaries`",
     );
     expect(currentState).toContain(
       "94 INFO, 0 WARN, and 0 ERROR security findings",
@@ -727,11 +729,59 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
     expect(currentState).toContain("`dev.lets-assist.com`");
     expect(currentState).toContain(
-      "`097bd4e194b1d14b0c9beb1ab3af9b91e5584c27`",
+      "`2e61074ffa8e4de5466f362c0629541320b4edb5`",
     );
-    expect(currentState).toContain("100 deployments per day");
+    expect(currentState).toContain("Google OAuth and Picker are connected");
+    expect(currentState).toContain("Spring 2026 application workbook");
+    expect(currentState).toContain("`A1:Q518`");
+    expect(currentState).toContain("inspected and mapped");
     expect(currentState).toContain(
-      "Hosted acceptance and real-data preview/commit remain blocked",
+      "Preview failed before reading or importing rows because the seven-argument RPC was missing",
+    );
+    expect(currentState).toContain(
+      "one saved source, zero import jobs, zero import rows, zero applications",
+    );
+    expect(currentState).toContain(
+      "existing profile count remained unchanged at two",
+    );
+    expect(currentState).toContain("Production remains untouched");
+  });
+
+  test("the Development rehearsal and cutover ledger carry the same current evidence", () => {
+    const rehearsalState = between(
+      operatorGuide,
+      "## Development rehearsal state at this guide's verification point",
+      "## Production cutover checklist",
+    );
+    expect(rehearsalState).toContain(
+      "`2e61074ffa8e4de5466f362c0629541320b4edb5`",
+    );
+    expect(rehearsalState).toContain(
+      "Hosted Development Supabase has 271 ordered migrations through",
+    );
+    expect(rehearsalState).toContain(
+      "`20260812115556_plugin_data_deletion_requests`",
+    );
+    expect(rehearsalState).toContain("Google OAuth and Picker are connected");
+    expect(rehearsalState).toContain("`A1:Q518`");
+    expect(rehearsalState).toContain(
+      "Preview failed before reading or importing rows because the seven-argument RPC was missing",
+    );
+    expect(rehearsalState).toContain(
+      "one saved source, zero import jobs, zero import rows, zero applications",
+    );
+    expect(rehearsalState).toContain(
+      "existing profile count remained unchanged at two",
+    );
+    expect(rehearsalState).toContain("Production was not changed");
+
+    const cutover = between(
+      operatorGuide,
+      "## Production cutover checklist",
+      "## Related references",
+    );
+    expect(cutover).toContain(
+      "Replay the ordered migration ledger through `20260812132725`",
     );
   });
 
@@ -740,13 +790,13 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Production has 236 ordered migrations through `20260811001500`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Hosted Development has 269 ordered migrations through `20260812104754`",
+      "Hosted Development has 271 ordered migrations through `20260812115556`",
     );
     expect(productionCutoverRunbook).toContain(
-      "repository branch has 271 ordered migrations through `20260812115556`",
+      "repository branch has 272 ordered migrations through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "contains 35 Production-pending migrations",
+      "contains 36 Production-pending migrations and one migration not yet accepted on hosted Development",
     );
     expect(productionCutoverRunbook).not.toContain("174 pending migrations");
     expect(productionCutoverRunbook).not.toContain(
