@@ -91,11 +91,40 @@ test("browser-reachable certificate writes never declare a verified type", () =>
 test("verified certificate issuance stays on privileged, re-authorizing code", () => {
   const cron = readFileSync("app/api/cron/auto-publish-hours/route.ts", "utf8");
   assert.match(cron, /type:\s*"verified"/u);
-  assert.match(cron, /SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SECRET_KEY/u);
+
+  // This route builds its own service-role client (createServiceClient)
+  // rather than importing the shared lib/supabase/admin helper, so the
+  // privilege check has to follow that local client by name, not a guessed
+  // "getAdminClient" string.
+  assert.match(
+    cron,
+    /function createServiceClient\(\)[\s\S]*?process\.env\.SUPABASE_SERVICE_ROLE_KEY\s*\?\?\s*process\.env\.SUPABASE_SECRET_KEY/u,
+    "createServiceClient must be built from the service-role/secret key, not a session token",
+  );
+  assert.match(
+    cron,
+    /const supabase = createServiceClient\(\);[\s\S]*?await supabase\s*\n\s*\.from\("certificates"\)\s*\n\s*\.insert\(certificatesToInsert\)/u,
+    "the certificates insert must run on the service-role client this file built, not a caller session",
+  );
 
   const publish = readFileSync("app/projects/[id]/hours/actions.ts", "utf8");
   assert.match(publish, /publish_volunteer_hours_transactional/u);
   assert.doesNotMatch(publish, /\.from\("certificates"\)\s*\.insert/u);
+});
+
+test("anonymous account-link certificate transfer runs on the canonical admin client", () => {
+  const source = readFileSync("app/anonymous/[id]/actions.ts", "utf8");
+
+  assert.match(
+    source,
+    /import\s*\{\s*getAdminClient\s*\}\s*from\s*"@\/lib\/supabase\/admin"/u,
+    "this file must import the canonical admin/service client, not build its own",
+  );
+  assert.match(
+    source,
+    /const adminClient = getAdminClient\(\);[\s\S]*?await adminClient\s*\n\s*\.from\("certificates"\)\s*\n\s*\.update\(\{ user_id: userId \}\)/u,
+    "the certificates UPDATE during account linking must run on getAdminClient(), not the caller's session",
+  );
 });
 
 test("self-reported hours are written inside the envelope RLS still permits", () => {

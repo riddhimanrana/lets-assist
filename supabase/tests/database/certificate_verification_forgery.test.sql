@@ -16,7 +16,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(32);
+SELECT extensions.plan(33);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures
@@ -129,6 +129,34 @@ SELECT extensions.ok(
     AND NOT has_table_privilege('anon', 'public.certificates', 'TRUNCATE'),
   'the public anon key carries no write privilege on certificates'
 );
+
+-- The catalog check above only proves has_table_privilege agrees with itself;
+-- it would stay green even if a column-level grant, a table-wide GRANT ...
+-- TO PUBLIC, or a role anon inherits from reopened a narrower write path,
+-- since has_table_privilege reports whole-table privilege, not every escape
+-- a real INSERT could exploit. Drive the write itself as the real anon role
+-- so the grant gap is proven by Postgres refusing the statement, not by
+-- reading a catalog view.
+SET LOCAL ROLE anon;
+
+SELECT extensions.throws_ok(
+  $$
+    INSERT INTO public.certificates (
+      project_title, is_certified, event_start, event_end, check_in_method,
+      user_id, creator_id, type
+    )
+    VALUES ('Anon Key Forgery Attempt', true,
+            '2030-09-01T16:00:00Z', '2030-09-01T19:00:00Z', 'qr-code',
+            'ce000000-0000-4000-8000-000000000004',
+            'ce000000-0000-4000-8000-000000000004',
+            'verified')
+  $$,
+  '42501',
+  NULL,
+  'the anon key cannot insert a certificate row under any column combination'
+);
+
+RESET ROLE;
 
 SELECT extensions.ok(
   has_table_privilege('authenticated', 'public.certificates', 'SELECT')
