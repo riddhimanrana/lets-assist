@@ -40,14 +40,14 @@ INSERT INTO auth.users (
 )
 VALUES
   (
-    'fe000000-0000-4000-8000-000000000001',
+    'ff000000-0000-4000-8000-000000000001',
     'authenticated', 'authenticated', 'org-reserved-admin@local.test', now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
     '{}'::jsonb,
     now(), now()
   ),
   (
-    'fe000000-0000-4000-8000-000000000002',
+    'ff000000-0000-4000-8000-000000000002',
     'authenticated', 'authenticated', 'org-reserved-creator@local.test', now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
     '{}'::jsonb,
@@ -63,12 +63,12 @@ VALUES
 -- INSERT tests, so the create-organization cooldown (one per 14 days) never
 -- interferes with proving the reserved-slug constraint.
 SET LOCAL request.jwt.claims =
-  '{"sub":"fe000000-0000-4000-8000-000000000001","role":"authenticated"}';
+  '{"sub":"ff000000-0000-4000-8000-000000000001","role":"authenticated"}';
 SET LOCAL ROLE authenticated;
 
 INSERT INTO public.trusted_member (user_id, status, name, email, reason)
 VALUES (
-  'fe000000-0000-4000-8000-000000000001',
+  'ff000000-0000-4000-8000-000000000001',
   NULL,
   'Org Reserved Admin',
   'org-reserved-admin@local.test',
@@ -77,12 +77,12 @@ VALUES (
 
 RESET ROLE;
 SET LOCAL request.jwt.claims =
-  '{"sub":"fe000000-0000-4000-8000-000000000002","role":"authenticated"}';
+  '{"sub":"ff000000-0000-4000-8000-000000000002","role":"authenticated"}';
 SET LOCAL ROLE authenticated;
 
 INSERT INTO public.trusted_member (user_id, status, name, email, reason)
 VALUES (
-  'fe000000-0000-4000-8000-000000000002',
+  'ff000000-0000-4000-8000-000000000002',
   NULL,
   'Org Reserved Creator',
   'org-reserved-creator@local.test',
@@ -95,8 +95,8 @@ SET LOCAL ROLE service_role;
 UPDATE public.trusted_member
   SET status = true
   WHERE user_id IN (
-    'fe000000-0000-4000-8000-000000000001',
-    'fe000000-0000-4000-8000-000000000002'
+    'ff000000-0000-4000-8000-000000000001',
+    'ff000000-0000-4000-8000-000000000002'
   );
 
 RESET ROLE;
@@ -105,26 +105,26 @@ INSERT INTO public.organizations (
   id, name, username, type, join_code, created_by
 )
 VALUES (
-  'fe100000-0000-4000-8000-000000000001',
+  'ff100000-0000-4000-8000-000000000001',
   'Organization Reserved Slug Fixture',
   'reserved-slug-fixture',
   'school',
   '801001',
-  'fe000000-0000-4000-8000-000000000001'
+  'ff000000-0000-4000-8000-000000000001'
 );
 
 INSERT INTO public.organization_members (
   id, organization_id, user_id, role
 )
 VALUES (
-  'fe200000-0000-4000-8000-000000000001',
-  'fe100000-0000-4000-8000-000000000001',
-  'fe000000-0000-4000-8000-000000000001',
+  'ff200000-0000-4000-8000-000000000001',
+  'ff100000-0000-4000-8000-000000000001',
+  'ff000000-0000-4000-8000-000000000001',
   'admin'
 );
 
 SET LOCAL request.jwt.claims =
-  '{"sub":"fe000000-0000-4000-8000-000000000002","role":"authenticated"}';
+  '{"sub":"ff000000-0000-4000-8000-000000000002","role":"authenticated"}';
 SET LOCAL ROLE authenticated;
 
 -- Direct inserts: every reserved spelling is rejected, exactly like a
@@ -135,12 +135,12 @@ SELECT extensions.throws_ok(
       id, name, username, type, join_code, created_by
     )
     VALUES (
-      'fe100000-0000-4000-8000-000000000002',
+      'ff100000-0000-4000-8000-000000000002',
       'Reserved Create Attempt',
       'create',
       'school',
       '801002',
-      'fe000000-0000-4000-8000-000000000002'
+      'ff000000-0000-4000-8000-000000000002'
     )
   $$,
   '23514',
@@ -154,12 +154,12 @@ SELECT extensions.throws_ok(
       id, name, username, type, join_code, created_by
     )
     VALUES (
-      'fe100000-0000-4000-8000-000000000003',
+      'ff100000-0000-4000-8000-000000000003',
       'Reserved Join Attempt',
       'join',
       'school',
       '801003',
-      'fe000000-0000-4000-8000-000000000002'
+      'ff000000-0000-4000-8000-000000000002'
     )
   $$,
   '23514',
@@ -175,12 +175,12 @@ SELECT extensions.throws_ok(
       id, name, username, type, join_code, created_by
     )
     VALUES (
-      'fe100000-0000-4000-8000-000000000004',
+      'ff100000-0000-4000-8000-000000000004',
       'Reserved Create Case Attempt',
       'CREATE',
       'school',
       '801004',
-      'fe000000-0000-4000-8000-000000000002'
+      'ff000000-0000-4000-8000-000000000002'
     )
   $$,
   '23514',
@@ -194,12 +194,12 @@ SELECT extensions.throws_ok(
       id, name, username, type, join_code, created_by
     )
     VALUES (
-      'fe100000-0000-4000-8000-000000000005',
+      'ff100000-0000-4000-8000-000000000005',
       'Reserved Join Whitespace Attempt',
       '  join  ',
       'school',
       '801005',
-      'fe000000-0000-4000-8000-000000000002'
+      'ff000000-0000-4000-8000-000000000002'
     )
   $$,
   '23514',
@@ -213,12 +213,12 @@ SELECT extensions.throws_ok(
       id, name, username, type, join_code, created_by
     )
     VALUES (
-      'fe100000-0000-4000-8000-000000000006',
+      'ff100000-0000-4000-8000-000000000006',
       'Reserved Create Fullwidth Attempt',
       E'ｃｒｅａｔｅ',
       'school',
       '801006',
-      'fe000000-0000-4000-8000-000000000002'
+      'ff000000-0000-4000-8000-000000000002'
     )
   $$,
   '23514',
@@ -237,12 +237,12 @@ SELECT extensions.throws_ok(
         id, name, username, type, join_code, created_by
       )
       VALUES (
-        'fe100000-0000-4000-8000-000000000010',
+        'ff100000-0000-4000-8000-000000000010',
         'Reserved Create Tab Attempt',
         %L,
         'school',
         '801010',
-        'fe000000-0000-4000-8000-000000000002'
+        'ff000000-0000-4000-8000-000000000002'
       )
     $$,
     chr(9) || 'create' || chr(9)
@@ -259,12 +259,12 @@ SELECT extensions.throws_ok(
         id, name, username, type, join_code, created_by
       )
       VALUES (
-        'fe100000-0000-4000-8000-000000000011',
+        'ff100000-0000-4000-8000-000000000011',
         'Reserved Join LF CR Attempt',
         %L,
         'school',
         '801011',
-        'fe000000-0000-4000-8000-000000000002'
+        'ff000000-0000-4000-8000-000000000002'
       )
     $$,
     chr(10) || 'join' || chr(13)
@@ -281,12 +281,12 @@ SELECT extensions.throws_ok(
         id, name, username, type, join_code, created_by
       )
       VALUES (
-        'fe100000-0000-4000-8000-000000000012',
+        'ff100000-0000-4000-8000-000000000012',
         'Reserved Create VT FF Attempt',
         %L,
         'school',
         '801012',
-        'fe000000-0000-4000-8000-000000000002'
+        'ff000000-0000-4000-8000-000000000002'
       )
     $$,
     chr(11) || chr(12) || 'create' || chr(12) || chr(11)
@@ -303,12 +303,12 @@ SELECT extensions.throws_ok(
         id, name, username, type, join_code, created_by
       )
       VALUES (
-        'fe100000-0000-4000-8000-000000000013',
+        'ff100000-0000-4000-8000-000000000013',
         'Reserved Create BOM Attempt',
         %L,
         'school',
         '801013',
-        'fe000000-0000-4000-8000-000000000002'
+        'ff000000-0000-4000-8000-000000000002'
       )
     $$,
     chr(65279) || 'CREATE' || chr(65279)
@@ -334,12 +334,12 @@ SELECT extensions.throws_ok(
         id, name, username, type, join_code, created_by
       )
       VALUES (
-        'fe100000-0000-4000-8000-000000000014',
+        'ff100000-0000-4000-8000-000000000014',
         'Reserved Create Ogham Space Attempt',
         %L,
         'school',
         '801014',
-        'fe000000-0000-4000-8000-000000000002'
+        'ff000000-0000-4000-8000-000000000002'
       )
     $$,
     chr(5760) || 'create' || chr(5760)
@@ -356,12 +356,12 @@ SELECT extensions.throws_ok(
         id, name, username, type, join_code, created_by
       )
       VALUES (
-        'fe100000-0000-4000-8000-000000000015',
+        'ff100000-0000-4000-8000-000000000015',
         'Reserved Join Line Separator Attempt',
         %L,
         'school',
         '801015',
-        'fe000000-0000-4000-8000-000000000002'
+        'ff000000-0000-4000-8000-000000000002'
       )
     $$,
     chr(8232) || 'JOIN' || chr(8232)
@@ -380,12 +380,12 @@ SELECT extensions.lives_ok(
       id, name, username, type, join_code, created_by
     )
     VALUES (
-      'fe100000-0000-4000-8000-000000000007',
+      'ff100000-0000-4000-8000-000000000007',
       'Creators Collective',
       'creators-collective',
       'nonprofit',
       '801007',
-      'fe000000-0000-4000-8000-000000000002'
+      'ff000000-0000-4000-8000-000000000002'
     )
   $$,
   'an ordinary ASCII username containing a reserved word remains accepted'
@@ -395,14 +395,14 @@ RESET ROLE;
 
 -- Direct updates: the same admin-writable path RLS already allows.
 SET LOCAL request.jwt.claims =
-  '{"sub":"fe000000-0000-4000-8000-000000000001","role":"authenticated"}';
+  '{"sub":"ff000000-0000-4000-8000-000000000001","role":"authenticated"}';
 SET LOCAL ROLE authenticated;
 
 SELECT extensions.throws_ok(
   $$
     UPDATE public.organizations
     SET username = 'create'
-    WHERE id = 'fe100000-0000-4000-8000-000000000001'
+    WHERE id = 'ff100000-0000-4000-8000-000000000001'
   $$,
   '23514',
   'new row for relation "organizations" violates check constraint "organizations_username_not_reserved_check"',
@@ -413,7 +413,7 @@ SELECT extensions.throws_ok(
   $$
     UPDATE public.organizations
     SET username = 'Join'
-    WHERE id = 'fe100000-0000-4000-8000-000000000001'
+    WHERE id = 'ff100000-0000-4000-8000-000000000001'
   $$,
   '23514',
   'new row for relation "organizations" violates check constraint "organizations_username_not_reserved_check"',
@@ -424,7 +424,7 @@ SELECT extensions.is(
   (
     SELECT username::text
     FROM public.organizations
-    WHERE id = 'fe100000-0000-4000-8000-000000000001'
+    WHERE id = 'ff100000-0000-4000-8000-000000000001'
   ),
   'reserved-slug-fixture',
   'the rejected renames leave the organization username unchanged'
@@ -457,7 +457,7 @@ SELECT extensions.throws_ok(
   format(
     'UPDATE public.organizations SET username = %L WHERE id = %L',
     c.username,
-    'fe100000-0000-4000-8000-000000000001'
+    'ff100000-0000-4000-8000-000000000001'
   ),
   '23514',
   'new row for relation "organizations" violates check constraint "organizations_username_valid_format_check"',
@@ -480,7 +480,7 @@ SELECT extensions.lives_ok(
   format(
     'UPDATE public.organizations SET username = %L WHERE id = %L',
     c.username,
-    'fe100000-0000-4000-8000-000000000001'
+    'ff100000-0000-4000-8000-000000000001'
   ),
   c.label
 )
@@ -491,7 +491,7 @@ SELECT extensions.lives_ok(
   $$
     UPDATE public.organizations
     SET username = 'reserved-slug-fixture-renamed'
-    WHERE id = 'fe100000-0000-4000-8000-000000000001'
+    WHERE id = 'ff100000-0000-4000-8000-000000000001'
   $$,
   'a direct update to a non-reserved username is accepted'
 );
@@ -500,7 +500,7 @@ SELECT extensions.is(
   (
     SELECT username::text
     FROM public.organizations
-    WHERE id = 'fe100000-0000-4000-8000-000000000001'
+    WHERE id = 'ff100000-0000-4000-8000-000000000001'
   ),
   'reserved-slug-fixture-renamed',
   'the accepted rename is persisted'
@@ -518,12 +518,12 @@ SELECT extensions.throws_ok(
       id, name, username, type, join_code, created_by
     )
     VALUES (
-      'fe100000-0000-4000-8000-000000000008',
+      'ff100000-0000-4000-8000-000000000008',
       'Service Role Reserved Attempt',
       'join',
       'school',
       '801008',
-      'fe000000-0000-4000-8000-000000000001'
+      'ff000000-0000-4000-8000-000000000001'
     )
   $$,
   '23514',
@@ -537,12 +537,12 @@ SELECT extensions.lives_ok(
       id, name, username, type, join_code, created_by
     )
     VALUES (
-      'fe100000-0000-4000-8000-000000000009',
+      'ff100000-0000-4000-8000-000000000009',
       'Service Role Ordinary Organization',
       'service-role-ordinary-org',
       'school',
       '801009',
-      'fe000000-0000-4000-8000-000000000001'
+      'ff000000-0000-4000-8000-000000000001'
     )
   $$,
   'a service-role insert with an ordinary username is unaffected'
@@ -616,7 +616,7 @@ FROM retained_privileges;
 -- Prove it end-to-end, not just via the catalog: an authenticated user
 -- really cannot truncate this table.
 SET LOCAL request.jwt.claims =
-  '{"sub":"fe000000-0000-4000-8000-000000000002","role":"authenticated"}';
+  '{"sub":"ff000000-0000-4000-8000-000000000002","role":"authenticated"}';
 SET LOCAL ROLE authenticated;
 
 SELECT extensions.throws_ok(

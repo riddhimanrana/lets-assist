@@ -33,7 +33,7 @@ INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES (
   'ef100000-0000-4000-8000-000000000001',
   'Project Lifecycle Integration Org',
-  'project-lifecycle-integration-org',
+  'project-lifecycle-integration',
   'nonprofit',
   '783001'
 );

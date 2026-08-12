@@ -437,4 +437,31 @@ describe("organization username fixture inventory", () => {
     );
     expect(invalid.map(fixtureError)).toEqual([]);
   });
+
+  test("the reserved-slug pgTAP fixture does not reuse another database fixture UUID", () => {
+    const fixtureSource = readFileSync(RESERVED_SLUG_DATABASE_TEST, "utf8");
+    const fixtureIds = [
+      ...fixtureSource.matchAll(
+        /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/giu,
+      ),
+    ].map((match) => match[0].toLowerCase());
+
+    expect(fixtureIds.length).toBeGreaterThan(0);
+    const fixtureIdSet = new Set(fixtureIds);
+    const collisions = fg
+      .sync("supabase/tests/database/*.sql", { onlyFiles: true })
+      .filter((file) => file !== RESERVED_SLUG_DATABASE_TEST)
+      .flatMap((file) =>
+        [
+          ...readFileSync(file, "utf8").matchAll(
+            /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/giu,
+          ),
+        ]
+          .map((match) => match[0].toLowerCase())
+          .filter((id) => fixtureIdSet.has(id))
+          .map((id) => `${file}: ${id}`),
+      );
+
+    expect(collisions).toEqual([]);
+  });
 });
