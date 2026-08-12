@@ -4,14 +4,20 @@
 
 BEGIN;
 
-REVOKE ALL ON FUNCTION plugin_data.csf_refresh_sheet_source_drive_metadata(
-  uuid, uuid, uuid, jsonb
-)
-FROM PUBLIC, anon, authenticated, service_role;
-
-DROP FUNCTION plugin_data.csf_refresh_sheet_source_drive_metadata(
-  uuid, uuid, uuid, jsonb
-);
+DO $$
+DECLARE
+  v_legacy_signature constant text :=
+    'plugin_data.csf_refresh_sheet_source_drive_metadata(uuid,uuid,uuid,jsonb)';
+BEGIN
+  IF pg_catalog.to_regprocedure(v_legacy_signature) IS NOT NULL THEN
+    EXECUTE pg_catalog.format(
+      'REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated, service_role',
+      v_legacy_signature
+    );
+    EXECUTE pg_catalog.format('DROP FUNCTION %s', v_legacy_signature);
+  END IF;
+END;
+$$;
 
 CREATE FUNCTION plugin_data.csf_refresh_sheet_source_drive_metadata(
   p_organization_id uuid,

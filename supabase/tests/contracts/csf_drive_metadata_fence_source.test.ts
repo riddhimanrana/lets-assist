@@ -58,7 +58,13 @@ describe("CSF Drive metadata compare-and-set source contract", () => {
 
   test("the forward migration replaces the obsolete overload with one service-only boundary", () => {
     expect(migration).toMatch(
-      new RegExp(`DROP FUNCTION ${functionName}${legacyArguments}\\s*;`, "u"),
+      new RegExp(
+        `v_legacy_signature constant text :=\\s*'${functionName}${legacyArguments}';`,
+        "u",
+      ),
+    );
+    expect(migration).toMatch(
+      /IF pg_catalog\.to_regprocedure\(v_legacy_signature\) IS NOT NULL THEN[\s\S]*?EXECUTE pg_catalog\.format\(\s*'REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated, service_role',\s*v_legacy_signature\s*\);[\s\S]*?EXECUTE pg_catalog\.format\('DROP FUNCTION %s', v_legacy_signature\);[\s\S]*?END IF;/u,
     );
     expect(migration).toMatch(
       new RegExp(
