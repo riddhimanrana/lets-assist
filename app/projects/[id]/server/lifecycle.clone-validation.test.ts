@@ -122,7 +122,14 @@ mock.module("@/lib/supabase/server", () => ({
         update: (payload: Record<string, unknown>) => {
           updatedPayload = payload;
           return {
-            eq: async () => ({ data: null, error: null }),
+            eq: () => ({
+              select: () => ({
+                maybeSingle: async () => ({
+                  data: { id: "source-project" },
+                  error: null,
+                }),
+              }),
+            }),
           };
         },
       };
