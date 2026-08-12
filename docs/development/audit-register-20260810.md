@@ -796,9 +796,16 @@ contrary to the current public-function boundary.
 **Local evidence:** the source contract asserts the parent lock, private call to
 the canonical cancellation transaction, fixed empty paths, public invoker
 wrapper, and absence of a public definer. The pgTAP transaction and two-session
-serialization proofs, architecture audit, fresh replay, and local #152 merge
-simulation pass. The combined tree retains both reviewed public ACL rows and
-orders the `161500` rejection transaction before the `215733` union guard.
+serialization proofs, architecture audit, and fresh replay pass. The no-commit
+local #152 merge simulation replayed 275 ordered migrations, retained both
+reviewed public ACL rows, and ordered the `161500` rejection transaction before
+the `215733` union guard. It also recorded one integration item that belongs to
+whichever pull request merges second: three assertions in the #152
+`signup_rejection_atomicity` fixture still expect the pre-`215733` behavior in
+which an active administrator approves or unrejects through a direct browser
+update. The union guard now routes those transitions through the capacity-safe
+RPC, so that fixture must be updated at merge time. Neither branch was merged
+and `development` was not moved.
 
 **Local resolution candidate:** a parent trigger serializes child materialization
 with one private SECURITY DEFINER end-series transaction. The public signature
