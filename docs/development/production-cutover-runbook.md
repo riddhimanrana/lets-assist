@@ -1,10 +1,9 @@
 # Production cutover runbook
 
 Production has 236 ordered migrations through `20260811001500`. Hosted
-Development has 271 ordered migrations through `20260812115556`. This
-repository branch has 272 ordered migrations through `20260812132725`, so it
-contains 36 Production-pending migrations and one migration not yet accepted
-on hosted Development.
+Development has 272 ordered migrations through `20260812132725`. This
+repository branch has 272 ordered migrations through `20260812132725` and
+contains 36 Production-pending migrations.
 
 **This runbook is preparation. Executing it requires explicit release
 authorization** ([deployment boundaries](deployment.md)). Production remains
@@ -77,7 +76,7 @@ Read-only throughout. Capture the whole output into the change record. The block
 
 ## Rehearsal
 
-**The Supabase `development` branch is not a rehearsal.** Its 271-migration
+**The Supabase `development` branch is not a rehearsal.** Its 272-migration
 ledger proves ordered application against the Development database, not the
 repository branch's Production-shaped 236→272 transition. It does not exercise data-dependent DDL,
 lock behaviour at Production table sizes, or Production data.

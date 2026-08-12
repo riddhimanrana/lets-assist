@@ -820,13 +820,19 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Production has 236 ordered migrations through `20260811001500`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Hosted Development has 271 ordered migrations through `20260812115556`",
+      "Hosted Development has 272 ordered migrations through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
       "repository branch has 272 ordered migrations through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "contains 36 Production-pending migrations and one migration not yet accepted on hosted Development",
+      "contains 36 Production-pending migrations",
+    );
+    expect(productionCutoverRunbook).not.toContain(
+      "one migration not yet accepted on hosted Development",
+    );
+    expect(productionCutoverRunbook).not.toContain(
+      "Its 271-migration ledger proves ordered application",
     );
     expect(productionCutoverRunbook).not.toContain("174 pending migrations");
     expect(productionCutoverRunbook).not.toContain(
