@@ -643,31 +643,31 @@ Production, and do not treat a Development screenshot as Production evidence.
 Do not use real chapter rows or credentials until every item is checked:
 
 - [ ] Obtain separate Production authorization; keep `development` and
-  Production databases, links, tokens, previews, and decisions isolated.
+      Production databases, links, tokens, previews, and decisions isolated.
 - [ ] Verify the root tree is the approved exact commit and the private plugin
-  remains a clean gitlink at its approved SHA.
+      remains a clean gitlink at its approved SHA.
 - [ ] Replay the ordered migration ledger through `20260812101100` in the
-  authorized release gate and prove exact repository/Production ledger parity,
-  advisors, function ACLs, relation ACLs, storage posture, and active-member
-  storage authorization.
+      authorized release gate and prove exact repository/Production ledger parity,
+      advisors, function ACLs, relation ACLs, storage posture, and active-member
+      storage authorization.
 - [ ] Pass the final combined static, focused source, database, private-plugin,
-  and browser gates; complete keyboard, focus, and screen-reader acceptance.
+      and browser gates; complete keyboard, focus, and screen-reader acceptance.
 - [ ] Confirm the super-admin entitlement and organization-admin install,
-  Classes of 2027–2030 with eight semesters each, Fall 2026 current, future-term
-  setup, officer seats, and published policy.
+      Classes of 2027–2030 with eight semesters each, Fall 2026 current, future-term
+      setup, officer seats, and published policy.
 - [ ] Complete live `dvhighcsf@gmail.com` OAuth, Picker, preview, reconnect,
-  revocation, and failure-state checks without committing during rehearsal.
+      revocation, and failure-state checks without committing during rehearsal.
 - [ ] Test every class and student-specific link while signed out or in a
-  private window; complete existing-account claim and officer-review paths.
+      private window; complete existing-account claim and officer-review paths.
 - [ ] Commit the Spring 2026 application seed before historical class sheets,
-  reconcile counts and identity conflicts, then accept applications,
-  service/points, posts, Communications, and role-aware Help journeys.
+      reconcile counts and identity conflicts, then accept applications,
+      service/points, posts, Communications, and role-aware Help journeys.
 - [ ] Verify sender domain, consent topics, one-recipient delivery, signed
-  webhook reduction, unknown-outcome handling, and Production scheduled-post
-  publication without claiming a fixed delivery time.
+      webhook reduction, unknown-outcome handling, and Production scheduled-post
+      publication without claiming a fixed delivery time.
 - [ ] Record the exact cutover evidence and remaining limitations. Never copy a
-  Development fixture, connection link, import preview, or policy decision into
-  Production.
+      Development fixture, connection link, import preview, or policy decision into
+      Production.
 
 ## Related references
 
