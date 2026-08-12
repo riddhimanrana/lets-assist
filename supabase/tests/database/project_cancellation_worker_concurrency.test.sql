@@ -149,6 +149,17 @@ SELECT extensions.is(
   'the cancellation snapshot excludes the concurrently denied approval'
 );
 
+SELECT extensions.dblink_disconnect('cancellation_race_probe');
+SELECT extensions.dblink_connect(
+  'cancellation_race_probe',
+  'hostaddr=' || host(inet_server_addr()) ||
+  ' port=' || current_setting('port') ||
+  ' dbname=' || current_database() ||
+  ' user=' || current_user ||
+  ' password=' || current_user ||
+  ' sslmode=disable'
+);
+
 -- In the converse interleaving, approval already owns the project lock. The
 -- waiting cancellation must refresh after that commit and include the winner.
 BEGIN;
@@ -204,6 +215,17 @@ SELECT extensions.is(
    WHERE project_id = 'cb200000-0000-4000-8000-000000000003'),
   1,
   'the waiting cancellation freezes the committed approval in its audience'
+);
+
+SELECT extensions.dblink_disconnect('cancellation_race_probe');
+SELECT extensions.dblink_connect(
+  'cancellation_race_probe',
+  'hostaddr=' || host(inet_server_addr()) ||
+  ' port=' || current_setting('port') ||
+  ' dbname=' || current_database() ||
+  ' user=' || current_user ||
+  ' password=' || current_user ||
+  ' sslmode=disable'
 );
 
 -- Create two expired recipient leases for a second cancellation.

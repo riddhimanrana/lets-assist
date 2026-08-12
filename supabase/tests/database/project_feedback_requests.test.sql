@@ -73,7 +73,7 @@ VALUES
    jsonb_build_object('oneTime', jsonb_build_object(
      'date', to_char((clock_timestamp() AT TIME ZONE 'America/Los_Angeles') - interval '3 day', 'YYYY-MM-DD'),
      'startTime', '10:00', 'endTime', '12:00', 'volunteers', 10)),
-   true, 'completed');
+   true, 'upcoming');
 
 INSERT INTO public.anonymous_signups (id, project_id, email, name, confirmed_at)
 VALUES
@@ -104,6 +104,10 @@ VALUES
   ('d8300000-0000-4000-8000-000000000004',
    'd8100000-0000-4000-8000-000000000001',
    'd8000000-0000-4000-8000-000000000001', NULL, 'oneTime', 'approved');
+
+UPDATE public.projects
+SET status = 'completed'
+WHERE id = 'd8100000-0000-4000-8000-000000000001';
 
 -- ---------------------------------------------------------------------------
 -- Enqueue
