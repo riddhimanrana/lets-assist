@@ -9,6 +9,7 @@ import { createNotificationForUser } from "@/services/notifications-server";
 import { removeCalendarEventForSignup } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
+import { canUserManageProject } from "./access";
 
 // Add this new function to unreject a signup
 export async function unrejectSignup(signupId: string) {
@@ -22,7 +23,9 @@ export async function unrejectSignup(signupId: string) {
     // Get signup details
     const { data: signup, error: signupError } = await supabase
       .from("project_signups")
-      .select("*, project:projects(creator_id, organization_id)")
+      .select(
+        "*, project:projects(creator_id, organization_id, can_be_managed_by_staff)",
+      )
       .eq("id", signupId)
       .single();
 
@@ -30,36 +33,27 @@ export async function unrejectSignup(signupId: string) {
       return { error: "Signup not found" };
     }
 
-    // Permission check: Only project creator or org admin/staff can unreject
-    let hasPermission = false;
-    if (user) {
-      if (signup.project?.creator_id === user.id) {
-        hasPermission = true;
-      } else if (signup.project?.organization_id) {
-        const { data: orgMember } = await supabase
-          .from("organization_members")
-          .select("role")
-          .eq("organization_id", signup.project.organization_id)
-          .eq("user_id", user.id)
-          .single();
-        if (orgMember && ["admin", "staff"].includes(orgMember.role)) {
-          hasPermission = true;
-        }
-      }
-    }
-
-    if (!hasPermission) {
+    if (
+      !user ||
+      !(await canUserManageProject(supabase, signup.project ?? null, user.id))
+    ) {
       return { error: "You don't have permission to unreject this signup" };
     }
 
     // Update signup status to 'approved'
-    const { error: updateError } = await supabase
+    const { data: updatedSignup, error: updateError } = await supabase
       .from("project_signups")
       .update({ status: "approved" as SignupStatus })
-      .eq("id", signupId);
+      .eq("id", signupId)
+      .select("id")
+      .maybeSingle();
 
     if (updateError) {
       throw updateError;
+    }
+
+    if (!updatedSignup) {
+      return { error: "Failed to unreject signup" };
     }
 
     // Revalidate paths
@@ -207,14 +201,6 @@ export async function cancelSignup(
       return { error: "You don't have permission to cancel this signup" };
     }
 
-    // Remove calendar event if it exists (non-blocking)
-    try {
-      await removeCalendarEventForSignup(signupId);
-    } catch (calendarError) {
-      console.error("Error removing calendar event:", calendarError);
-      // Don't fail the cancellation if calendar removal fails
-    }
-
     const deleteClient = isAnonymousCancellation ? adminSupabase : supabase;
 
     const { data: cancelledSignup, error: cancelError } = await deleteClient
@@ -227,6 +213,14 @@ export async function cancelSignup(
     if (cancelError || !cancelledSignup) {
       console.error("Failed to cancel signup:", cancelError);
       return { error: "Failed to cancel signup" };
+    }
+
+    // Remove calendar event only after the DB write is proven
+    try {
+      await removeCalendarEventForSignup(signupId);
+    } catch (calendarError) {
+      console.error("Error removing calendar event:", calendarError);
+      // Don't fail the cancellation if calendar removal fails
     }
 
     console.log("Signup record cancelled successfully.");
