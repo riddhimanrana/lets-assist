@@ -82,15 +82,30 @@ describe("combined project lifecycle source contract", () => {
     const updateAction = lifecycle.slice(
       lifecycle.indexOf("export async function updateProject("),
     );
+    const hardeningMigration = read(
+      "supabase/migrations/20260812094008_harden_project_lifecycle_review_findings.sql",
+    );
+    const seriesEndFunction = sliceBetween(
+      hardeningMigration,
+      "CREATE OR REPLACE FUNCTION public.end_recurring_project_series_transactional(",
+      "REVOKE ALL ON FUNCTION public.end_recurring_project_series_transactional",
+    );
 
-    expect(updateAction).toMatch(/rpc\(\s*"cancel_project_transactional"/);
+    expect(updateAction).toMatch(
+      /rpc\(\s*"end_recurring_project_series_transactional"/,
+    );
     expect(updateAction).not.toContain('status: "cancelled"');
     expect(updateAction).toMatch(
-      /receipt\.outcome === "cancelled"[\s\S]*removeCalendarEventForProject\(occurrence\.id\)/,
+      /receipt\.calendarCleanupProjectIds[\s\S]*removeCalendarEventForProject\(cleanupProjectId\)/,
     );
+    expect(seriesEndFunction).toMatch(
+      /v_receipt\s*:=\s*public\.cancel_project_transactional\(/,
+    );
+    expect(seriesEndFunction).toContain("FOR UPDATE");
+    expect(seriesEndFunction).toContain("SET recurrence_rule = NULL");
   });
 
-  test("the additive architecture catalogs retain both authenticated lifecycle authorities", () => {
+  test("the additive architecture catalogs retain authenticated lifecycle authorities", () => {
     const audit = read("scripts/audit-supabase-architecture.sh");
     const aclTest = read(
       "supabase/tests/database/public_function_acl_allowlist.test.sql",
@@ -98,6 +113,7 @@ describe("combined project lifecycle source contract", () => {
 
     for (const signature of [
       "public.cancel_project_transactional(uuid,text)",
+      "public.end_recurring_project_series_transactional(uuid)",
       "public.unreject_project_signup_with_capacity(uuid)",
     ]) {
       expect(audit).toContain(signature);
