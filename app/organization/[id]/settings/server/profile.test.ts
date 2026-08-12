@@ -52,9 +52,11 @@ function serverClient() {
             eq: () => ({
               eq: () => ({
                 eq: () => ({
-                  single: async () => ({
-                    data: isOrgAdmin ? { role: "admin" } : null,
-                    error: null,
+                  eq: () => ({
+                    single: async () => ({
+                      data: isOrgAdmin ? { role: "admin" } : null,
+                      error: null,
+                    }),
                   }),
                 }),
               }),
