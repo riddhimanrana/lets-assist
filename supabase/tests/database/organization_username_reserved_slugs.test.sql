@@ -601,17 +601,69 @@ SELECT extensions.ok(
   'anon cannot MAINTAIN public.organizations'
 );
 
--- The row-level-security-gated privileges this migration does not touch are
--- still held for authenticated, so the "Create org with serialized cooldown"
--- and "Allow admins to update organizations" policies keep working.
-WITH retained_privileges(privilege_name) AS (
-  VALUES ('INSERT'), ('UPDATE'), ('DELETE')
+-- The final client relation ACL catalog converts authenticated INSERT and
+-- UPDATE from whole-table grants to reviewed column grants. The request-scoped
+-- create action still inserts the organization and reads its id; its logo
+-- follow-up plus the setup-checklist action still update their named columns.
+-- The direct authenticated INSERT/UPDATE cases above prove those RLS paths
+-- end-to-end. Assert the required column privileges here without mistaking
+-- intentionally absent whole-table privileges for a product regression.
+WITH retained_column_privilege(
+  operation_name,
+  privilege_name,
+  column_name
+) AS (
+  VALUES
+    ('INSERT', 'INSERT', 'auto_join_domain'),
+    ('INSERT', 'INSERT', 'created_by'),
+    ('INSERT', 'INSERT', 'description'),
+    ('INSERT', 'INSERT', 'join_code'),
+    ('INSERT', 'INSERT', 'logo_url'),
+    ('INSERT', 'INSERT', 'name'),
+    ('INSERT', 'INSERT', 'type'),
+    ('INSERT', 'INSERT', 'username'),
+    ('INSERT', 'INSERT', 'website'),
+    ('INSERT', 'SELECT', 'id'),
+    ('UPDATE', 'SELECT', 'logo_url'),
+    ('UPDATE', 'UPDATE', 'logo_url'),
+    ('UPDATE', 'UPDATE', 'setup_checklist_dismissed_at'),
+    ('UPDATE', 'UPDATE', 'username')
+),
+retained_column_contract AS (
+  SELECT
+    operation_name,
+    bool_and(
+      has_column_privilege(
+        'authenticated',
+        'public.organizations',
+        column_name,
+        privilege_name
+      )
+    ) AS required_columns_granted
+  FROM retained_column_privilege
+  GROUP BY operation_name
 )
 SELECT extensions.ok(
-  has_table_privilege('authenticated', 'public.organizations', privilege_name),
-  format('authenticated retains %s public.organizations', privilege_name)
+  required_columns_granted
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.organizations',
+      operation_name
+    ),
+  format(
+    'authenticated retains column-scoped %s public.organizations',
+    operation_name
+  )
 )
-FROM retained_privileges;
+FROM retained_column_contract
+ORDER BY operation_name;
+
+-- DELETE has no column form, so the RLS-gated organization deletion action
+-- correctly retains a relation-level grant.
+SELECT extensions.ok(
+  has_table_privilege('authenticated', 'public.organizations', 'DELETE'),
+  'authenticated retains relation-scoped DELETE public.organizations'
+);
 
 -- Prove it end-to-end, not just via the catalog: an authenticated user
 -- really cannot truncate this table.

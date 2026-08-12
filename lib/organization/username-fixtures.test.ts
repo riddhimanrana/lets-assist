@@ -464,4 +464,20 @@ describe("organization username fixture inventory", () => {
 
     expect(collisions).toEqual([]);
   });
+
+  test("the pgTAP ACL checks distinguish column-scoped writes from table deletion", () => {
+    const fixtureSource = readFileSync(RESERVED_SLUG_DATABASE_TEST, "utf8");
+    const aclContract = fixtureSource.slice(
+      fixtureSource.indexOf("-- The final client relation ACL catalog"),
+      fixtureSource.indexOf("-- Prove it end-to-end, not just via the catalog"),
+    );
+
+    expect(aclContract).toContain("has_column_privilege(");
+    expect(aclContract).toContain(
+      "has_table_privilege('authenticated', 'public.organizations', 'DELETE')",
+    );
+    expect(aclContract).not.toContain(
+      "has_table_privilege('authenticated', 'public.organizations', privilege_name)",
+    );
+  });
 });
