@@ -4,7 +4,6 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeRichTextHtml } from "@/lib/security/html.server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
-import { canCancelProject } from "@/utils/project";
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
 import { type Project } from "@/types";
@@ -87,145 +86,142 @@ export async function updateProjectStatus(
     return { error: "Project not found" };
   }
 
-  if (!(await canUserManageProject(supabase, project, user.id))) {
-    return { error: "You don't have permission to update this project" };
-  }
-
-  if (!isAllowedProjectStatusTransition(project.status, newStatus)) {
-    return { error: "Project status transition is not allowed" };
-  }
-
-  // If cancelling, validate cancellation is allowed
   if (newStatus === "cancelled") {
-    if (!canCancelProject(project)) {
-      return {
-        error: "Project can only be cancelled within 24 hours of start time",
-      };
-    }
     if (!cancellationReason) {
       return { error: "Cancellation reason is required" };
     }
-  }
-
-  // Update project status
-  const updateData: {
-    status: ProjectStatus;
-    cancelled_at?: string;
-    cancellation_reason?: string | null;
-  } = { status: newStatus };
-  if (newStatus === "cancelled") {
-    updateData.cancelled_at = new Date().toISOString();
-    updateData.cancellation_reason = cancellationReason;
-  }
-
-  const { data: updatedProject, error: updateError } = await supabase
-    .from("projects")
-    .update(updateData)
-    .eq("id", projectId)
-    .eq("status", project.status)
-    .select("id")
-    .maybeSingle();
-
-  if (updateError) {
-    console.error("Error updating project status:", updateError);
-    return { error: "Failed to update project status" };
-  }
-
-  if (!updatedProject || updatedProject.id !== projectId) {
-    return { error: "Failed to update project status" };
-  }
-
-  // If cancelling, remove calendar events (non-blocking) and enqueue notifications.
-  if (newStatus === "cancelled") {
-    // Remove creator's calendar event (non-blocking)
-    try {
-      await removeCalendarEventForProject(projectId);
-    } catch (calendarError) {
-      console.error(
-        "Error removing calendar event for cancelled project:",
-        calendarError,
-      );
-      // Don't fail the cancellation if calendar cleanup fails
+    if (project.status !== "upcoming" && project.status !== "cancelled") {
+      return { error: "Only an upcoming project can be cancelled" };
     }
 
-    // --- ENQUEUE CANCELLATION NOTIFICATIONS (BACKGROUND) ---
-    // We enqueue a job for a cron/worker route to process. This is more reliable
-    // than doing a potentially large fanout inside the server action.
-    cancellationNotifications = { enqueued: false, triggerAttempted: false };
-    try {
-      const cancelledAt = updateData.cancelled_at ?? new Date().toISOString();
-      const serviceSupabase = getAdminClient();
+    // The RPC rechecks permission under the project-row lock, performs the real
+    // upcoming -> cancelled transition, and freezes the exact audience/outbox in
+    // the same transaction. There is no service-role enqueue transaction to lose.
+    const { data: cancellationResult, error: cancellationError } =
+      await supabase.rpc("cancel_project_transactional", {
+        p_project_id: projectId,
+        p_cancellation_reason: cancellationReason,
+      });
 
-      // Enqueue through the service RPC rather than upserting the row here.
-      // The old client-shaped upsert reset status, cursor, attempts, and the
-      // lease timestamps on every conflict, so re-cancelling a project could
-      // stomp a live worker lease and re-drive an audience mid-flight. The RPC
-      // only ever revives a job that provably sent nothing more.
-      const { data: enqueueResult, error: enqueueError } =
-        await serviceSupabase.rpc("enqueue_project_cancellation_job", {
-          p_project_id: projectId,
-          p_cancelled_at: cancelledAt,
-          p_cancellation_reason: cancellationReason!,
-          p_created_by: user.id,
-        });
+    const cancellationReceipt = cancellationResult as {
+      outcome?: unknown;
+      jobStatus?: unknown;
+      accepted?: unknown;
+    } | null;
+    const validJobStatus = [
+      "pending",
+      "processing",
+      "completed",
+      "failed",
+      "needs_review",
+      "missing",
+    ].includes(String(cancellationReceipt?.jobStatus));
+    const validReceipt =
+      validJobStatus &&
+      ((cancellationReceipt?.outcome === "cancelled" &&
+        cancellationReceipt.jobStatus === "pending" &&
+        cancellationReceipt.accepted === true) ||
+        (cancellationReceipt?.outcome === "already_cancelled" &&
+          ["pending", "processing", "completed"].includes(
+            String(cancellationReceipt.jobStatus),
+          ) &&
+          cancellationReceipt.accepted === true) ||
+        (cancellationReceipt?.outcome ===
+          "already_cancelled_review_required" &&
+          ["needs_review", "failed", "missing"].includes(
+            String(cancellationReceipt.jobStatus),
+          ) &&
+          cancellationReceipt.accepted === false));
 
-      const enqueueAccepted = Boolean(
-        (enqueueResult as { accepted?: boolean } | null)?.accepted,
-      );
-
-      if (enqueueError || !enqueueAccepted) {
-        if (process.env.NODE_ENV !== "test") {
-          console.error(
-            "Error enqueueing project cancellation job:",
-            enqueueError,
-          );
-        }
-        cancellationNotifications.error =
-          "Failed to queue cancellation notifications.";
-      } else {
-        cancellationNotifications.enqueued = true;
-
-        // Best-effort: kick the worker immediately, but don't block the user.
-        // Cron should still run this periodically in production.
-        const workerEnabled =
-          process.env.PROJECT_CANCELLATION_WORKER_ENABLED === "true";
-        const workerBaseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-        const workerToken =
-          process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
-
-        if (!workerEnabled) {
-          cancellationNotifications.error =
-            "Project cancellation worker is disabled.";
-        } else if (workerBaseUrl && workerToken) {
-          cancellationNotifications.triggerAttempted = true;
-          void fetch(`${workerBaseUrl}/api/cron/project-cancellations`, {
-            method: "POST",
-            headers: {
-              authorization: `Bearer ${workerToken}`,
-            },
-          }).catch((err) => {
-            if (process.env.NODE_ENV !== "test") {
-              console.error(
-                "Failed to trigger project cancellation worker:",
-                err,
-              );
-            }
-          });
-        } else {
-          cancellationNotifications.error =
-            "Project cancellation worker is not configured.";
-        }
-      }
-    } catch (notificationError) {
+    if (cancellationError || !validReceipt) {
       if (process.env.NODE_ENV !== "test") {
+        console.error("Error cancelling project transactionally:", {
+          code: cancellationError?.code,
+        });
+      }
+      return { error: "Failed to cancel project" };
+    }
+
+    const receipt = cancellationReceipt as {
+      outcome:
+        | "cancelled"
+        | "already_cancelled"
+        | "already_cancelled_review_required";
+      jobStatus: string;
+      accepted: boolean;
+    };
+
+    cancellationNotifications = {
+      enqueued: receipt.accepted,
+      triggerAttempted: false,
+    };
+
+    if (receipt.outcome === "cancelled") {
+      try {
+        await removeCalendarEventForProject(projectId);
+      } catch (calendarError) {
         console.error(
-          "Error enqueueing project cancellation notifications:",
-          notificationError,
+          "Error removing calendar event for cancelled project:",
+          calendarError,
         );
       }
+    }
+
+    if (!receipt.accepted) {
       cancellationNotifications.error =
-        "Failed to queue cancellation notifications.";
-      // Don't fail the cancellation if notifications queueing fails
+        "Cancellation notifications require manual review.";
+    } else if (
+      receipt.outcome === "cancelled" &&
+      receipt.jobStatus === "pending"
+    ) {
+      const workerEnabled =
+        process.env.PROJECT_CANCELLATION_WORKER_ENABLED === "true";
+      const workerBaseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+      const workerToken =
+        process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
+
+      if (!workerEnabled) {
+        cancellationNotifications.error =
+          "Project cancellation worker is disabled.";
+      } else if (workerBaseUrl && workerToken) {
+        cancellationNotifications.triggerAttempted = true;
+        void fetch(`${workerBaseUrl}/api/cron/project-cancellations`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${workerToken}` },
+        }).catch((err) => {
+          if (process.env.NODE_ENV !== "test") {
+            console.error("Failed to trigger project cancellation worker:", err);
+          }
+        });
+      } else {
+        cancellationNotifications.error =
+          "Project cancellation worker is not configured.";
+      }
+    }
+  } else {
+    if (!(await canUserManageProject(supabase, project, user.id))) {
+      return { error: "You don't have permission to update this project" };
+    }
+
+    if (!isAllowedProjectStatusTransition(project.status, newStatus)) {
+      return { error: "Project status transition is not allowed" };
+    }
+
+    const { data: updatedProject, error: updateError } = await supabase
+      .from("projects")
+      .update({ status: newStatus })
+      .eq("id", projectId)
+      .eq("status", project.status)
+      .select("id")
+      .maybeSingle();
+
+    if (updateError) {
+      console.error("Error updating project status:", updateError);
+      return { error: "Failed to update project status" };
+    }
+
+    if (!updatedProject || updatedProject.id !== projectId) {
+      return { error: "Failed to update project status" };
     }
   }
 

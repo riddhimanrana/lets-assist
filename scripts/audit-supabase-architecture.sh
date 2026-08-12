@@ -401,6 +401,11 @@ unexpected_security_definer_exec="$(
               p.proname = 'unreject_project_signup_with_capacity'
               and pg_get_function_identity_arguments(p.oid) = 'p_signup_id uuid'
             )
+            or (
+              p.proname = 'cancel_project_transactional'
+              and pg_get_function_identity_arguments(p.oid) =
+                'p_project_id uuid, p_cancellation_reason text'
+            )
           )
         )
     )
@@ -418,6 +423,7 @@ public_client_function_acl_drift="$(
         ('public.can_insert_project(uuid)', 'authenticated'),
         ('public.can_insert_project(uuid,text,uuid)', 'authenticated'),
         ('public.can_keep_or_set_public_visibility(uuid,uuid)', 'authenticated'),
+        ('public.cancel_project_transactional(uuid,text)', 'authenticated'),
         ('public.get_public_attendees(uuid)', 'anon'),
         ('public.get_public_attendees(uuid)', 'authenticated'),
         ('public.is_project_organizer(uuid,uuid)', 'authenticated'),

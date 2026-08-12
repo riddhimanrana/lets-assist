@@ -4,48 +4,26 @@ import * as React from "react";
 import { randomUUID } from "node:crypto";
 
 import { getAdminClient } from "@/lib/supabase/admin";
-import { sendEmail } from "@/services/email";
+import { sendEmail, type SendEmailParams } from "@/services/email";
 import { createNotificationForUser } from "@/services/notifications-server";
 import {
   settlementForCancellationNotification,
   settlementForCancellationSend,
-  type CancellationEmailState,
-  type CancellationNotificationState,
+  type CancellationEmailOutcome,
+  type CancellationNotificationOutcome,
 } from "@/services/project-cancellation-dispatch";
 import ProjectCancellation from "@/emails/project-cancellation";
 
-/**
- * The durable project-cancellation worker.
- *
- * Every run does the same four things in the same order, whether or not there
- * is a single pending job:
- *
- *   1. reap expired DELIVERY leases into unknown_outcome (terminal, never re-sent);
- *   2. reap expired JOB leases back to pending, and terminalize exhausted ones;
- *   3. claim a bounded set of jobs with FOR UPDATE SKIP LOCKED;
- *   4. snapshot the audience once, drain it by keyset, finalize.
- *
- * Step 1 and step 2 run unconditionally and are the whole reason recovery is
- * discoverable: an operator does not have to manufacture a pending row to find
- * out that a lease is stuck, and a crashed run heals on the next tick without
- * anyone re-driving it by hand.
- *
- * The overlapping inline kick from the cancelling Server Action and the
- * scheduled cron run are no longer a hazard. They race for the same claim RPC,
- * and exactly one of them wins each job.
- */
-
 export const CANCELLATION_WORKER_MAX_JOBS_PER_RUN = 5;
 export const CANCELLATION_WORKER_MAX_BATCH_SIZE = 50;
+export const CANCELLATION_WORKER_DELIVERY_QUANTUM = 25;
 export const CANCELLATION_WORKER_JOB_LEASE_SECONDS = 150;
 export const CANCELLATION_WORKER_DELIVERY_LEASE_SECONDS = 90;
-
-/** Hard stop on how much a single run may drain, independent of the clock. */
 export const CANCELLATION_WORKER_MAX_DELIVERIES_PER_RUN = 500;
+export const CANCELLATION_WORKER_REAPER_LIMIT = 200;
 
 export interface CancellationEmailOutcomes {
   sent: number;
-  skipped: number;
   failed: number;
   retryable: number;
   unknown: number;
@@ -54,7 +32,7 @@ export interface CancellationEmailOutcomes {
 export interface CancellationNotificationOutcomes {
   delivered: number;
   replayed: number;
-  skipped: number;
+  retryable: number;
   failed: number;
 }
 
@@ -62,199 +40,582 @@ export interface CancellationWorkerRunResult {
   jobsClaimed: number;
   jobsCompleted: number;
   jobsNeedingReview: number;
+  jobsFailed: number;
   jobsReleased: number;
   recipientsSnapshotted: number;
   deliveriesClaimed: number;
   outcomes: CancellationEmailOutcomes;
   notifications: CancellationNotificationOutcomes;
   reapedDeliveryLeases: number;
+  reapedUnknownDeliveries: number;
   reapedJobLeases: number;
   failedExhaustedJobs: number;
+  redactedDestinations: number;
   deadlineReached: boolean;
 }
 
 type ClaimedJob = {
   id: string;
   project_id: string;
+  organization_id: string | null;
+  project_title: string;
   cancelled_at: string;
   cancellation_reason: string;
   attempts: number;
-  audience_snapshot_at: string | null;
-  recipient_count: number | null;
+  audience_snapshot_at: string;
+  recipient_count: number;
 };
 
 type ClaimedDelivery = {
   id: string;
   project_id: string;
-  signup_id: string;
+  organization_id: string | null;
+  signup_id_snapshot: string;
   user_id: string | null;
-  anonymous_id: string | null;
+  recipient_kind: "registered" | "anonymous";
+  recipient_email: string | null;
   notification_dedupe_key: string;
-  notification_state: string;
-  attempts: number;
+  email_state: "not_owed" | "queued" | "accepted" | "failed" | "unknown_outcome";
+  notification_state: "not_owed" | "queued" | "delivered" | "replayed" | "failed";
+  email_attempts: number;
+  notification_attempts: number;
 };
 
-type CancelledProject = {
-  id: string;
-  title: string;
-  status: string;
+type SettlementReceipt = {
+  settled: true;
+  emailState: ClaimedDelivery["email_state"];
+  notificationState: ClaimedDelivery["notification_state"];
+  terminal: boolean;
 };
 
-type RecipientResolution =
-  | { ok: true; email: string | null; name: string }
-  | { ok: false; reason: string };
+type ReleaseReceipt = {
+  released: true;
+  emailState: ClaimedDelivery["email_state"];
+  notificationState: ClaimedDelivery["notification_state"];
+};
+
+type FinalizeReceipt = {
+  finalized: true;
+  status: "pending" | "completed" | "needs_review" | "failed";
+};
+
+type JsonRecord = Record<string, unknown>;
+type AdminClient = ReturnType<typeof getAdminClient>;
+
+class CancellationPersistenceError extends Error {
+  constructor(operation: string) {
+    super(`Project cancellation persistence failed at ${operation}`);
+    this.name = "CancellationPersistenceError";
+  }
+}
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function requiredString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function nullableString(value: unknown): string | null | undefined {
+  if (value === null) return null;
+  return requiredString(value) ?? undefined;
+}
+
+function boundedCount(value: unknown): number | null {
+  return Number.isSafeInteger(value) && Number(value) >= 0
+    ? Number(value)
+    : null;
+}
+
+async function rpcData(
+  admin: AdminClient,
+  operation: string,
+  args?: Record<string, unknown>,
+): Promise<unknown> {
+  const { data, error } = await admin.rpc(operation, args);
+  if (error || data === null || data === undefined) {
+    throw new CancellationPersistenceError(operation);
+  }
+  return data;
+}
+
+function parseCountRecord(
+  value: unknown,
+  operation: string,
+  fields: readonly string[],
+): Record<string, number> {
+  if (!isRecord(value)) throw new CancellationPersistenceError(operation);
+  const parsed: Record<string, number> = {};
+  for (const field of fields) {
+    const count = boundedCount(value[field]);
+    if (count === null) throw new CancellationPersistenceError(operation);
+    parsed[field] = count;
+  }
+  return parsed;
+}
+
+function parseClaimedJobs(value: unknown): ClaimedJob[] {
+  if (!Array.isArray(value)) {
+    throw new CancellationPersistenceError("claim_project_cancellation_jobs");
+  }
+
+  return value.map((candidate) => {
+    if (!isRecord(candidate)) {
+      throw new CancellationPersistenceError("claim_project_cancellation_jobs");
+    }
+    const organizationId = nullableString(candidate.organization_id);
+    const recipientCount = boundedCount(candidate.recipient_count);
+    const attempts = boundedCount(candidate.attempts);
+    const parsed = {
+      id: requiredString(candidate.id),
+      project_id: requiredString(candidate.project_id),
+      organization_id: organizationId,
+      project_title: requiredString(candidate.project_title),
+      cancelled_at: requiredString(candidate.cancelled_at),
+      cancellation_reason: requiredString(candidate.cancellation_reason),
+      attempts,
+      audience_snapshot_at: requiredString(candidate.audience_snapshot_at),
+      recipient_count: recipientCount,
+    };
+    if (
+      !parsed.id ||
+      !parsed.project_id ||
+      organizationId === undefined ||
+      !parsed.project_title ||
+      !parsed.cancelled_at ||
+      !parsed.cancellation_reason ||
+      attempts === null ||
+      !parsed.audience_snapshot_at ||
+      recipientCount === null
+    ) {
+      throw new CancellationPersistenceError("claim_project_cancellation_jobs");
+    }
+    return parsed as ClaimedJob;
+  });
+}
+
+const EMAIL_STATES = new Set<ClaimedDelivery["email_state"]>([
+  "not_owed",
+  "queued",
+  "accepted",
+  "failed",
+  "unknown_outcome",
+]);
+const NOTIFICATION_STATES = new Set<ClaimedDelivery["notification_state"]>([
+  "not_owed",
+  "queued",
+  "delivered",
+  "replayed",
+  "failed",
+]);
+
+function parseClaimedDeliveries(value: unknown): ClaimedDelivery[] {
+  if (!Array.isArray(value)) {
+    throw new CancellationPersistenceError(
+      "claim_project_cancellation_deliveries",
+    );
+  }
+
+  return value.map((candidate) => {
+    if (!isRecord(candidate)) {
+      throw new CancellationPersistenceError(
+        "claim_project_cancellation_deliveries",
+      );
+    }
+    const organizationId = nullableString(candidate.organization_id);
+    const userId = nullableString(candidate.user_id);
+    const recipientEmail = nullableString(candidate.recipient_email);
+    const emailAttempts = boundedCount(candidate.email_attempts);
+    const notificationAttempts = boundedCount(candidate.notification_attempts);
+    const emailState = candidate.email_state;
+    const notificationState = candidate.notification_state;
+    const recipientKind = candidate.recipient_kind;
+
+    if (
+      !requiredString(candidate.id) ||
+      !requiredString(candidate.project_id) ||
+      organizationId === undefined ||
+      !requiredString(candidate.signup_id_snapshot) ||
+      userId === undefined ||
+      recipientEmail === undefined ||
+      !requiredString(candidate.notification_dedupe_key) ||
+      (recipientKind !== "registered" && recipientKind !== "anonymous") ||
+      !EMAIL_STATES.has(emailState as ClaimedDelivery["email_state"]) ||
+      !NOTIFICATION_STATES.has(
+        notificationState as ClaimedDelivery["notification_state"],
+      ) ||
+      emailAttempts === null ||
+      emailAttempts > 3 ||
+      notificationAttempts === null ||
+      notificationAttempts > 3 ||
+      (emailState === "queued" && recipientEmail === null)
+    ) {
+      throw new CancellationPersistenceError(
+        "claim_project_cancellation_deliveries",
+      );
+    }
+
+    return {
+      id: candidate.id,
+      project_id: candidate.project_id,
+      organization_id: organizationId,
+      signup_id_snapshot: candidate.signup_id_snapshot,
+      user_id: userId,
+      recipient_kind: recipientKind,
+      recipient_email: recipientEmail,
+      notification_dedupe_key: candidate.notification_dedupe_key,
+      email_state: emailState,
+      notification_state: notificationState,
+      email_attempts: emailAttempts,
+      notification_attempts: notificationAttempts,
+    } as ClaimedDelivery;
+  });
+}
 
 function emptyResult(): CancellationWorkerRunResult {
   return {
     jobsClaimed: 0,
     jobsCompleted: 0,
     jobsNeedingReview: 0,
+    jobsFailed: 0,
     jobsReleased: 0,
     recipientsSnapshotted: 0,
     deliveriesClaimed: 0,
-    outcomes: { sent: 0, skipped: 0, failed: 0, retryable: 0, unknown: 0 },
-    notifications: { delivered: 0, replayed: 0, skipped: 0, failed: 0 },
+    outcomes: { sent: 0, failed: 0, retryable: 0, unknown: 0 },
+    notifications: { delivered: 0, replayed: 0, retryable: 0, failed: 0 },
     reapedDeliveryLeases: 0,
+    reapedUnknownDeliveries: 0,
     reapedJobLeases: 0,
     failedExhaustedJobs: 0,
+    redactedDestinations: 0,
     deadlineReached: false,
   };
 }
 
-type AdminClient = ReturnType<typeof getAdminClient>;
-
-/**
- * Re-resolve the recipient at send time.
- *
- * The audience was frozen when the job was initialized, but authorization and
- * contactability are not frozen with it: the signup may have been deleted, the
- * address may have changed or been removed, and — the case that matters for
- * isolation — a ledger row must still belong to the project its job names.
- * Membership is deliberately NOT re-decided here; see the migration's note on
- * why a withdrawal after the snapshot still gets the notice.
- */
-async function resolveRecipient(
-  admin: AdminClient,
+function cancellationEmailPayload(
   job: ClaimedJob,
   delivery: ClaimedDelivery,
-): Promise<RecipientResolution> {
-  const { data: signup } = await admin
-    .from("project_signups")
-    .select("id, project_id, user_id, anonymous_id")
-    .eq("id", delivery.signup_id)
-    .maybeSingle();
-
-  if (!signup) return { ok: false, reason: "signup_missing" };
-  // Cross-project (and therefore cross-organization) guard: a ledger row may
-  // only ever address the project whose cancellation produced it.
-  if (signup.project_id !== job.project_id) {
-    return { ok: false, reason: "signup_project_mismatch" };
-  }
-
-  if (delivery.user_id) {
-    if (signup.user_id !== delivery.user_id) {
-      return { ok: false, reason: "signup_identity_mismatch" };
-    }
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("email, full_name")
-      .eq("id", delivery.user_id)
-      .maybeSingle();
-    return {
-      ok: true,
-      email: profile?.email ?? null,
-      name: profile?.full_name || "Volunteer",
-    };
-  }
-
-  if (delivery.anonymous_id) {
-    if (signup.anonymous_id !== delivery.anonymous_id) {
-      return { ok: false, reason: "signup_identity_mismatch" };
-    }
-    const { data: anon } = await admin
-      .from("anonymous_signups")
-      .select("email, name, project_id")
-      .eq("id", delivery.anonymous_id)
-      .maybeSingle();
-    if (!anon) return { ok: false, reason: "anonymous_signup_missing" };
-    if (anon.project_id !== job.project_id) {
-      return { ok: false, reason: "signup_project_mismatch" };
-    }
-    // email_opt_out_at is deliberately not consulted. That flag governs
-    // non-obligatory project mail; a cancellation is transactional and is owed
-    // to anyone who was going to show up.
-    return {
-      ok: true,
-      email: anon.email ?? null,
-      name: anon.name || "Volunteer",
-    };
-  }
-
-  return { ok: false, reason: "no_identity" };
-}
-
-/**
- * Deliver the in-app notice. Registered recipients only, and idempotent: the
- * deterministic dedupe key carries a unique index per recipient, so a repeat
- * run — or a retry after an ambiguous email — replays instead of duplicating.
- */
-async function deliverNotification(
-  job: ClaimedJob,
-  delivery: ClaimedDelivery,
-  project: CancelledProject,
-): Promise<CancellationNotificationState | null> {
-  if (!delivery.user_id) return null;
-
-  const reason = job.cancellation_reason?.trim();
-  const result = await createNotificationForUser(
-    {
-      title: "Project Cancelled",
-      body: `The project "${project.title}" has been cancelled.${
-        reason ? ` Reason: ${reason}` : ""
-      }`,
-      type: "project_updates",
-      severity: "warning",
-      actionUrl: `/projects/${job.project_id}`,
-      data: {
-        projectId: job.project_id,
-        event: "project_cancelled",
-        cancelledAt: job.cancelled_at,
-      },
-      dedupeKey: delivery.notification_dedupe_key,
-    },
-    delivery.user_id,
-  );
-
-  return settlementForCancellationNotification(result);
-}
-
-async function sendCancellationEmail(
-  job: ClaimedJob,
-  delivery: ClaimedDelivery,
-  project: CancelledProject,
-  recipient: { email: string; name: string },
-) {
+): SendEmailParams {
   const titleForSubject =
-    project.title.length > 60
-      ? `${project.title.slice(0, 57)}…`
-      : project.title;
+    job.project_title.length > 60
+      ? `${job.project_title.slice(0, 57)}…`
+      : job.project_title;
 
-  return sendEmail({
-    to: recipient.email,
+  return {
+    to: delivery.recipient_email!,
     subject: `Project Cancelled: ${titleForSubject}`,
     react: React.createElement(ProjectCancellation, {
-      volunteerName: recipient.name,
-      projectName: project.title,
+      volunteerName: "Volunteer",
+      projectName: job.project_title,
       cancellationReason: job.cancellation_reason,
     }),
-    // A cancellation is obligatory transactional mail, so no preference gate.
-    // sendEmail's own gate is a silent no-op from cron anyway.
     type: "transactional",
     tags: [{ name: "kind", value: "project_cancellation" }],
-    // Attempt-scoped: a released pre-send failure gets a fresh key, while a
-    // duplicate delivery of the same attempt is collapsed by the provider.
-    idempotencyKey: `project-cancellation:${delivery.id}:${delivery.attempts}`,
-  });
+    // Stable for the logical delivery, including any retry that was proven to
+    // fail before provider acceptance.
+    idempotencyKey: `project-cancellation:${delivery.id}`,
+  };
+}
+
+async function notificationOutcome(
+  job: ClaimedJob,
+  delivery: ClaimedDelivery,
+): Promise<CancellationNotificationOutcome | null> {
+  if (delivery.notification_state !== "queued") return null;
+  if (!delivery.user_id) return "failed";
+
+  try {
+    const reason = job.cancellation_reason.trim();
+    const notification = await createNotificationForUser(
+      {
+        title: "Project Cancelled",
+        body: `The project "${job.project_title}" has been cancelled.${
+          reason ? ` Reason: ${reason}` : ""
+        }`,
+        type: "project_updates",
+        severity: "warning",
+        actionUrl: `/projects/${job.project_id}`,
+        data: {
+          projectId: job.project_id,
+          event: "project_cancelled",
+          cancelledAt: job.cancelled_at,
+        },
+        dedupeKey: delivery.notification_dedupe_key,
+      },
+      delivery.user_id,
+      { respectPreferences: false },
+    );
+    return settlementForCancellationNotification(notification);
+  } catch {
+    // Notification inserts are protected by the unique dedupe key. Even an
+    // ambiguous client response can be retried without creating a second row.
+    return "retryable";
+  }
+}
+
+function expectedEmailState(
+  delivery: ClaimedDelivery,
+  outcome: CancellationEmailOutcome | null,
+): ClaimedDelivery["email_state"] {
+  if (outcome === null) return delivery.email_state;
+  if (outcome === "retryable_pre_send") {
+    return delivery.email_attempts >= 3 ? "failed" : "queued";
+  }
+  return outcome;
+}
+
+function expectedNotificationState(
+  delivery: ClaimedDelivery,
+  outcome: CancellationNotificationOutcome | null,
+): ClaimedDelivery["notification_state"] {
+  if (outcome === null) return delivery.notification_state;
+  if (outcome === "retryable") {
+    return delivery.notification_attempts >= 3 ? "failed" : "queued";
+  }
+  return outcome;
+}
+
+function parseSettlement(value: unknown): SettlementReceipt {
+  if (
+    !isRecord(value) ||
+    value.settled !== true ||
+    !EMAIL_STATES.has(value.emailState as ClaimedDelivery["email_state"]) ||
+    !NOTIFICATION_STATES.has(
+      value.notificationState as ClaimedDelivery["notification_state"],
+    ) ||
+    typeof value.terminal !== "boolean"
+  ) {
+    throw new CancellationPersistenceError(
+      "settle_project_cancellation_delivery",
+    );
+  }
+  const receipt = value as SettlementReceipt;
+  const terminal =
+    !["queued", "sending"].includes(receipt.emailState) &&
+    receipt.notificationState !== "queued";
+  if (receipt.terminal !== terminal) {
+    throw new CancellationPersistenceError(
+      "settle_project_cancellation_delivery",
+    );
+  }
+  return receipt;
+}
+
+function parseRelease(
+  value: unknown,
+  delivery: ClaimedDelivery,
+): ReleaseReceipt {
+  if (
+    !isRecord(value) ||
+    value.released !== true ||
+    !EMAIL_STATES.has(value.emailState as ClaimedDelivery["email_state"]) ||
+    !NOTIFICATION_STATES.has(
+      value.notificationState as ClaimedDelivery["notification_state"],
+    )
+  ) {
+    throw new CancellationPersistenceError(
+      "release_project_cancellation_delivery",
+    );
+  }
+
+  const receipt = value as ReleaseReceipt;
+  const expectedEmail =
+    delivery.email_state === "queued" && delivery.email_attempts >= 3
+      ? "failed"
+      : delivery.email_state;
+  const expectedNotification =
+    delivery.notification_state === "queued" &&
+    delivery.notification_attempts >= 3
+      ? "failed"
+      : delivery.notification_state;
+  if (
+    receipt.emailState !== expectedEmail ||
+    receipt.notificationState !== expectedNotification
+  ) {
+    throw new CancellationPersistenceError(
+      "release_project_cancellation_delivery",
+    );
+  }
+  return receipt;
+}
+
+async function processDelivery(
+  admin: AdminClient,
+  workerId: string,
+  job: ClaimedJob,
+  delivery: ClaimedDelivery,
+  result: CancellationWorkerRunResult,
+): Promise<void> {
+  const notification = await notificationOutcome(job, delivery);
+  let email: CancellationEmailOutcome | null = null;
+  let providerMessageId: string | null = null;
+  let failureCode: string | null =
+    notification === "failed" ? "registered_identity_deleted" : null;
+  let providerInvoked = false;
+
+  try {
+    if (delivery.email_state === "queued") {
+      // Render and locally validate the complete payload before changing the DB
+      // state to sending. A transient failure before this boundary is safe.
+      const payload = cancellationEmailPayload(job, delivery);
+      const marked = await rpcData(
+        admin,
+        "mark_project_cancellation_email_sending",
+        { p_delivery_id: delivery.id, p_worker_id: workerId },
+      );
+      if (
+        !isRecord(marked) ||
+        marked.started !== true ||
+        marked.emailState !== "sending"
+      ) {
+        throw new CancellationPersistenceError(
+          "mark_project_cancellation_email_sending",
+        );
+      }
+
+      providerInvoked = true;
+      const sendResult = await sendEmail(payload);
+      const settlement = settlementForCancellationSend(sendResult);
+      email = settlement.outcome;
+      providerMessageId = settlement.providerMessageId;
+      failureCode = settlement.failureCode ?? failureCode;
+    }
+
+    const receipt = parseSettlement(
+      await rpcData(admin, "settle_project_cancellation_delivery", {
+        p_delivery_id: delivery.id,
+        p_worker_id: workerId,
+        p_email_outcome: email,
+        p_notification_outcome: notification,
+        p_provider_message_id: providerMessageId,
+        p_failure_code: failureCode,
+      }),
+    );
+
+    const expectedEmail = expectedEmailState(delivery, email);
+    const expectedNotification = expectedNotificationState(
+      delivery,
+      notification,
+    );
+    if (
+      receipt.emailState !== expectedEmail ||
+      receipt.notificationState !== expectedNotification
+    ) {
+      throw new CancellationPersistenceError(
+        "settle_project_cancellation_delivery",
+      );
+    }
+
+    if (email === "accepted") result.outcomes.sent += 1;
+    else if (email === "retryable_pre_send") {
+      if (receipt.emailState === "failed") result.outcomes.failed += 1;
+      else result.outcomes.retryable += 1;
+    } else if (email === "failed") result.outcomes.failed += 1;
+    else if (email === "unknown_outcome") result.outcomes.unknown += 1;
+
+    if (notification === "delivered") result.notifications.delivered += 1;
+    else if (notification === "replayed") result.notifications.replayed += 1;
+    else if (notification === "retryable") {
+      if (receipt.notificationState === "failed") {
+        result.notifications.failed += 1;
+      } else {
+        result.notifications.retryable += 1;
+      }
+    } else if (notification === "failed") result.notifications.failed += 1;
+  } catch (error) {
+    if (providerInvoked && email !== null) {
+      // The provider returned a classified result; retry only the durable write,
+      // never the email. If the first settlement committed and only its response
+      // was lost, this retry reports lease_lost and the run stops with the
+      // already-correct terminal/queued state intact.
+      try {
+        const retryReceipt = await rpcData(
+          admin,
+          "settle_project_cancellation_delivery",
+          {
+          p_delivery_id: delivery.id,
+          p_worker_id: workerId,
+          p_email_outcome: email,
+          p_notification_outcome: notification,
+          p_provider_message_id: providerMessageId,
+          p_failure_code: failureCode,
+          },
+        );
+        if (
+          !(
+            isRecord(retryReceipt) &&
+            retryReceipt.settled === false &&
+            retryReceipt.reason === "lease_lost"
+          )
+        ) {
+          parseSettlement(retryReceipt);
+        }
+      } catch {
+        // The lease reaper preserves the conservative truth if persistence is
+        // still unavailable.
+      }
+      throw new CancellationPersistenceError(
+        "settle_project_cancellation_delivery",
+      );
+    }
+
+    if (providerInvoked) {
+      // A throw after invocation is ambiguous regardless of where it came from.
+      // Settle terminally; if settlement itself is unavailable, leave the lease
+      // for the bounded reaper, which reaches the same unknown_outcome truth.
+      try {
+        const receipt = parseSettlement(
+          await rpcData(admin, "settle_project_cancellation_delivery", {
+            p_delivery_id: delivery.id,
+            p_worker_id: workerId,
+            p_email_outcome: "unknown_outcome",
+            p_notification_outcome: notification,
+            p_provider_message_id: null,
+            p_failure_code: "dispatch_crashed",
+          }),
+        );
+        if (receipt.emailState !== "unknown_outcome") {
+          throw new CancellationPersistenceError(
+            "settle_project_cancellation_delivery",
+          );
+        }
+        result.outcomes.unknown += 1;
+      } catch {
+        throw new CancellationPersistenceError(
+          "settle_project_cancellation_delivery",
+        );
+      }
+      return;
+    }
+
+    // No provider call began. Returning the lease to idle is truthful, including
+    // the case where the mark RPC committed but its response was lost.
+    parseRelease(
+      await rpcData(admin, "release_project_cancellation_delivery", {
+        p_delivery_id: delivery.id,
+        p_worker_id: workerId,
+        p_failure_code: "pre_send_persistence_error",
+      }),
+      delivery,
+    );
+    throw error;
+  }
+}
+
+function parseFinalize(value: unknown): FinalizeReceipt {
+  if (
+    !isRecord(value) ||
+    value.finalized !== true ||
+    !["pending", "completed", "needs_review", "failed"].includes(
+      String(value.status),
+    )
+  ) {
+    throw new CancellationPersistenceError(
+      "finalize_project_cancellation_job",
+    );
+  }
+  return value as FinalizeReceipt;
 }
 
 export async function runProjectCancellationWorker(
@@ -262,7 +623,6 @@ export async function runProjectCancellationWorker(
     batchSize?: number;
     maxJobs?: number;
     deadlineMs?: number;
-    /** Injectable clock. The deadline path is otherwise untestable without sleeping. */
     now?: () => number;
   } = {},
 ): Promise<CancellationWorkerRunResult> {
@@ -273,226 +633,145 @@ export async function runProjectCancellationWorker(
     Math.max(options.batchSize ?? CANCELLATION_WORKER_MAX_BATCH_SIZE, 1),
     CANCELLATION_WORKER_MAX_BATCH_SIZE,
   );
+  const quantum = Math.min(batchSize, CANCELLATION_WORKER_DELIVERY_QUANTUM);
   const maxJobs = Math.min(
     Math.max(options.maxJobs ?? CANCELLATION_WORKER_MAX_JOBS_PER_RUN, 1),
     CANCELLATION_WORKER_MAX_JOBS_PER_RUN,
   );
+  const outOfTime = () => now() - startedAt > deadlineMs;
 
   const admin = getAdminClient();
   const workerId = `cancellation-${randomUUID()}`;
   const result = emptyResult();
 
-  const outOfTime = () => now() - startedAt > deadlineMs;
-
-  const settle = async (
-    deliveryId: string,
-    emailState: CancellationEmailState,
-    notificationState: CancellationNotificationState | null,
-    providerMessageId: string | null,
-    failureCode: string | null,
-  ) => {
-    await admin.rpc("settle_project_cancellation_delivery", {
-      p_id: deliveryId,
-      p_worker_id: workerId,
-      p_email_state: emailState,
-      p_notification_state: notificationState,
-      p_provider_message_id: providerMessageId,
-      p_failure_code: failureCode,
-    });
-  };
-
-  const countEmail = (state: CancellationEmailState) => {
-    if (state === "sent") result.outcomes.sent += 1;
-    else if (state === "skipped") result.outcomes.skipped += 1;
-    else if (state === "failed") result.outcomes.failed += 1;
-    else if (state === "queued") result.outcomes.retryable += 1;
-    else result.outcomes.unknown += 1;
-  };
-
-  const countNotification = (state: CancellationNotificationState | null) => {
-    if (state === null) return;
-    result.notifications[state] += 1;
-  };
-
-  // --- 1 & 2: recovery first, and always. ------------------------------------
-  const { data: reapedDeliveries } = await admin.rpc(
+  const deliveryReap = parseCountRecord(
+    await rpcData(admin, "reap_project_cancellation_delivery_leases", {
+      p_limit: CANCELLATION_WORKER_REAPER_LIMIT,
+    }),
     "reap_project_cancellation_delivery_leases",
+    ["released", "unknown"],
   );
-  result.reapedDeliveryLeases = Number(reapedDeliveries ?? 0);
+  result.reapedDeliveryLeases = deliveryReap.released;
+  result.reapedUnknownDeliveries = deliveryReap.unknown;
 
-  const { data: reapedJobs } = await admin.rpc(
+  const jobReap = parseCountRecord(
+    await rpcData(admin, "reap_project_cancellation_job_leases", {
+      p_limit: CANCELLATION_WORKER_REAPER_LIMIT,
+    }),
     "reap_project_cancellation_job_leases",
+    ["released", "failed"],
   );
-  const jobReap = (reapedJobs ?? {}) as { released?: number; failed?: number };
-  result.reapedJobLeases = Number(jobReap.released ?? 0);
-  result.failedExhaustedJobs = Number(jobReap.failed ?? 0);
+  result.reapedJobLeases = jobReap.released;
+  result.failedExhaustedJobs = jobReap.failed;
 
-  // --- 3: bounded, fair, atomic job claim. -----------------------------------
-  const { data: claimedJobs } = await admin.rpc(
-    "claim_project_cancellation_jobs",
-    {
+  const redacted = boundedCount(
+    await rpcData(admin, "redact_project_cancellation_destinations", {
+      p_limit: CANCELLATION_WORKER_REAPER_LIMIT,
+    }),
+  );
+  if (redacted === null) {
+    throw new CancellationPersistenceError(
+      "redact_project_cancellation_destinations",
+    );
+  }
+  result.redactedDestinations = redacted;
+
+  const jobs = parseClaimedJobs(
+    await rpcData(admin, "claim_project_cancellation_jobs", {
       p_worker_id: workerId,
       p_limit: maxJobs,
       p_lease_seconds: CANCELLATION_WORKER_JOB_LEASE_SECONDS,
-    },
+    }),
+  );
+  result.jobsClaimed = jobs.length;
+  result.recipientsSnapshotted = jobs.reduce(
+    (sum, job) => sum + job.recipient_count,
+    0,
   );
 
+  const active = new Set(jobs.map((job) => job.id));
   let deliveriesThisRun = 0;
 
-  for (const job of (claimedJobs ?? []) as ClaimedJob[]) {
-    result.jobsClaimed += 1;
-
-    if (outOfTime()) {
-      // Leave the lease to the reaper rather than starting work we cannot
-      // finish. A job lease expiring is safe; only a delivery lease is not.
-      result.deadlineReached = true;
-      break;
-    }
-
-    if (!job.audience_snapshot_at) {
-      const { data: snapshot } = await admin.rpc(
-        "initialize_project_cancellation_audience",
-        { p_job_id: job.id, p_worker_id: workerId },
-      );
-      const snapshotResult = (snapshot ?? {}) as { recipients?: number };
-      result.recipientsSnapshotted += Number(snapshotResult.recipients ?? 0);
-    }
-
-    const { data: projectRow } = await admin
-      .from("projects")
-      .select("id, title, status")
-      .eq("id", job.project_id)
-      .maybeSingle();
-    const project = projectRow as CancelledProject | null;
-
-    // --- 4: keyset drain. ----------------------------------------------------
-    let drained = true;
-    while (drained && !outOfTime()) {
-      if (deliveriesThisRun >= CANCELLATION_WORKER_MAX_DELIVERIES_PER_RUN)
+  while (
+    active.size > 0 &&
+    deliveriesThisRun < CANCELLATION_WORKER_MAX_DELIVERIES_PER_RUN &&
+    !outOfTime()
+  ) {
+    for (const job of jobs) {
+      if (!active.has(job.id)) continue;
+      if (
+        outOfTime() ||
+        deliveriesThisRun >= CANCELLATION_WORKER_MAX_DELIVERIES_PER_RUN
+      ) {
+        result.deadlineReached = outOfTime();
         break;
+      }
 
-      const remainingBudget =
+      const remaining =
         CANCELLATION_WORKER_MAX_DELIVERIES_PER_RUN - deliveriesThisRun;
-      const { data: claims } = await admin.rpc(
-        "claim_project_cancellation_deliveries",
-        {
+      const deliveries = parseClaimedDeliveries(
+        await rpcData(admin, "claim_project_cancellation_deliveries", {
           p_job_id: job.id,
           p_worker_id: workerId,
-          p_limit: Math.min(batchSize, remainingBudget),
+          p_limit: Math.min(quantum, remaining),
           p_lease_seconds: CANCELLATION_WORKER_DELIVERY_LEASE_SECONDS,
-        },
+        }),
       );
 
-      const batch = (claims ?? []) as ClaimedDelivery[];
-      drained = batch.length > 0;
-      deliveriesThisRun += batch.length;
-      result.deliveriesClaimed += batch.length;
+      if (deliveries.length === 0) {
+        active.delete(job.id);
+        continue;
+      }
 
-      for (const delivery of batch) {
+      deliveriesThisRun += deliveries.length;
+      result.deliveriesClaimed += deliveries.length;
+
+      for (const delivery of deliveries) {
         if (outOfTime()) {
-          // Release cleanly. Nothing was sent for this row, so 'queued' is the
-          // truthful state — letting the lease expire would libel it as
-          // ambiguous and strand it forever.
           result.deadlineReached = true;
-          await settle(delivery.id, "queued", null, null, "run_deadline");
-          countEmail("queued");
+          const released = parseRelease(
+            await rpcData(admin, "release_project_cancellation_delivery", {
+              p_delivery_id: delivery.id,
+              p_worker_id: workerId,
+              p_failure_code: "run_deadline",
+            }),
+            delivery,
+          );
+          if (delivery.email_state === "queued") {
+            if (released.emailState === "failed") result.outcomes.failed += 1;
+            else result.outcomes.retryable += 1;
+          }
+          if (delivery.notification_state === "queued") {
+            if (released.notificationState === "failed") {
+              result.notifications.failed += 1;
+            } else {
+              result.notifications.retryable += 1;
+            }
+          }
           continue;
         }
-
-        try {
-          if (!project) {
-            await settle(delivery.id, "skipped", null, null, "project_missing");
-            countEmail("skipped");
-            continue;
-          }
-          if (project.status !== "cancelled") {
-            // The organizer reinstated the project after the job was queued.
-            // Announcing a cancellation now would be false.
-            await settle(
-              delivery.id,
-              "skipped",
-              null,
-              null,
-              "project_not_cancelled",
-            );
-            countEmail("skipped");
-            continue;
-          }
-
-          const recipient = await resolveRecipient(admin, job, delivery);
-          if (!recipient.ok) {
-            await settle(delivery.id, "skipped", null, null, recipient.reason);
-            countEmail("skipped");
-            continue;
-          }
-
-          // In-app first: it is idempotent, so it costs nothing to repeat and
-          // still lands when the email is skipped or ambiguous.
-          const notificationState = await deliverNotification(
-            job,
-            delivery,
-            project,
-          );
-          countNotification(notificationState);
-
-          if (!recipient.email) {
-            await settle(
-              delivery.id,
-              "skipped",
-              notificationState,
-              null,
-              "no_address",
-            );
-            countEmail("skipped");
-            continue;
-          }
-
-          const sendResult = await sendCancellationEmail(
-            job,
-            delivery,
-            project,
-            {
-              email: recipient.email,
-              name: recipient.name,
-            },
-          );
-          const settlement = settlementForCancellationSend(sendResult);
-          await settle(
-            delivery.id,
-            settlement.state,
-            notificationState,
-            settlement.providerMessageId,
-            settlement.failureCode,
-          );
-          countEmail(settlement.state);
-        } catch (error) {
-          // A throw anywhere in here means we cannot prove the provider was
-          // not reached. Say so, terminally.
-          console.error(
-            `Cancellation dispatch crashed for delivery ${delivery.id}:`,
-            error,
-          );
-          await settle(
-            delivery.id,
-            "unknown_outcome",
-            null,
-            null,
-            "dispatch_crashed",
-          );
-          countEmail("unknown_outcome");
-        }
+        await processDelivery(admin, workerId, job, delivery, result);
       }
     }
+  }
 
-    const { data: finalized } = await admin.rpc(
-      "finalize_project_cancellation_job",
-      { p_job_id: job.id, p_worker_id: workerId },
+  if (outOfTime()) result.deadlineReached = true;
+
+  // Finalization releases every still-owned job lease. It may complete, park for
+  // review, fail an exhausted job, or return pending when the global budget left
+  // owed channel work for a later fair pass.
+  for (const job of jobs) {
+    const receipt = parseFinalize(
+      await rpcData(admin, "finalize_project_cancellation_job", {
+        p_job_id: job.id,
+        p_worker_id: workerId,
+      }),
     );
-    const finalState = (finalized ?? {}) as { status?: string };
-    if (finalState.status === "completed") result.jobsCompleted += 1;
-    else if (finalState.status === "needs_review")
+    if (receipt.status === "completed") result.jobsCompleted += 1;
+    else if (receipt.status === "needs_review") {
       result.jobsNeedingReview += 1;
-    else if (finalState.status === "pending") result.jobsReleased += 1;
+    } else if (receipt.status === "failed") result.jobsFailed += 1;
+    else result.jobsReleased += 1;
   }
 
   return result;

@@ -1,570 +1,578 @@
--- Durable project-cancellation worker: exactly-once behavior.
---
--- What this file is actually trying to break: the three ways the previous
--- design could tell a volunteer twice — two workers on one job, an offset page
--- over a mutable signup list, and a crash between the provider call and the
--- cursor write. Each gets an assertion here, alongside the state machine that
--- replaced it.
---
--- The whole file runs inside one transaction and ends in ROLLBACK. True
--- two-session concurrency lives in project_cancellation_worker_concurrency.test.sql,
--- which needs committed rows and a second connection.
+-- Atomic cancellation and owed-channel ledger semantics. Authored for the
+-- isolated pgTAP gate; intentionally not executed in this worktree.
 
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SELECT extensions.plan(35);
 
--- An exact plan: no_plan() cannot tell "every assertion passed" apart from
--- "half of them never ran".
-SELECT extensions.plan(56);
-
--- ---------------------------------------------------------------------------
--- A. Privileges: the whole surface is service-only
--- ---------------------------------------------------------------------------
-
+-- ACL and empty-search-path boundary.
 SELECT extensions.ok(
-  NOT has_function_privilege('authenticated',
-    'public.enqueue_project_cancellation_job(uuid,timestamptz,text,uuid)', 'EXECUTE')
-  AND NOT has_function_privilege('anon',
-    'public.enqueue_project_cancellation_job(uuid,timestamptz,text,uuid)', 'EXECUTE'),
-  'no client role can enqueue a cancellation job'
-);
-SELECT extensions.ok(
-  NOT has_function_privilege('authenticated',
-    'public.claim_project_cancellation_jobs(text,integer,integer)', 'EXECUTE'),
-  'clients cannot claim cancellation jobs'
-);
-SELECT extensions.ok(
-  NOT has_function_privilege('authenticated',
-    'public.initialize_project_cancellation_audience(uuid,text)', 'EXECUTE'),
-  'clients cannot snapshot a cancellation audience'
-);
-SELECT extensions.ok(
-  NOT has_function_privilege('authenticated',
-    'public.claim_project_cancellation_deliveries(uuid,text,integer,integer)', 'EXECUTE')
-  AND NOT has_function_privilege('authenticated',
-    'public.settle_project_cancellation_delivery(uuid,text,text,text,text,text)', 'EXECUTE'),
-  'clients can neither claim nor settle a recipient delivery'
-);
-SELECT extensions.ok(
-  NOT has_function_privilege('authenticated',
-    'public.reap_project_cancellation_delivery_leases()', 'EXECUTE')
-  AND NOT has_function_privilege('authenticated',
-    'public.reap_project_cancellation_job_leases()', 'EXECUTE')
-  AND NOT has_function_privilege('authenticated',
-    'public.finalize_project_cancellation_job(uuid,text)', 'EXECUTE'),
-  'clients cannot reap leases or finalize a job'
-);
-SELECT extensions.ok(
-  NOT has_table_privilege('anon', 'public.project_cancellation_deliveries', 'SELECT')
-    AND NOT has_table_privilege('authenticated', 'public.project_cancellation_deliveries', 'SELECT'),
-  'the delivery ledger is invisible to every client role'
-);
-SELECT extensions.ok(
-  NOT has_table_privilege('anon', 'public.project_cancellation_jobs', 'SELECT')
-    AND NOT has_table_privilege('authenticated', 'public.project_cancellation_jobs', 'UPDATE'),
-  'the job table no longer carries the baseline client grants'
+  has_function_privilege(
+    'authenticated', 'public.cancel_project_transactional(uuid,text)', 'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'anon', 'public.cancel_project_transactional(uuid,text)', 'EXECUTE'
+  ),
+  'only authenticated callers can reach the cancellation transaction'
 );
 
--- ---------------------------------------------------------------------------
--- B. Fixtures: two organizations, one cancelled project each
--- ---------------------------------------------------------------------------
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'authenticated', 'public.claim_project_cancellation_jobs(text,integer,integer)', 'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'authenticated', 'public.settle_project_cancellation_delivery(uuid,text,text,text,text,text)', 'EXECUTE'
+  ),
+  'worker mutation RPCs remain service-only'
+);
 
+SELECT extensions.is(
+  (
+    SELECT config
+    FROM pg_catalog.pg_proc AS proc
+    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = proc.pronamespace
+    CROSS JOIN LATERAL unnest(proc.proconfig) AS config
+    WHERE namespace.nspname = 'public'
+      AND proc.proname = 'cancel_project_transactional'
+      AND config LIKE 'search_path=%'
+  ),
+  'search_path='::text,
+  'cancellation authority has an empty search_path'
+);
+
+SELECT extensions.ok(
+  has_table_privilege('service_role', 'public.project_cancellation_jobs', 'SELECT')
+  AND NOT has_table_privilege('service_role', 'public.project_cancellation_jobs', 'INSERT')
+  AND NOT has_table_privilege('service_role', 'public.project_cancellation_jobs', 'UPDATE')
+  AND NOT has_table_privilege('service_role', 'public.project_cancellation_jobs', 'DELETE')
+  AND NOT has_table_privilege('service_role', 'public.project_cancellation_jobs', 'TRUNCATE')
+  AND has_table_privilege('service_role', 'public.project_cancellation_deliveries', 'SELECT')
+  AND NOT has_table_privilege('service_role', 'public.project_cancellation_deliveries', 'INSERT')
+  AND NOT has_table_privilege('service_role', 'public.project_cancellation_deliveries', 'UPDATE')
+  AND NOT has_table_privilege('service_role', 'public.project_cancellation_deliveries', 'DELETE')
+  AND NOT has_table_privilege('service_role', 'public.project_cancellation_deliveries', 'TRUNCATE'),
+  'service role can inspect but cannot directly mutate either ledger table'
+);
+
+SELECT extensions.ok(
+  to_regprocedure('public.enqueue_project_cancellation_job(uuid,timestamptz,text,uuid)') IS NULL
+  AND to_regprocedure('public.initialize_project_cancellation_audience(uuid,text)') IS NULL,
+  'split enqueue and snapshot RPCs no longer exist'
+);
+
+-- Synthetic identities and projects.
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 )
 VALUES
-  ('ca000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated',
-   'cxl-creator@local.test', now(), '{}', '{"username":"cxl_creator"}', now(), now()),
-  ('ca000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated',
-   'cxl-vol-one@local.test', now(), '{}', '{"username":"cxl_vol_one"}', now(), now()),
-  ('ca000000-0000-4000-8000-000000000003', 'authenticated', 'authenticated',
-   'cxl-vol-two@local.test', now(), '{}', '{"username":"cxl_vol_two"}', now(), now()),
-  ('ca000000-0000-4000-8000-000000000004', 'authenticated', 'authenticated',
-   'cxl-late@local.test', now(), '{}', '{"username":"cxl_late"}', now(), now()),
-  ('ca000000-0000-4000-8000-000000000005', 'authenticated', 'authenticated',
-   'cxl-other-org@local.test', now(), '{}', '{"username":"cxl_other_org"}', now(), now());
+  ('da000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated',
+   'cancel-owner@local.test', now(), '{}', '{"username":"cancel_owner"}', now(), now()),
+  ('da000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated',
+   'cancel-volunteer@local.test', now(), '{}', '{"username":"cancel_volunteer"}', now(), now()),
+  ('da000000-0000-4000-8000-000000000003', 'authenticated', 'authenticated',
+   'cancel-outsider@local.test', now(), '{}', '{"username":"cancel_outsider"}', now(), now());
+
+UPDATE public.profiles
+SET email = CASE id
+  WHEN 'da000000-0000-4000-8000-000000000001'::uuid THEN 'owner@local.test'
+  WHEN 'da000000-0000-4000-8000-000000000002'::uuid THEN 'frozen-user@local.test'
+  ELSE 'outsider@local.test'
+END
+WHERE id::text LIKE 'da000000-0000-4000-8000-00000000000%';
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
-VALUES
-  ('ca100000-0000-4000-8000-000000000001', 'Cxl Org A', 'cxl-org-a', 'nonprofit', 'CXLA01'),
-  ('ca100000-0000-4000-8000-000000000002', 'Cxl Org B', 'cxl-org-b', 'nonprofit', 'CXLB01');
+VALUES ('da100000-0000-4000-8000-000000000001', 'Cancellation Org', 'cancel-org', 'nonprofit', 'CXL001');
 
 INSERT INTO public.projects (
   id, creator_id, organization_id, title, location, description, event_type,
-  verification_method, schedule, require_login, status,
-  cancelled_at, cancellation_reason
+  verification_method, schedule, require_login, status
 )
 VALUES
-  ('ca200000-0000-4000-8000-000000000001',
-   'ca000000-0000-4000-8000-000000000001',
-   'ca100000-0000-4000-8000-000000000001',
-   'Cancelled beach cleanup', 'Local', 'Cancellation fixture', 'oneTime', 'manual',
-   jsonb_build_object('oneTime', jsonb_build_object(
-     'date', to_char((clock_timestamp() AT TIME ZONE 'America/Los_Angeles') + interval '2 day', 'YYYY-MM-DD'),
-     'startTime', '10:00', 'endTime', '12:00', 'volunteers', 20)),
-   true, 'cancelled', now(), 'Storm warning'),
-  ('ca200000-0000-4000-8000-000000000002',
-   'ca000000-0000-4000-8000-000000000001',
-   'ca100000-0000-4000-8000-000000000002',
-   'Other org cancelled drive', 'Local', 'Isolation fixture', 'oneTime', 'manual',
-   jsonb_build_object('oneTime', jsonb_build_object(
-     'date', to_char((clock_timestamp() AT TIME ZONE 'America/Los_Angeles') + interval '3 day', 'YYYY-MM-DD'),
-     'startTime', '10:00', 'endTime', '12:00', 'volunteers', 20)),
-   true, 'cancelled', now(), 'Venue withdrew');
+  ('da200000-0000-4000-8000-000000000001',
+   'da000000-0000-4000-8000-000000000001',
+   'da100000-0000-4000-8000-000000000001',
+   'Atomic cancellation', 'Local', 'Atomic fixture', 'oneTime', 'manual',
+   '{"oneTime":{"date":"2030-08-20","startTime":"10:00","endTime":"12:00","volunteers":20}}',
+   true, 'upcoming'),
+  ('da200000-0000-4000-8000-000000000002',
+   'da000000-0000-4000-8000-000000000001',
+   'da100000-0000-4000-8000-000000000001',
+   'Transition denied', 'Local', 'Transition fixture', 'oneTime', 'manual',
+   '{"oneTime":{"date":"2030-08-21","startTime":"10:00","endTime":"12:00","volunteers":20}}',
+   true, 'in-progress'),
+  ('da200000-0000-4000-8000-000000000003',
+   'da000000-0000-4000-8000-000000000001',
+   'da100000-0000-4000-8000-000000000001',
+   'Permission denied', 'Local', 'Permission fixture', 'oneTime', 'manual',
+   '{"oneTime":{"date":"2030-08-22","startTime":"10:00","endTime":"12:00","volunteers":20}}',
+   true, 'upcoming');
 
 INSERT INTO public.anonymous_signups (id, project_id, email, name, confirmed_at)
-VALUES
-  ('ca300000-0000-4000-8000-000000000001',
-   'ca200000-0000-4000-8000-000000000001',
-   'cxl-anon@local.test', 'Anon Cxl', now()),
--- Deliberately contactless: it must still be snapshotted, with a NULL hash, so
--- the run can account for it instead of silently dropping a person.
-  ('ca300000-0000-4000-8000-000000000002',
-   'ca200000-0000-4000-8000-000000000001',
-   NULL, 'Addressless Cxl', now());
+VALUES (
+  'da300000-0000-4000-8000-000000000001',
+  'da200000-0000-4000-8000-000000000001',
+  'frozen-anon@local.test', 'Frozen Anonymous', now()
+);
 
 INSERT INTO public.project_signups
   (id, project_id, user_id, anonymous_id, schedule_id, status, created_at)
 VALUES
--- One volunteer, two approved slots: exactly one logical recipient.
-  ('ca400000-0000-4000-8000-000000000001',
-   'ca200000-0000-4000-8000-000000000001',
-   'ca000000-0000-4000-8000-000000000002', NULL, 'oneTime', 'approved',
-   now() - interval '5 hour'),
-  ('ca400000-0000-4000-8000-000000000002',
-   'ca200000-0000-4000-8000-000000000001',
-   'ca000000-0000-4000-8000-000000000002', NULL, 'oneTime-second', 'approved',
-   now() - interval '4 hour'),
-  ('ca400000-0000-4000-8000-000000000003',
-   'ca200000-0000-4000-8000-000000000001',
-   'ca000000-0000-4000-8000-000000000003', NULL, 'oneTime', 'approved',
-   now() - interval '3 hour'),
-  ('ca400000-0000-4000-8000-000000000004',
-   'ca200000-0000-4000-8000-000000000001',
-   NULL, 'ca300000-0000-4000-8000-000000000001', 'oneTime', 'approved',
-   now() - interval '2 hour'),
-  ('ca400000-0000-4000-8000-000000000005',
-   'ca200000-0000-4000-8000-000000000001',
-   NULL, 'ca300000-0000-4000-8000-000000000002', 'oneTime', 'approved',
-   now() - interval '1 hour'),
--- Never approved: not part of the audience.
-  ('ca400000-0000-4000-8000-000000000006',
-   'ca200000-0000-4000-8000-000000000001',
-   'ca000000-0000-4000-8000-000000000004', NULL, 'oneTime', 'pending', now()),
--- Another organization's project entirely.
-  ('ca400000-0000-4000-8000-000000000007',
-   'ca200000-0000-4000-8000-000000000002',
-   'ca000000-0000-4000-8000-000000000005', NULL, 'oneTime', 'approved', now());
+  ('da400000-0000-4000-8000-000000000001',
+   'da200000-0000-4000-8000-000000000001',
+   'da000000-0000-4000-8000-000000000002', NULL, 'oneTime', 'approved', now() - interval '3 hour'),
+  ('da400000-0000-4000-8000-000000000002',
+   'da200000-0000-4000-8000-000000000001',
+   'da000000-0000-4000-8000-000000000002', NULL, 'second-slot', 'approved', now() - interval '2 hour'),
+  ('da400000-0000-4000-8000-000000000003',
+   'da200000-0000-4000-8000-000000000001',
+   NULL, 'da300000-0000-4000-8000-000000000001', 'oneTime', 'approved', now() - interval '1 hour'),
+  ('da400000-0000-4000-8000-000000000004',
+   'da200000-0000-4000-8000-000000000001',
+   'da000000-0000-4000-8000-000000000003', NULL, 'oneTime', 'pending', now());
 
--- ---------------------------------------------------------------------------
--- C. Enqueue is idempotent and never resets a live job
--- ---------------------------------------------------------------------------
+SET LOCAL request.jwt.claims =
+  '{"sub":"da000000-0000-4000-8000-000000000001","role":"authenticated"}';
+SET LOCAL ROLE authenticated;
 
 SELECT extensions.is(
-  (public.enqueue_project_cancellation_job(
-    'ca200000-0000-4000-8000-000000000001', now(), 'Storm warning',
-    'ca000000-0000-4000-8000-000000000001') ->> 'activated')::boolean,
-  true,
-  'the first enqueue registers the job'
+  public.cancel_project_transactional(
+    'da200000-0000-4000-8000-000000000001', 'Storm warning'
+  )->>'outcome',
+  'cancelled',
+  'one RPC performs the cancellation transition'
 );
+
+RESET ROLE;
+
 SELECT extensions.is(
-  (public.enqueue_project_cancellation_job(
-    'ca200000-0000-4000-8000-000000000001', now(), 'Storm warning again',
-    'ca000000-0000-4000-8000-000000000001') ->> 'activated')::boolean,
-  false,
-  'a repeated cancellation does not re-activate the existing job'
+  (SELECT status FROM public.projects WHERE id = 'da200000-0000-4000-8000-000000000001'),
+  'cancelled',
+  'project is really upcoming-to-cancelled'
 );
+
 SELECT extensions.is(
   (SELECT count(*) FROM public.project_cancellation_jobs
-   WHERE project_id = 'ca200000-0000-4000-8000-000000000001'),
+   WHERE project_id = 'da200000-0000-4000-8000-000000000001'),
   1::bigint,
-  'one project has exactly one cancellation job'
+  'transaction creates exactly one job'
 );
 
-SELECT public.enqueue_project_cancellation_job(
-  'ca200000-0000-4000-8000-000000000002', now(), 'Venue withdrew',
-  'ca000000-0000-4000-8000-000000000001');
+SELECT extensions.is(
+  (SELECT recipient_count FROM public.project_cancellation_jobs
+   WHERE project_id = 'da200000-0000-4000-8000-000000000001'),
+  2,
+  'audience dedupes duplicate registered signups and excludes pending signup'
+);
 
--- ---------------------------------------------------------------------------
--- D. Job claims are mutually exclusive
--- ---------------------------------------------------------------------------
+SELECT extensions.is(
+  (SELECT count(*) FROM public.project_cancellation_deliveries
+   WHERE project_id = 'da200000-0000-4000-8000-000000000001'),
+  2::bigint,
+  'recipient count exactly matches the frozen ledger'
+);
 
-CREATE TEMP TABLE claimed_a AS
+SELECT extensions.results_eq(
+  $$
+    SELECT recipient_kind, recipient_email, email_state, notification_state
+    FROM public.project_cancellation_deliveries
+    WHERE project_id = 'da200000-0000-4000-8000-000000000001'
+    ORDER BY recipient_kind DESC
+  $$,
+  $$ VALUES
+    ('registered'::text, 'frozen-user@local.test'::text, 'queued'::text, 'queued'::text),
+    ('anonymous'::text, 'frozen-anon@local.test'::text, 'queued'::text, 'not_owed'::text)
+  $$,
+  'exact destinations and owed channel states freeze at cancellation'
+);
+
+SELECT extensions.ok(
+  (SELECT audience_snapshot_at = cancelled_at
+   FROM public.project_cancellation_jobs
+   WHERE project_id = 'da200000-0000-4000-8000-000000000001'),
+  'project transition and audience share one cancellation instant'
+);
+
+-- Idempotence never resets a live job.
+SET LOCAL ROLE authenticated;
+SELECT extensions.is(
+  public.cancel_project_transactional(
+    'da200000-0000-4000-8000-000000000001', 'Different retry text'
+  )->>'outcome',
+  'already_cancelled',
+  'repeat cancellation is idempotent'
+);
+RESET ROLE;
+
+SELECT extensions.is(
+  (SELECT count(*) FROM public.project_cancellation_deliveries
+   WHERE project_id = 'da200000-0000-4000-8000-000000000001'),
+  2::bigint,
+  'idempotent repeat neither resnapshots nor duplicates deliveries'
+);
+
+-- Permission and transition denial live in the same locked RPC.
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"da000000-0000-4000-8000-000000000003","role":"authenticated"}',
+  true
+);
+SET LOCAL ROLE authenticated;
+SELECT extensions.throws_ok(
+  $$SELECT public.cancel_project_transactional(
+    'da200000-0000-4000-8000-000000000003', 'Hostile attempt'
+  )$$,
+  '42501',
+  'project cancellation permission denied',
+  'unrelated authenticated user is denied inside the transaction'
+);
+RESET ROLE;
+
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"da000000-0000-4000-8000-000000000001","role":"authenticated"}',
+  true
+);
+SET LOCAL ROLE authenticated;
+SELECT extensions.throws_ok(
+  $$SELECT public.cancel_project_transactional(
+    'da200000-0000-4000-8000-000000000002', 'Too late'
+  )$$,
+  '55000',
+  'only an upcoming project can be cancelled',
+  'non-upcoming transition is denied'
+);
+RESET ROLE;
+
+SELECT extensions.throws_ok(
+  $$UPDATE public.project_signups
+    SET status = 'approved'
+    WHERE id = 'da400000-0000-4000-8000-000000000004'$$,
+  '55000',
+  'signups can only be approved for upcoming projects',
+  'approval after cancellation cannot escape the frozen audience'
+);
+
+SELECT extensions.throws_ok(
+  $$UPDATE public.project_signups
+    SET organization_id = 'da100000-0000-4000-8000-000000000099'
+    WHERE id = 'da400000-0000-4000-8000-000000000004'$$,
+  '23514',
+  'project signup organization does not match project',
+  'signup tenant coordinates cannot drift from their project'
+);
+
+SELECT extensions.throws_ok(
+  $$INSERT INTO public.project_cancellation_jobs (
+      project_id, organization_id, project_title, cancelled_at,
+      cancellation_reason, status, cursor
+    ) VALUES (
+      'da200000-0000-4000-8000-000000000002',
+      'da100000-0000-4000-8000-000000000001',
+      'Legacy cursor zero', now(), 'Legacy', 'pending', 0
+    )$$,
+  '23514',
+  NULL,
+  'legacy-shaped pending cursor zero job cannot become claimable after upgrade'
+);
+
+SET LOCAL ROLE service_role;
+SELECT extensions.throws_ok(
+  $$UPDATE public.project_cancellation_jobs SET status = 'completed'$$,
+  '42501',
+  'permission denied for table project_cancellation_jobs',
+  'service role cannot mutate job state outside an RPC'
+);
+RESET ROLE;
+
+-- Channel state is independent: notification retry cannot resend accepted mail.
+CREATE TEMP TABLE claimed_job AS
 SELECT * FROM public.claim_project_cancellation_jobs('worker-a', 1, 120);
 
-SELECT extensions.is(
-  (SELECT count(*) FROM claimed_a), 1::bigint,
-  'a bounded claim returns exactly the requested number of jobs'
-);
-SELECT extensions.is(
-  (SELECT claimed_a.project_id FROM claimed_a),
-  'ca200000-0000-4000-8000-000000000001'::uuid,
-  'the oldest unattempted job is claimed first'
-);
-SELECT extensions.is(
-  (SELECT jobs.status || ':' || jobs.lease_owner || ':' || jobs.attempts
-   FROM public.project_cancellation_jobs AS jobs
-   WHERE jobs.id = (SELECT claimed_a.id FROM claimed_a)),
-  'processing:worker-a:1',
-  'claiming leases the job to its owner and counts the attempt'
-);
-
-CREATE TEMP TABLE claimed_b AS
-SELECT * FROM public.claim_project_cancellation_jobs('worker-b', 10, 120);
-
-SELECT extensions.is(
-  (SELECT count(*) FROM claimed_b WHERE claimed_b.id = (SELECT claimed_a.id FROM claimed_a)),
-  0::bigint,
-  'a second worker can never receive a job that is already leased'
-);
-SELECT extensions.is(
-  (SELECT claimed_b.project_id FROM claimed_b),
-  'ca200000-0000-4000-8000-000000000002'::uuid,
-  'the second worker gets the other tenant''s job instead of waiting'
-);
-
--- ---------------------------------------------------------------------------
--- E. The audience is snapshotted once, per identity, and stays inside its org
--- ---------------------------------------------------------------------------
-
-SELECT extensions.is(
-  (public.initialize_project_cancellation_audience(
-    (SELECT claimed_a.id FROM claimed_a), 'worker-a') ->> 'recipients')::integer,
-  4,
-  'the snapshot holds one row per identity: two members, two anonymous signups'
-);
-SELECT extensions.is(
-  (SELECT count(*) FROM public.project_cancellation_deliveries AS d
-   WHERE d.user_id = 'ca000000-0000-4000-8000-000000000002'),
-  1::bigint,
-  'a volunteer approved for two slots is one recipient, not two'
-);
-SELECT extensions.is(
-  (SELECT count(*) FROM public.project_cancellation_deliveries AS d
-   WHERE d.user_id = 'ca000000-0000-4000-8000-000000000004'),
-  0::bigint,
-  'a signup that was never approved is not in the audience'
-);
-SELECT extensions.is(
-  (SELECT count(*) FROM public.project_cancellation_deliveries AS d
-   WHERE d.project_id <> 'ca200000-0000-4000-8000-000000000001'),
-  0::bigint,
-  'cross-organization isolation: no other tenant''s recipient is ever snapshotted'
-);
-SELECT extensions.is(
-  (SELECT count(DISTINCT d.notification_dedupe_key)
-   FROM public.project_cancellation_deliveries AS d),
-  1::bigint,
-  'every recipient of one project shares one deterministic dedupe key'
-);
-SELECT extensions.is(
-  (SELECT DISTINCT d.notification_dedupe_key
-   FROM public.project_cancellation_deliveries AS d),
-  'project-cancelled:ca200000-0000-4000-8000-000000000001',
-  'the dedupe key is derived from the project, so a replay is a no-op forever'
-);
-SELECT extensions.ok(
-  (SELECT bool_and(d.recipient_email_hash IS NULL
-                   OR d.recipient_email_hash ~ '^[0-9a-f]{64}$')
-   FROM public.project_cancellation_deliveries AS d),
-  'the ledger stores only a sha256 of the address, never the address itself'
-);
-SELECT extensions.is(
-  (SELECT count(*) FROM public.project_cancellation_deliveries AS d
-   WHERE d.anonymous_id = 'ca300000-0000-4000-8000-000000000002'
-     AND d.recipient_email_hash IS NULL
-     AND d.notification_state = 'not_applicable'),
-  1::bigint,
-  'a contactless anonymous recipient is recorded, not silently dropped'
-);
-SELECT extensions.is(
-  public.initialize_project_cancellation_audience(
-    (SELECT claimed_a.id FROM claimed_a), 'worker-a') ->> 'reason',
-  'already_snapshotted',
-  'a second initialization is a no-op, so a repeat scheduler cannot re-fan-out'
-);
-
--- ---------------------------------------------------------------------------
--- F. Membership changes mid-run do not move the frozen audience
--- ---------------------------------------------------------------------------
-
--- One volunteer withdraws and a late one is approved, both after the snapshot.
-UPDATE public.project_signups
-SET status = 'rejected'
-WHERE id = 'ca400000-0000-4000-8000-000000000003';
-UPDATE public.project_signups
-SET status = 'approved'
-WHERE id = 'ca400000-0000-4000-8000-000000000006';
-
-SELECT extensions.is(
-  public.initialize_project_cancellation_audience(
-    (SELECT claimed_a.id FROM claimed_a), 'worker-a') ->> 'reason',
-  'already_snapshotted',
-  'a late approval cannot slip into an audience that is already frozen'
-);
-SELECT extensions.is(
-  (SELECT count(*) FROM public.project_cancellation_deliveries), 4::bigint,
-  'the frozen audience is unchanged by both the withdrawal and the late approval'
-);
-SELECT extensions.is(
-  (SELECT count(*) FROM public.project_cancellation_deliveries AS d
-   WHERE d.user_id = 'ca000000-0000-4000-8000-000000000003'),
-  1::bigint,
-  'the volunteer who withdrew after cancellation is still owed the notice'
-);
-
--- ---------------------------------------------------------------------------
--- G. Recipients are drained by keyset, with no skips and no repeats
--- ---------------------------------------------------------------------------
-
-CREATE TEMP TABLE page_one AS
+CREATE TEMP TABLE first_claim AS
 SELECT * FROM public.claim_project_cancellation_deliveries(
-  (SELECT claimed_a.id FROM claimed_a), 'worker-a', 2, 120);
+  (SELECT id FROM claimed_job), 'worker-a', 10, 120
+);
 
-CREATE TEMP TABLE page_two AS
+SELECT public.mark_project_cancellation_email_sending(
+  (SELECT id FROM first_claim WHERE recipient_kind = 'registered'), 'worker-a'
+);
+
+SELECT public.settle_project_cancellation_delivery(
+  (SELECT id FROM first_claim WHERE recipient_kind = 'registered'),
+  'worker-a', 'accepted', 'retryable', 'provider-user-1', 'notification_transient'
+);
+
+SELECT extensions.is(
+  (SELECT email_state || ':' || notification_state
+   FROM public.project_cancellation_deliveries
+   WHERE id = (SELECT id FROM first_claim WHERE recipient_kind = 'registered')),
+  'accepted:queued',
+  'notification failure leaves accepted email terminal and notification retryable'
+);
+
+CREATE TEMP TABLE notification_retry AS
 SELECT * FROM public.claim_project_cancellation_deliveries(
-  (SELECT claimed_a.id FROM claimed_a), 'worker-a', 2, 120);
-
-SELECT extensions.is(
-  (SELECT count(*) FROM page_one), 2::bigint,
-  'a page smaller than the audience returns exactly one page'
-);
-SELECT extensions.is(
-  (SELECT count(*) FROM page_two), 2::bigint,
-  'the next page returns the remainder'
-);
-SELECT extensions.is(
-  (SELECT count(*) FROM page_one JOIN page_two USING (id)), 0::bigint,
-  'the pages do not overlap: the offset-paging duplicate is gone'
-);
-SELECT extensions.is(
-  (SELECT count(DISTINCT combined.id) FROM (
-     SELECT page_one.id FROM page_one UNION ALL SELECT page_two.id FROM page_two
-   ) AS combined),
-  4::bigint,
-  'the pages cover the whole audience: the offset-paging skip is gone'
-);
-SELECT extensions.is(
-  (SELECT count(*) FROM public.claim_project_cancellation_deliveries(
-     (SELECT claimed_a.id FROM claimed_a), 'worker-a', 10, 120)),
-  0::bigint,
-  'a drained ledger yields nothing, so a repeat run sends nothing'
-);
-SELECT extensions.is(
-  (SELECT count(*) FROM public.claim_project_cancellation_deliveries(
-     (SELECT claimed_a.id FROM claimed_a), 'worker-b', 10, 120)),
-  0::bigint,
-  'a worker without the job lease cannot claim its recipients at all'
-);
-
--- ---------------------------------------------------------------------------
--- H. Settlement belongs to the leaseholder alone
--- ---------------------------------------------------------------------------
-
-SELECT extensions.is(
-  public.settle_project_cancellation_delivery(
-    (SELECT page_one.id FROM page_one LIMIT 1), 'worker-b', 'sent', NULL, 'msg-1', NULL),
-  'leased',
-  'a non-leaseholder settlement is refused and reports the current state'
-);
-SELECT extensions.is(
-  public.settle_project_cancellation_delivery(
-    (SELECT page_one.id FROM page_one LIMIT 1), 'worker-a', 'sent', 'delivered', 'msg-1', NULL),
-  'sent',
-  'the leaseholder records the send'
-);
-SELECT extensions.is(
-  public.settle_project_cancellation_delivery(
-    (SELECT page_one.id FROM page_one OFFSET 1 LIMIT 1), 'worker-a', 'queued', NULL, NULL, 'transport_setup_failed'),
-  'queued',
-  'a provable pre-send failure releases the lease for a later attempt'
-);
-SELECT extensions.is(
-  (SELECT d.settled_at IS NULL FROM public.project_cancellation_deliveries AS d
-   WHERE d.id = (SELECT page_one.id FROM page_one OFFSET 1 LIMIT 1)),
-  true,
-  'a released recipient is not settled'
-);
-
--- ---------------------------------------------------------------------------
--- I. A crash around the provider call becomes durable review, never a re-send
--- ---------------------------------------------------------------------------
-
--- Both remaining leases are forced into the past: one worker that died before
--- calling the provider and one that died after the provider accepted it. The
--- database cannot tell those two apart, and refusing to guess is the point.
-UPDATE public.project_cancellation_deliveries
-SET lease_expires_at = now() - interval '1 minute'
-WHERE email_state = 'leased';
-
-SELECT extensions.is(
-  public.reap_project_cancellation_delivery_leases(), 2,
-  'the reaper settles every expired recipient lease'
-);
-SELECT extensions.is(
-  (SELECT count(*) FROM public.project_cancellation_deliveries AS d
-   WHERE d.email_state = 'unknown_outcome'
-     AND d.failure_code = 'lease_expired'
-     AND d.settled_at IS NOT NULL),
-  2::bigint,
-  'an expired recipient lease is unknown_outcome: terminal and reviewable'
-);
-
--- Three recipients are not 'sent': two ambiguous and one released before its
--- send. Exactly one of the three may be picked up again.
-CREATE TEMP TABLE recovery_page AS
-SELECT * FROM public.claim_project_cancellation_deliveries(
-  (SELECT claimed_a.id FROM claimed_a), 'worker-a', 10, 120);
-
-SELECT extensions.is(
-  (SELECT count(*) FROM recovery_page), 1::bigint,
-  'only the pre-send release is re-claimable; an ambiguous recipient never is'
-);
-
--- ---------------------------------------------------------------------------
--- J. The job lease is the safe half: it recovers instead of turning ambiguous
--- ---------------------------------------------------------------------------
-
-SELECT extensions.is(
-  (public.finalize_project_cancellation_job(
-    (SELECT claimed_a.id FROM claimed_a), 'worker-a') ->> 'status'),
-  'pending',
-  'a job with a recipient still open is released rather than declared done'
+  (SELECT id FROM claimed_job), 'worker-a', 10, 120
 );
 
 SELECT extensions.is(
-  public.settle_project_cancellation_delivery(
-    (SELECT recovery_page.id FROM recovery_page), 'worker-a', 'sent', 'delivered', 'msg-2', NULL),
-  'sent',
-  'a worker that lost the job lease can still record what the provider told it'
+  (SELECT email_state FROM notification_retry WHERE recipient_kind = 'registered'),
+  'accepted',
+  'notification retry claim cannot turn accepted email back into send work'
 );
 
-UPDATE public.project_cancellation_jobs
-SET status = 'processing',
-    lease_owner = 'worker-dead',
-    lease_expires_at = now() - interval '1 minute'
-WHERE id = (SELECT claimed_a.id FROM claimed_a);
-
-SELECT extensions.is(
-  (public.reap_project_cancellation_job_leases() ->> 'released')::integer,
-  1,
-  'an expired job lease is released, not settled as ambiguous'
-);
-SELECT extensions.is(
-  (SELECT jobs.status FROM public.project_cancellation_jobs AS jobs
-   WHERE jobs.id = (SELECT claimed_a.id FROM claimed_a)),
-  'pending',
-  'the released job is claimable again: only deliveries carry provider ambiguity'
+SELECT public.settle_project_cancellation_delivery(
+  (SELECT id FROM notification_retry WHERE recipient_kind = 'registered'),
+  'worker-a', NULL, 'replayed', NULL, NULL
 );
 
--- ---------------------------------------------------------------------------
--- K. Finalization tells the truth about what happened
--- ---------------------------------------------------------------------------
-
-CREATE TEMP TABLE reclaimed_job AS
-SELECT * FROM public.claim_project_cancellation_jobs('worker-c', 5, 120);
-
-SELECT extensions.is(
-  (SELECT count(*) FROM reclaimed_job
-   WHERE reclaimed_job.id = (SELECT claimed_a.id FROM claimed_a)),
-  1::bigint,
-  'the recovered job is picked up by the next worker'
+SELECT public.mark_project_cancellation_email_sending(
+  (SELECT id FROM first_claim WHERE recipient_kind = 'anonymous'), 'worker-a'
 );
-SELECT extensions.is(
-  (public.finalize_project_cancellation_job(
-    (SELECT claimed_a.id FROM claimed_a), 'worker-c') ->> 'status'),
-  'needs_review',
-  'one unaccountable send makes the whole job a review item, not a success'
-);
-SELECT extensions.is(
-  (SELECT jobs.last_error FROM public.project_cancellation_jobs AS jobs
-   WHERE jobs.id = (SELECT claimed_a.id FROM claimed_a)),
-  'ambiguous_provider_outcome',
-  'the review reason is recorded on the job rather than inferred later'
+SELECT public.settle_project_cancellation_delivery(
+  (SELECT id FROM first_claim WHERE recipient_kind = 'anonymous'),
+  'worker-a', 'accepted', NULL, 'provider-anon-1', NULL
 );
 
--- The other tenant's job runs its own clean lifecycle end to end.
 SELECT extensions.is(
-  (public.initialize_project_cancellation_audience(
-    (SELECT claimed_b.id FROM claimed_b), 'worker-b') ->> 'recipients')::integer,
-  1,
-  'the other organization snapshots only its own approved volunteer'
-);
-SELECT extensions.is(
-  (SELECT count(*) FROM public.project_cancellation_deliveries AS d
-   WHERE d.job_id = (SELECT claimed_b.id FROM claimed_b)
-     AND (d.project_id <> 'ca200000-0000-4000-8000-000000000002'
-          OR d.signup_id <> 'ca400000-0000-4000-8000-000000000007')),
-  0::bigint,
-  'cross-organization isolation holds in both directions'
-);
-
-CREATE TEMP TABLE org_b_page AS
-SELECT * FROM public.claim_project_cancellation_deliveries(
-  (SELECT claimed_b.id FROM claimed_b), 'worker-b', 10, 120);
-
-SELECT extensions.is(
-  public.settle_project_cancellation_delivery(
-    (SELECT org_b_page.id FROM org_b_page), 'worker-b', 'sent', 'delivered', 'msg-3', NULL),
-  'sent',
-  'the other tenant''s single recipient settles normally'
-);
-SELECT extensions.is(
-  (public.finalize_project_cancellation_job(
-    (SELECT claimed_b.id FROM claimed_b), 'worker-b') ->> 'status'),
+  public.finalize_project_cancellation_job(
+    (SELECT id FROM claimed_job), 'worker-a'
+  )->>'status',
   'completed',
-  'a job whose recipients are all accounted for completes'
+  'job completes only after every owed channel has successful terminal truth'
 );
 
--- ---------------------------------------------------------------------------
--- L. A repeat scheduler run changes nothing
--- ---------------------------------------------------------------------------
+-- Live references may disappear after dispatch; immutable evidence survives.
+DELETE FROM auth.users
+WHERE id = 'da000000-0000-4000-8000-000000000002';
 
 SELECT extensions.is(
-  (SELECT count(*) FROM public.claim_project_cancellation_jobs('worker-d', 10, 120)),
-  0::bigint,
-  'both jobs are terminal, so the next scheduler tick claims nothing'
-);
-SELECT extensions.is(
-  (SELECT count(*) FROM public.project_cancellation_deliveries AS d
-   WHERE d.project_id = 'ca200000-0000-4000-8000-000000000001'),
-  4::bigint,
-  'the ledger still holds exactly one row per recipient after the whole run'
-);
-SELECT extensions.is(
-  (SELECT count(*) FROM (
-     SELECT d.job_id, COALESCE(d.user_id::text, d.anonymous_id::text) AS identity
-     FROM public.project_cancellation_deliveries AS d
-     GROUP BY 1, 2 HAVING count(*) > 1
-   ) AS duplicates),
-  0::bigint,
-  'zero duplicates: no identity holds two notices for one cancellation'
+  (SELECT count(*) FROM public.project_cancellation_deliveries
+   WHERE recipient_kind = 'registered'
+     AND project_id = 'da200000-0000-4000-8000-000000000001'),
+  1::bigint,
+  'registered-user deletion preserves the delivery ledger row'
 );
 
--- ---------------------------------------------------------------------------
--- M. An exhausted job is terminalized rather than left spinning
--- ---------------------------------------------------------------------------
-
-UPDATE public.project_cancellation_jobs
-SET status = 'pending',
-    lease_owner = NULL,
-    lease_expires_at = NULL,
-    attempts = 5
-WHERE id = (SELECT claimed_a.id FROM claimed_a);
-
-SELECT extensions.is(
-  (public.reap_project_cancellation_job_leases() ->> 'failed')::integer,
-  1,
-  'a job that used every attempt is failed rather than left pending forever'
+SELECT extensions.ok(
+  (SELECT user_id IS NULL AND signup_id IS NULL
+          AND recipient_email = 'frozen-user@local.test'
+          AND recipient_identity_hash ~ '^[0-9a-f]{64}$'
+   FROM public.project_cancellation_deliveries
+   WHERE recipient_kind = 'registered'
+     AND project_id = 'da200000-0000-4000-8000-000000000001'),
+  'registered live references null while frozen destination/evidence survive'
 );
+
+DELETE FROM public.project_signups
+WHERE id = 'da400000-0000-4000-8000-000000000003';
+DELETE FROM public.anonymous_signups
+WHERE id = 'da300000-0000-4000-8000-000000000001';
+
+SELECT extensions.ok(
+  (SELECT anonymous_id IS NULL AND signup_id IS NULL
+          AND recipient_email = 'frozen-anon@local.test'
+   FROM public.project_cancellation_deliveries
+   WHERE recipient_kind = 'anonymous'
+     AND project_id = 'da200000-0000-4000-8000-000000000001'),
+  'anonymous/signup deletion preserves frozen destination and ledger row'
+);
+
+-- Exact lease null-pair and tenant consistency constraints are enforced.
+SELECT extensions.throws_ok(
+  $$UPDATE public.project_cancellation_deliveries
+    SET lease_owner = 'partial-lease'
+    WHERE id = (SELECT id FROM first_claim LIMIT 1)$$,
+  '23514',
+  NULL,
+  'delivery lease owner cannot exist without its expiry/state pair'
+);
+
+SELECT extensions.throws_ok(
+  $$INSERT INTO public.project_cancellation_deliveries (
+      job_id, project_id, organization_id, signup_id_snapshot,
+      recipient_kind, recipient_identity_hash, recipient_email,
+      recipient_email_hash, email_owed, notification_owed,
+      notification_dedupe_key, email_state, notification_state, redact_after
+    ) VALUES (
+      (SELECT id FROM claimed_job),
+      'da200000-0000-4000-8000-000000000002',
+      'da100000-0000-4000-8000-000000000001',
+      gen_random_uuid(), 'anonymous', repeat('a', 64), 'cross@local.test',
+      repeat('b', 64), true, false, 'cross-tenant', 'queued', 'not_owed',
+      now() + interval '90 days'
+    )$$,
+  '23503',
+  NULL,
+  'composite job/project tenant foreign key rejects cross-project delivery'
+);
+
+INSERT INTO public.project_signups
+  (id, project_id, user_id, schedule_id, status, created_at)
+VALUES (
+  'da400000-0000-4000-8000-000000000005',
+  'da200000-0000-4000-8000-000000000002',
+  'da000000-0000-4000-8000-000000000003',
+  'oneTime', 'pending', now()
+);
+
+SELECT extensions.throws_ok(
+  $$INSERT INTO public.project_cancellation_deliveries (
+      job_id, project_id, organization_id, signup_id, signup_id_snapshot,
+      user_id, recipient_kind, recipient_identity_hash, recipient_email,
+      recipient_email_hash, email_owed, notification_owed,
+      notification_dedupe_key, email_state, notification_state, redact_after
+    ) VALUES (
+      (SELECT id FROM claimed_job),
+      'da200000-0000-4000-8000-000000000001',
+      'da100000-0000-4000-8000-000000000001',
+      'da400000-0000-4000-8000-000000000005', gen_random_uuid(),
+      'da000000-0000-4000-8000-000000000003',
+      'registered', repeat('c', 64), 'cross-signup@local.test', repeat('d', 64),
+      true, true, 'cross-signup', 'queued', 'queued', now() + interval '90 days'
+    )$$,
+  '23503',
+  NULL,
+  'composite signup/project tenant foreign key rejects a cross-project signup'
+);
+
+SELECT extensions.ok(
+  EXISTS (
+    SELECT 1 FROM pg_catalog.pg_indexes
+    WHERE schemaname = 'public'
+      AND indexname = 'project_cancellation_deliveries_signup_id_idx'
+  )
+  AND EXISTS (
+    SELECT 1 FROM pg_catalog.pg_indexes
+    WHERE schemaname = 'public'
+      AND indexname = 'project_cancellation_deliveries_project_id_idx'
+  ),
+  'delivery FK lookup paths have leading indexes'
+);
+
+-- A bounded claim cannot let one organization consume the first round.
+INSERT INTO public.organizations (id, name, username, type, join_code)
+VALUES ('da100000-0000-4000-8000-000000000002',
+        'Fair Cancellation Org', 'fair-cancel-org', 'nonprofit', 'CXL002');
+
+INSERT INTO public.projects (
+  id, creator_id, organization_id, title, location, description, event_type,
+  verification_method, schedule, require_login, status
+)
+VALUES
+  ('da200000-0000-4000-8000-000000000004',
+   'da000000-0000-4000-8000-000000000001',
+   'da100000-0000-4000-8000-000000000002',
+   'Fair B one', 'Local', 'Fairness', 'oneTime', 'manual',
+   '{"oneTime":{"date":"2030-08-23","startTime":"10:00","endTime":"12:00","volunteers":20}}',
+   true, 'upcoming'),
+  ('da200000-0000-4000-8000-000000000005',
+   'da000000-0000-4000-8000-000000000001',
+   'da100000-0000-4000-8000-000000000002',
+   'Fair B two', 'Local', 'Fairness', 'oneTime', 'manual',
+   '{"oneTime":{"date":"2030-08-24","startTime":"10:00","endTime":"12:00","volunteers":20}}',
+   true, 'upcoming');
+
+INSERT INTO public.project_cancellation_jobs (
+  project_id, organization_id, project_title, cancelled_at,
+  cancellation_reason, status, audience_snapshot_at, recipient_count
+)
+VALUES
+  ('da200000-0000-4000-8000-000000000002',
+   'da100000-0000-4000-8000-000000000001', 'Fair A one', now(),
+   'Fairness', 'pending', now(), 0),
+  ('da200000-0000-4000-8000-000000000003',
+   'da100000-0000-4000-8000-000000000001', 'Fair A two', now(),
+   'Fairness', 'pending', now(), 0),
+  ('da200000-0000-4000-8000-000000000004',
+   'da100000-0000-4000-8000-000000000002', 'Fair B one', now(),
+   'Fairness', 'pending', now(), 0),
+  ('da200000-0000-4000-8000-000000000005',
+   'da100000-0000-4000-8000-000000000002', 'Fair B two', now(),
+   'Fairness', 'pending', now(), 0);
+
+CREATE TEMP TABLE fair_job_claim AS
+SELECT * FROM public.claim_project_cancellation_jobs('fair-worker', 2, 120);
+
 SELECT extensions.is(
-  (SELECT count(*) FROM public.claim_project_cancellation_jobs('worker-e', 10, 120)),
-  0::bigint,
-  'an exhausted job is no longer claimable by anyone'
+  (SELECT count(DISTINCT organization_id) FROM fair_job_claim),
+  2::bigint,
+  'the first bounded claim round includes work from both organizations'
+);
+
+DELETE FROM public.project_cancellation_jobs
+WHERE project_id IN (
+  'da200000-0000-4000-8000-000000000002',
+  'da200000-0000-4000-8000-000000000003',
+  'da200000-0000-4000-8000-000000000004',
+  'da200000-0000-4000-8000-000000000005'
+);
+
+-- Finalizer refuses missing snapshots and count mismatch rather than completing.
+ALTER TABLE public.project_cancellation_jobs
+  DROP CONSTRAINT project_cancellation_jobs_snapshot_shape;
+
+INSERT INTO public.project_cancellation_jobs (
+  id, project_id, organization_id, project_title, cancelled_at,
+  cancellation_reason, status, lease_owner, lease_expires_at,
+  processing_started_at, audience_snapshot_at, recipient_count
+) VALUES (
+  'da500000-0000-4000-8000-000000000001',
+  'da200000-0000-4000-8000-000000000002',
+  'da100000-0000-4000-8000-000000000001',
+  'Missing snapshot', now(), 'Fixture', 'processing', 'worker-missing',
+  now() + interval '5 minute', now(), NULL, NULL
+);
+
+SELECT extensions.is(
+  public.finalize_project_cancellation_job(
+    'da500000-0000-4000-8000-000000000001', 'worker-missing'
+  )->>'status',
+  'needs_review',
+  'finalizer refuses a null audience snapshot'
+);
+
+INSERT INTO public.project_cancellation_jobs (
+  id, project_id, organization_id, project_title, cancelled_at,
+  cancellation_reason, status, lease_owner, lease_expires_at,
+  processing_started_at, audience_snapshot_at, recipient_count
+) VALUES (
+  'da500000-0000-4000-8000-000000000002',
+  'da200000-0000-4000-8000-000000000003',
+  'da100000-0000-4000-8000-000000000001',
+  'Count mismatch', now(), 'Fixture', 'processing', 'worker-mismatch',
+  now() + interval '5 minute', now(), now(), 1
+);
+
+SELECT extensions.is(
+  public.finalize_project_cancellation_job(
+    'da500000-0000-4000-8000-000000000002', 'worker-mismatch'
+  )->>'status',
+  'needs_review',
+  'finalizer refuses recipient-count mismatch'
+);
+
+SELECT extensions.ok(
+  pg_get_functiondef(
+    'public.reap_project_cancellation_delivery_leases(integer)'::regprocedure
+  ) LIKE '%ORDER BY deliveries.lease_expires_at, deliveries.id%'
+  AND pg_get_functiondef(
+    'public.reap_project_cancellation_delivery_leases(integer)'::regprocedure
+  ) LIKE '%FOR UPDATE SKIP LOCKED%',
+  'delivery reaper is bounded, deterministic, and skip-locked'
+);
+
+SELECT extensions.ok(
+  pg_get_functiondef(
+    'public.claim_project_cancellation_jobs(text,integer,integer)'::regprocedure
+  ) LIKE '%PARTITION BY jobs.cancellation_tenant_id%'
+  AND pg_get_functiondef(
+    'public.claim_project_cancellation_jobs(text,integer,integer)'::regprocedure
+  ) LIKE '%tenant_round%',
+  'job claims round-robin across organization tenant partitions'
 );
 
 SELECT * FROM extensions.finish();
-
 ROLLBACK;
