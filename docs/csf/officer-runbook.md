@@ -1,7 +1,7 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** the August 11 exact-tree replay/build/DV+CSF browser gates and hosted Development acceptance are green. Development has exact 245-migration parity, leaked-password protection enabled, the unused `pg_graphql` extension removed, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. The scheduled-post transition, repository-owned scheduler, and visible composer schedule/readback/archive lifecycle are implemented and accepted, but hosted enabled publisher invocation and visible schedule → Feed publication remain pending alongside live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, Production webhook rotation, and Production cutover.
+**Current status:** the August 11 tree's replay/build/DV+CSF browser gates and hosted Development acceptance are historical evidence only. This release-integration repository contains 268 ordered migrations through `20260812073000`; exact hosted parity and the final combined replay are pending. The historical Development environment had leaked-password protection enabled, the unused `pg_graphql` extension removed, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. Hosted enabled scheduled-post publication, live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, Production webhook rotation, and Production cutover remain pending.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
@@ -259,7 +259,7 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Complete green PR checks; least-privilege `PRIVATE_SUBMODULE_TOKEN`, GitGuardian disposition for the removed local-only fixture password, and authenticated Vercel Preview diagnosis remain open
 - [x] Post-hardening production build and full private-plugin unit-suite rerun
 - [ ] Persistent isolated Supabase development branch after explicit `$0.01344/hour` cost confirmation
-- [x] Stable Development alias with branch-scoped non-production Supabase invariant and exact 245-migration parity
+- [ ] Re-establish the stable Development alias and prove branch-scoped non-production Supabase parity against all 268 migrations through `20260812073000`; the earlier alias/parity evidence applies only to its historical tree
 - [x] Authorize local and hosted Development Google origins/callbacks, including `http://localhost:3001` and `https://dev.lets-assist.com`
 - [ ] Confirm `dvhighcsf@gmail.com` in-product, then complete Picker, import, reconnect, revocation, and failure-state verification
 - [ ] Complete synthetic visible mutation lifecycle for every actor
@@ -276,6 +276,6 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Prove an enabled hosted scheduled-post worker invocation and visible synthetic schedule → Feed transition before relying on it in that environment
 - [x] Configure and repeatedly verify hosted `csf-communications-dispatch`; document that GitHub scheduling is irregular and does not promise fixed-time delivery
 
-No live chapter Google OAuth/Picker/Drive import or Google write has been performed. Development uses a separate hosted Supabase project with exact ledger parity. Production has been inspected read-only but not mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.
+No live chapter Google OAuth/Picker/Drive import or Google write has been performed. Development uses a separate hosted Supabase project, but exact parity with the current 268-migration integration ledger has not been re-established. Production has been inspected read-only but not mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.
 
 See [testing and release](testing-and-release.md) for current evidence and residual risk. See the [product contract](product-contract.md) for the full product, permission, data, and acceptance contracts.

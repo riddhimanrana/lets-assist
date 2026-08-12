@@ -13,10 +13,13 @@
   replay, DV browser workflows, CSF browser workflows, and security checks for
   the exact root/private gitlink. Its merge commit was deployed Ready and is the
   deployment behind `dev.lets-assist.com`.
-- Hosted Development and the repository contain the same 245 ordered migration
-  versions through `20260811132454`, with zero local/remote mismatches. PR #130
-  removed the unused `pg_graphql` extension with `RESTRICT`; the post-apply
-  Development schema dump contains no `pg_graphql` definition.
+- For that historical deployment, hosted Development matched the repository
+  through `20260811132454` with zero local/remote mismatches. The current
+  release-integration repository contains 268 ordered migrations through
+  `20260812073000`; hosted parity for this newer ledger has not been checked.
+  PR #130 removed the unused `pg_graphql` extension with `RESTRICT`; the
+  historical post-apply Development schema dump contains no `pg_graphql`
+  definition.
 - Members → Account connections, class/student links, verified-account staff
   eligibility, result-bearing profile/staff mutations, capability-filtered Help,
   and the three-section Communications workspace were accepted in the hosted
@@ -317,7 +320,9 @@ The current officer procedure is documented in the [officer runbook](officer-run
 ### External and action-time gates
 
 - Google Cloud configuration and the account chooser were inspected, but no live chapter consent, Picker selection, Drive read/import, token refresh, reconnect/revocation, 403/429 exercise, or Google write was performed.
-- Development uses a distinct hosted Supabase project whose 245-version ledger exactly matches the repository; no additional paid branch was created.
+- Development uses a distinct hosted Supabase project. Its historical ledger
+  matched through `20260811132454`; parity with the current 268-migration
+  repository has not been rechecked. No additional paid branch was created.
 - Production Supabase, Production Vercel, `main`, the Production DVHS CSF tenant, Gmail mailbox, Classroom, website, Instagram, and officer-maintained Sheets were not mutated.
 - No Vela service, Supabase stack, container, volume, network, port, credential, or database was accessed or reused.
 

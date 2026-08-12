@@ -83,6 +83,25 @@ Account connections** and either issue a **Student link** for one person or copy
 the reusable class link. Connecting an account is the separate, reviewed action
 described in the next three sections.
 
+### Choose exactly one of the three connection paths
+
+1. **Existing student account claim:** the signed-in student follows the
+   reviewed onboarding link, confirms **We found your CSF record — is this
+   you?**, and selects **Use this profile** only when both name and class are
+   exact; otherwise they select **Not me**.
+2. **Student-specific recovery link:** an officer uses **Student link → Create
+   a student-specific link → Create secure link**, then **Copy link**. Use
+   **Renew link** only to invalidate the old token; use **Cancel** when the link
+   must stop without replacement.
+3. **Reusable class rollout:** an officer uses **Class link → Create a reusable
+   class link → Create class link**, then **Copy link**. Use **Deactivate**
+   before replacing the one active class/semester link.
+
+Similarity is never a fourth connection path. Any request that cannot satisfy
+the exact account/profile evidence enters **Matches to review**, where
+**Connect account** is available only after the database recomputes canonical
+evidence; otherwise use **Reject request** or correct the student record first.
+
 ## Give that student a private account-connection link
 
 1. From **Members**, select **Account connections**.
@@ -261,6 +280,20 @@ Grant the replacement seat first, confirm it is effective today — a future
 
 ## Import the reviewed Fall 2026 starting records
 
+Use this source order:
+
+1. Preview, reconcile, and—only in the authorized Production cutover—commit the
+   primary `CSF Application - Spring 2026 (Responses)` application seed first.
+   Its grade and semester values establish the initial class targets.
+2. Only after that application seed is reviewed, process the historical
+   Classes of 2027–2030 sheets as **Historical records**. Reconcile every
+   overlap against the primary application result; never let a historical row
+   silently replace newer application identity or class evidence.
+
+Each source keeps its own immutable preview. **Preview**, **Reconcile**, and
+**Commit** are separate boundaries; a clean preview neither imports rows nor
+authorizes a commit.
+
 ### Connect Google first — and connect it yourself
 
 1. Open **More → Imports**.
@@ -417,6 +450,46 @@ Record the adviser's approved resolution in the semester policy or source
 review evidence. Do not silently "fix" historical Spring 2026 text by turning
 it into a Fall 2026 rule.
 
+## Applications
+
+1. Open **Applications → Review queue** for daily decisions; use **All
+   applications** for search and history.
+2. Open the full review and inspect identity, source row, course calculations,
+   transcript/receipt access, checks, dues, private notes, and status history.
+3. Request information when evidence is missing. Verify dues separately from
+   academic eligibility.
+4. Approve only when the current server preflight reports no blocker. Reject,
+   withdraw, or use an adviser override only with the exact recorded reason.
+   Reload before retrying a lost response; never create membership manually to
+   compensate.
+
+## Service activities and points
+
+1. Create an activity as a draft with its term, audience, date, location,
+   signup method, point type/value/cap, and evidence rule. Preview as a member,
+   then publish only when complete.
+2. In **Point submissions**, inspect the activity or club, numeric claim, and
+   proof. Use the reasoned **Request correction**, reject, adjust, or approve
+   action appropriate to the evidence.
+3. Confirm the numeric award in the student's **My CSF** view. Process an
+   appeal as a separate decision; do not rewrite the original history.
+
+Every mutation rechecks the acting account, active membership, current open
+term, published policy, source relationship, cap, class, and finalized proof.
+If any changed, reload and resolve the current blocker.
+
+## Posts
+
+1. Open **Classes**, choose the class, then **Stream**. A class audience targets
+   only that cohort; members read published results in **Feed**.
+2. Publish the post before interpreting the separate email outcome. The result
+   must distinguish **Post published** from **Email queued** or **Email not
+   queued**; queue failure does not mean the post was lost.
+3. **Also send this as an email** freezes the reviewed term, audience, class,
+   content, consent topic, and recipient snapshot. Scheduled posts never queue
+   email. Use manual publication until the target environment has an accepted
+   enabled schedule → Feed transition.
+
 ## Communications and email
 
 1. Open **More → Communications**.
@@ -490,18 +563,13 @@ Production, and do not treat a Development screenshot as Production evidence.
   configured. The in-product connection is **Not connected** until an operator
   completes a fresh `dvhighcsf@gmail.com` password/verification handoff; no real
   row preview or commit has occurred.
-- The Development database was verified against all 245 repository migrations
-  through `20260811132454`. The unused `pg_graphql` extension is absent from the
-  Development schema, and leaked-password protection is enabled. That parity
-  claim is now stale in two ways and both must be closed before this section is
-  read as current: the repository has since added
-  `20260811160000_dvhs_csf_recovery_seat_floor` and
-  `20260811161000_dvhs_csf_cohort_link_uniqueness` on `development`, neither of
-  which has been applied to hosted Development; and the current
-  `dev.lets-assist.com` alias is behind the repository head because Vercel's
-  Hobby build limit rejected the newer deployment. Treat hosted acceptance as
-  stale until an exact-head deployment is Ready, the outstanding migrations are
-  applied, and both are rechecked.
+- The Development database was historically verified through
+  `20260811132454`. The unused `pg_graphql` extension was absent from that
+  schema, and leaked-password protection was enabled. The current
+  release-integration repository contains 268 ordered migrations through
+  `20260812073000`, so hosted parity is not current. Treat hosted acceptance as
+  stale until an exact-head deployment is Ready, every outstanding migration is
+  applied in order, and repository/hosted parity is rechecked.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
 - Three controlled Development test messages produced three signature-verified
@@ -517,6 +585,37 @@ Production, and do not treat a Development screenshot as Production evidence.
   no email option. An enabled publisher invocation and visible schedule → Feed
   publication are still required before officers rely on automatic release.
 - Production was not changed by this rehearsal.
+
+## Production cutover checklist
+
+Do not use real chapter rows or credentials until every item is checked:
+
+- [ ] Obtain separate Production authorization; keep `development` and
+  Production databases, links, tokens, previews, and decisions isolated.
+- [ ] Verify the root tree is the approved exact commit and the private plugin
+  remains a clean gitlink at its approved SHA.
+- [ ] Replay all 268 ordered migrations through `20260812073000` in the
+  authorized release gate and prove exact repository/Production ledger parity,
+  advisors, function ACLs, relation ACLs, storage posture, and active-member
+  storage authorization.
+- [ ] Pass the final combined static, focused source, database, private-plugin,
+  and browser gates; complete keyboard, focus, and screen-reader acceptance.
+- [ ] Confirm the super-admin entitlement and organization-admin install,
+  Classes of 2027–2030 with eight semesters each, Fall 2026 current, future-term
+  setup, officer seats, and published policy.
+- [ ] Complete live `dvhighcsf@gmail.com` OAuth, Picker, preview, reconnect,
+  revocation, and failure-state checks without committing during rehearsal.
+- [ ] Test every class and student-specific link while signed out or in a
+  private window; complete existing-account claim and officer-review paths.
+- [ ] Commit the Spring 2026 application seed before historical class sheets,
+  reconcile counts and identity conflicts, then accept applications,
+  service/points, posts, Communications, and role-aware Help journeys.
+- [ ] Verify sender domain, consent topics, one-recipient delivery, signed
+  webhook reduction, unknown-outcome handling, and Production scheduled-post
+  publication without claiming a fixed delivery time.
+- [ ] Record the exact cutover evidence and remaining limitations. Never copy a
+  Development fixture, connection link, import preview, or policy decision into
+  Production.
 
 ## Related references
 
