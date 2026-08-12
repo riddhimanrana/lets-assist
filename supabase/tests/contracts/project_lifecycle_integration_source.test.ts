@@ -105,6 +105,62 @@ describe("combined project lifecycle source contract", () => {
     }
   });
 
+  test("the tenant FK audit permits only the guarded cancellation snapshot ledger", () => {
+    const audit = read("scripts/audit-supabase-architecture.sh");
+    const retention = read(
+      "supabase/migrations/20260812001200_preserve_cancellation_evidence_parent_deletion.sql",
+    );
+    const tenantFkAudit = sliceBetween(
+      audit,
+      'missing_org_fk="$(',
+      'fail_if_rows "organization_id columns without tenant FK constraints"',
+    );
+    const exceptionCatalog = sliceBetween(
+      tenantFkAudit,
+      "tenant_fk_exceptions(",
+      "org_tables as (",
+    );
+    const exceptionTargets = [
+      ...exceptionCatalog.matchAll(/\(\s*'([^']+)'\s*,\s*'([^']+)'/g),
+    ].map((match) => match.slice(1));
+
+    expect(exceptionTargets).toEqual([["public", "project_cancellation_jobs"]]);
+    expect(exceptionCatalog).toContain(
+      "'project_cancellation_jobs_snapshot_identifiers_match'",
+    );
+    expect(exceptionCatalog).toContain(
+      "'project_cancellation_jobs_live_organization_id_fkey'",
+    );
+    expect(exceptionCatalog).toContain("'organization_id_snapshot'");
+    expect(exceptionCatalog).toContain("'live_organization_id'");
+
+    expect(tenantFkAudit).toContain("direct_tenant_fks");
+    expect(tenantFkAudit).toContain("pg_get_expr");
+    expect(tenantFkAudit).toContain(
+      "NOT (organization_id_snapshot IS DISTINCT FROM organization_id)",
+    );
+    expect(tenantFkAudit).toContain("constraints.confdeltype = 'n'");
+    expect(tenantFkAudit).toContain(
+      "live_attributes.attname = exception.live_column_name",
+    );
+    expect(tenantFkAudit).toContain(
+      "parent_relations.relname = 'organizations'",
+    );
+    expect(tenantFkAudit).toContain("parent_attributes.attname = 'id'");
+    expect(tenantFkAudit).toContain("'invalid_exception'");
+    expect(tenantFkAudit).toContain("'missing_fk'");
+
+    expect(retention).toContain(
+      "DROP CONSTRAINT project_cancellation_jobs_organization_id_fkey",
+    );
+    expect(retention).toMatch(
+      /project_cancellation_jobs_snapshot_identifiers_match[\s\S]*organization_id_snapshot IS NOT DISTINCT FROM organization_id/,
+    );
+    expect(retention).toMatch(
+      /project_cancellation_jobs_live_organization_id_fkey[\s\S]*FOREIGN KEY \(live_organization_id\)[\s\S]*REFERENCES public\.organizations\(id\) ON DELETE SET NULL/,
+    );
+  });
+
   test("branch foreign keys never SET NULL through a generated column", () => {
     const migrations = [
       "20260811234600_atomic_signup_unreject_capacity.sql",

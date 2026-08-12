@@ -167,9 +167,29 @@ unwrapped_auth_uid="$(
 )"
 fail_if_rows "RLS policies with unwrapped auth.uid() calls" "$unwrapped_auth_uid"
 
+# organization_id is normally a live tenant reference. The one cataloged
+# snapshot-ledger exception must retain its named immutable check and separately
+# validated live ON DELETE SET NULL reference or it fails as invalid_exception.
 missing_org_fk="$(
   psql "$DB_URL" -AtF $'\t' -c "
-    with org_tables as (
+    with tenant_fk_exceptions(
+      table_schema,
+      table_name,
+      snapshot_column_name,
+      live_column_name,
+      snapshot_constraint_name,
+      live_fk_constraint_name
+    ) as (
+      values (
+        'public',
+        'project_cancellation_jobs',
+        'organization_id_snapshot',
+        'live_organization_id',
+        'project_cancellation_jobs_snapshot_identifiers_match',
+        'project_cancellation_jobs_live_organization_id_fkey'
+      )
+    ),
+    org_tables as (
       select c.table_schema, c.table_name
       from information_schema.columns c
       join information_schema.tables t
@@ -178,22 +198,121 @@ missing_org_fk="$(
       where c.table_schema in ('public', 'plugin_data')
         and c.column_name = 'organization_id'
         and t.table_type = 'BASE TABLE'
-    )
-    select ot.table_schema, ot.table_name
-    from org_tables ot
-    where not exists (
-      select 1
-      from pg_constraint con
-      join pg_class rel on rel.oid = con.conrelid
+    ),
+    direct_tenant_fks as (
+      select distinct n.nspname as table_schema, rel.relname as table_name
+      from pg_constraint constraints
+      join pg_class rel on rel.oid = constraints.conrelid
       join pg_namespace n on n.oid = rel.relnamespace
-      join unnest(con.conkey) k(attnum) on true
-      join pg_attribute a on a.attrelid = rel.oid and a.attnum = k.attnum
-      where n.nspname = ot.table_schema
-        and rel.relname = ot.table_name
-        and con.contype = 'f'
-        and a.attname = 'organization_id'
+      join unnest(constraints.conkey) key_columns(attnum) on true
+      join pg_attribute attributes
+        on attributes.attrelid = rel.oid
+       and attributes.attnum = key_columns.attnum
+      where constraints.contype = 'f'
+        and n.nspname in ('public', 'plugin_data')
+        and attributes.attname = 'organization_id'
+    ),
+    violations as (
+      select
+        'missing_fk'::text as violation_kind,
+        org_tables.table_schema,
+        org_tables.table_name
+      from org_tables
+      where not exists (
+        select 1
+        from direct_tenant_fks
+        where direct_tenant_fks.table_schema = org_tables.table_schema
+          and direct_tenant_fks.table_name = org_tables.table_name
+      )
+        and not exists (
+          select 1
+          from tenant_fk_exceptions exception
+          where exception.table_schema = org_tables.table_schema
+            and exception.table_name = org_tables.table_name
+        )
+
+      union all
+
+      select
+        'invalid_exception'::text,
+        exception.table_schema,
+        exception.table_name
+      from tenant_fk_exceptions exception
+      where not exists (
+        select 1
+        from org_tables
+        where org_tables.table_schema = exception.table_schema
+          and org_tables.table_name = exception.table_name
+      )
+        or exists (
+          select 1
+          from direct_tenant_fks
+          where direct_tenant_fks.table_schema = exception.table_schema
+            and direct_tenant_fks.table_name = exception.table_name
+        )
+        or not exists (
+          select 1
+          from information_schema.columns columns
+          where columns.table_schema = exception.table_schema
+            and columns.table_name = exception.table_name
+            and columns.column_name = exception.snapshot_column_name
+        )
+        or not exists (
+          select 1
+          from information_schema.columns columns
+          where columns.table_schema = exception.table_schema
+            and columns.table_name = exception.table_name
+            and columns.column_name = exception.live_column_name
+        )
+        or not exists (
+          select 1
+          from pg_constraint constraints
+          join pg_class relations on relations.oid = constraints.conrelid
+          join pg_namespace namespaces on namespaces.oid = relations.relnamespace
+          where namespaces.nspname = exception.table_schema
+            and relations.relname = exception.table_name
+            and constraints.contype = 'c'
+            and constraints.convalidated
+            and constraints.conname = exception.snapshot_constraint_name
+            and pg_get_expr(constraints.conbin, constraints.conrelid)
+              like '%NOT (organization_id_snapshot IS DISTINCT FROM organization_id)%'
+        )
+        or not exists (
+          select 1
+          from pg_constraint constraints
+          join pg_class relations on relations.oid = constraints.conrelid
+          join pg_namespace namespaces on namespaces.oid = relations.relnamespace
+          join pg_class parent_relations
+            on parent_relations.oid = constraints.confrelid
+          join pg_namespace parent_namespace
+            on parent_namespace.oid = parent_relations.relnamespace
+          join unnest(constraints.conkey) with ordinality
+            live_keys(attnum, key_ordinality) on true
+          join unnest(constraints.confkey) with ordinality
+            parent_keys(attnum, key_ordinality)
+            on parent_keys.key_ordinality = live_keys.key_ordinality
+          join pg_attribute live_attributes
+            on live_attributes.attrelid = relations.oid
+           and live_attributes.attnum = live_keys.attnum
+          join pg_attribute parent_attributes
+            on parent_attributes.attrelid = parent_relations.oid
+           and parent_attributes.attnum = parent_keys.attnum
+          where namespaces.nspname = exception.table_schema
+            and relations.relname = exception.table_name
+            and constraints.contype = 'f'
+            and constraints.convalidated
+            and constraints.conname = exception.live_fk_constraint_name
+            and constraints.confdeltype = 'n'
+            and cardinality(constraints.conkey) = 1
+            and live_attributes.attname = exception.live_column_name
+            and parent_namespace.nspname = 'public'
+            and parent_relations.relname = 'organizations'
+            and parent_attributes.attname = 'id'
+        )
     )
-    order by ot.table_schema, ot.table_name;
+    select violation_kind, table_schema, table_name
+    from violations
+    order by violation_kind, table_schema, table_name;
   "
 )"
 fail_if_rows "organization_id columns without tenant FK constraints" "$missing_org_fk"
