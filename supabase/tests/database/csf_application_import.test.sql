@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(25);
+SELECT extensions.plan(26);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -36,10 +36,17 @@ SELECT extensions.ok(
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
-) VALUES (
-  'cf000000-0000-4000-8000-000000000001',
-  'authenticated', 'authenticated', 'application-import-officer@local.test', now(), '{}', '{}', now(), now()
-);
+) VALUES
+  (
+    'cf000000-0000-4000-8000-000000000001',
+    'authenticated', 'authenticated', 'application-import-officer@local.test',
+    now(), '{}', '{}', now(), now()
+  ),
+  (
+    'cf000000-0000-4000-8000-000000000002',
+    'authenticated', 'authenticated', 'inactive-application-import-officer@local.test',
+    now(), '{}', '{}', now(), now()
+  );
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES (
@@ -48,6 +55,33 @@ VALUES (
   'csf-application-import',
   'school',
   '995001'
+);
+
+INSERT INTO public.organization_members (
+  organization_id, user_id, role, status
+) VALUES
+  (
+    'cf100000-0000-4000-8000-000000000001',
+    'cf000000-0000-4000-8000-000000000001',
+    'admin', 'active'
+  ),
+  (
+    'cf100000-0000-4000-8000-000000000001',
+    'cf000000-0000-4000-8000-000000000002',
+    'admin', 'removed'
+  );
+
+SELECT extensions.throws_ok(
+  $$
+    SELECT plugin_data.csf_assert_import_actor(
+      'cf100000-0000-4000-8000-000000000001',
+      'cf000000-0000-4000-8000-000000000002',
+      'application_responses'
+    )
+  $$,
+  '42501',
+  'This officer is not an active member of the organization whose CSF import they are acting on.',
+  'an inactive officer cannot act through the application import boundary'
 );
 
 INSERT INTO plugin_data.csf_terms (
