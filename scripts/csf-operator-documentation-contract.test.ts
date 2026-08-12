@@ -731,9 +731,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(currentState).toContain(
       "`2e61074ffa8e4de5466f362c0629541320b4edb5`",
     );
-    expect(currentState).toContain(
-      "Google OAuth and Picker are connected",
-    );
+    expect(currentState).toContain("Google OAuth and Picker are connected");
     expect(currentState).toContain("Spring 2026 application workbook");
     expect(currentState).toContain("`A1:Q518`");
     expect(currentState).toContain("inspected and mapped");
@@ -764,9 +762,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(rehearsalState).toContain(
       "`20260812115556_plugin_data_deletion_requests`",
     );
-    expect(rehearsalState).toContain(
-      "Google OAuth and Picker are connected",
-    );
+    expect(rehearsalState).toContain("Google OAuth and Picker are connected");
     expect(rehearsalState).toContain("`A1:Q518`");
     expect(rehearsalState).toContain(
       "Preview failed before reading or importing rows because the seven-argument RPC was missing",

@@ -3,8 +3,7 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** The repository has 272 ordered migrations while hosted Development has
-271. `dev.lets-assist.com` serves the exact development SHA. Google OAuth and
+**Status:** The repository has 272 ordered migrations while hosted Development has 271. `dev.lets-assist.com` serves the exact development SHA. Google OAuth and
 Picker are connected and the real Spring 2026 application workbook was inspected
 and mapped, but Preview is blocked by the missing seven-argument RPC before any
 row read or import. Production remains untouched.
