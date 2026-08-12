@@ -380,29 +380,111 @@ missing_fk_leading_index="$(
 )"
 warn_if_rows "foreign-key columns without leading indexes; confirm workload before adding blanket indexes" "$missing_fk_leading_index"
 
-sensitive_org_table_api_exposure="$(
+public_client_relation_acl_drift="$(
   psql "$DB_URL" -AtF $'\t' -c "
-    select table_schema, table_name, grantee, string_agg(privilege_type, ',' order by privilege_type) as privileges
-    from information_schema.role_table_grants
-    where table_schema = 'public'
-      and grantee in ('anon', 'authenticated')
-      and table_name in (
-        'organizations',
-        'organization_invitations',
-        'organization_sheet_syncs',
-        'organization_calendar_syncs',
-        'organization_plugin_installs',
-        'organization_plugin_entitlements',
-        'organization_plugin_feature_flags',
-        'organization_plugin_data_boundaries',
-        'organization_data_isolation_profiles'
+    with expected as (
+      select relation_name, role_name, privilege, null::text as column_name
+      from app_private.client_relation_grant_catalog()
+      where columns is null
+      union all
+      select c.relation_name, c.role_name, c.privilege, col.column_name
+      from app_private.client_relation_grant_catalog() c
+      cross join lateral unnest(c.columns) as col(column_name)
+      where c.columns is not null
+    ),
+    actual_relation as (
+      select table_name as relation_name, grantee as role_name, privilege_type as privilege, null::text as column_name
+      from information_schema.role_table_grants
+      where table_schema = 'public'
+        and grantee in ('anon', 'authenticated')
+        and privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
+    ),
+    actual_column as (
+      select cp.table_name as relation_name, cp.grantee as role_name, cp.privilege_type as privilege, cp.column_name
+      from information_schema.column_privileges cp
+      where cp.table_schema = 'public'
+        and cp.grantee in ('anon', 'authenticated')
+        and cp.privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
+        and not exists (
+          select 1
+          from information_schema.role_table_grants rt
+          where rt.table_schema = cp.table_schema
+            and rt.table_name = cp.table_name
+            and rt.grantee = cp.grantee
+            and rt.privilege_type = cp.privilege_type
+        )
+    ),
+    actual as (
+      select * from actual_relation
+      union all
+      select * from actual_column
+    ),
+    drift as (
+      select 'missing'::text as drift_kind, e.relation_name, e.role_name, e.privilege, e.column_name
+      from expected e
+      where not exists (
+        select 1
+        from actual a
+        where a.relation_name = e.relation_name
+          and a.role_name = e.role_name
+          and a.privilege = e.privilege
+          and app_private.client_relation_grant_expected_satisfied_by_actual(
+            e.column_name,
+            a.column_name
+          )
       )
-      and privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
-    group by table_schema, table_name, grantee
-    order by table_schema, table_name, grantee;
+      union all
+      select 'unexpected'::text, a.relation_name, a.role_name, a.privilege, a.column_name
+      from actual a
+      where not exists (
+        select 1
+        from expected e
+        where e.relation_name = a.relation_name
+          and e.role_name = a.role_name
+          and e.privilege = e.privilege
+          and app_private.client_relation_grant_actual_covered_by_expected(
+            a.column_name,
+            e.column_name
+          )
+      )
+    )
+    select drift_kind, relation_name, role_name, privilege, column_name
+    from drift
+    order by drift_kind, relation_name, role_name, privilege, column_name;
   "
 )"
-warn_if_rows "sensitive organization tables still have direct Data API grants; migrate remaining call sites before revoking" "$sensitive_org_table_api_exposure"
+fail_if_rows "public client relation ACL drift from reviewed catalog" "$public_client_relation_acl_drift"
+
+public_client_relation_dangerous_grants="$(
+  psql "$DB_URL" -AtF $'\t' -c "
+    select n.nspname, c.relname, grantee.rolname, acl.privilege_type
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    cross join lateral aclexplode(c.relacl) acl(grantor_oid, grantee_oid, privilege_type, is_grantable)
+    join pg_roles grantee on grantee.oid = acl.grantee_oid
+    where n.nspname = 'public'
+      and c.relkind in ('r', 'p', 'v', 'm')
+      and grantee.rolname in ('anon', 'authenticated')
+      and acl.privilege_type not in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
+    order by c.relname, grantee.rolname, acl.privilege_type;
+  "
+)"
+fail_if_rows "public relations grant anon/authenticated non-DML privileges" "$public_client_relation_dangerous_grants"
+
+public_client_relation_public_grants="$(
+  psql "$DB_URL" -AtF $'\t' -c "
+    select n.nspname, c.relname, acl.privilege_type
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    cross join lateral aclexplode(c.relacl) acl(grantor_oid, grantee_oid, privilege_type, is_grantable)
+    where n.nspname = 'public'
+      and c.relkind in ('r', 'p', 'v', 'm')
+      and acl.grantee_oid = 0
+      and acl.privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER')
+    order by c.relname, acl.privilege_type;
+  "
+)"
+fail_if_rows "PUBLIC role still holds public relation DML or dangerous privileges" "$public_client_relation_public_grants"
 
 read_models_not_security_invoker="$(
   psql "$DB_URL" -AtF $'\t' -c "
