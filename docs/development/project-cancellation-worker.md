@@ -59,6 +59,14 @@ can erase the job that owns it. The generated tenant coordinate is deliberately
 excluded from every `SET NULL` foreign key because PostgreSQL 17 rejects that
 action for a constraint containing a generated column.
 
+The architecture audit has one self-validating tenant-FK catalog exception for
+`public.project_cancellation_jobs`. It is valid only while the named immutable
+snapshot check binds `organization_id_snapshot` to `organization_id`, the
+original identifier has no live tenant FK, and the named
+`live_organization_id` FK targets `public.organizations(id)` with
+`ON DELETE SET NULL`. Any additional exception or drift in those safeguards is
+a blocking audit result.
+
 The exact address is service-only retention data. Once both owed channels are
 terminal, a bounded skip-locked retention RPC removes it after 90 days while
 retaining its hash and immutable identity evidence.
@@ -122,6 +130,7 @@ Coverage lives in:
 - the stateful Bun worker tests for checked RPC results, notification replay,
   safe pre-send exhaustion, unknown outcomes, fairness, and aggregate privacy.
 
-The SQL migration and pgTAP suites still require isolated CI replay. They were
-authored but not executed in this worktree because this task forbids every
-database command.
+The focused cancellation/lifecycle database suites pass 146 pgTAP assertions.
+The post-catalog migration replay and architecture hard checks pass. The full
+`db:test:redesign` gate, including the complete pgTAP inventory, remains a
+separate verification gate.
