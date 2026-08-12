@@ -33,6 +33,10 @@ type IdentityFixture = {
   mergeTargetId: string;
   mergeSourceName: string;
   mergeTargetName: string;
+  validMergeSourceId: string;
+  validMergeTargetId: string;
+  validMergeSourceName: string;
+  validMergeTargetName: string;
   classmateIds: string[];
   classmateName: string;
   requestId: string;
@@ -84,10 +88,14 @@ async function seedIdentityFixture(): Promise<IdentityFixture> {
   const suffix = randomUUID().slice(0, 8);
   const mergeSourceId = randomUUID();
   const mergeTargetId = randomUUID();
+  const validMergeSourceId = randomUUID();
+  const validMergeTargetId = randomUUID();
   const classmateIds = [randomUUID(), randomUUID()];
   const requestId = randomUUID();
   const mergeSourceName = `Wren Halloway-${suffix}`;
   const mergeTargetName = `Wren Halloway-${suffix}`;
+  const validMergeSourceName = `Legacy-${suffix} Vale-${suffix}`;
+  const validMergeTargetName = `Canonical-${suffix} Vale-${suffix}`;
   const classmateName = `Marlowe Ashby-${suffix}`;
   const requestEmail = `identity.safety.${suffix}@local.test`;
 
@@ -100,6 +108,10 @@ async function seedIdentityFixture(): Promise<IdentityFixture> {
     mergeTargetId,
     mergeSourceName,
     mergeTargetName,
+    validMergeSourceId,
+    validMergeTargetId,
+    validMergeSourceName,
+    validMergeTargetName,
     classmateIds,
     classmateName,
     requestId,
@@ -140,6 +152,43 @@ async function seedIdentityFixture(): Promise<IdentityFixture> {
       mergeProfilesError,
     );
 
+    // Valid merge pair: the same legal name and exact address, with distinct
+    // preferred names so the visible workflow can select the intended source
+    // and canonical target unambiguously.
+    const validMergeEmail = `iris.shared.${suffix}@students.local.test`;
+    const { error: validMergeProfilesError } = await plugin
+      .from("csf_profiles")
+      .insert([
+        {
+          id: validMergeSourceId,
+          organization_id: organization.id,
+          first_name: "Iris",
+          preferred_name: `Legacy-${suffix}`,
+          last_name: `Vale-${suffix}`,
+          school_email: validMergeEmail,
+          normalized_first_name: "iris",
+          normalized_last_name: `vale-${suffix}`,
+          normalized_school_email: validMergeEmail,
+          source_summary: { browserFixture: true, source: "legacy" },
+        },
+        {
+          id: validMergeTargetId,
+          organization_id: organization.id,
+          first_name: "Iris",
+          preferred_name: `Canonical-${suffix}`,
+          last_name: `Vale-${suffix}`,
+          school_email: validMergeEmail,
+          normalized_first_name: "iris",
+          normalized_last_name: `vale-${suffix}`,
+          normalized_school_email: validMergeEmail,
+          source_summary: { browserFixture: true, source: "current" },
+        },
+      ]);
+    assertNoSupabaseError(
+      "Could not seed the valid merge fixture",
+      validMergeProfilesError,
+    );
+
     // Connection pair: two genuine classmates who share a name exactly. Neither
     // carries the requesting account's confirmed address.
     const { error: classmateError } = await plugin.from("csf_profiles").insert([
@@ -174,7 +223,13 @@ async function seedIdentityFixture(): Promise<IdentityFixture> {
     const { error: membershipError } = await plugin
       .from("csf_profile_cohort_memberships")
       .insert(
-        [mergeSourceId, mergeTargetId, ...classmateIds].map((profileId) => ({
+        [
+          mergeSourceId,
+          mergeTargetId,
+          validMergeSourceId,
+          validMergeTargetId,
+          ...classmateIds,
+        ].map((profileId) => ({
           organization_id: organization.id,
           profile_id: profileId,
           cohort_id: cohort.id,
@@ -264,9 +319,23 @@ async function cleanIdentityFixture(current: IdentityFixture) {
     .in("profile_id", [
       current.mergeSourceId,
       current.mergeTargetId,
+      current.validMergeSourceId,
+      current.validMergeTargetId,
       ...current.classmateIds,
     ]);
   assertNoSupabaseError("Could not clean cohort memberships", membershipError);
+
+  // A merged tombstone points at the canonical target through an immediate
+  // RESTRICT FK, so remove the source before the target.
+  const { error: mergedSourceError } = await plugin
+    .from("csf_profiles")
+    .delete()
+    .eq("organization_id", current.organizationId)
+    .eq("id", current.validMergeSourceId);
+  assertNoSupabaseError(
+    "Could not clean the merged source profile",
+    mergedSourceError,
+  );
 
   const { error: profileError } = await plugin
     .from("csf_profiles")
@@ -275,6 +344,7 @@ async function cleanIdentityFixture(current: IdentityFixture) {
     .in("id", [
       current.mergeSourceId,
       current.mergeTargetId,
+      current.validMergeTargetId,
       ...current.classmateIds,
     ]);
   assertNoSupabaseError("Could not clean synthetic profiles", profileError);
@@ -422,6 +492,112 @@ test.describe("CSF identity safety", () => {
       sourceProfileError,
     );
     expect(sourceProfile?.record_status).toBe("active");
+
+    expectNoBrowserFailures(failures);
+  });
+
+  test("a corroborated duplicate completes a valid visible merge", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    await loginAs(page, "admin");
+    await openMembersTab(page);
+
+    const search = page.getByLabel("Search members");
+    await search.fill(`Vale-${fixture.suffix}`);
+    await search.press("Enter");
+    await expect(
+      page.getByText("Showing 2 of 2 matching members."),
+    ).toBeVisible();
+
+    const sourceRow = page.getByRole("row").filter({
+      hasText: fixture.validMergeSourceName,
+    });
+    await expect(sourceRow).toBeVisible();
+    await sourceRow
+      .getByRole("button", {
+        name: `Actions for ${fixture.validMergeSourceName}`,
+      })
+      .click();
+    await page
+      .getByRole("menuitem", { name: "Merge duplicate record" })
+      .click();
+
+    const dialog = page.getByRole("dialog", {
+      name: "Merge a duplicate student record",
+    });
+    await dialog
+      .getByRole("combobox", { name: "Canonical record to keep" })
+      .click();
+    await page
+      .getByRole("option", {
+        name: new RegExp(fixture.validMergeTargetName),
+      })
+      .click();
+    await dialog.getByRole("button", { name: "Preview merge" }).click();
+
+    await expect(dialog.getByText("Ready to merge")).toBeVisible();
+    await expect(dialog.getByRole("alert")).toContainText(
+      "The database corroborated the student identity",
+    );
+    await dialog
+      .getByLabel("Reason for merge")
+      .fill("Exact name, email, and class confirm one synthetic student.");
+    await dialog
+      .getByRole("button", { name: "Merge into canonical record" })
+      .click();
+
+    await expect(dialog).toBeHidden();
+    await expect(
+      page.getByText("The duplicate record was merged."),
+    ).toBeVisible();
+
+    const plugin = fixture.admin.schema("plugin_data");
+    await expect
+      .poll(async () => {
+        const { data, error } = await plugin
+          .from("csf_profiles")
+          .select("record_status, merged_into_profile_id")
+          .eq("id", fixture.validMergeSourceId)
+          .single();
+        assertNoSupabaseError("Could not poll the merged source", error);
+        return data;
+      })
+      .toEqual({
+        record_status: "merged",
+        merged_into_profile_id: fixture.validMergeTargetId,
+      });
+
+    const { data: memberships, error: membershipsError } = await plugin
+      .from("csf_profile_cohort_memberships")
+      .select("profile_id, status")
+      .eq("organization_id", fixture.organizationId)
+      .eq("cohort_id", fixture.cohortId)
+      .in("profile_id", [
+        fixture.validMergeSourceId,
+        fixture.validMergeTargetId,
+      ]);
+    assertNoSupabaseError(
+      "Could not verify the consolidated membership",
+      membershipsError,
+    );
+    expect(memberships).toEqual([
+      { profile_id: fixture.validMergeTargetId, status: "active" },
+    ]);
+
+    const { data: reviews, error: reviewsError } = await plugin
+      .from("csf_profile_merge_reviews")
+      .select("status, evidence")
+      .eq("organization_id", fixture.organizationId)
+      .eq("source_profile_id", fixture.validMergeSourceId)
+      .eq("target_profile_id", fixture.validMergeTargetId)
+      .single();
+    assertNoSupabaseError(
+      "Could not verify the successful merge review",
+      reviewsError,
+    );
+    expect(reviews?.status).toBe("approved");
+    expect(reviews?.evidence?.zeroLiveSourceReferences).toBe(true);
 
     expectNoBrowserFailures(failures);
   });

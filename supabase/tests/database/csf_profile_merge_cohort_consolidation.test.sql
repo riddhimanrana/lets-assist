@@ -64,13 +64,17 @@ SELECT extensions.ok(
   'the request-aware merge entrypoint remains the only service-role merge path'
 );
 SELECT extensions.ok(
-  pg_get_functiondef(
-    'plugin_data.csf_merge_profiles(uuid,uuid,uuid,text,uuid)'::regprocedure
-  ) LIKE '%LOCK TABLE plugin_data.csf_profile_accounts%'
-  AND pg_get_functiondef(
-    'plugin_data.csf_merge_profiles(uuid,uuid,uuid,text,uuid)'::regprocedure
-  ) LIKE '%LOCK TABLE plugin_data.csf_profile_cohort_memberships%',
-  'consolidation runs under the established account and cohort identity locks'
+  NOT has_function_privilege(
+    'service_role',
+    'plugin_data.csf_lock_identity_mutation(uuid)',
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'authenticated',
+    'plugin_data.csf_lock_identity_mutation(uuid)',
+    'EXECUTE'
+  ),
+  'the shared organization identity-lock helper remains owner-internal'
 );
 
 -- ---------------------------------------------------------------------------
