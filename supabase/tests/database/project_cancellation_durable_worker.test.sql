@@ -4,17 +4,21 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(50);
+SELECT extensions.plan(51);
 
 -- ACL and empty-search-path boundary.
 SELECT extensions.ok(
-  has_function_privilege(
+  to_regprocedure('public.cancel_project_transactional(uuid,text)') IS NOT NULL
+  AND has_function_privilege(
     'authenticated', 'public.cancel_project_transactional(uuid,text)', 'EXECUTE'
   )
   AND NOT has_function_privilege(
     'anon', 'public.cancel_project_transactional(uuid,text)', 'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'service_role', 'public.cancel_project_transactional(uuid,text)', 'EXECUTE'
   ),
-  'only authenticated callers can reach the cancellation transaction'
+  'the old public signature remains executable only by authenticated callers'
 );
 
 SELECT extensions.ok(
@@ -28,17 +32,34 @@ SELECT extensions.ok(
 );
 
 SELECT extensions.ok(
-  EXISTS (
-    SELECT 1
-    FROM pg_catalog.pg_proc AS proc
-    CROSS JOIN LATERAL
-      unnest(coalesce(proc.proconfig, ARRAY[]::text[])) AS config
-    WHERE proc.oid =
-      'public.cancel_project_transactional(uuid,text)'::regprocedure
-      AND split_part(config, '=', 1) = 'search_path'
-      AND btrim(substring(config FROM position('=' IN config) + 1), '"') = ''
+  (
+    SELECT NOT public_proc.prosecdef
+      AND public_proc.proconfig = ARRAY['search_path=""']::text[]
+      AND private_proc.prosecdef
+      AND private_proc.proconfig = ARRAY['search_path=""']::text[]
+    FROM pg_catalog.pg_proc AS public_proc
+    CROSS JOIN pg_catalog.pg_proc AS private_proc
+    WHERE public_proc.oid =
+        'public.cancel_project_transactional(uuid,text)'::regprocedure
+      AND private_proc.oid =
+        to_regprocedure('private.cancel_project_transactional(uuid,text)')
+  )
+  AND has_function_privilege(
+    'authenticated',
+    to_regprocedure('private.cancel_project_transactional(uuid,text)'),
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'anon',
+    to_regprocedure('private.cancel_project_transactional(uuid,text)'),
+    'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'service_role',
+    to_regprocedure('private.cancel_project_transactional(uuid,text)'),
+    'EXECUTE'
   ),
-  'cancellation authority has an empty search_path'
+  'the public invoker and authenticated-only private definer both use an empty search_path'
 );
 
 SELECT extensions.ok(
@@ -74,6 +95,19 @@ SELECT extensions.ok(
       AND attributes.attgenerated <> ''
   ),
   'SET NULL foreign keys never contain generated referencing columns'
+);
+
+SELECT extensions.ok(
+  (
+    SELECT constraints.conindid =
+      'public.projects_id_organization_id_key'::regclass
+    FROM pg_catalog.pg_constraint AS constraints
+    WHERE constraints.conrelid = 'public.projects'::regclass
+      AND constraints.conname = 'projects_id_organization_id_key'
+      AND constraints.contype = 'u'
+  )
+  AND to_regclass('public.projects_id_organization_id_uidx') IS NULL,
+  'the canonical constraint owns its index and the redundant standalone duplicate is absent'
 );
 
 -- Synthetic identities and projects.

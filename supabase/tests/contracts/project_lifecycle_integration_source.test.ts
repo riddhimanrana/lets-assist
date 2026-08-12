@@ -105,10 +105,18 @@ describe("combined project lifecycle source contract", () => {
     expect(seriesEndFunction).toContain("SET recurrence_rule = NULL");
   });
 
-  test("the additive architecture catalogs retain authenticated lifecycle authorities", () => {
+  test("the additive catalogs retain lifecycle authorities without SECURITY DEFINER exceptions", () => {
     const audit = read("scripts/audit-supabase-architecture.sh");
     const aclTest = read(
       "supabase/tests/database/public_function_acl_allowlist.test.sql",
+    );
+    const boundaryMigration = read(
+      "supabase/migrations/20260812104754_harden_project_transaction_rpc_boundaries.sql",
+    );
+    const securityDefinerAudit = sliceBetween(
+      audit,
+      'unexpected_security_definer_exec="$(',
+      'fail_if_rows "client EXECUTE grants on public SECURITY DEFINER functions"',
     );
 
     for (const signature of [
@@ -119,6 +127,35 @@ describe("combined project lifecycle source contract", () => {
       expect(audit).toContain(signature);
       expect(aclTest).toContain(signature);
     }
+
+    expect(securityDefinerAudit).not.toContain(
+      "unreject_project_signup_with_capacity",
+    );
+    expect(securityDefinerAudit).not.toContain("cancel_project_transactional");
+    expect(boundaryMigration).toContain(
+      "ALTER FUNCTION public.cancel_project_transactional(uuid, text)\n  SET SCHEMA private",
+    );
+    expect(boundaryMigration).toContain(
+      "CREATE OR REPLACE FUNCTION public.cancel_project_transactional(",
+    );
+    expect(boundaryMigration).toContain(
+      "ALTER FUNCTION public.unreject_project_signup_with_capacity(uuid)\n  SET SCHEMA private",
+    );
+    expect(boundaryMigration).toContain(
+      "CREATE OR REPLACE FUNCTION public.unreject_project_signup_with_capacity(",
+    );
+    expect(
+      boundaryMigration.match(
+        /LANGUAGE sql\nSECURITY INVOKER\nSET search_path = ''/g,
+      ),
+    ).toHaveLength(2);
+    expect(boundaryMigration.match(/SET search_path = ''/g)).toHaveLength(2);
+    expect(boundaryMigration).toContain(
+      "DROP INDEX public.projects_id_organization_id_uidx",
+    );
+    expect(boundaryMigration).not.toContain(
+      "DROP INDEX public.projects_id_organization_id_key",
+    );
   });
 
   test("the ledger tail preserves review hardening after integrated replacements", () => {

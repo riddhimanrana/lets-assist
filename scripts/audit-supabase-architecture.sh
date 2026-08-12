@@ -810,20 +810,6 @@ unexpected_security_definer_exec="$(
       where n.nspname = 'public'
         and p.prosecdef
         and has_function_privilege(r.rolname, p.oid, 'EXECUTE')
-        and not (
-          r.rolname = 'authenticated'
-          and (
-            (
-              p.proname = 'unreject_project_signup_with_capacity'
-              and pg_get_function_identity_arguments(p.oid) = 'p_signup_id uuid'
-            )
-            or (
-              p.proname = 'cancel_project_transactional'
-              and pg_get_function_identity_arguments(p.oid) =
-                'p_project_id uuid, p_cancellation_reason text'
-            )
-          )
-        )
     )
     select g.nspname, g.proname, g.identity_arguments, g.rolname
     from grants g
