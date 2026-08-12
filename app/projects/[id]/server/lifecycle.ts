@@ -14,7 +14,46 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { getPluginRegistry } from "@/lib/plugins/registry";
 import { runProjectClone } from "@/lib/plugins/lifecycle";
 import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
-import { canUserManageProject, getProject } from "./access";
+import { canUserManageProject } from "./access";
+
+const ALLOWED_PROJECT_STATUS_TRANSITIONS: Record<
+  ProjectStatus,
+  readonly ProjectStatus[]
+> = {
+  upcoming: ["in-progress", "completed", "cancelled"],
+  "in-progress": ["completed", "cancelled"],
+  completed: [],
+  cancelled: [],
+};
+
+function isAllowedProjectStatusTransition(
+  currentStatus: ProjectStatus,
+  nextStatus: ProjectStatus,
+) {
+  return (
+    ALLOWED_PROJECT_STATUS_TRANSITIONS[currentStatus]?.includes(nextStatus) ??
+    false
+  );
+}
+
+async function getProjectForMutation(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  projectId: string,
+) {
+  // Keep mutation authorization independent of PostgREST relationship-cache
+  // state. These actions only need the project row and its organization_id.
+  const { data: project, error } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  if (error || !project || project.id !== projectId) {
+    return { project: null, error: error ?? new Error("Project not found") };
+  }
+
+  return { project: project as Project, error: null };
+}
 
 export async function updateProjectStatus(
   projectId: string,
@@ -34,7 +73,10 @@ export async function updateProjectStatus(
   }
 
   // Verify user has permission to update the project
-  const { project, error: projectError } = await getProject(projectId);
+  const { project, error: projectError } = await getProjectForMutation(
+    supabase,
+    projectId,
+  );
 
   if (!project || projectError) {
     return { error: "Project not found" };
@@ -42,6 +84,10 @@ export async function updateProjectStatus(
 
   if (!(await canUserManageProject(supabase, project, user.id))) {
     return { error: "You don't have permission to update this project" };
+  }
+
+  if (!isAllowedProjectStatusTransition(project.status, newStatus)) {
+    return { error: "Project status transition is not allowed" };
   }
 
   // If cancelling, validate cancellation is allowed
@@ -71,6 +117,7 @@ export async function updateProjectStatus(
     .from("projects")
     .update(updateData)
     .eq("id", projectId)
+    .eq("status", project.status)
     .select("id")
     .maybeSingle();
 
@@ -79,7 +126,7 @@ export async function updateProjectStatus(
     return { error: "Failed to update project status" };
   }
 
-  if (!updatedProject) {
+  if (!updatedProject || updatedProject.id !== projectId) {
     return { error: "Failed to update project status" };
   }
 
@@ -104,6 +151,10 @@ export async function updateProjectStatus(
       const cancelledAt = updateData.cancelled_at ?? new Date().toISOString();
       const serviceSupabase = getAdminClient();
 
+      // Integration note: codex/cancellation-worker-exactly-once replaces this
+      // post-transition enqueue and the cancelled status write above with one
+      // atomic RPC. Its merge must retain the CAS/affected-row proof before
+      // calendar cleanup instead of preserving this two-step boundary.
       const { error: enqueueError } = await serviceSupabase
         .from("project_cancellation_jobs")
         .upsert(
@@ -181,7 +232,9 @@ export async function updateProjectStatus(
 
   // Revalidate project pages
   revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/organization/${project.organization?.id}`);
+  if (project.organization_id) {
+    revalidatePath(`/organization/${project.organization_id}`);
+  }
   revalidatePath("/home");
 
   return { success: true, cancellationNotifications };
@@ -301,7 +354,10 @@ export async function deleteProject(projectId: string) {
   }
 
   // Verify user has permission to delete the project
-  const { project, error: projectError } = await getProject(projectId);
+  const { project, error: projectError } = await getProjectForMutation(
+    supabase,
+    projectId,
+  );
 
   if (!project || projectError) {
     return { error: "Project not found" };
@@ -309,15 +365,19 @@ export async function deleteProject(projectId: string) {
 
   // Check if user has permission
   let hasPermission = project.creator_id === user.id;
-  if (project.organization && !hasPermission) {
-    const { data: orgMember } = await supabase
+  if (project.organization_id && !hasPermission) {
+    const { data: orgMember, error: orgMemberError } = await supabase
       .from("organization_members")
-      .select("role")
-      .eq("organization_id", project.organization.id)
+      .select("role, status")
+      .eq("organization_id", project.organization_id)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (orgMember?.role) {
+    if (orgMemberError) {
+      return { error: "Failed to verify project permissions" };
+    }
+
+    if ((orgMember?.status ?? "active") === "active" && orgMember?.role) {
       hasPermission = orgMember.role === "admin"; // Only admins can delete projects
     }
   }
@@ -333,32 +393,61 @@ export async function deleteProject(projectId: string) {
       .select("id", { count: "exact", head: true })
       .eq("project_id", projectId);
 
-  if (signedWaiverError) {
+  if (signedWaiverError || signedWaiverCount === null) {
     return { error: "Unable to verify the project's waiver-retention state" };
   }
 
-  if ((signedWaiverCount ?? 0) > 0) {
+  if (signedWaiverCount > 0) {
     return {
       error:
         "Projects with signed waivers must be cancelled and retained until their evidence-retention period ends",
     };
   }
 
+  // Prove the RLS-scoped delete before touching external systems. The project
+  // snapshot above retains every cleanup path needed after the row is gone.
+  const { data: deletedProject, error: deleteError } = await supabase
+    .from("projects")
+    .delete()
+    .eq("id", projectId)
+    .select("id")
+    .maybeSingle();
+
+  if (deleteError) {
+    console.error("Error deleting project:", deleteError);
+    return { error: "Failed to delete project" };
+  }
+
+  if (!deletedProject || deletedProject.id !== projectId) {
+    return { error: "Failed to delete project" };
+  }
+
   // Delete project documents from storage if they exist
   if ((project.documents?.length ?? 0) > 0) {
-    const { data: storageData } = await supabase.storage
-      .from("project-documents")
-      .list();
+    const { data: storageData, error: storageListError } =
+      await supabase.storage.from("project-documents").list();
 
-    if (storageData) {
+    if (storageListError) {
+      console.error(
+        "Error listing deleted project documents:",
+        storageListError,
+      );
+    } else if (storageData) {
       const projectFiles = storageData.filter((file) =>
         file.name.startsWith(`project_${projectId}`),
       );
 
       if (projectFiles.length > 0) {
-        await supabase.storage
+        const { error: documentRemovalError } = await supabase.storage
           .from("project-documents")
           .remove(projectFiles.map((file) => file.name));
+
+        if (documentRemovalError) {
+          console.error(
+            "Error removing deleted project documents:",
+            documentRemovalError,
+          );
+        }
       }
     }
   }
@@ -367,7 +456,16 @@ export async function deleteProject(projectId: string) {
   if (project.cover_image_url) {
     const fileName = project.cover_image_url.split("/").pop();
     if (fileName) {
-      await supabase.storage.from("project-images").remove([fileName]);
+      const { error: coverRemovalError } = await supabase.storage
+        .from("project-images")
+        .remove([fileName]);
+
+      if (coverRemovalError) {
+        console.error(
+          "Error removing deleted project cover image:",
+          coverRemovalError,
+        );
+      }
     }
   }
 
@@ -379,21 +477,10 @@ export async function deleteProject(projectId: string) {
     // Don't fail the deletion if calendar removal fails
   }
 
-  // Delete project from database
-  const { error: deleteError } = await supabase
-    .from("projects")
-    .delete()
-    .eq("id", projectId);
-
-  if (deleteError) {
-    console.error("Error deleting project:", deleteError);
-    return { error: "Failed to delete project" };
-  }
-
   // Revalidate paths
   revalidatePath("/home");
-  if (project.organization) {
-    revalidatePath(`/organization/${project.organization.id}`);
+  if (project.organization_id) {
+    revalidatePath(`/organization/${project.organization_id}`);
   }
 
   return { success: true };
