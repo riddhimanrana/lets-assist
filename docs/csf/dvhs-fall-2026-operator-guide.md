@@ -676,9 +676,11 @@ code gate.
   `authenticated` cannot. The Drive metadata RPC is no longer the Preview
   blocker.
 - The caller-summary correction is the private plugin fix merged by private PR
-  #45 at `ca817bf`, and this root worktree's gitlink points to that commit
-  locally. The stale Ready Development SHA above does not include that local
-  gitlink update.
+  #45 at `ca817bf`. On `development` the root worktree's gitlink points to that
+  commit locally; the open meeting-roster integration branch advances the
+  gitlink to private `development` `4f20fa5`, which contains `ca817bf` as an
+  ancestor. The stale Ready Development SHA above does not include either
+  gitlink.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
 - Three controlled Development test messages produced three signature-verified
