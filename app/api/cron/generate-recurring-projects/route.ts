@@ -384,32 +384,54 @@ async function processRecurringProjects(): Promise<{
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const MAX_PARENTS = 20; // Limit parents per run
+  const MAX_PARENTS = 20; // Limit valid parents processed per run
+  // Separate ceiling on total rows inspected to prevent excessive DB calls
+  // when many corrupt rows are present; much larger than MAX_PARENTS.
+  const MAX_INSPECTED = 200;
   let parentsProcessed = 0;
+  let inspectedRows = 0;
 
   for (const parent of parentProjects as Project[]) {
-    if (parentsProcessed >= MAX_PARENTS) {
-      console.log(
-        `Reached limit of ${MAX_PARENTS} parent projects per run. Skipping remaining.`,
-      );
-      break;
-    }
-    parentsProcessed++;
+    if (inspectedRows >= MAX_INSPECTED) break;
+    inspectedRows++;
 
     try {
       const rawRule = parent.recurrence_rule;
       if (!rawRule) continue;
 
+      // Apply legacy defaults for fields that may be absent in historic rows
+      // before calling the strict validator. Cast through `unknown` first
+      // because `RecurrenceRule` lacks an index signature.
+      const rawRuleRecord = rawRule as unknown as Record<string, unknown>;
+      const normalizedRawRule = {
+        ...rawRuleRecord,
+        interval: rawRuleRecord.interval ?? 1,
+        end_type: rawRuleRecord.end_type ?? "never",
+      };
+
       // Validate rule before processing; treat corrupt legacy rows as bounded
-      // faults so the rest of the run continues without a hot-CPU loop.
-      const ruleValidation = validateRecurrenceRule(rawRule);
+      // faults so healthy parents after them are still reached.
+      const ruleValidation = validateRecurrenceRule(normalizedRawRule);
       if (!ruleValidation.ok) {
+        console.warn(
+          `[recurring-cron] Bounded fault — skipping parent ${parent.id} (${parent.title}): ${ruleValidation.error}`,
+        );
         errors.push(
           `Skipping parent ${parent.title} (invalid recurrence_rule: ${ruleValidation.error})`,
         );
         continue;
       }
       const rule = ruleValidation.rule;
+
+      // Only increment the valid-parents counter after validation passes so
+      // corrupt rows do not consume the fairness budget.
+      if (parentsProcessed >= MAX_PARENTS) {
+        console.log(
+          `Reached limit of ${MAX_PARENTS} parent projects per run. Skipping remaining.`,
+        );
+        break;
+      }
+      parentsProcessed++;
 
       const latestOccurrenceResult = await supabase
         .from("projects")

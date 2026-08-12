@@ -258,6 +258,20 @@ export async function runProjectFeedbackWorker(options: {
       continue;
     }
 
+    // --- DETERMINISTIC PRE-SEND WORK ---
+    // Failures here settle as skipped or failed — NEVER unknown_outcome —
+    // because no provider call has been made yet.
+    type PreSendReady = {
+      recipientEmail: string;
+      recipientName: string;
+      project: Project & { organization: { name: string | null } | null };
+      feedbackUrl: string;
+      unsubscribeUrl: string;
+      eventDate: string | null;
+      titleForSubject: string;
+    };
+    let preSend: PreSendReady | null = null;
+
     try {
       const recipient = await resolveConsentedRecipient(claim);
       if (!recipient.ok) {
@@ -299,10 +313,8 @@ export async function runProjectFeedbackWorker(options: {
           ? getAttendanceScheduleWindow(project, scheduleIds[0])
           : null;
 
-      // Format the event date outside the provider-ambiguity catch below so
-      // that a deterministic formatting failure (e.g. an invalid stored timezone
-      // that slipped past prior validation) never produces unknown_outcome —
-      // the email still sends, just without the date field.
+      // Format the event date; an invalid stored timezone is a deterministic
+      // failure that must not produce unknown_outcome — let it stay null.
       let eventDate: string | null = null;
       if (firstWindow) {
         try {
@@ -315,27 +327,54 @@ export async function runProjectFeedbackWorker(options: {
         }
       }
 
-      const titleForSubject =
-        project.title.length > 60
-          ? `${project.title.slice(0, 57)}…`
-          : project.title;
+      preSend = {
+        recipientEmail: recipient.email,
+        recipientName: recipient.name,
+        project,
+        feedbackUrl,
+        unsubscribeUrl,
+        eventDate,
+        titleForSubject:
+          project.title.length > 60
+            ? `${project.title.slice(0, 57)}…`
+            : project.title,
+      };
+    } catch (preError) {
+      // Deterministic pre-send failure: the provider was never reached so
+      // unknown_outcome is wrong here.
+      console.error(
+        `Feedback pre-send preparation failed for ${claim.id}:`,
+        preError,
+      );
+      await settle(claim.id, "failed", null, "pre_send_error");
+      outcomes.failed += 1;
+      continue;
+    }
 
+    // After the pre-send block, preSend is null only when an inner `continue`
+    // already handled settlement and advanced the loop. TypeScript needs this
+    // guard to narrow the type; the extra iteration never actually runs.
+    if (!preSend) continue;
+
+    // --- PROVIDER BOUNDARY ---
+    // A throw here means we cannot prove the provider was not reached.
+    try {
       const result = await sendEmail({
-        to: recipient.email,
-        subject: `How did volunteering at ${titleForSubject} go?`,
+        to: preSend.recipientEmail,
+        subject: `How did volunteering at ${preSend.titleForSubject} go?`,
         react: React.createElement(ProjectFeedbackRequest, {
-          volunteerName: recipient.name,
-          projectTitle: project.title,
-          organizationName: project.organization?.name ?? null,
-          feedbackUrl,
-          unsubscribeUrl,
-          eventDate,
+          volunteerName: preSend.recipientName,
+          projectTitle: preSend.project.title,
+          organizationName: preSend.project.organization?.name ?? null,
+          feedbackUrl: preSend.feedbackUrl,
+          unsubscribeUrl: preSend.unsubscribeUrl,
+          eventDate: preSend.eventDate,
         }),
         // userId deliberately omitted: sendEmail's preference gate is
         // unreachable from cron; consent was re-checked above.
         type: "project_updates",
         headers: {
-          "List-Unsubscribe": `<${unsubscribeUrl}>`,
+          "List-Unsubscribe": `<${preSend.unsubscribeUrl}>`,
           "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
         },
         tags: [{ name: "kind", value: "project_feedback_request" }],

@@ -425,25 +425,6 @@ export async function updateProject(
         ? { description: sanitizeRichTextHtml(updates.description) }
         : {}),
     };
-    // Validate project_timezone when being updated.
-    if (Object.prototype.hasOwnProperty.call(sanitizedUpdates, "project_timezone")) {
-      const tzResult = validateProjectTimezone(sanitizedUpdates.project_timezone);
-      if (!tzResult.ok) {
-        return { error: `Invalid project timezone: ${tzResult.error}` };
-      }
-    }
-
-    // Validate recurrence_rule when being updated (null clears the rule).
-    if (
-      Object.prototype.hasOwnProperty.call(sanitizedUpdates, "recurrence_rule") &&
-      sanitizedUpdates.recurrence_rule !== null &&
-      sanitizedUpdates.recurrence_rule !== undefined
-    ) {
-      const ruleResult = validateRecurrenceRule(sanitizedUpdates.recurrence_rule);
-      if (!ruleResult.ok) {
-        return { error: `Invalid recurrence rule: ${ruleResult.error}` };
-      }
-    }
 
     const mutableSanitizedUpdates = sanitizedUpdates as Record<string, unknown>;
     const immutableProjectFields = [
@@ -464,7 +445,8 @@ export async function updateProject(
       delete mutableSanitizedUpdates[field];
     }
 
-    // Get current user using getClaims() for better performance
+    // Authentication and authorization first: unauthorized callers must not
+    // be able to probe field-level validation errors.
     const { user, error: userError } = await getAuthUser();
     if (userError || !user) {
       return { error: "Unauthorized" };
@@ -481,6 +463,29 @@ export async function updateProject(
 
     if (!project || !(await canUserManageProject(supabase, project, user.id))) {
       return { error: "Unauthorized" };
+    }
+
+    // Validate project_timezone when being updated (explicit undefined means omitted).
+    if (
+      Object.prototype.hasOwnProperty.call(sanitizedUpdates, "project_timezone") &&
+      sanitizedUpdates.project_timezone !== undefined
+    ) {
+      const tzResult = validateProjectTimezone(sanitizedUpdates.project_timezone);
+      if (!tzResult.ok) {
+        return { error: `Invalid project timezone: ${tzResult.error}` };
+      }
+    }
+
+    // Validate recurrence_rule when being updated (null clears the rule).
+    if (
+      Object.prototype.hasOwnProperty.call(sanitizedUpdates, "recurrence_rule") &&
+      sanitizedUpdates.recurrence_rule !== null &&
+      sanitizedUpdates.recurrence_rule !== undefined
+    ) {
+      const ruleResult = validateRecurrenceRule(sanitizedUpdates.recurrence_rule);
+      if (!ruleResult.ok) {
+        return { error: `Invalid recurrence rule: ${ruleResult.error}` };
+      }
     }
 
     const requestsPublicVisibility =

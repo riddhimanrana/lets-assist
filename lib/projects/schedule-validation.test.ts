@@ -223,6 +223,62 @@ describe("validateRecurrenceRule — end_type", () => {
     ).toBe(false);
   });
 
+  // --- Strict YYYY-MM-DD + calendar round-trip (matches parseISO consumers) ---
+
+  test("end_date in MM/DD/YYYY format is rejected (not YYYY-MM-DD)", () => {
+    const result = validateRecurrenceRule({
+      ...base,
+      end_type: "on_date",
+      end_date: "12/31/2026",
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  test("end_date 2026-12-31 is accepted (valid YYYY-MM-DD)", () => {
+    const result = validateRecurrenceRule({
+      ...base,
+      end_type: "on_date",
+      end_date: "2026-12-31",
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  test("end_date 2026-02-29 is rejected (2026 is not a leap year)", () => {
+    const result = validateRecurrenceRule({
+      ...base,
+      end_type: "on_date",
+      end_date: "2026-02-29",
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  test("end_date 2024-02-29 is accepted (2024 is a leap year)", () => {
+    const result = validateRecurrenceRule({
+      ...base,
+      end_type: "on_date",
+      end_date: "2024-02-29",
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  test("end_date with invalid month 2026-13-01 is rejected", () => {
+    const result = validateRecurrenceRule({
+      ...base,
+      end_type: "on_date",
+      end_date: "2026-13-01",
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  test("end_date with invalid day 2026-01-32 is rejected", () => {
+    const result = validateRecurrenceRule({
+      ...base,
+      end_type: "on_date",
+      end_date: "2026-01-32",
+    });
+    expect(result.ok).toBe(false);
+  });
+
   test("end_type after_occurrences requires end_occurrences >= 1", () => {
     expect(
       validateRecurrenceRule({
@@ -260,13 +316,23 @@ describe("validateRecurrenceRule — end_type", () => {
   });
 
   test("end_occurrences above RECURRENCE_OCCURRENCE_MAX is rejected", () => {
+    const result = validateRecurrenceRule({
+      ...base,
+      end_type: "after_occurrences",
+      end_occurrences: RECURRENCE_OCCURRENCE_MAX + 1,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/end_occurrences/i);
+  });
+
+  test("end_occurrences at RECURRENCE_OCCURRENCE_MAX is accepted", () => {
     expect(
       validateRecurrenceRule({
         ...base,
         end_type: "after_occurrences",
-        end_occurrences: RECURRENCE_OCCURRENCE_MAX + 1,
+        end_occurrences: RECURRENCE_OCCURRENCE_MAX,
       }).ok,
-    ).toBe(false);
+    ).toBe(true);
   });
 
   test("invalid end_type is rejected", () => {
@@ -283,32 +349,50 @@ describe("validateRecurrenceRule — end_type", () => {
 // Hard loop-cap: corrupt row is a bounded fault; subsequent parents continue
 // ---------------------------------------------------------------------------
 
-describe("validateRecurrenceRule — loop-cap coverage via validation", () => {
-  test("corrupt rule (interval -1, end_type never) is rejected, leaving run to continue", () => {
-    const corrupt = {
-      frequency: "daily",
-      interval: -1,
-      end_type: "never",
-    };
-    const result = validateRecurrenceRule(corrupt);
-    expect(result.ok).toBe(false);
-    // A valid parent after the corrupt one passes independently.
-    const valid = validateRecurrenceRule({
+describe("validateRecurrenceRule — corrupt-row isolation", () => {
+  test("corrupt rule (interval -1) is rejected and does not block subsequent valid rules", () => {
+    const corrupt = { frequency: "daily", interval: -1, end_type: "never" };
+    const corruptResult = validateRecurrenceRule(corrupt);
+    expect(corruptResult.ok).toBe(false);
+
+    // A valid rule following the corrupt one validates independently.
+    const validResult = validateRecurrenceRule({
       frequency: "weekly",
       interval: 2,
       end_type: "after_occurrences",
       end_occurrences: 10,
     });
-    expect(valid.ok).toBe(true);
+    expect(validResult.ok).toBe(true);
   });
 
-  test("MAX_ITERATIONS_PER_PARENT constant is exported and reasonable", async () => {
-    // Import dynamically to test the exported constant from the cron route.
+  test("multiple corrupt rules each fail individually without short-circuiting later checks", () => {
+    const corruptRules = [
+      { frequency: "daily", interval: 0, end_type: "never" },
+      { frequency: "weekly", interval: 1, end_type: "on_date", end_date: "not-a-date" },
+      { frequency: "monthly", interval: 1, end_type: "after_occurrences", end_occurrences: 0 },
+    ] as const;
+
+    for (const corrupt of corruptRules) {
+      expect(validateRecurrenceRule(corrupt).ok).toBe(false);
+    }
+
+    // Validation still works after all failures.
+    expect(
+      validateRecurrenceRule({
+        frequency: "yearly",
+        interval: 1,
+        end_type: "never",
+      }).ok,
+    ).toBe(true);
+  });
+
+  test("MAX_ITERATIONS_PER_PARENT is exported with a reasonable upper bound", async () => {
     const mod = await import(
       "@/app/api/cron/generate-recurring-projects/route"
     );
-    expect(typeof mod.MAX_ITERATIONS_PER_PARENT).toBe("number");
-    expect(mod.MAX_ITERATIONS_PER_PARENT).toBeGreaterThan(10);
-    expect(mod.MAX_ITERATIONS_PER_PARENT).toBeLessThanOrEqual(10000);
+    const cap = mod.MAX_ITERATIONS_PER_PARENT;
+    // Defense ceiling must be positive and not pathologically large.
+    expect(cap).toBeGreaterThan(10);
+    expect(cap).toBeLessThanOrEqual(10_000);
   });
 });

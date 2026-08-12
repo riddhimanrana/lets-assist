@@ -13,6 +13,10 @@ import {
   normalizeRequireLoginForVerificationMethod,
   sanitizeDraftData,
 } from "./shared";
+import {
+  validateProjectTimezone,
+  validateRecurrenceRule,
+} from "@/lib/projects/schedule-validation";
 
 export async function finalizeProject(projectId: string) {
   "use server";
@@ -357,17 +361,32 @@ export async function updateDraft(
     }
   }
 
-  // Build recurrence rule if enabled
-  const recurrenceRule = projectData.recurrence?.enabled
-    ? {
-        frequency: projectData.recurrence.frequency,
-        interval: projectData.recurrence.interval || 1,
-        end_type: projectData.recurrence.endType,
-        end_date: projectData.recurrence.endDate || null,
-        end_occurrences: projectData.recurrence.endOccurrences || null,
-        weekdays: projectData.recurrence.weekdays || [],
-      }
-    : null;
+  // Validate project_timezone server-side.
+  const rawTimezone =
+    projectData.basicInfo.projectTimezone || "America/Los_Angeles";
+  const timezoneResult = validateProjectTimezone(rawTimezone);
+  if (!timezoneResult.ok) {
+    return { error: `Invalid project timezone: ${timezoneResult.error}` };
+  }
+
+  // Build and validate recurrence rule if enabled.
+  let recurrenceRule: import("@/lib/projects/schedule-validation").ValidatedRecurrenceRule | null =
+    null;
+  if (projectData.recurrence?.enabled) {
+    const rawRule = {
+      frequency: projectData.recurrence.frequency,
+      interval: projectData.recurrence.interval,
+      end_type: projectData.recurrence.endType,
+      end_date: projectData.recurrence.endDate || null,
+      end_occurrences: projectData.recurrence.endOccurrences || null,
+      weekdays: projectData.recurrence.weekdays || [],
+    };
+    const ruleResult = validateRecurrenceRule(rawRule);
+    if (!ruleResult.ok) {
+      return { error: `Invalid recurrence rule: ${ruleResult.error}` };
+    }
+    recurrenceRule = ruleResult.rule;
+  }
 
   // Update the draft
   const baseUpdatePayload = {
@@ -387,8 +406,7 @@ export async function updateDraft(
     waiver_required: projectData.waiverRequired || false,
     waiver_allow_upload: projectData.waiverAllowUpload ?? true,
     visibility: targetVisibility,
-    project_timezone:
-      projectData.basicInfo.projectTimezone || "America/Los_Angeles",
+    project_timezone: rawTimezone,
     restrict_to_org_domains: projectData.restrictToOrgDomains || false,
     recurrence_rule: recurrenceRule,
   };
