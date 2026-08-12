@@ -1,7 +1,7 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** the August 11 exact-tree replay/build/DV+CSF browser gates and hosted Development acceptance are green for the tree they named. Development was verified at exact 245-migration parity in that run, and the repository has since advanced to 250 migrations through `20260811233646`, so parity must be re-verified before it is relied on. Development also has leaked-password protection enabled, the unused `pg_graphql` extension removed, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. The scheduled-post transition, repository-owned scheduler, and visible composer schedule/readback/archive lifecycle are implemented and accepted, but hosted enabled publisher invocation and visible schedule → Feed publication remain pending alongside live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, Production webhook rotation, and Production cutover.
+**Current status:** the August 11 exact-tree replay/build/DV+CSF browser gates and hosted Development acceptance are green for the tree they named. The persistent hosted Development ledger was read-only re-verified on August 12 at exact parity with the current 256 repository migrations through `20260812073000`. Development also has leaked-password protection enabled, the unused `pg_graphql` extension removed, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. The scheduled-post transition, repository-owned scheduler, and visible composer schedule/readback/archive lifecycle are implemented and accepted, but hosted enabled publisher invocation and visible schedule → Feed publication remain pending alongside live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, Production webhook rotation, and Production cutover.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
@@ -260,7 +260,7 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [x] Post-hardening production build and full private-plugin unit-suite rerun
 - [ ] Persistent isolated Supabase development branch after explicit `$0.01344/hour` cost confirmation
 - [x] Stable Development alias with branch-scoped non-production Supabase invariant
-- [ ] Re-verify hosted Development ledger parity: the recorded 245-version match belongs to that run, and the repository now carries 250 migrations through `20260811233646`
+- [x] Re-verify hosted Development ledger parity: 256 ordered versions through `20260812073000` matched read-only on August 12
 - [x] Authorize local and hosted Development Google origins/callbacks, including `http://localhost:3001` and `https://dev.lets-assist.com`
 - [ ] Confirm `dvhighcsf@gmail.com` in-product, then complete Picker, import, reconnect, revocation, and failure-state verification
 - [ ] Complete synthetic visible mutation lifecycle for every actor
@@ -277,6 +277,6 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Prove an enabled hosted scheduled-post worker invocation and visible synthetic schedule → Feed transition before relying on it in that environment
 - [ ] Accept a hosted `csf-communications-dispatch` cadence. The repository owns the checked-in ten-minute GitHub schedule and bounded HTTP 200 invocations are recorded with irregular starts, but the environment behind those runs is not established by repository evidence and no durable cadence or provider delivery is proven (CLEAN-016)
 
-No live chapter Google OAuth/Picker/Drive import or Google write has been performed. Development uses a separate hosted Supabase project whose ledger parity was last recorded at 245 versions and is now unverified against this branch's 250. Production has been inspected read-only but not mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.
+No live chapter Google OAuth/Picker/Drive import or Google write has been performed. Development uses a separate hosted Supabase project whose ledger was read-only verified at exact parity with this branch's 256 migrations on August 12. Production has not been mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.
 
 See [testing and release](testing-and-release.md) for current evidence and residual risk. See the [product contract](product-contract.md) for the full product, permission, data, and acceptance contracts.

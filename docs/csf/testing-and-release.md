@@ -7,7 +7,7 @@
 
 **Latest contract amendment:** August 11, 2026; this hosted amendment supersedes stale statements that Development, the exact combined replay, and communications scheduling are wholly unverified. Historical counts below remain evidence for their named runs only.
 
-**Reconciliation baseline:** the branch is now `development` at `77d98ae` (PR #147) with the committed private gitlink `8c64dd1`, 11 merges past the PR #134 amendment baseline `f7b9f19`. This checkout's ledger contains 250 forward migrations through `20260811233646` and 100 pgTAP files under `supabase/tests/database`, so every hosted parity figure and replay count recorded below belongs to its own named run and must be re-verified before it is repeated as current.
+**Reconciliation baseline:** the branch is now `development` at `097bd4e` (PR #144) with the committed private gitlink `40af982`, 16 merges past the PR #134 amendment baseline `f7b9f19`. This checkout's ledger contains 256 forward migrations through `20260812073000` and 105 pgTAP files under `supabase/tests/database`. The persistent hosted Development project was read-only verified on August 12 with the same 256 ordered migration versions through `20260812073000`; historical replay and browser counts below still belong only to their named runs.
 
 ## August 11 hosted Development amendment
 
@@ -17,9 +17,9 @@
   deployment behind `dev.lets-assist.com`.
 - At that amendment, hosted Development and the repository contained the same 245
   ordered migration versions through `20260811132454`, with zero local/remote
-  mismatches. The repository has since advanced to 250 versions through
-  `20260811233646`, so that parity is historical and must be re-verified against
-  the hosted ledger before it is claimed again. PR #130
+  mismatches. The repository and persistent hosted Development ledger have since
+  advanced together to 256 versions through `20260812073000`; this newer parity
+  was verified read-only on August 12. PR #130
   removed the unused `pg_graphql` extension with `RESTRICT`; the post-apply
   Development schema dump contains no `pg_graphql` definition.
 - Members → Account connections, class/student links, verified-account staff
@@ -192,12 +192,12 @@ These findings apply to the current v1.3 tree. “Implemented under combined ver
 
 These findings were recorded against a working tree and have since merged into
 `development` through PR #140 at `0a927c5`; the private gitlink is committed and
-now reads `8c64dd1`, so the earlier "intentionally uncommitted gitlink" boundary
+now reads `40af982`, so the earlier "intentionally uncommitted gitlink" boundary
 no longer applies. Nothing here was replayed against the hosted Development
 ledger, applied to Production, or exercised in a browser. The initial behavioral
 evidence came from a disposable local PostgreSQL 18 cluster; the complete
 generated isolated Supabase replay subsequently passed all 93 database files and
-3,998 assertions, which predates this checkout's 250-migration, 100-file ledger.
+3,998 assertions, which predates this checkout's 256-migration, 105-file ledger.
 The strict submodule integration gate and the combined replay for this exact tip
 remain pending.
 
@@ -303,7 +303,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
 ### External and action-time gates
 
 - Google Cloud configuration and the account chooser were inspected, but no live chapter consent, Picker selection, Drive read/import, token refresh, reconnect/revocation, 403/429 exercise, or Google write was performed.
-- Development uses a distinct hosted Supabase project whose ledger matched the repository at 245 versions during that run; the repository now carries 250 versions through `20260811233646`, so current parity is unverified here. No additional paid branch was created.
+- Development uses a distinct hosted Supabase project. Its ledger matched the repository at 245 versions during the original run and was read-only re-verified at the current 256 versions through `20260812073000` on August 12. No additional paid branch was created.
 - Production Supabase, Production Vercel, `main`, the Production DVHS CSF tenant, Gmail mailbox, Classroom, website, Instagram, and officer-maintained Sheets were not mutated.
 - No Vela service, Supabase stack, container, volume, network, port, credential, or database was accessed or reused.
 
