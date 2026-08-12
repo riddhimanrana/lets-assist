@@ -649,7 +649,7 @@ under the control-plane transition lease. A complete manifest declaration must
 exactly cover every tenant database/storage target and declare idempotent retry
 semantics; missing or partial contracts fail closed.
 
-Migration `20260812064000_plugin_data_deletion_requests.sql` adds a private,
+Migration `20260812115556_plugin_data_deletion_requests.sql` adds a private,
 RLS-enabled, service-only redacted receipt. Globally unique request keys are
 bound to actor/organization/plugin/fingerprint, per-scope processing is unique,
 and attempt claim tokens make completion compare-and-set. Processing after a
