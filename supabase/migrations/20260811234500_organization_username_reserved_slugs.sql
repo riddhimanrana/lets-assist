@@ -163,10 +163,13 @@ ALTER TABLE public.organizations
 --     REVOKE TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLES
 --     FROM authenticated, anon;
 --
--- but it cannot be executed in a migration running as `postgres`. A catalog
--- test in supabase/tests/database/public_default_privileges.test.sql asserts
--- that supabase_admin carries no such grants in the current environment, so
--- any future change that introduces them surfaces immediately.
+-- but it cannot be executed in a migration running as `postgres`. CI run
+-- 31563941682 observed 22 matching `supabase_admin` table/sequence default ACL
+-- entries, so this release does not claim that provider-owned state is zero.
+-- EXT-005 tracks the platform finding separately. The repository-owned test in
+-- supabase/tests/database/public_default_privileges.test.sql instead proves the
+-- effective deny-by-default behavior of objects created by the `postgres` and
+-- `service_role` owners whose defaults 20260810220400 can actually govern.
 --
 -- The application never truncates this table, creates a trigger on it, or
 -- owns another table that would add a foreign key referencing it through
@@ -180,9 +183,9 @@ REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.organizations
 
 -- MAINTAIN was introduced in PostgreSQL 17 and allows running VACUUM,
 -- ANALYZE, REINDEX, and CLUSTER on a table without full ownership. On
--- PG 17+ it may have been granted via supabase_admin's existing ACL
--- inheritance. Revoke it conditionally so the migration is safe to run on
--- both PG 16 and PG 17+.
+-- PG 17+ it may be present through a legacy explicit grant on this historical
+-- table. Revoke it conditionally so the migration is safe to run on both PG 16
+-- and PG 17+.
 DO $$
 BEGIN
   IF current_setting('server_version_num')::int >= 170000 THEN
