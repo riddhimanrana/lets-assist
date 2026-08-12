@@ -5,7 +5,9 @@ mock.module("next/cache", () => ({ revalidatePath: () => {} }));
 mock.module("@/lib/plugins/registry", () => ({
   getPluginRegistry: () => ({ get: () => null }),
 }));
-mock.module("@/lib/plugins/lifecycle", () => ({ runProjectClone: async () => {} }));
+mock.module("@/lib/plugins/lifecycle", () => ({
+  runProjectClone: async () => {},
+}));
 mock.module("@/lib/plugins/resolve-org-plugins", () => ({
   resolveOrganizationPlugins: async () => [],
 }));
@@ -21,6 +23,12 @@ let projectStatus = "upcoming";
 const rpcCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
 const directProjectUpdates: unknown[] = [];
 const calendarRemovals: string[] = [];
+const workerKicks: string[] = [];
+
+globalThis.fetch = (async (input: string | URL | Request) => {
+  workerKicks.push(String(input));
+  return new Response(null, { status: 202 });
+}) as typeof fetch;
 
 mock.module("@/lib/supabase/auth-helpers", () => ({
   getAuthUser: async () => ({ user: { id: USER_ID }, error: null }),
@@ -48,11 +56,26 @@ mock.module("@/utils/calendar-helpers", () => ({
 }));
 
 function unusedBuilder() {
+  let operation: "select" | "update" = "select";
   const builder = {
     select: () => builder,
     eq: () => builder,
-    maybeSingle: async () => ({ data: null, error: null }),
+    maybeSingle: async () => ({
+      data:
+        operation === "select"
+          ? {
+              id: PROJECT_ID,
+              creator_id: USER_ID,
+              organization_id: null,
+              organization: null,
+              status: projectStatus,
+              title: "Cancellation RPC fixture",
+            }
+          : { id: PROJECT_ID },
+      error: null,
+    }),
     update: (value: unknown) => {
+      operation = "update";
       directProjectUpdates.push(value);
       return builder;
     },
@@ -80,12 +103,15 @@ beforeEach(() => {
   rpcCalls.length = 0;
   directProjectUpdates.length = 0;
   calendarRemovals.length = 0;
+  workerKicks.length = 0;
   projectStatus = "upcoming";
   rpcResult = {
     data: { outcome: "cancelled", jobStatus: "pending", accepted: true },
     error: null,
   };
   process.env.PROJECT_CANCELLATION_WORKER_ENABLED = "false";
+  delete process.env.NEXT_PUBLIC_SITE_URL;
+  delete process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
 });
 
 describe("updateProjectStatus cancellation boundary", () => {
@@ -137,19 +163,24 @@ describe("updateProjectStatus cancellation boundary", () => {
     expect(calendarRemovals).toHaveLength(0);
   });
 
-  test("idempotent repeat does not rerun calendar cleanup", async () => {
+  test("idempotent repeat does not rerun cleanup or notification dispatch", async () => {
     projectStatus = "cancelled";
     rpcResult = {
       data: {
         outcome: "already_cancelled",
-        jobStatus: "processing",
+        jobStatus: "pending",
         accepted: true,
       },
       error: null,
     };
+    process.env.PROJECT_CANCELLATION_WORKER_ENABLED = "true";
+    process.env.NEXT_PUBLIC_SITE_URL = "https://example.invalid";
+    process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN = "test-only-token";
     const result = await updateProjectStatus(PROJECT_ID, "cancelled", "Storm");
     expect(result).toMatchObject({ success: true });
     expect(calendarRemovals).toHaveLength(0);
+    expect(workerKicks).toHaveLength(0);
+    expect(result.cancellationNotifications?.triggerAttempted).toBe(false);
     expect(result.cancellationNotifications?.error).toBeUndefined();
   });
 

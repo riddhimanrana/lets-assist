@@ -80,6 +80,17 @@ const VALID_SOURCE: Record<string, unknown> = {
   reviewed_by: "reviewer",
   reviewed_at: "2026-01-02T00:00:00Z",
   published: { oneTime: true },
+  cancelled_at: "2026-01-03T00:00:00Z",
+  cancellation_reason: "Historical cancellation",
+  cancellation_tenant_id: "source-project",
+  audience_snapshot_at: "2026-01-03T00:00:00Z",
+  recipient_count: 12,
+  lease_owner: "legacy-worker",
+  lease_expires_at: "2026-01-03T00:05:00Z",
+  last_attempted_at: "2026-01-03T00:01:00Z",
+  attempts: 4,
+  last_error: "legacy failure",
+  completed_at: "2026-01-03T00:02:00Z",
 };
 
 let source: Record<string, unknown> = structuredClone(VALID_SOURCE);
@@ -162,6 +173,17 @@ describe("cloneProject validation and identity reset", () => {
       "published",
       "creator_calendar_event_id",
       "creator_synced_at",
+      "cancelled_at",
+      "cancellation_reason",
+      "cancellation_tenant_id",
+      "audience_snapshot_at",
+      "recipient_count",
+      "lease_owner",
+      "lease_expires_at",
+      "last_attempted_at",
+      "attempts",
+      "last_error",
+      "completed_at",
     ]) {
       expect(insertedPayload).not.toHaveProperty(forbidden);
     }
@@ -222,5 +244,32 @@ describe("cloneProject validation and identity reset", () => {
     expect(result.success).toBe(true);
     expect(updatedPayload?.recurrence_rule).toEqual(suppliedRule);
     expect(updatedPayload?.recurrence_rule).not.toBe(suppliedRule);
+  });
+
+  test("updateProject cannot bypass cancellation or recurrence identity authorities", async () => {
+    const result = await updateProject("source-project", {
+      title: "Reviewed title",
+      status: "cancelled",
+      cancelled_at: "2026-02-01T00:00:00Z",
+      cancellation_reason: "Client supplied",
+      cancellation_tenant_id: "client-tenant",
+      recurrence_parent_id: "client-parent",
+      recurrence_sequence: 99,
+      recurrence_occurrence_date: "2026-02-01",
+    } as never);
+
+    expect(result.success).toBe(true);
+    expect(updatedPayload?.title).toBe("Reviewed title");
+    for (const protectedField of [
+      "status",
+      "cancelled_at",
+      "cancellation_reason",
+      "cancellation_tenant_id",
+      "recurrence_parent_id",
+      "recurrence_sequence",
+      "recurrence_occurrence_date",
+    ]) {
+      expect(updatedPayload).not.toHaveProperty(protectedField);
+    }
   });
 });

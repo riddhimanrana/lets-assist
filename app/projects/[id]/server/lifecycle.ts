@@ -24,8 +24,8 @@ const ALLOWED_PROJECT_STATUS_TRANSITIONS: Record<
   ProjectStatus,
   readonly ProjectStatus[]
 > = {
-  upcoming: ["in-progress", "completed", "cancelled"],
-  "in-progress": ["completed", "cancelled"],
+  upcoming: ["in-progress", "completed"],
+  "in-progress": ["completed"],
   completed: [],
   cancelled: [],
 };
@@ -57,6 +57,41 @@ async function getProjectForMutation(
   }
 
   return { project: project as Project, error: null };
+}
+
+type CancellationReceipt = {
+  outcome:
+    "cancelled" | "already_cancelled" | "already_cancelled_review_required";
+  jobStatus:
+    | "pending"
+    | "processing"
+    | "completed"
+    | "failed"
+    | "needs_review"
+    | "missing";
+  accepted: boolean;
+};
+
+function getExactCancellationReceipt(
+  value: unknown,
+): CancellationReceipt | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const outcome = Reflect.get(value, "outcome");
+  const jobStatus = Reflect.get(value, "jobStatus");
+  const accepted = Reflect.get(value, "accepted");
+  const valid =
+    (outcome === "cancelled" && jobStatus === "pending" && accepted === true) ||
+    (outcome === "already_cancelled" &&
+      ["pending", "processing", "completed"].includes(String(jobStatus)) &&
+      accepted === true) ||
+    (outcome === "already_cancelled_review_required" &&
+      ["needs_review", "failed", "missing"].includes(String(jobStatus)) &&
+      accepted === false);
+
+  return valid
+    ? ({ outcome, jobStatus, accepted } as CancellationReceipt)
+    : null;
 }
 
 export async function updateProjectStatus(
@@ -103,37 +138,9 @@ export async function updateProjectStatus(
         p_cancellation_reason: cancellationReason,
       });
 
-    const cancellationReceipt = cancellationResult as {
-      outcome?: unknown;
-      jobStatus?: unknown;
-      accepted?: unknown;
-    } | null;
-    const validJobStatus = [
-      "pending",
-      "processing",
-      "completed",
-      "failed",
-      "needs_review",
-      "missing",
-    ].includes(String(cancellationReceipt?.jobStatus));
-    const validReceipt =
-      validJobStatus &&
-      ((cancellationReceipt?.outcome === "cancelled" &&
-        cancellationReceipt.jobStatus === "pending" &&
-        cancellationReceipt.accepted === true) ||
-        (cancellationReceipt?.outcome === "already_cancelled" &&
-          ["pending", "processing", "completed"].includes(
-            String(cancellationReceipt.jobStatus),
-          ) &&
-          cancellationReceipt.accepted === true) ||
-        (cancellationReceipt?.outcome ===
-          "already_cancelled_review_required" &&
-          ["needs_review", "failed", "missing"].includes(
-            String(cancellationReceipt.jobStatus),
-          ) &&
-          cancellationReceipt.accepted === false));
+    const cancellationReceipt = getExactCancellationReceipt(cancellationResult);
 
-    if (cancellationError || !validReceipt) {
+    if (cancellationError || !cancellationReceipt) {
       if (process.env.NODE_ENV !== "test") {
         console.error("Error cancelling project transactionally:", {
           code: cancellationError?.code,
@@ -142,14 +149,7 @@ export async function updateProjectStatus(
       return { error: "Failed to cancel project" };
     }
 
-    const receipt = cancellationReceipt as {
-      outcome:
-        | "cancelled"
-        | "already_cancelled"
-        | "already_cancelled_review_required";
-      jobStatus: string;
-      accepted: boolean;
-    };
+    const receipt = cancellationReceipt;
 
     cancellationNotifications = {
       enqueued: receipt.accepted,
@@ -177,8 +177,7 @@ export async function updateProjectStatus(
       const workerEnabled =
         process.env.PROJECT_CANCELLATION_WORKER_ENABLED === "true";
       const workerBaseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-      const workerToken =
-        process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
+      const workerToken = process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
 
       if (!workerEnabled) {
         cancellationNotifications.error =
@@ -190,7 +189,10 @@ export async function updateProjectStatus(
           headers: { authorization: `Bearer ${workerToken}` },
         }).catch((err) => {
           if (process.env.NODE_ENV !== "test") {
-            console.error("Failed to trigger project cancellation worker:", err);
+            console.error(
+              "Failed to trigger project cancellation worker:",
+              err,
+            );
           }
         });
       } else {
@@ -568,6 +570,13 @@ export async function updateProject(
       "creator_synced_at",
       "reviewed_by",
       "reviewed_at",
+      "status",
+      "cancelled_at",
+      "cancellation_reason",
+      "cancellation_tenant_id",
+      "recurrence_parent_id",
+      "recurrence_sequence",
+      "recurrence_occurrence_date",
     ] as const;
     for (const field of immutableProjectFields) {
       delete mutableSanitizedUpdates[field];
@@ -653,22 +662,52 @@ export async function updateProject(
     let cancelledOccurrences = 0;
 
     if (disablesRecurrence && isRecurringParent) {
-      const nowIso = new Date().toISOString();
-      const { data: cancelledRows, error: cancelError } = await supabase
-        .from("projects")
-        .update({
-          status: "cancelled",
-          cancelled_at: nowIso,
-          cancellation_reason: "Recurring series ended by organizer",
-        })
-        .eq("recurrence_parent_id", projectId)
-        .eq("status", "upcoming")
-        .select("id");
+      const { data: upcomingOccurrences, error: occurrenceReadError } =
+        await supabase
+          .from("projects")
+          .select("id")
+          .eq("recurrence_parent_id", projectId)
+          .eq("status", "upcoming")
+          .order("id");
 
-      if (cancelError) {
-        console.error("Error cancelling recurring occurrences:", cancelError);
+      if (occurrenceReadError) {
+        console.error(
+          "Error reading recurring occurrences for cancellation:",
+          occurrenceReadError,
+        );
       } else {
-        cancelledOccurrences = cancelledRows?.length ?? 0;
+        for (const occurrence of upcomingOccurrences ?? []) {
+          const { data: result, error: cancellationError } = await supabase.rpc(
+            "cancel_project_transactional",
+            {
+              p_project_id: occurrence.id,
+              p_cancellation_reason: "Recurring series ended by organizer",
+            },
+          );
+          const receipt = getExactCancellationReceipt(result);
+
+          if (cancellationError || !receipt) {
+            if (process.env.NODE_ENV !== "test") {
+              console.error("Error cancelling recurring occurrence:", {
+                code: cancellationError?.code,
+                projectId: occurrence.id,
+              });
+            }
+            continue;
+          }
+
+          if (receipt.outcome === "cancelled") {
+            cancelledOccurrences += 1;
+            try {
+              await removeCalendarEventForProject(occurrence.id);
+            } catch (calendarError) {
+              console.error(
+                "Error removing calendar event for recurring occurrence:",
+                calendarError,
+              );
+            }
+          }
+        }
       }
     }
 

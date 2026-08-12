@@ -23,7 +23,7 @@ let mockProjectUpdateResult: WriteResult;
 let mockProjectDeleteResult: WriteResult;
 let mockSignupUpdateResult: WriteResult;
 let mockUnrejectRpcResult: RpcResult;
-let mockCancellationJobUpsertError: unknown;
+let mockCancellationRpcResult: RpcResult | null;
 let mockSignedWaiverCount: number | null;
 let mockSignedWaiverError: unknown;
 let mockStorageListError: unknown;
@@ -32,7 +32,7 @@ let anonymousAccessAllowed: boolean;
 
 const calendarProjectRemovals: string[] = [];
 const calendarSignupRemovals: string[] = [];
-const cancellationJobUpserts: Record<string, unknown>[] = [];
+const cancellationRpcCalls: Record<string, unknown>[] = [];
 const unrejectRpcCalls: Record<string, unknown>[] = [];
 const revalidatedPaths: string[] = [];
 const storageRemovals: Array<{ bucket: string; paths: string[] }> = [];
@@ -197,16 +197,6 @@ function makeChain(table: string) {
     insert() {
       return chain;
     },
-    upsert(data: Record<string, unknown>) {
-      if (table === "project_cancellation_jobs") {
-        cancellationJobUpserts.push(data);
-        eventLog.push("db:enqueue-cancellation");
-      }
-      return Promise.resolve({
-        data: null,
-        error: mockCancellationJobUpsertError,
-      });
-    },
     eq(column: string, value: unknown) {
       filters.push({ kind: "eq", column, value });
       return chain;
@@ -255,6 +245,38 @@ function buildMockClient() {
   return {
     from: (table: string) => makeChain(table),
     rpc: async (name: string, args: Record<string, unknown>) => {
+      if (name === "cancel_project_transactional") {
+        cancellationRpcCalls.push(args);
+        eventLog.push("db:cancel-rpc");
+        const wasCancelled = mockProject?.status === "cancelled";
+        const result =
+          mockCancellationRpcResult ??
+          (wasCancelled
+            ? {
+                data: {
+                  outcome: "already_cancelled",
+                  jobStatus: "processing",
+                  accepted: true,
+                },
+                error: null,
+              }
+            : {
+                data: {
+                  outcome: "cancelled",
+                  jobStatus: "pending",
+                  accepted: true,
+                },
+                error: null,
+              });
+
+        if (
+          !result.error &&
+          (result.data as { outcome?: string } | null)?.outcome === "cancelled"
+        ) {
+          mockProject = { ...(mockProject ?? {}), status: "cancelled" };
+        }
+        return result;
+      }
       if (name === "unreject_project_signup_with_capacity") {
         unrejectRpcCalls.push(args);
         eventLog.push("db:unreject-rpc");
@@ -364,7 +386,7 @@ function baseSignup(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   calendarProjectRemovals.length = 0;
   calendarSignupRemovals.length = 0;
-  cancellationJobUpserts.length = 0;
+  cancellationRpcCalls.length = 0;
   unrejectRpcCalls.length = 0;
   revalidatedPaths.length = 0;
   storageRemovals.length = 0;
@@ -387,7 +409,7 @@ beforeEach(() => {
     data: [{ outcome: "approved", project_id: PROJECT_ID }],
     error: null,
   };
-  mockCancellationJobUpsertError = null;
+  mockCancellationRpcResult = null;
   mockSignedWaiverCount = 0;
   mockSignedWaiverError = null;
   mockStorageListError = null;
@@ -396,7 +418,7 @@ beforeEach(() => {
 });
 
 describe("updateProjectStatus", () => {
-  test("a creator cancellation proves one real transition before side effects", async () => {
+  test("a creator cancellation proves one transactional receipt before side effects", async () => {
     const result = await updateProjectStatus(
       PROJECT_ID,
       "cancelled",
@@ -406,27 +428,28 @@ describe("updateProjectStatus", () => {
     expect(result).toMatchObject({ success: true });
     expect(mockProject?.status).toBe("cancelled");
     expect(calendarProjectRemovals).toEqual([PROJECT_ID]);
-    expect(cancellationJobUpserts).toHaveLength(1);
-    expect(cancellationJobUpserts[0]).toMatchObject({
-      project_id: PROJECT_ID,
-      cancellation_reason: "No longer needed",
-      created_by: USER_ID,
-    });
-    expect(eventLog.slice(0, 3)).toEqual([
-      "db:project-update",
-      "calendar:project",
-      "db:enqueue-cancellation",
+    expect(cancellationRpcCalls).toEqual([
+      {
+        p_project_id: PROJECT_ID,
+        p_cancellation_reason: "No longer needed",
+      },
     ]);
+    expect(eventLog.slice(0, 2)).toEqual(["db:cancel-rpc", "calendar:project"]);
   });
 
-  test("repeat cancellation is refused without repeating calendar or queue work", async () => {
+  test("repeat cancellation is idempotent without repeating calendar or notification work", async () => {
     const first = await updateProjectStatus(PROJECT_ID, "cancelled", "Reason");
     const second = await updateProjectStatus(PROJECT_ID, "cancelled", "Reason");
 
     expect(first).toMatchObject({ success: true });
-    expect(second).toMatchObject({ error: expect.any(String) });
+    expect(second).toMatchObject({ success: true });
     expect(calendarProjectRemovals).toEqual([PROJECT_ID]);
-    expect(cancellationJobUpserts).toHaveLength(1);
+    expect(cancellationRpcCalls).toHaveLength(2);
+    expect(eventLog).toEqual([
+      "db:cancel-rpc",
+      "calendar:project",
+      "db:cancel-rpc",
+    ]);
   });
 
   test("a same-status rewrite is not a transition", async () => {
@@ -446,11 +469,11 @@ describe("updateProjectStatus", () => {
 
   test("a CAS loser reports failure with no cancellation side effects", async () => {
     mockProjectUpdateResult = { data: null, error: null };
-    const result = await updateProjectStatus(PROJECT_ID, "cancelled", "Reason");
+    const result = await updateProjectStatus(PROJECT_ID, "in-progress");
 
     expect(result).toMatchObject({ error: expect.any(String) });
     expect(calendarProjectRemovals).toHaveLength(0);
-    expect(cancellationJobUpserts).toHaveLength(0);
+    expect(cancellationRpcCalls).toHaveLength(0);
   });
 
   test("an explicit write error has no cancellation side effects", async () => {
@@ -458,11 +481,11 @@ describe("updateProjectStatus", () => {
       data: null,
       error: { message: "db error", code: "PGRST500" },
     };
-    const result = await updateProjectStatus(PROJECT_ID, "cancelled", "Reason");
+    const result = await updateProjectStatus(PROJECT_ID, "in-progress");
 
     expect(result).toMatchObject({ error: expect.any(String) });
     expect(calendarProjectRemovals).toHaveLength(0);
-    expect(cancellationJobUpserts).toHaveLength(0);
+    expect(cancellationRpcCalls).toHaveLength(0);
   });
 
   test("a mismatched affected-row proof has no cancellation side effects", async () => {
@@ -471,11 +494,11 @@ describe("updateProjectStatus", () => {
       error: null,
     };
 
-    const result = await updateProjectStatus(PROJECT_ID, "cancelled", "Reason");
+    const result = await updateProjectStatus(PROJECT_ID, "in-progress");
 
     expect(result).toEqual({ error: "Failed to update project status" });
     expect(calendarProjectRemovals).toHaveLength(0);
-    expect(cancellationJobUpserts).toHaveLength(0);
+    expect(cancellationRpcCalls).toHaveLength(0);
   });
 
   test("project-read and authentication faults fail before the write", async () => {
@@ -493,19 +516,17 @@ describe("updateProjectStatus", () => {
     expect(eventLog).toHaveLength(0);
   });
 
-  test("a checked queue error is reported without denying the proven transition", async () => {
-    mockCancellationJobUpsertError = { message: "queue unavailable" };
+  test("a transactional queue error cannot report a transition or run cleanup", async () => {
+    mockCancellationRpcResult = {
+      data: null,
+      error: { message: "queue unavailable", code: "40001" },
+    };
 
     const result = await updateProjectStatus(PROJECT_ID, "cancelled", "Reason");
 
-    expect(result).toMatchObject({
-      success: true,
-      cancellationNotifications: {
-        enqueued: false,
-        error: expect.any(String),
-      },
-    });
-    expect(mockProject?.status).toBe("cancelled");
+    expect(result).toEqual({ error: "Failed to cancel project" });
+    expect(mockProject?.status).toBe("upcoming");
+    expect(calendarProjectRemovals).toHaveLength(0);
   });
 
   test("organization access honors admin, staff opt-in, and nullable opt-out", async () => {
@@ -514,9 +535,9 @@ describe("updateProjectStatus", () => {
       can_be_managed_by_staff: false,
     });
     mockOrgMember = { role: "admin" };
-    expect(
-      await updateProjectStatus(PROJECT_ID, "cancelled", "Admin decision"),
-    ).toMatchObject({ success: true });
+    expect(await updateProjectStatus(PROJECT_ID, "in-progress")).toMatchObject({
+      success: true,
+    });
 
     eventLog.length = 0;
     mockProject = baseProject({
@@ -524,18 +545,18 @@ describe("updateProjectStatus", () => {
       can_be_managed_by_staff: null,
     });
     mockOrgMember = { role: "staff" };
-    expect(
-      await updateProjectStatus(PROJECT_ID, "cancelled", "Staff attempt"),
-    ).toMatchObject({ error: expect.any(String) });
+    expect(await updateProjectStatus(PROJECT_ID, "in-progress")).toMatchObject({
+      error: expect.any(String),
+    });
     expect(eventLog).toHaveLength(0);
 
     mockProject = baseProject({
       creator_id: "other",
       can_be_managed_by_staff: true,
     });
-    expect(
-      await updateProjectStatus(PROJECT_ID, "cancelled", "Staff managed"),
-    ).toMatchObject({ success: true });
+    expect(await updateProjectStatus(PROJECT_ID, "in-progress")).toMatchObject({
+      success: true,
+    });
   });
 
   test("a forward non-cancellation transition has no cancellation effects", async () => {
@@ -543,7 +564,7 @@ describe("updateProjectStatus", () => {
 
     expect(result).toMatchObject({ success: true });
     expect(calendarProjectRemovals).toHaveLength(0);
-    expect(cancellationJobUpserts).toHaveLength(0);
+    expect(cancellationRpcCalls).toHaveLength(0);
   });
 
   test("unauthenticated callers cannot write", async () => {
