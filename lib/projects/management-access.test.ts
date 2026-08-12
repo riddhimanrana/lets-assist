@@ -54,16 +54,13 @@ test("members and unrelated users cannot manage a project", () => {
   assert.equal(canManageProjectAccess(common), false);
 });
 
-test("only an active membership carries a role", () => {
+test("only an explicitly active membership carries a role", () => {
   assert.equal(
     activeOrganizationRole({ role: "admin", status: "active" }),
     "admin",
   );
-  // status is nullable with an `active` default, and the transactional RPCs
-  // read it as COALESCE(status, 'active'), so a legacy row stays active here.
-  assert.equal(activeOrganizationRole({ role: "staff" }), "staff");
   assert.equal(
-    activeOrganizationRole({ role: "staff", status: null }),
+    activeOrganizationRole({ role: "staff", status: "active" }),
     "staff",
   );
 });
@@ -74,23 +71,26 @@ test("a membership that is not active confers no role", () => {
     assert.equal(activeOrganizationRole({ role: "staff", status }), null);
   }
 
+  // `status` is nullable in the schema, so an unset status fails closed here and
+  // in the SQL predicates rather than being read as active.
+  assert.equal(activeOrganizationRole({ role: "admin", status: null }), null);
+  assert.equal(activeOrganizationRole({ role: "staff" }), null);
   assert.equal(activeOrganizationRole(null), null);
   assert.equal(activeOrganizationRole(undefined), null);
   assert.equal(activeOrganizationRole({ status: "active" }), null);
 });
 
-test("an inactive admin or staff membership cannot manage a project", () => {
+test("an inactive or status-less admin or staff membership cannot manage", () => {
   for (const role of ["admin", "staff"]) {
-    assert.equal(
-      canManageProjectAccess({
-        ...common,
-        organizationRole: activeOrganizationRole({
-          role,
-          status: "inactive",
+    for (const status of ["inactive", null]) {
+      assert.equal(
+        canManageProjectAccess({
+          ...common,
+          organizationRole: activeOrganizationRole({ role, status }),
+          canBeManagedByStaff: true,
         }),
-        canBeManagedByStaff: true,
-      }),
-      false,
-    );
+        false,
+      );
+    }
   }
 });

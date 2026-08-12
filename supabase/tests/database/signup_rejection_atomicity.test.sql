@@ -6,7 +6,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(38);
+SELECT extensions.plan(54);
 
 SELECT extensions.ok(
   has_function_privilege(
@@ -77,7 +77,13 @@ VALUES
   ('af000000-0000-4000-8000-000000000005', 'authenticated', 'authenticated',
    'rejection-optout@local.test', now(), '{}', '{}', now(), now()),
   ('af000000-0000-4000-8000-000000000006', 'authenticated', 'authenticated',
-   'rejection-outsider@local.test', now(), '{}', '{}', now(), now());
+   'rejection-outsider@local.test', now(), '{}', '{}', now(), now()),
+  ('af000000-0000-4000-8000-000000000007', 'authenticated', 'authenticated',
+   'rejection-inactive-admin@local.test', now(), '{}', '{}', now(), now()),
+  ('af000000-0000-4000-8000-000000000008', 'authenticated', 'authenticated',
+   'rejection-inactive-staff@local.test', now(), '{}', '{}', now(), now()),
+  ('af000000-0000-4000-8000-000000000009', 'authenticated', 'authenticated',
+   'rejection-statusless-admin@local.test', now(), '{}', '{}', now(), now());
 
 INSERT INTO public.organizations (id, name, username, type, join_code, created_by)
 VALUES (
@@ -94,7 +100,15 @@ VALUES
   ('af100000-0000-4000-8000-000000000001',
    'af000000-0000-4000-8000-000000000002', 'admin', 'active'),
   ('af100000-0000-4000-8000-000000000001',
-   'af000000-0000-4000-8000-000000000003', 'staff', 'active');
+   'af000000-0000-4000-8000-000000000003', 'staff', 'active'),
+  ('af100000-0000-4000-8000-000000000001',
+   'af000000-0000-4000-8000-000000000007', 'admin', 'inactive'),
+  ('af100000-0000-4000-8000-000000000001',
+   'af000000-0000-4000-8000-000000000008', 'staff', 'inactive'),
+  -- status is nullable, so the unset case has to be provable rather than
+  -- assumed unreachable.
+  ('af100000-0000-4000-8000-000000000001',
+   'af000000-0000-4000-8000-000000000009', 'admin', NULL);
 
 -- The opted-out recipient. A missing row means "notify", so only an explicit
 -- false may suppress delivery.
@@ -181,7 +195,42 @@ VALUES
    'af000000-0000-4000-8000-000000000004', NULL, 'assertion-slot', 'approved'),
   ('af300000-0000-4000-8000-000000000010',
    'af200000-0000-4000-8000-000000000001',
-   'af000000-0000-4000-8000-000000000004', NULL, 'direct-update-slot', 'pending');
+   'af000000-0000-4000-8000-000000000004', NULL, 'direct-update-slot', 'pending'),
+  ('af300000-0000-4000-8000-000000000011',
+   'af200000-0000-4000-8000-000000000001',
+   'af000000-0000-4000-8000-000000000004', NULL, 'inactive-approve-slot',
+   'pending'),
+  ('af300000-0000-4000-8000-000000000012',
+   'af200000-0000-4000-8000-000000000001',
+   'af000000-0000-4000-8000-000000000004', NULL, 'inactive-unreject-slot',
+   'rejected'),
+  ('af300000-0000-4000-8000-000000000013',
+   'af200000-0000-4000-8000-000000000001',
+   'af000000-0000-4000-8000-000000000004', NULL, 'inactive-cancel-slot',
+   'approved'),
+  ('af300000-0000-4000-8000-000000000014',
+   'af200000-0000-4000-8000-000000000001',
+   'af000000-0000-4000-8000-000000000004', NULL, 'statusless-approve-slot',
+   'pending'),
+  ('af300000-0000-4000-8000-000000000015',
+   'af200000-0000-4000-8000-000000000001',
+   'af000000-0000-4000-8000-000000000004', NULL, 'active-approve-slot',
+   'pending'),
+  ('af300000-0000-4000-8000-000000000016',
+   'af200000-0000-4000-8000-000000000001',
+   'af000000-0000-4000-8000-000000000004', NULL, 'active-unreject-slot',
+   'rejected'),
+  ('af300000-0000-4000-8000-000000000017',
+   'af200000-0000-4000-8000-000000000001',
+   'af000000-0000-4000-8000-000000000004', NULL, 'active-staff-cancel-slot',
+   'approved'),
+  ('af300000-0000-4000-8000-000000000018',
+   'af200000-0000-4000-8000-000000000001',
+   'af000000-0000-4000-8000-000000000004', NULL, 'self-cancel-slot', 'pending'),
+  ('af300000-0000-4000-8000-000000000019',
+   'af200000-0000-4000-8000-000000000001',
+   'af000000-0000-4000-8000-000000000004', NULL, 'admin-direct-reject-slot',
+   'pending');
 
 -- ---------------------------------------------------------------------------
 -- The creator's first rejection: transition and notification together
@@ -553,6 +602,234 @@ SELECT extensions.is(
   ),
   'pending',
   'an anonymous client cannot reach the rejected state through a direct update'
+);
+
+-- ---------------------------------------------------------------------------
+-- The moderation the guard still allows also requires an active membership
+--
+-- public.project_signups' UPDATE policy admits any admin or flag-enabled staff
+-- through app_private.is_project_organizer, which ignores membership status, so
+-- these updates do reach the trigger. Each denial below is therefore raised by
+-- private.protect_project_signup_client_mutation rather than filtered out by
+-- RLS, which is what makes it defence in depth for the Server Action gate.
+-- ---------------------------------------------------------------------------
+
+SELECT extensions.ok(
+  has_function_privilege(
+    'authenticated',
+    'app_private.can_moderate_project_signup(uuid,uuid)',
+    'EXECUTE'
+  ) AND NOT has_function_privilege(
+    'anon',
+    'app_private.can_moderate_project_signup(uuid,uuid)',
+    'EXECUTE'
+  ),
+  'the guard predicate is reachable by the client role that runs the guard, and by no other'
+);
+SELECT extensions.ok(
+  (
+    SELECT proc.prosecdef
+      AND EXISTS (
+        SELECT 1
+        FROM unnest(coalesce(proc.proconfig, ARRAY[]::text[])) AS config(value)
+        WHERE config.value = 'search_path=""'
+      )
+    FROM pg_catalog.pg_proc AS proc
+    JOIN pg_catalog.pg_namespace AS namespace
+      ON namespace.oid = proc.pronamespace
+    WHERE namespace.nspname = 'app_private'
+      AND proc.proname = 'can_moderate_project_signup'
+  ),
+  'the guard predicate decides independently of the client role''s own row visibility'
+);
+
+SELECT set_config(
+  'request.jwt.claim.sub', 'af000000-0000-4000-8000-000000000007', true
+);
+SET LOCAL ROLE authenticated;
+
+SELECT extensions.throws_ok(
+  $$
+    UPDATE public.project_signups
+    SET status = 'approved'
+    WHERE id = 'af300000-0000-4000-8000-000000000011'
+  $$,
+  '42501',
+  'participants may only cancel their own signup',
+  'a deactivated organization admin cannot approve somebody else''s signup'
+);
+SELECT extensions.throws_ok(
+  $$
+    UPDATE public.project_signups
+    SET status = 'cancelled'
+    WHERE id = 'af300000-0000-4000-8000-000000000013'
+  $$,
+  '42501',
+  'participants may only cancel their own signup',
+  'a deactivated organization admin cannot cancel somebody else''s signup'
+);
+
+RESET ROLE;
+
+SELECT extensions.is(
+  (
+    SELECT signups.status
+    FROM public.project_signups AS signups
+    WHERE signups.id = 'af300000-0000-4000-8000-000000000011'
+  ),
+  'pending',
+  'the refused approval changed nothing'
+);
+SELECT extensions.is(
+  (
+    SELECT signups.status
+    FROM public.project_signups AS signups
+    WHERE signups.id = 'af300000-0000-4000-8000-000000000013'
+  ),
+  'approved',
+  'the refused cancellation changed nothing'
+);
+
+SELECT set_config(
+  'request.jwt.claim.sub', 'af000000-0000-4000-8000-000000000008', true
+);
+SET LOCAL ROLE authenticated;
+
+SELECT extensions.throws_ok(
+  $$
+    UPDATE public.project_signups
+    SET status = 'approved'
+    WHERE id = 'af300000-0000-4000-8000-000000000012'
+  $$,
+  '42501',
+  'participants may only cancel their own signup',
+  'deactivated staff cannot unreject a signup even where staff management is allowed'
+);
+
+RESET ROLE;
+
+SELECT extensions.is(
+  (
+    SELECT signups.status
+    FROM public.project_signups AS signups
+    WHERE signups.id = 'af300000-0000-4000-8000-000000000012'
+  ),
+  'rejected',
+  'the refused unrejection left the rejection standing'
+);
+
+SELECT set_config(
+  'request.jwt.claim.sub', 'af000000-0000-4000-8000-000000000009', true
+);
+SET LOCAL ROLE authenticated;
+
+SELECT extensions.throws_ok(
+  $$
+    UPDATE public.project_signups
+    SET status = 'approved'
+    WHERE id = 'af300000-0000-4000-8000-000000000014'
+  $$,
+  '42501',
+  'participants may only cancel their own signup',
+  'an admin membership with no status fails closed instead of being read as active'
+);
+
+RESET ROLE;
+
+SELECT extensions.is(
+  (
+    SELECT signups.status
+    FROM public.project_signups AS signups
+    WHERE signups.id = 'af300000-0000-4000-8000-000000000014'
+  ),
+  'pending',
+  'the status-less membership changed nothing'
+);
+
+-- ---------------------------------------------------------------------------
+-- Active managers keep every moderation they had except rejection
+-- ---------------------------------------------------------------------------
+
+SELECT set_config(
+  'request.jwt.claim.sub', 'af000000-0000-4000-8000-000000000002', true
+);
+SET LOCAL ROLE authenticated;
+
+SELECT extensions.lives_ok(
+  $$
+    UPDATE public.project_signups
+    SET status = 'approved'
+    WHERE id = 'af300000-0000-4000-8000-000000000015'
+  $$,
+  'an active organization admin still approves a pending signup'
+);
+SELECT extensions.lives_ok(
+  $$
+    UPDATE public.project_signups
+    SET status = 'approved'
+    WHERE id = 'af300000-0000-4000-8000-000000000016'
+  $$,
+  'an active organization admin still unrejects a signup'
+);
+SELECT extensions.throws_ok(
+  $$
+    UPDATE public.project_signups
+    SET status = 'rejected'
+    WHERE id = 'af300000-0000-4000-8000-000000000019'
+  $$,
+  '42501',
+  'signup rejection requires the server-authorized operation',
+  'an active organization admin still cannot reject through a direct update'
+);
+
+RESET ROLE;
+
+SELECT set_config(
+  'request.jwt.claim.sub', 'af000000-0000-4000-8000-000000000003', true
+);
+SET LOCAL ROLE authenticated;
+
+SELECT extensions.lives_ok(
+  $$
+    UPDATE public.project_signups
+    SET status = 'cancelled'
+    WHERE id = 'af300000-0000-4000-8000-000000000017'
+  $$,
+  'active staff still moderate a signup while the project allows staff management'
+);
+
+RESET ROLE;
+
+SELECT set_config(
+  'request.jwt.claim.sub', 'af000000-0000-4000-8000-000000000004', true
+);
+SET LOCAL ROLE authenticated;
+
+SELECT extensions.lives_ok(
+  $$
+    UPDATE public.project_signups
+    SET status = 'cancelled'
+    WHERE id = 'af300000-0000-4000-8000-000000000018'
+  $$,
+  'a participant still cancels their own signup'
+);
+
+RESET ROLE;
+
+SELECT extensions.is(
+  (
+    SELECT array_agg(signups.status ORDER BY signups.id)
+    FROM public.project_signups AS signups
+    WHERE signups.id IN (
+      'af300000-0000-4000-8000-000000000015',
+      'af300000-0000-4000-8000-000000000016',
+      'af300000-0000-4000-8000-000000000017',
+      'af300000-0000-4000-8000-000000000018',
+      'af300000-0000-4000-8000-000000000019'
+    )
+  ),
+  ARRAY['approved', 'approved', 'cancelled', 'cancelled', 'pending'],
+  'the allowed moderation persisted and the refused rejection did not'
 );
 
 SELECT * FROM extensions.finish();

@@ -23,7 +23,13 @@
 -- matching public.publish_volunteer_hours_transactional, so a membership being
 -- revoked concurrently serializes against the rejection instead of racing it.
 -- The narrowing is deliberate: an inactive member may still read the signup
--- through RLS, but may no longer reject it.
+-- through RLS, but may no longer reject it. `status` is compared for equality
+-- rather than through COALESCE, so a membership whose status is unset fails
+-- closed exactly as lib/projects/management-access.ts does.
+--
+-- private.protect_project_signup_client_mutation below applies the same active
+-- membership rule to the moderation it still allows, so revoking a membership
+-- also revokes approving, cancelling, and unrejecting somebody else's signup.
 
 CREATE OR REPLACE FUNCTION private.project_signup_rejection_result(
   p_signup_id uuid,
@@ -115,7 +121,7 @@ BEGIN
     FROM public.organization_members AS members
     WHERE members.organization_id = v_project.organization_id
       AND members.user_id = v_actor_id
-      AND COALESCE(members.status, 'active') = 'active'
+      AND members.status = 'active'
       AND (
         members.role = 'admin'
         OR (
@@ -276,11 +282,68 @@ GRANT EXECUTE ON FUNCTION public.publish_volunteer_hours_transactional(
   uuid, text, jsonb, text
 ) TO authenticated;
 
+-- The moderation predicate for the client mutation guard below. It is
+-- app_private.can_manage_project plus the active membership requirement
+-- public.reject_project_signup enforces, so a revoked membership loses the
+-- moderation the guard still allows instead of keeping it through a direct Data
+-- API update. SECURITY DEFINER because the guard runs as the client role and its
+-- decision must not depend on that role's RLS view of projects or memberships;
+-- `status` is compared for equality so an unset status fails closed.
+CREATE OR REPLACE FUNCTION app_private.can_moderate_project_signup(
+  p_project_id uuid,
+  p_user uuid
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT COALESCE(
+    p_user IS NOT NULL AND EXISTS (
+      SELECT 1
+      FROM public.projects AS projects
+      WHERE projects.id = p_project_id
+        AND (
+          projects.creator_id = p_user
+          OR EXISTS (
+            SELECT 1
+            FROM public.organization_members AS members
+            WHERE members.organization_id = projects.organization_id
+              AND members.user_id = p_user
+              AND members.status = 'active'
+              AND (
+                members.role = 'admin'
+                OR (
+                  members.role = 'staff'
+                  AND projects.can_be_managed_by_staff IS TRUE
+                )
+              )
+          )
+        )
+    ),
+    false
+  );
+$$;
+
+-- The guard runs as the invoking client role, so that role needs EXECUTE here.
+-- anon is refused, exactly as it already is on public.is_project_organizer.
+REVOKE ALL ON FUNCTION app_private.can_moderate_project_signup(uuid, uuid)
+  FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION app_private.can_moderate_project_signup(uuid, uuid)
+  TO authenticated;
+GRANT EXECUTE ON FUNCTION app_private.can_moderate_project_signup(uuid, uuid)
+  TO service_role;
+
+COMMENT ON FUNCTION app_private.can_moderate_project_signup(uuid, uuid) IS
+  'Project-signup moderation predicate: the creator, an active organization admin, or active organization staff while the project allows staff management. Returns no project or membership data.';
+
 -- Forward-replace the client mutation guard so no browser or Data API update can
--- enter the rejected state, including an otherwise authorized manager's. Every
--- other clause is unchanged: participants may still cancel their own pending or
--- approved signup, and managers keep the rest of their status moderation,
--- including unrejecting a signup back to approved.
+-- enter the rejected state, including an otherwise authorized manager's, and so
+-- the moderation it still allows requires an active membership rather than a
+-- role name. Every other clause is unchanged: participants may still cancel
+-- their own pending or approved signup, and managers keep the rest of their
+-- status moderation, including unrejecting a signup back to approved.
 CREATE OR REPLACE FUNCTION private.protect_project_signup_client_mutation()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -294,9 +357,9 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  v_is_manager := COALESCE(
-    public.is_project_organizer(OLD.project_id, v_actor_id),
-    false
+  v_is_manager := app_private.can_moderate_project_signup(
+    OLD.project_id,
+    v_actor_id
   ) OR COALESCE(public.is_super_admin(), false);
 
   IF NEW.project_id IS DISTINCT FROM OLD.project_id
@@ -361,4 +424,4 @@ GRANT EXECUTE ON FUNCTION private.protect_project_signup_client_mutation()
   TO service_role;
 
 COMMENT ON FUNCTION private.protect_project_signup_client_mutation() IS
-  'Client-role signup update guard. Identity and attendance fields stay immutable, participants may only cancel their own signup, and the rejected state is reachable only through public.reject_project_signup.';
+  'Client-role signup update guard. Identity and attendance fields stay immutable, participants may only cancel their own signup, moderating somebody else''s signup requires an active management membership, and the rejected state is reachable only through public.reject_project_signup.';

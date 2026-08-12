@@ -112,8 +112,8 @@ describe("who may read a project's signup roster", () => {
     expect(canReadRoster({ role: "staff", status: "active" })).toBe(false);
   });
 
-  test("an inactive membership may not, whatever its role", () => {
-    for (const status of ["invited", "inactive", "pending"]) {
+  test("a membership that is not active may not, whatever its role", () => {
+    for (const status of ["invited", "inactive", "pending", null]) {
       expect(
         canReadRoster({ role: "admin", status, canBeManagedByStaff: true }),
       ).toBe(false);
