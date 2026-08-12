@@ -1,59 +1,146 @@
-import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
+
+import { NextResponse } from "next/server";
+
 import {
+  getGoogleCapEventDescriptor,
+  GoogleCapValidationError,
   handleGoogleCapPayload,
   validateGoogleCapToken,
 } from "@/lib/security/google-cap";
+import {
+  claimGoogleCapEvent,
+  finishGoogleCapEvent,
+  type GoogleCapClaim,
+} from "@/lib/security/google-cap-receipts";
+import {
+  GoogleCapRequestError,
+  readGoogleCapToken,
+} from "@/lib/security/google-cap-request";
 
-function readTokenFromBody(rawBody: string): string | null {
-  const trimmed = rawBody.trim();
-  if (!trimmed) {
-    return null;
-  }
+export const runtime = "nodejs";
 
-  if (trimmed.startsWith("{")) {
-    try {
-      const parsed = JSON.parse(trimmed) as {
-        token?: string;
-        security_event_token?: string;
-        jwt?: string;
-      };
-      return parsed.token ?? parsed.security_event_token ?? parsed.jwt ?? null;
-    } catch {
-      return null;
-    }
-  }
-
-  return trimmed;
+function retryResponse(requestId: string) {
+  return NextResponse.json(
+    { error: "Security event processing is temporarily unavailable" },
+    {
+      status: 503,
+      headers: {
+        "retry-after": "30",
+        "x-request-id": requestId,
+        "cache-control": "no-store",
+      },
+    },
+  );
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const raw = await request.text();
-    const token = readTokenFromBody(raw);
+function acceptedResponse(requestId: string, replayed: boolean) {
+  return NextResponse.json(
+    { received: true, ...(replayed ? { replayed: true } : {}) },
+    {
+      status: 202,
+      headers: {
+        "x-request-id": requestId,
+        "cache-control": "no-store",
+      },
+    },
+  );
+}
 
-    if (!token) {
+export async function POST(request: Request) {
+  const requestId = randomUUID();
+  const startedAt = performance.now();
+  let claim: GoogleCapClaim | null = null;
+
+  try {
+    const rawToken = await readGoogleCapToken(request);
+    const decoded = await validateGoogleCapToken(rawToken);
+    const descriptor = getGoogleCapEventDescriptor(decoded);
+    claim = await claimGoogleCapEvent(descriptor, rawToken);
+
+    if (claim.decision === "replayed") {
+      console.info("Google CAP event accepted", {
+        requestId,
+        outcome: "replayed",
+        attemptCount: claim.attemptCount,
+        durationMs: Math.round(performance.now() - startedAt),
+      });
+      return acceptedResponse(requestId, true);
+    }
+
+    if (claim.decision === "in_progress" || !claim.claimToken) {
+      console.warn("Google CAP event deferred", {
+        requestId,
+        outcome: "in_progress",
+        attemptCount: claim.attemptCount,
+        durationMs: Math.round(performance.now() - startedAt),
+      });
+      return retryResponse(requestId);
+    }
+
+    const result = await handleGoogleCapPayload(decoded, claim.userId);
+    const succeeded = result.errorCount === 0;
+    const settled = await finishGoogleCapEvent({
+      receiptId: claim.receiptId,
+      claimToken: claim.claimToken,
+      succeeded,
+      safeOutcome: result.safeOutcome,
+      actionCount: result.actionCount,
+      errorCount: result.errorCount,
+    });
+
+    if (!settled || !succeeded) {
+      console.error("Google CAP event requires retry", {
+        requestId,
+        outcome: settled ? "action_failed" : "settlement_lost",
+        actionCount: result.actionCount,
+        errorCount: result.errorCount,
+        durationMs: Math.round(performance.now() - startedAt),
+      });
+      return retryResponse(requestId);
+    }
+
+    console.info("Google CAP event accepted", {
+      requestId,
+      outcome: result.safeOutcome,
+      actionCount: result.actionCount,
+      errorCount: result.errorCount,
+      attemptCount: claim.attemptCount,
+      durationMs: Math.round(performance.now() - startedAt),
+    });
+    return acceptedResponse(requestId, false);
+  } catch (error) {
+    if (
+      error instanceof GoogleCapRequestError ||
+      error instanceof GoogleCapValidationError
+    ) {
+      const status =
+        error instanceof GoogleCapRequestError ? error.status : 400;
+      console.warn("Google CAP event rejected", {
+        requestId,
+        outcome: status === 413 ? "body_too_large" : "invalid_token",
+        durationMs: Math.round(performance.now() - startedAt),
+      });
       return NextResponse.json(
-        { error: "Missing security event token" },
-        { status: 400 },
+        { error: "Invalid security event token" },
+        {
+          status,
+          headers: {
+            "x-request-id": requestId,
+            "cache-control": "no-store",
+          },
+        },
       );
     }
 
-    const decoded = await validateGoogleCapToken(token);
-    const handled = await handleGoogleCapPayload(decoded);
-
-    console.info("Google CAP event handled", {
-      jti: handled.jti,
-      subjectsCount: handled.subjectsCount,
-      results: handled.results,
+    // A configuration, JWKS, database, auth-admin, or settlement failure must
+    // stay retryable. Returning 400 here would tell Google to discard a valid
+    // security event permanently.
+    console.error("Google CAP event processing unavailable", {
+      requestId,
+      outcome: claim ? "post_claim_failure" : "pre_claim_failure",
+      durationMs: Math.round(performance.now() - startedAt),
     });
-
-    // Per Google CAP docs, acknowledge valid tokens with HTTP 202.
-    return NextResponse.json({ received: true }, { status: 202 });
-  } catch (error) {
-    console.error("Google CAP token processing failed", error);
-    return NextResponse.json(
-      { error: "Invalid security event token" },
-      { status: 400 },
-    );
+    return retryResponse(requestId);
   }
 }

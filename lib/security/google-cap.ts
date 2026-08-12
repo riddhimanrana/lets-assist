@@ -1,10 +1,16 @@
+import "server-only";
+
 import { compactVerify, createRemoteJWKSet, decodeProtectedHeader } from "jose";
+
 import { getAdminClient } from "@/lib/supabase/admin";
 
 const GOOGLE_RISC_CONFIG_URL =
   "https://accounts.google.com/.well-known/risc-configuration";
+const GOOGLE_CAP_MAX_JTI_LENGTH = 512;
+const GOOGLE_CAP_MAX_SUBJECT_LENGTH = 255;
+const GOOGLE_CAP_MAX_FUTURE_SKEW_SECONDS = 5 * 60;
 
-const EVENT_TYPES = {
+export const GOOGLE_CAP_EVENT_TYPES = {
   sessionsRevoked:
     "https://schemas.openid.net/secevent/risc/event-type/sessions-revoked",
   tokensRevoked:
@@ -20,6 +26,15 @@ const EVENT_TYPES = {
   verification:
     "https://schemas.openid.net/secevent/risc/event-type/verification",
 } as const;
+
+const USER_SUBJECT_EVENT_TYPES = new Set<string>([
+  GOOGLE_CAP_EVENT_TYPES.sessionsRevoked,
+  GOOGLE_CAP_EVENT_TYPES.tokensRevoked,
+  GOOGLE_CAP_EVENT_TYPES.tokenRevoked,
+  GOOGLE_CAP_EVENT_TYPES.accountDisabled,
+  GOOGLE_CAP_EVENT_TYPES.accountEnabled,
+  GOOGLE_CAP_EVENT_TYPES.accountCredentialChangeRequired,
+]);
 
 type RiscConfig = {
   issuer: string;
@@ -41,16 +56,30 @@ type RiscEventDetails = {
 export type DecodedGoogleCapToken = {
   iss: string;
   aud: string | string[];
-  iat?: number;
-  jti?: string;
+  iat: number;
+  jti: string;
   events: Record<string, RiscEventDetails>;
+};
+
+export type GoogleCapEventDescriptor = {
+  issuer: string;
+  jti: string;
+  issuedAt: Date;
+  eventType: string;
+  googleSubject: string | null;
 };
 
 type CapUserRecord = {
   id: string;
-  email?: string | null;
   app_metadata?: Record<string, unknown> | null;
 };
+
+export class GoogleCapValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "GoogleCapValidationError";
+  }
+}
 
 function normalizeIssuer(value: string) {
   return value.replace(/\/+$/u, "");
@@ -78,7 +107,15 @@ async function getRiscConfig(): Promise<RiscConfig> {
     throw new Error("Google RISC config is missing issuer or jwks_uri");
   }
 
-  const value = { issuer: json.issuer, jwks_uri: json.jwks_uri };
+  const jwksUrl = new URL(json.jwks_uri);
+  if (
+    jwksUrl.protocol !== "https:" ||
+    jwksUrl.hostname !== "www.googleapis.com"
+  ) {
+    throw new Error("Google RISC config returned an unexpected JWKS origin");
+  }
+
+  const value = { issuer: json.issuer, jwks_uri: jwksUrl.toString() };
   cachedRiscConfig = { value, fetchedAt: now };
   return value;
 }
@@ -101,6 +138,73 @@ function audienceMatches(aud: string | string[], expectedAudiences: string[]) {
   return values.some((value) => expectedAudiences.includes(value));
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) === Object.prototype,
+  );
+}
+
+function hasAsciiControlCharacter(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint <= 31 || codePoint === 127;
+  });
+}
+
+function assertDecodedTokenShape(
+  decoded: Partial<DecodedGoogleCapToken>,
+): asserts decoded is DecodedGoogleCapToken {
+  if (
+    typeof decoded.iss !== "string" ||
+    (typeof decoded.aud !== "string" && !Array.isArray(decoded.aud)) ||
+    !Number.isSafeInteger(decoded.iat) ||
+    (decoded.iat ?? 0) < 0 ||
+    typeof decoded.jti !== "string" ||
+    decoded.jti.length < 1 ||
+    decoded.jti.length > GOOGLE_CAP_MAX_JTI_LENGTH ||
+    decoded.jti.trim() !== decoded.jti ||
+    !isPlainObject(decoded.events)
+  ) {
+    throw new GoogleCapValidationError(
+      "CAP token is missing required bounded claims",
+    );
+  }
+
+  const audiences = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];
+  if (
+    audiences.length < 1 ||
+    audiences.length > 20 ||
+    audiences.some(
+      (audience) =>
+        typeof audience !== "string" ||
+        audience.length < 1 ||
+        audience.length > 512,
+    )
+  ) {
+    throw new GoogleCapValidationError("CAP token has invalid audience claims");
+  }
+
+  const entries = Object.entries(decoded.events);
+  if (entries.length !== 1) {
+    throw new GoogleCapValidationError(
+      "CAP token must describe exactly one security event",
+    );
+  }
+
+  const [eventType, details] = entries[0];
+  if (
+    eventType.length < 1 ||
+    eventType.length > 255 ||
+    !eventType.startsWith("https://schemas.openid.net/secevent/") ||
+    !isPlainObject(details)
+  ) {
+    throw new GoogleCapValidationError("CAP token has invalid event claims");
+  }
+}
+
 export async function validateGoogleCapToken(
   token: string,
 ): Promise<DecodedGoogleCapToken> {
@@ -112,114 +216,123 @@ export async function validateGoogleCapToken(
   }
 
   const { issuer, jwks_uri: jwksUri } = await getRiscConfig();
-  const protectedHeader = decodeProtectedHeader(token);
-  if (!protectedHeader.kid) {
-    throw new Error("CAP token is missing key id (kid)");
+  let protectedHeader: ReturnType<typeof decodeProtectedHeader>;
+  try {
+    protectedHeader = decodeProtectedHeader(token);
+  } catch {
+    throw new GoogleCapValidationError(
+      "CAP token has an invalid signing header",
+    );
+  }
+  if (!protectedHeader.kid || protectedHeader.alg !== "RS256") {
+    throw new GoogleCapValidationError(
+      "CAP token has an invalid signing header",
+    );
   }
 
   const jwks = createRemoteJWKSet(new URL(jwksUri));
-  const { payload } = await compactVerify(token, jwks);
-  const decoded = JSON.parse(
-    new TextDecoder().decode(payload),
-  ) as Partial<DecodedGoogleCapToken>;
-
-  if (
-    !decoded.iss ||
-    !decoded.aud ||
-    !decoded.events ||
-    typeof decoded.events !== "object"
-  ) {
-    throw new Error("CAP token is missing required claims");
+  let decoded: Partial<DecodedGoogleCapToken>;
+  try {
+    const { payload } = await compactVerify(token, jwks);
+    const parsed = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true }).decode(payload),
+    );
+    decoded = isPlainObject(parsed)
+      ? (parsed as Partial<DecodedGoogleCapToken>)
+      : {};
+  } catch {
+    throw new GoogleCapValidationError(
+      "CAP token signature or payload is invalid",
+    );
   }
 
+  assertDecodedTokenShape(decoded);
+
   if (normalizeIssuer(decoded.iss) !== normalizeIssuer(issuer)) {
-    throw new Error("CAP token has invalid issuer");
+    throw new GoogleCapValidationError("CAP token has invalid issuer");
   }
 
   if (!audienceMatches(decoded.aud, audiences)) {
-    throw new Error("CAP token has invalid audience");
+    throw new GoogleCapValidationError("CAP token has invalid audience");
   }
 
-  return decoded as DecodedGoogleCapToken;
+  if (
+    decoded.iat >
+    Math.floor(Date.now() / 1000) + GOOGLE_CAP_MAX_FUTURE_SKEW_SECONDS
+  ) {
+    throw new GoogleCapValidationError("CAP token was issued in the future");
+  }
+
+  return decoded;
 }
 
-function getEventSubjects(
-  payload: DecodedGoogleCapToken,
+function getEventSubject(
+  eventType: string,
+  details: RiscEventDetails,
   expectedIssuer: string,
-): string[] {
-  const subjects = new Set<string>();
-
-  for (const details of Object.values(payload.events)) {
-    const subject = details?.subject;
-    if (!subject?.sub) {
-      continue;
-    }
-
-    if (
-      subject.iss &&
-      normalizeIssuer(subject.iss) !== normalizeIssuer(expectedIssuer)
-    ) {
-      continue;
-    }
-
-    subjects.add(subject.sub);
+): string | null {
+  const subject = details.subject;
+  if (!subject?.sub) {
+    return null;
   }
 
-  return [...subjects];
+  if (
+    subject.sub.length > GOOGLE_CAP_MAX_SUBJECT_LENGTH ||
+    subject.sub.trim() !== subject.sub ||
+    hasAsciiControlCharacter(subject.sub)
+  ) {
+    throw new GoogleCapValidationError("CAP token has invalid subject");
+  }
+
+  if (
+    subject.iss &&
+    normalizeIssuer(subject.iss) !== normalizeIssuer(expectedIssuer)
+  ) {
+    throw new GoogleCapValidationError("CAP token has invalid subject issuer");
+  }
+
+  return subject.sub;
 }
 
-async function findUserByGoogleSubject(
-  googleSub: string,
-): Promise<CapUserRecord | null> {
-  const admin = getAdminClient();
-  const perPage = 100;
-  const maxPages = 100;
+export function getGoogleCapEventDescriptor(
+  payload: DecodedGoogleCapToken,
+): GoogleCapEventDescriptor {
+  const [[eventType, eventDetails]] = Object.entries(payload.events);
+  const googleSubject = getEventSubject(eventType, eventDetails, payload.iss);
 
-  for (let page = 1; page <= maxPages; page += 1) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
-    if (error) {
-      throw new Error(`Failed to list users: ${error.message}`);
-    }
-
-    const users = data?.users ?? [];
-    for (const user of users) {
-      const identities = user.identities ?? [];
-      const isMatch = identities.some((identity) => {
-        if (identity.provider !== "google") {
-          return false;
-        }
-
-        const identityData =
-          identity.identity_data && typeof identity.identity_data === "object"
-            ? (identity.identity_data as Record<string, unknown>)
-            : null;
-
-        return identityData?.sub === googleSub;
-      });
-
-      if (isMatch) {
-        return {
-          id: user.id,
-          email: user.email,
-          app_metadata:
-            user.app_metadata && typeof user.app_metadata === "object"
-              ? (user.app_metadata as Record<string, unknown>)
-              : null,
-        };
-      }
-    }
-
-    if (users.length < perPage) {
-      break;
-    }
+  if (USER_SUBJECT_EVENT_TYPES.has(eventType) && !googleSubject) {
+    throw new GoogleCapValidationError(
+      "CAP event is missing its required user subject",
+    );
   }
 
-  return null;
+  return {
+    issuer: payload.iss,
+    jti: payload.jti,
+    issuedAt: new Date(payload.iat * 1000),
+    eventType,
+    googleSubject,
+  };
+}
+
+async function getAuthUser(userId: string): Promise<CapUserRecord> {
+  const admin = getAdminClient();
+  const { data, error } = await admin.auth.admin.getUserById(userId);
+  if (error || !data?.user) {
+    throw new Error("Failed to load the local CAP user");
+  }
+
+  return {
+    id: data.user.id,
+    app_metadata:
+      data.user.app_metadata && typeof data.user.app_metadata === "object"
+        ? (data.user.app_metadata as Record<string, unknown>)
+        : null,
+  };
 }
 
 async function terminateUserSessions(userId: string) {
   const admin = getAdminClient();
-
   const signOut = (
     admin.auth.admin as unknown as {
       signOut?: (
@@ -235,28 +348,49 @@ async function terminateUserSessions(userId: string) {
 
   const { error } = await signOut(userId, "global");
   if (error) {
-    throw new Error(`Failed to terminate sessions: ${error.message}`);
+    throw new Error("Failed to terminate CAP user sessions");
   }
 }
 
-async function setGoogleSigninDisabled(
-  user: CapUserRecord,
-  disabled: boolean,
-  reason: string,
-) {
+function readLastStateIat(security: Record<string, unknown>): number | null {
+  const value = security.google_cap_last_state_iat;
+  return Number.isSafeInteger(value) && (value as number) >= 0
+    ? (value as number)
+    : null;
+}
+
+async function setGoogleSigninDisabled(options: {
+  userId: string;
+  disabled: boolean;
+  reason: string;
+  issuedAt: Date;
+  issuedAtSeconds: number;
+}): Promise<"updated" | "stale_enable_ignored" | "stale_disable_ignored"> {
+  const user = await getAuthUser(options.userId);
   const admin = getAdminClient();
   const currentMetadata = user.app_metadata ?? {};
   const currentSecurity =
     currentMetadata.security && typeof currentMetadata.security === "object"
       ? (currentMetadata.security as Record<string, unknown>)
       : {};
+  const lastStateIat = readLastStateIat(currentSecurity);
 
+  if (lastStateIat !== null && options.issuedAtSeconds < lastStateIat) {
+    return options.disabled ? "stale_disable_ignored" : "stale_enable_ignored";
+  }
+
+  const effectiveStateIat = Math.max(
+    lastStateIat ?? 0,
+    options.issuedAtSeconds,
+  );
+  const eventTime = options.issuedAt.toISOString();
   const nextSecurity = {
     ...currentSecurity,
-    google_signin_disabled: disabled,
-    google_signin_disabled_reason: disabled ? reason : null,
-    google_signin_disabled_at: disabled ? new Date().toISOString() : null,
-    google_signin_reenabled_at: disabled ? null : new Date().toISOString(),
+    google_signin_disabled: options.disabled,
+    google_signin_disabled_reason: options.disabled ? options.reason : null,
+    google_signin_disabled_at: options.disabled ? eventTime : null,
+    google_signin_reenabled_at: options.disabled ? null : eventTime,
+    google_cap_last_state_iat: effectiveStateIat,
   };
 
   const { error } = await admin.auth.admin.updateUserById(user.id, {
@@ -267,8 +401,10 @@ async function setGoogleSigninDisabled(
   });
 
   if (error) {
-    throw new Error(`Failed to update user CAP metadata: ${error.message}`);
+    throw new Error("Failed to update CAP user security metadata");
   }
+
+  return "updated";
 }
 
 export function getGoogleSigninCapRestriction(metadata: unknown): {
@@ -297,103 +433,109 @@ export function getGoogleSigninCapRestriction(metadata: unknown): {
   return { disabled: true, reason };
 }
 
-export async function handleGoogleCapPayload(payload: DecodedGoogleCapToken) {
-  const { issuer } = await getRiscConfig();
-  const subjects = getEventSubjects(payload, issuer);
+function normalizeDisabledReason(
+  reason: unknown,
+): "hijacking" | "bulk_account" | "unspecified" {
+  if (reason === "hijacking") return "hijacking";
+  if (reason === "bulk-account") return "bulk_account";
+  return "unspecified";
+}
 
-  const results: Array<{
-    subject: string;
-    userId: string | null;
-    actions: string[];
-    errors: string[];
-  }> = [];
+export async function handleGoogleCapPayload(
+  payload: DecodedGoogleCapToken,
+  userId: string | null,
+): Promise<{
+  actionCount: number;
+  errorCount: number;
+  safeOutcome: string;
+}> {
+  const descriptor = getGoogleCapEventDescriptor(payload);
+  const eventDetails = payload.events[descriptor.eventType];
 
-  for (const subject of subjects) {
-    const entry = {
-      subject,
-      userId: null as string | null,
-      actions: [] as string[],
-      errors: [] as string[],
+  if (!userId) {
+    return {
+      actionCount: 0,
+      errorCount: 0,
+      safeOutcome: "no_local_user",
     };
-
-    const user = await findUserByGoogleSubject(subject);
-    if (!user) {
-      entry.errors.push("No local user linked to this Google subject");
-      results.push(entry);
-      continue;
-    }
-
-    entry.userId = user.id;
-
-    for (const [eventType, eventDetails] of Object.entries(payload.events)) {
-      try {
-        if (
-          eventType === EVENT_TYPES.sessionsRevoked ||
-          eventType === EVENT_TYPES.tokensRevoked
-        ) {
-          await terminateUserSessions(user.id);
-          entry.actions.push(`sessions_terminated:${eventType}`);
-          continue;
-        }
-
-        if (eventType === EVENT_TYPES.accountDisabled) {
-          const reason = eventDetails?.reason ?? "unspecified";
-
-          if (reason === "hijacking") {
-            await terminateUserSessions(user.id);
-            entry.actions.push(
-              "sessions_terminated:account-disabled-hijacking",
-            );
-          }
-
-          await setGoogleSigninDisabled(
-            user,
-            true,
-            `account_disabled:${reason}`,
-          );
-          entry.actions.push(`google_signin_disabled:${reason}`);
-          continue;
-        }
-
-        if (eventType === EVENT_TYPES.accountEnabled) {
-          await setGoogleSigninDisabled(user, false, "account_enabled");
-          entry.actions.push("google_signin_reenabled");
-          continue;
-        }
-
-        if (eventType === EVENT_TYPES.tokenRevoked) {
-          entry.actions.push("token_revoke_received");
-          continue;
-        }
-
-        if (eventType === EVENT_TYPES.accountCredentialChangeRequired) {
-          entry.actions.push("credential_change_required_received");
-          continue;
-        }
-
-        if (eventType === EVENT_TYPES.verification) {
-          entry.actions.push(
-            `verification_received:${typeof eventDetails?.state === "string" ? eventDetails.state : ""}`,
-          );
-          continue;
-        }
-
-        entry.actions.push(`ignored_unhandled_event:${eventType}`);
-      } catch (error) {
-        entry.errors.push(
-          error instanceof Error
-            ? `${eventType}:${error.message}`
-            : `${eventType}:Unknown error`,
-        );
-      }
-    }
-
-    results.push(entry);
   }
 
-  return {
-    jti: payload.jti ?? null,
-    subjectsCount: subjects.length,
-    results,
-  };
+  try {
+    if (
+      descriptor.eventType === GOOGLE_CAP_EVENT_TYPES.sessionsRevoked ||
+      descriptor.eventType === GOOGLE_CAP_EVENT_TYPES.tokensRevoked ||
+      descriptor.eventType === GOOGLE_CAP_EVENT_TYPES.tokenRevoked
+    ) {
+      await terminateUserSessions(userId);
+      return {
+        actionCount: 1,
+        errorCount: 0,
+        safeOutcome: "sessions_terminated",
+      };
+    }
+
+    if (descriptor.eventType === GOOGLE_CAP_EVENT_TYPES.accountDisabled) {
+      const reason = normalizeDisabledReason(eventDetails?.reason);
+      const outcome = await setGoogleSigninDisabled({
+        userId,
+        disabled: true,
+        reason: `account_disabled_${reason}`,
+        issuedAt: descriptor.issuedAt,
+        issuedAtSeconds: payload.iat,
+      });
+      if (outcome !== "updated") {
+        return {
+          actionCount: 0,
+          errorCount: 0,
+          safeOutcome: outcome,
+        };
+      }
+
+      let actionCount = 1;
+      if (reason === "hijacking") {
+        await terminateUserSessions(userId);
+        actionCount += 1;
+      }
+      return {
+        actionCount,
+        errorCount: 0,
+        safeOutcome: "google_signin_disabled",
+      };
+    }
+
+    if (descriptor.eventType === GOOGLE_CAP_EVENT_TYPES.accountEnabled) {
+      const outcome = await setGoogleSigninDisabled({
+        userId,
+        disabled: false,
+        reason: "account_enabled",
+        issuedAt: descriptor.issuedAt,
+        issuedAtSeconds: payload.iat,
+      });
+      return {
+        actionCount: outcome === "updated" ? 1 : 0,
+        errorCount: 0,
+        safeOutcome: outcome === "updated" ? "google_signin_enabled" : outcome,
+      };
+    }
+
+    if (descriptor.eventType === GOOGLE_CAP_EVENT_TYPES.verification) {
+      return {
+        actionCount: 0,
+        errorCount: 0,
+        safeOutcome: "verification_acknowledged",
+      };
+    }
+
+    return {
+      actionCount: 0,
+      errorCount: 0,
+      safeOutcome: "event_acknowledged",
+    };
+  } catch {
+    return {
+      actionCount: 0,
+      errorCount: 1,
+      safeOutcome: "retryable_failure",
+    };
+  }
 }
