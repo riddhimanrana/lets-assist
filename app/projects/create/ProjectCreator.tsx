@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   createProject,
+  publishWaiverStagedProject,
   uploadWaiverPdf,
   finalizeProject,
   saveProjectAsNewDraft,
@@ -987,6 +988,50 @@ export default function ProjectCreator({
     }
   };
 
+  // Survives a failed publication so the next attempt finishes the same row.
+  const stagedProjectIdRef = useRef<string | null>(null);
+
+  /**
+   * Uploads the waiver PDF, saves its configuration, and asks the server to
+   * publish the staged project. Returns a user-facing reason on failure and
+   * null once the project is genuinely published.
+   */
+  const completeWaiverPublication = async (
+    projectId: string,
+  ): Promise<string | null> => {
+    try {
+      if (state.waiverPdfFile) {
+        const waiverBase64 = await fileToBase64(state.waiverPdfFile);
+        const waiverResult = await uploadWaiverPdf(
+          projectId,
+          waiverBase64,
+          state.waiverPdfFile.name,
+        );
+
+        if (waiverResult.error) {
+          return waiverResult.error;
+        }
+
+        if (state.waiverDefinition) {
+          const defResult = await saveWaiverDefinition(
+            projectId,
+            state.waiverDefinition,
+          );
+
+          if (defResult.error) {
+            return defResult.error;
+          }
+        }
+      }
+
+      const publishResult = await publishWaiverStagedProject(projectId);
+      return publishResult.error ?? null;
+    } catch (error) {
+      console.error("Error completing waiver publication:", error);
+      return "The waiver could not be attached. Please try again.";
+    }
+  };
+
   const handleSubmit = async () => {
     if (state.step !== finalStep) {
       handleNextStep();
@@ -1066,16 +1111,31 @@ export default function ProjectCreator({
       const formData = new FormData();
       formData.append("projectData", JSON.stringify(state));
 
-      const result = await createProject(formData);
+      // A staged waiver project from a previous failed attempt is reused so a
+      // retry finishes that row instead of creating a second one.
+      let projectId = stagedProjectIdRef.current;
+      let stagedForWaiver = Boolean(projectId);
 
-      if ("error" in result) {
-        toast.dismiss(loadingToast);
-        toast.error(result.error);
-        setIsSubmitting(false);
-        return;
+      if (!projectId) {
+        const result = await createProject(formData);
+
+        if ("error" in result) {
+          toast.dismiss(loadingToast);
+          toast.error(result.error);
+          setIsSubmitting(false);
+          return;
+        }
+
+        projectId = result.id ?? null;
+        stagedForWaiver =
+          "requiresWaiverPublication" in result &&
+          Boolean(result.requiresWaiverPublication);
+
+        if (projectId && stagedForWaiver) {
+          stagedProjectIdRef.current = projectId;
+        }
       }
 
-      const projectId = result.id;
       if (!projectId) {
         toast.dismiss(loadingToast);
         toast.error("Failed to create project.");
@@ -1088,35 +1148,24 @@ export default function ProjectCreator({
       const fileUploadResult = await uploadProjectFiles(projectId);
       hasErrors = hasErrors || fileUploadResult.hasErrors;
 
-      // Step 4: Upload waiver PDF if available and waiver is required
-      if (state.waiverRequired && state.waiverPdfFile) {
-        try {
-          const waiverBase64 = await fileToBase64(state.waiverPdfFile);
-          const waiverResult = await uploadWaiverPdf(
-            projectId,
-            waiverBase64,
-            state.waiverPdfFile.name,
-          );
-          if (waiverResult.error) {
-            console.error(`Waiver PDF: ${waiverResult.error}`);
-            hasErrors = true;
-          }
+      // Step 3: Attach the real waiver PDF and its configuration, then ask the
+      // database to publish the staged row. Until that succeeds the project
+      // stays unpublished: not publicly readable and not signable.
+      if (stagedForWaiver) {
+        const publicationError = await completeWaiverPublication(projectId);
 
-          // Step 4.5: Save waiver definition if configured
-          if (!waiverResult.error && state.waiverDefinition) {
-            const defResult = await saveWaiverDefinition(
-              projectId,
-              state.waiverDefinition,
-            );
-            if (defResult.error) {
-              console.error(`Waiver Definition: ${defResult.error}`);
-              hasErrors = true;
-            }
-          }
-        } catch (error) {
-          console.error("Error processing waiver PDF:", error);
-          hasErrors = true;
+        if (publicationError) {
+          toast.dismiss(loadingToast);
+          toast.error(publicationError, {
+            description:
+              "The project was saved but is not published yet. Fix the waiver and press Create again.",
+            duration: 8000,
+          });
+          setIsSubmitting(false);
+          return;
         }
+
+        stagedProjectIdRef.current = null;
       }
 
       // Step 5: Finalize project (non-blocking)

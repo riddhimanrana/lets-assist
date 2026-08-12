@@ -93,7 +93,7 @@ test("waiver definition reads and versioned saves remain scoped to their project
   );
 });
 
-test("registered signup captures its row id before waiver persistence and plugin hooks", () => {
+test("registered signup commits its row and its waiver in one transaction", () => {
   const orchestration = read("app/projects/[id]/server/signup.ts");
   const registeredFlow = read("app/projects/[id]/server/signup-registered.ts");
 
@@ -106,21 +106,24 @@ test("registered signup captures its row id before waiver persistence and plugin
   );
   assert.doesNotMatch(orchestration, /else if \(user\)/u);
 
-  const waiverStart = orchestration.indexOf(
-    "if ((project.waiver_required || waiverSignature) && createdSignupId)",
-  );
+  // Evidence is prepared first and handed to the single capacity-checked
+  // insert, so there is no post-insert waiver step left to compensate for.
+  const prepareStart = registeredFlow.indexOf("prepareWaiverSignatureRecord({");
+  const insertStart = registeredFlow.indexOf("insertProjectSignupAtomically(");
+  assert.ok(prepareStart > 0);
+  assert.ok(insertStart > prepareStart);
+  assert.match(registeredFlow, /\{\s*waiver: waiverRecord,\s*\}/u);
+
   const hooksStart = orchestration.indexOf(
     "if (project.organization_id && createdSignupId)",
-    waiverStart,
   );
-  assert.ok(waiverStart > orchestration.indexOf("registerAnonymousSignup"));
-  assert.ok(hooksStart > waiverStart);
+  assert.ok(hooksStart > orchestration.indexOf("registerAnonymousSignup"));
 });
 
 test("multi-slot waiver reuse copies evidence instead of sharing cleanup paths", () => {
   const source = readProjectActionSource(ROOT);
   const cloneStart = source.indexOf(
-    "async function cloneAnonymousWaiverSignatureToSignup",
+    "async function prepareClonedAnonymousWaiverRecord",
   );
   const cloneEnd = source.indexOf(
     "export async function togglePauseSignups",

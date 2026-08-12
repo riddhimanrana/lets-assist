@@ -1,6 +1,8 @@
 import "server-only";
 
-import type { Project, ProjectSignup } from "@/types";
+import crypto from "crypto";
+
+import type { Project, ProjectSignup, WaiverSignatureInput } from "@/types";
 import type { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/services/email";
 import UserSignupConfirmation from "@/emails/user-signup-confirmation";
@@ -11,9 +13,12 @@ import {
   getScheduleDetails,
   insertProjectSignupAtomically,
   logSignupDebug,
+  releaseUncommittedWaiverEvidence,
+  resolveWaiverSignerIdentity,
   siteUrl,
   summarizePostgrestError,
 } from "./shared";
+import { prepareWaiverSignatureRecord } from "./waiver-assets";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -24,15 +29,21 @@ export async function registerAuthenticatedSignup({
   projectId,
   scheduleId,
   volunteerComment,
+  waiverSignature,
   formData,
   traceId,
 }: {
   supabase: ServerClient;
-  user: { id: string };
+  user: {
+    id: string;
+    email?: string | null;
+    user_metadata?: { full_name?: string } | null;
+  };
   project: Project;
   projectId: string;
   scheduleId: string;
   volunteerComment: string | null;
+  waiverSignature?: WaiverSignatureInput | null;
   formData?: Record<string, unknown>;
   traceId: string;
 }) {
@@ -76,6 +87,45 @@ export async function registerAuthenticatedSignup({
       };
     }
 
+    // Signature assets are uploaded before the transaction, but the evidence
+    // row is written by it. Nothing here creates a signup that could outlive a
+    // refused or failed waiver.
+    let waiverRecord = null;
+    let evidencePaths: string[] = [];
+
+    if (waiverSignature) {
+      const signer = resolveWaiverSignerIdentity({
+        signerNameInput: waiverSignature.signerName,
+        signerEmailInput: waiverSignature.signerEmail,
+        sessionEmail: user.email,
+        sessionFullName: user.user_metadata?.full_name,
+        isSessionActor: true,
+      });
+
+      if (!signer) {
+        return {
+          response: { error: "Signer email is required for the waiver." },
+        };
+      }
+
+      const prepared = await prepareWaiverSignatureRecord({
+        projectId,
+        evidenceKey: crypto.randomUUID(),
+        signerName: signer.signerName,
+        signerEmail: signer.signerEmail,
+        waiverSignature,
+      });
+      evidencePaths = prepared.uploadedPaths;
+
+      if ("error" in prepared) {
+        await releaseUncommittedWaiverEvidence(evidencePaths, traceId);
+        logSignupDebug(traceId, "registered_waiver_prepare_failed");
+        return { response: { error: prepared.error } };
+      }
+
+      waiverRecord = prepared.record;
+    }
+
     const signupData: Omit<ProjectSignup, "id" | "created_at"> = {
       project_id: projectId,
       schedule_id: scheduleId,
@@ -87,9 +137,12 @@ export async function registerAuthenticatedSignup({
     };
 
     const { data: insertedSignup, error: signupError } =
-      await insertProjectSignupAtomically(signupData, traceId);
+      await insertProjectSignupAtomically(signupData, traceId, {
+        waiver: waiverRecord,
+      });
 
     if (signupError || !insertedSignup) {
+      await releaseUncommittedWaiverEvidence(evidencePaths, traceId);
       logSignupDebug(traceId, "registered_insert_failed", {
         error: summarizePostgrestError(signupError),
       });

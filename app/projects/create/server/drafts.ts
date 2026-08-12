@@ -39,8 +39,13 @@ export async function createProject(formData: FormData) {
     const basicResult = await createBasicProject(projectData);
     if (basicResult.error) return basicResult;
 
-    // Return the project ID - client will handle file uploads separately
-    return { success: true, id: basicResult.id };
+    // Return the project ID - client will handle file uploads separately. A
+    // waiver project is staged unpublished, so the caller must finish it.
+    return {
+      success: true,
+      id: basicResult.id,
+      requiresWaiverPublication: basicResult.requiresWaiverPublication ?? false,
+    };
   } catch (error) {
     console.error("Error in create project wrapper:", error);
     return { error: "An unexpected error occurred. Please try again." };
@@ -265,6 +270,17 @@ export async function publishDraft(draftId: string) {
   if (waiverPdfError) {
     return { error: waiverPdfError };
   }
+
+  // Drafts intentionally never carry the uploaded waiver PDF, so this path
+  // cannot prove one. Refusing here beats creating a project that would stay
+  // staged and unpublishable with nobody to finish it.
+  if (projectData?.waiverRequired) {
+    return {
+      error:
+        "Projects that require a waiver must be published from the create flow so the waiver PDF can be attached.",
+    };
+  }
+
   const basicResult = await createBasicProject(projectData, false);
 
   if (basicResult.error) {
