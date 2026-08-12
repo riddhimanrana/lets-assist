@@ -7,14 +7,21 @@ Method: local gate execution, plus read-only catalog queries against both hosted
 Evidence: `.artifacts/audit-20260810/`.
 
 **Current-tree reconciliation:** this remains a dated snapshot, not a claim that
-its original branch, hosted, migration, or advisor counts describe today. The
-current baseline is `development` at `e0e6461`, private gitlink `ca817bf`, 273
-forward migrations through `20260812152300_atomic_csf_post_replies`, and 122
-pgTAP files. Hosted Development Supabase has the same 273-version ledger; its
-latest advisor evidence is still for the preceding 272-migration schema, and the
-stable Development alias still serves Ready SHA `cf330e5f`. Current status
-amendments live in the cleanup register. This reconciliation does not inspect or
-mutate Production.
+its original branch, hosted, migration, or advisor counts describe today.
+`origin/development` at `e0e6461` contains 273 forward migration files through
+`20260812152300_atomic_csf_post_replies`, 122 pgTAP files, and committed private
+gitlink `ca817bf`; private `origin/development` is intentionally four commits
+ahead at `4f20fa5`, and PR #153 does not update the root gitlink. Those are
+repository inventory facts. Local run
+`20260812-pr153-db-validate-smoke` ran `bun run db:validate`: the
+lint-plus-replay smoke validated migration naming/order and replayed all 273
+migrations successfully against the local stack. It did not run the 122-file
+pgTAP suite, architecture audits, or advisors, and proves no effective RLS,
+policy, or grant posture. The later hosted Development record reports the same 273-version ledger, an advisor
+snapshot only for the preceding 272-migration schema, and Ready alias SHA
+`cf330e5f`; PR #153 did not re-query those hosted surfaces. Current status
+amendments live in the cleanup register. Production was excluded from this
+reconciliation.
 
 The staged repository-wide program also generates a fresh source inventory with `bun run audit:inventory` under `.artifacts/audit/surface-inventory/`. The inventory records exact root/private commit provenance and keeps source discovery separate from runtime catalog and hosted Development evidence.
 
@@ -26,10 +33,10 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 
 | ID                  | Pri | Area                   | Finding                                                                                                                | Status                                                            |
 | ------------------- | --- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| [AUD-001](#aud-001) | P0  | Core RLS               | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                     | **Fixed on `development`**; live in Production until cutover      |
-| [AUD-002](#aud-002) | P0  | Core RLS               | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection               | **Fixed on `development`**; live in Production until cutover      |
-| [AUD-003](#aud-003) | P1  | Grants                 | `public` defaults and existing relation/column ACL residue can expose client capabilities outside the reviewed catalog | Merged into the 273-ledger tree; current advisor closeout pending |
-| [AUD-004](#aud-004) | P1  | Plugin audit           | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited     | **Fixed on `development`**                                        |
+| [AUD-001](#aud-001) | P0  | Core RLS               | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                     | **Fixed on `development`**; last Production audit exposed         |
+| [AUD-002](#aud-002) | P0  | Core RLS               | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection               | **Fixed on `development`**; last Production audit exposed         |
+| [AUD-003](#aud-003) | P1  | Grants                 | `public` defaults and existing relation/column ACL residue can expose client capabilities outside the reviewed catalog | Migration replayed locally; ACL gates/advisors pending            |
+| [AUD-004](#aud-004) | P1  | Plugin audit           | Historical 22-value constraint rejected six of the 28 emitted lifecycle actions                                        | Fixed on `development`; Production cutover still active           |
 | [AUD-005](#aud-005) | P3  | Plugin RLS             | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob               | Reclassified — designed behaviour, document the contract          |
 | [AUD-006](#aud-006) | P2  | Architecture           | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002    | **Fixed on `development`**                                        |
 | [AUD-012](#aud-012) | P2  | Notifications          | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter      | **Fixed on `development`**; hosted ledger includes migration      |
@@ -42,7 +49,7 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-009](#aud-009) | P1  | Gate coverage          | storage policy heuristics could miss broad client policies that reach every bucket, including server-only buckets      | Merged into the 273-ledger tree; current advisor closeout pending |
 | [AUD-010](#aud-010) | P3  | Moderation             | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true                       | Confirmed, dead policy                                            |
 | [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                              | Confirmed                                                         |
-| [AUD-020](#aud-020) | P2  | Plugin data deletion   | Permanent deletion lacked a complete contract, authorization boundary, and truthful durable replay state               | **Fixed on `development`**; visible hosted flow pending           |
+| [AUD-020](#aud-020) | P2  | Plugin data deletion   | Permanent deletion lacked a complete contract, authorization boundary, and truthful durable replay state               | Platform fence merged; private declaration dependency open        |
 | [AUD-021](#aud-021) | P2  | Plugin uninstall       | Ordinary uninstall could run arbitrary plugin code and therefore could not guarantee data retention                    | **Fixed on `development`**; visible hosted flow pending           |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
@@ -115,7 +122,8 @@ Reversing this order breaks project cancellation and moderation notifications.
 
 ## AUD-003 — `public` default privileges still grant clients everything {#aud-003}
 
-**Priority:** P1 · **Status:** Source fix amended; exact CI database replay pending
+**Priority:** P1 · **Status:** Migration replayed locally; exact ACL gates and
+hosted advisor closeout pending
 
 Baseline `20260325181408` (~lines 3836-3847) still carries:
 
@@ -139,7 +147,14 @@ The function half is closed without a broad DDL event trigger. `20260811074518_p
 
 `public_function_acl_allowlist.test.sql` compares effective client privileges, including inherited `PUBLIC` grants, to that exact catalog and separately proves that the maintenance functions are not client-executable. `audit-supabase-architecture.sh` performs the same catalog comparison as a hard gate, and `AGENTS.md` now requires every new or replaced SQL function to carry explicit reviewed `REVOKE`/`GRANT` statements and update the allowlist when client-callable.
 
-The remaining half is **existing-object ACL residue** on already-created `public` tables and views: historical defaults left full `anon`/`authenticated` DML (plus `TRUNCATE`/`REFERENCES`/`TRIGGER` residue) on objects that RLS never intended to expose. That is distinct from the merged default-privilege closure, which only affects objects created afterward. The amended `20260812100900_public_client_relation_acl_catalog.sql` treats relation ACLs and independent `pg_attribute.attacl` entries as separate layers. Independently of the storage policy catalog, it preflights every reviewed relation capability with effective privilege checks, revokes direct relation and column ACLs for `PUBLIC`, `anon`, and `authenticated`, restores only identifier-quoted catalog grants, and verifies exact direct ACL shape and effective privileges including PUBLIC and role inheritance. `client_relation_grant_catalog.test.sql` and the architecture audit exercise the same direct/effective distinction, including redundant column grants hidden beside whole-table grants. The amended migration has not yet been replayed, so AUD-003 remains open pending the exact CI database replay and pgTAP gate.
+The remaining half is **existing-object ACL residue** on already-created `public` tables and views: historical defaults left full `anon`/`authenticated` DML (plus `TRUNCATE`/`REFERENCES`/`TRIGGER` residue) on objects that RLS never intended to expose. That is distinct from the merged default-privilege closure, which only affects objects created afterward. The amended `20260812100900_public_client_relation_acl_catalog.sql` treats relation ACLs and independent `pg_attribute.attacl` entries as separate layers. Independently of the storage policy catalog, it preflights every reviewed relation capability with effective privilege checks, revokes direct relation and column ACLs for `PUBLIC`, `anon`, and `authenticated`, restores only identifier-quoted catalog grants, and verifies exact direct ACL shape and effective privileges including PUBLIC and role inheritance. `client_relation_grant_catalog.test.sql` and the architecture audit exercise the same direct/effective distinction, including redundant column grants hidden beside whole-table grants.
+
+Local run `20260812-pr153-db-validate-smoke` replayed the amended migration in
+the complete 273-file chain. That lint-plus-replay smoke proves only that the
+migration applies; it did not run `client_relation_grant_catalog.test.sql`,
+`bun run db:audit:architecture`, advisors, or any effective RLS/policy/grant
+assertion. AUD-003 therefore remains open for those exact local ACL gates and
+the hosted Development catalog/advisor closeout.
 
 Earlier local evidence on 2026-08-11 covered the pre-review implementation only. It is retained as historical evidence but does not validate the amended column-ACL reconciliation. No hosted or Production conclusion follows from it.
 
@@ -147,25 +162,45 @@ One deliberate exclusion remains: `supabase_admin`'s default ACLs also name `ano
 
 GitHub evidence on 2026-08-11: PR #117 merged as `15ba480` after quality/build, GitGuardian, Supabase Preview, and the full isolated database/DV/CSF browser replay passed. Vercel Development deployment `dpl_GS7WcMq2tN62ZiuetZLmutCpUJAa` is READY for that exact commit and aliased to `dev.lets-assist.com` without an alias error. The PR Preview build remained deliberately fail-closed until an exact non-Production Supabase ref was available.
 
-**Still to do:** the relation/function catalogs are present in the repository and
-the matching 273-version hosted Development ledger. Re-establish the effective
-catalog and advisor snapshot on that exact 273-migration schema; the last
-accepted advisor snapshot belongs to 272. Production remains a separate excluded
-cutover.
+**Still to do:** run the exact pgTAP and architecture ACL gates on this tree,
+then re-establish the effective catalog and advisor snapshot on the dated
+273-migration hosted Development schema; the last accepted advisor snapshot
+belongs to 272. Production remains a separate excluded cutover.
 
 ---
 
-## AUD-004 — Six lifecycle audit events are silently discarded {#aud-004}
+## AUD-004 — Six lifecycle audit events were silently discarded {#aud-004}
 
-**Priority:** P1 · **Status:** Confirmed
+**Priority:** P1 · **Status:** Fixed on `development`; active for Production
+cutover because current Production state is uninspected
 
-`plugin_audit_logs_action_check` permits exactly 22 values. `lib/plugins/*.ts` emits 28. The six that will always violate the constraint:
+**Historical finding:** `plugin_audit_logs_action_check` permitted 22 values
+while `lib/plugins/*.ts` emitted 28. The six rejected values were
+`lifecycle.config_update`, `lifecycle.version_update`,
+`lifecycle.data_delete`, `lifecycle.project_create`,
+`lifecycle.project_clone`, and `lifecycle.signup`. Routine `logPluginAudit`
+caught the resulting `23514`, logged it, and returned `null`, so those events
+produced no row.
 
-`lifecycle.config_update` · `lifecycle.version_update` · `lifecycle.data_delete` · `lifecycle.project_create` · `lifecycle.project_clone` · `lifecycle.signup`
+**Resolution and boundary:** commit `b70aa3b2` is an ancestor of
+`origin/development`. Its forward migration
+`20260810220300_extend_plugin_audit_action_values.sql` replaces the historical
+constraint with all 28 emitted values, and
+`plugin_audit_action_values.test.sql` has nine assertions covering each former
+gap, the complete vocabulary, and rejection of an unknown action. The commit
+records a passing 70-file/3,262-assertion local replay. The later hosted
+Development record includes this migration in the 273-version ledger, but this
+reconciliation did not run a hosted insertion test.
 
-`logPluginAudit` catches the resulting `23514`, logs to `console.error`, and returns `null`. So configuration changes, version updates, **plugin data deletion**, project create/clone, and signup lifecycle events produce no audit row at all. Data deletion going unaudited is the serious one.
-
-**Fix:** forward migration replacing the CHECK with all 28 values (never edit `20260404010400`); pgTAP asserting every emitted value inserts; and make `logPluginAudit` surface constraint violations rather than swallowing them, so a future mismatch is loud. Plan Task 2.1.
+The old exit-gate claim that all audit errors would become throwing is not the
+implemented contract: routine lifecycle/execution logging remains deliberately
+best-effort and can return `null` on RPC failure. Permanent plugin-data deletion
+uses `logPluginAuditStrict` and may not report success without durable audit
+evidence. Production was not inspected, so no Production application or runtime
+claim is made here. AUD-004 therefore remains active in the cleanup register
+until a separately authorized Production cutover applies and verifies the
+constraint; the completed Development milestone records the merged/local
+evidence without implying Production closure.
 
 ---
 
@@ -241,7 +276,8 @@ That is a correct and defensible deny-all posture, and it is what produces the 9
 
 ## AUD-009 — Storage policy drift detection was fail-open {#aud-009}
 
-**Priority:** P1 · **Status:** Source fix re-amended after failed replay; exact CI database replay pending
+**Priority:** P1 · **Status:** Re-amended migration replayed locally; exact
+storage pgTAP/architecture gates pending
 
 `scripts/audit-supabase-architecture.sh` (~lines 302-368) enumerated nine expected buckets and already included `plugin_form_uploads`, but it omitted `csf-private` and `paper-signup-scans`. The property-drift query used a catalog-to-live `LEFT JOIN`, so buckets present in `storage.buckets` but absent from the allowlist were invisible. The server-only client-policy pattern matched only `data-exports` and `waiver-signatures`, so a new client policy on `csf-private` would also have stayed green.
 
@@ -249,9 +285,9 @@ The first catalog fix still classified policies by searching deparsed SQL for bu
 
 **Resolution:** `20260812100800_client_acl_and_storage_posture_catalogs.sql` adds `app_private.storage_bucket_posture_catalog()` as the reviewed source for all eleven buckets, their public/MIME/size properties, and posture classes: six `public`, two `private-client` (`paper-signup-scans`, `plugin_form_uploads`), and three `server-only` (`csf-private`, `data-exports`, `waiver-signatures`). The amended migration now converges every client-reachable `storage.objects` policy before recreating the complete 21-policy browser surface, then snapshots its canonical `pg_policy` identity, command, role array, permissive/restrictive shape, `USING`, and `WITH CHECK` expressions. The architecture gate rejects every missing, changed, or unnamed client-reachable policy, including `PUBLIC` and inherited role reachability; therefore a broad `USING (true)` policy or any policy reaching a server-only bucket cannot be admitted by naming or bucket-text heuristics. The catalog still preserves the reviewed public-bucket write policies and the seven exact private-client policies.
 
-The first exact clean replay of that stronger contract aborted with 30 violations. Fifteen policies that recheck organization membership, project authority, waiver references, or paper-scan authority were captured by `pg_get_expr()` under the migration session search path but compared inside a function with `search_path = ''`; each identical policy was therefore reported once as missing and once as unexpected. The six UID/path-only policies did not reference search-path-sensitive objects. The re-amendment routes capture and comparison through one fixed-search-path live-policy reader, retains exact expressions, and adds a pure historical-ledger inventory covering every role, command, bucket, predicate side, permissive shape, and intended owner. This is source evidence only until replayed.
+The first exact clean replay of that stronger contract aborted with 30 violations. Fifteen policies that recheck organization membership, project authority, waiver references, or paper-scan authority were captured by `pg_get_expr()` under the migration session search path but compared inside a function with `search_path = ''`; each identical policy was therefore reported once as missing and once as unexpected. The six UID/path-only policies did not reference search-path-sensitive objects. The re-amendment routes capture and comparison through one fixed-search-path live-policy reader, retains exact expressions, and adds a pure historical-ledger inventory covering every role, command, bucket, predicate side, permissive shape, and intended owner.
 
-Earlier local evidence on 2026-08-11 covered the weaker pre-review policy heuristic only. The amended 25-assertion pgTAP contract proves `storage.objects` RLS is enabled and adds fixed-context deparse checks plus adversarial probes for broad authenticated access, missing bucket predicates, `PUBLIC`, inherited-role reachability, command/role/expression/shape drift, valid private-client policies, and zero server-only exposure. The re-amended migration and pgTAP have not been replayed after the recorded 30-violation failure. AUD-009 remains open until the mandatory exact isolated/CI database replay and pgTAP gate pass.
+Earlier local evidence on 2026-08-11 covered the weaker pre-review policy heuristic only. The amended 25-assertion pgTAP contract proves `storage.objects` RLS is enabled and adds fixed-context deparse checks plus adversarial probes for broad authenticated access, missing bucket predicates, `PUBLIC`, inherited-role reachability, command/role/expression/shape drift, valid private-client policies, and zero server-only exposure. Local run `20260812-pr153-db-validate-smoke` replayed the re-amended migration in the 273-file chain, but that lint-plus-replay smoke ran neither this pgTAP contract nor the architecture storage gate and proves no effective RLS, policy, grant, or advisor posture. AUD-009 remains open until those exact local gates and the required hosted closeout pass.
 
 ---
 
@@ -297,7 +333,8 @@ Present in schema and, in several cases, in the admin UI — but consulted by no
 
 ## AUD-012 — Repeat notifications are silently suppressed {#aud-012}
 
-**Priority:** P2 · **Status:** Fixed locally; hosted Development pending
+**Priority:** P2 · **Status:** Fixed on `development`; current hosted behavior
+not reverified
 
 `services/notifications.ts` checks for an existing notification before inserting:
 
@@ -648,7 +685,8 @@ The two sets are also disjoint in what they touch: Codex's are all `csf_*`, whil
 
 ## AUD-020 / AUD-021 — Plugin data lifecycle boundary {#aud-020}
 
-**Priority:** P2 · **Status:** Fixed locally; hosted Development pending
+**Priority:** P2 · **Status:** Platform fence merged on `development`; private
+declaration dependency and hosted acceptance pending
 
 Ordinary uninstall is now mechanically non-destructive: the transition core
 removes only the exact organization/plugin install row and never invokes
@@ -673,9 +711,11 @@ before independent audit attachment, so audit failure cannot turn successful
 destruction into a false failed/replayable operation.
 
 No private manifest declares the complete new contract in this root change.
-That is deliberately fail-safe: permanent deletion remains unavailable for
-private plugins until a separate private-repository review enumerates targets
-and external systems, lands there, and only then updates the root gitlink.
+That missing declaration is an open private-repository dependency, not a
+completed design choice. The implemented behavior is deliberately fail-closed:
+permanent deletion remains unavailable for private plugins until a separate
+private-repository review enumerates targets and external systems, lands there,
+and only then updates the root gitlink.
 Local evidence is green: 78 focused Bun tests, 59 focused pgTAP assertions, and
 a full local migration reset/replay pass. Hosted Development remains pending.
 Production was not read, written, queried, deployed, or tested.
