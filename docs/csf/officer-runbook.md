@@ -113,7 +113,8 @@ Use **Members** to locate the permanent student identity and current-semester re
 2. Open the member detail before correcting identity, class, account connection, attendance, or points.
 3. Record corrections with the source, reason, and current officer identity.
 4. Merge duplicate profiles only after confirming both records describe the same person with stable corroborating evidence. The preview must enumerate every moved record and block hard identity conflicts.
-5. Keep completed historical semesters visible; hide empty future terms.
+5. If merge preview reports an outstanding import target, finish, retry, skip, or reconcile that import first. Settled successful and explicitly terminally skipped rows remain attached to the source tombstone as recovery evidence.
+6. Keep completed historical semesters visible; hide empty future terms.
 
 The member's **My CSF** view should agree with the officer record for application, eligibility, dues, attendance dates, points, decision, and deadlines.
 
