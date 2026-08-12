@@ -3,11 +3,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 type RpcCall = { key: string; limit: number; windowSeconds: number };
 
 const rpcCalls: RpcCall[] = [];
-let rpcResponses: Array<{
-  allowed: boolean;
-  remaining: number;
-  reset_at: string;
-}> = [];
+let rpcResponses: unknown[] = [];
 
 mock.module("@/lib/supabase/admin", () => ({
   getAdminClient: () => ({
@@ -30,6 +26,12 @@ mock.module("@/lib/supabase/admin", () => ({
 const { buildAiQuotaKey, consumeAiQuota, hashRateLimitIdentifier } =
   await import("./rate-limit");
 const { consumeParseProjectQuota } = await import("./parse-project-rate-limit");
+const {
+  ANALYZE_WAIVER_IP_LIMIT,
+  ANALYZE_WAIVER_RATE_LIMIT_WINDOW_SECONDS,
+  ANALYZE_WAIVER_USER_LIMIT,
+  consumeAnalyzeWaiverQuota,
+} = await import("./analyze-waiver-rate-limit");
 
 beforeEach(() => {
   rpcCalls.length = 0;
@@ -102,6 +104,23 @@ describe("consumeAiQuota", () => {
       consumeAiQuota({ feature: "x", windowSeconds: 60, buckets: [] }),
     ).rejects.toThrow("at least one bucket");
   });
+
+  test("fails closed on malformed database receipts", async () => {
+    for (const response of [
+      { allowed: false, remaining: 0, reset_at: "not-a-timestamp" },
+      { allowed: true, remaining: -1, reset_at: "2026-08-11T01:00:00Z" },
+      { allowed: "true", remaining: 1, reset_at: "2026-08-11T01:00:00Z" },
+    ]) {
+      rpcResponses = [response];
+      await expect(
+        consumeAiQuota({
+          feature: "receipt-validation",
+          windowSeconds: 60,
+          buckets: [{ scope: "user", identifier: "u1", limit: 1 }],
+        }),
+      ).rejects.toThrow("invalid response");
+    }
+  });
 });
 
 describe("consumeParseProjectQuota compatibility", () => {
@@ -125,6 +144,38 @@ describe("consumeParseProjectQuota compatibility", () => {
       allowed: true,
       remaining: 19,
       resetAt: "2026-08-11T01:05:00Z",
+    });
+  });
+});
+
+describe("consumeAnalyzeWaiverQuota", () => {
+  test("meters the expensive PDF analysis by hashed user and IP", async () => {
+    rpcResponses = [
+      { allowed: true, remaining: 9, reset_at: "2026-08-11T01:00:00Z" },
+      { allowed: true, remaining: 29, reset_at: "2026-08-11T01:00:00Z" },
+    ];
+
+    const result = await consumeAnalyzeWaiverQuota(
+      "waiver-user-1",
+      "203.0.113.9",
+    );
+
+    expect(rpcCalls).toEqual([
+      {
+        key: `ai:analyze-waiver:user:${hashRateLimitIdentifier("waiver-user-1")}`,
+        limit: ANALYZE_WAIVER_USER_LIMIT,
+        windowSeconds: ANALYZE_WAIVER_RATE_LIMIT_WINDOW_SECONDS,
+      },
+      {
+        key: `ai:analyze-waiver:ip:${hashRateLimitIdentifier("203.0.113.9")}`,
+        limit: ANALYZE_WAIVER_IP_LIMIT,
+        windowSeconds: ANALYZE_WAIVER_RATE_LIMIT_WINDOW_SECONDS,
+      },
+    ]);
+    expect(result).toEqual({
+      allowed: true,
+      remaining: 9,
+      resetAt: "2026-08-11T01:00:00Z",
     });
   });
 });

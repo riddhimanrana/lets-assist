@@ -62,7 +62,14 @@ async function consumeRateLimitBucket(
   }
 
   const row = (Array.isArray(data) ? data[0] : data) as RateLimitRow | null;
-  if (!row || typeof row.allowed !== "boolean") {
+  if (
+    !row ||
+    typeof row.allowed !== "boolean" ||
+    !Number.isSafeInteger(row.remaining) ||
+    row.remaining < 0 ||
+    typeof row.reset_at !== "string" ||
+    !Number.isFinite(Date.parse(row.reset_at))
+  ) {
     throw new Error("Rate-limit check returned an invalid response");
   }
 

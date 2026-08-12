@@ -12,6 +12,8 @@ import type { DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
 import { gatewayModel } from "@/lib/ai/gateway";
 import { AI_MODEL_FAST, AI_MODEL_FALLBACK_CHAIN } from "@/lib/ai/models";
 import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
+import { consumeAnalyzeWaiverQuota } from "@/lib/ai/analyze-waiver-rate-limit";
+import { getRequestIp } from "@/lib/ai/parse-project-rate-limit-config";
 
 const FIELD_TYPES = [
   "signature",
@@ -1303,11 +1305,58 @@ export async function POST(request: NextRequest) {
     let posthogDistinctId: string | undefined;
 
     if (!isE2EBypassEnabled) {
-      const authResult = await getAuthUser();
+      const authResult = await getAuthUser({ sensitive: true });
+      if (authResult.error) {
+        return NextResponse.json(
+          {
+            error:
+              "Waiver analysis is temporarily unavailable. Please try again.",
+          },
+          { status: 503 },
+        );
+      }
       if (!authResult.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       posthogDistinctId = authResult.user.id;
+
+      let quota: Awaited<ReturnType<typeof consumeAnalyzeWaiverQuota>>;
+      try {
+        quota = await consumeAnalyzeWaiverQuota(
+          authResult.user.id,
+          getRequestIp(request.headers),
+        );
+      } catch (rateLimitError) {
+        console.error("Waiver analysis rate-limit check failed", {
+          errorClass:
+            rateLimitError instanceof Error
+              ? rateLimitError.name
+              : "unknown_error",
+        });
+        return NextResponse.json(
+          {
+            error:
+              "Waiver analysis is temporarily unavailable. Please try again.",
+          },
+          { status: 503 },
+        );
+      }
+
+      if (!quota.allowed) {
+        const retryAfterSeconds = Math.max(
+          Math.ceil((new Date(quota.resetAt).getTime() - Date.now()) / 1_000),
+          1,
+        );
+        return NextResponse.json(
+          {
+            error: "Too many waiver-analysis requests. Please try again later.",
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": retryAfterSeconds.toString() },
+          },
+        );
+      }
     }
 
     const MAX_PDF_BYTES = 20 * 1024 * 1024; // 20MB
@@ -1815,10 +1864,12 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
         }
       } catch (fallbackError) {
         if (process.env.NODE_ENV !== "test") {
-          console.warn(
-            "Vision fallback failed, continuing without fallback fields:",
-            fallbackError,
-          );
+          console.warn("Waiver analysis vision fallback failed", {
+            errorClass:
+              fallbackError instanceof Error
+                ? fallbackError.name
+                : "unknown_error",
+          });
         }
       }
     }
@@ -1860,11 +1911,12 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
       },
     });
   } catch (error) {
-    console.error("AI waiver analysis error:", error);
+    console.error("AI waiver analysis failed", {
+      errorClass: error instanceof Error ? error.name : "unknown_error",
+    });
     return NextResponse.json(
       {
         error: "Failed to analyze waiver",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     );
