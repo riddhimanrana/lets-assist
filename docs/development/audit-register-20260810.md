@@ -708,6 +708,55 @@ Production was not read, written, queried, deployed, or tested.
 
 ---
 
+<a id="aud-029"></a>
+
+## AUD-029 — CSF post replies were not an atomic tenant boundary {#aud-029}
+
+**Priority:** P1 · **Status:** Audited source verified; exact integrated-branch and hosted Development verification pending
+
+`addCsfPostReplyAction` and `deleteCsfPostReplyAction` previously performed
+authorization, parent/reply reads, row mutation, and audit insertion as separate
+application statements. A process failure could commit the reply without its
+history, a lost response could duplicate an add, and a queued request could
+continue after current staff authority changed. The reply table also had
+independent organization and announcement foreign keys, so the database did not
+itself prove that both identifiers named the same tenant.
+
+Migration `20260812152300_atomic_csf_post_replies.sql` adds and validates the
+composite tenant-parent foreign key and moves add/delete plus the immutable
+audit receipt into one service-only transaction. The transaction authorizes
+before caller-controlled record inspection, takes the shared organization
+staff-access lock, pins the active host-membership row, rechecks
+`manage_posts`, locks the published parent or target reply, enforces current
+author-or-admin deletion, and binds the normalized intent to one request UUID.
+Exact retries return the original reply; conflicting reuse and stale committed
+state fail closed. Direct service-role INSERT, UPDATE, DELETE, TRUNCATE,
+REFERENCES, and TRIGGER privileges are removed while server-rendered SELECT is
+retained. Both parent foreign keys now use `ON DELETE RESTRICT`, so deleting an
+announcement cannot cascade around the reply boundary. The existing
+service-role-only plugin teardown RPC removes tenant replies explicitly under
+the same staff-access lock before delegating to its owner-only prior
+implementation; its public signature and exact fourteen-key result contract
+remain unchanged. Audit state stores hashes and bounded lengths, not reply
+text.
+
+The private action keeps its existing parameters and accepts one optional final
+request UUID. The UI retains that UUID across an unknown add/delete outcome and
+reuses it on an unchanged manual retry; changing the body discards the stale
+key. Private PR #44 merged first into the private repository's `development`
+branch at `d4188dd7`; the current root gitlink `ca817bf` contains that reply
+code plus the later preview-summary correction. Audited source evidence passes
+48 focused private tests (220 expectations), all 121 database files and 5,126
+pgTAP assertions, including observed two-connection advisory-lock waits for
+same-request replay and a staff-only `manage_posts` revocation. The exact
+integrated branch still requires fresh replay. Hosted Development migration,
+advisor, and browser acceptance also remain required before this finding
+closes.
+
+Production was not accessed or changed for this finding.
+
+---
+
 ## Next
 
 AUD-002 and AUD-006 were not in the original plan — they were found during Track 2 and are the highest-value new work. AUD-002 should be fixed in the same cutover as AUD-001, and its code change (AUD-006) can land on `development` immediately, since it is a correctness improvement independent of the RLS change.

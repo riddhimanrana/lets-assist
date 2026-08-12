@@ -14,7 +14,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(596);
+SELECT extensions.plan(597);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures.
@@ -4922,6 +4922,24 @@ SELECT extensions.throws_ok(
 );
 
 -- Sealing makes the rows immutable: appending afterwards is refused.
+SELECT extensions.throws_ok(
+  format(
+    $$SELECT plugin_data.csf_seal_import_preview(
+        'df100000-0000-4000-8000-000000000001',
+        'df000000-0000-4000-8000-000000000001',
+        %L,
+        'completed',
+        jsonb_build_object('rows', 85)
+      )$$,
+    (SELECT id FROM plugin_data.csf_sheet_import_jobs
+     WHERE source_id = 'df200000-0000-4000-8000-000000000001' AND status = 'running'
+     ORDER BY created_at DESC LIMIT 1)
+  ),
+  '23514',
+  'A CSF preview summary may not state "rows": it is derived from the stored rows.',
+  'a preview caller cannot state the row count that sealing derives from stored rows'
+);
+
 SELECT extensions.is(
   (
     SELECT plugin_data.csf_seal_import_preview(
