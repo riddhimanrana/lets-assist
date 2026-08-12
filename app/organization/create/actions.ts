@@ -5,6 +5,11 @@ import { revalidatePath } from "next/cache";
 import { customAlphabet } from "nanoid";
 import { hasSuperAdminMetadata } from "@/lib/auth/super-admin";
 import { getAdminClient } from "@/lib/supabase/admin";
+import {
+  isReservedOrganizationSlug,
+  usernameUnavailableMessage,
+} from "@/lib/organization/reserved-slugs";
+import { validateOrganizationUsername } from "@/lib/organization/username";
 
 // Generate a random 6-digit code
 const generateJoinCode = customAlphabet("0123456789", 6);
@@ -45,11 +50,13 @@ type OrganizationCreationData = {
  * Check if an organization username is available
  */
 export async function checkOrgUsername(username: string): Promise<boolean> {
-  const supabase = await createClient();
-
-  if (!username || username.length < 3) {
+  if (isReservedOrganizationSlug(username)) {
     return false;
   }
+
+  if (!validateOrganizationUsername(username).ok) return false;
+
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("organizations")
@@ -130,10 +137,19 @@ export async function createOrganization(data: OrganizationCreationData) {
     };
   }
 
+  if (isReservedOrganizationSlug(data.username)) {
+    return { error: usernameUnavailableMessage(true) };
+  }
+
+  const usernameValidation = validateOrganizationUsername(data.username);
+  if (!usernameValidation.ok) {
+    return { error: usernameValidation.error };
+  }
+
   // Double-check username availability
   const isUsernameAvailable = await checkOrgUsername(data.username);
   if (!isUsernameAvailable) {
-    return { error: "Username is already taken" };
+    return { error: usernameUnavailableMessage(false) };
   }
 
   // New organizations are unverified. A platform review must happen before an

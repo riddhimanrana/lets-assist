@@ -4,67 +4,122 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { revalidatePath } from "next/cache";
-import { type SignupStatus } from "@/types";
 import { createNotificationForUser } from "@/services/notifications-server";
 import { removeCalendarEventForSignup } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
+import { canUserManageProject } from "./access";
 
-// Add this new function to unreject a signup
+const UNREJECT_OUTCOMES = [
+  "approved",
+  "slot_full",
+  "invalid_state",
+  "project_closed",
+  "invalid_slot",
+  "refused",
+] as const;
+
+type UnrejectTransition = {
+  outcome: (typeof UNREJECT_OUTCOMES)[number];
+  project_id: string | null;
+};
+
+function getExactUnrejectTransition(value: unknown): UnrejectTransition | null {
+  if (!Array.isArray(value) || value.length !== 1) return null;
+
+  const row = value[0];
+  if (!row || typeof row !== "object") return null;
+
+  const outcome = Reflect.get(row, "outcome");
+  const projectId = Reflect.get(row, "project_id");
+  if (
+    typeof outcome !== "string" ||
+    !UNREJECT_OUTCOMES.includes(
+      outcome as (typeof UNREJECT_OUTCOMES)[number],
+    ) ||
+    (projectId !== null && typeof projectId !== "string")
+  ) {
+    return null;
+  }
+
+  return {
+    outcome: outcome as UnrejectTransition["outcome"],
+    project_id: projectId,
+  };
+}
+
+function revalidateSignupPaths(projectId: string) {
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/signups`);
+}
+
 export async function unrejectSignup(signupId: string) {
   "use server";
   const supabase = await createClient();
 
   try {
-    // Get current user using getClaims() for better performance
-    const { user } = await getAuthUser();
-
-    // Get signup details
-    const { data: signup, error: signupError } = await supabase
-      .from("project_signups")
-      .select("*, project:projects(creator_id, organization_id)")
-      .eq("id", signupId)
-      .single();
-
-    if (signupError || !signup) {
-      return { error: "Signup not found" };
-    }
-
-    // Permission check: Only project creator or org admin/staff can unreject
-    let hasPermission = false;
-    if (user) {
-      if (signup.project?.creator_id === user.id) {
-        hasPermission = true;
-      } else if (signup.project?.organization_id) {
-        const { data: orgMember } = await supabase
-          .from("organization_members")
-          .select("role")
-          .eq("organization_id", signup.project.organization_id)
-          .eq("user_id", user.id)
-          .single();
-        if (orgMember && ["admin", "staff"].includes(orgMember.role)) {
-          hasPermission = true;
-        }
-      }
-    }
-
-    if (!hasPermission) {
+    const { user, error: userError } = await getAuthUser();
+    if (userError || !user) {
       return { error: "You don't have permission to unreject this signup" };
     }
 
-    // Update signup status to 'approved'
-    const { error: updateError } = await supabase
+    const { data: signup, error: signupError } = await supabase
       .from("project_signups")
-      .update({ status: "approved" as SignupStatus })
-      .eq("id", signupId);
+      .select("id, project_id, status")
+      .eq("id", signupId)
+      .maybeSingle();
 
-    if (updateError) {
-      throw updateError;
+    if (signupError || !signup || signup.id !== signupId) {
+      return { error: "Signup not found" };
     }
 
-    // Revalidate paths
-    revalidatePath(`/projects/${signup.project_id}`);
-    revalidatePath(`/projects/${signup.project_id}/signups`);
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("id, creator_id, organization_id, can_be_managed_by_staff")
+      .eq("id", signup.project_id)
+      .maybeSingle();
+
+    if (
+      projectError ||
+      !project ||
+      project.id !== signup.project_id ||
+      !(await canUserManageProject(supabase, project, user.id))
+    ) {
+      return { error: "You don't have permission to unreject this signup" };
+    }
+
+    if (signup.status !== "rejected") {
+      return { error: "Failed to unreject signup" };
+    }
+
+    // The RPC re-authorizes this user, locks the slot on the same advisory key
+    // as signup insertion/confirmation, checks capacity, and changes only a
+    // still-rejected row. A page-time count followed by UPDATE would overbook.
+    const { data: transitionRows, error: updateError } = await supabase.rpc(
+      "unreject_project_signup_with_capacity",
+      { p_signup_id: signupId },
+    );
+    const transition = getExactUnrejectTransition(transitionRows);
+
+    if (
+      updateError ||
+      !transition ||
+      transition.project_id !== signup.project_id
+    ) {
+      throw updateError ?? new Error("Missing signup transition result");
+    }
+
+    if (transition.outcome === "slot_full") {
+      return {
+        error: "This signup cannot be approved because the slot is full",
+      };
+    }
+
+    if (transition.outcome !== "approved") {
+      return { error: "Failed to unreject signup" };
+    }
+
+    revalidateSignupPaths(signup.project_id);
 
     return { success: true };
   } catch (error) {
@@ -83,7 +138,6 @@ export async function createRejectionNotification(
   projectId: string,
   signupId: string,
 ): Promise<NotificationResult> {
-  "use server";
   "use server";
   const supabase = await createClient();
 
@@ -132,8 +186,10 @@ export async function cancelSignup(
   const adminSupabase = getAdminClient();
 
   try {
-    // Get current user using getClaims() for better performance
-    const { user } = await getAuthUser();
+    const { user, error: userError } = await getAuthUser();
+    if (userError) {
+      return { error: "Failed to cancel signup" };
+    }
 
     const isAnonymousCancellation = !user && !!anonymousSignupId;
     const signupLookupClient = isAnonymousCancellation
@@ -147,7 +203,7 @@ export async function cancelSignup(
       .eq("id", signupId)
       .maybeSingle();
 
-    if (signupError || !signup) {
+    if (signupError || !signup || signup.id !== signupId) {
       return { error: "Signup not found" };
     }
 
@@ -173,28 +229,19 @@ export async function cancelSignup(
         hasPermission = true;
       } else {
         // Check if user is creator or org admin/staff
-        const { data: project } = await supabase
+        const { data: project, error: projectError } = await supabase
           .from("projects")
-          .select("creator_id, organization_id, can_be_managed_by_staff")
+          .select("id, creator_id, organization_id, can_be_managed_by_staff")
           .eq("id", signup.project_id)
-          .single();
+          .maybeSingle();
 
-        if (project?.creator_id === user.id) {
+        if (
+          !projectError &&
+          project &&
+          project.id === signup.project_id &&
+          (await canUserManageProject(supabase, project, user.id))
+        ) {
           hasPermission = true;
-        } else if (project?.organization_id) {
-          const { data: orgMember } = await supabase
-            .from("organization_members")
-            .select("role")
-            .eq("organization_id", project.organization_id)
-            .eq("user_id", user.id)
-            .single();
-          if (
-            orgMember?.role === "admin" ||
-            (orgMember?.role === "staff" &&
-              project.can_be_managed_by_staff === true)
-          ) {
-            hasPermission = true;
-          }
         }
       }
     }
@@ -207,7 +254,56 @@ export async function cancelSignup(
       return { error: "You don't have permission to cancel this signup" };
     }
 
-    // Remove calendar event if it exists (non-blocking)
+    const deleteClient = isAnonymousCancellation ? adminSupabase : supabase;
+
+    const { data: cancelledSignup, error: cancelError } = await deleteClient
+      .from("project_signups")
+      .update({ status: "cancelled" })
+      .eq("id", signupId)
+      .in("status", ["pending", "approved"])
+      .select("id")
+      .maybeSingle();
+
+    if (cancelError) {
+      console.error("Failed to cancel signup:", cancelError);
+      return { error: "Failed to cancel signup" };
+    }
+
+    if (cancelledSignup && cancelledSignup.id !== signupId) {
+      return { error: "Failed to cancel signup" };
+    }
+
+    if (!cancelledSignup) {
+      // A concurrent or repeated cancellation is idempotent only when this
+      // same RLS-scoped client can prove the row is now cancelled. A silent
+      // zero-row UPDATE alone must never be reported as success.
+      const { data: currentSignup, error: currentSignupError } =
+        await deleteClient
+          .from("project_signups")
+          .select("id, status")
+          .eq("id", signupId)
+          .maybeSingle();
+
+      if (currentSignupError) {
+        console.error(
+          "Failed to verify idempotent signup cancellation:",
+          currentSignupError,
+        );
+        return { error: "Failed to cancel signup" };
+      }
+
+      if (
+        currentSignup?.id === signupId &&
+        currentSignup.status === "cancelled"
+      ) {
+        revalidateSignupPaths(signup.project_id);
+        return { success: true, removedAnonymousProfile: false };
+      }
+
+      return { error: "Failed to cancel signup" };
+    }
+
+    // Remove calendar event only after the DB write is proven
     try {
       await removeCalendarEventForSignup(signupId);
     } catch (calendarError) {
@@ -215,57 +311,13 @@ export async function cancelSignup(
       // Don't fail the cancellation if calendar removal fails
     }
 
-    const deleteClient = isAnonymousCancellation ? adminSupabase : supabase;
-
-    const { data: cancelledSignup, error: cancelError } = await deleteClient
-      .from("project_signups")
-      .update({ status: "cancelled" })
-      .eq("id", signupId)
-      .select("id")
-      .maybeSingle();
-
-    if (cancelError || !cancelledSignup) {
-      console.error("Failed to cancel signup:", cancelError);
-      return { error: "Failed to cancel signup" };
-    }
-
     console.log("Signup record cancelled successfully.");
 
-    let removedAnonymousProfile = false;
+    revalidateSignupPaths(signup.project_id);
 
-    if (anonymousSignupId && signup.anonymous_id === anonymousSignupId) {
-      const { count, error: remainingError } = await adminSupabase
-        .from("project_signups")
-        .select("id", { count: "exact", head: true })
-        .eq("anonymous_id", anonymousSignupId);
-
-      if (remainingError) {
-        console.error(
-          "Error checking remaining anonymous signups:",
-          remainingError,
-        );
-      } else if ((count ?? 0) === 0) {
-        const { error: removeAnonymousError } = await adminSupabase
-          .from("anonymous_signups")
-          .delete()
-          .eq("id", anonymousSignupId);
-
-        if (removeAnonymousError) {
-          console.error(
-            "Error deleting empty anonymous signup profile:",
-            removeAnonymousError,
-          );
-        } else {
-          removedAnonymousProfile = true;
-        }
-      }
-    }
-
-    // Revalidate paths
-    revalidatePath(`/projects/${signup.project_id}`);
-    revalidatePath(`/projects/${signup.project_id}/signups`);
-
-    return { success: true, removedAnonymousProfile };
+    // Soft-cancelled signups and any signed waiver evidence remain linked until
+    // the retention-aware anonymous cleanup transaction archives them.
+    return { success: true, removedAnonymousProfile: false };
   } catch (error) {
     console.error("Error cancelling signup:", error);
     return { error: "Failed to cancel signup" };

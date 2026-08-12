@@ -1,7 +1,7 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** the August 11 exact-tree replay/build/DV+CSF browser gates and hosted Development acceptance are green. Development has exact 245-migration parity, leaked-password protection enabled, the unused `pg_graphql` extension removed, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. The scheduled-post transition, repository-owned scheduler, and visible composer schedule/readback/archive lifecycle are implemented and accepted, but hosted enabled publisher invocation and visible schedule → Feed publication remain pending alongside live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, Production webhook rotation, and Production cutover.
+**Current status:** the August 11 tree's replay/build/DV+CSF browser gates and hosted Development acceptance are historical evidence only. Development is at `20260812073000`; this release-integration repository continues with the unpublished ordered series through `20260812101100`, so exact hosted parity and the final combined replay are pending. The historical Development environment had leaked-password protection enabled, the unused `pg_graphql` extension removed, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. Hosted enabled scheduled-post publication, live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, Production webhook rotation, and Production cutover remain pending.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
@@ -67,9 +67,9 @@ Only a profile-connect or combined invitation may start this workflow. An applic
 
 ### Officer review
 
-1. Open **Members → account connections**.
-2. Compare the request with the student's submitted evidence; never match on name alone. Similar-name suggestions are discovery aids only. A conflicting cohort, verified email, or existing account is a hard stop.
-3. Choose **Connect** or **Reject** and enter a clear reason of at least four characters. **Connect** is available only when the account's current confirmed email still matches the request snapshot, appears on exactly one active student record, and that record also has the exact requested name and one matching active class. A unique name is still name-only and never authorizes a connection. If those checks fail, correct the student record through the audited member-correction workflow first, or reject the request and issue a student-specific link to the address you can verify.
+1. Open **Members → Account connections** and work the **Matches to review** list. Open the request with **Resolve**, or a ranked candidate with **Review in Resolve**; both open the **Review account connection** dialog.
+2. Compare the request with the student's submitted evidence; never match on name alone. Everything under **Suggestions · advisory only** is a discovery aid, including a candidate badged **Canonical evidence ready**. A conflicting cohort, verified email, or existing account is a hard stop.
+3. Choose **Connect account** or **Reject request** and enter a **Decision reason** of at least four characters. **Connect account** is rendered only when the account's current confirmed email still matches the request snapshot, appears on exactly one active student record, and that record also has the exact requested name and one matching active class; otherwise the dialog states **Connection unavailable** with the specific blockers and offers only **Reject request**. A unique name is still name-only and never authorizes a connection. If those checks fail, correct the student record through the audited member-correction workflow first, or reject the request and issue a student-specific link to the address you can verify.
 4. If the student already has an accepted application for the same cohort and term, the atomic connection may activate that term membership.
 5. Use unlink/relink only to correct a documented error and always include a reason.
 
@@ -178,8 +178,8 @@ This section is the one-time cutover procedure from Google Classroom + spreadshe
 
 ### 10.1 One-time semester and cohort setup
 
-1. Create cohorts Class of 2027 through Class of 2030 (2026 exists only if seeding history for graduated seniors) and terms Spring 2025, Fall 2025, Spring 2026 (closed) and Fall 2026 (current) through **Classes → Semester setup** (§2).
-2. In **More → Communications → Settings**, confirm the broadcast consent topic, Resend topic id, sender, and integration health for the `term_members` audience. Do not use the generic organization-plugin JSON editor; cohort posts email through the same announcements consent topic.
+1. Create cohorts Class of 2027 through Class of 2030 (2026 exists only if seeding history for graduated seniors) and terms Spring 2025, Fall 2025, Spring 2026 (closed) and Fall 2026 (current) through **Classes → Semesters & setup** (§2).
+2. In **More → Communications → Settings**, confirm the two stored values for the **Term members** audience: **Consent topic key** and **Resend topic id**. That section holds nothing else — sender domain and provider health are verified outside it, against the provider. An established consent key is read-only, because opt-outs are stored under that exact key; changing one takes a dedicated audited migration. A missing pair keeps broadcast queueing disabled for that audience rather than guessing a scope. Do not use the generic organization-plugin JSON editor; cohort posts email through the same announcements consent topic.
 
 ### 10.2 Legacy data seed (rehearse locally first: `bun run dev`)
 
@@ -196,12 +196,12 @@ Acceptance: per-cohort roster counts match the application grade distribution; s
 
 1. Create four cohort onboarding links (§4) — one per graduating class, Fall 2026 term, combined link type. These replace the Freshman/Sophomore/Junior/Senior Google Classroom codes everywhere the chapter publishes them.
 2. Students who sign up through a cohort link skip the generic platform tour, confirm **We found your CSF record — is this you?**, pick a username in place, and get the CSF member tour on their **Feed**.
-3. Students whose sign-up email is not on the roster submit a link request; resolve them in the Members queue. Ranked suggestions help an officer locate evidence, but **Connect** remains blocked until stable corroborating identity evidence is present and every hard conflict is cleared. Never expose roster names to students.
+3. Students whose sign-up email is not on the roster submit a link request; resolve them in **Members → Account connections → Matches to review**. Ranked suggestions help an officer locate evidence, but **Connect account** is not offered at all until stable corroborating identity evidence is present and every hard conflict is cleared. Never expose roster names to students.
 
 ### 10.4 Posts and announcement email
 
 1. Open **Classes**, choose the class, then use **Stream**. Audience `class` targets that one cohort; `members` targets the whole chapter. Members read the result in **Feed**. Pin sparingly.
-2. The "also send as email" toggle requests exactly one campaign per post through the durable ledger — retries are safe. A class campaign freezes the current term, exact class cohort, consent topic, content, and recipient snapshot; later member/class changes or post edits do not rewrite it. The result must separately say **Post published** and either **Email queued** or **Email not queued**. A queue failure never means that a persisted post was not saved. The auth-first, bounded, input-free, exact-opt-in `csf-communications-dispatch` route is invoked by a checked-in GitHub Actions schedule. Repeated hosted runs return aggregate truth, but GitHub starts have been irregular despite the ten-minute cron expression. **Email queued** is not **Email delivered**; never promise a fixed delivery time.
+2. The **Also send this as an email** toggle requests exactly one campaign per post through the durable ledger — retries are safe. A class campaign freezes the current term, exact class cohort, consent topic, content, and recipient snapshot; later member/class changes or post edits do not rewrite it. The result must separately say **Post published** and either **Email queued** or **Email not queued**. A queue failure never means that a persisted post was not saved. The auth-first, bounded, input-free, exact-opt-in `csf-communications-dispatch` route is invoked by a checked-in GitHub Actions schedule. Repeated hosted runs return aggregate truth, but GitHub starts have been irregular despite the ten-minute cron expression. **Email queued** is not **Email delivered**; never promise a fixed delivery time.
 3. Recipients can opt out via the link in every announcement email (verify-the-address confirmation). Opt-outs exclude the address from future snapshots automatically; do not hand-manage them.
 4. Grant posting rights via the `manage_posts` capability (Publicity VP and Web Master templates carry it; org admins and the owner always can).
 5. Review quarantined or unknown provider outcomes in **More → Communications → Delivery issues**. Reconcile only from exact provider evidence; an unknown attempt is never blindly resent. Closing a quarantine item acknowledges human triage and records a reason, but does not apply/rewrite the provider event or change delivery/address safety.
@@ -259,7 +259,7 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Complete green PR checks; least-privilege `PRIVATE_SUBMODULE_TOKEN`, GitGuardian disposition for the removed local-only fixture password, and authenticated Vercel Preview diagnosis remain open
 - [x] Post-hardening production build and full private-plugin unit-suite rerun
 - [ ] Persistent isolated Supabase development branch after explicit `$0.01344/hour` cost confirmation
-- [x] Stable Development alias with branch-scoped non-production Supabase invariant and exact 245-migration parity
+- [ ] Re-establish the stable Development alias and prove branch-scoped non-production Supabase parity against the ordered ledger through `20260812101100`; the earlier alias/parity evidence applies only to its historical tree
 - [x] Authorize local and hosted Development Google origins/callbacks, including `http://localhost:3001` and `https://dev.lets-assist.com`
 - [ ] Confirm `dvhighcsf@gmail.com` in-product, then complete Picker, import, reconnect, revocation, and failure-state verification
 - [ ] Complete synthetic visible mutation lifecycle for every actor
@@ -276,6 +276,6 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Prove an enabled hosted scheduled-post worker invocation and visible synthetic schedule → Feed transition before relying on it in that environment
 - [x] Configure and repeatedly verify hosted `csf-communications-dispatch`; document that GitHub scheduling is irregular and does not promise fixed-time delivery
 
-No live chapter Google OAuth/Picker/Drive import or Google write has been performed. Development uses a separate hosted Supabase project with exact ledger parity. Production has been inspected read-only but not mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.
+No live chapter Google OAuth/Picker/Drive import or Google write has been performed. Development uses a separate hosted Supabase project, but exact parity with the current 268-migration integration ledger has not been re-established. Production has been inspected read-only but not mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.
 
 See [testing and release](testing-and-release.md) for current evidence and residual risk. See the [product contract](product-contract.md) for the full product, permission, data, and acceptance contracts.

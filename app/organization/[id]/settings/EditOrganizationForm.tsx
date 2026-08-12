@@ -36,6 +36,10 @@ import {
 import { Controller } from "react-hook-form";
 import { Switch } from "@/components/ui/switch";
 import { updateOrganization, checkUsernameAvailability } from "./actions";
+import {
+  isReservedOrganizationSlug,
+  usernameUnavailableMessage,
+} from "@/lib/organization/reserved-slugs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/shared/ImageCropper";
@@ -50,13 +54,16 @@ import {
 import type { Organization } from "@/types";
 
 import { hasOrganizationFormChanges } from "./organization-form-change";
+import {
+  ORGANIZATION_USERNAME_MAX_LENGTH,
+  organizationUsernameSchema,
+} from "@/lib/organization/username";
 
 // Constants
-const USERNAME_MAX_LENGTH = 32;
+const USERNAME_MAX_LENGTH = ORGANIZATION_USERNAME_MAX_LENGTH;
 const NAME_MAX_LENGTH = 64;
 const WEBSITE_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 650;
-const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
 
 const ORG_TYPE_LABELS: Record<string, string> = {
   nonprofit: "Nonprofit Organization",
@@ -82,17 +89,7 @@ const orgUpdateSchema = z.object({
     .min(2, "Name must be at least 2 characters")
     .max(NAME_MAX_LENGTH, `Name cannot exceed ${NAME_MAX_LENGTH} characters`),
 
-  username: z
-    .string()
-    .min(3, "Username must be at least 3 characters")
-    .max(
-      USERNAME_MAX_LENGTH,
-      `Username cannot exceed ${USERNAME_MAX_LENGTH} characters`,
-    )
-    .regex(
-      USERNAME_REGEX,
-      "Username can only contain letters, numbers, underscores, dots and hyphens",
-    ),
+  username: organizationUsernameSchema,
 
   description: z
     .string()
@@ -214,6 +211,17 @@ export default function EditOrganizationForm({
       return;
     }
 
+    // Same as the create form: a reserved username is answered in words,
+    // not just with the red icon a taken username also gets.
+    if (isReservedOrganizationSlug(value)) {
+      setUsernameAvailable(false);
+      form.setError("username", {
+        type: "manual",
+        message: usernameUnavailableMessage(true),
+      });
+      return;
+    }
+
     setCheckingUsername(true);
     try {
       const isAvailable = await checkUsernameAvailability(value);
@@ -290,11 +298,20 @@ export default function EditOrganizationForm({
     try {
       // Only check username availability if it changed
       if (data.username !== currentUsername) {
+        if (isReservedOrganizationSlug(data.username)) {
+          form.setError("username", {
+            type: "manual",
+            message: usernameUnavailableMessage(true),
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
         const isAvailable = await checkUsernameAvailability(data.username);
         if (!isAvailable) {
           form.setError("username", {
             type: "manual",
-            message: "Username is already taken",
+            message: usernameUnavailableMessage(false),
           });
           setIsSubmitting(false);
           return;

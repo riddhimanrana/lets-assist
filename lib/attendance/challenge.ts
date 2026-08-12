@@ -3,6 +3,10 @@ import { TZDate } from "@date-fns/tz";
 
 import type { Project } from "@/types";
 import {
+  isStrictCalendarDate,
+  isStrictClockTime,
+} from "@/lib/projects/schedule-validation";
+import {
   getMultiDaySlotByScheduleId,
   resolveScheduleId,
 } from "@/utils/project";
@@ -233,14 +237,15 @@ function buildProjectDateTime(
   time: string,
   timezone: string,
 ): number | null {
-  const [year, month, day] = date.split("-").map(Number);
-  const [hours, minutes] = time.split(":").map(Number);
-  if ([year, month, day, hours, minutes].some((value) => Number.isNaN(value))) {
+  if (!isStrictCalendarDate(date) || !isStrictClockTime(time)) {
     return null;
   }
 
+  const [year, month, day] = date.split("-").map(Number);
+  const [hours, minutes] = time.split(":").map(Number);
+
   try {
-    return new TZDate(
+    const localDateTime = new TZDate(
       year,
       month - 1,
       day,
@@ -248,7 +253,27 @@ function buildProjectDateTime(
       minutes,
       0,
       timezone,
-    ).getTime();
+    );
+    const ms = localDateTime.getTime();
+    // TZDate may return NaN for an unrecognised timezone rather than throwing
+    // in some runtime environments; treat NaN the same as a construction error.
+    if (Number.isNaN(ms)) return null;
+
+    // TZDate, like Date, normalizes impossible calendar values and DST gaps.
+    // Round-trip every requested local component so those normalizations fail
+    // closed instead of silently opening an attendance window on another day
+    // or time.
+    if (
+      localDateTime.getFullYear() !== year ||
+      localDateTime.getMonth() !== month - 1 ||
+      localDateTime.getDate() !== day ||
+      localDateTime.getHours() !== hours ||
+      localDateTime.getMinutes() !== minutes
+    ) {
+      return null;
+    }
+
+    return ms;
   } catch {
     return null;
   }

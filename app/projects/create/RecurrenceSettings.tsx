@@ -38,6 +38,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { RECURRENCE_OCCURRENCE_MAX } from "@/lib/projects/schedule-validation";
 
 interface RecurrenceSettingsProps {
   recurrence: {
@@ -357,7 +358,7 @@ export default function RecurrenceSettings({
                 <Input
                   type="number"
                   min="2"
-                  max="52"
+                  max={RECURRENCE_OCCURRENCE_MAX}
                   placeholder="e.g., 10"
                   value={recurrence.endOccurrences || ""}
                   onChange={(e) =>

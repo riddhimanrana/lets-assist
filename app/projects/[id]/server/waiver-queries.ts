@@ -69,7 +69,7 @@ export async function getWaiverDownloadUrl(
     const { data: signup, error: signupError } = (await serviceSupabase
       .from("project_signups")
       .select(
-        "id, user_id, anonymous_id, project:projects(creator_id, organization_id)",
+        "id, user_id, anonymous_id, project:projects!project_signups_project_id_fkey(creator_id, organization_id)",
       )
       .eq("id", signupId)
       .single()) as {
