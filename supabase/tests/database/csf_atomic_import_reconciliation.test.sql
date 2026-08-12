@@ -31,7 +31,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'anon',
-    'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid)',
+    'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
     'EXECUTE'
   ),
   'anonymous clients cannot commit meeting attendance imports'
@@ -39,7 +39,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'authenticated',
-    'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid)',
+    'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
     'EXECUTE'
   ),
   'authenticated clients cannot commit meeting attendance imports directly'
@@ -47,7 +47,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   has_function_privilege(
     'service_role',
-    'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid)',
+    'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
     'EXECUTE'
   ),
   'the server role can atomically commit meeting attendance imports'
@@ -55,7 +55,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'anon',
-    'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid)',
+    'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid,uuid)',
     'EXECUTE'
   ),
   'anonymous clients cannot commit partner-club audit imports'
@@ -63,7 +63,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'authenticated',
-    'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid)',
+    'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid,uuid)',
     'EXECUTE'
   ),
   'authenticated clients cannot commit partner-club audit imports directly'
@@ -71,7 +71,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   has_function_privilege(
     'service_role',
-    'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid)',
+    'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid,uuid)',
     'EXECUTE'
   ),
   'the server role can atomically commit partner-club audit imports'
@@ -197,15 +197,21 @@ INSERT INTO plugin_data.csf_partner_clubs (
   ARRAY['non_drive']::text[]
 );
 
+-- The two partner sources are Sheets-backed here, as `commitCsfPartnerSheetAuditAction`
+-- registers them. Only that family can carry the database receipt the commits below now
+-- spend; the uploaded partner family has no issuer that can produce one.
 INSERT INTO plugin_data.csf_sheet_sources (
-  id, organization_id, source_type, title, provider, spreadsheet_id, uploaded_file_path, sync_status, settings
+  id, organization_id, source_type, title, provider, spreadsheet_id, uploaded_file_path,
+  drive_file_id, drive_mime_type, drive_modified_at, sync_status, settings
 ) VALUES
   (
     'd9500000-0000-4000-8000-000000000001',
     'd9100000-0000-4000-8000-000000000001',
     'meeting_attendance',
     'Atomic meeting success source',
-    'google_sheets', 'atomic-meeting-success', NULL, 'not_synced',
+    'google_sheets', 'atomic-meeting-success', NULL,
+    'atomic-meeting-success', 'application/vnd.google-apps.spreadsheet',
+    '2030-08-01T00:00:00Z', 'not_synced',
     '{"sourceKind":"meeting_attendance","meetingId":"d9400000-0000-4000-8000-000000000001"}'
   ),
   (
@@ -213,7 +219,9 @@ INSERT INTO plugin_data.csf_sheet_sources (
     'd9100000-0000-4000-8000-000000000001',
     'meeting_attendance',
     'Atomic meeting rollback source',
-    'google_sheets', 'atomic-meeting-rollback', NULL, 'not_synced',
+    'google_sheets', 'atomic-meeting-rollback', NULL,
+    'atomic-meeting-rollback', 'application/vnd.google-apps.spreadsheet',
+    '2030-08-02T00:00:00Z', 'not_synced',
     '{"sourceKind":"meeting_attendance","meetingId":"d9400000-0000-4000-8000-000000000002"}'
   ),
   (
@@ -221,7 +229,9 @@ INSERT INTO plugin_data.csf_sheet_sources (
     'd9100000-0000-4000-8000-000000000001',
     'partner_club_audit',
     'Atomic partner success source',
-    'uploaded_xlsx', NULL, 'csf/fixture/partner-success.xlsx', 'not_synced',
+    'google_sheets', 'atomic-partner-success', NULL,
+    'atomic-partner-success', 'application/vnd.google-apps.spreadsheet',
+    '2030-08-03T00:00:00Z', 'not_synced',
     '{"sourceKind":"partner_club_audit"}'
   ),
   (
@@ -229,7 +239,9 @@ INSERT INTO plugin_data.csf_sheet_sources (
     'd9100000-0000-4000-8000-000000000001',
     'partner_club_audit',
     'Atomic partner rollback source',
-    'uploaded_xlsx', NULL, 'csf/fixture/partner-rollback.xlsx', 'not_synced',
+    'google_sheets', 'atomic-partner-rollback', NULL,
+    'atomic-partner-rollback', 'application/vnd.google-apps.spreadsheet',
+    '2030-08-04T00:00:00Z', 'not_synced',
     '{"sourceKind":"partner_club_audit"}'
   );
 
@@ -426,6 +438,74 @@ INSERT INTO plugin_data.csf_partner_submission_rows (
     '{"source":{"rowHash":"partner-skip-hash"}}', 1, 'non_drive'
   );
 
+-- The source-evidence receipts the four succeeding or write-reaching commits spend,
+-- written exactly as `csf_refresh_sheet_source_evidence` writes them: the same canonical
+-- metadata digest recomputed from the receipt's own coordinates, the same
+-- `evidenceRevision`/`evidenceDigest` pair on the source, the same generation.
+-- `csf_consume_sheet_source_evidence` re-derives all three, so a receipt that did not
+-- describe itself would be refused rather than accepted.
+WITH minted AS (
+  SELECT *
+  FROM (VALUES
+    ('d9600000-0000-4000-8000-000000000001'::uuid, 'd9e00000-0000-4000-8000-000000000001'::uuid),
+    ('d9600000-0000-4000-8000-000000000002'::uuid, 'd9e00000-0000-4000-8000-000000000002'::uuid),
+    ('d9600000-0000-4000-8000-000000000003'::uuid, 'd9e00000-0000-4000-8000-000000000003'::uuid),
+    ('d9600000-0000-4000-8000-000000000004'::uuid, 'd9e00000-0000-4000-8000-000000000004'::uuid)
+  ) AS pair(preview_job_id, nonce)
+),
+coordinate AS (
+  SELECT
+    minted.preview_job_id,
+    minted.nonce,
+    job.organization_id,
+    job.source_id,
+    source.spreadsheet_id AS provider_file_id,
+    source.drive_modified_at AS modified_time,
+    encode(
+      sha256(convert_to(
+        plugin_data.csf_canonical_json(jsonb_build_object(
+          'fileId', source.spreadsheet_id,
+          'mimeType', 'application/vnd.google-apps.spreadsheet',
+          'modifiedTime', to_char(
+            source.drive_modified_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+          ),
+          'version', '5',
+          'trashed', false
+        )),
+        'UTF8'
+      )),
+      'hex'
+    ) AS metadata_digest
+  FROM minted
+  JOIN plugin_data.csf_sheet_import_jobs AS job ON job.id = minted.preview_job_id
+  JOIN plugin_data.csf_sheet_sources AS source ON source.id = job.source_id
+),
+refreshed AS (
+  UPDATE plugin_data.csf_sheet_sources AS source
+  SET evidence_generation = 1,
+      evidence_refreshed_at = now(),
+      settings = source.settings || jsonb_build_object(
+        'evidenceRevision', '5',
+        'evidenceDigest', coordinate.metadata_digest
+      )
+  FROM coordinate
+  WHERE source.id = coordinate.source_id
+  RETURNING source.id
+)
+INSERT INTO plugin_data.csf_sheet_source_evidence_tokens (
+  organization_id, source_id, actor_user_id, preview_job_id, provider, nonce,
+  evidence_generation, metadata_digest, provider_file_id, provider_version,
+  mime_type, modified_time, access_checked_at, expires_at
+)
+SELECT
+  coordinate.organization_id, coordinate.source_id,
+  'd9000000-0000-4000-8000-000000000001', coordinate.preview_job_id,
+  'google_sheets', coordinate.nonce, 1, coordinate.metadata_digest,
+  coordinate.provider_file_id, '5',
+  'application/vnd.google-apps.spreadsheet', coordinate.modified_time,
+  now(), now() + interval '10 minutes'
+FROM coordinate;
+
 SELECT extensions.lives_ok(
   $$
     SELECT plugin_data.csf_commit_meeting_attendance_import(
@@ -433,7 +513,8 @@ SELECT extensions.lives_ok(
       'd9600000-0000-4000-8000-000000000001',
       'd9000000-0000-4000-8000-000000000001',
       'Verified the synthetic attendance preview.',
-      'd9d00000-0000-4000-8000-000000000001'
+      'd9d00000-0000-4000-8000-000000000001',
+      'd9e00000-0000-4000-8000-000000000001'
     )
   $$,
   'a reconciled meeting-attendance preview commits atomically'
@@ -477,7 +558,7 @@ SELECT extensions.ok(
       'd9600000-0000-4000-8000-000000000001',
       'd9000000-0000-4000-8000-000000000001',
       'Verified the synthetic attendance preview.',
-      'd9d00000-0000-4000-8000-000000000001'
+      'd9d00000-0000-4000-8000-000000000001', NULL
     )->>'idempotent'
   )::boolean,
   'repeating the same meeting commit returns an idempotent result'
@@ -500,7 +581,8 @@ SELECT extensions.lives_ok(
       'approved',
       'd9000000-0000-4000-8000-000000000001',
       'Approved the reconciled synthetic partner audit.',
-      'd9d00000-0000-4000-8000-000000000003'
+      'd9d00000-0000-4000-8000-000000000003',
+      'd9e00000-0000-4000-8000-000000000003'
     )
   $$,
   'a reconciled partner-club audit commits atomically'
@@ -551,7 +633,7 @@ SELECT extensions.ok(
       'approved',
       'd9000000-0000-4000-8000-000000000001',
       'Approved the reconciled synthetic partner audit.',
-      'd9d00000-0000-4000-8000-000000000003'
+      'd9d00000-0000-4000-8000-000000000003', NULL
     )->>'idempotent'
   )::boolean,
   'repeating the same partner-audit commit returns an idempotent result'
@@ -688,7 +770,7 @@ SELECT extensions.throws_ok(
       'd9600000-0000-4000-8000-000000000002',
       'd9000000-0000-4000-8000-000000000001',
       'Attempted cross-organization commit.',
-      'd9d00000-0000-4000-8000-000000000002'
+      'd9d00000-0000-4000-8000-000000000002', NULL
     )
   $$,
   'P0001',
@@ -702,7 +784,7 @@ SELECT extensions.throws_ok(
       'd9600000-0000-4000-8000-000000000002',
       'd9000000-0000-4000-8000-000000000001',
       '',
-      'd9d00000-0000-4000-8000-000000000002'
+      'd9d00000-0000-4000-8000-000000000002', NULL
     )
   $$,
   'P0001',
@@ -736,7 +818,8 @@ SELECT extensions.throws_ok(
       'd9600000-0000-4000-8000-000000000002',
       'd9000000-0000-4000-8000-000000000001',
       'This transaction must roll back at the audit boundary.',
-      'd9d00000-0000-4000-8000-000000000002'
+      'd9d00000-0000-4000-8000-000000000002',
+      'd9e00000-0000-4000-8000-000000000002'
     )
   $$,
   'P0001',
@@ -773,7 +856,8 @@ SELECT extensions.throws_ok(
       'approved',
       'd9000000-0000-4000-8000-000000000001',
       'This transaction must roll back at the audit boundary.',
-      'd9d00000-0000-4000-8000-000000000004'
+      'd9d00000-0000-4000-8000-000000000004',
+      'd9e00000-0000-4000-8000-000000000004'
     )
   $$,
   'P0001',
