@@ -14,7 +14,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(596);
+SELECT extensions.plan(597);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures.
@@ -2901,7 +2901,7 @@ INSERT INTO csf_intended_import_acl (signature, service_role_execute) VALUES
   ('plugin_data.csf_assert_sheet_source_settings(jsonb)', false),
   ('plugin_data.csf_register_sheet_source(uuid, uuid, uuid, text, jsonb)', true),
   ('plugin_data.csf_record_sheet_source_sync(uuid, uuid, uuid, text, text, text, boolean)', true),
-  ('plugin_data.csf_refresh_sheet_source_drive_metadata(uuid, uuid, uuid, jsonb)', true),
+  ('plugin_data.csf_refresh_sheet_source_drive_metadata(uuid, uuid, uuid, text, text, text, jsonb)', true),
   ('plugin_data.csf_attach_sheet_source_generation(uuid, uuid, uuid, uuid, integer, text, integer, integer)', true),
   ('plugin_data.csf_reconcile_sheet_source_generation(uuid, uuid, uuid, uuid, integer, text, integer, integer)', true),
   ('plugin_data.csf_js_number_text(double precision)', false),
@@ -4922,6 +4922,24 @@ SELECT extensions.throws_ok(
 );
 
 -- Sealing makes the rows immutable: appending afterwards is refused.
+SELECT extensions.throws_ok(
+  format(
+    $$SELECT plugin_data.csf_seal_import_preview(
+        'df100000-0000-4000-8000-000000000001',
+        'df000000-0000-4000-8000-000000000001',
+        %L,
+        'completed',
+        jsonb_build_object('rows', 85)
+      )$$,
+    (SELECT id FROM plugin_data.csf_sheet_import_jobs
+     WHERE source_id = 'df200000-0000-4000-8000-000000000001' AND status = 'running'
+     ORDER BY created_at DESC LIMIT 1)
+  ),
+  '23514',
+  'A CSF preview summary may not state "rows": it is derived from the stored rows.',
+  'a preview caller cannot state the row count that sealing derives from stored rows'
+);
+
 SELECT extensions.is(
   (
     SELECT plugin_data.csf_seal_import_preview(

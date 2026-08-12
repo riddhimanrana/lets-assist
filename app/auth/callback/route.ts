@@ -14,6 +14,7 @@ import {
   isCsfConnectRedirect,
   normalizeRedirectPath,
 } from "@/app/signup/redirect-utils";
+import { resolveAuthRedirectOrigin } from "@/app/signup/request-origin";
 import {
   getAccountAccessErrorCode,
   isAccountBlockedStatus,
@@ -30,7 +31,8 @@ import { getGoogleSigninCapRestriction } from "@/lib/security/google-cap";
 import { applyVerifiedDomainAffiliation } from "@/lib/organization/verified-domain-affiliation";
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  const authOrigin = resolveAuthRedirectOrigin(request.headers.get("host"));
   const code = searchParams.get("code");
   const type = searchParams.get("type");
   const from = searchParams.get("from");
@@ -43,7 +45,7 @@ export async function GET(request: Request) {
   // For password reset flow
   if (code && type === "recovery") {
     // Simply redirect to the reset password page with the code (token)
-    return NextResponse.redirect(`${origin}/reset-password/${code}`);
+    return NextResponse.redirect(`${authOrigin}/reset-password/${code}`);
   }
 
   // Handle errors for all flows
@@ -52,10 +54,10 @@ export async function GET(request: Request) {
     // Check if the error is due to existing email-password account
     if (error_description?.includes("email already exists")) {
       return NextResponse.redirect(
-        `${origin}/login?error=email-password-exists`,
+        `${authOrigin}/login?error=email-password-exists`,
       );
     }
-    const errorUrl = new URL(`${origin}/error`);
+    const errorUrl = new URL(`${authOrigin}/error`);
     if (error_description) {
       errorUrl.searchParams.set("message", error_description);
     }
@@ -93,16 +95,16 @@ export async function GET(request: Request) {
       console.error("Session exchange retry exhausted:", retryError);
 
       if (!isRetryableAuthError(retryError)) {
-        return NextResponse.redirect(`${origin}/error`);
+        return NextResponse.redirect(`${authOrigin}/error`);
       }
 
       if (from === "authentication") {
         return NextResponse.redirect(
-          `${origin}/account/authentication?error=linking_failed`,
+          `${authOrigin}/account/authentication?error=linking_failed`,
         );
       }
 
-      const loginUrl = new URL(`${origin}/login`);
+      const loginUrl = new URL(`${authOrigin}/login`);
       loginUrl.searchParams.set("error", "network-timeout");
 
       const normalizedRedirect = normalizeRedirectPath(redirectAfterAuth);
@@ -138,11 +140,11 @@ export async function GET(request: Request) {
 
           if (from === "authentication") {
             return NextResponse.redirect(
-              `${origin}/account/authentication?error=linking_failed`,
+              `${authOrigin}/account/authentication?error=linking_failed`,
             );
           }
 
-          return NextResponse.redirect(`${origin}/error`);
+          return NextResponse.redirect(`${authOrigin}/error`);
         }
 
         const accountAccess = readAccountAccessFromMetadata(
@@ -152,7 +154,7 @@ export async function GET(request: Request) {
         if (isAccountBlockedStatus(accountAccess.status)) {
           await supabase.auth.signOut();
 
-          const loginUrl = new URL(`${origin}/login`);
+          const loginUrl = new URL(`${authOrigin}/login`);
           const errorCode = getAccountAccessErrorCode(accountAccess.status);
 
           if (errorCode) {
@@ -179,7 +181,7 @@ export async function GET(request: Request) {
           if (blacklisted) {
             await supabase.auth.signOut();
             return NextResponse.redirect(
-              `${origin}/login?error=account-banned`,
+              `${authOrigin}/login?error=account-banned`,
             );
           }
         }
@@ -190,7 +192,7 @@ export async function GET(request: Request) {
         // Handle account linking redirection for authentication page
         if (from === "authentication") {
           return NextResponse.redirect(
-            `${origin}/account/authentication?success=linked`,
+            `${authOrigin}/account/authentication?success=linked`,
           );
         }
 
@@ -228,7 +230,7 @@ export async function GET(request: Request) {
         if (isGoogleOAuthLogin && googleCapRestriction.disabled) {
           await supabase.auth.signOut();
 
-          const loginUrl = new URL(`${origin}/login`);
+          const loginUrl = new URL(`${authOrigin}/login`);
           loginUrl.searchParams.set("error", "google-signin-disabled");
 
           if (googleCapRestriction.reason) {
@@ -251,7 +253,9 @@ export async function GET(request: Request) {
           // Sign out to clear the session that was just created
           await supabase.auth.signOut();
 
-          const redirectUrl = new URL(`${origin}/auth/verification-success`);
+          const redirectUrl = new URL(
+            `${authOrigin}/auth/verification-success`,
+          );
           redirectUrl.searchParams.set("type", "signup");
           if (userEmail) {
             redirectUrl.searchParams.set("email", userEmail);
@@ -438,16 +442,7 @@ export async function GET(request: Request) {
 
           const mfaRedirectPath = buildMfaRedirectPath(targetPath);
 
-          const forwardedHost = request.headers.get("x-forwarded-host");
-          if (process.env.NODE_ENV === "development") {
-            return NextResponse.redirect(`${origin}${mfaRedirectPath}`);
-          } else if (forwardedHost) {
-            return NextResponse.redirect(
-              `https://${forwardedHost}${mfaRedirectPath}`,
-            );
-          } else {
-            return NextResponse.redirect(`${origin}${mfaRedirectPath}`);
-          }
+          return NextResponse.redirect(`${authOrigin}${mfaRedirectPath}`);
         }
 
         // Determine redirect path for OAuth or other flows
@@ -460,37 +455,26 @@ export async function GET(request: Request) {
 
         const destinationPath = finalRedirectTo;
 
-        const forwardedHost = request.headers.get("x-forwarded-host");
-
-        // Handle redirect based on environment
-        if (process.env.NODE_ENV === "development") {
-          return NextResponse.redirect(`${origin}${destinationPath}`);
-        } else if (forwardedHost) {
-          return NextResponse.redirect(
-            `https://${forwardedHost}${destinationPath}`,
-          );
-        } else {
-          return NextResponse.redirect(`${origin}${destinationPath}`);
-        }
+        return NextResponse.redirect(`${authOrigin}${destinationPath}`);
       } catch (error) {
         console.error("Error in callback:", error);
-        return NextResponse.redirect(`${origin}/error`);
+        return NextResponse.redirect(`${authOrigin}/error`);
       }
     } else {
       console.error("Session error:", exchangeError);
       if (from === "authentication") {
         return NextResponse.redirect(
-          `${origin}/account/authentication?error=linking_failed`,
+          `${authOrigin}/account/authentication?error=linking_failed`,
         );
       }
       if (exchangeError?.message?.includes("email already exists")) {
         return NextResponse.redirect(
-          `${origin}/login?error=email-password-exists`,
+          `${authOrigin}/login?error=email-password-exists`,
         );
       }
-      return NextResponse.redirect(`${origin}/error`);
+      return NextResponse.redirect(`${authOrigin}/error`);
     }
   }
 
-  return NextResponse.redirect(`${origin}/error`);
+  return NextResponse.redirect(`${authOrigin}/error`);
 }

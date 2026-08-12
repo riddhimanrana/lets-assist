@@ -55,7 +55,7 @@ VALUES
    jsonb_build_object('oneTime', jsonb_build_object(
      'date', to_char((clock_timestamp() AT TIME ZONE 'America/Los_Angeles') - interval '2 day', 'YYYY-MM-DD'),
      'startTime', '10:00', 'endTime', '12:00', 'volunteers', 5)),
-   true, 'completed',
+   true, 'upcoming',
    'c7300000-0000-4000-8000-000000000001', false),
 -- Still-upcoming project: feedback window closed.
   ('c7100000-0000-4000-8000-000000000002',
@@ -80,6 +80,10 @@ VALUES
   ('c7200000-0000-4000-8000-000000000003',
    'c7100000-0000-4000-8000-000000000002',
    'c7000000-0000-4000-8000-000000000002', 'oneTime', 'attended');
+
+UPDATE public.projects
+SET status = 'completed'
+WHERE id = 'c7100000-0000-4000-8000-000000000001';
 
 -- ---------------------------------------------------------------------------
 -- Attendee inserts own feedback

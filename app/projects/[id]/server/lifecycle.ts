@@ -4,7 +4,6 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeRichTextHtml } from "@/lib/security/html.server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
-import { canCancelProject } from "@/utils/project";
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
 import { type Project } from "@/types";
@@ -14,7 +13,86 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { getPluginRegistry } from "@/lib/plugins/registry";
 import { runProjectClone } from "@/lib/plugins/lifecycle";
 import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
-import { canUserManageProject, getProject } from "./access";
+import { canUserManageProject } from "./access";
+import {
+  validateRecurrenceRule,
+  validateProjectSchedule,
+  validateProjectTimezone,
+} from "@/lib/projects/schedule-validation";
+
+const ALLOWED_PROJECT_STATUS_TRANSITIONS: Record<
+  ProjectStatus,
+  readonly ProjectStatus[]
+> = {
+  upcoming: ["in-progress", "completed"],
+  "in-progress": ["completed"],
+  completed: [],
+  cancelled: [],
+};
+
+function isAllowedProjectStatusTransition(
+  currentStatus: ProjectStatus,
+  nextStatus: ProjectStatus,
+) {
+  return (
+    ALLOWED_PROJECT_STATUS_TRANSITIONS[currentStatus]?.includes(nextStatus) ??
+    false
+  );
+}
+
+async function getProjectForMutation(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  projectId: string,
+) {
+  // Keep mutation authorization independent of PostgREST relationship-cache
+  // state. These actions only need the project row and its organization_id.
+  const { data: project, error } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  if (error || !project || project.id !== projectId) {
+    return { project: null, error: error ?? new Error("Project not found") };
+  }
+
+  return { project: project as Project, error: null };
+}
+
+type CancellationReceipt = {
+  outcome:
+    "cancelled" | "already_cancelled" | "already_cancelled_review_required";
+  jobStatus:
+    | "pending"
+    | "processing"
+    | "completed"
+    | "failed"
+    | "needs_review"
+    | "missing";
+  accepted: boolean;
+};
+
+function getExactCancellationReceipt(
+  value: unknown,
+): CancellationReceipt | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const outcome = Reflect.get(value, "outcome");
+  const jobStatus = Reflect.get(value, "jobStatus");
+  const accepted = Reflect.get(value, "accepted");
+  const valid =
+    (outcome === "cancelled" && jobStatus === "pending" && accepted === true) ||
+    (outcome === "already_cancelled" &&
+      ["pending", "processing", "completed"].includes(String(jobStatus)) &&
+      accepted === true) ||
+    (outcome === "already_cancelled_review_required" &&
+      ["needs_review", "failed", "missing"].includes(String(jobStatus)) &&
+      accepted === false);
+
+  return valid
+    ? ({ outcome, jobStatus, accepted } as CancellationReceipt)
+    : null;
+}
 
 export async function updateProjectStatus(
   projectId: string,
@@ -34,163 +112,126 @@ export async function updateProjectStatus(
   }
 
   // Verify user has permission to update the project
-  const { project, error: projectError } = await getProject(projectId);
+  const { project, error: projectError } = await getProjectForMutation(
+    supabase,
+    projectId,
+  );
 
   if (!project || projectError) {
     return { error: "Project not found" };
   }
 
-  // Check if user has permission
-  let hasPermission = project.creator_id === user.id;
-  if (project.organization && !hasPermission) {
-    const { data: orgMember } = await supabase
-      .from("organization_members")
-      .select("role")
-      .eq("organization_id", project.organization.id)
-      .eq("user_id", user.id)
-      .single();
-
-    if (orgMember?.role) {
-      hasPermission = ["admin", "staff"].includes(orgMember.role);
-    }
-  }
-
-  if (!hasPermission) {
-    return { error: "You don't have permission to update this project" };
-  }
-
-  // If cancelling, validate cancellation is allowed
   if (newStatus === "cancelled") {
-    if (!canCancelProject(project)) {
-      return {
-        error: "Project can only be cancelled within 24 hours of start time",
-      };
-    }
     if (!cancellationReason) {
       return { error: "Cancellation reason is required" };
     }
-  }
-
-  // Update project status
-  const updateData: {
-    status: ProjectStatus;
-    cancelled_at?: string;
-    cancellation_reason?: string | null;
-  } = { status: newStatus };
-  if (newStatus === "cancelled") {
-    updateData.cancelled_at = new Date().toISOString();
-    updateData.cancellation_reason = cancellationReason;
-  }
-
-  const { error: updateError } = await supabase
-    .from("projects")
-    .update(updateData)
-    .eq("id", projectId);
-
-  if (updateError) {
-    console.error("Error updating project status:", updateError);
-    return { error: "Failed to update project status" };
-  }
-
-  // If cancelling, remove calendar events (non-blocking) and enqueue notifications.
-  if (newStatus === "cancelled") {
-    // Remove creator's calendar event (non-blocking)
-    try {
-      await removeCalendarEventForProject(projectId);
-    } catch (calendarError) {
-      console.error(
-        "Error removing calendar event for cancelled project:",
-        calendarError,
-      );
-      // Don't fail the cancellation if calendar cleanup fails
+    if (project.status !== "upcoming" && project.status !== "cancelled") {
+      return { error: "Only an upcoming project can be cancelled" };
     }
 
-    // --- ENQUEUE CANCELLATION NOTIFICATIONS (BACKGROUND) ---
-    // We enqueue a job for a cron/worker route to process. This is more reliable
-    // than doing a potentially large fanout inside the server action.
-    cancellationNotifications = { enqueued: false, triggerAttempted: false };
-    try {
-      const cancelledAt = updateData.cancelled_at ?? new Date().toISOString();
-      const serviceSupabase = getAdminClient();
+    // The RPC rechecks permission under the project-row lock, performs the real
+    // upcoming -> cancelled transition, and freezes the exact audience/outbox in
+    // the same transaction. There is no service-role enqueue transaction to lose.
+    const { data: cancellationResult, error: cancellationError } =
+      await supabase.rpc("cancel_project_transactional", {
+        p_project_id: projectId,
+        p_cancellation_reason: cancellationReason,
+      });
 
-      const { error: enqueueError } = await serviceSupabase
-        .from("project_cancellation_jobs")
-        .upsert(
-          {
-            project_id: projectId,
-            cancelled_at: cancelledAt,
-            cancellation_reason: cancellationReason!,
-            created_by: user.id,
-            status: "pending",
-            cursor: 0,
-            attempts: 0,
-            last_error: null,
-            processing_started_at: null,
-            completed_at: null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "project_id" },
-        );
+    const cancellationReceipt = getExactCancellationReceipt(cancellationResult);
 
-      if (enqueueError) {
-        if (process.env.NODE_ENV !== "test") {
-          console.error(
-            "Error enqueueing project cancellation job:",
-            enqueueError,
-          );
-        }
-        cancellationNotifications.error =
-          "Failed to queue cancellation notifications.";
-      } else {
-        cancellationNotifications.enqueued = true;
-
-        // Best-effort: kick the worker immediately, but don't block the user.
-        // Cron should still run this periodically in production.
-        const workerEnabled =
-          process.env.PROJECT_CANCELLATION_WORKER_ENABLED === "true";
-        const workerBaseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-        const workerToken =
-          process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
-
-        if (!workerEnabled) {
-          cancellationNotifications.error =
-            "Project cancellation worker is disabled.";
-        } else if (workerBaseUrl && workerToken) {
-          cancellationNotifications.triggerAttempted = true;
-          void fetch(`${workerBaseUrl}/api/cron/project-cancellations`, {
-            method: "POST",
-            headers: {
-              authorization: `Bearer ${workerToken}`,
-            },
-          }).catch((err) => {
-            if (process.env.NODE_ENV !== "test") {
-              console.error(
-                "Failed to trigger project cancellation worker:",
-                err,
-              );
-            }
-          });
-        } else {
-          cancellationNotifications.error =
-            "Project cancellation worker is not configured.";
-        }
-      }
-    } catch (notificationError) {
+    if (cancellationError || !cancellationReceipt) {
       if (process.env.NODE_ENV !== "test") {
+        console.error("Error cancelling project transactionally:", {
+          code: cancellationError?.code,
+        });
+      }
+      return { error: "Failed to cancel project" };
+    }
+
+    const receipt = cancellationReceipt;
+
+    cancellationNotifications = {
+      enqueued: receipt.accepted,
+      triggerAttempted: false,
+    };
+
+    if (receipt.outcome === "cancelled") {
+      try {
+        await removeCalendarEventForProject(projectId);
+      } catch (calendarError) {
         console.error(
-          "Error enqueueing project cancellation notifications:",
-          notificationError,
+          "Error removing calendar event for cancelled project:",
+          calendarError,
         );
       }
+    }
+
+    if (!receipt.accepted) {
       cancellationNotifications.error =
-        "Failed to queue cancellation notifications.";
-      // Don't fail the cancellation if notifications queueing fails
+        "Cancellation notifications require manual review.";
+    } else if (
+      receipt.outcome === "cancelled" &&
+      receipt.jobStatus === "pending"
+    ) {
+      const workerEnabled =
+        process.env.PROJECT_CANCELLATION_WORKER_ENABLED === "true";
+      const workerBaseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+      const workerToken = process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
+
+      if (!workerEnabled) {
+        cancellationNotifications.error =
+          "Project cancellation worker is disabled.";
+      } else if (workerBaseUrl && workerToken) {
+        cancellationNotifications.triggerAttempted = true;
+        void fetch(`${workerBaseUrl}/api/cron/project-cancellations`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${workerToken}` },
+        }).catch((err) => {
+          if (process.env.NODE_ENV !== "test") {
+            console.error(
+              "Failed to trigger project cancellation worker:",
+              err,
+            );
+          }
+        });
+      } else {
+        cancellationNotifications.error =
+          "Project cancellation worker is not configured.";
+      }
+    }
+  } else {
+    if (!(await canUserManageProject(supabase, project, user.id))) {
+      return { error: "You don't have permission to update this project" };
+    }
+
+    if (!isAllowedProjectStatusTransition(project.status, newStatus)) {
+      return { error: "Project status transition is not allowed" };
+    }
+
+    const { data: updatedProject, error: updateError } = await supabase
+      .from("projects")
+      .update({ status: newStatus })
+      .eq("id", projectId)
+      .eq("status", project.status)
+      .select("id")
+      .maybeSingle();
+
+    if (updateError) {
+      console.error("Error updating project status:", updateError);
+      return { error: "Failed to update project status" };
+    }
+
+    if (!updatedProject || updatedProject.id !== projectId) {
+      return { error: "Failed to update project status" };
     }
   }
 
   // Revalidate project pages
   revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/organization/${project.organization?.id}`);
+  if (project.organization_id) {
+    revalidatePath(`/organization/${project.organization_id}`);
+  }
   revalidatePath("/home");
 
   return { success: true, cancellationNotifications };
@@ -217,24 +258,62 @@ export async function cloneProject(projectId: string) {
     return { error: "You don't have permission to clone this project" };
   }
 
-  // Prepare new project data
-  const {
-    id: _,
-    created_at: __,
-    updated_at: ___,
-    creator_id: ____,
-    status: _____,
-    workflow_status: ______,
-    creator_calendar_event_id: _______,
-    creator_synced_at: ________,
-    published: _________,
-    certificates: __________,
-    ...clonableData
-  } = source;
+  const scheduleResult = validateProjectSchedule(
+    source.event_type,
+    source.schedule,
+  );
+  if (!scheduleResult.ok) {
+    return { error: `Cannot clone invalid schedule: ${scheduleResult.error}` };
+  }
 
+  const projectTimezone = source.project_timezone;
+  const timezoneResult = validateProjectTimezone(projectTimezone);
+  if (!timezoneResult.ok) {
+    return {
+      error: `Cannot clone invalid project timezone: ${timezoneResult.error}`,
+    };
+  }
+
+  let recurrenceRule = null;
+  if (source.recurrence_rule !== null) {
+    const ruleResult = validateRecurrenceRule(source.recurrence_rule);
+    if (!ruleResult.ok) {
+      return {
+        error: `Cannot clone invalid recurrence rule: ${ruleResult.error}`,
+      };
+    }
+    recurrenceRule = ruleResult.rule;
+  }
+
+  // A clone is a new project identity. Only reviewed user-facing configuration
+  // is copied; row identity, workflow/review state, publication state, calendar
+  // bindings, and recurrence lineage are deliberately rebuilt or cleared.
   const newProjectData = {
-    ...clonableData,
     title: `${source.title} (Copy)`,
+    description: source.description,
+    location: source.location,
+    location_data: source.location_data,
+    event_type: source.event_type,
+    schedule: scheduleResult.schedule,
+    verification_method: source.verification_method,
+    require_login: source.require_login,
+    enable_volunteer_comments: source.enable_volunteer_comments,
+    show_attendees_publicly: source.show_attendees_publicly,
+    waiver_required: source.waiver_required,
+    waiver_allow_upload: source.waiver_allow_upload,
+    waiver_disable_esignature: source.waiver_disable_esignature,
+    cover_image_url: source.cover_image_url,
+    documents: source.documents,
+    organization_id: source.organization_id,
+    visibility: source.visibility,
+    can_be_managed_by_staff: source.can_be_managed_by_staff,
+    project_timezone: projectTimezone,
+    restrict_to_org_domains: source.restrict_to_org_domains,
+    signup_form_schema: source.signup_form_schema,
+    recurrence_rule: recurrenceRule,
+    recurrence_parent_id: null,
+    recurrence_sequence: null,
+    recurrence_occurrence_date: null,
     creator_id: user.id,
     status: "draft",
     workflow_status: "draft",
@@ -310,7 +389,10 @@ export async function deleteProject(projectId: string) {
   }
 
   // Verify user has permission to delete the project
-  const { project, error: projectError } = await getProject(projectId);
+  const { project, error: projectError } = await getProjectForMutation(
+    supabase,
+    projectId,
+  );
 
   if (!project || projectError) {
     return { error: "Project not found" };
@@ -318,15 +400,19 @@ export async function deleteProject(projectId: string) {
 
   // Check if user has permission
   let hasPermission = project.creator_id === user.id;
-  if (project.organization && !hasPermission) {
-    const { data: orgMember } = await supabase
+  if (project.organization_id && !hasPermission) {
+    const { data: orgMember, error: orgMemberError } = await supabase
       .from("organization_members")
-      .select("role")
-      .eq("organization_id", project.organization.id)
+      .select("role, status")
+      .eq("organization_id", project.organization_id)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (orgMember?.role) {
+    if (orgMemberError) {
+      return { error: "Failed to verify project permissions" };
+    }
+
+    if ((orgMember?.status ?? "active") === "active" && orgMember?.role) {
       hasPermission = orgMember.role === "admin"; // Only admins can delete projects
     }
   }
@@ -342,32 +428,61 @@ export async function deleteProject(projectId: string) {
       .select("id", { count: "exact", head: true })
       .eq("project_id", projectId);
 
-  if (signedWaiverError) {
+  if (signedWaiverError || signedWaiverCount === null) {
     return { error: "Unable to verify the project's waiver-retention state" };
   }
 
-  if ((signedWaiverCount ?? 0) > 0) {
+  if (signedWaiverCount > 0) {
     return {
       error:
         "Projects with signed waivers must be cancelled and retained until their evidence-retention period ends",
     };
   }
 
+  // Prove the RLS-scoped delete before touching external systems. The project
+  // snapshot above retains every cleanup path needed after the row is gone.
+  const { data: deletedProject, error: deleteError } = await supabase
+    .from("projects")
+    .delete()
+    .eq("id", projectId)
+    .select("id")
+    .maybeSingle();
+
+  if (deleteError) {
+    console.error("Error deleting project:", deleteError);
+    return { error: "Failed to delete project" };
+  }
+
+  if (!deletedProject || deletedProject.id !== projectId) {
+    return { error: "Failed to delete project" };
+  }
+
   // Delete project documents from storage if they exist
   if ((project.documents?.length ?? 0) > 0) {
-    const { data: storageData } = await supabase.storage
-      .from("project-documents")
-      .list();
+    const { data: storageData, error: storageListError } =
+      await supabase.storage.from("project-documents").list();
 
-    if (storageData) {
+    if (storageListError) {
+      console.error(
+        "Error listing deleted project documents:",
+        storageListError,
+      );
+    } else if (storageData) {
       const projectFiles = storageData.filter((file) =>
         file.name.startsWith(`project_${projectId}`),
       );
 
       if (projectFiles.length > 0) {
-        await supabase.storage
+        const { error: documentRemovalError } = await supabase.storage
           .from("project-documents")
           .remove(projectFiles.map((file) => file.name));
+
+        if (documentRemovalError) {
+          console.error(
+            "Error removing deleted project documents:",
+            documentRemovalError,
+          );
+        }
       }
     }
   }
@@ -376,7 +491,16 @@ export async function deleteProject(projectId: string) {
   if (project.cover_image_url) {
     const fileName = project.cover_image_url.split("/").pop();
     if (fileName) {
-      await supabase.storage.from("project-images").remove([fileName]);
+      const { error: coverRemovalError } = await supabase.storage
+        .from("project-images")
+        .remove([fileName]);
+
+      if (coverRemovalError) {
+        console.error(
+          "Error removing deleted project cover image:",
+          coverRemovalError,
+        );
+      }
     }
   }
 
@@ -388,21 +512,10 @@ export async function deleteProject(projectId: string) {
     // Don't fail the deletion if calendar removal fails
   }
 
-  // Delete project from database
-  const { error: deleteError } = await supabase
-    .from("projects")
-    .delete()
-    .eq("id", projectId);
-
-  if (deleteError) {
-    console.error("Error deleting project:", deleteError);
-    return { error: "Failed to delete project" };
-  }
-
   // Revalidate paths
   revalidatePath("/home");
-  if (project.organization) {
-    revalidatePath(`/organization/${project.organization.id}`);
+  if (project.organization_id) {
+    revalidatePath(`/organization/${project.organization_id}`);
   }
 
   return { success: true };
@@ -415,32 +528,9 @@ export async function updateProject(
   "use server";
   try {
     const supabase = await createClient();
-    const sanitizedUpdates: Partial<Project> = {
-      ...updates,
-      ...(typeof updates.description === "string"
-        ? { description: sanitizeRichTextHtml(updates.description) }
-        : {}),
-    };
-    const mutableSanitizedUpdates = sanitizedUpdates as Record<string, unknown>;
-    const immutableProjectFields = [
-      "id",
-      "creator_id",
-      "organization_id",
-      "created_at",
-      "session_id",
-      "waiver_definition_id",
-      "waiver_pdf_storage_path",
-      "waiver_pdf_url",
-      "creator_calendar_event_id",
-      "creator_synced_at",
-      "reviewed_by",
-      "reviewed_at",
-    ] as const;
-    for (const field of immutableProjectFields) {
-      delete mutableSanitizedUpdates[field];
-    }
 
-    // Get current user using getClaims() for better performance
+    // Authentication and authorization first: unauthorized callers must not
+    // be able to trigger sanitization/parsing or probe field-level errors.
     const { user, error: userError } = await getAuthUser();
     if (userError || !user) {
       return { error: "Unauthorized" };
@@ -457,6 +547,73 @@ export async function updateProject(
 
     if (!project || !(await canUserManageProject(supabase, project, user.id))) {
       return { error: "Unauthorized" };
+    }
+
+    const sanitizedUpdates: Partial<Project> = {
+      ...updates,
+      ...(typeof updates.description === "string"
+        ? { description: sanitizeRichTextHtml(updates.description) }
+        : {}),
+    };
+
+    const mutableSanitizedUpdates = sanitizedUpdates as Record<string, unknown>;
+    const immutableProjectFields = [
+      "id",
+      "creator_id",
+      "organization_id",
+      "created_at",
+      "session_id",
+      "waiver_definition_id",
+      "waiver_pdf_storage_path",
+      "waiver_pdf_url",
+      "creator_calendar_event_id",
+      "creator_synced_at",
+      "reviewed_by",
+      "reviewed_at",
+      "status",
+      "cancelled_at",
+      "cancellation_reason",
+      "cancellation_tenant_id",
+      "recurrence_parent_id",
+      "recurrence_sequence",
+      "recurrence_occurrence_date",
+    ] as const;
+    for (const field of immutableProjectFields) {
+      delete mutableSanitizedUpdates[field];
+    }
+
+    // Validate project_timezone when being updated (explicit undefined means omitted).
+    if (
+      Object.prototype.hasOwnProperty.call(
+        sanitizedUpdates,
+        "project_timezone",
+      ) &&
+      sanitizedUpdates.project_timezone !== undefined
+    ) {
+      const tzResult = validateProjectTimezone(
+        sanitizedUpdates.project_timezone,
+      );
+      if (!tzResult.ok) {
+        return { error: `Invalid project timezone: ${tzResult.error}` };
+      }
+    }
+
+    // Validate recurrence_rule when being updated (null clears the rule).
+    if (
+      Object.prototype.hasOwnProperty.call(
+        sanitizedUpdates,
+        "recurrence_rule",
+      ) &&
+      sanitizedUpdates.recurrence_rule !== null &&
+      sanitizedUpdates.recurrence_rule !== undefined
+    ) {
+      const ruleResult = validateRecurrenceRule(
+        sanitizedUpdates.recurrence_rule,
+      );
+      if (!ruleResult.ok) {
+        return { error: `Invalid recurrence rule: ${ruleResult.error}` };
+      }
+      sanitizedUpdates.recurrence_rule = ruleResult.rule;
     }
 
     const requestsPublicVisibility =
@@ -505,22 +662,52 @@ export async function updateProject(
     let cancelledOccurrences = 0;
 
     if (disablesRecurrence && isRecurringParent) {
-      const nowIso = new Date().toISOString();
-      const { data: cancelledRows, error: cancelError } = await supabase
-        .from("projects")
-        .update({
-          status: "cancelled",
-          cancelled_at: nowIso,
-          cancellation_reason: "Recurring series ended by organizer",
-        })
-        .eq("recurrence_parent_id", projectId)
-        .eq("status", "upcoming")
-        .select("id");
+      const { data: upcomingOccurrences, error: occurrenceReadError } =
+        await supabase
+          .from("projects")
+          .select("id")
+          .eq("recurrence_parent_id", projectId)
+          .eq("status", "upcoming")
+          .order("id");
 
-      if (cancelError) {
-        console.error("Error cancelling recurring occurrences:", cancelError);
+      if (occurrenceReadError) {
+        console.error(
+          "Error reading recurring occurrences for cancellation:",
+          occurrenceReadError,
+        );
       } else {
-        cancelledOccurrences = cancelledRows?.length ?? 0;
+        for (const occurrence of upcomingOccurrences ?? []) {
+          const { data: result, error: cancellationError } = await supabase.rpc(
+            "cancel_project_transactional",
+            {
+              p_project_id: occurrence.id,
+              p_cancellation_reason: "Recurring series ended by organizer",
+            },
+          );
+          const receipt = getExactCancellationReceipt(result);
+
+          if (cancellationError || !receipt) {
+            if (process.env.NODE_ENV !== "test") {
+              console.error("Error cancelling recurring occurrence:", {
+                code: cancellationError?.code,
+                projectId: occurrence.id,
+              });
+            }
+            continue;
+          }
+
+          if (receipt.outcome === "cancelled") {
+            cancelledOccurrences += 1;
+            try {
+              await removeCalendarEventForProject(occurrence.id);
+            } catch (calendarError) {
+              console.error(
+                "Error removing calendar event for recurring occurrence:",
+                calendarError,
+              );
+            }
+          }
+        }
       }
     }
 

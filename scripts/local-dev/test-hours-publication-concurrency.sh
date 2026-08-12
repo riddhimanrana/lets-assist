@@ -153,6 +153,7 @@ WHERE id = 'ac200000-0000-4000-8000-000000000001'
 FOR UPDATE;
 SELECT pg_sleep(1);
 SELECT public.publish_volunteer_hours_transactional(
+  'ac000000-0000-4000-8000-000000000001',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
   '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
@@ -169,6 +170,7 @@ psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_B}" <<'SQL'
 BEGIN;
 SELECT set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000001', true);
 SELECT public.publish_volunteer_hours_transactional(
+  'ac000000-0000-4000-8000-000000000001',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
   '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
@@ -404,6 +406,7 @@ psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_A}" 2>&1 <<'SQL'
 BEGIN;
 SELECT set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000001', true);
 SELECT public.publish_volunteer_hours_transactional(
+  'ac000000-0000-4000-8000-000000000001',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
   '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
@@ -451,6 +454,7 @@ psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_B}" 2>&1 <<'SQL'
 BEGIN;
 SELECT set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000003', true);
 SELECT public.publish_volunteer_hours_transactional(
+  'ac000000-0000-4000-8000-000000000003',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
   '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,

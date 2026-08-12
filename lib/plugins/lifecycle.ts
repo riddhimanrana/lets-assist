@@ -134,7 +134,15 @@ export async function runPluginInstall(
 }
 
 /**
- * Run the uninstall lifecycle for a plugin
+ * Run the uninstall lifecycle for a plugin.
+ *
+ * Not called by the organization-initiated uninstall transition (see
+ * `applyPluginControlPlaneTransition`'s `"uninstall"` branch in
+ * `control-plane-transition-core.ts`) — that transition only removes the
+ * install row, running no plugin code, so retention is certifiable. This
+ * function is retained solely for `control-plane-transition.ts`'s
+ * `runLifecycle("uninstall")` compensation path, which rolls back a
+ * plugin's `onInstall` side effects when persistence fails after install.
  */
 export async function runPluginUninstall(
   plugin: OrganizationPluginDefinition,
@@ -212,10 +220,31 @@ export async function runPluginDataDelete(
   plugin: OrganizationPluginDefinition,
   context: Omit<OrganizationPluginLifecycleContext, "pluginKey">,
 ): Promise<{ success: boolean; error?: string }> {
-  return executeLifecycleHook(plugin, "onDataDelete", {
+  const hook = plugin.lifecycle?.onDataDelete;
+  if (!hook) {
+    return {
+      success: false,
+      error: "Plugin data deletion hook is unavailable.",
+    };
+  }
+
+  const lifecycleContext = {
     ...context,
     pluginKey: plugin.manifest.key,
-  });
+  };
+  try {
+    await hook(lifecycleContext);
+    return { success: true };
+  } catch {
+    // Deletion hooks may cross provider boundaries. The orchestrator owns
+    // receipt finalization and writes one redacted audit event afterward;
+    // do not emit generic execution metrics/audit before finalization or
+    // persist a raw provider error.
+    return {
+      success: false,
+      error: "Plugin data deletion hook reported a failure.",
+    };
+  }
 }
 /**
  * Run the project create lifecycle for a plugin.

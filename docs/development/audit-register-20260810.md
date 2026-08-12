@@ -14,24 +14,26 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 
 ## Summary
 
-| ID                  | Pri | Area                   | Finding                                                                                                             | Status                                                       |
-| ------------------- | --- | ---------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| [AUD-001](#aud-001) | P0  | Core RLS               | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                  | **Fixed on `development`**; live in Production until cutover |
-| [AUD-002](#aud-002) | P0  | Core RLS               | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection            | **Fixed on `development`**; live in Production until cutover |
-| [AUD-003](#aud-003) | P1  | Grants                 | `public` default privileges still grant `anon`/`authenticated` on all future tables and functions                   | **Merged on `development`**; catalog verification pending    |
-| [AUD-004](#aud-004) | P1  | Plugin audit           | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited  | **Fixed on `development`**                                   |
-| [AUD-005](#aud-005) | P3  | Plugin RLS             | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob            | Reclassified — designed behaviour, document the contract     |
-| [AUD-006](#aud-006) | P2  | Architecture           | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002 | **Fixed on `development`**                                   |
-| [AUD-012](#aud-012) | P2  | Notifications          | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter   | **Fixed locally**; hosted Development pending                |
-| [AUD-015](#aud-015) | P1  | Hours publication      | Certificate publication trusts client identity and commits database/provider work non-atomically                    | **Fixed locally**; full and hosted Development gates pending |
-| [AUD-016](#aud-016) | P1  | Stored HTML            | The DV form-editor preview inserted persisted rich-text help content without sanitization                           | **Fixed on `development`**; exact CI green                   |
-| [AUD-017](#aud-017) | P1  | Next.js route contract | The paper-signup AI route exported an unsupported value, so clean isolated production builds failed type checking   | **Fixed on `development`**; exact CI green                   |
-| [AUD-018](#aud-018) | P1  | Guardian form          | Hydration could replace a guardian's reviewed availability and notes with SSR defaults before submission            | **Fixed on `development`**; exact CI green                   |
-| [AUD-007](#aud-007) | P2  | CI                     | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                               | Fixed this session                                           |
-| [AUD-008](#aud-008) | P2  | Architecture           | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript    | Confirmed, by design                                         |
-| [AUD-009](#aud-009) | P2  | Gate coverage          | `audit-supabase-architecture.sh` bucket allowlist omits `csf-private` and `plugin_form_uploads`                     | Confirmed                                                    |
-| [AUD-010](#aud-010) | P3  | Moderation             | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true                    | Confirmed, dead policy                                       |
-| [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                           | Confirmed                                                    |
+| ID                  | Pri | Area                   | Finding                                                                                                                | Status                                                       |
+| ------------------- | --- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [AUD-001](#aud-001) | P0  | Core RLS               | `trusted_member` INSERT policy has no `status` guard — self-granted trusted status                                     | **Fixed on `development`**; live in Production until cutover |
+| [AUD-002](#aud-002) | P0  | Core RLS               | `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)` — unauthenticated notification injection               | **Fixed on `development`**; live in Production until cutover |
+| [AUD-003](#aud-003) | P1  | Grants                 | `public` defaults and existing relation/column ACL residue can expose client capabilities outside the reviewed catalog | Source fix amended; exact CI replay pending                  |
+| [AUD-004](#aud-004) | P1  | Plugin audit           | `plugin_audit_logs_action_check` allows 22 values; the code emits 28 — six lifecycle events are silently unaudited     | **Fixed on `development`**                                   |
+| [AUD-005](#aud-005) | P3  | Plugin RLS             | `organization_plugin_installs` is readable by ordinary members, including the whole `configuration` blob               | Reclassified — designed behaviour, document the contract     |
+| [AUD-006](#aud-006) | P2  | Architecture           | Three `server-only` modules drive notifications through the **browser** Supabase client — the root cause of AUD-002    | **Fixed on `development`**                                   |
+| [AUD-012](#aud-012) | P2  | Notifications          | The browser service suppresses any notification whose `(user_id, type)` pair already exists, with no other filter      | **Fixed locally**; hosted Development pending                |
+| [AUD-015](#aud-015) | P1  | Hours publication      | Certificate publication trusts client identity and commits database/provider work non-atomically                       | **Fixed locally**; full and hosted Development gates pending |
+| [AUD-016](#aud-016) | P1  | Stored HTML            | The DV form-editor preview inserted persisted rich-text help content without sanitization                              | **Fixed on `development`**; exact CI green                   |
+| [AUD-017](#aud-017) | P1  | Next.js route contract | The paper-signup AI route exported an unsupported value, so clean isolated production builds failed type checking      | **Fixed on `development`**; exact CI green                   |
+| [AUD-018](#aud-018) | P1  | Guardian form          | Hydration could replace a guardian's reviewed availability and notes with SSR defaults before submission               | **Fixed on `development`**; exact CI green                   |
+| [AUD-007](#aud-007) | P2  | CI                     | CI had been red since 2026-08-08 on an unpushed submodule ref, masking a failing test                                  | Fixed this session                                           |
+| [AUD-008](#aud-008) | P2  | Architecture           | CSF's 78 sensitive tables have no second authorization layer — RLS is deny-all, all decisions live in TypeScript       | Confirmed, by design                                         |
+| [AUD-009](#aud-009) | P1  | Gate coverage          | storage policy heuristics could miss broad client policies that reach every bucket, including server-only buckets      | Source re-amended after failed replay; rerun pending         |
+| [AUD-010](#aud-010) | P3  | Moderation             | `content_flags` admin UPDATE policy tests `auth.jwt() ->> 'role' = 'admin'`, which is never true                       | Confirmed, dead policy                                       |
+| [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                              | Confirmed                                                    |
+| [AUD-020](#aud-020) | P2  | Plugin data deletion   | Permanent deletion lacked a complete contract, authorization boundary, and truthful durable replay state               | **Fixed locally**; hosted Development pending                |
+| [AUD-021](#aud-021) | P2  | Plugin uninstall       | Ordinary uninstall could run arbitrary plugin code and therefore could not guarantee data retention                    | **Fixed locally**; hosted Development pending                |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -103,7 +105,7 @@ Reversing this order breaks project cancellation and moderation notifications.
 
 ## AUD-003 — `public` default privileges still grant clients everything {#aud-003}
 
-**Priority:** P1 · **Status:** Merged on `development`; hosted catalog verification pending
+**Priority:** P1 · **Status:** Source fix amended; exact CI database replay pending
 
 Baseline `20260325181408` (~lines 3836-3847) still carries:
 
@@ -127,13 +129,15 @@ The function half is closed without a broad DDL event trigger. `20260811074518_p
 
 `public_function_acl_allowlist.test.sql` compares effective client privileges, including inherited `PUBLIC` grants, to that exact catalog and separately proves that the maintenance functions are not client-executable. `audit-supabase-architecture.sh` performs the same catalog comparison as a hard gate, and `AGENTS.md` now requires every new or replaced SQL function to carry explicit reviewed `REVOKE`/`GRANT` statements and update the allowlist when client-callable.
 
-Local evidence on 2026-08-11: `quality:static`, strict private-submodule validation, `db:validate`, an empty migration replay, all 84 pgTAP files, clean local advisors, Supabase/plugin architecture audits, the authenticated plugin isolation smoke, and the 373-assertion cron no-egress probe passed. The generated stack was removed with marker-bounded proof that no container, volume, or network remained. This is local evidence only; no hosted or Production conclusion follows from it.
+The remaining half is **existing-object ACL residue** on already-created `public` tables and views: historical defaults left full `anon`/`authenticated` DML (plus `TRUNCATE`/`REFERENCES`/`TRIGGER` residue) on objects that RLS never intended to expose. That is distinct from the merged default-privilege closure, which only affects objects created afterward. The amended `20260812100900_public_client_relation_acl_catalog.sql` treats relation ACLs and independent `pg_attribute.attacl` entries as separate layers. Independently of the storage policy catalog, it preflights every reviewed relation capability with effective privilege checks, revokes direct relation and column ACLs for `PUBLIC`, `anon`, and `authenticated`, restores only identifier-quoted catalog grants, and verifies exact direct ACL shape and effective privileges including PUBLIC and role inheritance. `client_relation_grant_catalog.test.sql` and the architecture audit exercise the same direct/effective distinction, including redundant column grants hidden beside whole-table grants. The amended migration has not yet been replayed, so AUD-003 remains open pending the exact CI database replay and pgTAP gate.
+
+Earlier local evidence on 2026-08-11 covered the pre-review implementation only. It is retained as historical evidence but does not validate the amended column-ACL reconciliation. No hosted or Production conclusion follows from it.
 
 One deliberate exclusion remains: `supabase_admin`'s default ACLs also name `anon` and `authenticated`. Hosted migrations execute as `postgres`, which cannot alter another role's defaults on Supabase. The effective callable-catalog gate covers the resulting runtime posture instead.
 
 GitHub evidence on 2026-08-11: PR #117 merged as `15ba480` after quality/build, GitGuardian, Supabase Preview, and the full isolated database/DV/CSF browser replay passed. Vercel Development deployment `dpl_GS7WcMq2tN62ZiuetZLmutCpUJAa` is READY for that exact commit and aliased to `dev.lets-assist.com` without an alias error. The PR Preview build remained deliberately fail-closed until an exact non-Production Supabase ref was available.
 
-**Still to do:** verify the shared hosted Development migration ledger and effective callable catalog, then rerun Development advisors. The Supabase connector currently exposes only the excluded Production project, so no fallback query was attempted. Production remains a separate excluded cutover.
+**Still to do:** first pass the exact CI database replay and amended pgTAP contract, then verify the shared hosted Development migration ledger and effective callable catalog and rerun Development advisors. The Supabase connector currently exposes only the excluded Production project, so no fallback query was attempted. Production remains a separate excluded cutover.
 
 ---
 
@@ -221,15 +225,19 @@ That is a correct and defensible deny-all posture, and it is what produces the 9
 
 ---
 
-## AUD-009 — Bucket drift detection has two blind spots {#aud-009}
+## AUD-009 — Storage policy drift detection was fail-open {#aud-009}
 
-**Priority:** P2 · **Status:** Confirmed
+**Priority:** P1 · **Status:** Source fix re-amended after failed replay; exact CI database replay pending
 
-`scripts/audit-supabase-architecture.sh` (~lines 302-368) enumerates nine expected buckets; `csf-private` is not among them, and the "server-only buckets exposed through client policies" pattern matches only `data-exports` and `waiver-signatures`. `plugin_form_uploads` has the same gap.
+`scripts/audit-supabase-architecture.sh` (~lines 302-368) enumerated nine expected buckets and already included `plugin_form_uploads`, but it omitted `csf-private` and `paper-signup-scans`. The property-drift query used a catalog-to-live `LEFT JOIN`, so buckets present in `storage.buckets` but absent from the allowlist were invisible. The server-only client-policy pattern matched only `data-exports` and `waiver-signatures`, so a new client policy on `csf-private` would also have stayed green.
 
-Current posture is correct — `csf-private` is `public = false` with zero object policies — but if it flipped to public, or gained a `storage.objects` policy, the gate would stay green.
+The first catalog fix still classified policies by searching deparsed SQL for bucket literals. That remained fail-open: an additional authenticated `USING (true)` policy, a policy with no bucket predicate, or a policy granted to `PUBLIC` could make server-only objects client-reachable without matching the heuristic's expected text.
 
-**Fix:** add both buckets to the expected-bucket enumeration and the client-policy pattern set. Verify by adding a policy locally and confirming the gate fails. Plan Task 2.6.
+**Resolution:** `20260812100800_client_acl_and_storage_posture_catalogs.sql` adds `app_private.storage_bucket_posture_catalog()` as the reviewed source for all eleven buckets, their public/MIME/size properties, and posture classes: six `public`, two `private-client` (`paper-signup-scans`, `plugin_form_uploads`), and three `server-only` (`csf-private`, `data-exports`, `waiver-signatures`). The amended migration now converges every client-reachable `storage.objects` policy before recreating the complete 21-policy browser surface, then snapshots its canonical `pg_policy` identity, command, role array, permissive/restrictive shape, `USING`, and `WITH CHECK` expressions. The architecture gate rejects every missing, changed, or unnamed client-reachable policy, including `PUBLIC` and inherited role reachability; therefore a broad `USING (true)` policy or any policy reaching a server-only bucket cannot be admitted by naming or bucket-text heuristics. The catalog still preserves the reviewed public-bucket write policies and the seven exact private-client policies.
+
+The first exact clean replay of that stronger contract aborted with 30 violations. Fifteen policies that recheck organization membership, project authority, waiver references, or paper-scan authority were captured by `pg_get_expr()` under the migration session search path but compared inside a function with `search_path = ''`; each identical policy was therefore reported once as missing and once as unexpected. The six UID/path-only policies did not reference search-path-sensitive objects. The re-amendment routes capture and comparison through one fixed-search-path live-policy reader, retains exact expressions, and adds a pure historical-ledger inventory covering every role, command, bucket, predicate side, permissive shape, and intended owner. This is source evidence only until replayed.
+
+Earlier local evidence on 2026-08-11 covered the weaker pre-review policy heuristic only. The amended 25-assertion pgTAP contract proves `storage.objects` RLS is enabled and adds fixed-context deparse checks plus adversarial probes for broad authenticated access, missing bucket predicates, `PUBLIC`, inherited-role reachability, command/role/expression/shape drift, valid private-client policies, and zero server-only exposure. The re-amended migration and pgTAP have not been replayed after the recorded 30-violation failure. AUD-009 remains open until the mandatory exact isolated/CI database replay and pgTAP gate pass.
 
 ---
 
@@ -619,6 +627,93 @@ The two sets are also disjoint in what they touch: Codex's are all `csf_*`, whil
 - A full `db:test:redesign` replay in its own worktree, which needs its own isolated stack.
 - Reconciling its `app/organization/[id]/page.tsx` changes with the setup checklist added to the same file this session — a likely merge conflict.
 - Reviewing its 11 migrations and ~6,000 lines of new pgTAP on their merits.
+
+---
+
+<a id="aud-021"></a>
+
+## AUD-020 / AUD-021 — Plugin data lifecycle boundary {#aud-020}
+
+**Priority:** P2 · **Status:** Fixed locally; hosted Development pending
+
+Ordinary uninstall is now mechanically non-destructive: the transition core
+removes only the exact organization/plugin install row and never invokes
+`onUninstall`, `onDataDelete`, or any plugin code. Its audit evidence may
+therefore state `pluginDataRetained: true`. `onUninstall` remains only as
+compensation for a successful install hook followed by failed persistence.
+
+Permanent deletion is a separate MFA-aware organization-admin action. It
+revalidates current membership, registry, catalog, entitlement/forced/private
+state, absence of an install row, and an organization/plugin-bound confirmation
+under the control-plane transition lease. A complete manifest declaration must
+exactly cover every tenant database/storage target and declare idempotent retry
+semantics; missing or partial contracts fail closed.
+
+Migration `20260812115556_plugin_data_deletion_requests.sql` adds a private,
+RLS-enabled, service-only redacted receipt. Globally unique request keys are
+bound to actor/organization/plugin/fingerprint, per-scope processing is unique,
+and attempt claim tokens make completion compare-and-set. Processing after a
+crash is treated as ambiguous and never auto-replayed; only an explicitly
+reported `retryable_failed` receipt may run again. Hook outcome is finalized
+before independent audit attachment, so audit failure cannot turn successful
+destruction into a false failed/replayable operation.
+
+No private manifest declares the complete new contract in this root change.
+That is deliberately fail-safe: permanent deletion remains unavailable for
+private plugins until a separate private-repository review enumerates targets
+and external systems, lands there, and only then updates the root gitlink.
+Local evidence is green: 78 focused Bun tests, 59 focused pgTAP assertions, and
+a full local migration reset/replay pass. Hosted Development remains pending.
+Production was not read, written, queried, deployed, or tested.
+
+---
+
+<a id="aud-029"></a>
+
+## AUD-029 — CSF post replies were not an atomic tenant boundary {#aud-029}
+
+**Priority:** P1 · **Status:** Audited source verified; exact integrated-branch and hosted Development verification pending
+
+`addCsfPostReplyAction` and `deleteCsfPostReplyAction` previously performed
+authorization, parent/reply reads, row mutation, and audit insertion as separate
+application statements. A process failure could commit the reply without its
+history, a lost response could duplicate an add, and a queued request could
+continue after current staff authority changed. The reply table also had
+independent organization and announcement foreign keys, so the database did not
+itself prove that both identifiers named the same tenant.
+
+Migration `20260812152300_atomic_csf_post_replies.sql` adds and validates the
+composite tenant-parent foreign key and moves add/delete plus the immutable
+audit receipt into one service-only transaction. The transaction authorizes
+before caller-controlled record inspection, takes the shared organization
+staff-access lock, pins the active host-membership row, rechecks
+`manage_posts`, locks the published parent or target reply, enforces current
+author-or-admin deletion, and binds the normalized intent to one request UUID.
+Exact retries return the original reply; conflicting reuse and stale committed
+state fail closed. Direct service-role INSERT, UPDATE, DELETE, TRUNCATE,
+REFERENCES, and TRIGGER privileges are removed while server-rendered SELECT is
+retained. Both parent foreign keys now use `ON DELETE RESTRICT`, so deleting an
+announcement cannot cascade around the reply boundary. The existing
+service-role-only plugin teardown RPC removes tenant replies explicitly under
+the same staff-access lock before delegating to its owner-only prior
+implementation; its public signature and exact fourteen-key result contract
+remain unchanged. Audit state stores hashes and bounded lengths, not reply
+text.
+
+The private action keeps its existing parameters and accepts one optional final
+request UUID. The UI retains that UUID across an unknown add/delete outcome and
+reuses it on an unchanged manual retry; changing the body discards the stale
+key. Private PR #44 merged first into the private repository's `development`
+branch at `d4188dd7`; the current root gitlink `ca817bf` contains that reply
+code plus the later preview-summary correction. Audited source evidence passes
+48 focused private tests (220 expectations), all 121 database files and 5,126
+pgTAP assertions, including observed two-connection advisory-lock waits for
+same-request replay and a staff-only `manage_posts` revocation. The exact
+integrated branch still requires fresh replay. Hosted Development migration,
+advisor, and browser acceptance also remain required before this finding
+closes.
+
+Production was not accessed or changed for this finding.
 
 ---
 

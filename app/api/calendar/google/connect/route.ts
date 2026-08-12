@@ -24,6 +24,7 @@ import {
   hasGoogleDriveFileScope,
 } from "@/lib/auth/google-oauth-scopes";
 import { NextResponse } from "next/server";
+import { resolveAuthRedirectOrigin } from "@/app/signup/request-origin";
 
 function attachGoogleOAuthStateCookie(
   response: NextResponse,
@@ -86,8 +87,7 @@ export async function GET(request: Request) {
     });
 
     if (!authorization.allowed) {
-      const requestUrl = new URL(request.url);
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || requestUrl.origin;
+      const baseUrl = resolveAuthRedirectOrigin(request.headers.get("host"));
       const safeReturnTo = normalizeGoogleOAuthReturnTo(returnTo);
       const target =
         safeReturnTo ||

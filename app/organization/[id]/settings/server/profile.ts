@@ -7,6 +7,11 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { validateOrganizationAutojoinDomain } from "@/lib/organization/domain-policy";
+import {
+  isReservedOrganizationSlug,
+  usernameUnavailableMessage,
+} from "@/lib/organization/reserved-slugs";
+import { validateOrganizationUsername } from "@/lib/organization/username";
 
 const ALLOWED_FILE_TYPES = [
   "image/jpeg",
@@ -37,11 +42,13 @@ export async function checkUsernameAvailability(
   username: string,
 ): Promise<boolean> {
   "use server";
-  const supabase = await createClient();
-
-  if (!username || username.length < 3) {
+  if (isReservedOrganizationSlug(username)) {
     return false;
   }
+
+  if (!validateOrganizationUsername(username).ok) return false;
+
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("organizations")
@@ -73,10 +80,11 @@ export async function updateOrganization(data: OrganizationUpdateData) {
   // Verify the user is an admin of the organization
   const { data: membership } = await supabase
     .from("organization_members")
-    .select("role")
+    .select("role,status")
     .eq("organization_id", data.id)
     .eq("user_id", user.id)
     .eq("role", "admin")
+    .eq("status", "active")
     .single();
 
   if (!membership) {
@@ -94,6 +102,18 @@ export async function updateOrganization(data: OrganizationUpdateData) {
   if (orgError || !currentOrg) {
     console.error("Error fetching organization:", orgError);
     return { error: "Organization not found" };
+  }
+
+  if (
+    data.username !== currentOrg.username &&
+    isReservedOrganizationSlug(data.username)
+  ) {
+    return { error: usernameUnavailableMessage(true) };
+  }
+
+  const usernameValidation = validateOrganizationUsername(data.username);
+  if (!usernameValidation.ok) {
+    return { error: usernameValidation.error };
   }
 
   try {
@@ -276,35 +296,55 @@ export async function deleteOrganization(organizationId: string) {
   }
 
   try {
-    // Get organization info for logo deletion
-    const { data: organization } = await supabase
+    // Retain the deterministic cleanup path, but do not touch storage until the
+    // RLS-scoped database delete proves that this exact organization is gone.
+    const { data: organization, error: organizationError } = await supabase
       .from("organizations")
       .select("logo_url")
       .eq("id", organizationId)
       .single();
 
-    // Delete the organization logo if it exists
-    if (organization?.logo_url) {
-      try {
-        const fileName = organization.logo_url.split("/").pop();
-        if (fileName) {
-          await supabase.storage.from("organization-logos").remove([fileName]);
-        }
-      } catch (error) {
-        console.error("Error removing organization logo:", error);
-        // Continue even if logo deletion fails
-      }
+    if (organizationError || !organization) {
+      return { error: "Organization not found" };
     }
 
-    // Delete the organization (cascade should handle related data)
-    const { error: deleteError } = await supabase
+    const { data: deletedOrganization, error: deleteError } = await supabase
       .from("organizations")
       .delete()
-      .eq("id", organizationId);
+      .eq("id", organizationId)
+      .select("id")
+      .maybeSingle();
 
     if (deleteError) {
       console.error("Error deleting organization from database:", deleteError);
       throw deleteError;
+    }
+
+    if (!deletedOrganization || deletedOrganization.id !== organizationId) {
+      throw new Error("Failed to delete organization");
+    }
+
+    if (organization.logo_url) {
+      const fileName = organization.logo_url.split("/").pop();
+      if (fileName) {
+        try {
+          // Membership rows are gone after the proven database delete, so the
+          // privileged server client owns this idempotent post-delete cleanup.
+          const admin = getAdminClient();
+          const { error: logoRemovalError } = await admin.storage
+            .from("organization-logos")
+            .remove([fileName]);
+
+          if (logoRemovalError) {
+            console.error(
+              "Error removing deleted organization logo:",
+              logoRemovalError,
+            );
+          }
+        } catch (error) {
+          console.error("Error removing deleted organization logo:", error);
+        }
+      }
     }
 
     // Revalidate paths

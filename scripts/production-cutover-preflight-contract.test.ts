@@ -1,0 +1,420 @@
+import { describe, expect, test } from "bun:test";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
+const repositoryRoot = join(import.meta.dir, "..");
+const migrationsRoot = join(repositoryRoot, "supabase/migrations");
+const preflight = readFileSync(
+  join(repositoryRoot, "scripts/production-cutover-preflight.sql"),
+  "utf8",
+);
+const architectureAudit = readFileSync(
+  join(repositoryRoot, "scripts/audit-supabase-architecture.sh"),
+  "utf8",
+);
+
+const PRODUCTION_HEAD = "20260811001500";
+const TARGET_HEAD = "20260812152300";
+const PENDING_VERSIONS = [
+  "20260811063522",
+  "20260811073000",
+  "20260811074518",
+  "20260811081506",
+  "20260811085048",
+  "20260811100000",
+  "20260811110000",
+  "20260811120000",
+  "20260811132454",
+  "20260811160000",
+  "20260811161000",
+  "20260811170000",
+  "20260811180000",
+  "20260811233646",
+  "20260812010529",
+  "20260812030000",
+  "20260812065621",
+  "20260812071500",
+  "20260812072357",
+  "20260812073000",
+  "20260812100000",
+  "20260812100100",
+  "20260812100200",
+  "20260812100300",
+  "20260812100400",
+  "20260812100500",
+  "20260812100600",
+  "20260812100700",
+  "20260812100800",
+  "20260812100900",
+  "20260812101000",
+  "20260812101100",
+  "20260812104754",
+  "20260812114638",
+  "20260812115556",
+  "20260812132725",
+  "20260812152300",
+] as const;
+
+function readMigration(version: string) {
+  const name = readdirSync(migrationsRoot).find((entry) =>
+    entry.startsWith(`${version}_`),
+  );
+  if (!name) throw new Error(`Migration ${version} is missing`);
+  return readFileSync(join(migrationsRoot, name), "utf8");
+}
+
+describe("Production cutover preflight source contract", () => {
+  test("pins the exact 236 -> 273 ledger and all 37 pending versions", () => {
+    const migrations = readdirSync(migrationsRoot)
+      .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
+      .sort();
+    const pending = migrations
+      .map((name) => name.slice(0, 14))
+      .filter((version) => version > PRODUCTION_HEAD);
+    const baselineBlock = preflight.slice(
+      preflight.indexOf("-- BEGIN EXACT PRODUCTION BASELINE VERSIONS"),
+      preflight.indexOf("-- END EXACT PRODUCTION BASELINE VERSIONS"),
+    );
+    const pinnedBaseline = [...baselineBlock.matchAll(/'(\d{14})'/gu)].map(
+      (match) => match[1],
+    );
+
+    expect(migrations).toHaveLength(273);
+    expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
+    expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
+    expect(pinnedBaseline).toEqual(
+      migrations.slice(0, 236).map((name) => name.slice(0, 14)),
+    );
+    expect(pending).toEqual([...PENDING_VERSIONS]);
+    expect(preflight).toContain("count(*) = 236");
+    expect(preflight).toContain("count(*) = 273");
+    expect(preflight).toContain("min(version::text) = '20260325181408'");
+    expect(preflight).toContain("37 migrations pending");
+    for (const version of PENDING_VERSIONS) {
+      expect(preflight).toContain(`'${version}'`);
+    }
+  });
+
+  test("contains only read-only SQL and fail-closed psql controls", () => {
+    const executableLines = preflight
+      .split("\n")
+      .filter((line) => !line.trimStart().startsWith("--"));
+    expect(
+      executableLines.filter((line) => /^\s*BEGIN\b/iu.test(line)),
+    ).toEqual(["BEGIN TRANSACTION READ ONLY;"]);
+    expect(preflight).toContain('psql -X "$PRODUCTION_READONLY_URL"');
+    expect(
+      executableLines.filter((line) => /^\s*ROLLBACK\b/iu.test(line)),
+    ).toEqual(["ROLLBACK;"]);
+    const checkLines = executableLines.filter(
+      (line) =>
+        !/^\s*(?:BEGIN TRANSACTION READ ONLY|ROLLBACK);?\s*$/iu.test(line),
+    );
+    const forbiddenSql =
+      /^\s*(?:alter|begin|call|comment|commit|copy|create|delete|do|drop|grant|insert|merge|notify|refresh|reindex|reset|revoke|set|truncate|update|vacuum)\b/iu;
+    expect(checkLines.filter((line) => forbiddenSql.test(line))).toEqual([]);
+    const statementSource = executableLines
+      .map((line) => {
+        if (/^\s*\\gset\b/u.test(line)) return ";";
+        if (line.trimStart().startsWith("\\")) return "";
+        return line;
+      })
+      .join("\n")
+      .replace(/'(?:''|[^'])*'/gu, "''");
+    const statements = statementSource
+      .split(";")
+      .map((statement) => statement.trim())
+      .filter(Boolean);
+    expect(
+      statements.filter(
+        (statement) =>
+          /^\s*WITH\b/iu.test(statement) &&
+          /\b(?:DELETE|INSERT|MERGE|UPDATE)\b/iu.test(statement),
+      ),
+    ).toEqual([]);
+    expect(
+      statements.filter(
+        (statement) =>
+          /^\s*(?:SELECT|WITH)\b/iu.test(statement) &&
+          /\bSELECT\b[\s\S]*?\bINTO\b/iu.test(statement),
+      ),
+    ).toEqual([]);
+
+    const allowedMeta =
+      /^\s*\\(?:echo|elif|else|endif|gset|if|pset|quit|set|timing)\b/u;
+    const metaLines = executableLines.filter((line) =>
+      line.trimStart().startsWith("\\"),
+    );
+    expect(metaLines.filter((line) => !allowedMeta.test(line))).toEqual([]);
+    expect(preflight).toContain("\\set ON_ERROR_STOP on");
+    expect(preflight).toContain(
+      "current_setting('transaction_read_only') = 'on'",
+    );
+    expect(preflight.match(/\\quit 3/gu)?.length ?? 0).toBeGreaterThan(5);
+    for (const blockingCheck of [
+      "read_only_transaction",
+      "baseline_shape_ready",
+      "csf_shape_ready",
+      "plugin_data_isolation_pass",
+      "csf_control_plane_pass",
+      "d1_pass",
+      "d2_pass",
+      "d3_pass",
+      "d4_pass",
+      "d5_pass",
+      "d6_pass",
+      "d7_pass",
+      "d8_pass",
+      "d9_pass",
+      "d10_pass",
+      "target_shape_ready",
+      "t2_pass",
+      "target_pg_graphql_absent",
+      "target_read_models_pass",
+      "target_function_acl_pass",
+      "target_relation_acl_pass",
+      "target_storage_contract_pass",
+      "e1_pass",
+      "e2_pass",
+      "e6_pass",
+    ]) {
+      expect(preflight).toContain(`\\if :${blockingCheck}`);
+    }
+    expect(preflight).not.toContain("expect 49 rows");
+    expect(preflight).not.toContain("The CSF surface must NOT exist");
+    expect(preflight).not.toContain("ROWS THIS CUTOVER WILL DELETE");
+  });
+
+  test("carries the repository security gates into the target preflight", () => {
+    const functionAclBlock = architectureAudit.slice(
+      architectureAudit.indexOf("public_client_function_acl_drift="),
+      architectureAudit.indexOf(
+        "summary=",
+        architectureAudit.indexOf("public_client_function_acl_drift="),
+      ),
+    );
+    const expectedClientFunctions = [
+      ...functionAclBlock.matchAll(
+        /\('([^']+\([^']*\))', '(anon|authenticated)'\)/gu,
+      ),
+    ].map((match) => [match[1], match[2]]);
+
+    const preflightFunctionAclBlock = preflight.slice(
+      preflight.indexOf("T5  Public read-model and function ACL posture"),
+      preflight.indexOf("T6  Exact target relation ACL"),
+    );
+    const preflightClientFunctions = [
+      ...preflightFunctionAclBlock.matchAll(
+        /\('([^']+\([^']*\))',\s*'(anon|authenticated)'\)/gu,
+      ),
+    ].map((match) => [match[1], match[2]]);
+
+    expect(expectedClientFunctions.length).toBeGreaterThan(0);
+    expect(preflightClientFunctions).toEqual(expectedClientFunctions);
+    expect(preflight).toContain("S1  plugin_data RLS and browser isolation");
+    expect(preflight).toContain("NOT relation.relrowsecurity");
+    expect(preflight).toContain(
+      "has_schema_privilege(client.role_name, namespace.oid, 'USAGE')",
+    );
+    expect(preflight).toContain(
+      "has_function_privilege(client.role_name, function_record.oid, 'EXECUTE')",
+    );
+    expect(preflightFunctionAclBlock).toContain("security_invoker=true");
+    expect(preflightFunctionAclBlock).toContain("function_record.prosecdef");
+  });
+
+  test("requires exact target relation and storage contracts", () => {
+    const relationAclBlock = preflight.slice(
+      preflight.indexOf("T6  Exact target relation ACL"),
+      preflight.indexOf("T7  Exact target storage posture"),
+    );
+    expect(relationAclBlock).toContain("direct_unexpected");
+    expect(relationAclBlock).toContain("effective_unexpected");
+    expect(relationAclBlock).toContain("dangerous");
+    expect(relationAclBlock).toContain("acl.grantee = 0");
+
+    const storageBlock = preflight.slice(
+      preflight.indexOf("T7  Exact target storage posture"),
+      preflight.indexOf("E1  Invalid indexes"),
+    );
+    expect(storageBlock).toContain(
+      "app_private.storage_object_policy_contract_violations()",
+    );
+    expect(storageBlock).toContain(
+      "app_private.storage_bucket_posture_catalog()",
+    );
+    expect(storageBlock).toContain("storage.objects");
+    expect(storageBlock).toContain("relrowsecurity");
+  });
+
+  test("checks CSF control-plane consistency without printing provider secrets", () => {
+    const controlPlaneBlock = preflight.slice(
+      preflight.indexOf("S2  DVHS CSF control-plane and setup consistency"),
+      preflight.indexOf("D1  Duplicate verified certificates"),
+    );
+    expect(controlPlaneBlock).toContain("public.plugins");
+    expect(controlPlaneBlock).toContain(
+      "public.organization_plugin_entitlements",
+    );
+    expect(controlPlaneBlock).toContain("public.organization_plugin_installs");
+    expect(controlPlaneBlock).toContain(
+      "public.organization_plugin_data_boundaries",
+    );
+    expect(controlPlaneBlock).toContain("plugin_data.csf_roles");
+    expect(controlPlaneBlock).toContain("plugin_data.csf_cohorts");
+    expect(controlPlaneBlock).toContain("plugin_data.csf_terms");
+    expect(controlPlaneBlock).toContain("'dvhighcsf'");
+    expect(controlPlaneBlock).toContain("'dvhs-csf'");
+    expect(controlPlaneBlock).toContain("communications_configuration_ready");
+    expect(controlPlaneBlock).not.toContain("RESEND_API_KEY");
+    expect(controlPlaneBlock).not.toContain("GOOGLE_CLIENT_SECRET");
+    expect(controlPlaneBlock).not.toContain("access_token");
+    expect(controlPlaneBlock).not.toContain("refresh_token");
+  });
+
+  test("guards relation shape before parsing pre- or post-cutover tables", () => {
+    const baselineInventory = preflight.slice(
+      preflight.indexOf("L1  Baseline relation inventory"),
+      preflight.indexOf("S0  CSF relation inventory"),
+    );
+    expect(baselineInventory).not.toContain("plugin_data.csf_");
+    expect(preflight).toContain(
+      "Missing/partial CSF fails before any CSF table is queried",
+    );
+    expect(preflight).toContain("\\if :csf_shape_ready");
+    expect(preflight).toContain(
+      "no CSF relations are installed on this database",
+    );
+    expect(preflight).toContain("to_regclass(required.relation_name)");
+    expect(preflight).toContain("\\if :baseline_shape_ready");
+    expect(preflight).toContain("\\if :target_ledger");
+    expect(preflight).toContain("\\if :target_shape_ready");
+    expect(preflight).toContain("public.project_cancellation_deliveries");
+    expect(preflight).toContain("private.plugin_data_deletion_requests");
+    expect(
+      preflight.indexOf("D7  Cross-organization CSF post replies"),
+    ).toBeLessThan(preflight.indexOf("\\if :target_ledger"));
+  });
+
+  test("covers the known data-dependent blockers in the pending ledger", () => {
+    expect(readMigration("20260811073000")).toContain(
+      "CSF webhook environment isolation requires every draft campaign",
+    );
+    expect(preflight).toContain("Open CSF communications missing environment");
+
+    expect(readMigration("20260811081506")).toContain(
+      "cannot enforce verified certificate uniqueness",
+    );
+    expect(preflight).toContain("Duplicate verified certificates per signup");
+
+    expect(readMigration("20260811161000")).toContain(
+      "one-active-link-per-class-and-semester index cannot be created",
+    );
+    expect(preflight).toContain("Duplicate active reusable class links");
+
+    expect(readMigration("20260812100000")).toContain(
+      "organizations_username_not_reserved_check",
+    );
+    expect(preflight).toContain(
+      "Existing organization uses reserved route slug",
+    );
+
+    expect(readMigration("20260812100400")).toContain(
+      "project_cancellation_jobs_attempts_bound",
+    );
+    expect(readMigration("20260812100500")).toContain(
+      "legacy_job_parked_before_atomic_claims",
+    );
+    expect(preflight).toContain(
+      "Rows deliberately transitioned by pending cancellation migrations",
+    );
+
+    expect(readMigration("20260812152300")).toContain(
+      "csf_announcement_replies_announcement_organization_fkey",
+    );
+    expect(preflight).toContain("Cross-organization CSF post replies");
+    expect(preflight).toContain(
+      "Duplicate/unkeyed CSF post-reply request receipts",
+    );
+
+    expect(readMigration("20260811132454")).toContain(
+      "DROP EXTENSION IF EXISTS pg_graphql RESTRICT",
+    );
+    expect(preflight).toContain("External dependencies on pg_graphql objects");
+    expect(
+      preflight.match(
+        /SELECT 'pg_catalog\.pg_extension'::regclass AS classid, oid AS objid/gu,
+      ),
+    ).toHaveLength(2);
+    expect(
+      preflight.match(/JOIN extension_roots AS referenced_object/gu),
+    ).toHaveLength(2);
+
+    const aclMigration = readMigration("20260812100900");
+    expect(aclMigration).toContain(
+      "client relation ACL catalog preflight found",
+    );
+    expect(preflight).toContain(
+      "Reviewed public client grants still effective",
+    );
+    const d10GuardPrefix = [
+      "\\if :baseline_ledger",
+      "  \\echo ''",
+      "  \\echo '=============================================================='",
+      "  \\echo 'D10 Reviewed public client grants still effective'",
+    ].join("\n");
+    const d10BaselineGuard = preflight.indexOf(d10GuardPrefix);
+    const d10Index = preflight.indexOf(
+      "D10 Reviewed public client grants still effective",
+      d10BaselineGuard,
+    );
+    const targetGuard = preflight.indexOf("\\if :target_ledger", d10Index);
+    expect(d10BaselineGuard).toBeGreaterThanOrEqual(0);
+    expect(d10BaselineGuard).toBeLessThan(d10Index);
+    expect(preflight.slice(d10BaselineGuard, targetGuard).trimEnd()).toMatch(
+      /\\if :d10_pass[\s\S]*?\\else[\s\S]*?\\endif\n\\endif$/u,
+    );
+    const migrationAclTriples = [
+      ...aclMigration.matchAll(
+        /\('([^']+)'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,/gu,
+      ),
+    ].map((match) => match.slice(1, 4));
+    const aclBlock = preflight.slice(
+      preflight.indexOf("D10 Reviewed public client grants"),
+      preflight.indexOf("\\if :target_ledger"),
+    );
+    const preflightAclTriples = [
+      ...aclBlock.matchAll(/\('([^']+)','([^']+)','([^']+)',/gu),
+    ].map((match) => match.slice(1, 4));
+    expect(preflightAclTriples).toEqual(migrationAclTriples);
+
+    function catalogColumns(
+      source: string,
+      role: "anon" | "authenticated",
+      privilege: "INSERT" | "SELECT" | "UPDATE",
+      casted: boolean,
+    ) {
+      const cast = casted ? "::text" : "";
+      const pattern = new RegExp(
+        String.raw`\('organizations'${cast},\s*'${role}'${cast},\s*'${privilege}'${cast},\s*ARRAY\[([\s\S]*?)\]::text\[\]\)`,
+        "u",
+      );
+      const columns = pattern.exec(source)?.[1];
+      expect(columns).toBeDefined();
+      return [...(columns ?? "").matchAll(/'([^']+)'/gu)].map(
+        (match) => match[1],
+      );
+    }
+
+    for (const [role, privilege] of [
+      ["anon", "SELECT"],
+      ["authenticated", "INSERT"],
+      ["authenticated", "SELECT"],
+      ["authenticated", "UPDATE"],
+    ] as const) {
+      expect(catalogColumns(aclBlock, role, privilege, false)).toEqual(
+        catalogColumns(aclMigration, role, privilege, true),
+      );
+    }
+  });
+});

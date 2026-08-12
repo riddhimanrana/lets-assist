@@ -11,7 +11,7 @@
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(41);
+SELECT extensions.plan(54);
 
 -- 1-10: privileged boundary, shared lock key, and locking-order contract.
 SELECT extensions.ok(
@@ -59,27 +59,32 @@ SELECT extensions.ok(
   'the replaced role-edit function pins an empty search path'
 );
 SELECT extensions.ok(
-  -- Lock order: the organization advisory lock is taken before the row lock,
-  -- which is what makes two concurrent staff-access mutations serialize
-  -- instead of each seeing the other's seat as still recovery-capable.
+  -- The stable wrapper owns the organization lock and completes its second
+  -- authorization check before delegating to the owner-only implementation.
   position(
     'pg_advisory_xact_lock'
     IN pg_get_functiondef('plugin_data.csf_revoke_staff_position(uuid,uuid,date,text,uuid)'::regprocedure)
   ) < position(
-    'FOR UPDATE'
+    'csf_revoke_staff_position_locked_impl'
     IN pg_get_functiondef('plugin_data.csf_revoke_staff_position(uuid,uuid,date,text,uuid)'::regprocedure)
-  ),
-  'the organization advisory lock is acquired before the position row lock'
+  )
+  AND pg_get_functiondef(
+    'plugin_data.csf_revoke_staff_position_locked_impl(uuid,uuid,date,text,uuid)'::regprocedure
+  ) LIKE '%FOR UPDATE%',
+  'the organization lock and reauthorization precede the position-row implementation'
 );
 SELECT extensions.ok(
   position(
     'pg_advisory_xact_lock'
     IN pg_get_functiondef('plugin_data.csf_update_role(uuid,uuid,text,text,text,text[],integer,uuid)'::regprocedure)
   ) < position(
-    'FOR UPDATE'
+    'csf_update_role_locked_impl'
     IN pg_get_functiondef('plugin_data.csf_update_role(uuid,uuid,text,text,text,text[],integer,uuid)'::regprocedure)
-  ),
-  'the organization advisory lock is acquired before the role row lock'
+  )
+  AND pg_get_functiondef(
+    'plugin_data.csf_update_role_locked_impl(uuid,uuid,text,text,text,text[],integer,uuid)'::regprocedure
+  ) LIKE '%FOR UPDATE%',
+  'the organization lock and reauthorization precede the role-row implementation'
 );
 
 INSERT INTO auth.users (
@@ -644,6 +649,272 @@ SELECT extensions.ok(
       AND position.revoked_at IS NULL
   ),
   'the surviving restored seat is still active and unrevoked after the race'
+);
+
+-- 42-53: a staff-only actor cannot keep mutating after waiting behind the
+-- organization lock while a committed mutation removes their capability.
+-- Keep one independent recovery seat throughout so the authorization race is
+-- isolated from the recovery-floor refusal proved above.
+INSERT INTO csf_recovery_seat_results (kind, payload)
+SELECT 'stale-auth-backup-role', plugin_data.csf_create_custom_role(
+  'e8100000-0000-4000-8000-000000000001',
+  'Stale Authorization Backup',
+  'Independent recovery seat',
+  'Keeps staff recovery available while a queued actor loses authorization.',
+  ARRAY['manage_roles'],
+  'e8000000-0000-4000-8000-000000000001'
+);
+INSERT INTO csf_recovery_seat_results (kind, payload)
+SELECT 'stale-auth-backup-seat', plugin_data.csf_assign_staff_position(
+  'e8100000-0000-4000-8000-000000000001',
+  'e8200000-0000-4000-8000-000000000006',
+  (SELECT (payload->>'roleId')::uuid
+   FROM csf_recovery_seat_results
+   WHERE kind = 'stale-auth-backup-role'),
+  '2026-2027', NULL, NULL, NULL,
+  'Independent recovery seat for stale authorization races',
+  'e8000000-0000-4000-8000-000000000001'
+);
+SELECT extensions.is(
+  plugin_data.csf_count_recovery_staff_seats(
+    'e8100000-0000-4000-8000-000000000001', NULL
+  ),
+  2,
+  'the stale-authorization race starts with an independent recovery seat'
+);
+
+SELECT extensions.dblink_connect(
+  'stale_staff_role_writer',
+  'hostaddr=' || host(inet_server_addr()) ||
+  ' port=' || current_setting('port') ||
+  ' dbname=' || current_database() ||
+  ' user=' || current_user ||
+  ' password=' || current_user ||
+  ' sslmode=disable'
+);
+
+BEGIN;
+SELECT pg_catalog.pg_advisory_xact_lock(
+  plugin_data.csf_staff_access_lock_key(
+    'e8100000-0000-4000-8000-000000000001'
+  )
+);
+SELECT extensions.dblink_send_query(
+  'stale_staff_role_writer',
+  format(
+    $query$
+    SELECT plugin_data.csf_update_role(
+      'e8100000-0000-4000-8000-000000000001'::uuid,
+      %L::uuid,
+      'Unauthorized queued rewrite',
+      'Must never persist',
+      'The actor loses staff access while this request waits.',
+      ARRAY['manage_finances']::text[],
+      NULL,
+      'e8000000-0000-4000-8000-000000000003'::uuid
+    )::text
+    $query$,
+    (SELECT id
+     FROM plugin_data.csf_roles
+     WHERE organization_id = 'e8100000-0000-4000-8000-000000000001'
+       AND key = 'treasurer')
+  )
+);
+SELECT pg_sleep(0.25);
+SELECT extensions.is(
+  extensions.dblink_is_busy('stale_staff_role_writer'),
+  1,
+  'the staff-only role edit waits behind the organization lock'
+);
+SELECT plugin_data.csf_revoke_staff_position(
+  'e8100000-0000-4000-8000-000000000001',
+  (SELECT (payload->>'positionId')::uuid
+   FROM csf_recovery_seat_results
+   WHERE kind = 'restored-seat'),
+  NULL,
+  'Remove the queued actor staff capability',
+  'e8000000-0000-4000-8000-000000000001'
+);
+COMMIT;
+
+SELECT *
+FROM extensions.dblink_get_result('stale_staff_role_writer', false)
+  AS result(payload text);
+SELECT extensions.ok(
+  position(
+    'Not authorized to manage CSF staff access.'
+    IN extensions.dblink_error_message('stale_staff_role_writer')
+  ) > 0,
+  'the queued role edit rechecks authorization after acquiring the lock'
+);
+SELECT extensions.dblink_disconnect('stale_staff_role_writer');
+SELECT extensions.is(
+  (SELECT public_title
+   FROM plugin_data.csf_roles
+   WHERE organization_id = 'e8100000-0000-4000-8000-000000000001'
+     AND key = 'treasurer'),
+  'Treasurer',
+  'the stale staff actor changes no role data'
+);
+SELECT extensions.is(
+  (SELECT status
+   FROM plugin_data.csf_staff_positions
+   WHERE id = (
+     SELECT (payload->>'positionId')::uuid
+     FROM csf_recovery_seat_results
+     WHERE kind = 'restored-seat'
+   )),
+  'ended',
+  'the authorization revocation committed before the queued edit resumed'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer
+   FROM plugin_data.csf_admin_audit_events
+   WHERE organization_id = 'e8100000-0000-4000-8000-000000000001'
+     AND actor_user_id = 'e8000000-0000-4000-8000-000000000003'
+     AND action = 'role.update'
+     AND after_data->>'publicTitle' = 'Unauthorized queued rewrite'),
+  0,
+  'the refused stale role edit writes no audit event'
+);
+
+INSERT INTO csf_recovery_seat_results (kind, payload)
+SELECT 'stale-revoke-actor-role', plugin_data.csf_create_custom_role(
+  'e8100000-0000-4000-8000-000000000001',
+  'Stale Revocation Actor',
+  'Queued staff actor',
+  'Carries staff access until a concurrent role edit removes it.',
+  ARRAY['manage_roles'],
+  'e8000000-0000-4000-8000-000000000001'
+);
+INSERT INTO csf_recovery_seat_results (kind, payload)
+SELECT 'stale-revoke-actor-seat', plugin_data.csf_assign_staff_position(
+  'e8100000-0000-4000-8000-000000000001',
+  'e8200000-0000-4000-8000-000000000002',
+  (SELECT (payload->>'roleId')::uuid
+   FROM csf_recovery_seat_results
+   WHERE kind = 'stale-revoke-actor-role'),
+  '2026-2027', NULL, NULL, NULL,
+  'Queued staff-only actor for stale revocation race',
+  'e8000000-0000-4000-8000-000000000001'
+);
+SELECT extensions.is(
+  plugin_data.csf_count_recovery_staff_seats(
+    'e8100000-0000-4000-8000-000000000001', NULL
+  ),
+  2,
+  'a second staff-only actor is authorized before the revoke race'
+);
+
+SELECT extensions.dblink_connect(
+  'stale_staff_revoke_writer',
+  'hostaddr=' || host(inet_server_addr()) ||
+  ' port=' || current_setting('port') ||
+  ' dbname=' || current_database() ||
+  ' user=' || current_user ||
+  ' password=' || current_user ||
+  ' sslmode=disable'
+);
+
+BEGIN;
+SELECT pg_catalog.pg_advisory_xact_lock(
+  plugin_data.csf_staff_access_lock_key(
+    'e8100000-0000-4000-8000-000000000001'
+  )
+);
+SELECT extensions.dblink_send_query(
+  'stale_staff_revoke_writer',
+  format(
+    $query$
+    SELECT plugin_data.csf_revoke_staff_position(
+      'e8100000-0000-4000-8000-000000000001'::uuid,
+      %L::uuid,
+      NULL,
+      'Queued actor must lose this revocation',
+      'e8000000-0000-4000-8000-000000000002'::uuid
+    )::text
+    $query$,
+    (SELECT (payload->>'positionId')::uuid
+     FROM csf_recovery_seat_results
+     WHERE kind = 'stale-auth-backup-seat')
+  )
+);
+SELECT pg_sleep(0.25);
+SELECT extensions.is(
+  extensions.dblink_is_busy('stale_staff_revoke_writer'),
+  1,
+  'the staff-only revocation waits behind the organization lock'
+);
+SELECT plugin_data.csf_update_role(
+  'e8100000-0000-4000-8000-000000000001',
+  (SELECT (payload->>'roleId')::uuid
+   FROM csf_recovery_seat_results
+   WHERE kind = 'stale-revoke-actor-role'),
+  'Stale Revocation Actor',
+  'Queued staff actor',
+  'Staff access removed before the queued revocation resumes.',
+  ARRAY['manage_profiles'],
+  NULL,
+  'e8000000-0000-4000-8000-000000000001'
+);
+COMMIT;
+
+SELECT *
+FROM extensions.dblink_get_result('stale_staff_revoke_writer', false)
+  AS result(payload text);
+SELECT extensions.ok(
+  position(
+    'Not authorized to manage CSF staff access.'
+    IN extensions.dblink_error_message('stale_staff_revoke_writer')
+  ) > 0,
+  'the queued revocation rechecks authorization after acquiring the lock'
+);
+SELECT extensions.dblink_disconnect('stale_staff_revoke_writer');
+SELECT extensions.is(
+  (SELECT status
+   FROM plugin_data.csf_staff_positions
+   WHERE id = (
+     SELECT (payload->>'positionId')::uuid
+     FROM csf_recovery_seat_results
+     WHERE kind = 'stale-auth-backup-seat'
+   )),
+  'active',
+  'the stale staff actor does not revoke the target position'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer
+   FROM plugin_data.csf_staff_position_history
+   WHERE organization_id = 'e8100000-0000-4000-8000-000000000001'
+     AND actor_user_id = 'e8000000-0000-4000-8000-000000000002'
+     AND action = 'revoke'
+     AND staff_position_id = (
+       SELECT (payload->>'positionId')::uuid
+       FROM csf_recovery_seat_results
+       WHERE kind = 'stale-auth-backup-seat'
+     )),
+  0,
+  'the refused stale revocation writes no position history'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer
+   FROM plugin_data.csf_admin_audit_events
+   WHERE organization_id = 'e8100000-0000-4000-8000-000000000001'
+     AND actor_user_id = 'e8000000-0000-4000-8000-000000000002'
+     AND action = 'staff_position.revoke'
+     AND target_id = (
+       SELECT (payload->>'positionId')::uuid
+       FROM csf_recovery_seat_results
+       WHERE kind = 'stale-auth-backup-seat'
+     )),
+  0,
+  'the refused stale revocation writes no admin audit event'
+);
+SELECT extensions.is(
+  plugin_data.csf_count_recovery_staff_seats(
+    'e8100000-0000-4000-8000-000000000001', NULL
+  ),
+  1,
+  'the committed role edit leaves only the independent backup recovery seat'
 );
 
 -- The concurrency window commits on purpose so the second connection can

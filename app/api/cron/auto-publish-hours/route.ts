@@ -500,7 +500,7 @@ async function processExpiredSessions(): Promise<{
           name,
           email
         ),
-        projects!inner (
+        projects!project_signups_project_id_fkey!inner (
           *,
           profiles!projects_creator_id_fkey1 (full_name),
           organization:organizations (name, verified)

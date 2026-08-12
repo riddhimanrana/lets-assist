@@ -28,6 +28,7 @@ let insertError: {
   message: string;
 } | null = null;
 let browserClientCalls = 0;
+let preferenceReads = 0;
 
 mock.module("@/lib/supabase/client", () => ({
   createClient: () => {
@@ -42,6 +43,7 @@ mock.module("@/lib/supabase/admin", () => ({
   getAdminClient: () => ({
     from(table: string) {
       if (table === "notification_settings") {
+        preferenceReads += 1;
         return {
           select: () => ({
             eq: () => ({
@@ -78,6 +80,7 @@ beforeEach(() => {
   preferenceError = null;
   insertError = null;
   browserClientCalls = 0;
+  preferenceReads = 0;
 });
 
 describe("createNotificationForUser", () => {
@@ -145,6 +148,25 @@ describe("createNotificationForUser", () => {
 
     expect(result).toEqual({ success: false, skipped: true });
     expect(insertedRows).toHaveLength(0);
+  });
+
+  test("required cancellation notification bypasses preferences", async () => {
+    preferenceRow = { project_updates: false, email_notifications: false };
+
+    const result = await createNotificationForUser(
+      {
+        title: "Project Cancelled",
+        body: "The project was cancelled",
+        type: "project_updates",
+        dedupeKey: "project-cancelled:fixture",
+      },
+      USER,
+      { respectPreferences: false },
+    );
+
+    expect(result).toEqual({ success: true });
+    expect(preferenceReads).toBe(0);
+    expect(insertedRows).toHaveLength(1);
   });
 
   test("delivers when the preference row is absent", async () => {

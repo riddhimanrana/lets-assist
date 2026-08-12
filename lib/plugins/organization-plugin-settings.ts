@@ -53,6 +53,8 @@ export type RuntimePluginInfo = {
   }>;
   configSchema?: OrganizationPluginAdminSetting["configSchema"];
   requiredScopes?: OrganizationPluginAdminSetting["requiredScopes"];
+  dataDeletionAvailable?: boolean;
+  dataDeletionExternalSystemsNotCovered?: string[];
 };
 
 export function buildOrganizationPluginAdminSettings(input: {
@@ -165,6 +167,14 @@ export function buildOrganizationPluginAdminSettings(input: {
         configuration: install?.configuration ?? null,
         configSchema: runtimePlugin?.configSchema ?? null,
         requiredScopes: runtimePlugin?.requiredScopes ?? [],
+        dataDeletionAvailable: Boolean(
+          runtimePlugin?.dataDeletionAvailable &&
+          entitled &&
+          !isForced &&
+          !install,
+        ),
+        dataDeletionExternalSystemsNotCovered:
+          runtimePlugin?.dataDeletionExternalSystemsNotCovered ?? [],
       } satisfies OrganizationPluginAdminSetting;
     })
     .sort((a, b) => a.name.localeCompare(b.name));

@@ -1,34 +1,43 @@
 # Production cutover runbook
 
-Promoting the current `development` iteration to Production. This carries **174 pending migrations** — Production sits at `20260603035734` (49 applied) while the repository ledger is at 223.
+Production has 236 ordered migrations through `20260811001500`.
+Hosted Development Supabase and this repository each have 273 ordered
+migrations through `20260812152300`. Production therefore has exactly 37
+pending migrations. `dev.lets-assist.com` still serves the earlier Ready code
+whose repository ledger ended at 272 through `20260812132725`: the external
+Vercel 100-deployment-per-day project cap prevented the refreshed deployment.
+Database parity is not application-deployment parity, so the hosted release
+gate remains open until that exact current code is deployed and accepted.
 
-**This runbook is preparation. Executing it requires explicit release authorization** ([deployment boundaries](deployment.md)). Nothing in it has been run against Production.
+**This runbook is preparation. Executing it requires explicit release
+authorization** ([deployment boundaries](deployment.md)). Production remains
+untouched. No release may proceed until hosted Development exact-SHA browser and
+provider gates are green.
 
 ## Two facts that shape everything
 
 **1. The schema push and the application deploy are one release, not two.**
 
-`origin/main` is far behind `development`, and several pending migrations revoke grants the currently-deployed application depends on:
-
-| Migration        | Revokes                                                                                       |
-| ---------------- | --------------------------------------------------------------------------------------------- |
-| `20260701055524` | All `plugin_data` access from `authenticated`                                                 |
-| `20260712014700` | Table-wide `SELECT` on `organizations` from `anon`/`authenticated`, replaced by column grants |
-| `20260712021110` | `INSERT`/`UPDATE` on `user_emails`                                                            |
-| `20260712013500` | Direct `organization_members` deletes                                                         |
-
-The deployed `main` build breaks the moment those land. Schedule them as a single window, with the application release ready _before_ the push starts.
+The 37 pending migrations and their exact application release SHA must be
+treated as one change. Do not push the schema independently or infer application
+compatibility from the migration ledger. Schedule one window, with the exact
+application release ready before the push starts.
 
 **2. Migrations are forward-only.** There is no down migration. Rollback means a point-in-time restore, or a corrective forward migration. Never delete a migration that may have run remotely.
 
-## Known-live defects this release closes
+## Historical defects already closed in the Production baseline
 
-Both were confirmed against Production by read-only catalog inspection during the 2026-08-10 audit, and both are exploitable today. See the [audit register](audit-register-20260810.md).
+Both were confirmed against Production by read-only catalog inspection during
+the 2026-08-10 audit. Their forward fixes are now included in the current
+Production baseline through `20260811001500`. Keep them in rehearsal coverage
+because the cutover still builds on that baseline. See the
+[audit register](audit-register-20260810.md).
 
 - **AUD-001** — `public.trusted_member` accepts a client-supplied `status`, so any signed-in user who has not yet applied can self-grant trusted status and unlock organization and project creation.
 - **AUD-002** — the `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)`, so anyone holding the public anon key can inject a notification for any user, with an attacker-chosen title, body, and action URL.
 
-`supabase db push` has no per-migration selector, so neither can ship through the normal pipeline without the whole backlog. If the cutover slips, the alternative is applying AUD-002's two policy statements out of band under a written change record; `20260810220200` and `20260810220100` are both written to be idempotent so the ledger re-applies them as a no-op.
+The fixing migrations, `20260810220100` and `20260810220200`, are historical
+context rather than part of the current 37-migration pending set.
 
 ---
 
@@ -36,50 +45,84 @@ Both were confirmed against Production by read-only catalog inspection during th
 
 All must be green before a window is scheduled. Each is a stop, not a preference.
 
-| #    | Gate                                                                                                              | How it is satisfied                                                                                                                                                                                                                   |
-| ---- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P-1  | `development` → `main` merged, `ci.yml` fully green on the merge commit **including `db-replay-validation`**      | That job is where pgTAP and the browser suites run                                                                                                                                                                                    |
-| P-2  | `deploy-schema.yml` runs pgTAP                                                                                    | **Done** — a `Run pgTAP database tests` step was added to `test-local-reset`, which `deploy-to-production` depends on. Before this, pgTAP ran only in `ci.yml` behind a paths filter and a `workflow_dispatch` deploy never re-ran it |
-| P-3  | The `production` GitHub Environment has named required reviewers                                                  | The workflow declares `environment: production`, but protection rules live in repository settings, not in the repo                                                                                                                    |
-| P-4  | **PITR enabled** on `fotdmeakexgrkronxlof`, window ≥ 24 h and established                                         | The Supabase organization is on the **Pro** plan, so PITR is available as an add-on — confirm it is actually switched on. Without it, a lossless rollback does not exist                                                              |
-| P-5  | Every preflight in `scripts/production-cutover-preflight.sql` passes, or each deviation is adjudicated in writing | See [preflight](#preflight)                                                                                                                                                                                                           |
-| P-6  | Rehearsal complete on production-shaped data                                                                      | See [rehearsal](#rehearsal)                                                                                                                                                                                                           |
-| P-7  | Backup taken **and verify-restored**                                                                              | See [backup](#backup)                                                                                                                                                                                                                 |
-| P-8  | A green Vercel deployment of the exact release SHA exists and was smoke-tested against the rehearsal database     | Not the same as a green `development` preview                                                                                                                                                                                         |
-| P-9  | `RESEND_API_KEY` resolved (AUD-013)                                                                               | Flagged **Needs Attention** on both Production and Pre-Production. This release exercises announcement, waiver, and certificate email                                                                                                 |
-| P-10 | No `supabase config push` anywhere in automation                                                                  | Verified absent from `.github/`, `scripts/`, and `package.json` as of 2026-08-10                                                                                                                                                      |
+| #    | Gate                                                                                                          | How it is satisfied                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P-1  | `development` → `main` merged, `ci.yml` fully green on the merge commit **including `db-replay-validation`**  | That job is where pgTAP and the browser suites run                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| P-2  | `deploy-schema.yml` runs pgTAP                                                                                | **Done** — a `Run pgTAP database tests` step was added to `test-local-reset`, which `deploy-to-production` depends on. Before this, pgTAP ran only in `ci.yml` behind a paths filter and a `workflow_dispatch` deploy never re-ran it                                                                                                                                                                                                                                    |
+| P-3  | The `production` GitHub Environment has named required reviewers                                              | The workflow declares `environment: production`, but protection rules live in repository settings, not in the repo                                                                                                                                                                                                                                                                                                                                                       |
+| P-4  | **PITR enabled** on `fotdmeakexgrkronxlof`, window ≥ 24 h and established                                     | The Supabase organization is on the **Pro** plan, so PITR is available as an add-on — confirm it is actually switched on. Without it, a lossless rollback does not exist                                                                                                                                                                                                                                                                                                 |
+| P-5  | Every blocking preflight in `scripts/production-cutover-preflight.sql` passes                                 | See [preflight](#preflight); only D6 has the script's explicit reviewed-transition acceptance path                                                                                                                                                                                                                                                                                                                                                                       |
+| P-6  | Rehearsal complete on production-shaped data                                                                  | See [rehearsal](#rehearsal)                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| P-7  | Backup taken **and verify-restored**                                                                          | See [backup](#backup)                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| P-8  | A green Vercel deployment of the exact release SHA exists and was smoke-tested against the rehearsal database | Not the same as a green `development` preview                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| P-9  | Production Resend delivery lifecycle is proved end to end                                                     | `RESEND_API_KEY` and `RESEND_WEBHOOK_SECRET` are present, but both Production webhook endpoints were **disabled** and Production had zero persisted provider lifecycle events at the 2026-08-12 readiness check. Rotate or reconcile the webhook secret, enable exactly one Production endpoint, send one controlled recipient test, and prove signature-verified `sent` and `delivered` events persist before release. Development evidence does not satisfy this gate. |
+| P-10 | No `supabase config push` anywhere in automation                                                              | Verified absent from `.github/`, `scripts/`, and `package.json` as of 2026-08-10                                                                                                                                                                                                                                                                                                                                                                                         |
 
 ---
 
 ## Preflight
 
 ```bash
-psql "$PRODUCTION_READONLY_URL" -f scripts/production-cutover-preflight.sql | tee preflight-$(date -u +%Y%m%dT%H%M%SZ).log
+set -euo pipefail
+psql -X "$PRODUCTION_READONLY_URL" \
+  -f scripts/production-cutover-preflight.sql 2>&1 \
+  | tee preflight-$(date -u +%Y%m%dT%H%M%SZ).log
 ```
 
-Read-only throughout. Capture the whole output into the change record. The blocks that most often bite:
+Every check is `SELECT` or `SHOW` inside an explicit read-only transaction. The
+script accepts only the exact 236-version Production baseline or exact
+273-version target, exits non-zero on a partial or divergent ledger, and checks
+relation existence before parsing shape-specific tables. `pipefail` preserves
+that non-zero status through `tee`. Capture the whole output into the change
+record.
 
-- **P8** — waiver signatures whose `(signup_id, project_id)` pair has no matching signup. The most likely failure in the set; it breaks a composite FK validation.
-- **P11** — **this migration deletes production rows.** `20260712021110` runs `DELETE FROM public.user_emails WHERE verified_at IS NULL`. The pass criterion is not zero; it is that the number is understood, reviewed, accepted, and present in the backup. Sign it off explicitly by name.
-- **P14** — auth emails owned by a different user. Not a migration error but a _silent_ one: the `ON CONFLICT` no-ops and those users end up with no primary email row.
-- **P22** — the CSF surface must not already exist. Any non-NULL means something created it out of band, and `CREATE TABLE` without `IF NOT EXISTS` will fail with `42P07`. Stop and reconcile.
-- **TM-1** — trusted-member adjudication. A self-grant produces a _consistent_ pair (`trusted_member.status` and `profiles.trusted_member` both true), because the sync trigger wrote the profile from the row — so looking for inconsistency finds nothing. The signal is the approval notification that every legitimate approval emits. Investigate rows with no approval notification **and** missing application content.
+- **D1** blocks duplicate verified certificates before the pending unique index.
+- **S0** inventories CSF relations before any CSF table is queried. A wholly
+  absent or partial CSF shape fails with a named install/schema blocker because
+  the pending CSF migrations reference those relations.
+- **D2** blocks draft/open CSF communication work without its backend
+  environment coordinate.
+- **D3** blocks a second active reusable class link for one class and semester.
+- **D4** blocks an existing organization whose normalized username collides
+  with the static `create` or `join` route.
+- **D6** names cancellation jobs the pending migrations will park or clamp.
+  The first run fails closed when any exist. Review the counts after workers are
+  stopped, then rerun with `-v accept_state_transitions=1`; that flag accepts
+  only the named state-transition inventory and bypasses no data-integrity
+  check.
+- **D7–D8** block post-reply tenant corruption and duplicate/unkeyed mutation
+  receipts before `20260812152300` creates its validated FK and unique index.
+- **D9** inventories external dependencies that would make
+  `DROP EXTENSION ... RESTRICT` fail.
+- **D10** mirrors the reviewed effective client-grant catalog before
+  `20260812100900` revokes and rebuilds public relation ACLs.
+- **T1–T3** run only on the 273 shape and prove target relations, expected
+  validated constraints/indexes, and removal of `pg_graphql`.
 
-**Do not remediate trusted-member rows inside a migration.** Notifications are user-deletable, so there is no ground truth and a mass revoke would strip legitimate members. Revoking also does not undo the consequences — organizations and projects already created remain. Adjudicate by hand and remediate _after_ cutover through the existing admin path, which uses the service role and notifies the user.
+Do not run the script with a write-capable URL and do not remediate rows inside
+the preflight. Resolve through the owning product/admin path or a separately
+reviewed forward migration.
 
 ---
 
 ## Rehearsal
 
-**The Supabase `development` branch is not a rehearsal.** It reached 218 by replaying an empty database, which proves the migrations are self-consistent and nothing more. It does not exercise data-dependent DDL, the destructive DML in `20260712021110`, lock behaviour at production table sizes, or the 49→223 transition specifically.
+**The Supabase `development` branch is not a rehearsal.** Its 273-migration
+ledger proves ordered application against the Development database, not the
+repository branch's Production-shaped 236→273 transition. It does not exercise
+data-dependent DDL, lock behaviour at Production table sizes, or Production
+data.
 
 **Preferred path — a data-cloned branch from Production.**
 
 1. `get_cost` → `confirm_cost` for a branch, and keep the `confirm_cost_id`. This is a _second_ concurrent branch alongside the persistent `development` one; budget for it and delete it promptly.
 2. `create_branch({ project_id: 'fotdmeakexgrkronxlof', name: 'cutover-rehearsal-<date>', confirm_cost_id })`.
 3. **Verify it is a clone, not a replay** — `list_migrations` on the new ref.
-   - **49 rows, head `20260603035734`** → a genuine clone. Continue.
-   - **223 rows** → it was built by replaying the repository, which is the artifact you already have and proves nothing new. Abandon and use the fallback.
+   - **236 rows, head `20260811001500`** → a genuine current-baseline clone.
+     Continue.
+   - **273 rows, head `20260812152300`** → it was built by replaying the
+     repository branch, which is the artifact you already have and proves nothing new.
+     Abandon and use the fallback.
 
    Do not skip this. It is the single most important step here.
 
@@ -87,15 +130,27 @@ Read-only throughout. Capture the whole output into the change record. The block
 5. Run the whole preflight against the branch and confirm it matches Production. This validates the preflight queries before they are pointed at the real thing.
 6. Push, and time it:
    ```bash
+   set -euo pipefail
    supabase link --project-ref <branch-ref>
-   supabase db push --linked --dry-run      # expect exactly 174 pending
+   supabase db push --linked --dry-run      # expect exactly 37 pending
    time supabase db push --linked --yes 2>&1 | tee rehearsal.log
    ```
-7. Capture: total and per-file wall clock; the row count deleted by `20260712021110`; `SELECT ... FROM pg_index WHERE NOT indisvalid` (must be empty); `verify-supabase-migration-parity.mjs`; `get_advisors` (expect the same ~90 `INFO` shape, zero ERROR/WARN); and `supabase db diff --linked` — compare that last one against the destructive drift recorded in [the redesign audit](../architecture/supabase-redesign-audit.md). **That diff is the artifact that retires the open drift item.**
+7. Capture: total and per-file wall clock; `SELECT ... FROM pg_index WHERE NOT
+indisvalid` (must be empty); `verify-supabase-migration-parity.mjs`;
+   `get_advisors` (the 95 INFO/0 WARN/0 ERROR security and 611 INFO/0 WARN/0
+   ERROR performance counts were captured on the preceding 272-migration
+   Development shape and are comparison evidence, not proof for 273); and
+   `supabase db diff --linked` — compare that last one against the destructive
+   drift recorded in
+   [the redesign audit](../architecture/supabase-redesign-audit.md). **That diff
+   is the artifact that retires the open drift item.**
 8. Point a preview deployment of the release SHA at the branch and run `test:e2e:csf`, `plugin:test:isolation`, `dev:test:cron`, and the manual smoke list.
 9. `delete_branch` as soon as it is signed off.
 
-**Fallback**, if step 3 or 4 shows it is not a data clone: restore the backup dumps into a local Postgres 17, seed `supabase_migrations.schema_migrations` with Production's 49 versions, then dry-run and apply. Costs nothing and reuses the backup artifacts — one exercise, two purposes.
+**Fallback**, if step 3 or 4 shows it is not a data clone: restore the backup
+dumps into a local Postgres 17, seed `supabase_migrations.schema_migrations`
+with Production's 236 versions, then dry-run and apply. Costs nothing and reuses
+the backup artifacts — one exercise, two purposes.
 
 Record the fallback's fidelity gap: local `auth`, `storage`, and `realtime` schemas are container-managed and will not match Production's GoTrue and Storage versions. Restore Production's `auth.users` **data** onto the local `auth` schema; never its DDL.
 
@@ -106,6 +161,7 @@ Record the fallback's fidelity gap: local `auth`, `storage`, and `realtime` sche
 Managed backups are not enough on their own, and a backup you have not restored is a hypothesis.
 
 ```bash
+set -euo pipefail
 BK=~/lets-assist-backups/$(date -u +%Y%m%dT%H%M%SZ)   # outside the repository
 mkdir -p "$BK"
 supabase link --project-ref fotdmeakexgrkronxlof
@@ -134,13 +190,18 @@ Then restore them into a throwaway Postgres 17 and compare row counts for the to
 
 ## The window
 
-**Length:** rehearsal-measured duration × 3, floor 90 minutes. The cost is dominated by the `CREATE UNIQUE INDEX CONCURRENTLY` builds and the full `user_emails` rewrite.
+**Length:** rehearsal-measured duration × 3, floor 90 minutes. Use the timed
+Production-shaped 236→273 rehearsal as the authority; the pending set's
+validated constraints, index builds, ACL convergence, and cancellation-ledger
+work determine this window. Do not reuse timing assumptions from migrations
+already included in the 236 baseline.
 
 1. **T-24 h and T-1 h** — announce through `public.system_banners`.
 2. **T-0** — enable maintenance mode. **Writes must stop.** That is what makes a PITR restore lossless; without it, a restore loses whatever was written after the restore point.
 3. Snapshot `cron.job`, then unschedule active jobs. Note that `20260621210000` re-schedules two jobs _during_ the push, so restoration must reconcile against the post-migration state rather than blindly replaying the snapshot.
 4. Confirm quiescence: no non-idle client backends.
-5. Repair the collation version mismatch (expected — preflight E1 will show it).
+5. Repair the collation version mismatch if preflight E2 reports it; the
+   preflight will not pass while the mismatch remains.
 6. **Dry-run, and read it.** `deploy-schema.yml` currently runs the dry-run and the push in the same step with no human read between them; splitting that is recommended secondary hardening. Until it is split, run the dry-run manually first.
 7. Push via `workflow_dispatch` with `production_confirmation` = `deploy-production:fotdmeakexgrkronxlof`.
 8. Deploy the application release. Schema and application are one release.
@@ -148,8 +209,9 @@ Then restore them into a throwaway Postgres 17 and compare row counts for the to
    - `verify-supabase-migration-parity.mjs` — ledger parity
    - `SELECT ... FROM pg_index WHERE NOT indisvalid` — must be empty
    - `get_advisors(type: 'security')` — expect only the known `INFO`/`rls_enabled_no_policy` shape
-   - Preflight **P15** re-run — `auth_users_with_email` should equal `primary_rows`, modulo any P14 conflicts
-   - Storage bucket counts against the **S1** baseline
+   - Re-run `production-cutover-preflight.sql`; it must select the exact
+     273-row target path and pass T1–T3
+   - Storage bucket counts against the **E7** baseline
    - Upgrade DV installs to `2.0.0` through the leased control plane **before** enabling DV traffic
 10. Smoke tests while still in maintenance mode, then again after opening: sign in, view a project, sign up for a project, an organization page, a CSF workspace, one email path.
 11. Restore cron jobs by reconciliation.

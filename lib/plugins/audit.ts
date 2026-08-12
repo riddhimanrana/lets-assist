@@ -90,6 +90,50 @@ export async function logPluginAudit(
 }
 
 /**
+ * Log a plugin audit event, throwing instead of swallowing RPC failure.
+ *
+ * `logPluginAudit` deliberately never blocks the operation it is auditing —
+ * that is correct for routine lifecycle/execution telemetry, where a
+ * logging outage should not turn a working feature into an outage too.
+ * Permanent plugin-data deletion is different: an admin-facing "success"
+ * for an irreversible action must not be reported unless durable, redacted
+ * evidence of it was actually written. Callers use this only for that one
+ * audit write and treat a thrown error as "do not report success."
+ */
+export async function logPluginAuditStrict(
+  entry: PluginAuditLogEntry,
+): Promise<string> {
+  const supabase = await createClient();
+
+  let actorId = entry.actor_id;
+  if (!actorId && entry.actor_type !== "system") {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    actorId = user?.id ?? null;
+  }
+
+  const adminSupabase = getAdminClient();
+  const { data, error } = await adminSupabase.rpc("log_plugin_audit", {
+    p_organization_id: entry.organization_id ?? null,
+    p_plugin_key: entry.plugin_key ?? null,
+    p_action: entry.action,
+    p_actor_id: actorId ?? null,
+    p_actor_type: entry.actor_type ?? "user",
+    p_details: entry.details ?? {},
+    p_execution_time_ms: entry.execution_time_ms ?? null,
+  });
+
+  if (error) {
+    throw new Error(
+      `Failed to durably log plugin audit event: ${error.message}`,
+    );
+  }
+
+  return data as string;
+}
+
+/**
  * Track plugin execution metrics
  */
 export async function trackPluginExecution(
