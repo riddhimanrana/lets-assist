@@ -3,28 +3,40 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** This repository branch carries 273 ordered migrations through the
-new atomic post-reply boundary, while hosted Development remains at 272 through
-`20260812132725` and `dev.lets-assist.com` remains Ready on the exact
-development SHA. Google OAuth and Picker are connected. The real Spring 2026
-application Preview passed the metadata RPC and stored 85 preview rows, then
-failed at the seal because the caller supplied a reserved derived summary key.
-Zero term applications were committed. Production remains untouched.
+**Status:** This repository and hosted Development Supabase each carry 273
+ordered migrations through the atomic post-reply boundary. The
+`dev.lets-assist.com` alias still serves the earlier Ready code at
+`cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository tree ended at 272
+through `20260812132725`, because the external Vercel 100-deployment-per-day
+project cap prevented the refreshed deployment. Google OAuth and Picker are
+connected. On that earlier deployed code, the real Spring 2026 application
+Preview passed the metadata RPC and stored 85 preview rows, then failed at the
+seal because the caller supplied a reserved derived summary key. Zero term
+applications were committed. Production remains untouched.
 
-**Latest contract amendment:** August 12, 2026; this current-state amendment supersedes stale claims about Development ledger parity, advisor counts, and the code served by the Development alias. Historical counts below remain evidence for their named runs only.
+**Latest contract amendment:** August 12, 2026; this current-state amendment
+separates Development database parity from the stale code served by the
+Development alias. Historical counts below remain evidence for their named runs
+only.
 
 ## Current hosted Development state
 
 - The repository branch has 273 ordered migrations through
   `20260812152300_atomic_csf_post_replies`.
-- Hosted Development remains at 272 ordered migrations through
-  `20260812132725_csf_drive_metadata_compare_and_set_fence`; the atomic CSF
-  reply boundary has not been applied there.
-- The current Development Supabase advisor snapshot reports 95 INFO, 0 WARN,
-  and 0 ERROR security findings, plus 611 INFO, 0 WARN, and 0 ERROR performance
-  findings.
-- `dev.lets-assist.com` serves exact development SHA
-  `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose deployment is Ready.
+- Hosted Development Supabase also has 273 ordered migrations through
+  `20260812152300_atomic_csf_post_replies`; the repository and Development
+  database ledgers match.
+- Production remains at 236 ordered migrations through `20260811001500`; the
+  37-migration cutover has not run.
+- The last accepted Development advisor snapshot was captured on the preceding
+  272-migration shape: 95 INFO, 0 WARN, and 0 ERROR security findings, plus 611
+  INFO, 0 WARN, and 0 ERROR performance findings. Those counts have not been
+  re-established for 273 and are not current-parity evidence.
+- `dev.lets-assist.com` still serves exact development SHA
+  `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose Ready repository tree ended
+  at 272 through `20260812132725_csf_drive_metadata_compare_and_set_fence`.
+  The external Vercel 100-deployment-per-day project cap blocked the refreshed
+  deployment, so the alias is not exact-current-code evidence.
 - The seven-argument metadata RPC exists, its old four-argument overload is
   absent, and only `service_role` can execute the current RPC; `anon` and
   `authenticated` cannot.
@@ -38,8 +50,8 @@ Zero term applications were committed. Production remains untouched.
   aggregate-only.
 - The caller-summary correction is the private plugin fix merged by private PR
   #45 at `ca817bf`, and this root worktree's gitlink points to that commit
-  locally. The Ready Development SHA above does not include that local gitlink
-  update.
+  locally. The stale Ready Development SHA above does not include that local
+  gitlink update.
 - The Drive metadata RPC is no longer the current Preview blocker. Production
   remains untouched.
 
@@ -113,6 +125,11 @@ An earlier read-only evidence review established the following source shapes wit
 | Spring 2026 club audit   | 1 tab, 132 rows, 27 columns | Partner-club audit is a first-class import type.                                                |
 | 2025–26 club tracker     |                     11 tabs | A metadata-only link is insufficient; officers need source-specific preview and reconciliation. |
 | Classes of 2027–2030     |            8 term tabs each | `F26` exists on every current workbook and remains source-tab terminology only.                 |
+
+That table is the superseded July source snapshot. The current reviewed Spring
+2026 application source is bounded to `A1:Q518`: 17 columns and 517 response
+rows after the header. The earlier 618-row/23-column shape must not be used for
+the Fall 2026 preview or reconciliation.
 
 Three representative Gmail messages were previously inspected and reduced to workflow flags only. They confirm that applications, transcripts, points, club auditing, meeting operations, Forms, Sheets, Classroom broadcasts, and volunteering all participate in current operations. No Gmail integration or send behavior is introduced, and Gmail was not mutated during this run.
 
@@ -284,7 +301,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
 
 ## Acceptance gates
 
-- [x] Clean isolated replay: 214 migrations, 82 CSF tables, 63 pgTAP files, and 3,165/3,165 assertions
+- [x] Historical clean isolated replay: 214 migrations, 82 CSF tables, 63 pgTAP files, and 3,165/3,165 assertions; this is retained run evidence, not a current 273-ledger replay
 - [x] Profile-claim concurrency/idempotent retry, tenant foreign keys, legacy-close revocation, nine evidence-write guards, and real `dblink` two-session close-vs-insert race
 - [x] Private-plugin CSF unit/security suite: 2,337 passed
 - [x] Import parser/reconciliation and idempotency tests for the implemented contracts
@@ -298,7 +315,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
 - [x] Latest focused hardening gate: 73/73 Bun tests with 761 expectations; root typecheck clean; focused ESLint clean
 - [x] Formatting, source organization, typecheck, and lint: 0 errors and 0 warnings
 - [x] `bun run csf:test:workflows`, `bun run csf:test:scale`, and the 5-route cron probe passed locally; cron recorded 269 assertions, zero dispatch, and zero egress
-- [ ] Supabase advisor closeout: the current Development snapshot is 95 INFO/0 WARN/0 ERROR for security and 611 INFO/0 WARN/0 ERROR for performance; Production still requires its release-time post-apply advisor check
+- [ ] Supabase advisor closeout: the preceding 272-migration Development snapshot is 95 INFO/0 WARN/0 ERROR for security and 611 INFO/0 WARN/0 ERROR for performance; re-establish it on 273, and run Production's release-time post-apply advisor check
 - [x] Post-hardening private-plugin isolation browser/API smoke
 - [x] Exact detached private gitlink, registry/runtime contracts, and strict submodule validation pass
 - [x] `bun audit --production`: no vulnerabilities
@@ -362,13 +379,13 @@ The current officer procedure is documented in the [officer runbook](officer-run
   bounded Drive Preview read ran in hosted Development. Token refresh,
   reconnect/revocation, 403/429 exercise, and every Google write remain
   unexecuted.
-- Development uses a distinct hosted Supabase project. Its database has 272
-  ordered migrations through
-  `20260812132725_csf_drive_metadata_compare_and_set_fence`, while this
-  repository branch has 273 through
-  `20260812152300_atomic_csf_post_replies`. The Ready alias serves development
-  SHA `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, which does not contain the
-  forward atomic-reply migration.
+- Development uses a distinct hosted Supabase project. Its database and this
+  repository branch each have 273 ordered migrations through
+  `20260812152300_atomic_csf_post_replies`. The Ready alias still serves
+  development SHA `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository
+  tree ended at 272 through
+  `20260812132725_csf_drive_metadata_compare_and_set_fence`; the external Vercel
+  100-deployment-per-day project cap blocked the refreshed code deployment.
   Preview reached 85 stored rows before the seal failure; no term application
   commit occurred. No additional paid branch was created.
 - Production Supabase, Production Vercel, `main`, the Production DVHS CSF tenant, Gmail mailbox, Classroom, website, Instagram, and officer-maintained Sheets were not mutated.
