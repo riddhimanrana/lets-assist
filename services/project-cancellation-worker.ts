@@ -75,8 +75,10 @@ type ClaimedDelivery = {
   recipient_kind: "registered" | "anonymous";
   recipient_email: string | null;
   notification_dedupe_key: string;
-  email_state: "not_owed" | "queued" | "accepted" | "failed" | "unknown_outcome";
-  notification_state: "not_owed" | "queued" | "delivered" | "replayed" | "failed";
+  email_state:
+    "not_owed" | "queued" | "accepted" | "failed" | "unknown_outcome";
+  notification_state:
+    "not_owed" | "queued" | "delivered" | "replayed" | "failed";
   email_attempts: number;
   notification_attempts: number;
 };
@@ -534,21 +536,19 @@ async function processDelivery(
           admin,
           "settle_project_cancellation_delivery",
           {
-          p_delivery_id: delivery.id,
-          p_worker_id: workerId,
-          p_email_outcome: email,
-          p_notification_outcome: notification,
-          p_provider_message_id: providerMessageId,
-          p_failure_code: failureCode,
+            p_delivery_id: delivery.id,
+            p_worker_id: workerId,
+            p_email_outcome: email,
+            p_notification_outcome: notification,
+            p_provider_message_id: providerMessageId,
+            p_failure_code: failureCode,
           },
         );
-        if (
-          !(
-            isRecord(retryReceipt) &&
-            retryReceipt.settled === false &&
-            retryReceipt.reason === "lease_lost"
-          )
-        ) {
+        if (!(
+          isRecord(retryReceipt) &&
+          retryReceipt.settled === false &&
+          retryReceipt.reason === "lease_lost"
+        )) {
           parseSettlement(retryReceipt);
         }
       } catch {
@@ -611,9 +611,7 @@ function parseFinalize(value: unknown): FinalizeReceipt {
       String(value.status),
     )
   ) {
-    throw new CancellationPersistenceError(
-      "finalize_project_cancellation_job",
-    );
+    throw new CancellationPersistenceError("finalize_project_cancellation_job");
   }
   return value as FinalizeReceipt;
 }

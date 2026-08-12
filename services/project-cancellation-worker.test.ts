@@ -44,11 +44,7 @@ type DeliveryState = {
     | "failed"
     | "unknown_outcome";
   notification_state:
-    | "not_owed"
-    | "queued"
-    | "delivered"
-    | "replayed"
-    | "failed";
+    "not_owed" | "queued" | "delivered" | "replayed" | "failed";
   work_state: "idle" | "leased";
   lease_owner: string | null;
   email_attempts: number;
@@ -57,8 +53,11 @@ type DeliveryState = {
 
 const rpcCalls: RpcCall[] = [];
 const emailCalls: Row[] = [];
-const notificationCalls: Array<{ notification: Row; userId: string; options: Row }> =
-  [];
+const notificationCalls: Array<{
+  notification: Row;
+  userId: string;
+  options: Row;
+}> = [];
 
 let emailBehaviors: Array<() => unknown> = [];
 let notificationBehaviors: Array<() => unknown> = [];
@@ -317,8 +316,7 @@ class StatefulCancellationStore {
         ) {
           delivery.email_state = "failed";
         } else if (delivery.email_state === "sending") {
-          delivery.email_state =
-            "queued";
+          delivery.email_state = "queued";
         }
         if (
           delivery.notification_state === "queued" &&

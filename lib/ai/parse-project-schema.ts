@@ -51,7 +51,12 @@ const optionalRecurrenceFields = {
   interval: z.number().int().min(1).max(365).optional(),
   endType: recurrenceEndTypeSchema.optional(),
   endDate: dateSchema.optional(),
-  endOccurrences: z.number().int().min(1).max(RECURRENCE_OCCURRENCE_MAX).optional(),
+  endOccurrences: z
+    .number()
+    .int()
+    .min(1)
+    .max(RECURRENCE_OCCURRENCE_MAX)
+    .optional(),
   weekdays: z.array(recurrenceWeekdaySchema).max(7).optional(),
 };
 
@@ -69,7 +74,12 @@ const enabledRecurrenceSchema = z
     interval: z.number().int().min(1).max(365).default(1),
     endType: recurrenceEndTypeSchema.default("never"),
     endDate: dateSchema.optional(),
-    endOccurrences: z.number().int().min(1).max(RECURRENCE_OCCURRENCE_MAX).optional(),
+    endOccurrences: z
+      .number()
+      .int()
+      .min(1)
+      .max(RECURRENCE_OCCURRENCE_MAX)
+      .optional(),
     weekdays: z.array(recurrenceWeekdaySchema).max(7).optional(),
   })
   .strict()

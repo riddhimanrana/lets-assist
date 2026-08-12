@@ -201,8 +201,9 @@ export async function createBasicProject(
     const projectTimezone = rawTimezone;
 
     // Build and validate recurrence rule if enabled.
-    let recurrenceRule: import("@/lib/projects/schedule-validation").ValidatedRecurrenceRule | null =
-      null;
+    let recurrenceRule:
+      | import("@/lib/projects/schedule-validation").ValidatedRecurrenceRule
+      | null = null;
     if (projectData.recurrence?.enabled) {
       const rawRule = {
         frequency: projectData.recurrence.frequency,
