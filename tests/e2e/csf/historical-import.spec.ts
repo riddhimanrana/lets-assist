@@ -264,7 +264,11 @@ test.describe("CSF historical workbook import", () => {
     await expect(
       page.getByText(fixture.workbookName, { exact: false }),
     ).toBeVisible();
-    await expect(page.getByText("S26 · A1:C2", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(`${fixture.workbookName} · S26 · A1:C2`, {
+        exact: true,
+      }),
+    ).toBeVisible();
     await expect(
       page.getByText("1 normalized row", { exact: true }),
     ).toBeVisible();
@@ -426,6 +430,23 @@ test.describe("CSF historical workbook import", () => {
     await expect(
       page.getByRole("heading", { name: "Last import" }),
     ).toBeVisible();
+    await page.getByRole("button", { name: /^Saved sources/ }).click();
+    const savedSource = page
+      .getByText(fixture.workbookName, { exact: true })
+      .locator("..")
+      .locator("..");
+    await expect(
+      savedSource.getByRole("button", { name: "History" }),
+    ).toBeVisible();
+    await savedSource.getByRole("button", { name: "History" }).click();
+
+    const sourceHistory = page
+      .getByText("Source history", { exact: true })
+      .locator("..")
+      .locator("..");
+    await expect(
+      sourceHistory.getByText(fixture.workbookName, { exact: true }),
+    ).toBeVisible();
 
     const { data: committedRow, error: committedRowError } = await plugin
       .from("csf_sheet_import_rows")
@@ -460,6 +481,7 @@ test.describe("CSF historical workbook import", () => {
       "Could not load the committed historical import",
       commitJobError,
     );
+    if (!commitJob) throw new Error("The historical commit job is missing.");
     expect(commitJob).toMatchObject({
       status: "completed",
       source_id: fixture.sourceId,
@@ -467,6 +489,28 @@ test.describe("CSF historical workbook import", () => {
       source_file_name: fixture.workbookName,
       source_content_hash: preview.source_content_hash,
     });
+    const sourceHistoryRun = sourceHistory
+      .locator("article")
+      .filter({ hasText: `Commit #${commitJob.id.slice(0, 8)}` });
+    await expect(sourceHistoryRun).toHaveCount(1);
+    await expect(sourceHistoryRun).toContainText("Rows 1");
+    await expect(sourceHistoryRun).toContainText("Committed 1");
+    await expect(sourceHistoryRun).toContainText("Skipped 0");
+    await expect(sourceHistoryRun).toContainText("Errors 0");
+    await sourceHistoryRun.getByText("Run details", { exact: true }).click();
+    await expect(sourceHistoryRun).toContainText(
+      `Commits preview #${fixture.previewJobId!.slice(0, 8)}`,
+    );
+    await page
+      .getByRole("button", { name: "Import history", exact: true })
+      .click();
+    const importHistory = page
+      .getByRole("button", { name: "Import history", exact: true })
+      .locator("..");
+    const historyRun = importHistory
+      .locator("article")
+      .filter({ hasText: `Commit #${commitJob.id.slice(0, 8)}` });
+    await expect(historyRun).toHaveCount(1);
 
     const [{ data: credits }, { data: activities }, { data: audit }] =
       await Promise.all([
