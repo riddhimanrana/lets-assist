@@ -815,13 +815,13 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
   });
 
-  test("current hosted Development status separates database parity from stale deployed code", () => {
+  test("current status separates the repository ledger from hosted database and deployed code", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(279);
+    expect(migrations).toHaveLength(284);
     expect(migrations.at(-1)).toBe(
-      "20260813011500_lock_project_lifecycle_transactions.sql",
+      "20260813013100_lock_project_lifecycle_transactions.sql",
     );
 
     const currentState = between(
@@ -830,7 +830,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 279 ordered migrations through",
+      "repository branch has 284 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260812203500_close_plugin_data_browser_default_acl`",
@@ -839,21 +839,39 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`20260812161500_atomic_project_signup_rejection`",
     );
     expect(currentState).toContain(
-      "`20260813011500_lock_project_lifecycle_transactions`",
+      "`20260813013100_lock_project_lifecycle_transactions`",
     );
     expect(currentState).toContain(
       "Hosted Development Supabase remains at 273 ordered migrations through",
     );
-    expect(currentState).toContain(
-      "have not been applied to any hosted database",
-    );
     expect(currentState).toContain("`20260813010000_atomic_ai_quota_receipts`");
+    expect(currentState).toContain(
+      "`20260813012206_google_cap_effect_fencing`",
+    );
+    expect(currentState).toContain(
+      "`20260812220000_csf_meeting_permission_followups`",
+    );
+    expect(currentState).toContain(
+      "`20260812193400_protect_staff_invite_issuer_capability`",
+    );
+    expect(currentState).toContain(
+      "Hosted Development Supabase remains at 273 ordered migrations through",
+    );
+    expect(currentState).toContain("The eleven unmerged migrations are");
+    expect(currentState).toContain("`20260813010000_atomic_ai_quota_receipts`");
+    expect(currentState).toContain(
+      "`20260813013000_reconcile_project_lifecycle_boundaries`",
+    );
+    expect(currentState).toContain(
+      "hosted Development database parity, application deployment, and provider acceptance have not been established",
+    );
+    expect(currentState).not.toContain(
+      "repository and Development database ledgers match",
+    );
     expect(currentState).toContain(
       "Production remains at 236 ordered migrations through `20260811001500`",
     );
-    expect(currentState).toContain(
-      "candidate 43-migration cutover has not run",
-    );
+    expect(currentState).toContain("48-migration cutover has not run");
     expect(currentState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
     );
@@ -894,10 +912,10 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(currentState).toContain("zero term applications were committed");
     expect(currentState).toContain("No names or email addresses");
     expect(currentState).toContain(
-      "private plugin fix merged by private PR #45 at `ca817bf`",
+      "caller-summary correction and inactive-access hardening are combined in private development commit `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`",
     );
     expect(currentState).toContain(
-      "root worktree's gitlink points to that commit locally",
+      "root worktree's gitlink points to that exact commit locally",
     );
     expect(currentState).not.toContain(
       "Preview failed before reading or importing rows because the seven-argument RPC was missing",
@@ -924,11 +942,12 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`cf330e5faa844d63a2f41c8f0be4d1c727d51a47`",
     );
     expect(rehearsalState).toContain(
-      "This repository has 279 ordered migrations through",
+      "Hosted Development Supabase remains at 273 ordered migrations through",
     );
     expect(rehearsalState).toContain(
-      "Hosted Development Supabase remains at 273 through",
+      "this repository has 284 through `20260813013100_lock_project_lifecycle_transactions`",
     );
+    expect(rehearsalState).toContain("The eleven unmerged migrations are");
     expect(rehearsalState).toContain(
       "`20260812203500_close_plugin_data_browser_default_acl`",
     );
@@ -939,17 +958,26 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`20260812152300_atomic_csf_post_replies`",
     );
     expect(rehearsalState).toContain(
-      "`20260812161500_atomic_project_signup_rejection`",
+      "`20260812220000_csf_meeting_permission_followups`",
     );
     expect(rehearsalState).toContain(
-      "`20260813011500_lock_project_lifecycle_transactions`",
+      "`20260813010000_atomic_ai_quota_receipts`",
+    );
+    expect(rehearsalState).toContain(
+      "`20260812193400_protect_staff_invite_issuer_capability`",
+    );
+    expect(rehearsalState).toContain(
+      "`20260813013100_lock_project_lifecycle_transactions`",
+    );
+    expect(rehearsalState).toContain(
+      "`20260813013000_reconcile_project_lifecycle_boundaries`",
     );
     expect(rehearsalState).toContain(
       "external Vercel 100-deployment-per-day project cap",
     );
     expect(rehearsalState).toContain("deployment is Ready but stale");
     expect(rehearsalState).toContain(
-      "They have not been re-established for either hosted 273 or repository 279",
+      "They have not been re-established for either hosted 273 or repository 284",
     );
     expect(rehearsalState).toContain(
       "seven-argument metadata RPC exists, the old four-argument overload is absent",
@@ -969,10 +997,10 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(rehearsalState).toContain("zero term applications were committed");
     expect(rehearsalState).toContain("No names or email addresses");
     expect(rehearsalState).toContain(
-      "private plugin fix merged by private PR #45 at `ca817bf`",
+      "caller-summary correction and inactive-access hardening are combined in private development commit `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`",
     );
     expect(rehearsalState).toContain(
-      "root worktree's gitlink points to that commit locally",
+      "root worktree's gitlink points to that exact commit locally",
     );
     expect(rehearsalState).not.toContain(
       "Preview failed before reading or importing rows because the seven-argument RPC was missing",
@@ -985,14 +1013,14 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Related references",
     );
     expect(cutover).toContain(
-      "Replay the ordered migration ledger through `20260813011500`",
+      "Replay the ordered migration ledger through `20260813013100`",
     );
     expect(cutover).toContain(
       "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
     );
     expect(cutover).toContain("exact 236-row baseline");
-    expect(cutover).toContain("full 43-migration transition");
-    expect(cutover).toContain("preflight on the 279-row target");
+    expect(cutover).toContain("full 48-migration transition");
+    expect(cutover).toContain("preflight on the 284-row target");
   });
 
   test("production cutover baseline tracks the exact pending migration range", () => {
@@ -1000,19 +1028,25 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Production has 236 ordered migrations through `20260811001500`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Hosted Development Supabase has 273 ordered migrations through",
+      "Hosted Development Supabase remains at 273 ordered migrations through `20260812152300`",
     );
     expect(productionCutoverRunbook).toContain(
-      "this repository candidate has 279 through `20260813011500`",
+      "this repository has 284 through `20260813013100_lock_project_lifecycle_transactions`",
     );
     expect(productionCutoverRunbook).toContain(
-      "`20260812161500_atomic_project_signup_rejection`",
+      "The eleven unmerged migrations have not been applied or deployed in hosted Development",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "`20260812220000_csf_meeting_permission_followups`",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "`20260812193400_protect_staff_invite_issuer_capability`",
     );
     expect(productionCutoverRunbook).toContain(
       "repository ledger ended at 272 through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Production therefore has exactly 43 candidate pending migrations",
+      "Production therefore has exactly 48 pending migrations",
     );
     expect(productionCutoverRunbook).not.toContain("38 pending migrations");
     expect(productionCutoverRunbook).not.toContain("exactly 38 pending");
@@ -1023,7 +1057,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "external Vercel 100-deployment-per-day project cap",
     );
     expect(productionCutoverRunbook).toContain(
-      "Database parity is not application-deployment parity",
+      "Neither hosted database parity nor application-deployment parity has been established",
     );
     const preflightRunbook = between(
       productionCutoverRunbook,

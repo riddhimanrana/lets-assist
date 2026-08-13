@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(74);
+SELECT extensions.plan(76);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -377,6 +377,14 @@ SELECT extensions.throws_ok(
   '42501',
   'project status transitions require a reviewed lifecycle RPC',
   'authenticated creators cannot change an ordinary project status directly'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE public.projects
+    SET recurrence_rule = NULL
+    WHERE id = 'f9200000-0000-4000-8000-000000000005'$$,
+  '42501',
+  'ending project recurrence requires a generation-bound lifecycle RPC',
+  'authenticated creators cannot bypass the generation-bound series transaction'
 );
 SELECT extensions.throws_ok(
   $$SELECT public.transition_project_status_transactional(
@@ -782,12 +790,27 @@ SELECT extensions.is(
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" =
   '{"sub":"f9000000-0000-4000-8000-000000000001","role":"authenticated"}';
+SELECT extensions.throws_ok(
+  $$SELECT public.end_recurring_project_series_transactional(
+    'f9200000-0000-4000-8000-000000000010'
+  )$$,
+  '40001',
+  'series end generation required; refresh required',
+  'the compatibility wrapper cannot adopt and end an active generation'
+);
 SELECT extensions.is(
   public.end_recurring_project_series_transactional(
-    'f9200000-0000-4000-8000-000000000010'
+    'f9200000-0000-4000-8000-000000000010',
+    jsonb_build_object(
+      'recurrence_rule', NULL,
+      'series_end_generation', (
+        SELECT generation_id::text
+        FROM zero_child_series_generation
+      )
+    )
   )->>'outcome',
   'ended',
-  'a zero-child recurring series records a completed ending'
+  'the generation-bound transaction records a zero-child series ending'
 );
 SELECT extensions.is(
   public.end_recurring_project_series_transactional(

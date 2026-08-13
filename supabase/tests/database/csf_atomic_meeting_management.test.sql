@@ -43,10 +43,10 @@ SELECT extensions.ok(
 );
 SELECT extensions.ok(
   pg_get_functiondef('plugin_data.csf_upsert_term_meeting(uuid,uuid,uuid,text,date,timestamptz,text,text,boolean,integer,text,uuid,uuid)'::regprocedure)
-    LIKE '%csf_actor_has_permission%manage_meetings%'
+    LIKE '%csf_assert_meeting_permission_under_lock%manage_meetings%'
   AND pg_get_functiondef('plugin_data.csf_archive_term_meeting(uuid,uuid,uuid,uuid,uuid)'::regprocedure)
-    LIKE '%csf_actor_has_permission%manage_meetings%',
-  'both operations recheck the exact database permission'
+    LIKE '%csf_assert_meeting_permission_under_lock%manage_meetings%',
+  'both operations recheck exact database permission under the staff lock'
 );
 
 INSERT INTO auth.users (
@@ -100,7 +100,7 @@ SELECT extensions.throws_ok(
     'Unauthorized meeting', '2039-02-01', '2039-02-01 18:00:00+00', 'Library', NULL,
     true, 1, 'active', 'fb900000-0000-4000-8000-000000000001', 'fb000000-0000-4000-8000-000000000002'
   )$$,
-  'P0001', 'Not authorized to manage CSF meetings.',
+  '42501', 'Not authorized for the requested CSF meeting operation.',
   'an account without meeting permission cannot create a meeting'
 );
 SELECT extensions.throws_ok(
@@ -298,7 +298,7 @@ SELECT extensions.throws_ok(
     )$$,
     (SELECT payload ->> 'meetingId' FROM csf_atomic_meeting_results WHERE kind = 'create')
   ),
-  'P0001', 'Not authorized to manage CSF meetings.',
+  '42501', 'Not authorized for the requested CSF meeting operation.',
   'an account without meeting permission cannot archive a meeting'
 );
 SELECT extensions.throws_ok(

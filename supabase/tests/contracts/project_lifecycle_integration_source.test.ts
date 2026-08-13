@@ -21,7 +21,7 @@ describe("combined project lifecycle source contract", () => {
   test("every consequential project status write uses an actor-derived transactional RPC", () => {
     const lifecycle = read("app/projects/[id]/server/lifecycle.ts");
     const repairMigration = read(
-      "supabase/migrations/20260813011500_lock_project_lifecycle_transactions.sql",
+      "supabase/migrations/20260813013100_lock_project_lifecycle_transactions.sql",
     );
     const statusAction = sliceBetween(
       lifecycle,
@@ -60,7 +60,7 @@ describe("combined project lifecycle source contract", () => {
 
   test("unreject and cancellation share a deadlock-safe project boundary and active membership rule", () => {
     const repairMigration = read(
-      "supabase/migrations/20260813011500_lock_project_lifecycle_transactions.sql",
+      "supabase/migrations/20260813013100_lock_project_lifecycle_transactions.sql",
     );
     const unreject = sliceBetween(
       repairMigration,
@@ -104,7 +104,7 @@ describe("combined project lifecycle source contract", () => {
       lifecycle.indexOf("export async function updateProject("),
     );
     const repairMigration = read(
-      "supabase/migrations/20260813011500_lock_project_lifecycle_transactions.sql",
+      "supabase/migrations/20260813013100_lock_project_lifecycle_transactions.sql",
     );
     const privateSeriesEndFunction = sliceBetween(
       repairMigration,
@@ -150,6 +150,9 @@ describe("combined project lifecycle source contract", () => {
       "project recurrence generation changed; refresh required",
     );
     expect(privateSeriesEndFunction).toContain(
+      "series end generation required; refresh required",
+    );
+    expect(privateSeriesEndFunction).toContain(
       "v_compatibility_current AND v_generation_id IS NULL",
     );
     expect(privateSeriesEndFunction).toMatch(
@@ -168,6 +171,9 @@ describe("combined project lifecycle source contract", () => {
     expect(repairMigration).toContain(
       "public.end_recurring_project_series_transactional(uuid, jsonb)",
     );
+    expect(repairMigration).toContain(
+      "ending project recurrence requires a generation-bound lifecycle RPC",
+    );
     expect(repairMigration).toMatch(
       /REVOKE ALL ON FUNCTION\s+private\.end_recurring_project_series_transactional\(uuid, jsonb\)[\s\S]*?FROM PUBLIC, anon, authenticated, service_role;[\s\S]*?GRANT EXECUTE ON FUNCTION\s+private\.end_recurring_project_series_transactional\(uuid, jsonb\)[\s\S]*?TO authenticated;/,
     );
@@ -182,7 +188,7 @@ describe("combined project lifecycle source contract", () => {
       "supabase/migrations/20260812104754_harden_project_transaction_rpc_boundaries.sql",
     );
     const lifecycleBoundaryMigration = read(
-      "supabase/migrations/20260813011500_lock_project_lifecycle_transactions.sql",
+      "supabase/migrations/20260813013100_lock_project_lifecycle_transactions.sql",
     );
     const securityDefinerAudit = sliceBetween(
       audit,
@@ -238,7 +244,7 @@ describe("combined project lifecycle source contract", () => {
 
   test("the forward repair preserves the union of lifecycle and rejection hardening", () => {
     const repair = read(
-      "supabase/migrations/20260813011500_lock_project_lifecycle_transactions.sql",
+      "supabase/migrations/20260813013100_lock_project_lifecycle_transactions.sql",
     );
 
     expect(repair).toContain("v_attending boolean");

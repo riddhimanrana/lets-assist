@@ -750,14 +750,15 @@ The private action keeps its existing parameters and accepts one optional final
 request UUID. The UI retains that UUID across an unknown add/delete outcome and
 reuses it on an unchanged manual retry; changing the body discards the stale
 key. Private PR #44 merged first into the private repository's `development`
-branch at `d4188dd7`; the current root gitlink `ca817bf` contains that reply
-code plus the later preview-summary correction. Audited source evidence passes
-48 focused private tests (220 expectations), all 121 database files and 5,126
-pgTAP assertions, including observed two-connection advisory-lock waits for
-same-request replay and a staff-only `manage_posts` revocation. The exact
-integrated branch still requires fresh replay. Hosted Development migration,
-advisor, and browser acceptance also remain required before this finding
-closes.
+branch at `d4188dd7`; the current root gitlink
+`605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b` contains that reply code, the later
+preview-summary correction, meeting hardening, and inactive-access hardening.
+Audited source evidence passes 48 focused private tests (220 expectations), all
+121 database files and 5,126 pgTAP assertions, including observed
+two-connection advisory-lock waits for same-request replay and a staff-only
+`manage_posts` revocation. The exact integrated branch still requires fresh
+replay. Hosted Development migration, advisor, and browser acceptance also
+remain required before this finding closes.
 
 Production was not accessed or changed for this finding.
 
@@ -782,14 +783,14 @@ null/inactive hours publication, a separately active cross-tenant administrator,
 and active same-tenant admin/staff controls. The lifecycle source contract,
 focused pgTAP, and fresh local replay pass.
 
-**Local resolution candidate:** `20260812215733_reconcile_project_lifecycle_boundaries.sql`
+**Local resolution candidate:** `20260813013000_reconcile_project_lifecycle_boundaries.sql`
 replaces all four helpers with fixed-path definitions that require the exact
 organization, current user, reviewed role, and explicit active status. It
 reapplies explicit function ACLs without changing the stronger
 `app_private.is_project_organizer` or `app_private.can_manage_project`
 definitions owned by current Development.
 
-`20260813011500_lock_project_lifecycle_transactions.sql` additionally
+`20260813013100_lock_project_lifecycle_transactions.sql` additionally
 forward-replaces cancellation, unrejection, and hours publication with locked
 exact-active authorization wrappers while preserving their mature transactional
 implementations and public signatures.

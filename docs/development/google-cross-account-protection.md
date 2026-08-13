@@ -10,11 +10,17 @@ The endpoint validates CAP (RISC) security event tokens with Google's RISC disco
 
 Add these values to your local `.env.local` and production environment:
 
+- `GOOGLE_CAP_ENVIRONMENT`
+  - Required exact runtime binding: `local`, `development`, `preview`, or `production`.
+  - On Vercel this must exactly match `VERCEL_ENV`; without `VERCEL_ENV`, only `local` is accepted.
 - `GOOGLE_CAP_CLIENT_IDS`
   - Comma-separated OAuth client IDs allowed in CAP token `aud` claim.
   - Example: `123.apps.googleusercontent.com,456.apps.googleusercontent.com`
 
-If `GOOGLE_CAP_CLIENT_IDS` is not set, the app falls back to `GOOGLE_CLIENT_ID`.
+`GOOGLE_CAP_CLIENT_IDS` has no generic OAuth fallback. Configure a distinct
+CAP audience/stream for each environment so a non-expiring Security Event Token
+issued to one environment cannot execute in another. Missing, unknown, or
+mismatched environment configuration fails closed with a retryable response.
 
 ## Receiver behavior
 
@@ -27,10 +33,20 @@ When CAP events are received for a linked Google account:
   - If reason is `hijacking`, also ends active sessions.
 - `account-enabled`
   - Re-enables Google sign-in for the local user.
+- `account-credential-change-required`
+  - Disables Google sign-in and ends active sessions until an administrator
+    resolves the account-security condition.
 - `verification`
   - Logged for stream verification checks.
 
 The auth callback enforces this by denying Google OAuth sign-in when CAP has marked `google_signin_disabled` in auth `app_metadata`.
+
+Supabase Auth does not expose admin sign-out by user UUID; its admin `signOut`
+method requires that user's active JWT. CAP therefore uses the supported
+`updateUserById` password-update path with an unpersisted random credential.
+GoTrue performs global session logout in that transaction. Access JWTs remain
+valid until their configured expiry, so sensitive authorization must continue
+to validate current session/account state.
 
 ## Google Cloud / RISC registration checklist
 

@@ -414,9 +414,10 @@ COMMENT ON FUNCTION
   private.publish_volunteer_hours_transactional(uuid, uuid, text, jsonb, text) IS
   'Private replay-safe hours publication transaction that locks exact active management authority before delegating receipt and certificate creation.';
 
--- All browser-direct project status changes are denied. The private function
--- below derives auth.uid(), locks the project and membership, validates the
--- finite transition graph, and performs the write as the privileged owner.
+-- All browser-direct project status changes and recurrence endings are denied.
+-- The private functions below derive auth.uid(), lock the project and
+-- membership, validate the transition, and perform the write as the privileged
+-- owner.
 CREATE OR REPLACE FUNCTION private.protect_project_ownership_columns()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -435,6 +436,13 @@ BEGIN
       RAISE EXCEPTION 'project status transitions require a reviewed lifecycle RPC'
         USING ERRCODE = '42501';
     END IF;
+
+    IF OLD.recurrence_rule IS NOT NULL
+      AND NEW.recurrence_rule IS NULL
+    THEN
+      RAISE EXCEPTION 'ending project recurrence requires a generation-bound lifecycle RPC'
+        USING ERRCODE = '42501';
+    END IF;
   END IF;
 
   RETURN NEW;
@@ -447,7 +455,7 @@ GRANT EXECUTE ON FUNCTION private.protect_project_ownership_columns()
   TO postgres;
 
 COMMENT ON FUNCTION private.protect_project_ownership_columns() IS
-  'Protects project ownership and denies every browser-direct project status transition; reviewed privileged transactions own consequential status writes.';
+  'Protects project ownership and denies browser-direct project status transitions or recurrence endings; reviewed privileged transactions own consequential lifecycle writes.';
 
 CREATE OR REPLACE FUNCTION private.transition_project_status_transactional(
   p_project_id uuid,
@@ -904,6 +912,11 @@ BEGIN
   END IF;
 
   IF v_compatibility_current THEN
+    IF v_parent.recurrence_rule IS NOT NULL THEN
+      RAISE EXCEPTION 'series end generation required; refresh required'
+        USING ERRCODE = '40001';
+    END IF;
+
     v_generation_id := v_parent.recurrence_generation_id;
   ELSIF v_expect_ordinary AND v_parent.recurrence_rule IS NOT NULL THEN
     RAISE EXCEPTION 'project recurrence generation changed; refresh required'
@@ -1208,6 +1221,6 @@ GRANT EXECUTE ON FUNCTION
 
 COMMENT ON FUNCTION
   public.end_recurring_project_series_transactional(uuid) IS
-  'Compatibility wrapper that ends recurrence through the atomic edit transaction without changing ordinary project fields.';
+  'Compatibility wrapper for legacy ended-series cleanup replay; active recurrence requires the generation-bound atomic edit overload.';
 
 COMMIT;
