@@ -1,18 +1,19 @@
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
-import { getAdminClient } from "@/lib/supabase/admin";
-import { consumeAiQuota } from "@/lib/ai/rate-limit";
-import { getRequestIp } from "@/lib/ai/parse-project-rate-limit-config";
 import { notifyAdminsBatched } from "@/services/admin-notifications";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { logError, logInfo, flushLogs } from "@/lib/logger";
+import { submitContentReport } from "@/lib/moderation/content-report-service";
 import {
-  buildReportDescription,
   contentReportSchema,
   ContentReportBodyError,
-  normalizeReportedContentUrl,
   readBoundedContentReportBody,
 } from "@/lib/moderation/content-report-submission";
+
+const UNAVAILABLE = {
+  body: { error: "Reporting is temporarily unavailable." },
+  init: { status: 503, headers: { "Retry-After": "5" } },
+} as const;
 
 export async function POST(request: Request) {
   try {
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
         },
       );
     }
+
     const parsed = contentReportSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
@@ -53,115 +55,71 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const { contentType, contentId, reason } = parsed.data;
-    let normalizedContentUrl: string | undefined;
-    try {
-      normalizedContentUrl = normalizeReportedContentUrl(
-        parsed.data.url,
-        request.url,
-      );
-    } catch {
+
+    const result = await submitContentReport({
+      reporterId: user.id,
+      submission: parsed.data,
+      requestHeaders: request.headers,
+    });
+
+    if (result.status === "invalid_input") {
       return NextResponse.json(
         { error: "Invalid report details" },
         { status: 400 },
       );
     }
 
-    let quota: Awaited<ReturnType<typeof consumeAiQuota>>;
-    try {
-      quota = await consumeAiQuota({
-        feature: "moderation-content-report",
-        windowSeconds: 3_600,
-        buckets: [
-          { scope: "user", identifier: user.id, limit: 10 },
-          { scope: "ip", identifier: getRequestIp(request.headers), limit: 30 },
-        ],
-      });
-    } catch {
-      return NextResponse.json(
-        { error: "Reporting is temporarily unavailable." },
-        { status: 503, headers: { "Retry-After": "5" } },
-      );
-    }
-    if (!quota.allowed) {
-      const retryAfterSeconds = Math.max(
-        Math.ceil((new Date(quota.resetAt).getTime() - Date.now()) / 1_000),
-        1,
-      );
+    if (result.status === "rate_limited") {
       return NextResponse.json(
         { error: "Too many reports. Please try again later." },
         {
           status: 429,
-          headers: { "Retry-After": retryAfterSeconds.toString() },
+          headers: { "Retry-After": result.retryAfterSeconds.toString() },
         },
       );
     }
 
-    const priority =
-      reason === "violence" || reason === "hate_speech" ? "high" : "normal";
-    const now = new Date().toISOString();
-    const { data, error } = await getAdminClient()
-      .from("content_reports")
-      .insert({
-        reporter_id: user.id,
-        content_type: contentType,
-        content_id: contentId,
-        reason,
-        description: buildReportDescription(parsed.data, normalizedContentUrl),
-        status: "pending",
-        priority,
-        created_at: now,
-        updated_at: now,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      logError(
-        "Failed to insert content report",
-        new Error("report_insert_failed"),
-        {
-          content_type: contentType,
-          reason,
-        },
-      );
-
+    if (result.status === "unavailable") {
       after(async () => {
         await flushLogs();
       });
-
-      return NextResponse.json(
-        { error: "Failed to submit report" },
-        { status: 500 },
-      );
+      return NextResponse.json(UNAVAILABLE.body, UNAVAILABLE.init);
     }
 
-    try {
-      await notifyAdminsBatched({
-        type: "content_report",
-        reportId: data.id,
-        reason,
-        contentType,
-        priority,
-      });
-    } catch {
-      logError(
-        "Failed to send admin notification for content report",
-        new Error("report_notification_failed"),
-        {
-          report_id: data.id,
-          content_type: contentType,
-          reason,
-        },
-      );
-      // Don't fail the request if notification fails
+    // A replayed submission already produced its notification; sending another
+    // would turn a network retry into duplicate moderator traffic.
+    if (result.status === "created") {
+      try {
+        await notifyAdminsBatched({
+          type: "content_report",
+          reportId: result.reportId,
+          reason: parsed.data.reason,
+          contentType: parsed.data.contentType,
+          priority:
+            parsed.data.reason === "violence" ||
+            parsed.data.reason === "hate_speech"
+              ? "high"
+              : "normal",
+        });
+      } catch {
+        logError(
+          "Failed to send admin notification for content report",
+          new Error("report_notification_failed"),
+          {
+            report_id: result.reportId,
+            content_type: parsed.data.contentType,
+            reason: parsed.data.reason,
+          },
+        );
+        // Don't fail the request if notification fails
+      }
     }
 
     logInfo("Content report submitted successfully", {
-      report_id: data.id,
-      content_type: contentType,
-      reason,
-      priority,
+      report_id: result.reportId,
+      content_type: parsed.data.contentType,
+      reason: parsed.data.reason,
+      replayed: result.status === "replayed",
     });
 
     after(async () => {
@@ -170,7 +128,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      reportId: data.id,
+      reportId: result.reportId,
       message: "Report submitted successfully",
     });
   } catch {

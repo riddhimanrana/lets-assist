@@ -4,6 +4,7 @@ import "server-only";
 
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { AccountAccessStatus } from "@/lib/auth/account-access";
+import { detachContentReportReporter } from "@/lib/moderation/content-report-retention";
 import { sendEmail } from "@/services/email";
 import AccountAccessUpdateEmail from "@/emails/account-access-update";
 import { checkSuperAdmin } from "./auth";
@@ -280,9 +281,16 @@ export async function deleteAndBlacklistUser(input: {
     }
   }
 
+  // Reports filed by this account are evidence about other people's content,
+  // so enforcement detaches the reporter instead of deleting the rows.
+  try {
+    await detachContentReportReporter(service, input.userId);
+  } catch (detachError) {
+    console.error("Delete cleanup: content_reports detach:", detachError);
+  }
+
   // Delete all public user data
   const tables: Array<{ table: string; field: string }> = [
-    { table: "content_reports", field: "reporter_id" },
     { table: "feedback", field: "user_id" },
     { table: "notifications", field: "user_id" },
     { table: "notification_settings", field: "user_id" },

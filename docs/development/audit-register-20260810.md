@@ -34,7 +34,8 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                              | Confirmed                                                    |
 | [AUD-020](#aud-020) | P2  | Plugin data deletion   | Permanent deletion lacked a complete contract, authorization boundary, and truthful durable replay state               | **Fixed locally**; hosted Development pending                |
 | [AUD-021](#aud-021) | P2  | Plugin uninstall       | Ordinary uninstall could run arbitrary plugin code and therefore could not guarantee data retention                    | **Fixed locally**; hosted Development pending                |
-| [AUD-034](#aud-034) | P1  | Moderation evidence    | Reporters could directly create, rewrite, or delete `content_reports` evidence                                         | **Fixed locally**; focused verification pending              |
+| [AUD-041](#aud-041) | P1  | Moderation evidence    | Reporters could directly create, rewrite, or delete `content_reports` evidence and retries duplicated it               | **Fixed locally**; hosted Development pending                |
+| [AUD-042](#aud-042) | P1  | Plugin data ACLs       | `plugin_data` default privileges re-granted `authenticated` on every future table, sequence, and routine               | **Fixed locally**; hosted Development pending                |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -718,51 +719,82 @@ Production was not accessed or changed for this finding.
 
 ---
 
-<a id="aud-034"></a>
+<a id="aud-041"></a>
 
-## AUD-034 — Content reports were client-written {#aud-034}
+## AUD-041 — Content reports were client-written {#aud-041}
 
 **Priority:** P1 · **Status:** Fixed and verified locally; hosted Development pending
 
-Authenticated reporters previously held direct INSERT, UPDATE, and DELETE
-privileges and matching owner policies on `content_reports`. The forward
-migration removes all client write grants, independent column grants, and write
-policies while preserving owner-scoped SELECT and service-role CRUD. The report
-route now uses fresh authentication, strict bounded input, durable hashed
-user/IP quotas, and a service-role insert with server-owned initial moderation
-state. Notification failure remains a non-fatal partial side effect. pgTAP and
-focused route contracts cover the database and server boundaries. The complete
-empty replay, 124-file/5,194-assertion database corpus, local advisors,
-architecture/plugin audits, unit corpus, and production build pass. No provider,
-hosted Development, or Production resource was accessed.
+`authenticated` held INSERT, UPDATE, and DELETE on `public.content_reports` with
+matching owner policies, so a reporter could file evidence with a status and
+priority of their choosing, rewrite or delete it after a moderator had seen it,
+attach an arbitrary UUID as the reported target, and forge the moderation
+dashboard's `Content URL:` marker inside their own free-text description. The
+route also charged the user quota bucket before the IP bucket, so a submission
+the IP bucket rejected still consumed the user's allowance, and a retried
+submission created a second report.
+
+`20260812203000_make_content_reports_server_written.sql` revokes every browser
+write grant and column grant, drops the write policies, keeps owner-scoped
+SELECT, and rewrites the reviewed relation catalog with a literal body rather
+than deparsing the live catalog. Writes now go through one
+`SECURITY DEFINER` transaction that only `service_role` may execute: it derives
+status, priority, timestamps, and a pseudonymous `reporter_reference`; decides
+the user and IP buckets together so neither is charged unless both pass; and
+deduplicates on a unique `request_key`, returning the original report for a
+retry. `reporter_id` became `ON DELETE SET NULL`, and account deletion and
+enforcement bans now detach the reporter instead of deleting the evidence.
+
+The route keeps its public request and success shapes. It revalidates the actor
+against the auth server, reads a byte-bounded body, parses a strict schema,
+resolves the reported URL against the configured trusted origin and stores it as
+a relative path, and refuses a target the reporter cannot already read through
+their own RLS-scoped session. Logs carry the content type and reason only — no
+reporter identity, target identifier, IP, or database error text.
+
+Local evidence: 43 pgTAP assertions in
+`supabase/tests/database/content_reports_server_written.test.sql` and 51
+route/service/domain tests. Withholding the migration fails the contract
+outright: the three direct-write denial assertions fail against the old grants
+and the transaction the rest of the file exercises does not exist.
+No provider, hosted Development, or Production resource was accessed.
 
 ---
 
-<a id="aud-035"></a>
+<a id="aud-042"></a>
 
-## AUD-035 — Legacy plugin_data default ACLs could re-expose new private objects {#aud-035}
+## AUD-042 — Legacy plugin_data default ACLs could re-expose new private objects {#aud-042}
 
 **Priority:** P1 · **Status:** Fixed and verified locally; hosted Development pending
 
-The cutover preflight found that `authenticated` still appeared in the
-`plugin_data` default ACL for future tables, sequences, and functions, and one
-later trigger function retained `PUBLIC` and authenticated execution. Existing
-table/schema revocations therefore did not make the private schema durable
-against new migration-created objects.
+Schema `USAGE` was already denied to `anon` and `authenticated`, but
+`plugin_data` still carried schema-scoped default privileges naming
+`authenticated` for every future table, sequence, and routine, so the next
+private-plugin migration would have re-granted it. The trigger function
+`plugin_data.csf_stamp_application_policy_version` also still carried `PUBLIC`,
+`anon`, and `authenticated` EXECUTE from the built-in default in force when it
+was created.
 
-Migration `20260812190442_close_plugin_data_browser_default_acl.sql` revokes all
-schema and existing-object privileges from `PUBLIC`, `anon`, and
-`authenticated`, and removes those roles from the `postgres` migration role's
-future table, sequence, and function defaults. It preserves service-role access.
-The migration fails closed on residual function/default ACL exposure. A focused
-pgTAP contract also creates a future table, identity sequence, and function and
-proves neither browser role inherits access.
+`20260812203500_close_plugin_data_browser_default_acl.sql` revokes schema,
+existing-object, and default privileges from `PUBLIC`, `anon`, and
+`authenticated` for every role that owns an object in the schema plus the role
+applying the ledger, preserves `service_role` usage, and fails closed on any
+residual browser-facing privilege or default. No event trigger is introduced.
 
-During this verification, the read-only cutover preflight itself was also found
-to use unsupported `psql` `\quit 3` arguments, which PostgreSQL 18 treated as a
-successful quit. Every failure branch now raises a deliberate SQL error under
-`ON_ERROR_STOP`; an actual local target run returned exit 3 at the known
-pre-migration ACL violation. Production was not queried or changed.
+One limit is deliberate and documented in the migration: PostgreSQL's built-in
+global default grants `EXECUTE` on new functions to `PUBLIC`, and per
+`ALTER DEFAULT PRIVILEGES` a per-schema entry cannot revoke a globally granted
+default. Revoking it globally for a shared owner role would reach far outside
+this schema. Schema `USAGE` denial is therefore the enforced gate, and both the
+migration probe and the pgTAP contract prove it by creating a table, identity
+sequence, and function and then calling as `anon` and `authenticated`, rather
+than by reading the ACL alone.
+
+Local evidence: 17 pgTAP assertions in
+`supabase/tests/database/plugin_data_browser_default_acl.test.sql` and a clean
+migration replay. Withholding the migration fails 5 of those 17 — the existing
+routine grant, the browser-facing default ACL entries, and inheritance on a new
+table, sequence, and routine. Production was not queried or changed.
 
 ---
 

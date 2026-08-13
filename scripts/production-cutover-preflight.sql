@@ -1,4 +1,4 @@
--- Production 236 -> repository target 275 cutover preflight.
+-- Production 236 -> repository target 273 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -10,7 +10,7 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   236 rows headed by 20260811001500
---   post-cutover  275 rows headed by 20260812190442 with the exact 39-row tail
+--   post-cutover  273 rows headed by 20260812152300 with the exact 37-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -37,13 +37,13 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
   \echo 'PASS R0'
 \else
   \echo 'FAIL R0: this session is not read-only.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 236/baseline or exactly 275/target'
+\echo '    PASS: exactly 236/baseline or exactly 273/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
@@ -146,9 +146,9 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260811001500'
     ) = 0 AS baseline_ledger,
-  count(*) = 275
+  count(*) = 273
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260812190442'
+    AND max(version::text) = '20260812152300'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
@@ -170,20 +170,20 @@ SELECT
       '20260812100700','20260812100800','20260812100900',
       '20260812101000','20260812101100','20260812104754',
       '20260812114638','20260812115556','20260812132725',
-      '20260812152300','20260812184012','20260812190442'
+      '20260812152300'
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
 \gset
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 39 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 37 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'
 \else
   \echo 'FAIL L0: unsupported or partial ledger. Stop; do not improvise.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
@@ -221,7 +221,7 @@ FROM (
   \echo 'PASS L1: baseline relations are present.'
 \else
   \echo 'FAIL L1: required relation missing. The list above is authoritative.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
@@ -267,10 +267,10 @@ FROM (
   \echo 'FAIL S0: no CSF relations are installed on this database.'
   \echo 'The pending CSF migrations reference these relations; stop and reconcile'
   \echo 'the reviewed plugin-install/schema sequence before attempting cutover.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \else
   \echo 'FAIL S0: the CSF relation set is partial. Stop and reconcile drift.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
@@ -413,7 +413,7 @@ FROM violations
   \echo 'PASS S1'
 \else
   \echo 'FAIL S1: plugin_data is reachable by a browser role or lacks RLS.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
@@ -600,7 +600,7 @@ FROM state
   \echo 'PASS S2'
 \else
   \echo 'FAIL S2: CSF catalog or an existing DVHS install is inconsistent.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
@@ -627,7 +627,7 @@ SELECT NOT EXISTS (
   \echo 'PASS D1'
 \else
   \echo 'FAIL D1: resolve duplicate verified certificates explicitly.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
@@ -669,7 +669,7 @@ SELECT NOT EXISTS (
   \echo 'PASS D2'
 \else
   \echo 'FAIL D2: bind every draft/open campaign to its backend environment.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
@@ -702,7 +702,7 @@ SELECT NOT EXISTS (
   \echo 'PASS D3'
 \else
   \echo 'FAIL D3: deactivate extras through Members -> Account connections.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
@@ -743,7 +743,7 @@ SELECT NOT EXISTS (
   \echo 'PASS D4'
 \else
   \echo 'FAIL D4: adjudicate unreachable reserved-slug organizations.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
@@ -772,7 +772,7 @@ SELECT NOT EXISTS (
   \echo 'PASS D5'
 \else
   \echo 'FAIL D5: unsupported cancellation state would fail target constraints.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \if :baseline_ledger
@@ -804,7 +804,7 @@ SELECT NOT EXISTS (
     \echo 'PASS D6: transition inventory is empty or explicitly accepted.'
   \else
     \echo 'FAIL D6: capture and adjudicate transition counts, then rerun explicitly.'
-    SELECT 1 / 0 AS preflight_check_failed;
+    \quit 3
   \endif
 \endif
 
@@ -836,7 +836,7 @@ SELECT NOT EXISTS (
   \echo 'PASS D7'
 \else
   \echo 'FAIL D7: target tenant FK validation would fail.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
@@ -864,7 +864,7 @@ SELECT NOT EXISTS (
   \echo 'PASS D8'
 \else
   \echo 'FAIL D8: target replay-receipt uniqueness would fail.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
@@ -959,7 +959,7 @@ SELECT NOT EXISTS (
   \echo 'PASS D9'
 \else
   \echo 'FAIL D9: DROP EXTENSION ... RESTRICT would fail.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \if :baseline_ledger
@@ -1195,7 +1195,7 @@ SELECT
     \echo 'PASS D10'
   \else
     \echo 'FAIL D10: reviewed grants are missing before ACL convergence.'
-    SELECT 1 / 0 AS preflight_check_failed;
+    \quit 3
   \endif
 \endif
 
@@ -1233,7 +1233,7 @@ SELECT
     \echo 'PASS T1'
   \else
     \echo 'FAIL T1: target ledger and target schema disagree.'
-    SELECT 1 / 0 AS preflight_check_failed;
+    \quit 3
   \endif
 
   \echo ''
@@ -1341,7 +1341,7 @@ SELECT
     \echo 'PASS T2'
   \else
     \echo 'FAIL T2: target ledger claims objects that are missing or invalid.'
-    SELECT 1 / 0 AS preflight_check_failed;
+    \quit 3
   \endif
 
   \echo ''
@@ -1358,7 +1358,7 @@ SELECT
     \echo 'PASS T3'
   \else
     \echo 'FAIL T3: target ledger says pg_graphql was removed, but it remains.'
-    SELECT 1 / 0 AS preflight_check_failed;
+    \quit 3
   \endif
 
   \echo ''
@@ -1399,7 +1399,7 @@ SELECT
     \echo 'PASS T5a: every public read model is security_invoker.'
   \else
     \echo 'FAIL T5a: a public read model can bypass caller RLS.'
-    SELECT 1 / 0 AS preflight_check_failed;
+    \quit 3
   \endif
 
   WITH expected(signature, role_name) AS (
@@ -1510,7 +1510,7 @@ SELECT
     \echo 'PASS T5b: public client function ACL exactly matches its catalog.'
   \else
     \echo 'FAIL T5b: public client function ACL or SECURITY DEFINER posture drifted.'
-    SELECT 1 / 0 AS preflight_check_failed;
+    \quit 3
   \endif
 
   \echo ''
@@ -1769,7 +1769,7 @@ SELECT
     \echo 'PASS T6: target relation ACL exactly matches the reviewed catalog.'
   \else
     \echo 'FAIL T6: target relation ACL has missing, extra, PUBLIC, or dangerous grants.'
-    SELECT 1 / 0 AS preflight_check_failed;
+    \quit 3
   \endif
 
   \echo ''
@@ -1940,7 +1940,7 @@ SELECT
     \echo 'PASS T7: target storage posture exactly matches its contracts.'
   \else
     \echo 'FAIL T7: target bucket, RLS, policy, or posture contract drifted.'
-    SELECT 1 / 0 AS preflight_check_failed;
+    \quit 3
   \endif
 \endif
 
@@ -1973,7 +1973,7 @@ SELECT NOT EXISTS (
   \echo 'PASS E1'
 \else
   \echo 'FAIL E1: reconcile invalid indexes before dry-run or release.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
@@ -1995,7 +1995,7 @@ WHERE datname = current_database()
   \echo 'PASS E2'
 \else
   \echo 'FAIL E2: repair the database collation version before cutover.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
@@ -2053,7 +2053,7 @@ SELECT NOT EXISTS (
   \echo 'PASS E6'
 \else
   \echo 'FAIL E6: ungranted locks are present; wait or reconcile before cutover.'
-  SELECT 1 / 0 AS preflight_check_failed;
+  \quit 3
 \endif
 
 \echo ''
