@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import fg from "fast-glob";
+import ts from "typescript";
 
 const HTTP_METHODS = [
   "GET",
@@ -56,13 +58,161 @@ export function routeMethods(source) {
   return [...methods].sort();
 }
 
-export function exportedServerActions(source) {
-  if (!/^\s*["']use server["'];/u.test(source)) return [];
-  const actions = [];
-  const pattern = /export\s+async\s+function\s+([A-Za-z_$][\w$]*)\s*\(/gu;
-  for (const match of source.matchAll(pattern)) {
-    actions.push({ name: match[1], line: lineNumber(source, match.index) });
+function hasModifier(node, kind) {
+  return ts.canHaveModifiers(node)
+    ? (ts.getModifiers(node)?.some((modifier) => modifier.kind === kind) ??
+        false)
+    : false;
+}
+
+function beginsWithDirective(statements, directive) {
+  for (const statement of statements) {
+    if (
+      !ts.isExpressionStatement(statement) ||
+      !ts.isStringLiteral(statement.expression)
+    ) {
+      return false;
+    }
+    if (statement.expression.text === directive) return true;
   }
+  return false;
+}
+
+export function exportedServerActions(source, file = "source.ts") {
+  const sourceFile = ts.createSourceFile(
+    file,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const fileLevel = beginsWithDirective(sourceFile.statements, "use server");
+  const actions = [];
+  const localActions = new Set();
+
+  for (const statement of sourceFile.statements) {
+    if (
+      ts.isFunctionDeclaration(statement) &&
+      statement.name &&
+      hasModifier(statement, ts.SyntaxKind.AsyncKeyword) &&
+      (fileLevel ||
+        (statement.body &&
+          beginsWithDirective(statement.body.statements, "use server")))
+    ) {
+      localActions.add(statement.name.text);
+    }
+
+    if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        const initializer = declaration.initializer;
+        if (
+          ts.isIdentifier(declaration.name) &&
+          initializer &&
+          (ts.isArrowFunction(initializer) ||
+            ts.isFunctionExpression(initializer)) &&
+          hasModifier(initializer, ts.SyntaxKind.AsyncKeyword) &&
+          (fileLevel ||
+            (ts.isBlock(initializer.body) &&
+              beginsWithDirective(initializer.body.statements, "use server")))
+        ) {
+          localActions.add(declaration.name.text);
+        }
+      }
+    }
+  }
+
+  for (const statement of sourceFile.statements) {
+    if (
+      ts.isFunctionDeclaration(statement) &&
+      hasModifier(statement, ts.SyntaxKind.ExportKeyword) &&
+      hasModifier(statement, ts.SyntaxKind.AsyncKeyword) &&
+      (fileLevel ||
+        (statement.body &&
+          beginsWithDirective(statement.body.statements, "use server")))
+    ) {
+      actions.push({
+        name: hasModifier(statement, ts.SyntaxKind.DefaultKeyword)
+          ? "default"
+          : (statement.name?.text ?? "default"),
+        line:
+          sourceFile.getLineAndCharacterOfPosition(statement.getStart()).line +
+          1,
+      });
+      continue;
+    }
+
+    if (
+      ts.isVariableStatement(statement) &&
+      hasModifier(statement, ts.SyntaxKind.ExportKeyword)
+    ) {
+      for (const declaration of statement.declarationList.declarations) {
+        const initializer = declaration.initializer;
+        if (
+          !ts.isIdentifier(declaration.name) ||
+          !initializer ||
+          (!ts.isArrowFunction(initializer) &&
+            !ts.isFunctionExpression(initializer)) ||
+          !hasModifier(initializer, ts.SyntaxKind.AsyncKeyword) ||
+          (!fileLevel &&
+            (!ts.isBlock(initializer.body) ||
+              !beginsWithDirective(initializer.body.statements, "use server")))
+        ) {
+          continue;
+        }
+
+        actions.push({
+          name: declaration.name.text,
+          line:
+            sourceFile.getLineAndCharacterOfPosition(statement.getStart())
+              .line + 1,
+        });
+      }
+    }
+
+    if (
+      ts.isExportDeclaration(statement) &&
+      !statement.isTypeOnly &&
+      !statement.moduleSpecifier &&
+      statement.exportClause &&
+      ts.isNamedExports(statement.exportClause)
+    ) {
+      for (const element of statement.exportClause.elements) {
+        if (element.isTypeOnly) continue;
+        const localName = element.propertyName?.text ?? element.name.text;
+        if (!localActions.has(localName)) continue;
+        actions.push({
+          name: element.name.text,
+          line:
+            sourceFile.getLineAndCharacterOfPosition(element.getStart()).line +
+            1,
+        });
+      }
+    }
+
+    if (
+      ts.isExportAssignment(statement) &&
+      !statement.isExportEquals &&
+      ((ts.isIdentifier(statement.expression) &&
+        localActions.has(statement.expression.text)) ||
+        ((ts.isArrowFunction(statement.expression) ||
+          ts.isFunctionExpression(statement.expression)) &&
+          hasModifier(statement.expression, ts.SyntaxKind.AsyncKeyword) &&
+          (fileLevel ||
+            (ts.isBlock(statement.expression.body) &&
+              beginsWithDirective(
+                statement.expression.body.statements,
+                "use server",
+              )))))
+    ) {
+      actions.push({
+        name: "default",
+        line:
+          sourceFile.getLineAndCharacterOfPosition(statement.getStart()).line +
+          1,
+      });
+    }
+  }
+
   return actions;
 }
 
@@ -232,6 +382,16 @@ export async function buildSurfaceInventory(rootDirectory) {
     cwd: root,
     onlyFiles: true,
   });
+  const inventoryInputFiles = [
+    ...new Set([...sourceFiles, ...routeFiles, ...migrationFiles]),
+  ].sort();
+  const inventoryInputHash = createHash("sha256");
+  for (const file of inventoryInputFiles) {
+    inventoryInputHash.update(file);
+    inventoryInputHash.update("\0");
+    inventoryInputHash.update(readFileSync(join(root, file)));
+    inventoryInputHash.update("\0");
+  }
 
   const routeHandlers = [];
   const serverActions = [];
@@ -241,7 +401,7 @@ export async function buildSurfaceInventory(rootDirectory) {
 
   for (const file of sourceFiles.sort()) {
     const source = readFileSync(join(root, file), "utf8");
-    for (const action of exportedServerActions(source))
+    for (const action of exportedServerActions(source, file))
       serverActions.push({ file, ...action });
     for (const rpc of rpcCallSites(source)) rpcCalls.push({ file, ...rpc });
     for (const finding of collectMatches(
@@ -297,13 +457,20 @@ export async function buildSurfaceInventory(rootDirectory) {
     (entry) => entry.securityDefiner,
   );
   const inventory = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     provenance: {
       repositoryRoot: root,
       gitCommit: execFileSync("git", ["rev-parse", "HEAD"], {
         cwd: root,
         encoding: "utf8",
       }).trim(),
+      gitDirty:
+        execFileSync(
+          "git",
+          ["status", "--porcelain=v1", "--untracked-files=all"],
+          { cwd: root, encoding: "utf8" },
+        ).length > 0,
+      inventoryInputSha256: inventoryInputHash.digest("hex"),
       privatePluginCommit: privatePluginCommit(root),
       evidenceClass: "static-source-inventory",
       environment: "local-read-only",
@@ -354,7 +521,7 @@ function markdownSummary(inventory) {
   const rows = Object.entries(inventory.summary)
     .map(([name, count]) => `| ${name} | ${count} |`)
     .join("\n");
-  return `# Repository audit surface inventory\n\n- Evidence class: ${inventory.provenance.evidenceClass}\n- Environment: ${inventory.provenance.environment}\n- Root commit: ${inventory.provenance.gitCommit}\n- Private plugin commit: ${inventory.provenance.privatePluginCommit}\n\n| Surface | Count |\n| --- | ---: |\n${rows}\n\nThis is a static source inventory, not proof that a route is reachable or that a database grant is effective. Runtime catalog and hosted Development verification are separate gates.\n`;
+  return `# Repository audit surface inventory\n\n- Evidence class: ${inventory.provenance.evidenceClass}\n- Environment: ${inventory.provenance.environment}\n- Root commit: ${inventory.provenance.gitCommit}\n- Root tree dirty: ${inventory.provenance.gitDirty}\n- Inventory input SHA-256: ${inventory.provenance.inventoryInputSha256}\n- Private plugin commit: ${inventory.provenance.privatePluginCommit}\n\n| Surface | Count |\n| --- | ---: |\n${rows}\n\nThis is a static source inventory, not proof that a route is reachable or that a database grant is effective. Runtime catalog and hosted Development verification are separate gates.\n`;
 }
 
 async function main() {

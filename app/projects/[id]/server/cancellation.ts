@@ -8,7 +8,7 @@ import { createNotificationForUser } from "@/services/notifications-server";
 import { removeCalendarEventForSignup } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
-import { canUserManageProject } from "./access";
+import { canUserManageProject } from "./access-helpers";
 
 const UNREJECT_OUTCOMES = [
   "approved",
