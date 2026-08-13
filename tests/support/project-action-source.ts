@@ -4,8 +4,10 @@ import { join } from "node:path";
 const PROJECT_ACTION_FILES = [
   "app/projects/[id]/actions.ts",
   "app/projects/[id]/server/shared.ts",
+  "app/projects/[id]/server/access-helpers.ts",
   "app/projects/[id]/server/access.ts",
   "app/projects/[id]/server/waiver-assets.ts",
+  "app/projects/[id]/server/waiver-persistence.ts",
   "app/projects/[id]/server/signup.ts",
   "app/projects/[id]/server/signup-registered.ts",
   "app/projects/[id]/server/signup-anonymous.ts",
