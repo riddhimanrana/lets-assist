@@ -629,9 +629,9 @@ gates in [testing and release](testing-and-release.md) are open. Do not copy a
 Development fixture, connection link, import preview, or policy decision into
 Production, and do not treat a Development screenshot as Production evidence.
 
-At this guide's current evidence point, the repository has 274 migrations
-through `20260812225436`, hosted Development remains at 272 through
-`20260812132725`, and Production has 236 through `20260811001500`, leaving 38
+At this guide's current evidence point, the repository has 275 migrations
+through `20260813011000`, hosted Development remains at 272 through
+`20260812132725`, and Production has 236 through `20260811001500`, leaving 39
 Production-pending migrations. The Development Vercel alias still serves code
 built from the 272-migration tree because the external
 100-deployment-per-day project cap blocked its refresh. Neither the hosted
@@ -668,18 +668,21 @@ database nor the hosted code gate has accepted the repository target.
   Vercel 100-deployment-per-day project cap prevented a refreshed deployment.
 - Hosted Development Supabase has 272 ordered migrations through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`, while this
-  repository has 274 through
-  `20260812225436_recheck_csf_activity_partner_authorization_under_lock`. Live
+  repository has 275 through
+  `20260813011000_close_csf_representative_and_publication_races`. Live
   advisors on the hosted 272-migration shape report 95 INFO / 0 WARN / 0 ERROR
   for security and 611 INFO / 0 WARN / 0 ERROR for performance. The repository's
-  two later forward migrations are
+  three later forward migrations are
   `20260812152300_atomic_csf_post_replies` and
-  `20260812225436_recheck_csf_activity_partner_authorization_under_lock`;
-  neither has been accepted on hosted Development.
-- The local isolated replay passed all 123 pgTAP files and 5,227 assertions
-  against the repository's 274 ordered migrations. This local result does not
+  `20260812225436_recheck_csf_activity_partner_authorization_under_lock`, and
+  `20260813011000_close_csf_representative_and_publication_races`; none has been
+  accepted on hosted Development.
+- The local isolated replay passed all 123 pgTAP files and 5,243 assertions
+  against the repository's 275 ordered migrations. This local result does not
   establish hosted acceptance.
-- The 274 count and the `20260812225436` tail describe this branch only.
+- The 275 count and the `20260813011000` tail describe this branch only.
+  The repair is intentionally ordered after #174 and #158 and does not restate
+  either dependency's definitions.
   Migration pull requests #152, #158, #174, and #175 are open with later or
   interleaving versions, so the last migration pull request to merge must
   recompute this ledger and the cutover preflight pin.
@@ -719,16 +722,16 @@ Do not use real chapter rows or credentials until every item is checked:
       `scripts/production-cutover-preflight.sql` with the reviewed Production
       read-only URL. It must select the exact 236-row baseline, pass every
       shared blocker, and name any cancellation-job transitions for explicit
-      review. Rehearse the full 38-migration transition on a Production-shaped
+      review. Rehearse the full 39-migration transition on a Production-shaped
       clone and verify the backup restore before scheduling the window.
 - [ ] At T-0 enable maintenance mode, stop writers and scheduled workers, take
       the final snapshots, and pair the schema push with the exact compatible
       application deployment. A partial or divergent ledger is a stop.
-- [ ] Replay the ordered migration ledger through `20260812225436` in the
+- [ ] Replay the ordered migration ledger through `20260813011000` in the
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.
-- [ ] Re-run the preflight on the 274-row target and require the shared tenant
+- [ ] Re-run the preflight on the 275-row target and require the shared tenant
       and receipt checks plus the target-only relation, constraint, and index
       and extension-posture checks to pass before reopening writes.
 - [ ] Pass the final combined static, focused source, database, private-plugin,

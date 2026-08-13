@@ -1,14 +1,19 @@
 import { describe, expect, test } from "bun:test";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const repositoryRoot = join(import.meta.dir, "../../..");
 const read = (path: string) => readFileSync(join(repositoryRoot, path), "utf8");
 
-const MIGRATION_VERSION = "20260812225436";
-const migration = read(
-  `supabase/migrations/${MIGRATION_VERSION}_recheck_csf_activity_partner_authorization_under_lock.sql`,
+const BASE_MIGRATION_VERSION = "20260812225436";
+const REPAIR_MIGRATION_VERSION = "20260813011000";
+const baseMigration = read(
+  `supabase/migrations/${BASE_MIGRATION_VERSION}_recheck_csf_activity_partner_authorization_under_lock.sql`,
 );
+const repairMigrationPath = `supabase/migrations/${REPAIR_MIGRATION_VERSION}_close_csf_representative_and_publication_races.sql`;
+const repairMigration = existsSync(join(repositoryRoot, repairMigrationPath))
+  ? read(repairMigrationPath)
+  : "";
 const concurrencyTest = read(
   "supabase/tests/database/csf_activity_partner_authorization_recheck.test.sql",
 );
@@ -17,6 +22,9 @@ const opportunityActions = read(
 );
 const partnerClubActions = read(
   "lib/plugins/private/plugins/dvhs-csf/server/actions/partner-clubs.ts",
+);
+const representativeActions = read(
+  "lib/plugins/private/plugins/dvhs-csf/representative-actions.ts",
 );
 
 const ACTIVITY_DENIAL = "Not authorized to manage CSF activities.";
@@ -71,6 +79,20 @@ const operations = [
     permission: "manage_partner_clubs",
     error: PARTNER_DENIAL,
     caller: partnerClubActions,
+  },
+  {
+    name: "csf_assign_partner_representative",
+    signature: "uuid, uuid, text, text, text, date, boolean, uuid, uuid",
+    permission: "manage_partner_clubs",
+    error: PARTNER_DENIAL,
+    caller: representativeActions,
+  },
+  {
+    name: "csf_revoke_partner_representative",
+    signature: "uuid, uuid, uuid, text, uuid, uuid",
+    permission: "manage_partner_clubs",
+    error: PARTNER_DENIAL,
+    caller: representativeActions,
   },
 ] as const;
 
@@ -130,9 +152,36 @@ const argumentNames: Record<string, readonly string[]> = {
     "p_request_id",
     "p_request",
   ],
+  csf_assign_partner_representative: [
+    "p_organization_id",
+    "p_partner_club_term_id",
+    "p_display_name",
+    "p_email",
+    "p_role",
+    "p_effective_start",
+    "p_is_primary",
+    "p_request_id",
+    "p_actor_user_id",
+  ],
+  csf_revoke_partner_representative: [
+    "p_organization_id",
+    "p_assignment_id",
+    "p_partner_club_term_id",
+    "p_reason",
+    "p_request_id",
+    "p_actor_user_id",
+  ],
 };
 
+function operationMigration(name: string): string {
+  return name === "csf_assign_partner_representative" ||
+    name === "csf_revoke_partner_representative"
+    ? repairMigration
+    : baseMigration;
+}
+
 function functionBody(name: string): string {
+  const migration = operationMigration(name);
   const start = migration.indexOf(`CREATE FUNCTION plugin_data.${name}(`);
   const next = migration.indexOf("CREATE FUNCTION plugin_data.", start + 1);
   expect(start).toBeGreaterThanOrEqual(0);
@@ -144,10 +193,12 @@ function escaped(value: string): string {
 }
 
 describe("CSF activity and partner mutation authorization lock boundary", () => {
-  test("the consolidated migration is later than every currently open migration", () => {
-    // #158 carries the latest open migration version. A stale or backdated
-    // version would replay before it and silently lose this repair.
-    const openMigrationBranchHeads = ["20260812215733"];
+  test("the repair is ordered after #174, #158, and the original authorization migration", () => {
+    const dependencyMigrationHeads = [
+      "20260812203500",
+      "20260812215733",
+      BASE_MIGRATION_VERSION,
+    ];
     const repositoryVersions = readdirSync(
       join(repositoryRoot, "supabase/migrations"),
     )
@@ -155,12 +206,16 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
       .map((name) => name.slice(0, 14))
       .sort();
 
-    expect(repositoryVersions.at(-1)).toBe(MIGRATION_VERSION);
-    for (const head of openMigrationBranchHeads) {
-      expect(MIGRATION_VERSION.localeCompare(head)).toBeGreaterThan(0);
+    expect(repositoryVersions.at(-1)).toBe(REPAIR_MIGRATION_VERSION);
+    for (const head of dependencyMigrationHeads) {
+      expect(REPAIR_MIGRATION_VERSION.localeCompare(head)).toBeGreaterThan(0);
     }
     expect(repositoryVersions).not.toContain("20260812162732");
-    expect(migration).not.toContain("20260812162732");
+    expect(repairMigration).not.toContain("20260812162732");
+    expect(repairMigration).not.toContain("content_reports");
+    expect(repairMigration).not.toContain(
+      "reconcile_project_lifecycle_boundaries",
+    );
   });
 
   for (const operation of operations) {
@@ -214,8 +269,9 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
     });
   }
 
-  test("all seven prior transactions are renamed behind owner-only implementations", () => {
+  test("all nine prior transactions remain behind owner-only implementations", () => {
     for (const operation of operations) {
+      const migration = operationMigration(operation.name);
       expect(migration).toMatch(
         new RegExp(
           `ALTER FUNCTION plugin_data\\.${escaped(operation.name)}\\([\\s\\S]*?\\)\\s*RENAME TO ${escaped(operation.name)}_locked_impl;`,
@@ -241,6 +297,7 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
 
   test("only the unchanged stable signatures are explicitly service-callable", () => {
     for (const operation of operations) {
+      const migration = operationMigration(operation.name);
       const signature = escaped(operation.signature).replaceAll("\\ ", "\\s*");
       expect(migration).toMatch(
         new RegExp(
@@ -258,11 +315,55 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
         ),
       );
     }
-    expect(migration).not.toContain("CREATE EVENT TRIGGER");
-    expect(migration).not.toContain("GRANT EXECUTE ON ALL FUNCTIONS");
-    expect(migration).not.toMatch(
+    const migrations = baseMigration + repairMigration;
+    expect(migrations).not.toContain("CREATE EVENT TRIGGER");
+    expect(migrations).not.toContain("GRANT EXECUTE ON ALL FUNCTIONS");
+    expect(migrations).not.toMatch(
       /GRANT[\s\S]{0,80}TO (anon|authenticated|PUBLIC)/u,
     );
+  });
+
+  test("activity publication takes the close-term lock and rechecks the open term under lock", () => {
+    const start = repairMigration.indexOf(
+      "CREATE OR REPLACE FUNCTION plugin_data.csf_set_activity_status_locked_impl(",
+    );
+    const end = repairMigration.indexOf("\n$$;", start);
+    const body = repairMigration.slice(start, end);
+    const termDiscovery = body.indexOf("SELECT activity.term_id");
+    const termDiscoveryTarget = body.indexOf(
+      "INTO v_lock_term_id",
+      termDiscovery,
+    );
+    const termAdvisoryLock = body.indexOf(
+      "p_organization_id::text || ':' || v_lock_term_id::text",
+    );
+    const activityLock = body.indexOf(
+      "FROM plugin_data.csf_opportunities AS activity",
+      termAdvisoryLock,
+    );
+    const termRowLock = body.indexOf(
+      "FROM plugin_data.csf_terms AS term",
+      activityLock,
+    );
+    const openTermCheck = body.indexOf(
+      "v_term.lifecycle_status <> 'open'",
+      termRowLock,
+    );
+    const targetWrite = body.indexOf(
+      "UPDATE plugin_data.csf_opportunities",
+      openTermCheck,
+    );
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(termDiscovery).toBeGreaterThanOrEqual(0);
+    expect(termDiscovery).toBeLessThan(termDiscoveryTarget);
+    expect(termDiscoveryTarget).toBeLessThan(termAdvisoryLock);
+    expect(termAdvisoryLock).toBeLessThan(activityLock);
+    expect(activityLock).toBeLessThan(termRowLock);
+    expect(termRowLock).toBeLessThan(openTermCheck);
+    expect(openTermCheck).toBeLessThan(targetWrite);
+    expect(body).toContain("term.id = v_before.term_id");
+    expect(body).toContain("FOR UPDATE");
   });
 
   test("the autocommit pgTAP suite exercises every stale-authority path", () => {
@@ -295,6 +396,12 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
         ),
       );
     }
+    for (const requestId of [
+      "f9a00000-0000-4000-8000-000000000008",
+      "f9a00000-0000-4000-8000-000000000009",
+    ]) {
+      expect(concurrencyTest).toContain(requestId);
+    }
 
     // Membership concurrency must be exercised for real, not asserted from
     // source strings.
@@ -312,15 +419,23 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
     for (const description of [
       "the queued standing call fails after the host membership is deactivated",
       "the queued policy call fails after the host membership row is deleted",
+      "the queued assignment fails after the role edit commits",
+      "the queued revocation fails after the position revocation commits",
       "a concurrent membership deactivation blocks while the wrapper holds the actor membership row",
       "a benign concurrent staff edit does not deny the still-authorized queued create",
       "the exact retry of a committed request still returns its idempotent receipt",
       "an exact committed replay is denied after the actor loses permission",
-      "the active admin receives the unchanged non-idempotent result contract from all seven RPCs",
+      "the active admin receives the unchanged non-idempotent result contract from all nine RPCs",
       "a cross-organization wrapper completes while the first organization lock is held",
     ]) {
       expect(concurrencyTest).toContain(description);
     }
+    expect(concurrencyTest).toContain(
+      "the revoked queued assignment writes no representative, lifecycle event, or audit receipt",
+    );
+    expect(concurrencyTest).toContain(
+      "the revoked queued revocation leaves the assignment unchanged and writes no lifecycle or audit receipt",
+    );
   });
 
   test("every calling Server Action surfaces the database authorization denial verbatim", () => {
@@ -328,10 +443,16 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
     // committed outcome. No call site may replace the database's authorization
     // sentence with a generic failure string, and none may report success.
     for (const operation of operations) {
-      expect(operation.caller).toContain(`plugin.rpc("${operation.name}"`);
+      expect(operation.caller).toMatch(
+        new RegExp(`\\.rpc\\(\\s*"${escaped(operation.name)}"`),
+      );
     }
 
-    for (const caller of [opportunityActions, partnerClubActions]) {
+    for (const caller of [
+      opportunityActions,
+      partnerClubActions,
+      representativeActions,
+    ]) {
       // Every RPC error is thrown, so it reaches the shared catch that returns
       // `error.message`; nothing swallows it into a success result.
       expect(caller).toContain("error instanceof Error");
@@ -343,10 +464,17 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
       expect(caller).not.toContain("nothing was written");
     }
 
+    expect(representativeActions).toContain("p_actor_user_id: context.userId");
+
     const rpcCallSites = [
-      ...opportunityActions.matchAll(/plugin\.rpc\("(csf_[a-z_]+)"/gu),
-      ...partnerClubActions.matchAll(/plugin\.rpc\("(csf_[a-z_]+)"/gu),
-    ].map((match) => match[1]);
+      opportunityActions,
+      partnerClubActions,
+      representativeActions,
+    ].flatMap((caller) =>
+      [...caller.matchAll(/\.rpc\(\s*"(csf_[a-z_]+)"/gu)].map(
+        (match) => match[1],
+      ),
+    );
     for (const operation of operations) {
       expect(rpcCallSites).toContain(operation.name);
     }

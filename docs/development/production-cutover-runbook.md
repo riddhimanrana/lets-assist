@@ -2,22 +2,24 @@
 
 Production has 236 ordered migrations through `20260811001500`.
 Hosted Development has 272 ordered migrations through `20260812132725`.
-This repository branch has 274 ordered migrations through `20260812225436` and
-contains 38 Production-pending migrations. The local isolated replay passed all
-123 pgTAP files and 5,227 assertions; hosted acceptance remains pending.
+This repository branch has 275 ordered migrations through `20260813011000` and
+contains 39 Production-pending migrations. The local isolated replay passed all
+123 pgTAP files and 5,243 assertions; hosted acceptance remains pending.
 `dev.lets-assist.com` still serves the earlier Ready code
 whose repository ledger ended at 272 through `20260812132725`: the external
 Vercel 100-deployment-per-day project cap prevented the refreshed deployment.
 Database parity is not application-deployment parity, so the hosted release
-gate remains open until both the 274-migration database target and that exact
+gate remains open until both the 275-migration database target and that exact
 current code are deployed and accepted.
 
-The 274-row target, its `20260812225436` head, and the 38-row pending tail
+The 275-row target, its `20260813011000` head, and the 39-row pending tail
 pinned in `scripts/production-cutover-preflight.sql` are computed from this
 branch's migration directory alone. Migration pull requests #152, #158, #174,
 and #175 are open with later or interleaving versions, so this pin is provisional:
 the last migration pull request to merge must recompute the count, head, and
 exact tail from the merged tree before any cutover uses them.
+The `20260813011000` repair is intentionally ordered after #174 and #158 and
+does not restate either dependency's definitions.
 
 **This runbook is preparation. Executing it requires explicit release
 authorization** ([deployment boundaries](deployment.md)). Production remains
@@ -47,7 +49,7 @@ because the cutover still builds on that baseline. See the
 - **AUD-002** — the `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)`, so anyone holding the public anon key can inject a notification for any user, with an attacker-chosen title, body, and action URL.
 
 The fixing migrations, `20260810220100` and `20260810220200`, are historical
-context rather than part of the current 38-migration pending set.
+context rather than part of the current 39-migration pending set.
 
 ---
 
@@ -81,7 +83,7 @@ psql -X "$PRODUCTION_READONLY_URL" \
 
 Every check is `SELECT` or `SHOW` inside an explicit read-only transaction. The
 script accepts only the exact 236-version Production baseline or exact
-274-version target, exits non-zero on a partial or divergent ledger, and checks
+275-version target, exits non-zero on a partial or divergent ledger, and checks
 relation existence before parsing shape-specific tables. `pipefail` preserves
 that non-zero status through `tee`. Capture the whole output into the change
 record.
@@ -106,7 +108,7 @@ record.
   `DROP EXTENSION ... RESTRICT` fail.
 - **D10** mirrors the reviewed effective client-grant catalog before
   `20260812100900` revokes and rebuilds public relation ACLs.
-- **T1–T3** run only on the 274 shape and prove target relations, expected
+- **T1–T3** run only on the 275 shape and prove target relations, expected
   validated constraints/indexes, and removal of `pg_graphql`.
 
 Do not run the script with a write-capable URL and do not remediate rows inside
@@ -119,7 +121,7 @@ reviewed forward migration.
 
 **The Supabase `development` branch is not a rehearsal.** Its 272-migration
 ledger proves ordered application against the Development database, not the
-repository branch's Production-shaped 236→274 transition. It does not exercise
+repository branch's Production-shaped 236→275 transition. It does not exercise
 data-dependent DDL, lock behaviour at Production table sizes, or Production
 data.
 
@@ -130,7 +132,7 @@ data.
 3. **Verify it is a clone, not a replay** — `list_migrations` on the new ref.
    - **236 rows, head `20260811001500`** → a genuine current-baseline clone.
      Continue.
-   - **274 rows, head `20260812225436`** → it was built by replaying the
+   - **275 rows, head `20260813011000`** → it was built by replaying the
      repository branch, which is the artifact you already have and proves nothing new.
      Abandon and use the fallback.
 
@@ -149,7 +151,7 @@ data.
 indisvalid` (must be empty); `verify-supabase-migration-parity.mjs`;
    `get_advisors` (the 95 INFO/0 WARN/0 ERROR security and 611 INFO/0 WARN/0
    ERROR performance counts were captured on the preceding 272-migration
-   Development shape and are comparison evidence, not proof for 274); and
+   Development shape and are comparison evidence, not proof for 275); and
    `supabase db diff --linked` — compare that last one against the destructive
    drift recorded in
    [the redesign audit](../architecture/supabase-redesign-audit.md). **That diff
@@ -201,7 +203,7 @@ Then restore them into a throwaway Postgres 17 and compare row counts for the to
 ## The window
 
 **Length:** rehearsal-measured duration × 3, floor 90 minutes. Use the timed
-Production-shaped 236→274 rehearsal as the authority; the pending set's
+Production-shaped 236→275 rehearsal as the authority; the pending set's
 validated constraints, index builds, ACL convergence, and cancellation-ledger
 work determine this window. Do not reuse timing assumptions from migrations
 already included in the 236 baseline.
@@ -220,7 +222,7 @@ already included in the 236 baseline.
    - `SELECT ... FROM pg_index WHERE NOT indisvalid` — must be empty
    - `get_advisors(type: 'security')` — expect only the known `INFO`/`rls_enabled_no_policy` shape
    - Re-run `production-cutover-preflight.sql`; it must select the exact
-     274-row target path and pass T1–T3
+     275-row target path and pass T1–T3
    - Storage bucket counts against the **E7** baseline
    - Upgrade DV installs to `2.0.0` through the leased control plane **before** enabling DV traffic
 10. Smoke tests while still in maintenance mode, then again after opening: sign in, view a project, sign up for a project, an organization page, a CSF workspace, one email path.
