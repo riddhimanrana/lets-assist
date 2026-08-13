@@ -114,35 +114,47 @@ async function loadFixture(): Promise<HistoricalImportFixture> {
   const activityTitle = `Historical acceptance ${runToken}`;
   const workbookName = `historical-student-records-${runToken}.xlsx`;
 
+  const { data: organization, error: organizationError } = await admin
+    .from("organizations")
+    .select("id")
+    .eq("username", "dvhs-csf")
+    .single();
+  assertNoSupabaseError(
+    "Could not load the local DVHS CSF organization",
+    organizationError,
+  );
+  if (!organization) {
+    throw new Error(
+      "The isolated CSF historical-import organization is missing.",
+    );
+  }
+
   const [
-    { data: organization, error: organizationError },
     { data: profile, error: profileError },
     { data: cohort, error: cohortError },
     { data: term, error: termError },
     usersResult,
   ] = await Promise.all([
-    admin
-      .from("organizations")
-      .select("id")
-      .eq("username", "dvhs-csf")
-      .single(),
     plugin
       .from("csf_profiles")
       .select("id")
+      .eq("organization_id", organization.id)
       .eq("normalized_school_email", localActors.member.email)
       .single(),
     plugin
       .from("csf_cohorts")
       .select("id")
+      .eq("organization_id", organization.id)
       .eq("graduation_year", 2028)
       .single(),
-    plugin.from("csf_terms").select("id").eq("code", "S26").single(),
+    plugin
+      .from("csf_terms")
+      .select("id")
+      .eq("organization_id", organization.id)
+      .eq("code", "S26")
+      .single(),
     admin.auth.admin.listUsers({ page: 1, perPage: 1_000 }),
   ]);
-  assertNoSupabaseError(
-    "Could not load the local DVHS CSF organization",
-    organizationError,
-  );
   assertNoSupabaseError(
     "Could not load Aarav Mehta's fixture profile",
     profileError,
@@ -160,7 +172,7 @@ async function loadFixture(): Promise<HistoricalImportFixture> {
   const adminUser = usersResult.data.users.find(
     (user) => user.email === localActors.admin.email,
   );
-  if (!organization || !profile || !cohort || !term || !adminUser) {
+  if (!profile || !cohort || !term || !adminUser) {
     throw new Error(
       "The isolated CSF historical-import fixture is incomplete.",
     );
