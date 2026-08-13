@@ -3,8 +3,9 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** This repository and hosted Development Supabase each carry 273
-ordered migrations through the atomic post-reply boundary. The
+**Status:** This repository carries 275 ordered migrations through the
+plugin-data browser ACL boundary; hosted Development Supabase still carries 273
+through the atomic post-reply boundary. The
 `dev.lets-assist.com` alias still serves the earlier Ready code at
 `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository tree ended at 272
 through `20260812132725`, because the external Vercel 100-deployment-per-day
@@ -21,13 +22,15 @@ only.
 
 ## Current hosted Development state
 
-- The repository branch has 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`.
-- Hosted Development Supabase also has 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`; the repository and Development
-  database ledgers match.
+- The repository branch has 275 ordered migrations through
+  `20260812203500_close_plugin_data_browser_default_acl`.
+- Hosted Development Supabase has 273 ordered migrations through
+  `20260812152300_atomic_csf_post_replies`; the two newest repository
+  migrations, `20260812203000_make_content_reports_server_written` and
+  `20260812203500_close_plugin_data_browser_default_acl`, have not been applied
+  to any hosted database.
 - Production remains at 236 ordered migrations through `20260811001500`; the
-  37-migration cutover has not run.
+  39-migration cutover has not run.
 - The last accepted Development advisor snapshot was captured on the preceding
   272-migration shape: 95 INFO, 0 WARN, and 0 ERROR security findings, plus 611
   INFO, 0 WARN, and 0 ERROR performance findings. Those counts have not been
@@ -379,10 +382,11 @@ The current officer procedure is documented in the [officer runbook](officer-run
   bounded Drive Preview read ran in hosted Development. Token refresh,
   reconnect/revocation, 403/429 exercise, and every Google write remain
   unexecuted.
-- Development uses a distinct hosted Supabase project. Its database and this
-  repository branch each have 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`. The Ready alias still serves
-  development SHA `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository
+- Development uses a distinct hosted Supabase project. Its database has 273
+  ordered migrations through `20260812152300_atomic_csf_post_replies`, and this
+  repository branch has 275 through
+  `20260812203500_close_plugin_data_browser_default_acl`. The Ready alias still
+  serves development SHA `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository
   tree ended at 272 through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`; the external Vercel
   100-deployment-per-day project cap blocked the refreshed code deployment.
