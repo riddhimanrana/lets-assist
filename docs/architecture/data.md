@@ -33,7 +33,7 @@ Imports retain immutable source identity, range/tab provenance, mapping versions
 ### CSF source constraints
 
 - The identity-free historical S26 inventory is 167 records for 2027, 167 for 2028, and 88 for 2029: 422 total.
-- The Class of 2030 source is header-only (0 rows): do not import. Class of 2030 must enter through the new application-cycle/member-review workflow, not historical import.
+- The Class of 2030 source is header-only (0 rows) and must not be historically imported. Use the ordinary student-record/application flow (`Members` → `Add member`, then `Applications` → `Review queue`) or an audited semester correction—never historical import.
 - Historical sheets do not contain reliable account identifiers. They must not auto-link a profile to an account; linking requires separately corroborated evidence and reviewed conflict handling.
 - Application responses create application records, never members, and do not independently establish a roster.
 - The Spring 2026 application source cannot seed a Fall 2026 roster. Its responses may attach only after reviewed member/application reconciliation. Application, cohort, membership, and term state remain distinct.
