@@ -144,7 +144,7 @@ VALUES
   ('bd100000-0000-4000-8000-000000000001',
    'bd000000-0000-4000-8000-000000000002', 'staff', 'active'),
   ('bd100000-0000-4000-8000-000000000001',
-   'bd000000-0000-4000-8000-000000000003', 'staff', 'inactive'),
+   'bd000000-0000-4000-8000-000000000003', 'staff', NULL),
   ('bd100000-0000-4000-8000-000000000001',
    'bd000000-0000-4000-8000-000000000004', 'admin', 'active');
 
@@ -261,7 +261,7 @@ SELECT extensions.throws_ok(
   )$$,
   '42501',
   'not authorized to publish project hours',
-  'inactive staff cannot publish a staff-manageable project'
+  'null-status staff cannot publish a staff-manageable project'
 );
 
 SELECT extensions.throws_ok(

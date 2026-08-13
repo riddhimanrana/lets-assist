@@ -55,6 +55,7 @@ import {
   signUpForProject,
   resendAnonymousConfirmationEmail,
   getProjectWaiver,
+  updateProjectStatus,
 } from "./actions";
 import {
   formatTimeTo12Hour,
@@ -72,7 +73,14 @@ import {
   isOneTimeSlotPast,
 } from "@/utils/project";
 import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility and date utils
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import {
+  startTransition,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -530,26 +538,34 @@ export default function ProjectDetails({
     };
   }, [project.id, project.waiver_required]);
 
-  // Move updateProjectStatusInDB outside useCallback to break circular dependency
+  // Persist automatic transitions through the same authorization-aware boundary
+  // as explicit project status changes.
   const updateProjectStatusInDB = async (newStatus: ProjectStatus) => {
     if (isUpdatingStatus) return;
 
     try {
       setIsUpdatingStatus(true);
-      const supabase = createClient();
+      const result = await updateProjectStatus(project.id, newStatus);
 
-      const { error } = await supabase
-        .from("projects")
-        .update({ status: newStatus })
-        .eq("id", project.id);
-
-      if (error) {
-        console.error("Failed to update project status:", error);
-      } else {
-        console.log(`Project status updated in DB to ${newStatus}`);
+      if (result.error) {
+        toast.error(result.error, {
+          description:
+            "Your permissions or the project state may have changed. Refresh to load the current status.",
+          action: {
+            label: "Refresh",
+            onClick: () => router.refresh(),
+          },
+        });
       }
     } catch (error) {
       console.error("Error updating project status:", error);
+      toast.error("Failed to update project status", {
+        description: "Refresh the page and try again.",
+        action: {
+          label: "Refresh",
+          onClick: () => router.refresh(),
+        },
+      });
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -589,7 +605,9 @@ export default function ProjectDetails({
       console.log(
         `Status mismatch detected: prop=${project.status}, calculated=${newCalculatedStatus}`,
       );
-      updateProjectStatusInDB(newCalculatedStatus);
+      startTransition(() => {
+        void updateProjectStatusInDB(newCalculatedStatus);
+      });
       statusMismatchHandled.current = true; // Mark as handled
     }
   }, [
@@ -616,7 +634,9 @@ export default function ProjectDetails({
             !isUpdatingStatus &&
             newStatus !== project.status
           ) {
-            updateProjectStatusInDB(newStatus);
+            startTransition(() => {
+              void updateProjectStatusInDB(newStatus);
+            });
           }
           return newStatus;
         }

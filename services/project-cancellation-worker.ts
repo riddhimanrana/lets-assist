@@ -620,6 +620,7 @@ export async function runProjectCancellationWorker(
   options: {
     batchSize?: number;
     maxJobs?: number;
+    maxDeliveries?: number;
     deadlineMs?: number;
     now?: () => number;
   } = {},
@@ -635,6 +636,13 @@ export async function runProjectCancellationWorker(
   const maxJobs = Math.min(
     Math.max(options.maxJobs ?? CANCELLATION_WORKER_MAX_JOBS_PER_RUN, 1),
     CANCELLATION_WORKER_MAX_JOBS_PER_RUN,
+  );
+  const maxDeliveries = Math.min(
+    Math.max(
+      options.maxDeliveries ?? CANCELLATION_WORKER_MAX_DELIVERIES_PER_RUN,
+      1,
+    ),
+    CANCELLATION_WORKER_MAX_DELIVERIES_PER_RUN,
   );
   const outOfTime = () => now() - startedAt > deadlineMs;
 
@@ -690,23 +698,15 @@ export async function runProjectCancellationWorker(
   const active = new Set(jobs.map((job) => job.id));
   let deliveriesThisRun = 0;
 
-  while (
-    active.size > 0 &&
-    deliveriesThisRun < CANCELLATION_WORKER_MAX_DELIVERIES_PER_RUN &&
-    !outOfTime()
-  ) {
+  while (active.size > 0 && deliveriesThisRun < maxDeliveries && !outOfTime()) {
     for (const job of jobs) {
       if (!active.has(job.id)) continue;
-      if (
-        outOfTime() ||
-        deliveriesThisRun >= CANCELLATION_WORKER_MAX_DELIVERIES_PER_RUN
-      ) {
+      if (outOfTime() || deliveriesThisRun >= maxDeliveries) {
         result.deadlineReached = outOfTime();
         break;
       }
 
-      const remaining =
-        CANCELLATION_WORKER_MAX_DELIVERIES_PER_RUN - deliveriesThisRun;
+      const remaining = maxDeliveries - deliveriesThisRun;
       const deliveries = parseClaimedDeliveries(
         await rpcData(admin, "claim_project_cancellation_deliveries", {
           p_job_id: job.id,
@@ -756,8 +756,9 @@ export async function runProjectCancellationWorker(
   if (outOfTime()) result.deadlineReached = true;
 
   // Finalization releases every still-owned job lease. It may complete, park for
-  // review, fail an exhausted job, or return pending when the global budget left
-  // owed channel work for a later fair pass.
+  // review, or return pending when the global budget left owed channel work for
+  // a later fair pass. Abandoned leases retain their provisional failure attempt
+  // and are exhausted only by the bounded job reaper.
   for (const job of jobs) {
     const receipt = parseFinalize(
       await rpcData(admin, "finalize_project_cancellation_job", {
