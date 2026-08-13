@@ -45,13 +45,32 @@ function createHistoricalWorkbook(activityTitle: string) {
   return XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
 }
 
-function isSameOriginServerAction(request: Request, origin: string) {
+function hasSubmittedJobId(request: Request, previewJobId: string) {
+  const body = request.postDataBuffer()?.toString("utf8");
+  if (!body) return false;
+
+  const escapedJobId = previewJobId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const multipartJobId = new RegExp(
+    `name="jobId"[^\\r\\n]*\\r?\\n(?:[^\\r\\n]*\\r?\\n)*\\r?\\n${escapedJobId}(?=\\r?\\n)`,
+  );
+  const urlEncodedJobId = new RegExp(
+    `(?:^|[&\\r\\n])jobId=${encodeURIComponent(previewJobId)}(?:[&\\r\\n]|$)`,
+  );
+  return multipartJobId.test(body) || urlEncodedJobId.test(body);
+}
+
+function isPreviewCommitServerAction(
+  request: Request,
+  origin: string,
+  previewJobId: string,
+) {
   const headers = request.headers();
   return (
     request.method() === "POST" &&
     new URL(request.url()).origin === origin &&
     Boolean(headers["next-action"]) &&
-    Boolean(headers["content-type"])
+    Boolean(headers["content-type"]) &&
+    hasSubmittedJobId(request, previewJobId)
   );
 }
 
@@ -447,10 +466,27 @@ test.describe("CSF historical workbook import", () => {
     });
     await expect(commit).toBeEnabled();
     const initialCommitRequest = page.waitForRequest((request) =>
-      isSameOriginServerAction(request, new URL(page.url()).origin),
+      isPreviewCommitServerAction(
+        request,
+        new URL(page.url()).origin,
+        preview.id,
+      ),
+    );
+    const initialCommitResponse = page.waitForResponse((response) =>
+      isPreviewCommitServerAction(
+        response.request(),
+        new URL(page.url()).origin,
+        preview.id,
+      ),
     );
     await commit.click();
-    const capturedCommitRequest = await initialCommitRequest;
+    const [capturedCommitRequest, capturedCommitResponse] = await Promise.all([
+      initialCommitRequest,
+      initialCommitResponse,
+    ]);
+    expect(capturedCommitResponse.request()).toBe(capturedCommitRequest);
+    expect(capturedCommitResponse.status()).toBe(200);
+    expect(capturedCommitResponse.ok()).toBeTruthy();
     const capturedCommitBody = capturedCommitRequest.postDataBuffer();
     if (!capturedCommitBody?.byteLength) {
       throw new Error("The commit Server Action request did not carry a body.");
