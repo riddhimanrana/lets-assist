@@ -21,6 +21,7 @@ export type ContentReport = {
   priority?: string | null;
   status?: string | null;
   created_at?: string | null;
+  reporter_label?: string | null;
   reporter?: {
     username?: string | null;
     full_name?: string | null;
@@ -100,7 +101,9 @@ export const getReportColumns = (
                   </span>
                 </ProfileHoverCard>
               ) : (
-                <span className="italic text-xs">Anonymous</span>
+                <span className="text-xs font-medium">
+                  {report.reporter_label || "Anonymous"}
+                </span>
               )}
             </div>
             <span className="text-muted-foreground/50 text-[10px]">•</span>

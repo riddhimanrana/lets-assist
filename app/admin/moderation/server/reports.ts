@@ -5,6 +5,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { createNotificationForUser } from "@/services/notifications-server";
+import { formatContentReportReporterLabel } from "@/lib/moderation/content-report-retention";
 import { checkSuperAdmin } from "../../actions";
 import {
   matchesReportStatusFilter,
@@ -55,6 +56,7 @@ export async function getContentReports(
   const normalizedReports = (rawReports || []).map((report) => ({
     ...report,
     status: normalizeReportStatus(report.status),
+    reporter_label: formatContentReportReporterLabel(report.reporter_reference),
   }));
 
   const reports = normalizedReports.filter((report) =>
