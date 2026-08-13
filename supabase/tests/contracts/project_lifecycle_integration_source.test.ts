@@ -179,6 +179,31 @@ describe("combined project lifecycle source contract", () => {
     );
   });
 
+  test("series lock-wait retries stay generation-bound while stale generations remain rejected", () => {
+    const concurrency = read(
+      "supabase/tests/database/project_lifecycle_integration_concurrency.test.sql",
+    );
+    const reviewFindings = read(
+      "supabase/tests/database/project_lifecycle_review_findings.test.sql",
+    );
+    const childLockRace = sliceBetween(
+      concurrency,
+      "-- Series ending must lock and recheck each child",
+      "-- Cancellation and ordinary status transitions serialize",
+    );
+    const generationRace = sliceBetween(
+      concurrency,
+      "-- Child generation and series ending use the same parent-row boundary",
+      "-- Membership revocation owns the member row",
+    );
+
+    expect(childLockRace).toContain("'series_end_generation'");
+    expect(generationRace).toContain("'series_end_generation'");
+    expect(reviewFindings).toMatch(
+      /project recurrence generation changed; refresh required[\s\S]*a delayed retry cannot end a replacement recurrence generation/,
+    );
+  });
+
   test("the additive catalogs retain lifecycle authorities without SECURITY DEFINER exceptions", () => {
     const audit = read("scripts/audit-supabase-architecture.sh");
     const aclTest = read(

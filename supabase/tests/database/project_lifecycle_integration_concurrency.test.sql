@@ -333,15 +333,26 @@ FOR UPDATE;
 
 SELECT extensions.dblink_send_query(
   'project_lifecycle_integration_probe',
-  $$SELECT public.end_recurring_project_series_transactional(
-    'ef200000-0000-4000-8000-000000000004'
-  )::text$$
+  pg_catalog.format(
+    $$SELECT public.end_recurring_project_series_transactional(
+      'ef200000-0000-4000-8000-000000000004',
+      pg_catalog.jsonb_build_object(
+        'recurrence_rule', NULL,
+        'series_end_generation', %L
+      )
+    )::text$$,
+    (
+      SELECT recurrence_generation_id::text
+      FROM public.projects
+      WHERE id = 'ef200000-0000-4000-8000-000000000004'
+    )
+  )
 );
 SELECT pg_sleep(0.25);
 SELECT extensions.is(
   extensions.dblink_is_busy('project_lifecycle_integration_probe'),
   1,
-  'series ending waits for the eligible child lock before deciding cleanup'
+  'generation-bound series ending waits for the eligible child lock before deciding cleanup'
 );
 
 UPDATE public.projects
@@ -358,7 +369,7 @@ FROM extensions.dblink_get_result(
 SELECT extensions.is(
   (SELECT payload->>'outcome' FROM series_child_race),
   'ended',
-  'series ending commits after refreshing the child state'
+  'the captured generation survives a harmless child lock wait'
 );
 SELECT extensions.is(
   (SELECT payload->>'cancelledOccurrences' FROM series_child_race),
@@ -499,7 +510,15 @@ SET LOCAL request.jwt.claims =
   '{"sub":"ef000000-0000-4000-8000-000000000001","role":"authenticated"}';
 SET LOCAL ROLE authenticated;
 SELECT public.end_recurring_project_series_transactional(
-  'ef200000-0000-4000-8000-000000000006'
+  'ef200000-0000-4000-8000-000000000006',
+  pg_catalog.jsonb_build_object(
+    'recurrence_rule', NULL,
+    'series_end_generation', (
+      SELECT recurrence_generation_id::text
+      FROM public.projects
+      WHERE id = 'ef200000-0000-4000-8000-000000000006'
+    )
+  )
 );
 RESET ROLE;
 COMMIT;
