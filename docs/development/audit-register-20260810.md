@@ -844,16 +844,15 @@ contrary to the current public-function boundary.
 **Local evidence:** the source contract asserts the parent lock, private call to
 the canonical cancellation transaction, fixed empty paths, public invoker
 wrapper, and absence of a public definer. The pgTAP transaction and two-session
-serialization proofs, architecture audit, and fresh replay pass. The no-commit
-local #152 merge simulation replayed 275 ordered migrations, retained both
-reviewed public ACL rows, and ordered the `161500` rejection transaction before
-the `215733` union guard. It also recorded one integration item that belongs to
-whichever pull request merges second: three assertions in the #152
-`signup_rejection_atomicity` fixture still expect the pre-`215733` behavior in
-which an active administrator approves or unrejects through a direct browser
-update. The union guard now routes those transitions through the capacity-safe
-RPC, so that fixture must be updated at merge time. Neither branch was merged
-and `development` was not moved.
+serialization proofs, architecture audit, and fresh replay pass. The exact
+merged candidate now replays 279 ordered migrations, retains rejection and
+lifecycle entries in both reviewed public ACL catalogs, and orders the `161500`
+rejection transaction before the `215733` union guard. The three inherited #152
+assertions now prove that active administrators cannot bypass capacity-safe
+approval or unrejection through a direct browser update, while manager and
+participant cancellation remain available. The full generated isolated gate
+passes 132 database files and 5,459 pgTAP assertions. Hosted Development and
+Production were not moved.
 
 **Local resolution candidate:** the one-argument public SECURITY INVOKER
 signature remains as a compatibility wrapper. A new two-argument invoker
