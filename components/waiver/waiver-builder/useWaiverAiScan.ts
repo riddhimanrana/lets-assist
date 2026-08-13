@@ -9,6 +9,7 @@ import {
 } from "@/lib/waiver/custom-field-config";
 import type { CustomPlacement } from "../PdfViewerWithOverlay";
 import type { WaiverDefinitionSignerInput } from "../SignerRolesEditor";
+import { createWaiverAnalysisRequest } from "./waiver-ai-request";
 
 type AiField = {
   fieldType: string;
@@ -54,11 +55,10 @@ export function useWaiverAiScan({
     });
 
     try {
-      const formData = new FormData();
-      formData.append("file", pdfFile);
+      const request = await createWaiverAnalysisRequest(pdfFile);
       const response = await fetch("/api/ai/analyze-waiver", {
         method: "POST",
-        body: formData,
+        ...request,
       });
       const data = (await response.json()) as {
         error?: string;
