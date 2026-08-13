@@ -33,6 +33,12 @@ const productionCutoverRunbook = flow(
 const cleanupRegister = flow(
   readRepositoryFile("docs/development/cleanup-register.md"),
 );
+const csfCommunicationsActions = readRepositoryFile(
+  "lib/plugins/private/plugins/dvhs-csf/communications-actions.ts",
+);
+const csfCommunicationsActionsTest = readRepositoryFile(
+  "lib/plugins/private/plugins/dvhs-csf/services/communications-actions.test.ts",
+);
 
 describe("CSF release-state documentation truthfulness guards", () => {
   test("current status separates the repository ledger from hosted database and deployed code", () => {
@@ -443,7 +449,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(aud037).toContain("Not fixable from this repository");
   });
 
-  test("CLEAN-022 records the reviewed communications fixes without overstating acceptance", () => {
+  test("CLEAN-022 is closed at the repository-local/source-contract level without overstating acceptance", () => {
     const clean022 = between(cleanupRegister, "| CLEAN-022", "| AUD-030");
 
     expect(clean022).toContain(
@@ -455,14 +461,54 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(clean022).toContain(
       "settlement reserve plus the minimum provider window before acknowledging a scheduler reservation or advancing fairness",
     );
-    expect(clean022).toContain("Focused regression coverage exists");
     expect(clean022).toContain(
-      "full exact replay and hosted Development acceptance remain pending",
+      "Closed at the repository-local/source-contract level",
+    );
+    expect(clean022).toContain("root gitlink commit `8419171d`");
+    expect(clean022).toContain("`cdbeb59e6cc086e8794ec8b35157ab043f65c01c`");
+    expect(clean022).toContain("`49266bf`");
+    expect(clean022).toContain("`cdbeb59e`");
+    expect(clean022).toContain(
+      "`lib/plugins/private/plugins/dvhs-csf/communications-actions.ts`",
+    );
+    expect(clean022).toContain("typed `CsfCancellationOutcome`");
+    expect(clean022).toContain(
+      "cancel dialog closes only for the `clean` outcome",
+    );
+    expect(clean022).toContain(
+      "`lib/plugins/private/plugins/dvhs-csf/services/communications-actions.test.ts`",
+    );
+    expect(clean022).toContain(
+      "full exact-tree local isolated replay, Docker-backed verification, hosted Development acceptance, provider/browser gates, and Production remain unverified and pending",
+    );
+    expect(clean022).toContain(
+      "does not imply deployment or runtime database acceptance",
     );
     expect(clean022).not.toContain("full local isolated replay passed");
-    expect(clean022).toContain("root and database portions are complete");
-    expect(clean022).toContain(
+    expect(clean022).not.toContain(
       "private officer-message dependency remains pending",
+    );
+    expect(clean022).not.toContain("is not fully closed");
+  });
+
+  test("the integrated private cancellation module backs the CLEAN-022 closure claims", () => {
+    expect(csfCommunicationsActions).toContain(
+      'export type CsfCancellationOutcome =\n  "clean" | "ambiguous" | "leased" | "ambiguous_and_leased";',
+    );
+    expect(csfCommunicationsActions).toContain(
+      "cancellationOutcome: cancellationOutcome(cancellation)",
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'test("closes after a clean cancellation"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "shouldCloseCancelCampaignDialog",
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "uses warning toast styling for attention outcomes and success for clean outcomes",
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "keeps the empty polite status region mounted and out of footer spacing",
     );
   });
 

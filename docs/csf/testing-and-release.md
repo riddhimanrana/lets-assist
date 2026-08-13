@@ -85,6 +85,18 @@ their named runs only.
   under the campaign lock, and keeps later provider reconciliation possible.
   Focused regression coverage exists; the full exact replay and hosted
   Development acceptance remain pending.
+- Root gitlink commit `8419171d` moved the private submodule to exact commit
+  `cdbeb59e6cc086e8794ec8b35157ab043f65c01c`, landing the officer-facing
+  cancellation UX (typed `CsfCancellationOutcome`, a cancel dialog that closes
+  only on the `clean` outcome, and an always-mounted accessible status region
+  with warning-styled toasts for `ambiguous`/`leased`/`ambiguous_and_leased`
+  outcomes) in `lib/plugins/private/plugins/dvhs-csf/communications-actions.ts`,
+  with focused private coverage in
+  `lib/plugins/private/plugins/dvhs-csf/services/communications-actions.test.ts`.
+  This closes CLEAN-022 at the repository-local/source-contract level only.
+  Docker-backed isolated verification, the full exact-tree replay, hosted
+  Development acceptance, provider/browser gates, and Production remain
+  unverified and pending.
 - `20260813085442` keeps the dormant fixed-path
   `private.is_plugin_enabled(uuid,text)` helper owner-only. A repository-wide
   caller scan found no role requiring execution, so `PUBLIC`, `anon`,
