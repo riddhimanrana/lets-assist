@@ -2,6 +2,7 @@ import { getRegisteredPlugin } from "@/lib/plugins/registry";
 import { loadAccessibleOrganizationPluginAccess } from "@/lib/plugins/organization-plugin-access";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveOrganizationMembershipRole } from "@/lib/organization/active-membership";
 import type {
   OrganizationPluginAccessRole,
   OrganizationPluginSurface,
@@ -15,6 +16,7 @@ export interface ResolveOrganizationPluginSurfacesOptions {
   organizationId: string;
   surface: OrganizationPluginSurface;
   viewerRole?: OrganizationPluginAccessRole | null;
+  viewerUserId?: string;
   target?: OrganizationPluginSurfaceRenderTargetContext;
   useAdminClient?: boolean;
 }
@@ -147,6 +149,15 @@ export async function resolveOrganizationPluginSurfaces(
   const supabase = options.useAdminClient
     ? getAdminClient()
     : await createClient();
+  const viewerRole = options.viewerUserId
+    ? await getActiveOrganizationMembershipRole(
+        supabase,
+        options.organizationId,
+        options.viewerUserId,
+      )
+    : options.viewerRole;
+  if (options.viewerUserId && !viewerRole) return [];
+
   const installRows = await loadAccessibleOrganizationPluginAccess({
     supabase,
     organizationIds: [options.organizationId],
@@ -165,7 +176,7 @@ export async function resolveOrganizationPluginSurfaces(
       plugin.manifest.minimumRole ??
       "member";
 
-    if (!hasSurfaceAccess(surfaceAccess, options.viewerRole)) {
+    if (!hasSurfaceAccess(surfaceAccess, viewerRole)) {
       continue;
     }
 
@@ -186,7 +197,7 @@ export async function resolveOrganizationPluginSurfaces(
     const node = await plugin.renderSurface(options.surface, {
       organizationId: options.organizationId,
       pluginConfiguration: configuration,
-      viewerRole: options.viewerRole,
+      viewerRole,
       target: options.target,
     });
 

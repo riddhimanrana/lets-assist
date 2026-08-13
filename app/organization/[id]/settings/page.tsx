@@ -23,6 +23,7 @@ import BulkImportSection from "./BulkImportSection";
 import OrganizationSheetsSettings from "./OrganizationSheetsSettings";
 import OrganizationPluginSettings from "./OrganizationPluginSettings";
 import MemberExporter from "./MemberExporter";
+import { hasActiveOrganizationAdminMembership } from "@/lib/organization/active-membership";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -91,20 +92,18 @@ export default async function OrganizationSettingsPage({ params }: Props) {
     notFound();
   }
 
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("user_id, role")
-    .eq("organization_id", organizationIdentity.id)
-    .eq("user_id", user.id)
-    .eq("role", "admin")
-    .maybeSingle();
+  const admin = getAdminClient();
+  const isActiveAdmin = await hasActiveOrganizationAdminMembership(
+    admin,
+    organizationIdentity.id,
+    user.id,
+  );
 
   // If not admin, redirect to organization page
-  if (!membership) {
+  if (!isActiveAdmin) {
     redirect(`/organization/${id}`);
   }
 
-  const admin = getAdminClient();
   const { data: organization } = await admin
     .from("organizations")
     .select("*")
