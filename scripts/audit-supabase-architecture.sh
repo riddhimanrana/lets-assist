@@ -831,6 +831,7 @@ public_client_function_acl_drift="$(
         ('public.is_project_organizer(uuid,uuid)', 'authenticated'),
         ('public.is_super_admin()', 'authenticated'),
         ('public.is_trusted_member(uuid)', 'authenticated'),
+        ('public.reject_project_signup(uuid)', 'authenticated'),
         ('public.unreject_project_signup_with_capacity(uuid)', 'authenticated')
     ),
     actual as (
