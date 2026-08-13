@@ -96,9 +96,10 @@ job, recipient, destination, or provider identifier.
 Every run invokes bounded deterministic reapers before claims. Their candidate
 CTEs order rows, apply a limit, and use `FOR UPDATE SKIP LOCKED`.
 
-- A job lease can return to `pending` because claiming a job performs no
-  external side effect. Exhausted jobs become `failed` without resetting their
-  attempts.
+- A job claim records a provisional attempt. Reaching the owned, unexpired
+  finalizer refunds it, including healthy fair-drain passes that return to
+  `pending`; an abandoned/expired lease retains it. Five retained failures
+  become `failed` without resetting their evidence.
 - An expired delivery lease that had entered `sending` becomes terminal
   `unknown_outcome`; it is not re-sent. A lease that provably remained before
   send may return to idle, but its third channel attempt terminalizes instead

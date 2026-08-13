@@ -28,6 +28,7 @@ let mockSignupUpdateResult: WriteResult;
 let mockRejectRpcResult: RpcResult | null;
 let mockUnrejectRpcResult: RpcResult;
 let mockCancellationRpcResult: RpcResult | null;
+let mockStatusTransitionRpcResult: RpcResult | null;
 let mockSignedWaiverCount: number | null;
 let mockSignedWaiverError: unknown;
 let mockStorageListError: unknown;
@@ -37,6 +38,7 @@ let anonymousAccessAllowed: boolean;
 const calendarProjectRemovals: string[] = [];
 const calendarSignupRemovals: string[] = [];
 const cancellationRpcCalls: Record<string, unknown>[] = [];
+const statusTransitionRpcCalls: Record<string, unknown>[] = [];
 const rejectRpcCalls: Record<string, unknown>[] = [];
 const unrejectRpcCalls: Record<string, unknown>[] = [];
 const revalidatedPaths: string[] = [];
@@ -297,6 +299,29 @@ function buildMockClient() {
         }
         return mockUnrejectRpcResult;
       }
+      if (name === "transition_project_status_transactional") {
+        statusTransitionRpcCalls.push(args);
+        eventLog.push("db:status-rpc");
+        const previousStatus = String(mockProject?.status);
+        const nextStatus = String(args.p_status);
+        const result = mockStatusTransitionRpcResult ?? {
+          data: {
+            outcome: "transitioned",
+            projectId: PROJECT_ID,
+            previousStatus,
+            status: nextStatus,
+          },
+          error: null,
+        };
+        if (
+          !result.error &&
+          (result.data as { outcome?: string } | null)?.outcome ===
+            "transitioned"
+        ) {
+          mockProject = { ...(mockProject ?? {}), status: nextStatus };
+        }
+        return result;
+      }
       if (name === "reject_project_signup") {
         rejectRpcCalls.push(args);
         eventLog.push("db:reject-rpc");
@@ -413,6 +438,7 @@ beforeEach(() => {
   calendarProjectRemovals.length = 0;
   calendarSignupRemovals.length = 0;
   cancellationRpcCalls.length = 0;
+  statusTransitionRpcCalls.length = 0;
   rejectRpcCalls.length = 0;
   unrejectRpcCalls.length = 0;
   revalidatedPaths.length = 0;
@@ -438,6 +464,7 @@ beforeEach(() => {
     error: null,
   };
   mockCancellationRpcResult = null;
+  mockStatusTransitionRpcResult = null;
   mockSignedWaiverCount = 0;
   mockSignedWaiverError = null;
   mockStorageListError = null;
@@ -548,8 +575,45 @@ describe("updateProjectStatus", () => {
     expect(eventLog).toHaveLength(0);
   });
 
-  test("a CAS loser reports failure with no cancellation side effects", async () => {
-    mockProjectUpdateResult = { data: null, error: null };
+  test("the locked receipt wins over a stale pre-RPC project status", async () => {
+    mockStatusTransitionRpcResult = {
+      data: {
+        outcome: "transitioned",
+        projectId: PROJECT_ID,
+        previousStatus: "in-progress",
+        status: "completed",
+      },
+      error: null,
+    };
+
+    const result = await updateProjectStatus(PROJECT_ID, "completed");
+
+    expect(result).toMatchObject({ success: true });
+    expect(statusTransitionRpcCalls).toHaveLength(1);
+    expect(eventLog).toEqual(["db:status-rpc"]);
+  });
+
+  test("a same committed status replays through the locked RPC", async () => {
+    mockProject = baseProject({ status: "in-progress" });
+    mockStatusTransitionRpcResult = {
+      data: {
+        outcome: "replayed",
+        projectId: PROJECT_ID,
+        previousStatus: "in-progress",
+        status: "in-progress",
+      },
+      error: null,
+    };
+
+    const result = await updateProjectStatus(PROJECT_ID, "in-progress");
+
+    expect(result).toMatchObject({ success: true });
+    expect(statusTransitionRpcCalls).toHaveLength(1);
+    expect(eventLog).toEqual(["db:status-rpc"]);
+  });
+
+  test("a missing transactional receipt reports failure with no side effects", async () => {
+    mockStatusTransitionRpcResult = { data: null, error: null };
     const result = await updateProjectStatus(PROJECT_ID, "in-progress");
 
     expect(result).toMatchObject({ error: expect.any(String) });
@@ -557,8 +621,8 @@ describe("updateProjectStatus", () => {
     expect(cancellationRpcCalls).toHaveLength(0);
   });
 
-  test("an explicit write error has no cancellation side effects", async () => {
-    mockProjectUpdateResult = {
+  test("an explicit transactional error has no cancellation side effects", async () => {
+    mockStatusTransitionRpcResult = {
       data: null,
       error: { message: "db error", code: "PGRST500" },
     };
@@ -569,9 +633,14 @@ describe("updateProjectStatus", () => {
     expect(cancellationRpcCalls).toHaveLength(0);
   });
 
-  test("a mismatched affected-row proof has no cancellation side effects", async () => {
-    mockProjectUpdateResult = {
-      data: { id: "different-project" },
+  test("a mismatched status receipt has no cancellation side effects", async () => {
+    mockStatusTransitionRpcResult = {
+      data: {
+        outcome: "transitioned",
+        projectId: "00000000-0000-4000-8000-000000000099",
+        previousStatus: "upcoming",
+        status: "in-progress",
+      },
       error: null,
     };
 
@@ -646,6 +715,13 @@ describe("updateProjectStatus", () => {
     expect(result).toMatchObject({ success: true });
     expect(calendarProjectRemovals).toHaveLength(0);
     expect(cancellationRpcCalls).toHaveLength(0);
+    expect(statusTransitionRpcCalls).toEqual([
+      {
+        p_project_id: PROJECT_ID,
+        p_status: "in-progress",
+      },
+    ]);
+    expect(eventLog).toEqual(["db:status-rpc"]);
   });
 
   test("unauthenticated callers cannot write", async () => {

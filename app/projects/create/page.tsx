@@ -152,6 +152,7 @@ export default async function CreateProjectPage({
       .select("role")
       .eq("organization_id", orgIdFromUrl)
       .eq("user_id", user.id)
+      .eq("status", "active")
       .single();
 
     if (permission?.role === "admin" || permission?.role === "staff") {
@@ -175,6 +176,7 @@ export default async function CreateProjectPage({
       "organization_id, role, organizations(id, name, logo_url, allowed_email_domains)",
     )
     .eq("user_id", user.id)
+    .eq("status", "active")
     .in("role", ["admin", "staff"]);
 
   if (memberships && memberships.length > 0) {
@@ -232,6 +234,7 @@ export default async function CreateProjectPage({
       .select("role")
       .eq("organization_id", initialOrgId)
       .eq("user_id", user.id)
+      .eq("status", "active")
       .maybeSingle();
 
     if (member) {
@@ -239,6 +242,7 @@ export default async function CreateProjectPage({
         organizationId: initialOrgId,
         hook: "project.create.additional_steps",
         viewerRole: toOrganizationPluginAccessRole(member.role),
+        viewerUserId: user.id,
       });
 
       pluginSteps = contributions.flatMap((c) => c.behavior || []);

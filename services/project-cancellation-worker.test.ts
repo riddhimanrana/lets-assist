@@ -214,8 +214,17 @@ class StatefulCancellationStore {
     switch (name) {
       case "reap_project_cancellation_delivery_leases":
         return { released: 0, unknown: 0 };
-      case "reap_project_cancellation_job_leases":
-        return { released: 0, failed: 0 };
+      case "reap_project_cancellation_job_leases": {
+        let failed = 0;
+        for (const job of this.jobs) {
+          if (job.status === "pending" && job.attempts >= 5) {
+            job.status = "failed";
+            job.lease_owner = null;
+            failed += 1;
+          }
+        }
+        return { released: 0, failed };
+      }
       case "redact_project_cancellation_destinations":
         return 0;
       case "claim_project_cancellation_jobs": {
@@ -362,6 +371,9 @@ class StatefulCancellationStore {
           : unknown || failed
             ? "needs_review"
             : "completed";
+        // A finalized lease was a healthy bounded pass. The claim increment is
+        // provisional and only remains consumed when the lease is abandoned.
+        job.attempts = Math.max(job.attempts - 1, 0);
         job.lease_owner = null;
         return { finalized: true, status: job.status };
       }
@@ -601,6 +613,47 @@ describe("stateful owed-channel behavior", () => {
 });
 
 describe("fair bounded draining", () => {
+  test("more than five healthy bounded runs complete without spending the failure budget", async () => {
+    store.addJob({
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      projectId: PROJECT_A,
+      organizationId: ORG_A,
+      deliveries: 6,
+      registered: false,
+    });
+
+    for (let pass = 0; pass < 6; pass += 1) {
+      const result = await runProjectCancellationWorker({
+        maxDeliveries: 1,
+      });
+      expect(result.jobsFailed).toBe(0);
+    }
+
+    expect(emailCalls).toHaveLength(6);
+    expect(store.jobs[0].status).toBe("completed");
+    expect(store.jobs[0].attempts).toBe(0);
+  });
+
+  test("five abandoned job leases still exhaust the failure budget", async () => {
+    addSingleJob();
+    store.fail("claim_project_cancellation_deliveries", 5);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await expect(runProjectCancellationWorker()).rejects.toThrow(
+        "claim_project_cancellation_deliveries",
+      );
+      // Models an expired lease made pending by the bounded job reaper. The
+      // provisional claim remains consumed because finalization never ran.
+      store.jobs[0].status = "pending";
+      store.jobs[0].lease_owner = null;
+    }
+
+    const exhausted = await runProjectCancellationWorker();
+    expect(exhausted.failedExhaustedJobs).toBe(1);
+    expect(store.jobs[0].status).toBe("failed");
+    expect(store.jobs[0].attempts).toBe(5);
+  });
+
   test("jobs alternate by a per-job quantum under the global budget", async () => {
     const jobA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     const jobB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";

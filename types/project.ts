@@ -72,6 +72,7 @@ export interface Project {
   project_timezone?: string;
   workflow_status?: ProjectWorkflowStatus;
   recurrence_rule?: RecurrenceRule | null;
+  recurrence_generation_id?: string | null;
   recurrence_parent_id?: string;
   recurrence_sequence?: number;
   restrict_to_org_domains?: boolean;

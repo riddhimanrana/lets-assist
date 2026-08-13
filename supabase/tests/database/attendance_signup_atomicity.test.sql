@@ -422,7 +422,7 @@ SELECT extensions.throws_ok(
     WHERE id = 'ad200000-0000-4000-8000-000000000004'
   $$,
   '42501',
-  'participants may only cancel their own signup',
+  'attendance requires a server-authorized operation',
   'a participant cannot forge attended status'
 );
 SELECT extensions.throws_ok(
@@ -518,8 +518,7 @@ SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" =
   '{"sub":"ad000000-0000-4000-8000-000000000001","role":"authenticated"}';
 
--- Rejection owes the volunteer a notification, so it left client status
--- moderation entirely and now belongs to public.reject_project_signup.
+-- Approval and rejection both belong to their reviewed transactional RPCs.
 SELECT extensions.throws_ok(
   $$
     UPDATE public.project_signups
@@ -528,15 +527,17 @@ SELECT extensions.throws_ok(
   $$,
   '42501',
   'signup rejection requires the server-authorized operation',
-  'even a project manager cannot reject a signup with a direct update'
+  'a project manager cannot bypass transactional rejection'
 );
-SELECT extensions.lives_ok(
+SELECT extensions.throws_ok(
   $$
     UPDATE public.project_signups
     SET status = 'approved'
     WHERE id = 'ad200000-0000-4000-8000-000000000004'
   $$,
-  'a project manager retains the rest of signup status moderation'
+  '42501',
+  'signup approval requires a capacity-safe transactional RPC',
+  'a project manager cannot bypass transactional approval'
 );
 SELECT extensions.is(
   (
@@ -544,8 +545,8 @@ SELECT extensions.is(
     FROM public.project_signups AS signups
     WHERE signups.id = 'ad200000-0000-4000-8000-000000000004'
   ),
-  'approved',
-  'manager status moderation persists'
+  'cancelled',
+  'a rejected browser-direct transition does not persist'
 );
 
 RESET ROLE;

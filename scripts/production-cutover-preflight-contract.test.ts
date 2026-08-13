@@ -22,9 +22,9 @@ const architectureAudit = readFileSync(
 );
 
 const PRODUCTION_HEAD = "20260811001500";
-const TARGET_HEAD = "20260813010000";
+const TARGET_HEAD = "20260813013300";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
-const HARD_FAIL_SITES = 27;
+const HARD_FAIL_SITES = 28;
 const hardFailStatements =
   preflight.match(/^[ \t]*SELECT 1 \/ 0 AS preflight_check_failed;$/gmu) ?? [];
 const PENDING_VERSIONS = [
@@ -66,7 +66,18 @@ const PENDING_VERSIONS = [
   "20260812132725",
   "20260812152300",
   "20260812161500",
+  "20260812185500",
+  "20260812193329",
+  "20260812193400",
+  "20260812203000",
+  "20260812203500",
+  "20260812220000",
   "20260813010000",
+  "20260813012206",
+  "20260813013000",
+  "20260813013100",
+  "20260813013200",
+  "20260813013300",
 ] as const;
 
 function readMigration(version: string) {
@@ -78,7 +89,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 236 -> 275 ledger and all 39 pending versions", () => {
+  test("pins the exact 236 -> 286 ledger and all 50 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -92,18 +103,26 @@ describe("Production cutover preflight source contract", () => {
     const pinnedBaseline = [...baselineBlock.matchAll(/'(\d{14})'/gu)].map(
       (match) => match[1],
     );
+    const targetTailBlock = preflight.slice(
+      preflight.indexOf("-- BEGIN EXACT PRODUCTION TARGET TAIL"),
+      preflight.indexOf("-- END EXACT PRODUCTION TARGET TAIL"),
+    );
+    const pinnedTargetTail = [...targetTailBlock.matchAll(/'(\d{14})'/gu)].map(
+      (match) => match[1],
+    );
 
-    expect(migrations).toHaveLength(275);
+    expect(migrations).toHaveLength(286);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
     expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
       migrations.slice(0, 236).map((name) => name.slice(0, 14)),
     );
     expect(pending).toEqual([...PENDING_VERSIONS]);
+    expect(pinnedTargetTail).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 236");
-    expect(preflight).toContain("count(*) = 275");
+    expect(preflight).toContain("count(*) = 286");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("39 migrations pending");
+    expect(preflight).toContain("50 migrations pending");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
     }
@@ -187,6 +206,7 @@ describe("Production cutover preflight source contract", () => {
       "d10_pass",
       "target_shape_ready",
       "t2_pass",
+      "target_google_cap_rpc_pass",
       "target_pg_graphql_absent",
       "target_read_models_pass",
       "target_function_acl_pass",
@@ -239,6 +259,93 @@ describe("Production cutover preflight source contract", () => {
     );
     expect(preflightFunctionAclBlock).toContain("security_invoker=true");
     expect(preflightFunctionAclBlock).toContain("function_record.prosecdef");
+
+    const issuerGuard = readMigration("20260812193400");
+    expect(issuerGuard).toContain(
+      "CREATE OR REPLACE FUNCTION private.protect_staff_join_token_issuer()",
+    );
+    expect(issuerGuard).toMatch(
+      /NEW\.staff_join_token_issued_by\s+IS DISTINCT FROM OLD\.staff_join_token_issued_by/u,
+    );
+    expect(issuerGuard).toContain(
+      "REVOKE ALL ON FUNCTION private.protect_staff_join_token_issuer()",
+    );
+    expect(issuerGuard).toContain("TO postgres;");
+  });
+
+  test("verifies the moderation evidence shape this cutover introduces", () => {
+    const targetShapeBlock = preflight.slice(
+      preflight.indexOf("T1  Target-only relation inventory"),
+      preflight.indexOf("T3  Target pg_graphql posture"),
+    );
+
+    // The relation the reporter pseudonym mapping lives in, the objects that
+    // bound retry replay, and the detachment behavior moderation evidence
+    // depends on when an account goes away.
+    for (const expected of [
+      "public.reporter_references",
+      "public.api_rate_limit_receipts",
+      "api_rate_limit_receipts_expiry_idx",
+      "content_reports_request_occurrence_uidx",
+      "content_reports_request_fingerprint_format_check",
+      "content_reports_request_identity_complete_check",
+      "reporter_references_reporter_id_key",
+      "content_reports_reporter_id_fkey",
+      "content_reports_reporter_reference_fkey",
+      "submit_content_report(text,uuid,text,uuid,text,text,integer,text[],integer[],integer)",
+      "consume_content_report_attempt(text[],integer[],integer)",
+      "detach_content_report_reporter(uuid)",
+    ]) {
+      expect(targetShapeBlock).toContain(expected);
+    }
+    expect(targetShapeBlock).toContain("private.project_series_end_receipts");
+    expect(targetShapeBlock).toContain("confdeltype");
+    expect(targetShapeBlock).toContain("'fk_delete_set_null' THEN 'n'");
+    expect(targetShapeBlock).toContain("function_record.prosecdef");
+    expect(targetShapeBlock).toContain("ARRAY['search_path=\"\"']");
+    expect(targetShapeBlock).toContain(
+      "has_function_privilege('service_role', function_record.oid, 'EXECUTE')",
+    );
+
+    // The three report functions are server-only, so they must never appear in
+    // the client function ACL catalog T5b compares against.
+    const functionAclBlock = preflight.slice(
+      preflight.indexOf("T5  Public read-model and function ACL posture"),
+      preflight.indexOf("T6  Exact target relation ACL"),
+    );
+    expect(functionAclBlock).not.toContain("submit_content_report");
+    expect(functionAclBlock).not.toContain("consume_content_report_attempt");
+    expect(functionAclBlock).not.toContain("detach_content_report_reporter");
+  });
+
+  test("pins the internal quota helper to its reviewed executor", () => {
+    const migration = readMigration("20260812203000");
+
+    expect(migration).toContain(
+      "REVOKE ALL ON FUNCTION app_private.consume_rate_limit_buckets(\n  text[], integer[], integer, timestamptz\n) FROM PUBLIC, anon, authenticated, service_role;",
+    );
+    expect(migration).toContain(
+      "GRANT EXECUTE ON FUNCTION app_private.consume_rate_limit_buckets(\n  text[], integer[], integer, timestamptz\n) TO postgres;",
+    );
+    expect(migration).toContain(
+      "REVOKE ALL ON FUNCTION public.detach_content_report_reporter(uuid)\n  FROM PUBLIC, anon, authenticated;",
+    );
+    expect(migration).toContain(
+      "GRANT EXECUTE ON FUNCTION public.detach_content_report_reporter(uuid)\n  TO service_role;",
+    );
+  });
+
+  test("makes moderator alert delivery part of the replay-safe transaction", () => {
+    const migration = readMigration("20260812203000");
+    const deduplicatedAlertWrites =
+      migration.match(
+        /ON CONFLICT \(user_id, dedupe_key\) WHERE dedupe_key IS NOT NULL DO NOTHING;/gu,
+      ) ?? [];
+
+    expect(migration).toContain("'content-report:' || v_existing_id::text");
+    expect(migration).toContain("'content-report:' || v_report_id::text");
+    expect(migration).toContain("user_record.raw_app_meta_data");
+    expect(deduplicatedAlertWrites).toHaveLength(2);
   });
 
   test("requires exact target relation and storage contracts", () => {
@@ -263,6 +370,37 @@ describe("Production cutover preflight source contract", () => {
     );
     expect(storageBlock).toContain("storage.objects");
     expect(storageBlock).toContain("relrowsecurity");
+  });
+
+  test("requires the Google CAP RPC integrity contract", () => {
+    expect(preflight).toContain(
+      "public.claim_google_cap_event(text,text,text,text,timestamptz,text)",
+    );
+    expect(preflight).toContain(
+      "public.begin_google_cap_event_effect(uuid,uuid,text)",
+    );
+    expect(preflight).toContain(
+      "public.finish_google_cap_event(uuid,uuid,boolean,text,integer,integer)",
+    );
+    expect(preflight).toContain("target_google_cap_rpc_pass");
+    expect(preflight).toContain("function_record.prosecdef");
+    expect(preflight).toContain("'search_path=\"\"'");
+    expect(preflight).toContain(
+      "'service_role',\n          inspected.oid,\n          'EXECUTE'",
+    );
+    expect(preflight).toContain(
+      "private.google_cap_event_receipts_processing_subject_uidx",
+    );
+    expect(preflight).toContain(
+      "'identity_row.provider_id = p_google_subject'",
+    );
+    expect(preflight).toContain(
+      "'v_receipt.resolved_user_id IS DISTINCT FROM v_user_id'",
+    );
+    expect(preflight).toContain(
+      "'status=ANYARRAY[''processing''::text,''effect_started''::text]'",
+    );
+    expect(preflight).toContain("'effect_fence_index_drift'");
   });
 
   test("checks CSF control-plane consistency without printing provider secrets", () => {
@@ -309,6 +447,7 @@ describe("Production cutover preflight source contract", () => {
     expect(preflight).toContain("\\if :target_shape_ready");
     expect(preflight).toContain("public.project_cancellation_deliveries");
     expect(preflight).toContain("private.plugin_data_deletion_requests");
+    expect(preflight).toContain("private.google_cap_event_receipts");
     expect(
       preflight.indexOf("D7  Cross-organization CSF post replies"),
     ).toBeLessThan(preflight.indexOf("\\if :target_ledger"));

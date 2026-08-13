@@ -35,6 +35,12 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-011](#aud-011) | P3  | Plugin control plane   | Advertised control-plane surfaces that no code path reads                                                              | Confirmed                                                    |
 | [AUD-020](#aud-020) | P2  | Plugin data deletion   | Permanent deletion lacked a complete contract, authorization boundary, and truthful durable replay state               | **Fixed locally**; hosted Development pending                |
 | [AUD-021](#aud-021) | P2  | Plugin uninstall       | Ordinary uninstall could run arbitrary plugin code and therefore could not guarantee data retention                    | **Fixed locally**; hosted Development pending                |
+| [AUD-031](#aud-031) | P1  | Organization RLS       | Inactive membership rows still granted helper-backed tenant authority and could support self-reactivation              | **Fixed locally**; hosted Development pending                |
+| [AUD-032](#aud-032) | P1  | Project status         | Browser writes could bypass cancellation atomicity or revive cancelled projects, and failures were console-only        | **Fixed locally**; hosted Development pending                |
+| [AUD-033](#aud-033) | P1  | Recurrence             | Series ending and child generation lacked one serialized parent boundary and exposed a public definer                  | **Fixed locally**; hosted Development pending                |
+| [AUD-034](#aud-034) | P1  | Cancellation worker    | Healthy pagination spent the abandoned-lease retry budget and could amplify retries                                    | **Fixed locally**; hosted Development pending                |
+| [AUD-041](#aud-041) | P1  | Moderation evidence    | Reporters could directly create, rewrite, or delete `content_reports` evidence and retries duplicated it               | **Fixed locally**; hosted Development pending                |
+| [AUD-042](#aud-042) | P1  | Plugin data ACLs       | `plugin_data` default privileges re-granted `authenticated` on every future table, sequence, and routine               | **Fixed locally**; hosted Development pending                |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -744,16 +750,272 @@ The private action keeps its existing parameters and accepts one optional final
 request UUID. The UI retains that UUID across an unknown add/delete outcome and
 reuses it on an unchanged manual retry; changing the body discards the stale
 key. Private PR #44 merged first into the private repository's `development`
-branch at `d4188dd7`; the current root gitlink `ca817bf` contains that reply
-code plus the later preview-summary correction. Audited source evidence passes
-48 focused private tests (220 expectations), all 121 database files and 5,126
-pgTAP assertions, including observed two-connection advisory-lock waits for
-same-request replay and a staff-only `manage_posts` revocation. The exact
-integrated branch still requires fresh replay. Hosted Development migration,
-advisor, and browser acceptance also remain required before this finding
-closes.
+branch at `d4188dd7`; the current root gitlink
+`605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b` contains that reply code, the later
+preview-summary correction, meeting hardening, and inactive-access hardening.
+Audited source evidence passes 48 focused private tests (220 expectations), all
+121 database files and 5,126 pgTAP assertions, including observed
+two-connection advisory-lock waits for same-request replay and a staff-only
+`manage_posts` revocation. The exact integrated branch still requires fresh
+replay. Hosted Development migration, advisor, and browser acceptance also
+remain required before this finding closes.
 
 Production was not accessed or changed for this finding.
+
+---
+
+<a id="aud-031"></a>
+
+## AUD-031 — Inactive membership retained shared tenant authority {#aud-031}
+
+**Severity:** P1 · **Confidence:** confirmed · **Status:** fixed locally; hosted
+Development verification pending
+
+The four shared `private` organization helpers selected membership rows without
+requiring `status = 'active'`. Because organization-member updates and multiple
+public/plugin RLS policies call those definer helpers, an inactive admin or
+staff actor could still satisfy tenant authorization, including the update
+policy governing their own membership row.
+
+**Local evidence:** the hostile fixture covers an inactive administrator's
+self-reactivation, null/inactive cancellation and unrejection authority,
+null/inactive hours publication, a separately active cross-tenant administrator,
+and active same-tenant admin/staff controls. The lifecycle source contract,
+focused pgTAP, and fresh local replay pass.
+
+**Local resolution candidate:** `20260813013000_reconcile_project_lifecycle_boundaries.sql`
+replaces all four helpers with fixed-path definitions that require the exact
+organization, current user, reviewed role, and explicit active status. It
+reapplies explicit function ACLs without changing the stronger
+`app_private.is_project_organizer` or `app_private.can_manage_project`
+definitions owned by current Development.
+
+`20260813013100_lock_project_lifecycle_transactions.sql` additionally
+forward-replaces cancellation, unrejection, and hours publication with locked
+exact-active authorization wrappers while preserving their mature transactional
+implementations and public signatures.
+
+**Hosted resolution:** not applied or verified on hosted Development. Production
+was not accessed.
+
+---
+
+<a id="aud-032"></a>
+
+## AUD-032 — Cancelled projects could bypass or reverse lifecycle authority {#aud-032}
+
+**Severity:** P1 · **Confidence:** confirmed · **Status:** fixed locally; hosted
+Development verification pending
+
+The general authenticated project update surface could enter `cancelled`
+without the transaction that freezes its audience/outbox, or move a cancelled
+row back to another status. `ProjectDetails.tsx` also persisted calculated
+status directly through the browser client and reported authorization failures
+only in the console.
+
+**Local evidence:** focused lifecycle TypeScript coverage, the full unit suite,
+fresh replay, and hostile pgTAP pass. The database fixture exercises direct
+cancellation, direct revival, preserved state/outbox truth, and the reviewed
+transactional cancellation path.
+
+**Local resolution candidate:** the project trigger now rejects every direct
+authenticated status change. Cancellation retains its audience/outbox
+transaction, while `transition_project_status_transactional` derives the actor,
+locks the project and exact active membership, enforces only
+`upcoming → in-progress/completed` and `in-progress → completed`, and returns an
+exact receipt consumed by the unchanged Server Action signature.
+
+**Hosted resolution:** not applied or verified on hosted Development. Production
+was not accessed.
+
+---
+
+<a id="aud-033"></a>
+
+## AUD-033 — Recurrence ending lacked one serialized private transaction {#aud-033}
+
+**Severity:** P1 · **Confidence:** confirmed · **Status:** fixed locally; hosted
+Development verification pending
+
+A recurrence worker could decide to create a child without locking the parent
+against series ending. The first repair also exposed the complete privileged
+series transaction as a client-executable public SECURITY DEFINER function,
+contrary to the current public-function boundary.
+
+**Local evidence:** the source contract asserts the parent lock, private call to
+the canonical cancellation transaction, fixed empty paths, public invoker
+wrapper, immutable generation-and-edit-bound replay receipt, and absence of a
+public definer. The pgTAP transaction and two-session serialization proofs cover
+status versus cancellation, child generation versus series ending, and
+membership revocation before locked authority recheck; the architecture audit
+and fresh replay also pass. The exact merged candidate now replays 279 ordered
+migrations, retains rejection and lifecycle entries in both reviewed public ACL
+catalogs, and orders the `161500` rejection transaction before the `215733`
+union guard. The three inherited #152 assertions now prove that active
+administrators cannot bypass capacity-safe approval or unrejection through a
+direct browser update, while manager and participant cancellation remain
+available. The full generated isolated gate passes 132 database files and 5,475
+pgTAP assertions. Hosted Development and Production were not moved.
+
+**Local resolution candidate:** the one-argument public SECURITY INVOKER
+signature remains as a compatibility wrapper. A new two-argument invoker
+overload delegates to a private transaction that locks the parent and child
+rows, applies a strict allowlist of ordinary edits, delegates every eligible
+child to canonical cancellation, clears recurrence, and persists the locked
+cleanup decision in a private replay marker, including zero-child series. The
+marker binds the exact canonical ordinary edit to the recurrence generation;
+exact retries return before mutating the parent, while mismatched reuse is
+rejected. Constraint failure rolls the entire edit and all child cancellations
+back. The ledger tail also reapplies the combined
+approval/attendance/rejection signup guard so #152 remains compatible.
+
+**Hosted resolution:** not applied or verified on hosted Development. Production
+was not accessed.
+
+---
+
+<a id="aud-034"></a>
+
+## AUD-034 — Healthy pagination consumed the cancellation failure budget {#aud-034}
+
+**Severity:** P1 · **Confidence:** confirmed · **Status:** fixed locally; hosted
+Development verification pending
+
+The job claim increment represented both an ordinary bounded page and an
+abandoned lease. Large healthy jobs could therefore reach five attempts and
+fail merely because the worker honored its per-run delivery budget, while
+retries multiplied across later runs.
+
+**Local evidence:** the stateful worker suite passes 20 tests / 90 assertions,
+including more than five healthy one-delivery runs, five abandoned leases,
+per-job round-robin quanta under one global maximum, terminal pre-send
+exhaustion, and no accepted-email resend. Focused pgTAP covering healthy
+finalizer refunds and true abandoned-lease exhaustion passes, as do the fresh
+replay and complete local database suite.
+
+**Local resolution candidate:** an owned, unexpired finalizer refunds the
+provisional claim with `GREATEST(attempts - 1, 0)`. Only a lease that reaches the
+reaper retains an attempt. The worker preserves one clamped
+`maxDeliveries` counter across all claimed jobs and one unique per-delivery
+provider idempotency key.
+
+**Hosted resolution:** not applied or verified on hosted Development. No
+provider request was made, and Production was not accessed.
+
+---
+
+<a id="aud-041"></a>
+
+## AUD-041 — Content reports were client-written {#aud-041}
+
+**Priority:** P1 · **Status:** Fixed and verified locally; hosted Development pending
+
+`authenticated` held INSERT, UPDATE, and DELETE on `public.content_reports` with
+matching owner policies, so a reporter could file evidence with a status and
+priority of their choosing, rewrite or delete it after a moderator had seen it,
+attach an arbitrary UUID as the reported target, and forge the moderation
+dashboard's `Content URL:` marker inside their own free-text description. The
+route carried no durable rate limit of any kind — neither per user nor per
+address — so submission volume was bounded only by the client, and a retried
+submission created a second report.
+
+`20260812203000_make_content_reports_server_written.sql` revokes every browser
+write grant and column grant, drops the write policies, keeps owner-scoped
+SELECT, and rewrites the reviewed relation catalog with a literal body rather
+than deparsing the live catalog. Writes now go through one `SECURITY DEFINER`
+transaction that only `service_role` may execute. Under an advisory lock on the
+request fingerprint it replays a still-open duplicate, confirms the target
+exists in the literal relation its type names, decides the user and address
+buckets together so neither is charged unless both pass, resolves the
+reporter's durable pseudonym, and derives status, priority, and timestamps
+itself.
+
+Four properties of that transaction are worth stating exactly, because each
+replaced a weaker earlier design in this branch:
+
+- **Replay is bounded, not permanent.** Deduplication is keyed on a
+  `request_fingerprint` plus a server-derived `replay_expires_at`, currently 15
+  minutes. Inside the window a retry returns the original report; past it, the
+  same report can be filed again with an incremented `request_sequence`, so a
+  dismissed issue that recurs is not silently swallowed. Client-supplied time
+  never enters the fingerprint.
+- **The reporter pseudonym is opaque, not derived.** `reporter_reference` is a
+  random UUID held in the server-only `public.reporter_references` mapping, not
+  a hash of the account identifier, so nobody holding a user UUID can recompute
+  it. The mapping is `ON DELETE SET NULL` on its reporter and carries no client
+  grants and no RLS policy.
+- **A forged target cannot reach the queue.** Existence is checked in the
+  transaction against `public.projects`, `public.profiles`, or
+  `public.organizations`. The refusal is generic; reporter visibility stays in
+  the caller's own RLS-scoped session, which is the only place that knows who is
+  asking.
+- **Refused work still costs.** `public.consume_content_report_attempt` charges
+  a separate, higher attempt ceiling before any target lookup, so invisible
+  targets, malformed locations, and replays are bounded too, while the
+  stored-report quota is only charged when a report is actually written.
+
+`reporter_id` became `ON DELETE SET NULL`, and account deletion and enforcement
+bans detach the reporter instead of deleting the evidence. A failed detach
+aborts the ban outright rather than leaving reports pointed at an account that
+is about to become unreachable.
+
+The route keeps its public request and success shapes. It revalidates the actor
+against the auth server, reads a byte-bounded body, parses a strict schema, and
+refuses a target the reporter cannot already read. A reported URL is kept only
+when it resolves to the configured origin, and is stored as a relative path; a
+preview or alias host is simply absent rather than fatal, since the target type
+and identifier are authoritative. Genuinely unsafe locations — other schemes,
+embedded credentials, authority-relative or backslash forms, control and bidi
+characters — are still refused, and the dashboard links to a stored location
+only when it is a safe leading-slash path. Logs carry the content type and
+reason only — no reporter identity, target identifier, IP, or database error
+text.
+
+Local evidence: 84 pgTAP assertions in
+`supabase/tests/database/content_reports_server_written.test.sql`, 8
+two-connection assertions in
+`supabase/tests/database/content_reports_submission_concurrency.test.sql`, and
+82 route, service, domain, and retention tests. Withholding the migration fails
+the contract outright: the direct-write denial assertions fail against the old
+grants and the transaction the rest of the file exercises does not exist.
+No provider, hosted Development, or Production resource was accessed.
+
+---
+
+<a id="aud-042"></a>
+
+## AUD-042 — Legacy plugin_data default ACLs could re-expose new private objects {#aud-042}
+
+**Priority:** P1 · **Status:** Fixed and verified locally; hosted Development pending
+
+Schema `USAGE` was already denied to `anon` and `authenticated`, but
+`plugin_data` still carried schema-scoped default privileges naming
+`authenticated` for every future table, sequence, and routine, so the next
+private-plugin migration would have re-granted it. The trigger function
+`plugin_data.csf_stamp_application_policy_version` also still carried `PUBLIC`,
+`anon`, and `authenticated` EXECUTE from the built-in default in force when it
+was created.
+
+`20260812203500_close_plugin_data_browser_default_acl.sql` revokes schema,
+existing-object, and default privileges from `PUBLIC`, `anon`, and
+`authenticated` for every role that owns an object in the schema plus the role
+applying the ledger, preserves `service_role` usage, and fails closed on any
+residual browser-facing privilege or default. No event trigger is introduced.
+
+One limit is deliberate and documented in the migration: PostgreSQL's built-in
+global default grants `EXECUTE` on new functions to `PUBLIC`, and per
+`ALTER DEFAULT PRIVILEGES` a per-schema entry cannot revoke a globally granted
+default. Revoking it globally for a shared owner role would reach far outside
+this schema. Schema `USAGE` denial is therefore the enforced gate, and both the
+migration probe and the pgTAP contract prove it by creating a table, identity
+sequence, and function and then calling as `anon` and `authenticated`, rather
+than by reading the ACL alone.
+
+Local evidence: 17 pgTAP assertions in
+`supabase/tests/database/plugin_data_browser_default_acl.test.sql` and a clean
+migration replay. Withholding the migration fails 5 of those 17 — the existing
+routine grant, the browser-facing default ACL entries, and inheritance on a new
+table, sequence, and routine. Production was not queried or changed.
 
 ---
 

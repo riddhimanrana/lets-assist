@@ -218,6 +218,8 @@ describe("db-replay-validation CI job contract", () => {
       "Validate CSF workflows and public privacy boundary",
     );
     expect(job).not.toContain("- name: Validate DB reset replay");
+    expect(job).toContain("- name: Validate volunteer-hours lock concurrency");
+    expect(job).toContain("run: bun run db:test:hours-concurrency");
     expect(job).toContain("- name: Seed fictional platform and DV fixtures");
     expect(job).toContain("- name: Stop isolated Let’s Assist Supabase");
     expect(job).toContain("if: always()");
