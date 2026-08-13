@@ -1,7 +1,7 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** the August 11 tree's replay/build/DV+CSF browser gates and hosted Development acceptance are historical evidence only. Development is at `20260812073000`; this release-integration repository continues with the unpublished ordered series through `20260812101100`, so exact hosted parity and the final combined replay are pending. The historical Development environment had leaked-password protection enabled, the unused `pg_graphql` extension removed, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. Hosted enabled scheduled-post publication, live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, Production webhook rotation, and Production cutover remain pending.
+**Current status:** this repository carries 277 ordered migrations through `20260813010000`; hosted Development Supabase remains at 273 through `20260812152300`, and Production remains at 236 through `20260811001500`. The `dev.lets-assist.com` alias still serves Ready code from the earlier 272-migration tree because the external deployment cap blocked a refresh, so neither hosted database parity nor exact-current-code acceptance is established. Google OAuth and Picker are connected: the bounded Spring 2026 application preview stored 85 rows, failed during sealing, and committed zero applications. Reconnect, revocation, failure-state, remaining visible role-mutation, accessibility, Production webhook-rotation, and 41-migration Production cutover gates remain pending.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
@@ -194,9 +194,10 @@ Acceptance: the three historical previews use the exact bounded ranges and show 
 
 ### 10.3 Student rollout (replaces the four Classroom codes)
 
-1. Create four cohort onboarding links (§4) — one per graduating class, Fall 2026 term, combined link type. These replace the Freshman/Sophomore/Junior/Senior Google Classroom codes everywhere the chapter publishes them. For Class of 2030, attach the reviewed new application form; do not prepopulate the class from its template-only workbook.
-2. Students who sign up through a cohort link skip the generic platform tour, confirm **We found your CSF record — is this you?**, pick a username in place, and get the CSF member tour on their **Feed**.
-3. Students whose sign-up email is not on the roster submit a link request; resolve them in **Members → Account connections → Matches to review**. Ranked suggestions help an officer locate evidence, but **Connect account** is not offered at all until stable corroborating identity evidence is present and every hard conflict is cleared. Never expose roster names to students.
+1. Before publishing links for Classes of 2027–2029, establish a current, unique school or personal email on each imported historical profile that is expected to support automatic discovery or a student-specific link. Use the current approved application cycle or another reviewed current source, then record the change through the audited member-correction workflow. Never copy an address from the historical comparison workbook merely to make a match.
+2. Create four cohort onboarding links (§4) — one per graduating class, Fall 2026 term, combined link type. These replace the Freshman/Sophomore/Junior/Senior Google Classroom codes everywhere the chapter publishes them. For Class of 2030, attach the reviewed new application form; do not prepopulate the class from its template-only workbook.
+3. A student whose confirmed sign-in email uniquely matches the current email on one same-class profile may see **We found your CSF record — is this you?**, confirm it, pick a username in place, and get the CSF member tour on their **Feed**. The historical class sheet alone can never produce that result.
+4. A student whose current unique email has not been established submits a link request instead. Resolve it in **Members → Account connections → Matches to review**, but understand that **Connect account** remains unavailable until an officer first records current corroborating email evidence through the audited correction workflow. Ranked suggestions only help locate evidence. Never expose roster names to students.
 
 ### 10.4 Posts and announcement email
 
@@ -259,9 +260,9 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Complete green PR checks; least-privilege `PRIVATE_SUBMODULE_TOKEN`, GitGuardian disposition for the removed local-only fixture password, and authenticated Vercel Preview diagnosis remain open
 - [x] Post-hardening production build and full private-plugin unit-suite rerun
 - [ ] Persistent isolated Supabase development branch after explicit `$0.01344/hour` cost confirmation
-- [ ] Re-establish the stable Development alias and prove branch-scoped non-production Supabase parity against the ordered ledger through `20260812101100`; the earlier alias/parity evidence applies only to its historical tree
+- [ ] Re-establish the stable Development alias and prove branch-scoped non-production Supabase parity against the ordered ledger through `20260813010000`; the earlier alias/parity evidence applies only to its historical tree
 - [x] Authorize local and hosted Development Google origins/callbacks, including `http://localhost:3001` and `https://dev.lets-assist.com`
-- [ ] Confirm `dvhighcsf@gmail.com` in-product, then complete Picker, import, reconnect, revocation, and failure-state verification
+- [ ] Complete Google reconnect, revocation, and failure-state verification; the exact chapter identity, Picker selection, and one bounded failed-preview attempt are current Development evidence, not full import acceptance
 - [ ] Complete synthetic visible mutation lifecycle for every actor
 - [ ] Keyboard, focus, and screen-reader acceptance
 - [ ] Three native Google Slides decks created and visually accepted
@@ -276,6 +277,6 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Prove an enabled hosted scheduled-post worker invocation and visible synthetic schedule → Feed transition before relying on it in that environment
 - [x] Configure and repeatedly verify hosted `csf-communications-dispatch`; document that GitHub scheduling is irregular and does not promise fixed-time delivery
 
-No live chapter Google OAuth/Picker/Drive import or Google write has been performed. Development uses a separate hosted Supabase project, but exact parity with the current 268-migration integration ledger has not been re-established. Production has been inspected read-only but not mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.
+Live chapter Google OAuth, Picker selection, and one bounded Development preview have been performed; the preview stopped at its failed seal after storing 85 rows and committed zero applications. No chapter import commit or Google write has been performed. Development uses a separate hosted Supabase project, but exact parity with the current 277-migration repository ledger and exact-current-code alias evidence have not been established. Production has been inspected read-only but not mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.
 
 See [testing and release](testing-and-release.md) for current evidence and residual risk. See the [product contract](product-contract.md) for the full product, permission, data, and acceptance contracts.

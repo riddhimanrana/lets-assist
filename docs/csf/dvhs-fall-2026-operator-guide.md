@@ -190,6 +190,15 @@ link.
 
 ## Give a whole class its reusable join link
 
+For Classes of 2027–2029, the historical class sheets do not supply reliable
+account emails. Before publishing a link as an automatic record-discovery path,
+establish a current, unique school or personal email from the approved current
+application cycle or another reviewed current source, then record it through the
+audited member-correction workflow. Never backfill an address from the Spring
+2026 comparison workbook merely to make a match. Without current corroborating
+email evidence, the student can submit a review request, but **Connect account**
+remains unavailable until an officer corrects the record.
+
 1. Open **Members → Account connections**.
 2. Select **Class link**. The dialog is titled **Create a reusable class link**.
 3. Choose **Class** and **Semester** = Fall 2026. **Link name** derives from

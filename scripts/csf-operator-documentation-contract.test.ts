@@ -791,6 +791,46 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
   });
 
+  test("cohort rollout requires current email evidence before account connection", () => {
+    const cohortLink = between(
+      operatorGuide,
+      "## Give a whole class its reusable join link",
+      "## Find a record when it is not in the list",
+    );
+    expect(cohortLink).toContain(
+      "the historical class sheets do not supply reliable account emails",
+    );
+    expect(cohortLink).toContain(
+      "approved current application cycle or another reviewed current source",
+    );
+    expect(cohortLink).toContain("audited member-correction workflow");
+    expect(cohortLink).toContain(
+      "Never backfill an address from the Spring 2026 comparison workbook",
+    );
+    expect(cohortLink).toContain(
+      "**Connect account** remains unavailable until an officer corrects the record",
+    );
+
+    const studentRollout = between(
+      officerRunbook,
+      "### 10.3 Student rollout",
+      "### 10.4 Posts and announcement email",
+    );
+    expectInOrder(studentRollout, [
+      "current, unique school or personal email",
+      "current approved application cycle",
+      "audited member-correction workflow",
+      "Create four cohort onboarding links",
+    ]);
+    expect(studentRollout).toContain(
+      "The historical class sheet alone can never produce that result",
+    );
+    expect(studentRollout).toContain("**Connect account** remains unavailable");
+    expect(productContract).toContain(
+      "A student-specific link may use only a current, unique school or personal email recorded on the selected active profile",
+    );
+  });
+
   test("queueing is never documented as delivery", () => {
     const campaigns = readComponent("CsfCommunicationsCampaigns.tsx");
     expect(campaigns).toContain(
