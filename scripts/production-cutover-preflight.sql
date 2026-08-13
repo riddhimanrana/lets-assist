@@ -1,4 +1,4 @@
--- Production 236 -> repository target 280 cutover preflight.
+-- Production 236 -> repository target 282 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -10,7 +10,7 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   236 rows headed by 20260811001500
---   post-cutover  280 rows headed by 20260813010000 with the exact 44-row tail
+--   post-cutover  282 rows headed by 20260813012206 with the exact 46-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -43,7 +43,7 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 236/baseline or exactly 280/target'
+\echo '    PASS: exactly 236/baseline or exactly 282/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
@@ -146,9 +146,9 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260811001500'
     ) = 0 AS baseline_ledger,
-  count(*) = 280
+  count(*) = 282
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260813010000'
+    AND max(version::text) = '20260813012206'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
@@ -171,15 +171,16 @@ SELECT
       '20260812101000','20260812101100','20260812104754',
       '20260812114638','20260812115556','20260812132725',
       '20260812152300','20260812161500','20260812185500',
-      '20260812193400','20260812203000','20260812203500',
-      '20260812220000','20260813010000'
+      '20260812193329','20260812193400','20260812203000',
+      '20260812203500','20260812220000','20260813010000',
+      '20260813012206'
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
 \gset
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 44 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 46 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'
@@ -1216,6 +1217,7 @@ SELECT
       ('public.reporter_references'),
       ('public.api_rate_limit_receipts'),
       ('private.plugin_data_deletion_requests'),
+      ('private.google_cap_event_receipts'),
       ('app_private.storage_object_policy_contract')
   ) AS required(relation_name)
   WHERE to_regclass(required.relation_name) IS NULL
@@ -1232,6 +1234,7 @@ SELECT
       ('public.reporter_references'),
       ('public.api_rate_limit_receipts'),
       ('private.plugin_data_deletion_requests'),
+      ('private.google_cap_event_receipts'),
       ('app_private.storage_object_policy_contract')
   ) AS required(relation_name)
   \gset
@@ -1270,6 +1273,8 @@ SELECT
         'csf_onboarding_links_active_cohort_uidx'),
       ('index', 'plugin_data.csf_admin_audit_events',
         'csf_admin_audit_events_post_reply_request_idx'),
+      ('index', 'private.google_cap_event_receipts',
+        'google_cap_event_receipts_processing_subject_uidx'),
       ('index', 'public.content_reports',
         'content_reports_request_occurrence_uidx'),
       ('constraint', 'public.content_reports',
@@ -1367,6 +1372,8 @@ SELECT
           'csf_onboarding_links_active_cohort_uidx'),
         ('index', 'plugin_data.csf_admin_audit_events',
           'csf_admin_audit_events_post_reply_request_idx'),
+        ('index', 'private.google_cap_event_receipts',
+          'google_cap_event_receipts_processing_subject_uidx'),
         ('index', 'public.content_reports',
           'content_reports_request_occurrence_uidx'),
         ('constraint', 'public.content_reports',
@@ -1461,6 +1468,153 @@ SELECT
     \echo 'PASS T3'
   \else
     \echo 'FAIL T3: target ledger says pg_graphql was removed, but it remains.'
+    SELECT 1 / 0 AS preflight_check_failed;
+  \endif
+
+  \echo ''
+  \echo '=============================================================='
+  \echo 'T4  Google CAP RPC integrity and service-only execution'
+  \echo '    PASS: exact fenced definitions, fixed search path, least privilege'
+  \echo '=============================================================='
+  WITH expected(signature, required_fragments, forbidden_fragment) AS (
+    VALUES
+      (
+        'public.claim_google_cap_event(text,text,text,text,timestamptz,text)',
+        ARRAY[
+          'identity_row.provider_id = p_google_subject',
+          'v_receipt.status = ''effect_started'''
+        ]::text[],
+        'identity_data'
+      ),
+      (
+        'public.begin_google_cap_event_effect(uuid,uuid,text)',
+        ARRAY[
+          'v_receipt.claim_token <> p_claim_token',
+          'v_receipt.lease_expires_at <= pg_catalog.clock_timestamp()',
+          'identity_row.provider_id = p_google_subject',
+          'v_receipt.resolved_user_id IS DISTINCT FROM v_user_id',
+          'status = ''effect_started'''
+        ]::text[],
+        NULL::text
+      ),
+      (
+        'public.finish_google_cap_event(uuid,uuid,boolean,text,integer,integer)',
+        ARRAY[
+          'receipt.status IN (''processing'', ''effect_started'')',
+          'OR receipt.status = ''effect_started'''
+        ]::text[],
+        NULL::text
+      )
+  ),
+  inspected AS (
+    SELECT
+      expected.signature,
+      function_record.oid,
+      function_record.prosecdef,
+      function_record.proconfig,
+      CASE
+        WHEN function_record.oid IS NULL THEN NULL::text
+        ELSE pg_catalog.pg_get_functiondef(function_record.oid)
+      END AS definition,
+      expected.required_fragments,
+      expected.forbidden_fragment
+    FROM expected
+    LEFT JOIN pg_catalog.pg_proc AS function_record
+      ON function_record.oid = to_regprocedure(expected.signature)
+  ),
+  function_violations AS (
+    SELECT
+      inspected.signature,
+      CASE
+        WHEN inspected.oid IS NULL THEN 'missing'
+        WHEN NOT inspected.prosecdef THEN 'not_security_definer'
+        WHEN NOT coalesce(
+          inspected.proconfig,
+          ARRAY[]::text[]
+        ) @> ARRAY['search_path=""'] THEN 'mutable_search_path'
+        WHEN NOT has_function_privilege(
+          'service_role',
+          inspected.oid,
+          'EXECUTE'
+        ) THEN 'service_role_execute_missing'
+        WHEN has_function_privilege('anon', inspected.oid, 'EXECUTE')
+          OR has_function_privilege('authenticated', inspected.oid, 'EXECUTE')
+          THEN 'browser_execute_present'
+        WHEN EXISTS (
+          SELECT 1
+          FROM unnest(inspected.required_fragments) AS fragment(value)
+          WHERE pg_catalog.strpos(inspected.definition, fragment.value) = 0
+        ) THEN 'required_fence_missing'
+        WHEN inspected.forbidden_fragment IS NOT NULL
+          AND pg_catalog.strpos(
+            inspected.definition,
+            inspected.forbidden_fragment
+          ) > 0 THEN 'forbidden_fallback_present'
+        ELSE NULL::text
+      END AS issue
+    FROM inspected
+  ),
+  violations AS (
+    SELECT signature, issue
+    FROM function_violations
+    UNION ALL
+    SELECT
+      'private.google_cap_event_receipts_processing_subject_uidx'::text,
+      CASE
+        WHEN to_regclass(
+          'private.google_cap_event_receipts_processing_subject_uidx'
+        ) IS NULL THEN 'missing'
+        WHEN NOT EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_index AS index_state
+          WHERE index_state.indexrelid = to_regclass(
+              'private.google_cap_event_receipts_processing_subject_uidx'
+            )
+            AND index_state.indrelid = to_regclass(
+              'private.google_cap_event_receipts'
+            )
+            AND index_state.indisunique
+            AND index_state.indisvalid
+            AND index_state.indisready
+            AND index_state.indnkeyatts = 1
+            AND pg_catalog.pg_get_indexdef(
+              index_state.indexrelid,
+              1,
+              true
+            ) = 'subject_hash'
+            AND pg_catalog.regexp_replace(
+              pg_catalog.pg_get_expr(
+                index_state.indpred,
+                index_state.indrelid
+              ),
+              '[[:space:]()]',
+              '',
+              'g'
+            ) = 'status=ANYARRAY[''processing''::text,''effect_started''::text]'
+        ) THEN 'effect_fence_index_drift'
+        ELSE NULL::text
+      END
+  )
+  SELECT
+    count(*) FILTER (WHERE issue IS NOT NULL) = 0
+      AS target_google_cap_rpc_pass,
+    coalesce(
+      pg_catalog.jsonb_agg(
+        pg_catalog.jsonb_build_object(
+          'function', signature,
+          'issue', issue
+        )
+        ORDER BY signature
+      ) FILTER (WHERE issue IS NOT NULL),
+      '[]'::jsonb
+    )::text AS target_google_cap_rpc_violations
+  FROM violations
+  \gset
+  \echo :target_google_cap_rpc_violations
+  \if :target_google_cap_rpc_pass
+    \echo 'PASS T4: Google CAP RPC fence and ACL are exact.'
+  \else
+    \echo 'FAIL T4: Google CAP RPC definition, fence, or ACL drifted.'
     SELECT 1 / 0 AS preflight_check_failed;
   \endif
 

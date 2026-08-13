@@ -815,13 +815,13 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
   });
 
-  test("current hosted Development status separates database parity from stale deployed code", () => {
+  test("current status separates the repository ledger from hosted database and deployed code", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(280);
+    expect(migrations).toHaveLength(282);
     expect(migrations.at(-1)).toBe(
-      "20260813010000_atomic_ai_quota_receipts.sql",
+      "20260813012206_google_cap_effect_fencing.sql",
     );
 
     const currentState = between(
@@ -830,12 +830,15 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 280 ordered migrations through",
+      "repository branch has 282 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260812203500_close_plugin_data_browser_default_acl`",
     );
     expect(currentState).toContain("`20260813010000_atomic_ai_quota_receipts`");
+    expect(currentState).toContain(
+      "`20260813012206_google_cap_effect_fencing`",
+    );
     expect(currentState).toContain(
       "`20260812220000_csf_meeting_permission_followups`",
     );
@@ -843,15 +846,20 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`20260812193400_protect_staff_invite_issuer_capability`",
     );
     expect(currentState).toContain(
-      "Hosted Development Supabase has 273 ordered migrations through",
+      "Hosted Development Supabase remains at 273 ordered migrations through",
     );
+    expect(currentState).toContain("The nine unmerged migrations are");
+    expect(currentState).toContain("`20260813010000_atomic_ai_quota_receipts`");
     expect(currentState).toContain(
-      "seven reviewed migrations behind this repository branch",
+      "hosted Development database parity, application deployment, and provider acceptance have not been established",
+    );
+    expect(currentState).not.toContain(
+      "repository and Development database ledgers match",
     );
     expect(currentState).toContain(
       "Production remains at 236 ordered migrations through `20260811001500`",
     );
-    expect(currentState).toContain("44-migration cutover has not run");
+    expect(currentState).toContain("46-migration cutover has not run");
     expect(currentState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
     );
@@ -922,11 +930,12 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`cf330e5faa844d63a2f41c8f0be4d1c727d51a47`",
     );
     expect(rehearsalState).toContain(
-      "This repository has 280 ordered migrations through",
+      "Hosted Development Supabase remains at 273 ordered migrations through",
     );
     expect(rehearsalState).toContain(
-      "Hosted Development Supabase remains at 273 through",
+      "this repository has 282 through `20260813012206_google_cap_effect_fencing`",
     );
+    expect(rehearsalState).toContain("The nine unmerged migrations are");
     expect(rehearsalState).toContain(
       "`20260812203500_close_plugin_data_browser_default_acl`",
     );
@@ -950,7 +959,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
     expect(rehearsalState).toContain("deployment is Ready but stale");
     expect(rehearsalState).toContain(
-      "They have not been re-established for either hosted 273 or repository 280",
+      "They have not been re-established for either hosted 273 or repository 282",
     );
     expect(rehearsalState).toContain(
       "seven-argument metadata RPC exists, the old four-argument overload is absent",
@@ -986,14 +995,14 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Related references",
     );
     expect(cutover).toContain(
-      "Replay the ordered migration ledger through `20260813010000`",
+      "Replay the ordered migration ledger through `20260813012206`",
     );
     expect(cutover).toContain(
       "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
     );
     expect(cutover).toContain("exact 236-row baseline");
-    expect(cutover).toContain("full 44-migration transition");
-    expect(cutover).toContain("preflight on the 280-row target");
+    expect(cutover).toContain("full 46-migration transition");
+    expect(cutover).toContain("preflight on the 282-row target");
   });
 
   test("production cutover baseline tracks the exact pending migration range", () => {
@@ -1001,10 +1010,13 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Production has 236 ordered migrations through `20260811001500`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Hosted Development Supabase has 273 ordered migrations through `20260812152300`; this repository has 280 through `20260813010000`",
+      "Hosted Development Supabase remains at 273 ordered migrations through `20260812152300`",
     );
     expect(productionCutoverRunbook).toContain(
-      "`20260812161500_atomic_project_signup_rejection`",
+      "this repository has 282 through `20260813012206_google_cap_effect_fencing`",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "The nine unmerged migrations have not been applied or deployed in hosted Development",
     );
     expect(productionCutoverRunbook).toContain(
       "`20260812220000_csf_meeting_permission_followups`",
@@ -1016,13 +1028,13 @@ describe("CSF operator documentation truthfulness guards", () => {
       "repository ledger ended at 272 through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Production therefore has exactly 44 pending migrations",
+      "Production therefore has exactly 46 pending migrations",
     );
     expect(productionCutoverRunbook).toContain(
       "external Vercel 100-deployment-per-day project cap",
     );
     expect(productionCutoverRunbook).toContain(
-      "Database parity is not application-deployment parity",
+      "Neither hosted database parity nor application-deployment parity has been established",
     );
     const preflightRunbook = between(
       productionCutoverRunbook,
