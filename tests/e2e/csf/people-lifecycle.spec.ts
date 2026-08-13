@@ -369,6 +369,17 @@ test.describe("CSF visible people lifecycle", () => {
     await expect(
       resolveDialog.getByText("Canonical identity evidence"),
     ).toBeVisible();
+    const emailSeparator = fixture.profileEmail.indexOf("@");
+    const emailLocalPart = fixture.profileEmail.slice(0, emailSeparator);
+    const maskedFixtureEmail = `${emailLocalPart.slice(0, 2)}${"•".repeat(Math.max(emailLocalPart.length - 2, 1))}${fixture.profileEmail.slice(emailSeparator)}`;
+    // The review dialog intentionally masks addresses, but must still prove the
+    // current confirmed account and roster addresses are this fixture's match.
+    await expect(
+      resolveDialog.getByText(
+        `Current confirmed account address ${maskedFixtureEmail} matches roster address ${maskedFixtureEmail}.`,
+        { exact: true },
+      ),
+    ).toBeVisible();
     await expect(
       resolveDialog.getByText("Exact first and last name match."),
     ).toBeVisible();
