@@ -329,10 +329,14 @@ describe("the bounded CSF dispatch worker route", () => {
     expect(sendCalls).toHaveLength(0);
   });
 
-  test("a late scope response leaves its reservation unacknowledged and starts no worker", async () => {
+  test("a scope response that leaves no provider window advances no fairness and starts no worker", async () => {
     process.env.CSF_COMMUNICATIONS_WORKER_DEADLINE_MS = "80";
     schedulerScopeHandler = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 70));
+      // 45ms leaves more than the 20ms settlement reserve, but less than the
+      // reserve plus the 20ms minimum provider window. The old gate therefore
+      // acknowledged this reservation and only then discovered it could not
+      // start the worker.
+      await new Promise((resolve) => setTimeout(resolve, 45));
       return {
         data: {
           organizationCount: 1,

@@ -414,7 +414,10 @@ export async function POST(request: NextRequest) {
     }
     queuedOrganizationIds.add(organizationId);
 
-    if (deadlineAt - Date.now() <= settlementReserveMs) {
+    if (deadlineAt - Date.now() <= settlementReserveMs + minProviderWindowMs) {
+      // Acknowledgement advances durable tenant fairness. Do not move a tenant
+      // to the back of the scheduler when the route can already prove there is
+      // no usable provider window for the worker pass it would acknowledge.
       deadlineReached = true;
       break;
     }
@@ -426,7 +429,7 @@ export async function POST(request: NextRequest) {
           p_organization_id: organizationId,
           p_reservation_id: reservationId,
         }),
-        deadlineAt - settlementReserveMs,
+        deadlineAt - settlementReserveMs - minProviderWindowMs,
       );
     } catch (error) {
       if (error instanceof RunDeadlineExceeded) deadlineReached = true;

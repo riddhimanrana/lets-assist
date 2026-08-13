@@ -150,14 +150,34 @@ BEGIN
   END IF;
 
   IF v_campaign.status = 'cancelled' THEN
+    -- A lost response followed by an idempotent retry must report the ledger as
+    -- it exists now, not fabricate the all-clear values that originally lived
+    -- in this branch. The campaign lock above makes these two counts one
+    -- coherent officer-facing snapshot.
+    SELECT count(*)::integer
+    INTO v_still_leased
+    FROM plugin_data.csf_communication_dispatch_attempts AS attempt
+    WHERE attempt.organization_id = p_organization_id
+      AND attempt.campaign_id = p_campaign_id
+      AND attempt.state = 'processing'
+      AND attempt.lease_expires_at > pg_catalog.clock_timestamp();
+
+    SELECT count(*)::integer
+    INTO v_ambiguous
+    FROM plugin_data.csf_communication_deliveries AS delivery
+    WHERE delivery.organization_id = p_organization_id
+      AND delivery.campaign_id = p_campaign_id
+      AND delivery.status = 'queued'
+      AND delivery.unknown_outcome_at IS NOT NULL;
+
     RETURN pg_catalog.jsonb_build_object(
       'organizationId', p_organization_id,
       'campaignId', p_campaign_id,
       'status', 'cancelled',
       'attemptsSettled', 0,
       'deliveriesSettled', 0,
-      'deliveriesLeftAmbiguous', 0,
-      'attemptsStillLeased', 0,
+      'deliveriesLeftAmbiguous', v_ambiguous,
+      'attemptsStillLeased', v_still_leased,
       'expiredLeasesSettledUnknown', 0,
       'idempotentReplay', true
     );

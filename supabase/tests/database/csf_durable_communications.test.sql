@@ -5526,15 +5526,20 @@ SELECT extensions.is(
 
 SELECT extensions.is(
   (
-    SELECT plugin_data.csf_cancel_communication_campaign(
+    SELECT (replay->>'idempotentReplay') || '|'
+      || (replay->>'deliveriesLeftAmbiguous') || '|'
+      || (replay->>'attemptsStillLeased')
+    FROM (
+      SELECT plugin_data.csf_cancel_communication_campaign(
       'bd100000-0000-4000-8000-000000000001',
       'bd400000-0000-4000-8000-000000000005',
       'Officer withdrew the send.',
       'bd000000-0000-4000-8000-000000000001'
-    )->>'idempotentReplay'
+      ) AS replay
+    ) AS replay_result
   ),
-  'true',
-  'cancelling an already cancelled campaign is idempotent'
+  'true|1|0',
+  'a cancellation replay is idempotent and still reports the current ambiguous and live-lease counts'
 );
 
 -- A completed campaign yields no work either.
