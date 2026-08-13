@@ -21,7 +21,7 @@ mock.module("@/lib/supabase/admin", () => ({
 mock.module("@/lib/supabase/auth-helpers", () => ({
   getAuthUser: async () => ({ user: { id: "series-owner" }, error: null }),
 }));
-mock.module("./access", () => ({
+mock.module("./access-helpers", () => ({
   canUserManageProject: async () => true,
 }));
 

@@ -22,7 +22,7 @@ describe("audit surface inventory parser", () => {
     ).toEqual(["GET", "PATCH", "POST"]);
   });
 
-  test("requires a file-level server directive and exported async functions", () => {
+  test("finds reviewed file-level and inline exported Server Actions", () => {
     expect(
       exportedServerActions(
         `"use server";\nexport async function publishThing() {}\nasync function helper() {}`,
@@ -30,6 +30,45 @@ describe("audit surface inventory parser", () => {
     ).toEqual([{ name: "publishThing", line: 2 }]);
     expect(
       exportedServerActions(`export async function clientThing() {}`),
+    ).toEqual([]);
+    expect(
+      exportedServerActions(
+        `export async function inlineAction() {\n  "use server";\n}\nexport async function ordinaryHelper() {}`,
+      ),
+    ).toEqual([{ name: "inlineAction", line: 1 }]);
+    expect(
+      exportedServerActions(
+        `"use server";\nexport const arrowAction = async () => {};`,
+      ),
+    ).toEqual([{ name: "arrowAction", line: 2 }]);
+    expect(
+      exportedServerActions(
+        `"use server";\nexport default async function () {}\nasync function localAction() {}\nexport { localAction as aliasedAction };`,
+      ),
+    ).toEqual([
+      { name: "default", line: 2 },
+      { name: "aliasedAction", line: 4 },
+    ]);
+    expect(
+      exportedServerActions(
+        `const local = async () => { "use server"; };\nexport { local as default };`,
+      ),
+    ).toEqual([{ name: "default", line: 2 }]);
+    expect(
+      exportedServerActions(
+        `"use server";\nasync function local() {}\nexport { local };\nexport default local;`,
+      ),
+    ).toEqual([
+      { name: "local", line: 3 },
+      { name: "default", line: 4 },
+    ]);
+    expect(
+      exportedServerActions(`export default async () => { "use server"; };`),
+    ).toEqual([{ name: "default", line: 1 }]);
+    expect(
+      exportedServerActions(
+        `"use server";\nexport { remoteAction } from "./remote";\nexport * from "./more";`,
+      ),
     ).toEqual([]);
   });
 
