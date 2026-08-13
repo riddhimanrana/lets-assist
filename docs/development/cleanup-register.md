@@ -4,6 +4,114 @@ This register separates actionable repository defects from provider/account and 
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Development closeout implementation snapshot — 2026-08-13
+
+This is the phase-one execution map for exact root `8bab797839c27e7d9310ad6ee2ec0d977ab4341c`
+and private gitlink `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`. The
+root ledger contains 286 migrations through `20260813013300`. The last complete
+local union replay covered the preceding 282-migration shape (133 pgTAP files,
+5,523 assertions), hosted Development remains at 273 migrations, and the
+Development alias serves older code. Historical green evidence is not exact-tree
+evidence.
+
+State key: **close** = exact repository implementation and named local evidence
+already satisfy the repository-owned finding; **local** = implementation is
+present but exact-tree local evidence is missing; **candidate** = a contained
+candidate still needs reconciliation or implementation; **hosted** = repository
+and local gates are sufficient and only Development/default-branch acceptance
+remains; **external** = provider/account dependency; **Production-only** = not a
+Development closeout item. Nothing in this snapshot claims a new pass.
+
+| Item               | Owner                    | Source candidate / exact-tree source                           | State           | Active dependency                                         | Exit evidence                                                            |
+| ------------------ | ------------------------ | -------------------------------------------------------------- | --------------- | --------------------------------------------------------- | ------------------------------------------------------------------------ |
+| CLEAN-004          | CSF lifecycle            | Private `605342ca`; lifecycle lineage                          | local           | Exact role/breakpoint accessibility run                   | Zero critical axe plus keyboard and screen-reader proof                  |
+| CLEAN-005          | CSF lifecycle            | Root acceptance `1bb8576e` / aggregate `8beb56a7`              | candidate       | Reconcile only after import-lineage repair                | Synthetic mutation role matrix at desktop/tablet/phone                   |
+| CLEAN-006          | CSF identity/database    | Merged identity lineage through PR #144                        | local           | Exact 286-migration replay and valid compiled merge races | Full pgTAP/static gates plus compiled refusal/success journeys           |
+| CLEAN-007          | CSF applications         | Private `2ce0a3d`, already contained by `605342ca`             | hosted          | Hosted exact-code application decision journey            | Queue → detail → modal uses one current preflight                        |
+| CLEAN-008          | CSF posts                | Composer `b7edede8`, contained by private aggregate `cdbeb59e` | candidate       | Private publication and exact combined tests              | Every posting role reaches composer; partial-outcome tests               |
+| CLEAN-009          | CSF invitations          | Migration `20260809211732` plus lifecycle candidate            | local           | Exact replay and visible link lifecycle                   | Link creation/renewal never mutates delivery telemetry                   |
+| CLEAN-010          | CSF imports              | Import `0b3e32d2`, contained by `cdbeb59e`                     | candidate       | Root import-lineage repair first                          | One server blocker contract in service and compiled browser tests        |
+| CLEAN-011          | CSF UI                   | Private lifecycle/dialog lineage                               | candidate       | Reconcile private aggregate after database repair         | Pending/result, repeat suppression, focus, close, live-region tests      |
+| CLEAN-012          | CSF communications       | Communications aggregate `8beb56a7`                            | candidate       | Communications is last in integration order               | Reachable `manage_settings` recovery journeys                            |
+| CLEAN-013          | CSF identity             | Merged PR #144                                                 | hosted          | Hosted account-connection acceptance                      | Visible fail-closed corroboration journey                                |
+| CLEAN-014          | CSF posts/privacy        | Private lifecycle candidate                                    | candidate       | Private aggregate reconciliation                          | Member payload omits officer delivery state                              |
+| CLEAN-015          | CSF release              | Merged publisher / PR #134                                     | hosted          | Default-branch enabled invocation                         | Aggregate-only run and visible schedule → Feed; no email claim           |
+| CLEAN-016          | CSF release              | Repository communications scheduler                            | hosted          | Verify environment/secrets and repeated starts            | Repeated ledger/provider outcomes; no fixed-time SLA                     |
+| CLEAN-017          | CSF database             | Merged `9984f232` / PR #140                                    | local           | Exact combined replay/CI                                  | Hosted apply plus visible Staff access and class-link refusals           |
+| CLEAN-018          | CSF release              | Same staff/class-link series                                   | hosted          | Hosted duplicate-link preflight                           | Named conflicts resolved through product, then successful apply          |
+| CLEAN-019          | CSF lifecycle            | Bounded private search in `605342ca`                           | local           | Representative synthetic scale                            | Reviewed `EXPLAIN (ANALYZE, BUFFERS)` and raised budget or correction UI |
+| CLEAN-020          | CSF lifecycle            | Existing private tree                                          | external        | P3; outside the P0–P2 closeout                            | Separate private formatter-policy decision                               |
+| AUD-001            | Production cutover       | Existing forward fix                                           | Production-only | Production authorization                                  | Separate Production migration/app acceptance                             |
+| AUD-002            | Production cutover       | Existing forward fix                                           | Production-only | Production authorization                                  | Separate Production migration/app acceptance                             |
+| AUD-003            | Platform database        | Merged `15ba4801` plus ACL catalog                             | local           | Later functions require exact-current catalog replay      | Exact ACL replay, then hosted catalog/advisors                           |
+| AUD-004            | Plugin control plane     | Migration `20260810220300`                                     | close           | Move stale row out of active section                      | Existing constraint/action regression evidence retained                  |
+| AUD-006            | Platform notifications   | Merged server-client boundary                                  | close           | Move stale row out of active section                      | Admin-client and module-boundary tests retained                          |
+| AUD-012            | Platform notifications   | Merged PR #115                                                 | hosted          | Hosted repeat-notification acceptance                     | Repeated notices delivered without type-wide suppression                 |
+| AUD-033-AI         | Platform AI              | Merged PR #173                                                 | hosted          | Hosted route/quota acceptance                             | Durable user/IP charge and exact idempotent replay                       |
+| AUD-013            | Account owner            | Provider credential                                            | external        | Production credential owner                               | Separate provider/Production acceptance                                  |
+| AUD-014            | Integration order        | Merged lifecycle-before-audit order                            | close           | Move stale row out of active section                      | Ordered ledger is already present in Development                         |
+| AUD-015            | Platform hours           | Merged hours series                                            | local           | Later `20260813013100` restates authorization             | Exact replay/concurrency, then hosted provider/browser                   |
+| AUD-016            | DV private plugin        | Private PR #20 / root PR #122                                  | close           | Move stale row out of active section                      | Recorded exact CI/build/browser run retained                             |
+| AUD-017            | Paper signup             | Root PR #123                                                   | close           | Move stale row out of active section                      | Recorded exact clean build/CI run retained                               |
+| AUD-018            | DV guardian              | Root PR #124                                                   | close           | Move stale row out of active section                      | Recorded exact CI/browser run retained                                   |
+| AUD-019            | Platform certificates    | Merged PR #143                                                 | local           | Exact 286 replay after later publication changes          | ACL/forgery pgTAP, then hosted publication acceptance                    |
+| AUD-020            | Plugin deletion          | Merged PRs #145/#154                                           | hosted          | Reviewed private manifest completeness                    | Hosted permanent-deletion control-plane acceptance                       |
+| AUD-021            | Plugin uninstall         | Same control-plane series                                      | hosted          | Hosted uninstall acceptance                               | Data retained and no lifecycle hook invoked                              |
+| AUD-HOURS-SERVICE  | Platform hours           | `20260812101000`                                               | local           | Exact combined replay and browser ACL catalog             | Service-role-only publication RPC plus hosted advisor verification       |
+| AUD-003-ACL        | Platform database        | `20260812100900`                                               | local           | Exact combined ACL replay                                 | Zero direct/effective relation and column-ACL residue                    |
+| AUD-009-STORAGE    | Platform storage         | `20260812100800`                                               | local           | Exact combined storage-policy replay                      | Exact bucket/property/policy catalog plus hosted verification            |
+| AUD-026            | Project lifecycle        | `20260812104754`                                               | local           | Later project wrappers affect boundary                    | Exact replay/advisors, then hosted acceptance                            |
+| AUD-027            | Platform database        | `20260812104754`                                               | hosted          | Hosted Performance Advisor                                | Canonical constraint index only                                          |
+| AUD-028            | CSF staff access         | Merged PR #160                                                 | hosted          | Hosted queued-revocation journeys                         | Under-lock denial with zero target/audit mutation                        |
+| AUD-029            | CSF posts                | `20260812152300` plus private reply actions                    | hosted          | Exact application deployment                              | Reply/revocation/replay hosted acceptance                                |
+| AUD-036            | CSF activities/clubs     | Merged PR #169 (`8bab7978`)                                    | local           | Current 286 tree was not replayed                         | Full 133+ pgTAP/source/concurrency gates, then hosted                    |
+| AUD-037            | CSF private plugin       | Private `opportunities.ts` / `partner-clubs.ts`                | candidate       | Remove outcome-claiming prefixes private-first            | Private contract/browser review, then root gitlink and hosted            |
+| AUD-030-ACTION     | Platform action boundary | Merged PR #167                                                 | hosted          | Hosted build-manifest verification                        | Only reviewed Server Actions remain reachable                            |
+| AUD-031-MEETING    | CSF meetings             | Private `605342ca`; root PR #177                               | local           | Compiled role/browser journeys                            | Exact-code hosted meeting acceptance                                     |
+| AUD-038            | CSF meetings             | `20260812220000`                                               | hosted          | Hosted migration/application parity                       | Under-lock exact attendance-correction permission recheck                |
+| AUD-039            | CSF imports              | `20260812220000`                                               | hosted          | Hosted migration/application parity                       | SQL and TypeScript both require exact meeting permissions                |
+| AUD-040            | CSF meetings             | Private `049e362`, contained by `605342ca`                     | close           | Move stale row out of active section                      | Bounded term search, limit 20, no personal email                         |
+| AUD-041            | Platform moderation      | Merged PR #174                                                 | hosted          | Hosted migration/route acceptance                         | Server-written reports, bounded replay and quota proof                   |
+| AUD-042            | Plugin database          | Merged PR #174                                                 | hosted          | Hosted advisor/unreachability verification                | Browser roles cannot reach current/future plugin objects                 |
+| CLEAN-021          | Project cancellation     | Merged PRs #156/#158                                           | local           | Exact 286 replay and recovery gates                       | Snapshot ledger, worker fairness, lock and recovery evidence             |
+| AUD-022            | Project lifecycle        | `20260812100200`/`20260812100300`                              | local           | Exact combined replay                                     | Schedule/feedback/recurrence focused tests, then hosted                  |
+| AUD-023            | Project lifecycle        | Merged project series                                          | local           | Exact 286 lock-order run                                  | Cancellation/unreject/parent-delete concurrency, then hosted             |
+| AUD-024            | Platform organizations   | `20260812100000`                                               | local           | Exact combined ACL replay                                 | Adversarial relation ACL proof, then hosted                              |
+| AUD-025            | Platform organizations   | Same slug lineage                                              | local           | Exact schema/action/fixture gates                         | Historical plus hosted constraint validation                             |
+| AUD-031-ORG        | Platform organizations   | `20260813013000`/`20260813013100`                              | local           | Migrations are outside last exact replay                  | Exact inactive/null/cross-tenant pgTAP, then hosted                      |
+| AUD-032            | Project lifecycle        | `20260813013100`                                               | local           | Exact 286 status-transition run                           | Direct-write denial, receipt, rollback, concurrency, then hosted         |
+| AUD-033-RECURRENCE | Project lifecycle        | `20260813013000`/`20260813013100`                              | local           | Exact two-session run                                     | Generation/end/replay proof, then hosted                                 |
+| AUD-034            | Project cancellation     | Merged worker fix                                              | local           | Exact 286 worker run                                      | Budget/refund/reaper suite, then hosted                                  |
+| AUD-030-SIGNUP     | Project lifecycle        | `20260812161500`                                               | local           | Later `20260813013100` affects related paths              | Exact replay/atomic notification proof, then hosted                      |
+
+The preserved candidate map is intentionally non-writing: private aggregate
+`cdbeb59e` contains the accepted import through `0b3e32d2` and composer through
+`b7edede8`; root aggregate `8beb56a7` contains acceptance `1bb8576e`,
+architecture `9754db33`, operator docs `7ee4f9e1`, and the reconciled
+communications line `e9346dc`, and pins `cdbeb59e`. Neither is upstream.
+Do not integrate them until the root import-lineage repair is independently
+accepted. Do not use `a5fee979`: it contains unrelated stale local-development
+lineage and pins missing private object `398bc033`. Six later retry-lineage
+commits ending at private `be2d6432` are not part of the accepted `0b3e32d2`
+handoff or either aggregate and require separate review.
+
+The root import-lineage lane has no valid implementation candidate: local refs
+`csf-import-lineage-atomic` and `csf-import-lineage-recovery` both still point
+to the exact base. The current ledger wraps claim and commit with the identity
+lock but leaves `csf_begin_import_row_for_attempt` outside that canonical order,
+and `csf_fail_import_row_for_attempt` still accepts caller-supplied deterministic
+classification. The existing race fixture directly constructs commit jobs,
+attempts, and row outcomes instead of reaching them through the supported claim,
+begin, commit, failure, and settlement lifecycle; it is not acceptance evidence.
+
+Register defects to correct during closeout: `AUD-030`, `AUD-031`, and
+`AUD-033` are duplicate identifiers, so this snapshot uses scoped suffixes;
+the P0–P2 section contains P3 `CLEAN-020`; several rows still say merged
+implementations are unmerged; and completed repository rows `AUD-004`,
+`AUD-006`, `AUD-014`, `AUD-016`, `AUD-017`, `AUD-018`, and `AUD-040` remain in
+the active table. Status moves happen only with the named evidence, not from
+this inventory alone.
+
 ## Repository-owned P0–P2
 
 | ID        | Priority | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Owner                      | Evidence / exit gate                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
