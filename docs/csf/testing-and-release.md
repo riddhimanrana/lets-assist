@@ -87,11 +87,14 @@ their named runs only.
   Development acceptance remain pending.
 - Root gitlink commit `8419171d` moved the private submodule to exact commit
   `cdbeb59e6cc086e8794ec8b35157ab043f65c01c`, landing the officer-facing
-  cancellation UX (typed `CsfCancellationOutcome`, a cancel dialog that closes
-  only on the `clean` outcome, and an always-mounted accessible status region
-  with warning-styled toasts for `ambiguous`/`leased`/`ambiguous_and_leased`
-  outcomes) in `lib/plugins/private/plugins/dvhs-csf/communications-actions.ts`,
-  with focused private coverage in
+  cancellation UX: `communications-actions.ts` types the outcome
+  (`CsfCancellationOutcome`) and builds its message, while
+  `components/CsfCommunicationsActions.tsx` closes the cancel dialog only on
+  the `clean` outcome, renders the always-mounted accessible `ActionStatus`
+  region, and shows warning-styled toasts for
+  `ambiguous`/`leased`/`ambiguous_and_leased` outcomes; the cancel dialog is
+  hosted per campaign card in `components/CsfCommunicationsCampaigns.tsx`.
+  Focused private coverage lives in
   `lib/plugins/private/plugins/dvhs-csf/services/communications-actions.test.ts`.
   This closes CLEAN-022 at the repository-local/source-contract level only.
   Docker-backed isolated verification, the full exact-tree replay, hosted

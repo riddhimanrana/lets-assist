@@ -468,12 +468,19 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(clean022).toContain("`cdbeb59e6cc086e8794ec8b35157ab043f65c01c`");
     expect(clean022).toContain("`49266bf`");
     expect(clean022).toContain("`cdbeb59e`");
+    expect(clean022).toContain("`communications-actions.ts` types the outcome");
+    expect(clean022).toContain("(`CsfCancellationOutcome`");
     expect(clean022).toContain(
-      "`lib/plugins/private/plugins/dvhs-csf/communications-actions.ts`",
+      "`components/CsfCommunicationsActions.tsx` closes the cancel dialog only for the `clean` outcome",
     );
-    expect(clean022).toContain("typed `CsfCancellationOutcome`");
     expect(clean022).toContain(
-      "cancel dialog closes only for the `clean` outcome",
+      "accessible `ActionStatus` polite status region",
+    );
+    expect(clean022).toContain(
+      "`components/CsfCommunicationsCampaigns.tsx` hosts that dialog per campaign card",
+    );
+    expect(clean022).not.toContain(
+      "`lib/plugins/private/plugins/dvhs-csf/communications-actions.ts`:",
     );
     expect(clean022).toContain(
       "`lib/plugins/private/plugins/dvhs-csf/services/communications-actions.test.ts`",
@@ -509,6 +516,52 @@ describe("CSF release-state documentation truthfulness guards", () => {
     );
     expect(csfCommunicationsActionsTest).toContain(
       "keeps the empty polite status region mounted and out of footer spacing",
+    );
+
+    expect(csfCommunicationsActionsTest).toContain(
+      'describe("CSF campaign cancellation result"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'test("reports a clean cancellation only when no work remains ambiguous or leased"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'cancellationOutcome: "clean"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "Campaign cancelled. Outstanding work was settled; no retry was scheduled.",
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'test("reports deliveries that remain queued and under review without recipient data"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'cancellationOutcome: "ambiguous"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "1 delivery remains queued and under review because its provider outcome is uncertain. Do not retry it; reconcile it from provider evidence.",
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'test("reports attempts that remain leased and may still settle"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'cancellationOutcome: "leased"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "2 delivery attempts are still leased and may still settle. Do not retry them; reload the campaign and review the resulting delivery outcomes.",
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'test("reports one ambiguous delivery and one leased attempt with exact combined grammar"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'test("reports plural ambiguous deliveries and leased attempts with exact combined grammar"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'cancellationOutcome: "ambiguous_and_leased"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "Do not retry this outstanding work; reconcile uncertain outcomes from provider evidence and reload the campaign to review leased attempts after they settle.",
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "2 deliveries remain queued and under review because their provider outcomes are uncertain. 3 delivery attempts are still leased and may still settle.",
     );
   });
 
