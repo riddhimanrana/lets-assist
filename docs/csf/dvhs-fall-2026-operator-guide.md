@@ -629,7 +629,7 @@ gates in [testing and release](testing-and-release.md) are open. Do not copy a
 Development fixture, connection link, import preview, or policy decision into
 Production, and do not treat a Development screenshot as Production evidence.
 
-At this guide's current evidence point, the repository has 276 migrations
+At this guide's current evidence point, the repository has 278 migrations
 through `20260813010000`, the Development database has 273 through
 `20260812152300`, and Production has 236 through `20260811001500`. The
 Development Vercel alias still serves earlier code built from the 272-migration
@@ -665,15 +665,19 @@ refresh. Neither database parity nor exact-current-code hosted evidence exists.
   stale: its repository tree ended at 272 through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`, and the external
   Vercel 100-deployment-per-day project cap prevented a refreshed deployment.
-- This repository has 276 ordered migrations through
+- This repository has 278 ordered migrations through
   `20260813010000_atomic_ai_quota_receipts`; Hosted Development Supabase remains
-  at 273 through `20260812152300_atomic_csf_post_replies`. The other pending
-  repository migrations are `20260812161500_atomic_project_signup_rejection`
-  and `20260812220000_csf_meeting_permission_followups`.
+  at 273 through `20260812152300_atomic_csf_post_replies`. The five newest
+  repository migrations — `20260812161500_atomic_project_signup_rejection`,
+  `20260812203000_make_content_reports_server_written`,
+  `20260812203500_close_plugin_data_browser_default_acl`,
+  `20260812220000_csf_meeting_permission_followups`, and
+  `20260813010000_atomic_ai_quota_receipts` — are not applied to any hosted
+  database.
 - The 95 INFO / 0 WARN / 0 ERROR security and 611 INFO / 0 WARN / 0 ERROR
   performance advisor counts were captured on the preceding 272-migration
   Development shape. They have not been re-established for either hosted 273 or
-  repository 276 and are not current-parity evidence.
+  repository 278 and are not current-parity evidence.
 - The seven-argument metadata RPC exists, the old four-argument overload is
   absent, and only `service_role` can execute the current RPC; `anon` and
   `authenticated` cannot. The Drive metadata RPC is no longer the Preview
@@ -681,7 +685,8 @@ refresh. Neither database parity nor exact-current-code hosted evidence exists.
 - The caller-summary correction is the private plugin fix merged by private PR
   #45 at `ca817bf`. On `development` the root worktree's gitlink points to that
   commit locally; the open meeting-roster integration branch advances the
-  gitlink to private `development` `4f20fa5`, which contains `ca817bf` as an
+  gitlink to private `development`
+  `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, which contains `ca817bf` as an
   ancestor. The stale Ready Development SHA above does not include either
   gitlink.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
@@ -712,7 +717,7 @@ Do not use real chapter rows or credentials until every item is checked:
       `scripts/production-cutover-preflight.sql` with the reviewed Production
       read-only URL. It must select the exact 236-row baseline, pass every
       shared blocker, and name any cancellation-job transitions for explicit
-      review. Rehearse the full 40-migration transition on a Production-shaped
+      review. Rehearse the full 42-migration transition on a Production-shaped
       clone and verify the backup restore before scheduling the window.
 - [ ] At T-0 enable maintenance mode, stop writers and scheduled workers, take
       the final snapshots, and pair the schema push with the exact compatible
@@ -721,7 +726,7 @@ Do not use real chapter rows or credentials until every item is checked:
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.
-- [ ] Re-run the preflight on the 276-row target and require the shared tenant
+- [ ] Re-run the preflight on the 278-row target and require the shared tenant
       and receipt checks plus the target-only relation, constraint, and index
       and extension-posture checks to pass before reopening writes.
 - [ ] Pass the final combined static, focused source, database, private-plugin,
