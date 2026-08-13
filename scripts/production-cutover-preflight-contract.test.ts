@@ -22,9 +22,9 @@ const architectureAudit = readFileSync(
 );
 
 const PRODUCTION_HEAD = "20260811001500";
-const TARGET_HEAD = "20260813010000";
+const TARGET_HEAD = "20260813012206";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
-const HARD_FAIL_SITES = 27;
+const HARD_FAIL_SITES = 28;
 const hardFailStatements =
   preflight.match(/^[ \t]*SELECT 1 \/ 0 AS preflight_check_failed;$/gmu) ?? [];
 const PENDING_VERSIONS = [
@@ -67,10 +67,12 @@ const PENDING_VERSIONS = [
   "20260812152300",
   "20260812161500",
   "20260812185500",
+  "20260812193329",
   "20260812193400",
   "20260812203000",
   "20260812203500",
   "20260813010000",
+  "20260813012206",
 ] as const;
 
 function readMigration(version: string) {
@@ -82,7 +84,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 236 -> 279 ledger and all 43 pending versions", () => {
+  test("pins the exact 236 -> 281 ledger and all 45 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -97,7 +99,7 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    expect(migrations).toHaveLength(279);
+    expect(migrations).toHaveLength(281);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
     expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
@@ -105,9 +107,9 @@ describe("Production cutover preflight source contract", () => {
     );
     expect(pending).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 236");
-    expect(preflight).toContain("count(*) = 279");
+    expect(preflight).toContain("count(*) = 281");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("43 migrations pending");
+    expect(preflight).toContain("45 migrations pending");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
     }
@@ -191,6 +193,7 @@ describe("Production cutover preflight source contract", () => {
       "d10_pass",
       "target_shape_ready",
       "t2_pass",
+      "target_google_cap_rpc_pass",
       "target_pg_graphql_absent",
       "target_read_models_pass",
       "target_function_acl_pass",
@@ -355,6 +358,37 @@ describe("Production cutover preflight source contract", () => {
     expect(storageBlock).toContain("relrowsecurity");
   });
 
+  test("requires the Google CAP RPC integrity contract", () => {
+    expect(preflight).toContain(
+      "public.claim_google_cap_event(text,text,text,text,timestamptz,text)",
+    );
+    expect(preflight).toContain(
+      "public.begin_google_cap_event_effect(uuid,uuid,text)",
+    );
+    expect(preflight).toContain(
+      "public.finish_google_cap_event(uuid,uuid,boolean,text,integer,integer)",
+    );
+    expect(preflight).toContain("target_google_cap_rpc_pass");
+    expect(preflight).toContain("function_record.prosecdef");
+    expect(preflight).toContain("'search_path=\"\"'");
+    expect(preflight).toContain(
+      "'service_role',\n          inspected.oid,\n          'EXECUTE'",
+    );
+    expect(preflight).toContain(
+      "private.google_cap_event_receipts_processing_subject_uidx",
+    );
+    expect(preflight).toContain(
+      "'identity_row.provider_id = p_google_subject'",
+    );
+    expect(preflight).toContain(
+      "'v_receipt.resolved_user_id IS DISTINCT FROM v_user_id'",
+    );
+    expect(preflight).toContain(
+      "'status=ANYARRAY[''processing''::text,''effect_started''::text]'",
+    );
+    expect(preflight).toContain("'effect_fence_index_drift'");
+  });
+
   test("checks CSF control-plane consistency without printing provider secrets", () => {
     const controlPlaneBlock = preflight.slice(
       preflight.indexOf("S2  DVHS CSF control-plane and setup consistency"),
@@ -399,6 +433,7 @@ describe("Production cutover preflight source contract", () => {
     expect(preflight).toContain("\\if :target_shape_ready");
     expect(preflight).toContain("public.project_cancellation_deliveries");
     expect(preflight).toContain("private.plugin_data_deletion_requests");
+    expect(preflight).toContain("private.google_cap_event_receipts");
     expect(
       preflight.indexOf("D7  Cross-organization CSF post replies"),
     ).toBeLessThan(preflight.indexOf("\\if :target_ledger"));
