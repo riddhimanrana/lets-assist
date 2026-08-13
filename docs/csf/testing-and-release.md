@@ -3,22 +3,23 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** This repository carries 279 ordered migrations through the remaining
+**Status:** This repository carries 281 ordered migrations through the remaining
 CSF representative-authorization and activity-publication race repair, including
-the atomic project-signup rejection, content-report integrity, plugin-data
-default-ACL, and atomic AI quota migrations from current `development`. Hosted
+the active staff-invite issuer, atomic project-signup rejection, content-report
+integrity, plugin-data default-ACL, and atomic AI quota migrations from current
+`development`. Hosted
 Development Supabase remains at 273 through the atomic post-reply boundary. The
 `dev.lets-assist.com` alias still serves earlier Ready code at
 `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository tree ended at 272
 through `20260812132725`, because the external Vercel 100-deployment-per-day
 project cap prevented the refreshed deployment. The exact local isolated union
-replay passed all 130 pgTAP files and 5,453 assertions against 279 migrations;
+replay passed all 131 pgTAP files and 5,485 assertions against 281 migrations;
 hosted acceptance remains pending. Google OAuth and Picker are connected. On
 that earlier deployed code,
 the real Spring 2026 application Preview passed the metadata RPC and stored 85
 preview rows, then failed at the seal because the caller supplied a reserved
 derived summary key. Zero term applications were committed. Production remains
-at 236 ordered migrations through `20260811001500`, so 43 migrations are
+at 236 ordered migrations through `20260811001500`, so 45 migrations are
 Production-pending; Production remains untouched.
 
 **Latest contract amendment:** August 12, 2026; this current-state amendment
@@ -28,17 +29,20 @@ their named runs only.
 
 ## Current hosted Development state
 
-- The repository branch has 279 ordered migrations through
+- The repository branch has 281 ordered migrations through
   `20260813011000_close_csf_representative_and_publication_races`.
-- The merged ledger preserves
-  `20260812161500_atomic_project_signup_rejection`,
+- Hosted Development Supabase has 273 ordered migrations through
+  `20260812152300_atomic_csf_post_replies`; the six newest repository
+  migrations, `20260812161500_atomic_project_signup_rejection`,
+  `20260812185500_atomic_staff_invite_issuer_redemption`,
+  `20260812193400_protect_staff_invite_issuer_capability`,
   `20260812203000_make_content_reports_server_written`,
   `20260812203500_close_plugin_data_browser_default_acl`, and
   `20260813010000_atomic_ai_quota_receipts` from current `development`, followed
-  by the later `20260813011000` CSF race repair.
-- Pull requests #152 and #174 are merged in current `development`; #158 and
-  #175 remain open with later or interleaving migrations. The 279-row pin is
-  therefore provisional, and the last migration pull request to merge must
+  by the later `20260812225436` and `20260813011000` CSF race repairs.
+- Pull requests #152, #174, and #179 are merged in current `development`; #158
+  and #175 remain open with later or interleaving migrations. The 281-row pin
+  is therefore provisional, and the last migration pull request to merge must
   recompute the count, head, and exact tail from the merged tree.
 - `20260812225436` closes the CSF activity and partner-club stale-authority
   class across all seven service-only transactions: `csf_create_activity`,
@@ -61,21 +65,21 @@ their named runs only.
   term-close advisory and term row locks and revalidates the exact tenant-scoped
   open term before writing. The migration is intentionally ordered after #174
   and #158 and does not restate their definitions.
-- The exact local isolated union replay passed all 130 pgTAP files and 5,453
-  assertions against 279 migrations. This local result does not establish
+- The exact local isolated union replay passed all 131 pgTAP files and 5,485
+  assertions against 281 migrations. This local result does not establish
   hosted acceptance.
 - Hosted Development Supabase has 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`; the four `development` migrations
+  `20260812152300_atomic_csf_post_replies`; the six `development` migrations
   listed above plus
   `20260812225436_recheck_csf_activity_partner_authorization_under_lock` and
   `20260813011000_close_csf_representative_and_publication_races` have not been
   applied to any hosted database.
 - Production remains at 236 ordered migrations through `20260811001500`; the
-  43-migration cutover has not run.
+  45-migration cutover has not run.
 - The last accepted Development advisor snapshot was captured on the preceding
   272-migration shape: 95 INFO, 0 WARN, and 0 ERROR security findings, plus 611
   INFO, 0 WARN, and 0 ERROR performance findings. Those counts have not been
-  re-established for either the hosted 273 or repository 279 shape and are not
+  re-established for either the hosted 273 or repository 281 shape and are not
   current-parity evidence.
 - `dev.lets-assist.com` still serves exact development SHA
   `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose Ready repository tree ended
@@ -93,10 +97,10 @@ their named runs only.
   zero term applications were committed.
 - No names or email addresses are recorded here. Real-source evidence remains
   aggregate-only.
-- The caller-summary correction is the private plugin fix merged by private PR
-  #45 at `ca817bf`, and this root worktree's gitlink points to that commit
-  locally. The stale Ready Development SHA above does not include that local
-  gitlink update.
+- The caller-summary correction and inactive-access hardening are combined in
+  private development commit `605342c`, and this root worktree's gitlink points
+  to that exact commit locally. The stale Ready Development SHA above does not
+  include that local gitlink update.
 - The Drive metadata RPC is no longer the current Preview blocker. Production
   remains untouched.
 
@@ -346,7 +350,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
 
 ## Acceptance gates
 
-- [x] Historical clean isolated replay: 214 migrations, 82 CSF tables, 63 pgTAP files, and 3,165/3,165 assertions; this is retained run evidence, not a current 279-ledger replay
+- [x] Historical clean isolated replay: 214 migrations, 82 CSF tables, 63 pgTAP files, and 3,165/3,165 assertions; this is retained run evidence, not a current 281-ledger replay
 - [x] Profile-claim concurrency/idempotent retry, tenant foreign keys, legacy-close revocation, nine evidence-write guards, and real `dblink` two-session close-vs-insert race
 - [x] Private-plugin CSF unit/security suite: 2,337 passed
 - [x] Import parser/reconciliation and idempotency tests for the implemented contracts
@@ -360,7 +364,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
 - [x] Latest focused hardening gate: 73/73 Bun tests with 761 expectations; root typecheck clean; focused ESLint clean
 - [x] Formatting, source organization, typecheck, and lint: 0 errors and 0 warnings
 - [x] `bun run csf:test:workflows`, `bun run csf:test:scale`, and the 5-route cron probe passed locally; cron recorded 269 assertions, zero dispatch, and zero egress
-- [ ] Supabase advisor closeout: the hosted 272-migration Development snapshot is 95 INFO/0 WARN/0 ERROR for security and 611 INFO/0 WARN/0 ERROR for performance; re-establish it after the 279-migration repository target is accepted, and run Production's release-time post-apply advisor check
+- [ ] Supabase advisor closeout: the hosted 272-migration Development snapshot is 95 INFO/0 WARN/0 ERROR for security and 611 INFO/0 WARN/0 ERROR for performance; re-establish it after the 281-migration repository target is accepted, and run Production's release-time post-apply advisor check
 - [x] Post-hardening private-plugin isolation browser/API smoke
 - [x] Exact detached private gitlink, registry/runtime contracts, and strict submodule validation pass
 - [x] `bun audit --production`: no vulnerabilities
@@ -426,9 +430,11 @@ The current officer procedure is documented in the [officer runbook](officer-run
   unexecuted.
 - Development uses a distinct hosted Supabase project. Its database has 273
   ordered migrations through `20260812152300_atomic_csf_post_replies`; this
-  repository branch has 279 through
+  repository branch has 281 through
   `20260813011000_close_csf_representative_and_publication_races`, including
   `20260812161500_atomic_project_signup_rejection`,
+  `20260812185500_atomic_staff_invite_issuer_redemption`,
+  `20260812193400_protect_staff_invite_issuer_capability`,
   `20260812203000_make_content_reports_server_written`, and
   `20260812203500_close_plugin_data_browser_default_acl`,
   `20260813010000_atomic_ai_quota_receipts`,

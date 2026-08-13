@@ -2,8 +2,8 @@
 
 Production has 236 ordered migrations through `20260811001500`.
 Hosted Development Supabase has 273 ordered migrations through
-`20260812152300`; this repository has 279 through `20260813011000`. Production
-therefore has exactly 43 pending migrations. `dev.lets-assist.com` still serves
+`20260812152300`; this repository has 281 through `20260813011000`. Production
+therefore has exactly 45 pending migrations. `dev.lets-assist.com` still serves
 the earlier Ready code whose repository ledger ended at 272 through
 `20260812132725`: the external Vercel 100-deployment-per-day project cap
 prevented the refreshed deployment. Database parity is not
@@ -13,17 +13,19 @@ are deployed and accepted.
 
 The exact pending tail includes
 `20260812161500_atomic_project_signup_rejection`,
+`20260812185500_atomic_staff_invite_issuer_redemption`,
+`20260812193400_protect_staff_invite_issuer_capability`,
 `20260812203000_make_content_reports_server_written`,
 `20260812203500_close_plugin_data_browser_default_acl`, and
 `20260813010000_atomic_ai_quota_receipts`, followed by
 `20260812225436_recheck_csf_activity_partner_authorization_under_lock` and
 `20260813011000_close_csf_representative_and_publication_races`; none has been
-applied to hosted Development. The exact local isolated union replay passed 130
-pgTAP files and 5,453 assertions against 279 migrations; hosted acceptance
+applied to hosted Development. The exact local isolated union replay passed 131
+pgTAP files and 5,485 assertions against 281 migrations; hosted acceptance
 remains pending.
 
-Pull requests #152 and #174 are merged in current `development`; #158 and #175
-remain open with later or interleaving migrations. The 279-row target is
+Pull requests #152, #174, and #179 are merged in current `development`; #158
+and #175 remain open with later or interleaving migrations. The 281-row target is
 provisional, and the last migration pull request to merge must recompute the
 count, head, and exact tail from the merged tree before any cutover uses them.
 
@@ -36,7 +38,7 @@ provider gates are green.
 
 **1. The schema push and the application deploy are one release, not two.**
 
-The 43 pending migrations and their exact application release SHA must be
+The 45 pending migrations and their exact application release SHA must be
 treated as one change. Do not push the schema independently or infer application
 compatibility from the migration ledger. Schedule one window, with the exact
 application release ready before the push starts.
@@ -55,7 +57,7 @@ because the cutover still builds on that baseline. See the
 - **AUD-002** — the `notifications` INSERT policy ends in `OR (auth.uid() IS NULL)`, so anyone holding the public anon key can inject a notification for any user, with an attacker-chosen title, body, and action URL.
 
 The fixing migrations, `20260810220100` and `20260810220200`, are historical
-context rather than part of the current 43-migration pending set.
+context rather than part of the current 45-migration pending set.
 
 ---
 
@@ -89,7 +91,7 @@ psql -X "$PRODUCTION_READONLY_URL" \
 
 Every check is `SELECT` or `SHOW` inside an explicit read-only transaction. The
 script accepts only the exact 236-version Production baseline or exact
-279-version target, exits non-zero on a partial or divergent ledger, and checks
+281-version target, exits non-zero on a partial or divergent ledger, and checks
 relation existence before parsing shape-specific tables. `pipefail` preserves
 that non-zero status through `tee`. Capture the whole output into the change
 record.
@@ -114,7 +116,7 @@ record.
   `DROP EXTENSION ... RESTRICT` fail.
 - **D10** mirrors the reviewed effective client-grant catalog before
   `20260812100900` revokes and rebuilds public relation ACLs.
-- **T1–T3** run only on the 279 shape and prove target relations, expected
+- **T1–T3** run only on the 281 shape and prove target relations, expected
   validated constraints/indexes, the reporter-detachment behavior moderation
   evidence depends on, the server-only posture of the three content report
   functions, the atomic AI quota receipt index, and removal of `pg_graphql`.
@@ -128,9 +130,9 @@ reviewed forward migration.
 ## Rehearsal
 
 **The Supabase `development` branch is not a rehearsal.** Its 273-migration
-ledger is six migrations behind the repository's 279-migration target. Even
+ledger is eight migrations behind the repository's 281-migration target. Even
 after parity, ordered application against the Development database would not
-exercise the repository branch's Production-shaped 236→279 transition,
+exercise the repository branch's Production-shaped 236→281 transition,
 data-dependent DDL, lock behaviour at Production table sizes, or Production
 data.
 
@@ -141,7 +143,7 @@ data.
 3. **Verify it is a clone, not a replay** — `list_migrations` on the new ref.
    - **236 rows, head `20260811001500`** → a genuine current-baseline clone.
      Continue.
-   - **279 rows, head `20260813011000`** → it was built by replaying the
+   - **281 rows, head `20260813011000`** → it was built by replaying the
      repository branch, which is the artifact you already have and proves nothing new.
      Abandon and use the fallback.
 
@@ -153,14 +155,14 @@ data.
    ```bash
    set -euo pipefail
    supabase link --project-ref <branch-ref>
-   supabase db push --linked --dry-run      # expect exactly 43 pending
+   supabase db push --linked --dry-run      # expect exactly 45 pending
    time supabase db push --linked --yes 2>&1 | tee rehearsal.log
    ```
 7. Capture: total and per-file wall clock; `SELECT ... FROM pg_index WHERE NOT
 indisvalid` (must be empty); `verify-supabase-migration-parity.mjs`;
    `get_advisors` (the 95 INFO/0 WARN/0 ERROR security and 611 INFO/0 WARN/0
    ERROR performance counts were captured on the preceding 272-migration
-   Development shape and are comparison evidence, not proof for 273 or 279);
+   Development shape and are comparison evidence, not proof for 273 or 281);
    and
    `supabase db diff --linked` — compare that last one against the destructive
    drift recorded in
@@ -213,7 +215,7 @@ Then restore them into a throwaway Postgres 17 and compare row counts for the to
 ## The window
 
 **Length:** rehearsal-measured duration × 3, floor 90 minutes. Use the timed
-Production-shaped 236→279 rehearsal as the authority; the pending set's
+Production-shaped 236→281 rehearsal as the authority; the pending set's
 validated constraints, index builds, ACL convergence, and cancellation-ledger
 work determine this window. Do not reuse timing assumptions from migrations
 already included in the 236 baseline.
@@ -232,7 +234,7 @@ already included in the 236 baseline.
    - `SELECT ... FROM pg_index WHERE NOT indisvalid` — must be empty
    - `get_advisors(type: 'security')` — expect only the known `INFO`/`rls_enabled_no_policy` shape
    - Re-run `production-cutover-preflight.sql`; it must select the exact
-     279-row target path and pass T1–T3
+     281-row target path and pass T1–T3
    - Storage bucket counts against the **E7** baseline
    - Upgrade DV installs to `2.0.0` through the leased control plane **before** enabling DV traffic
 10. Smoke tests while still in maintenance mode, then again after opening: sign in, view a project, sign up for a project, an organization page, a CSF workspace, one email path.

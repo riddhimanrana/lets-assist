@@ -822,7 +822,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(279);
+    expect(migrations).toHaveLength(281);
     expect(migrations.at(-1)).toBe(
       "20260813011000_close_csf_representative_and_publication_races.sql",
     );
@@ -833,7 +833,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 279 ordered migrations through",
+      "repository branch has 281 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260812203500_close_plugin_data_browser_default_acl`",
@@ -845,7 +845,10 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`20260813011000_close_csf_representative_and_publication_races`",
     );
     expect(currentState).toContain(
-      "exact local isolated union replay passed all 130 pgTAP files and 5,453 assertions",
+      "exact local isolated union replay passed all 131 pgTAP files and 5,485 assertions",
+    );
+    expect(currentState).toContain(
+      "`20260812193400_protect_staff_invite_issuer_capability`",
     );
     expect(currentState).toContain(
       "Hosted Development Supabase has 273 ordered migrations through",
@@ -857,7 +860,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(currentState).toContain(
       "Production remains at 236 ordered migrations through `20260811001500`",
     );
-    expect(currentState).toContain("43-migration cutover has not run");
+    expect(currentState).toContain("45-migration cutover has not run");
     expect(currentState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
     );
@@ -898,10 +901,10 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(currentState).toContain("zero term applications were committed");
     expect(currentState).toContain("No names or email addresses");
     expect(currentState).toContain(
-      "private plugin fix merged by private PR #45 at `ca817bf`",
+      "caller-summary correction and inactive-access hardening are combined in private development commit `605342c`",
     );
     expect(currentState).toContain(
-      "root worktree's gitlink points to that commit locally",
+      "root worktree's gitlink points to that exact commit locally",
     );
     expect(currentState).not.toContain(
       "Preview failed before reading or importing rows because the seven-argument RPC was missing",
@@ -913,7 +916,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "### External and action-time gates",
       "## Artifact index",
     );
-    expect(externalGates).toContain("repository branch has 279 through");
+    expect(externalGates).toContain("repository branch has 281 through");
     expect(externalGates).toContain(
       "`20260813011000_close_csf_representative_and_publication_races`",
     );
@@ -938,7 +941,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`cf330e5faa844d63a2f41c8f0be4d1c727d51a47`",
     );
     expect(rehearsalState).toContain(
-      "This repository has 279 ordered migrations through",
+      "This repository has 281 ordered migrations through",
     );
     expect(rehearsalState).toContain(
       "Hosted Development Supabase remains at 273 through",
@@ -959,15 +962,18 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`20260812161500_atomic_project_signup_rejection`",
     );
     expect(rehearsalState).toContain(
-      "exact local isolated union replay passed all 130 pgTAP files and 5,453 assertions",
+      "exact local isolated union replay passed all 131 pgTAP files and 5,485 assertions",
     );
     expect(rehearsalState).toContain("not applied to any hosted database");
+    expect(rehearsalState).toContain(
+      "`20260812193400_protect_staff_invite_issuer_capability`",
+    );
     expect(rehearsalState).toContain(
       "external Vercel 100-deployment-per-day project cap",
     );
     expect(rehearsalState).toContain("deployment is Ready but stale");
     expect(rehearsalState).toContain(
-      "They have not been re-established for either hosted 273 or repository 279",
+      "They have not been re-established for either hosted 273 or repository 281",
     );
     expect(rehearsalState).toContain(
       "seven-argument metadata RPC exists, the old four-argument overload is absent",
@@ -987,10 +993,10 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(rehearsalState).toContain("zero term applications were committed");
     expect(rehearsalState).toContain("No names or email addresses");
     expect(rehearsalState).toContain(
-      "private plugin fix merged by private PR #45 at `ca817bf`",
+      "caller-summary correction and inactive-access hardening are combined in private development commit `605342c`",
     );
     expect(rehearsalState).toContain(
-      "root worktree's gitlink points to that commit locally",
+      "root worktree's gitlink points to that exact commit locally",
     );
     expect(rehearsalState).not.toContain(
       "Preview failed before reading or importing rows because the seven-argument RPC was missing",
@@ -1009,8 +1015,8 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
     );
     expect(cutover).toContain("exact 236-row baseline");
-    expect(cutover).toContain("full 43-migration transition");
-    expect(cutover).toContain("preflight on the 279-row target");
+    expect(cutover).toContain("full 45-migration transition");
+    expect(cutover).toContain("preflight on the 281-row target");
   });
 
   test("production cutover baseline tracks the exact pending migration range", () => {
@@ -1024,13 +1030,16 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`20260812161500_atomic_project_signup_rejection`",
     );
     expect(productionCutoverRunbook).toContain(
-      "this repository has 279 through `20260813011000`",
+      "this repository has 281 through `20260813011000`",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "`20260812193400_protect_staff_invite_issuer_capability`",
     );
     expect(productionCutoverRunbook).toContain(
       "repository ledger ended at 272 through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Production therefore has exactly 43 pending migrations",
+      "Production therefore has exactly 45 pending migrations",
     );
     expect(productionCutoverRunbook).toContain(
       "external Vercel 100-deployment-per-day project cap",
@@ -1098,7 +1107,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "split 47+26 assertion autocommit dblink pgTAP suite",
     );
     expect(aud036).toContain(
-      "full local isolated replay passed all 130 pgTAP files and 5,453 assertions",
+      "full local isolated replay passed all 131 pgTAP files and 5,485 assertions",
     );
     expect(aud036).toContain("Hosted Development acceptance remains pending");
   });
@@ -1141,7 +1150,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       productionCutoverRunbook,
     ]) {
       expect(document).toContain(
-        "#152 and #174 are merged in current `development`; #158 and #175",
+        "#152, #174, and #179 are merged in current `development`; #158",
       );
       expect(document).toContain(
         "last migration pull request to merge must recompute",
@@ -1152,7 +1161,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
     expect(
       flow(readRepositoryFile("scripts/production-cutover-preflight.sql")),
-    ).toContain("#152 and #174 are merged");
+    ).toContain("#152, #174, and #179 are merged");
     expect(
       flow(readRepositoryFile("scripts/production-cutover-preflight.sql")),
     ).toContain("#158 and #175 remain open");

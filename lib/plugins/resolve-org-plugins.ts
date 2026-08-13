@@ -15,6 +15,7 @@ import type {
   OrganizationPluginExperience,
   ResolvedOrganizationPlugin,
 } from "@/types";
+import { getActiveOrganizationMembershipRole } from "@/lib/organization/active-membership";
 
 export interface ResolvedOrganizationPluginExperience {
   organizationId: string;
@@ -77,11 +78,17 @@ export async function resolveOrganizationPluginExperiences(
 export async function resolveOrganizationPlugins(options: {
   organizationId: string;
   userRole: OrganizationPluginAccessRole | null;
+  viewerUserId?: string;
+  allowPublicAccess?: boolean;
   failureMode?: PluginAccessFailureMode;
 }): Promise<ResolvedOrganizationPlugin[]> {
-  const { organizationId, userRole } = options;
+  const { organizationId } = options;
 
-  if (!userRole) {
+  if (
+    !options.userRole &&
+    !options.viewerUserId &&
+    !options.allowPublicAccess
+  ) {
     return [];
   }
 
@@ -91,6 +98,15 @@ export async function resolveOrganizationPlugins(options: {
   } catch {
     supabase = await createClient();
   }
+
+  const userRole = options.viewerUserId
+    ? await getActiveOrganizationMembershipRole(
+        supabase,
+        organizationId,
+        options.viewerUserId,
+      )
+    : options.userRole;
+  if (!userRole && !options.allowPublicAccess) return [];
 
   const accessRows = await loadAccessibleOrganizationPluginAccess({
     supabase,
@@ -118,7 +134,10 @@ export async function resolveOrganizationPlugins(options: {
     }
 
     const minimumRole = definition.manifest.minimumRole ?? "member";
-    if (!hasOrganizationPluginAccess(userRole, minimumRole)) {
+    if (
+      !options.allowPublicAccess &&
+      !hasOrganizationPluginAccess(userRole, minimumRole)
+    ) {
       continue;
     }
 
@@ -146,12 +165,16 @@ export async function resolveOrganizationPlugins(options: {
 export async function resolveOrganizationPluginByKey(options: {
   organizationId: string;
   userRole: OrganizationPluginAccessRole | null;
+  viewerUserId?: string;
+  allowPublicAccess?: boolean;
   pluginKey: string;
   failureMode?: PluginAccessFailureMode;
 }): Promise<ResolvedOrganizationPlugin | null> {
   const plugins = await resolveOrganizationPlugins({
     organizationId: options.organizationId,
     userRole: options.userRole,
+    viewerUserId: options.viewerUserId,
+    allowPublicAccess: options.allowPublicAccess,
     failureMode: options.failureMode,
   });
 
