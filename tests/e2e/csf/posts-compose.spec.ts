@@ -216,11 +216,60 @@ test.describe("officer post compose in the class Stream", () => {
     await expect(emailToggle).toBeVisible();
     await expect(emailToggle).not.toBeChecked();
 
-    await dialog.getByRole("button", { name: "Publish post" }).click();
+    const publishButton = dialog.getByRole("button", {
+      name: "Publish post",
+    });
+    let releasePublicationRequest!: () => void;
+    const publicationRequestRelease = new Promise<void>((resolve) => {
+      releasePublicationRequest = resolve;
+    });
+    let markPublicationRequestHeld!: () => void;
+    const publicationRequestHeld = new Promise<void>((resolve) => {
+      markPublicationRequestHeld = resolve;
+    });
+    await page.route("**/*", async (route) => {
+      const request = route.request();
+      if (request.method() !== "POST" || !request.headers()["next-action"]) {
+        await route.continue();
+        return;
+      }
+      markPublicationRequestHeld();
+      await publicationRequestRelease;
+      await route.continue();
+    });
+
+    const publishClick = publishButton.click();
+    try {
+      await publicationRequestHeld;
+      await expect(dialog.locator("form")).toHaveAttribute("aria-busy", "true");
+      await expect(publishButton).toBeDisabled();
+      await expect(dialog).toBeVisible();
+    } finally {
+      releasePublicationRequest();
+      await publishClick;
+      await page.unroute("**/*");
+    }
+
+    const postPublishedResult = dialog.getByRole("alert").filter({
+      hasText: "The post was saved separately from its email outcome.",
+    });
+    await expect(
+      postPublishedResult.getByText("Post published.", { exact: true }),
+    ).toBeVisible();
+    const emailNotQueuedResult = dialog.getByRole("alert").filter({
+      hasText: "Email not queued because no email was requested.",
+    });
+    await expect(
+      emailNotQueuedResult.getByText("Email not queued", { exact: true }),
+    ).toBeVisible();
+    await expect(dialog).toBeVisible();
+    await expect(publishButton).toHaveCount(0);
+
+    await dialog.getByRole("button", { name: "Close result" }).click();
     await expect(dialog).toBeHidden();
 
-    // The successful compose closes immediately. The database receipt and a
-    // reloaded Stream card are the durable publication and email-queue truth.
+    // The user-visible result is backed by the database receipt and a reloaded
+    // Stream card, which prove publication and the absence of an email queue.
     await expect
       .poll(async () => {
         const { data, error } = await fixture.admin
