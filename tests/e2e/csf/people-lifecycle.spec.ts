@@ -418,7 +418,14 @@ test.describe("CSF visible people lifecycle", () => {
       name: "Account connections",
     });
     await expect(connections).toBeVisible();
-    await connections
+    const fixtureRequestCard = connections
+      .getByText(
+        `Submitted school address ${fixture.profileEmail} · Account confirmation is checked in Resolve`,
+        { exact: true },
+      )
+      .locator("..");
+    await expect(fixtureRequestCard).toHaveCount(1);
+    await fixtureRequestCard
       .getByRole("button", { name: "Resolve", exact: true })
       .click();
     const resolveDialog = page.getByRole("dialog", {
