@@ -54,7 +54,9 @@ function serverClient() {
                 eq: () => ({
                   eq: () => ({
                     single: async () => ({
-                      data: isOrgAdmin ? { role: "admin" } : null,
+                      data: isOrgAdmin
+                        ? { role: "admin", status: "active" }
+                        : null,
                       error: null,
                     }),
                   }),
@@ -84,6 +86,24 @@ function serverClient() {
 function adminClient() {
   return {
     from(table: string) {
+      if (table === "organization_members") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                eq: () => ({
+                  maybeSingle: async () => ({
+                    data: isOrgAdmin
+                      ? { role: "admin", status: "active" }
+                      : null,
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          }),
+        };
+      }
       if (table !== "organizations") {
         throw new Error(`adminClient: unexpected table ${table}`);
       }

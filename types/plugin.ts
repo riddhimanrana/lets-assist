@@ -4,6 +4,8 @@ import type { Organization } from "./organization";
 export type OrganizationPluginVisibility = "global" | "private";
 
 export type OrganizationPluginAccessRole = "admin" | "staff" | "member";
+export type OrganizationPluginPageRole =
+  OrganizationPluginAccessRole | "public";
 
 /**
  * Organization with the viewer's role
@@ -552,13 +554,28 @@ export interface OrganizationPluginManifest {
   dataDeletion?: OrganizationPluginDataDeletionDeclaration;
 }
 
-export interface OrganizationPluginPageProps {
+export interface OrganizationPluginPageProps<
+  TRole extends OrganizationPluginPageRole = OrganizationPluginAccessRole,
+> {
   organizationId: string;
   organizationSlug: string;
   organizationName: string;
-  userRole: OrganizationPluginAccessRole;
+  userRole: TRole;
   configuration: Record<string, unknown> | null;
 }
+
+export type OrganizationPluginPageRenderer = {
+  bivarianceHack(
+    props: OrganizationPluginPageProps<OrganizationPluginPageRole>,
+  ): ReactNode | Promise<ReactNode>;
+}["bivarianceHack"];
+
+export type OrganizationPluginRouteRenderer = {
+  bivarianceHack(
+    routePath: string,
+    props: OrganizationPluginPageProps<OrganizationPluginPageRole>,
+  ): ReactNode | null | Promise<ReactNode | null>;
+}["bivarianceHack"];
 
 /**
  * Context passed to lifecycle hooks
