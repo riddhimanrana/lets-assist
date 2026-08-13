@@ -178,6 +178,77 @@ describe("signed CSF poison is quarantined rather than discarded", () => {
     ).toBe(false);
   });
 
+  // WHAT AN UNROUTABLE QUARANTINE ROW IS WORTH DEPENDS ENTIRELY ON WHAT IS ON IT.
+  //
+  // The tenant tag is one of five signed coordinates. `extractCsfRouting` used to
+  // read the other four only after the organization tag parsed, so the single tag
+  // most likely to be corrupt was the one whose corruption discarded the rest: the
+  // row said "some CSF send, somewhere, produced an unroutable event" and an
+  // officer had nothing to look up. The campaign and attempt tags are what turn it
+  // into a specific send.
+  //
+  // Their names are still only claims -- the column is `p_claimed_*`, nothing has
+  // been resolved against the tenant -- but a claim that parses as a uuid is
+  // evidence, and it is exactly the evidence a triage needs.
+  test("an unroutable tenant keeps the campaign and attempt the body did carry", async () => {
+    const poison = JSON.stringify({
+      type: "email.delivered",
+      created_at: "2032-04-01T10:00:00.000Z",
+      data: {
+        email_id: "synthetic-message-a",
+        tags: {
+          csf_plugin: "dvhs_csf",
+          csf_organization_id: "not-a-uuid",
+          csf_campaign_id: CAMPAIGN,
+          csf_attempt_id: ATTEMPT,
+        },
+      },
+    });
+    verifyImpl = () => JSON.parse(poison);
+
+    const response = await route.POST(makeRequest(poison));
+
+    expect(response.status).toBe(200);
+    const call = rpcCalls.find(
+      (c) => c.fn === "csf_quarantine_communication_webhook",
+    );
+    expect(call!.args.p_reason_code).toBe("unroutable_tenant");
+    // Null, because no evidence proves a tenant. That part was always right.
+    expect(call!.args.p_claimed_organization_id).toBeNull();
+    // These are the ones that used to be thrown away with it.
+    expect(call!.args.p_claimed_campaign_id).toBe(CAMPAIGN);
+    expect(call!.args.p_claimed_attempt_id).toBe(ATTEMPT);
+  });
+
+  test("a malformed coordinate is still dropped rather than passed through", async () => {
+    // The reverse guard. Reading the coordinates unconditionally must not mean
+    // reading them uncritically: a non-uuid campaign tag is not a campaign, and
+    // forwarding the raw string would put attacker-influenced text on an audit row
+    // whose contract is bounded identifiers.
+    const poison = JSON.stringify({
+      type: "email.delivered",
+      created_at: "2032-04-01T10:00:00.000Z",
+      data: {
+        email_id: "synthetic-message-a",
+        tags: {
+          csf_plugin: "dvhs_csf",
+          csf_organization_id: "not-a-uuid",
+          csf_campaign_id: "'; DROP TABLE --",
+          csf_attempt_id: ATTEMPT,
+        },
+      },
+    });
+    verifyImpl = () => JSON.parse(poison);
+
+    await route.POST(makeRequest(poison));
+
+    const call = rpcCalls.find(
+      (c) => c.fn === "csf_quarantine_communication_webhook",
+    );
+    expect(call!.args.p_claimed_campaign_id).toBeNull();
+    expect(call!.args.p_claimed_attempt_id).toBe(ATTEMPT);
+  });
+
   test("a CSF-tagged event with no usable type is quarantined", async () => {
     const shapeless =
       '{"data":{"email_id":"synthetic-message-a","tags":' +
@@ -429,6 +500,7 @@ describe("metadata is allowlisted, never content", () => {
       },
       {
         isCsf: true,
+        claimsCsf: true,
         organizationId: ORG,
         campaignId: CAMPAIGN,
         attemptId: ATTEMPT,
@@ -463,6 +535,7 @@ describe("metadata is allowlisted, never content", () => {
       { data: { email_id: "e".repeat(500) } },
       {
         isCsf: true,
+        claimsCsf: true,
         organizationId: ORG,
         campaignId: null,
         attemptId: null,

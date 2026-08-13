@@ -262,6 +262,44 @@ export async function sendEmail({
 
   const resend = setup.client;
 
+  // A CANCELLATION OBSERVED BEFORE THE REQUEST IS A PRE-SEND FACT, NOT AMBIGUITY.
+  //
+  // Once the request begins, an abort is genuinely unknown: the SDK turns a
+  // rejected fetch into `application_error`, which classifies as ambiguous, and
+  // that is the only honest answer because the socket may have carried the whole
+  // request before it died. But an ALREADY-aborted signal is different in kind --
+  // nothing has been transmitted, so "we cannot tell" is false.
+  //
+  // Reporting it as ambiguous anyway is not a harmless over-approximation. The CSF
+  // ledger treats `unknown_outcome` as terminal: it refuses every transition back
+  // to queued or processing and refuses to open a successor attempt behind one. So
+  // a caller whose deadline elapsed between arming the signal and reaching this
+  // line permanently burned a queued attempt, the recipient was never mailed, and
+  // an officer has to reconcile a send that provably never happened.
+  //
+  // The residual race -- an abort landing between this check and `fetch` -- still
+  // resolves to `unknown_outcome` below, which keeps the conservative direction
+  // for the only case that is actually ambiguous.
+  if (signal?.aborted) {
+    if (shouldLog) {
+      logWarn("Email request cancelled before it reached the provider", {
+        ...safeLogAttributes,
+        transport: "resend",
+        outcome: "retryable_pre_send",
+        phase: "transport_setup",
+      });
+    }
+    return {
+      outcome: "retryable_pre_send",
+      success: false,
+      skipped: false,
+      phase: "transport_setup",
+      code: "request_cancelled_before_send",
+      status: null,
+      error: "the provider request was cancelled before it began",
+    };
+  }
+
   // 4. THE PROVIDER REQUEST. Everything inside this try may have reached Resend.
   try {
     const content = emailHtml
