@@ -198,8 +198,13 @@ describe("Google CAP event semantics", () => {
     );
 
     try {
+      const protectedHeader = Buffer.from(
+        JSON.stringify({ alg: "RS256", kid: "synthetic" }),
+      ).toString("base64url");
+      const encodedPayload = Buffer.from("{}").toString("base64url");
+      const encodedSignature = Buffer.from("sig").toString("base64url");
       const rejection = validateGoogleCapToken(
-        "eyJhbGciOiJSUzI1NiIsImtpZCI6InN5bnRoZXRpYyJ9.e30.c2ln",
+        [protectedHeader, encodedPayload, encodedSignature].join("."),
       );
       await expect(rejection).rejects.toThrow("synthetic JWKS network outage");
       await expect(rejection).rejects.not.toBeInstanceOf(
