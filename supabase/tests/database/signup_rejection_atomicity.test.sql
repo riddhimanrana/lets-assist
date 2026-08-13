@@ -805,7 +805,7 @@ SELECT extensions.is(
 );
 
 -- ---------------------------------------------------------------------------
--- Active managers keep every moderation they had except rejection
+-- Active managers keep cancellation; approval and rejection remain transactional
 -- ---------------------------------------------------------------------------
 
 SELECT set_config(
@@ -813,21 +813,25 @@ SELECT set_config(
 );
 SET LOCAL ROLE authenticated;
 
-SELECT extensions.lives_ok(
+SELECT extensions.throws_ok(
   $$
     UPDATE public.project_signups
     SET status = 'approved'
     WHERE id = 'af300000-0000-4000-8000-000000000015'
   $$,
-  'an active organization admin still approves a pending signup'
+  '42501',
+  'signup approval requires a capacity-safe transactional RPC',
+  'an active organization admin cannot bypass transactional approval'
 );
-SELECT extensions.lives_ok(
+SELECT extensions.throws_ok(
   $$
     UPDATE public.project_signups
     SET status = 'approved'
     WHERE id = 'af300000-0000-4000-8000-000000000016'
   $$,
-  'an active organization admin still unrejects a signup'
+  '42501',
+  'signup approval requires a capacity-safe transactional RPC',
+  'an active organization admin cannot bypass capacity-safe unrejection'
 );
 SELECT extensions.throws_ok(
   $$
@@ -886,8 +890,8 @@ SELECT extensions.is(
       'af300000-0000-4000-8000-000000000019'
     )
   ),
-  ARRAY['approved', 'approved', 'cancelled', 'cancelled', 'pending'],
-  'the allowed moderation persisted and the refused rejection did not'
+  ARRAY['pending', 'rejected', 'cancelled', 'cancelled', 'pending'],
+  'only the reviewed direct cancellation transitions persisted'
 );
 
 SELECT * FROM extensions.finish();

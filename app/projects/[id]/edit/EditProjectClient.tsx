@@ -1067,6 +1067,11 @@ export default function EditProjectClient({ project }: Props) {
         ...values,
         schedule,
         recurrence_rule: recurrenceRule,
+        ...(recurrenceRule === null && project.recurrence_rule !== null
+          ? {
+              recurrence_generation_id: project.recurrence_generation_id,
+            }
+          : {}),
       };
 
       const result = await updateProject(project.id, updates);

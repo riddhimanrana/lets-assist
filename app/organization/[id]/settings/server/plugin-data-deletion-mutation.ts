@@ -89,7 +89,11 @@ export async function permanentlyDeleteOrganizationPluginData(options: {
   }
 
   const adminSupabase = getAdminClient();
-  const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
+  const isAdmin = await isOrganizationAdminForSettings(
+    organizationId,
+    user.id,
+    adminSupabase,
+  );
   if (!isAdmin) {
     return {
       success: false,

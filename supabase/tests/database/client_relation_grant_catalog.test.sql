@@ -6,7 +6,19 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(15);
+SELECT extensions.plan(16);
+
+SELECT extensions.ok(
+  NOT EXISTS (
+    SELECT 1
+    FROM app_private.client_relation_grant_catalog() AS catalog
+    WHERE catalog.relation_name = 'organizations'
+      AND catalog.role_name IN ('anon', 'authenticated')
+      AND catalog.privilege IN ('SELECT', 'INSERT', 'UPDATE')
+      AND 'staff_join_token_issued_by' = ANY (catalog.columns)
+  ),
+  'the client relation catalog exposes no staff-token issuer capability'
+);
 
 CREATE TEMP VIEW client_relation_expected AS
 SELECT relation_name, role_name, privilege, NULL::text AS column_name

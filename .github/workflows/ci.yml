@@ -299,6 +299,9 @@ jobs:
       - name: Validate database tests on the same running isolated stack
         run: supabase test db --workdir "${CSF_ISOLATED_WORK_DIR}"
 
+      - name: Validate volunteer-hours lock concurrency
+        run: bun run db:test:hours-concurrency
+
       - name: Seed fictional platform and DV fixtures
         run: |
           # JavaScript-managed fictional records only. The migration and SQL-seed

@@ -8,6 +8,7 @@ import { buildPluginDataDeletionConfirmationPhrase } from "@/lib/plugins/plugin-
 import { getPluginDataDeletionReadiness } from "@/lib/plugins/plugin-data-deletion-readiness";
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { hasActiveOrganizationAdminMembership } from "@/lib/organization/active-membership";
 import type {
   OrganizationPluginAccessRole,
   OrganizationWithRole,
@@ -256,23 +257,13 @@ async function runPermanentPluginDataDeletionWithLease(options: {
   }
   const organization = organizationRow as OrganizationRow;
 
-  const { data: membership, error: membershipError } = await service
-    .from("organization_members")
-    .select("role, status")
-    .eq("organization_id", input.organizationId)
-    .eq("user_id", input.actor.id)
-    .maybeSingle();
-  if (membershipError) {
-    return {
-      success: false,
-      error: `Failed to verify organization admin membership: ${membershipError.message}`,
-    };
-  }
   if (
     input.actor.type !== "user" ||
-    !membership ||
-    membership.role !== "admin" ||
-    membership.status !== "active"
+    !(await hasActiveOrganizationAdminMembership(
+      service,
+      input.organizationId,
+      input.actor.id,
+    ))
   ) {
     return {
       success: false,
@@ -363,6 +354,18 @@ async function runPermanentPluginDataDeletionWithLease(options: {
     actorId: input.actor.id,
     confirmationText: expectedConfirmation,
   });
+  if (
+    !(await hasActiveOrganizationAdminMembership(
+      service,
+      input.organizationId,
+      input.actor.id,
+    ))
+  ) {
+    return {
+      success: false,
+      error: "A current organization admin is required for permanent deletion.",
+    };
+  }
   const { data: beginRows, error: beginError } = await service.rpc(
     "begin_plugin_data_deletion_request",
     {
@@ -424,6 +427,40 @@ async function runPermanentPluginDataDeletionWithLease(options: {
       canRetry: false,
       error:
         "The deletion attempt was not assigned a finalization claim. Contact platform support.",
+    };
+  }
+
+  if (
+    !(await hasActiveOrganizationAdminMembership(
+      service,
+      input.organizationId,
+      input.actor.id,
+    ))
+  ) {
+    const { data: completed, error: completeError } = await service.rpc(
+      "complete_plugin_data_deletion_request",
+      {
+        p_request_id: receipt.request_id,
+        p_claim_token: receipt.claim_token,
+        p_status: "retryable_failed",
+        p_safe_error_code: "authorization_revoked",
+      },
+    );
+    if (completeError || completed !== true) {
+      return {
+        success: false,
+        status: "manual_reconciliation",
+        canRetry: false,
+        error:
+          "Admin access was revoked after this deletion request was claimed, and its durable receipt could not be finalized. No plugin code ran; contact platform support before retrying.",
+      };
+    }
+    return {
+      success: false,
+      status: "retryable_failed",
+      canRetry: true,
+      error:
+        "Admin access was revoked before permanent deletion began. No plugin code ran; restore current admin authority before retrying.",
     };
   }
 

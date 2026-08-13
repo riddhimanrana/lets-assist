@@ -36,6 +36,18 @@ describe("organization plugin member routing", () => {
     );
   });
 
+  test("remote preview keeps its active remote membership role without local revalidation", () => {
+    const pageSource = readFileSync(
+      join(import.meta.dir, "../../app/organization/[id]/page.tsx"),
+      "utf8",
+    );
+
+    expect(pageSource).toContain(
+      'previewSource === "remote" ? undefined : effectiveUserId',
+    );
+    expect(pageSource).toContain("viewerUserId: pluginViewerUserId");
+  });
+
   test("V34: anonymous and staff routing are decided by their own boundaries", () => {
     expect(
       shouldRedirectMemberToPluginRoot({

@@ -545,6 +545,7 @@ export async function signUpForProject(
           .select("role")
           .eq("organization_id", project.organization_id)
           .eq("user_id", user?.id || "00000000-0000-0000-0000-000000000000") // Fallback for anon
+          .eq("status", "active")
           .maybeSingle();
 
         const viewerRole =
@@ -552,6 +553,7 @@ export async function signUpForProject(
         const installedPlugins = await resolveOrganizationPlugins({
           organizationId: project.organization_id,
           userRole: viewerRole,
+          ...(user ? { viewerUserId: user.id } : {}),
         });
 
         const registry = getPluginRegistry();

@@ -142,7 +142,14 @@ describe("updateProject — auth/authz precedes validation", () => {
           update: (_vals: unknown) => {
             updateCalled = true;
             return {
-              eq: () => ({ error: null }),
+              eq: () => ({
+                select: () => ({
+                  maybeSingle: async () => ({
+                    data: { id: "proj-1" },
+                    error: null,
+                  }),
+                }),
+              }),
             };
           },
         }),
