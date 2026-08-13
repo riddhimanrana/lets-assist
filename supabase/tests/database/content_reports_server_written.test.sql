@@ -7,7 +7,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(84);
+SELECT extensions.plan(91);
 
 -- ---------------------------------------------------------------------------
 -- Effective privileges
@@ -142,8 +142,13 @@ SELECT extensions.ok(
     role_name,
     'public.consume_content_report_attempt(text[],integer[],integer)',
     'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    role_name,
+    'public.detach_content_report_reporter(uuid)',
+    'EXECUTE'
   ),
-  format('%s cannot execute either content report function', role_name)
+  format('%s cannot execute any content report function', role_name)
 )
 FROM client_roles;
 
@@ -157,14 +162,20 @@ SELECT extensions.ok(
     'service_role',
     'public.consume_content_report_attempt(text[],integer[],integer)',
     'EXECUTE'
+  )
+  AND has_function_privilege(
+    'service_role',
+    'public.detach_content_report_reporter(uuid)',
+    'EXECUTE'
   ),
-  'service_role can execute both content report functions'
+  'service_role can execute every content report function'
 );
 
 WITH definers(signature) AS (
   VALUES
     ('public.submit_content_report(text,uuid,text,uuid,text,text,integer,text[],integer[],integer)'),
-    ('public.consume_content_report_attempt(text[],integer[],integer)')
+    ('public.consume_content_report_attempt(text[],integer[],integer)'),
+    ('public.detach_content_report_reporter(uuid)')
 )
 SELECT extensions.ok(
   (SELECT prosecdef AND proconfig @> ARRAY['search_path=""']
@@ -264,7 +275,8 @@ INSERT INTO auth.users (
    '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()),
   ('a3400000-0000-4000-8000-000000000002', 'authenticated', 'authenticated',
    'report-other@local.test', now(),
-   '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now());
+   '{"provider":"email","providers":["email"],"is_super_admin":true}'::jsonb,
+   '{}'::jsonb, now(), now());
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES (
@@ -385,6 +397,22 @@ SELECT extensions.ok(
 );
 
 SELECT extensions.is(
+  (SELECT count(*) FROM public.notifications
+   WHERE dedupe_key = 'content-report:'
+     || (SELECT report_id::text FROM content_report_submission)),
+  1::bigint,
+  'the report transaction durably creates one moderator alert'
+);
+
+SELECT extensions.is(
+  (SELECT data -> 'lastEvent' ->> 'reportId' FROM public.notifications
+   WHERE dedupe_key = 'content-report:'
+     || (SELECT report_id::text FROM content_report_submission)),
+  (SELECT report_id::text FROM content_report_submission),
+  'the moderator alert identifies the report it was committed with'
+);
+
+SELECT extensions.is(
   (SELECT array_agg(request_count ORDER BY rate_limit_key)
    FROM public.api_rate_limits
    WHERE rate_limit_key LIKE 'pgtap:content-report:user'
@@ -467,6 +495,14 @@ SELECT extensions.is(
       OR rate_limit_key LIKE 'pgtap:content-report:ip'),
   ARRAY[1, 1],
   'a retried submission does not charge stored-report quota again'
+);
+
+SELECT extensions.is(
+  (SELECT count(*) FROM public.notifications
+   WHERE dedupe_key = 'content-report:'
+     || (SELECT report_id::text FROM content_report_submission)),
+  1::bigint,
+  'a replay repairs a missing moderator alert without duplicating one already present'
 );
 
 -- Age the first report past its replay deadline. This is what a report that
@@ -769,6 +805,33 @@ CREATE TEMP TABLE reporter_pseudonym_before_deletion AS
 SELECT DISTINCT reporter_reference AS reference
 FROM public.content_reports
 WHERE request_fingerprint = repeat('a', 64);
+
+SELECT public.detach_content_report_reporter(
+  'a3400000-0000-4000-8000-000000000001'
+);
+
+SELECT extensions.ok(
+  (SELECT bool_and(reporter_id IS NULL AND reporter_reference IS NOT NULL)
+   FROM public.content_reports
+   WHERE request_fingerprint = repeat('a', 64)),
+  'the retention transaction detaches every report actor link'
+);
+
+SELECT extensions.ok(
+  (SELECT mapping.reporter_id IS NULL
+   FROM public.reporter_references AS mapping
+   JOIN reporter_pseudonym_before_deletion AS retained
+     ON retained.reference = mapping.reference),
+  'the retention transaction also detaches the server-only mapping'
+);
+
+SELECT extensions.is(
+  (SELECT count(DISTINCT reporter_reference)
+   FROM public.content_reports
+   WHERE request_fingerprint = repeat('a', 64)),
+  1::bigint,
+  'detachment preserves the stable pseudonym across retained reports'
+);
 
 DELETE FROM auth.users WHERE id = 'a3400000-0000-4000-8000-000000000001';
 

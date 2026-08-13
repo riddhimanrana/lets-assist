@@ -1,5 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+export function formatContentReportReporterLabel(
+  reporterReference: string | null | undefined,
+): string | null {
+  if (!reporterReference) return null;
+  return `Reporter ${reporterReference.slice(0, 8).toUpperCase()}`;
+}
+
 /**
  * Moderation evidence outlives the reporter's account.
  *
@@ -15,10 +22,9 @@ export async function detachContentReportReporter(
   admin: SupabaseClient,
   userId: string,
 ): Promise<void> {
-  const { error } = await admin
-    .from("content_reports")
-    .update({ reporter_id: null })
-    .eq("reporter_id", userId);
+  const { error } = await admin.rpc("detach_content_report_reporter", {
+    p_reporter_id: userId,
+  });
 
   if (error) {
     throw new Error(`Failed to detach content reports: ${error.message}`);

@@ -65,6 +65,7 @@ const PENDING_VERSIONS = [
   "20260812115556",
   "20260812132725",
   "20260812152300",
+  "20260812161500",
   "20260812203000",
   "20260812203500",
 ] as const;
@@ -78,7 +79,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 236 -> 275 ledger and all 39 pending versions", () => {
+  test("pins the exact 236 -> 276 ledger and all 40 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -93,7 +94,7 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    expect(migrations).toHaveLength(275);
+    expect(migrations).toHaveLength(276);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
     expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
@@ -101,9 +102,9 @@ describe("Production cutover preflight source contract", () => {
     );
     expect(pending).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 236");
-    expect(preflight).toContain("count(*) = 275");
+    expect(preflight).toContain("count(*) = 276");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("39 migrations pending");
+    expect(preflight).toContain("40 migrations pending");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
     }
@@ -260,6 +261,7 @@ describe("Production cutover preflight source contract", () => {
       "content_reports_reporter_reference_fkey",
       "submit_content_report(text,uuid,text,uuid,text,text,integer,text[],integer[],integer)",
       "consume_content_report_attempt(text[],integer[],integer)",
+      "detach_content_report_reporter(uuid)",
     ]) {
       expect(targetShapeBlock).toContain(expected);
     }
@@ -271,7 +273,7 @@ describe("Production cutover preflight source contract", () => {
       "has_function_privilege('service_role', function_record.oid, 'EXECUTE')",
     );
 
-    // The two report functions are server-only, so they must never appear in
+    // The three report functions are server-only, so they must never appear in
     // the client function ACL catalog T5b compares against.
     const functionAclBlock = preflight.slice(
       preflight.indexOf("T5  Public read-model and function ACL posture"),
@@ -279,6 +281,37 @@ describe("Production cutover preflight source contract", () => {
     );
     expect(functionAclBlock).not.toContain("submit_content_report");
     expect(functionAclBlock).not.toContain("consume_content_report_attempt");
+    expect(functionAclBlock).not.toContain("detach_content_report_reporter");
+  });
+
+  test("pins the internal quota helper to its reviewed executor", () => {
+    const migration = readMigration("20260812203000");
+
+    expect(migration).toContain(
+      "REVOKE ALL ON FUNCTION app_private.consume_rate_limit_buckets(\n  text[], integer[], integer, timestamptz\n) FROM PUBLIC, anon, authenticated, service_role;",
+    );
+    expect(migration).toContain(
+      "GRANT EXECUTE ON FUNCTION app_private.consume_rate_limit_buckets(\n  text[], integer[], integer, timestamptz\n) TO postgres;",
+    );
+    expect(migration).toContain(
+      "REVOKE ALL ON FUNCTION public.detach_content_report_reporter(uuid)\n  FROM PUBLIC, anon, authenticated;",
+    );
+    expect(migration).toContain(
+      "GRANT EXECUTE ON FUNCTION public.detach_content_report_reporter(uuid)\n  TO service_role;",
+    );
+  });
+
+  test("makes moderator alert delivery part of the replay-safe transaction", () => {
+    const migration = readMigration("20260812203000");
+    const deduplicatedAlertWrites =
+      migration.match(
+        /ON CONFLICT \(user_id, dedupe_key\) WHERE dedupe_key IS NOT NULL DO NOTHING;/gu,
+      ) ?? [];
+
+    expect(migration).toContain("'content-report:' || v_existing_id::text");
+    expect(migration).toContain("'content-report:' || v_report_id::text");
+    expect(migration).toContain("user_record.raw_app_meta_data");
+    expect(deduplicatedAlertWrites).toHaveLength(2);
   });
 
   test("requires exact target relation and storage contracts", () => {

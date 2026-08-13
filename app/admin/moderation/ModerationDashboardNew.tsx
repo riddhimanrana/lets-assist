@@ -125,6 +125,7 @@ type ContentReport = {
     avatar_url?: string | null;
   } | null;
   reporter_id?: string | null;
+  reporter_label?: string | null;
   user_id?: string | null;
   ai_metadata?: AiMetadata | null;
   content_snapshot?: Record<string, unknown> | null;
@@ -1241,7 +1242,7 @@ export default function ModerationDashboard({
                     </div>
                   </div>
 
-                  {selectedReport.reporter && (
+                  {selectedReport.reporter ? (
                     <div className="rounded-lg border bg-card p-4">
                       <p className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                         Reported By
@@ -1278,6 +1279,20 @@ export default function ModerationDashboard({
                         </div>
                         <ExternalLink className="h-4 w-4 text-muted-foreground" />
                       </Link>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border bg-card p-4">
+                      <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                        Reported By
+                      </p>
+                      <p className="text-sm font-semibold">
+                        {selectedReport.reporter_label || "Anonymous"}
+                      </p>
+                      {selectedReport.reporter_label && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Detached account · stable pseudonym
+                        </p>
+                      )}
                     </div>
                   )}
 

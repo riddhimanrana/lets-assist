@@ -18,6 +18,11 @@ type RpcResponse = { data: unknown; error: { message: string } | null };
 
 let targetLookups: Array<{ relation: string; id: string }> = [];
 let targetResult: TargetLookup = { data: { id: "target" }, error: null };
+let publicProfileLookups: string[] = [];
+let publicProfileResult: TargetLookup = {
+  data: { id: "target" },
+  error: null,
+};
 
 let rpcCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
 let attemptResult: RpcResponse;
@@ -41,6 +46,13 @@ mock.module("@/lib/supabase/server", () => ({
       }),
     }),
   }),
+}));
+
+mock.module("@/lib/profile/public", () => ({
+  getPublicProfileById: async (id: string) => {
+    publicProfileLookups.push(id);
+    return publicProfileResult;
+  },
 }));
 
 mock.module("@/lib/supabase/admin", () => ({
@@ -108,6 +120,8 @@ const ENV_KEYS = ["NEXT_PUBLIC_SITE_URL", "VERCEL", "VERCEL_ENV", "VERCEL_URL"];
 beforeEach(() => {
   targetLookups = [];
   targetResult = { data: { id: CONTENT_ID }, error: null };
+  publicProfileLookups = [];
+  publicProfileResult = { data: { id: CONTENT_ID }, error: null };
   rpcCalls = [];
   attemptResult = { data: [{ allowed: true, reset_at: null }], error: null };
   submitResult = {
@@ -282,21 +296,26 @@ describe("target authorization", () => {
     expect(result).toEqual({ status: "created", reportId: REPORT_ID });
   });
 
-  test("profiles and organizations resolve to their own relations", async () => {
+  test("profiles resolve through the reviewed public visibility boundary", async () => {
     await submitContentReport({
       reporterId: REPORTER_ID,
       submission: { ...submission, contentType: "profile" },
       requestHeaders: headers(),
     });
+
+    expect(publicProfileLookups).toEqual([CONTENT_ID]);
+    expect(targetLookups).toHaveLength(0);
+  });
+
+  test("organizations resolve through the reporter session", async () => {
     await submitContentReport({
       reporterId: REPORTER_ID,
       submission: { ...submission, contentType: "organization" },
       requestHeaders: headers(),
     });
 
-    expect(targetLookups.map((lookup) => lookup.relation)).toEqual([
-      "profiles",
-      "organizations",
+    expect(targetLookups).toEqual([
+      { relation: "organizations", id: CONTENT_ID },
     ]);
   });
 

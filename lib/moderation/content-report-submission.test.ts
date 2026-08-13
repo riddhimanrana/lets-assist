@@ -57,6 +57,23 @@ describe("content report submission boundary", () => {
     ).toBe(false);
   });
 
+  test("truncates oversized display metadata without rejecting the report", () => {
+    const parsed = contentReportSchema.safeParse({
+      ...validSubmission,
+      metadata: {
+        title: `  ${"T".repeat(250)}  `,
+        creator: "C".repeat(250),
+        context: "X".repeat(550),
+      },
+    });
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.metadata?.title).toBe("T".repeat(200));
+    expect(parsed.data.metadata?.creator).toBe("C".repeat(200));
+    expect(parsed.data.metadata?.context).toBe("X".repeat(500));
+  });
+
   test("the advertised target types are exactly the ones that resolve", () => {
     for (const contentType of ["project", "profile", "organization"]) {
       expect(

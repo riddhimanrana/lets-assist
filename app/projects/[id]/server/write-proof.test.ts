@@ -9,7 +9,10 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 type WriteResult = { data: { id: string } | null; error: unknown };
 type RpcResult = { data: unknown; error: unknown };
 
-let mockUser: { id: string } | null;
+let mockUser: {
+  id: string;
+  app_metadata?: Record<string, unknown> | null;
+} | null;
 let mockAuthError: unknown;
 let mockProject: Record<string, unknown> | null;
 let mockProjectSelectError: unknown;
@@ -22,6 +25,7 @@ let signupSelectCount: number;
 let mockProjectUpdateResult: WriteResult;
 let mockProjectDeleteResult: WriteResult;
 let mockSignupUpdateResult: WriteResult;
+let mockRejectRpcResult: RpcResult | null;
 let mockUnrejectRpcResult: RpcResult;
 let mockCancellationRpcResult: RpcResult | null;
 let mockSignedWaiverCount: number | null;
@@ -33,6 +37,7 @@ let anonymousAccessAllowed: boolean;
 const calendarProjectRemovals: string[] = [];
 const calendarSignupRemovals: string[] = [];
 const cancellationRpcCalls: Record<string, unknown>[] = [];
+const rejectRpcCalls: Record<string, unknown>[] = [];
 const unrejectRpcCalls: Record<string, unknown>[] = [];
 const revalidatedPaths: string[] = [];
 const storageRemovals: Array<{ bucket: string; paths: string[] }> = [];
@@ -292,6 +297,24 @@ function buildMockClient() {
         }
         return mockUnrejectRpcResult;
       }
+      if (name === "reject_project_signup") {
+        rejectRpcCalls.push(args);
+        eventLog.push("db:reject-rpc");
+        const signupId = String(args.p_signup_id);
+        return (
+          mockRejectRpcResult ?? {
+            data: {
+              outcome: "accepted",
+              success: true,
+              signupId,
+              projectId: PROJECT_ID,
+              notification: "delivered",
+              notificationReason: null,
+            },
+            error: null,
+          }
+        );
+      }
       return { data: null, error: null };
     },
     storage: {
@@ -327,12 +350,14 @@ mock.module("@/lib/supabase/auth-helpers", () => ({
 }));
 
 const { updateProjectStatus, deleteProject } = await import("./lifecycle");
-const { unrejectSignup, cancelSignup } = await import("./cancellation");
+const { rejectSignup, unrejectSignup, cancelSignup } =
+  await import("./cancellation");
 
 const PROJECT_ID = "00000000-0000-4000-8000-000000000001";
 const USER_ID = "00000000-0000-4000-8000-000000000002";
 const ORG_ID = "00000000-0000-4000-8000-000000000003";
 const SIGNUP_ID = "00000000-0000-4000-8000-000000000004";
+const CASEFUL_SIGNUP_ID = "abcdefab-cdef-4abc-8def-abcdefabcdef";
 const PARTICIPANT_ID = "00000000-0000-4000-8000-000000000005";
 const ANONYMOUS_ID = "00000000-0000-4000-8000-000000000006";
 
@@ -388,6 +413,7 @@ beforeEach(() => {
   calendarProjectRemovals.length = 0;
   calendarSignupRemovals.length = 0;
   cancellationRpcCalls.length = 0;
+  rejectRpcCalls.length = 0;
   unrejectRpcCalls.length = 0;
   revalidatedPaths.length = 0;
   storageRemovals.length = 0;
@@ -406,6 +432,7 @@ beforeEach(() => {
   mockProjectUpdateResult = { data: { id: PROJECT_ID }, error: null };
   mockProjectDeleteResult = { data: { id: PROJECT_ID }, error: null };
   mockSignupUpdateResult = { data: { id: SIGNUP_ID }, error: null };
+  mockRejectRpcResult = null;
   mockUnrejectRpcResult = {
     data: [{ outcome: "approved", project_id: PROJECT_ID }],
     error: null,
@@ -416,6 +443,59 @@ beforeEach(() => {
   mockStorageListError = null;
   mockStorageRemovalErrors = {};
   anonymousAccessAllowed = false;
+});
+
+describe("rejectSignup", () => {
+  test("the creator delegates a canonical signup ID to the rejection RPC", async () => {
+    const result = await rejectSignup(SIGNUP_ID);
+
+    expect(result).toMatchObject({ outcome: "accepted", success: true });
+    expect(rejectRpcCalls).toEqual([{ p_signup_id: SIGNUP_ID }]);
+  });
+
+  test("null-status and inactive memberships never reach the rejection RPC", async () => {
+    mockProject = baseProject({
+      creator_id: "other",
+      can_be_managed_by_staff: true,
+    });
+
+    for (const status of [null, "inactive"]) {
+      rejectRpcCalls.length = 0;
+      mockOrgMember = { role: "admin", status };
+
+      expect(await rejectSignup(SIGNUP_ID)).toMatchObject({
+        outcome: "rejected",
+        error: expect.any(String),
+      });
+      expect(rejectRpcCalls).toHaveLength(0);
+    }
+  });
+
+  test("a super admin keeps rejection access without organization membership", async () => {
+    mockUser = {
+      id: "super-admin",
+      app_metadata: { is_super_admin: true },
+    };
+    mockProject = baseProject({ creator_id: "other" });
+    mockOrgMember = null;
+
+    expect(await rejectSignup(SIGNUP_ID)).toMatchObject({
+      outcome: "accepted",
+      success: true,
+    });
+    expect(rejectRpcCalls).toEqual([{ p_signup_id: SIGNUP_ID }]);
+  });
+
+  test("uppercase UUID input is canonicalized before the committed result is compared", async () => {
+    mockSignupRow = baseSignup({ id: CASEFUL_SIGNUP_ID });
+
+    expect(await rejectSignup(CASEFUL_SIGNUP_ID.toUpperCase())).toMatchObject({
+      outcome: "accepted",
+      success: true,
+    });
+    expect(rejectRpcCalls).toEqual([{ p_signup_id: CASEFUL_SIGNUP_ID }]);
+    expect(revalidatedPaths).toContain(`/projects/${PROJECT_ID}/signups`);
+  });
 });
 
 describe("updateProjectStatus", () => {
@@ -535,7 +615,7 @@ describe("updateProjectStatus", () => {
       creator_id: "other",
       can_be_managed_by_staff: false,
     });
-    mockOrgMember = { role: "admin" };
+    mockOrgMember = { role: "admin", status: "active" };
     expect(await updateProjectStatus(PROJECT_ID, "in-progress")).toMatchObject({
       success: true,
     });
@@ -545,7 +625,7 @@ describe("updateProjectStatus", () => {
       creator_id: "other",
       can_be_managed_by_staff: null,
     });
-    mockOrgMember = { role: "staff" };
+    mockOrgMember = { role: "staff", status: "active" };
     expect(await updateProjectStatus(PROJECT_ID, "in-progress")).toMatchObject({
       error: expect.any(String),
     });
@@ -676,7 +756,7 @@ describe("unrejectSignup", () => {
       creator_id: "other",
       can_be_managed_by_staff: false,
     });
-    mockOrgMember = { role: "admin" };
+    mockOrgMember = { role: "admin", status: "active" };
     expect(await unrejectSignup(SIGNUP_ID)).toMatchObject({ success: true });
 
     mockSignupRow = baseSignup({ status: "rejected" });
@@ -684,7 +764,7 @@ describe("unrejectSignup", () => {
       creator_id: "other",
       can_be_managed_by_staff: null,
     });
-    mockOrgMember = { role: "staff" };
+    mockOrgMember = { role: "staff", status: "active" };
     expect(await unrejectSignup(SIGNUP_ID)).toMatchObject({
       error: expect.any(String),
     });
@@ -708,6 +788,19 @@ describe("unrejectSignup", () => {
 
     mockOrgMember = { role: "admin" };
     mockOrgMemberError = { message: "membership read failed" };
+    expect(await unrejectSignup(SIGNUP_ID)).toMatchObject({
+      error: expect.any(String),
+    });
+    expect(unrejectRpcCalls).toHaveLength(0);
+  });
+
+  test("a null-status organization member never reaches the unreject RPC", async () => {
+    mockProject = baseProject({
+      creator_id: "other",
+      can_be_managed_by_staff: true,
+    });
+    mockOrgMember = { role: "admin", status: null };
+
     expect(await unrejectSignup(SIGNUP_ID)).toMatchObject({
       error: expect.any(String),
     });
@@ -741,6 +834,22 @@ describe("cancelSignup", () => {
       "db:signup-update",
       "calendar:signup",
     ]);
+  });
+
+  test("uppercase UUID input recognizes the committed cancellation result", async () => {
+    mockSignupRow = baseSignup({
+      id: CASEFUL_SIGNUP_ID,
+      user_id: PARTICIPANT_ID,
+    });
+    mockSignupUpdateResult = {
+      data: { id: CASEFUL_SIGNUP_ID },
+      error: null,
+    };
+
+    expect(await cancelSignup(CASEFUL_SIGNUP_ID.toUpperCase())).toMatchObject({
+      success: true,
+    });
+    expect(calendarSignupRemovals).toEqual([CASEFUL_SIGNUP_ID]);
   });
 
   test("a real repeated call is idempotent without another calendar effect", async () => {
@@ -876,7 +985,7 @@ describe("cancelSignup organizer authorization", () => {
       creator_id: "other",
       can_be_managed_by_staff: false,
     });
-    mockOrgMember = { role: "admin" };
+    mockOrgMember = { role: "admin", status: "active" };
     expect(await cancelSignup(SIGNUP_ID)).toMatchObject({ success: true });
 
     calendarSignupRemovals.length = 0;
@@ -885,7 +994,7 @@ describe("cancelSignup organizer authorization", () => {
       creator_id: "other",
       can_be_managed_by_staff: null,
     });
-    mockOrgMember = { role: "staff" };
+    mockOrgMember = { role: "staff", status: "active" };
     expect(await cancelSignup(SIGNUP_ID)).toMatchObject({
       error: expect.any(String),
     });

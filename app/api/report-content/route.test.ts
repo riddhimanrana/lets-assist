@@ -184,7 +184,7 @@ describe("input boundary", () => {
 });
 
 describe("outcome mapping", () => {
-  test("a created report notifies moderators once and returns its identifier", async () => {
+  test("a created report returns after its transaction-owned alert is durable", async () => {
     const response = await POST(request(validBody));
 
     expect(response.status).toBe(200);
@@ -193,20 +193,7 @@ describe("outcome mapping", () => {
       reportId: "30000000-0000-4000-8000-000000000001",
       message: "Report submitted successfully",
     });
-    expect(notifications).toEqual([
-      {
-        type: "content_report",
-        reportId: "30000000-0000-4000-8000-000000000001",
-        reason: "spam",
-        contentType: "project",
-        priority: "normal",
-      },
-    ]);
-  });
-
-  test("violent and hateful reports are escalated for moderators", async () => {
-    await POST(request({ ...validBody, reason: "hate_speech" }));
-    expect(notifications[0]?.priority).toBe("high");
+    expect(notifications).toHaveLength(0);
   });
 
   test("a replayed submission returns the original report without re-notifying", async () => {
@@ -238,7 +225,7 @@ describe("outcome mapping", () => {
 
     expect(first.status).toBe(second.status);
     expect(await first.json()).toEqual(await second.json());
-    expect(notifications).toHaveLength(1);
+    expect(notifications).toHaveLength(0);
   });
 
   test("a rejected target is a generic 400", async () => {
@@ -268,15 +255,6 @@ describe("outcome mapping", () => {
     expect(response.status).toBe(503);
     expect(response.headers.get("Retry-After")).toBe("5");
     expect(notifications).toHaveLength(0);
-  });
-
-  test("a failed notification does not fail the report", async () => {
-    notificationFails = true;
-
-    const response = await POST(request(validBody));
-
-    expect(response.status).toBe(200);
-    expect((await response.json()).success).toBe(true);
   });
 
   test("an unexpected failure is a generic 500", async () => {

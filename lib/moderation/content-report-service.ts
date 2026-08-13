@@ -5,6 +5,7 @@ import { hashRateLimitIdentifier } from "@/lib/ai/rate-limit";
 import { logError } from "@/lib/logger";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getPublicProfileById } from "@/lib/profile/public";
 import {
   resolveAuthRequestOrigin,
   resolveConfiguredSiteOrigin,
@@ -220,17 +221,23 @@ async function consumeAttemptQuota(input: {
 /**
  * Confirm the reported resource exists *for this reporter*.
  *
- * The lookup runs through the reporter's own RLS-scoped session, so it can
- * never confirm a row the reporter could not already read directly through the
- * Data API: it adds no enumeration oracle, and it stops an arbitrary UUID from
- * becoming durable moderation evidence. The transaction repeats an
- * existence-only check under its own lock, so authorization and existence stay
- * on the two sides that can actually enforce them.
+ * Projects and organizations use the reporter's RLS-scoped session. Profiles
+ * use the same narrow server-side public-profile read model that renders the
+ * public profile page; the base `profiles` policy intentionally does not expose
+ * other users directly. The transaction repeats an existence-only check under
+ * its own lock, so visibility and existence stay on the two sides that can
+ * actually enforce them.
  */
 async function reporterCanSeeTarget(
   submission: ContentReportSubmission,
 ): Promise<"visible" | "missing" | "unavailable"> {
   if (!isResolvableContentType(submission.contentType)) return "missing";
+
+  if (submission.contentType === "profile") {
+    const { data, error } = await getPublicProfileById(submission.contentId);
+    if (error) return "unavailable";
+    return data ? "visible" : "missing";
+  }
 
   const relation = CONTENT_REPORT_TARGET_RELATIONS[submission.contentType];
   const supabase = await createClient();

@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { detachContentReportReporter } from "./content-report-retention";
+import {
+  detachContentReportReporter,
+  formatContentReportReporterLabel,
+} from "./content-report-retention";
 import { deleteUserWithCleanup } from "@/lib/supabase/delete-user-with-cleanup";
 
 /**
@@ -12,7 +15,7 @@ import { deleteUserWithCleanup } from "@/lib/supabase/delete-user-with-cleanup";
 
 type Operation = {
   relation: string;
-  verb: "select" | "update" | "delete";
+  verb: "select" | "update" | "delete" | "rpc";
   filters: Array<[string, unknown]>;
   values?: Record<string, unknown>;
 };
@@ -89,6 +92,19 @@ function recordingClient(options: { updateError?: { message: string } } = {}) {
         },
       };
     },
+    rpc(name: string, args: Record<string, unknown>) {
+      const operation: Operation = {
+        relation: name,
+        verb: "rpc",
+        filters: [],
+        values: args,
+      };
+      operations.push(operation);
+      return Promise.resolve({
+        data: null,
+        error: options.updateError ?? null,
+      });
+    },
     auth: {
       admin: {
         deleteUser: async () => ({ error: null }),
@@ -102,17 +118,24 @@ function recordingClient(options: { updateError?: { message: string } } = {}) {
 const USER_ID = "20000000-0000-4000-8000-000000000001";
 
 describe("content report retention", () => {
-  test("detaching clears only the actor link", async () => {
+  test("formats a stable opaque label for a detached reporter", () => {
+    expect(
+      formatContentReportReporterLabel("ab12cd34-0000-4000-8000-000000000001"),
+    ).toBe("Reporter AB12CD34");
+    expect(formatContentReportReporterLabel(null)).toBeNull();
+  });
+
+  test("detaching atomically clears the report and pseudonym actor links", async () => {
     const { client, operations } = recordingClient();
 
     await detachContentReportReporter(client, USER_ID);
 
     expect(operations).toEqual([
       {
-        relation: "content_reports",
-        verb: "update",
-        filters: [["reporter_id", USER_ID]],
-        values: { reporter_id: null },
+        relation: "detach_content_report_reporter",
+        verb: "rpc",
+        filters: [],
+        values: { p_reporter_id: USER_ID },
       },
     ]);
   });
@@ -136,11 +159,13 @@ describe("content report retention", () => {
     });
 
     const reportOperations = operations.filter(
-      (operation) => operation.relation === "content_reports",
+      (operation) =>
+        operation.relation === "detach_content_report_reporter" ||
+        operation.relation === "content_reports",
     );
     expect(reportOperations).toHaveLength(1);
-    expect(reportOperations[0]?.verb).toBe("update");
-    expect(reportOperations[0]?.values).toEqual({ reporter_id: null });
+    expect(reportOperations[0]?.verb).toBe("rpc");
+    expect(reportOperations[0]?.values).toEqual({ p_reporter_id: USER_ID });
     expect(
       operations.some(
         (operation) =>

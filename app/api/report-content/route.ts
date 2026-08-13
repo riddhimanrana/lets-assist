@@ -1,5 +1,4 @@
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
-import { notifyAdminsBatched } from "@/services/admin-notifications";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { logError, logInfo, flushLogs } from "@/lib/logger";
@@ -89,35 +88,6 @@ export async function POST(request: Request) {
 
     if (result.status === "unavailable") {
       return NextResponse.json(UNAVAILABLE.body, UNAVAILABLE.init);
-    }
-
-    // A replayed submission already produced its notification; sending another
-    // would turn a network retry into duplicate moderator traffic.
-    if (result.status === "created") {
-      try {
-        await notifyAdminsBatched({
-          type: "content_report",
-          reportId: result.reportId,
-          reason: parsed.data.reason,
-          contentType: parsed.data.contentType,
-          priority:
-            parsed.data.reason === "violence" ||
-            parsed.data.reason === "hate_speech"
-              ? "high"
-              : "normal",
-        });
-      } catch {
-        logError(
-          "Failed to send admin notification for content report",
-          new Error("report_notification_failed"),
-          {
-            report_id: result.reportId,
-            content_type: parsed.data.contentType,
-            reason: parsed.data.reason,
-          },
-        );
-        // Don't fail the request if notification fails
-      }
     }
 
     logInfo("Content report submitted successfully", {

@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(24);
+SELECT extensions.plan(26);
 
 SELECT extensions.has_function(
   'public',
@@ -92,7 +92,8 @@ VALUES
   ('ec000000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'unreject-staff@local.test', now(), '{}', '{}', now(), now()),
   ('ec000000-0000-4000-8000-000000000004', 'authenticated', 'authenticated', 'unreject-outsider@local.test', now(), '{}', '{}', now(), now()),
   ('ec000000-0000-4000-8000-000000000005', 'authenticated', 'authenticated', 'unreject-volunteer-one@local.test', now(), '{}', '{}', now(), now()),
-  ('ec000000-0000-4000-8000-000000000006', 'authenticated', 'authenticated', 'unreject-volunteer-two@local.test', now(), '{}', '{}', now(), now());
+  ('ec000000-0000-4000-8000-000000000006', 'authenticated', 'authenticated', 'unreject-volunteer-two@local.test', now(), '{}', '{}', now(), now()),
+  ('ec000000-0000-4000-8000-000000000007', 'authenticated', 'authenticated', 'unreject-null-status-admin@local.test', now(), '{}', '{}', now(), now());
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES (
@@ -108,7 +109,8 @@ INSERT INTO public.organization_members (
 )
 VALUES
   ('ec100000-0000-4000-8000-000000000001', 'ec000000-0000-4000-8000-000000000002', 'admin', 'active'),
-  ('ec100000-0000-4000-8000-000000000001', 'ec000000-0000-4000-8000-000000000003', 'staff', 'active');
+  ('ec100000-0000-4000-8000-000000000001', 'ec000000-0000-4000-8000-000000000003', 'staff', 'active'),
+  ('ec100000-0000-4000-8000-000000000001', 'ec000000-0000-4000-8000-000000000007', 'admin', NULL);
 
 INSERT INTO public.projects (
   id, creator_id, organization_id, title, location, description, event_type,
@@ -146,7 +148,8 @@ INSERT INTO public.project_signups (
 )
 VALUES
   ('ec300000-0000-4000-8000-000000000001', 'ec200000-0000-4000-8000-000000000001', 'ec000000-0000-4000-8000-000000000005', 'oneTime', 'rejected'),
-  ('ec300000-0000-4000-8000-000000000002', 'ec200000-0000-4000-8000-000000000001', 'ec000000-0000-4000-8000-000000000006', 'oneTime', 'rejected');
+  ('ec300000-0000-4000-8000-000000000002', 'ec200000-0000-4000-8000-000000000001', 'ec000000-0000-4000-8000-000000000006', 'oneTime', 'rejected'),
+  ('ec300000-0000-4000-8000-000000000003', 'ec200000-0000-4000-8000-000000000001', 'ec000000-0000-4000-8000-000000000006', 'oneTime', 'rejected');
 
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" =
@@ -274,6 +277,29 @@ SELECT extensions.is(
   ),
   'rejected',
   'inactive membership denial leaves the signup unchanged'
+);
+
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"ec000000-0000-4000-8000-000000000007","role":"authenticated"}';
+SELECT extensions.is(
+  (
+    SELECT transition.outcome
+    FROM public.unreject_project_signup_with_capacity(
+      'ec300000-0000-4000-8000-000000000003'
+    ) AS transition
+  ),
+  'refused',
+  'a NULL-status organization admin is denied by the direct RPC'
+);
+RESET ROLE;
+SELECT extensions.is(
+  (
+    SELECT status FROM public.project_signups
+    WHERE id = 'ec300000-0000-4000-8000-000000000003'
+  ),
+  'rejected',
+  'NULL-status direct-RPC denial leaves the signup unchanged'
 );
 
 UPDATE public.organization_members

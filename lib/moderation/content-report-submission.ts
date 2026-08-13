@@ -43,7 +43,12 @@ export function isResolvableContentType(
   return contentType in CONTENT_REPORT_TARGET_RELATIONS;
 }
 
-const boundedMetadataText = (max: number) => z.string().trim().min(1).max(max);
+const boundedMetadataText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .transform((value) => Array.from(value).slice(0, max).join(""));
 
 export const contentReportSchema = z
   .object({

@@ -131,6 +131,34 @@ ALTER TABLE public.content_reports
   ADD CONSTRAINT content_reports_reporter_id_fkey
   FOREIGN KEY (reporter_id) REFERENCES auth.users(id) ON DELETE SET NULL;
 
+CREATE OR REPLACE FUNCTION public.detach_content_report_reporter(
+  p_reporter_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF p_reporter_id IS NULL THEN
+    RAISE EXCEPTION 'content report detachment requires a reporter';
+  END IF;
+
+  UPDATE public.content_reports
+  SET reporter_id = NULL
+  WHERE reporter_id = p_reporter_id;
+
+  UPDATE public.reporter_references
+  SET reporter_id = NULL
+  WHERE reporter_id = p_reporter_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.detach_content_report_reporter(uuid)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.detach_content_report_reporter(uuid)
+  TO service_role;
+
 -- ---------------------------------------------------------------------------
 -- Client write closure
 -- ---------------------------------------------------------------------------
@@ -445,7 +473,10 @@ $$;
 
 REVOKE ALL ON FUNCTION app_private.consume_rate_limit_buckets(
   text[], integer[], integer, timestamptz
-) FROM PUBLIC, anon, authenticated;
+) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION app_private.consume_rate_limit_buckets(
+  text[], integer[], integer, timestamptz
+) TO postgres;
 
 -- ---------------------------------------------------------------------------
 -- Attempt metering
@@ -566,6 +597,11 @@ BEGIN
     RAISE EXCEPTION 'invalid content report replay window';
   END IF;
 
+  v_priority := CASE
+    WHEN p_reason IN ('violence', 'hate_speech') THEN 'high'
+    ELSE 'normal'
+  END;
+
   -- Serialize identical requests so a concurrent retry replays instead of
   -- charging quota and racing the occurrence index.
   PERFORM pg_catalog.pg_advisory_xact_lock(
@@ -586,6 +622,44 @@ BEGIN
   LIMIT 1;
 
   IF v_existing_id IS NOT NULL THEN
+    INSERT INTO public.notifications (
+      user_id, title, body, type, read, data, action_url, displayed, severity,
+      dedupe_key
+    )
+    SELECT
+      user_record.id,
+      CASE
+        WHEN v_priority = 'high' THEN 'High-priority user report'
+        ELSE 'New user report'
+      END,
+      p_reason || ' (' || p_content_type
+        || ') report submitted. Please review in the admin dashboard.',
+      'general',
+      false,
+      pg_catalog.jsonb_build_object(
+        'batchKey', 'content_report:' || v_priority,
+        'count', 1,
+        'latest', p_reason || ' (' || p_content_type || ')',
+        'lastEvent', pg_catalog.jsonb_build_object(
+          'type', 'content_report',
+          'reportId', v_existing_id,
+          'reason', p_reason,
+          'contentType', p_content_type,
+          'priority', v_priority,
+          'occurredAt', v_now
+        )
+      ),
+      '/admin?tab=reports',
+      false,
+      CASE WHEN v_priority = 'high' THEN 'warning' ELSE 'info' END,
+      'content-report:' || v_existing_id::text
+    FROM auth.users AS user_record
+    WHERE user_record.raw_app_meta_data @> '{"is_super_admin":true}'::jsonb
+      OR pg_catalog.lower(
+           pg_catalog.btrim(user_record.raw_app_meta_data ->> 'role')
+         ) = 'super_admin'
+    ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING;
+
     RETURN QUERY SELECT 'replayed'::text, v_existing_id, NULL::timestamptz;
     RETURN;
   END IF;
@@ -648,11 +722,6 @@ BEGIN
   FROM public.content_reports AS existing
   WHERE existing.request_fingerprint = p_request_fingerprint;
 
-  v_priority := CASE
-    WHEN p_reason IN ('violence', 'hate_speech') THEN 'high'
-    ELSE 'normal'
-  END;
-
   INSERT INTO public.content_reports (
     reporter_id,
     reporter_reference,
@@ -684,6 +753,44 @@ BEGIN
     v_now + pg_catalog.make_interval(secs => p_replay_window_seconds)
   )
   RETURNING id INTO v_report_id;
+
+  INSERT INTO public.notifications (
+    user_id, title, body, type, read, data, action_url, displayed, severity,
+    dedupe_key
+  )
+  SELECT
+    user_record.id,
+    CASE
+      WHEN v_priority = 'high' THEN 'High-priority user report'
+      ELSE 'New user report'
+    END,
+    p_reason || ' (' || p_content_type
+      || ') report submitted. Please review in the admin dashboard.',
+    'general',
+    false,
+    pg_catalog.jsonb_build_object(
+      'batchKey', 'content_report:' || v_priority,
+      'count', 1,
+      'latest', p_reason || ' (' || p_content_type || ')',
+      'lastEvent', pg_catalog.jsonb_build_object(
+        'type', 'content_report',
+        'reportId', v_report_id,
+        'reason', p_reason,
+        'contentType', p_content_type,
+        'priority', v_priority,
+        'occurredAt', v_now
+      )
+    ),
+    '/admin?tab=reports',
+    false,
+    CASE WHEN v_priority = 'high' THEN 'warning' ELSE 'info' END,
+    'content-report:' || v_report_id::text
+  FROM auth.users AS user_record
+  WHERE user_record.raw_app_meta_data @> '{"is_super_admin":true}'::jsonb
+    OR pg_catalog.lower(
+         pg_catalog.btrim(user_record.raw_app_meta_data ->> 'role')
+       ) = 'super_admin'
+  ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING;
 
   RETURN QUERY SELECT 'created'::text, v_report_id, NULL::timestamptz;
 END;
@@ -770,6 +877,11 @@ BEGIN
            'public.consume_content_report_attempt(text[], integer[], integer)',
            'EXECUTE'
          )
+      OR pg_catalog.has_function_privilege(
+           client_role,
+           'public.detach_content_report_reporter(uuid)',
+           'EXECUTE'
+         )
     THEN
       RAISE EXCEPTION '% retains a content report function privilege', client_role;
     END IF;
@@ -806,6 +918,14 @@ BEGIN
     'EXECUTE'
   ) THEN
     RAISE EXCEPTION 'service_role cannot execute the content report attempt meter';
+  END IF;
+
+  IF NOT pg_catalog.has_function_privilege(
+    'service_role',
+    'public.detach_content_report_reporter(uuid)',
+    'EXECUTE'
+  ) THEN
+    RAISE EXCEPTION 'service_role cannot detach a content report reporter';
   END IF;
 END;
 $$;

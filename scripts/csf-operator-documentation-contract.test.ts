@@ -819,7 +819,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(275);
+    expect(migrations).toHaveLength(276);
     expect(migrations.at(-1)).toBe(
       "20260812203500_close_plugin_data_browser_default_acl.sql",
     );
@@ -830,10 +830,13 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 275 ordered migrations through",
+      "repository branch has 276 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260812203500_close_plugin_data_browser_default_acl`",
+    );
+    expect(currentState).toContain(
+      "`20260812161500_atomic_project_signup_rejection`",
     );
     expect(currentState).toContain("`20260812152300_atomic_csf_post_replies`");
     expect(currentState).toContain(
@@ -845,7 +848,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(currentState).toContain(
       "Production remains at 236 ordered migrations through `20260811001500`",
     );
-    expect(currentState).toContain("39-migration cutover has not run");
+    expect(currentState).toContain("40-migration cutover has not run");
     expect(currentState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
     );
@@ -919,13 +922,16 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Hosted Development Supabase has 273 ordered migrations through",
     );
     expect(rehearsalState).toContain(
-      "This repository has 275 through `20260812203500_close_plugin_data_browser_default_acl`",
+      "This repository has 276 through `20260812203500_close_plugin_data_browser_default_acl`",
     );
     expect(rehearsalState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
     );
     expect(rehearsalState).toContain(
       "`20260812152300_atomic_csf_post_replies`",
+    );
+    expect(rehearsalState).toContain(
+      "`20260812161500_atomic_project_signup_rejection`",
     );
     expect(rehearsalState).toContain(
       "external Vercel 100-deployment-per-day project cap",
@@ -974,8 +980,8 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
     );
     expect(cutover).toContain("exact 236-row baseline");
-    expect(cutover).toContain("full 39-migration transition");
-    expect(cutover).toContain("preflight on the 275-row target");
+    expect(cutover).toContain("full 40-migration transition");
+    expect(cutover).toContain("preflight on the 276-row target");
   });
 
   test("production cutover baseline tracks the exact pending migration range", () => {
@@ -983,13 +989,13 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Production has 236 ordered migrations through `20260811001500`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Hosted Development Supabase has 273 ordered migrations through `20260812152300`, and this repository has 275 through `20260812203500`",
+      "Hosted Development Supabase has 273 ordered migrations through `20260812152300`, and this repository has 276 through `20260812203500`",
     );
     expect(productionCutoverRunbook).toContain(
       "repository ledger ended at 272 through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Production therefore has exactly 39 pending migrations",
+      "Production therefore has exactly 40 pending migrations",
     );
     expect(productionCutoverRunbook).toContain(
       "external Vercel 100-deployment-per-day project cap",
