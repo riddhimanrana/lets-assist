@@ -5,11 +5,14 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
 import {
+  CSF_ORGANIZATION_PATH,
   expectNoBrowserFailures,
   localActors,
   loginAs,
   watchBrowserFailures,
 } from "./helpers";
+
+const assignmentSchoolYear = "2026-2027";
 
 /**
  * Visible coverage for the people lifecycle. This catches production breaks
@@ -47,42 +50,45 @@ async function loadFixture(): Promise<PeopleLifecycleFixture> {
   const suffix = randomUUID().slice(0, 8);
   const profileEmail = `avery.lifecycle.${suffix}@students.local.test`;
 
+  const { data: organization, error: organizationError } = await admin
+    .from("organizations")
+    .select("id")
+    .eq("username", "dvhs-csf")
+    .single();
+  if (organizationError || !organization) {
+    throw new Error(
+      `Could not load the local DVHS CSF organization: ${organizationError?.message ?? "missing fixture"}`,
+    );
+  }
+
   const [
-    { data: organization, error: organizationError },
     { data: cohort, error: cohortError },
     { data: retirementTarget, error: retirementTargetError },
     { data: role, error: roleError },
     usersResult,
   ] = await Promise.all([
-    admin
-      .from("organizations")
-      .select("id")
-      .eq("username", "dvhs-csf")
-      .single(),
     plugin
       .from("csf_cohorts")
       .select("id")
+      .eq("organization_id", organization.id)
       .eq("graduation_year", 2028)
       .single(),
     plugin
       .from("csf_profiles")
       .select("id")
+      .eq("organization_id", organization.id)
       .eq("normalized_school_email", "nina.kapoor28@students.local.test")
       .single(),
     plugin
       .from("csf_roles")
       .select("id")
+      .eq("organization_id", organization.id)
       .eq("public_title", "Activity Coordinator")
       .eq("responsibility_label", "Service activities")
       .single(),
     admin.auth.admin.listUsers({ page: 1, perPage: 1_000 }),
   ]);
 
-  if (organizationError || !organization) {
-    throw new Error(
-      `Could not load the local DVHS CSF organization: ${organizationError?.message ?? "missing fixture"}`,
-    );
-  }
   assertNoSupabaseError(
     "Could not load the Class of 2028 fixture",
     cohortError,
@@ -126,10 +132,28 @@ async function loadFixture(): Promise<PeopleLifecycleFixture> {
 async function cleanFixture(fixture: PeopleLifecycleFixture) {
   const plugin = fixture.admin.schema("plugin_data");
 
-  if (fixture.staffPositionId) {
+  let staffPositionId = fixture.staffPositionId;
+  if (!staffPositionId && fixture.profileId) {
+    const { data: discoveredPosition, error: discoveryError } = await plugin
+      .from("csf_staff_positions")
+      .select("id")
+      .eq("organization_id", fixture.organizationId)
+      .eq("profile_id", fixture.profileId)
+      .eq("role_id", fixture.roleId)
+      .eq("school_year", assignmentSchoolYear)
+      .eq("status", "active")
+      .maybeSingle();
+    assertNoSupabaseError(
+      "Could not discover the fixture staff access for cleanup",
+      discoveryError,
+    );
+    staffPositionId = discoveredPosition?.id;
+  }
+
+  if (staffPositionId) {
     const { error } = await plugin.rpc("csf_revoke_staff_position", {
       p_organization_id: fixture.organizationId,
-      p_staff_position_id: fixture.staffPositionId,
+      p_staff_position_id: staffPositionId,
       p_effective_end_date: new Date().toISOString().slice(0, 10),
       p_reason: "Retiring synthetic people-lifecycle browser fixture.",
       p_actor_user_id: fixture.adminUserId,
@@ -223,7 +247,7 @@ test.describe("CSF visible people lifecycle", () => {
     page,
   }) => {
     const failures = watchBrowserFailures(page);
-    await loginAs(page, "admin");
+    await loginAs(page, "admin", CSF_ORGANIZATION_PATH);
     await openMembers(page);
 
     await page.getByRole("button", { name: "Add member", exact: true }).click();
@@ -437,7 +461,7 @@ test.describe("CSF visible people lifecycle", () => {
         exact: true,
       })
       .click();
-    await assignmentDialog.getByLabel("School year").fill("2026-2027");
+    await assignmentDialog.getByLabel("School year").fill(assignmentSchoolYear);
     await assignmentDialog
       .getByRole("button", { name: "Assign access" })
       .click();
@@ -454,7 +478,7 @@ test.describe("CSF visible people lifecycle", () => {
           .eq("organization_id", fixture.organizationId)
           .eq("profile_id", fixture.profileId!)
           .eq("role_id", fixture.roleId)
-          .eq("school_year", "2026-2027")
+          .eq("school_year", assignmentSchoolYear)
           .single();
         assertNoSupabaseError(
           "Could not load the active staff position",
@@ -464,7 +488,7 @@ test.describe("CSF visible people lifecycle", () => {
       })
       .toMatchObject({
         status: "active",
-        school_year: "2026-2027",
+        school_year: assignmentSchoolYear,
         role_id: fixture.roleId,
         user_id: fixture.userId,
       });
@@ -474,7 +498,7 @@ test.describe("CSF visible people lifecycle", () => {
       .eq("organization_id", fixture.organizationId)
       .eq("profile_id", fixture.profileId)
       .eq("role_id", fixture.roleId)
-      .eq("school_year", "2026-2027")
+      .eq("school_year", assignmentSchoolYear)
       .single();
     assertNoSupabaseError(
       "Could not select the active staff position",
@@ -491,7 +515,7 @@ test.describe("CSF visible people lifecycle", () => {
     await expect(rosterRow).toBeVisible();
     await expect(rosterRow).toContainText("Activity Coordinator");
     await expect(rosterRow).toContainText("Service activities");
-    await expect(rosterRow).toContainText("2026-2027");
+    await expect(rosterRow).toContainText(assignmentSchoolYear);
 
     const { data: staffMembership, error: staffMembershipError } =
       await fixture.admin
