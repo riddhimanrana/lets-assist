@@ -629,8 +629,8 @@ gates in [testing and release](testing-and-release.md) are open. Do not copy a
 Development fixture, connection link, import preview, or policy decision into
 Production, and do not treat a Development screenshot as Production evidence.
 
-At this guide's current evidence point, the repository candidate has 274
-migrations through `20260812215733`, the Development database remains at 273
+At this guide's current evidence point, the repository candidate has 275
+migrations through `20260813011500`, the Development database remains at 273
 through `20260812152300`, and Production has 236 through `20260811001500`. The
 Development Vercel alias still serves earlier code built
 from the 272-migration tree because the external 100-deployment-per-day project
@@ -668,8 +668,8 @@ code gate.
   Vercel 100-deployment-per-day project cap prevented a refreshed deployment.
 - Hosted Development Supabase has 273 ordered migrations through
   `20260812152300_atomic_csf_post_replies`; the repository candidate's
-  `20260812215733_reconcile_project_lifecycle_boundaries` migration has only
-  been replayed locally.
+  `20260813011500_lock_project_lifecycle_transactions` migration has only been
+  replayed locally.
 - The 95 INFO / 0 WARN / 0 ERROR security and 611 INFO / 0 WARN / 0 ERROR
   performance advisor counts were captured on the preceding 272-migration
   Development shape. They have not been re-established for 273 and are not
@@ -710,16 +710,16 @@ Do not use real chapter rows or credentials until every item is checked:
       `scripts/production-cutover-preflight.sql` with the reviewed Production
       read-only URL. It must select the exact 236-row baseline, pass every
       shared blocker, and name any cancellation-job transitions for explicit
-      review. Rehearse the full 38-migration transition on a Production-shaped
+      review. Rehearse the full 39-migration transition on a Production-shaped
       clone and verify the backup restore before scheduling the window.
 - [ ] At T-0 enable maintenance mode, stop writers and scheduled workers, take
       the final snapshots, and pair the schema push with the exact compatible
       application deployment. A partial or divergent ledger is a stop.
-- [ ] Replay the ordered migration ledger through `20260812215733` in the
+- [ ] Replay the ordered migration ledger through `20260813011500` in the
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.
-- [ ] Re-run the preflight on the 274-row target and require the shared tenant
+- [ ] Re-run the preflight on the 275-row target and require the shared tenant
       and receipt checks plus the target-only relation, constraint, and index
       and extension-posture checks to pass before reopening writes.
 - [ ] Pass the final combined static, focused source, database, private-plugin,

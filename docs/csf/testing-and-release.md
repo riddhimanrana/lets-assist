@@ -3,7 +3,7 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** This repository candidate carries 274 ordered migrations through the
+**Status:** This repository candidate carries 275 ordered migrations through the
 local project-lifecycle repair; hosted Development Supabase remains at 273
 through the atomic post-reply boundary. No hosted database or deployment was
 changed by the local repair. The `dev.lets-assist.com` alias still serves the
@@ -23,13 +23,13 @@ only.
 
 ## Current hosted Development state
 
-- The repository branch has 274 ordered migrations through
-  `20260812215733_reconcile_project_lifecycle_boundaries`.
+- The repository branch has 275 ordered migrations through
+  `20260813011500_lock_project_lifecycle_transactions`.
 - Hosted Development Supabase remains at 273 ordered migrations through
   `20260812152300_atomic_csf_post_replies`; the branch's fresh lifecycle
   migration has only been replayed against local synthetic databases.
 - Production remains at 236 ordered migrations through `20260811001500`; the
-  candidate 38-migration cutover has not run.
+  candidate 39-migration cutover has not run.
 - The last accepted Development advisor snapshot was captured on the preceding
   272-migration shape: 95 INFO, 0 WARN, and 0 ERROR security findings, plus 611
   INFO, 0 WARN, and 0 ERROR performance findings. Those counts have not been
@@ -381,9 +381,10 @@ The current officer procedure is documented in the [officer runbook](officer-run
   bounded Drive Preview read ran in hosted Development. Token refresh,
   reconnect/revocation, 403/429 exercise, and every Google write remain
   unexecuted.
-- Development uses a distinct hosted Supabase project. Its database and this
-  repository branch each have 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`. The Ready alias still serves
+- Development uses a distinct hosted Supabase project. Its database has 273
+  ordered migrations through `20260812152300_atomic_csf_post_replies`; this
+  repository branch has 275 through
+  `20260813011500_lock_project_lifecycle_transactions`. The Ready alias still serves
   development SHA `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository
   tree ended at 272 through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`; the external Vercel

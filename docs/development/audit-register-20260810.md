@@ -775,10 +775,10 @@ staff actor could still satisfy tenant authorization, including the update
 policy governing their own membership row.
 
 **Local evidence:** the hostile fixture covers an inactive administrator's
-self-reactivation, inactive staff denial, a separately active cross-tenant
-administrator, and active same-tenant admin/staff controls. The lifecycle source
-contract passes, as do the fresh isolated replay and the complete 126-file,
-5,222-assertion pgTAP suite.
+self-reactivation, null/inactive cancellation and unrejection authority,
+null/inactive hours publication, a separately active cross-tenant administrator,
+and active same-tenant admin/staff controls. The lifecycle source contract,
+focused pgTAP, and fresh local replay pass.
 
 **Local resolution candidate:** `20260812215733_reconcile_project_lifecycle_boundaries.sql`
 replaces all four helpers with fixed-path definitions that require the exact
@@ -786,6 +786,11 @@ organization, current user, reviewed role, and explicit active status. It
 reapplies explicit function ACLs without changing the stronger
 `app_private.is_project_organizer` or `app_private.can_manage_project`
 definitions owned by current Development.
+
+`20260813011500_lock_project_lifecycle_transactions.sql` additionally
+forward-replaces cancellation, unrejection, and hours publication with locked
+exact-active authorization wrappers while preserving their mature transactional
+implementations and public signatures.
 
 **Hosted resolution:** not applied or verified on hosted Development. Production
 was not accessed.
@@ -810,11 +815,12 @@ fresh replay, and hostile pgTAP pass. The database fixture exercises direct
 cancellation, direct revival, preserved state/outbox truth, and the reviewed
 transactional cancellation path.
 
-**Local resolution candidate:** the project trigger reserves cancellation and
-revival for privileged reviewed transactions. The details page keeps its route
-and caller signature but invokes the existing authorization-aware Server Action
-and exposes a refresh action when current authorization or state rejects the
-write.
+**Local resolution candidate:** the project trigger now rejects every direct
+authenticated status change. Cancellation retains its audience/outbox
+transaction, while `transition_project_status_transactional` derives the actor,
+locks the project and exact active membership, enforces only
+`upcoming → in-progress/completed` and `in-progress → completed`, and returns an
+exact receipt consumed by the unchanged Server Action signature.
 
 **Hosted resolution:** not applied or verified on hosted Development. Production
 was not accessed.
@@ -847,10 +853,15 @@ update. The union guard now routes those transitions through the capacity-safe
 RPC, so that fixture must be updated at merge time. Neither branch was merged
 and `development` was not moved.
 
-**Local resolution candidate:** a parent trigger serializes child materialization
-with one private SECURITY DEFINER end-series transaction. The public signature
-is preserved as a self-authorizing SECURITY INVOKER wrapper, callable only by
-`authenticated`; `PUBLIC`, `anon`, and `service_role` are explicitly revoked.
+**Local resolution candidate:** the one-argument public SECURITY INVOKER
+signature remains as a compatibility wrapper. A new two-argument invoker
+overload delegates to a private transaction that locks the parent and child
+rows, applies a strict allowlist of ordinary edits, delegates every eligible
+child to canonical cancellation, clears recurrence, and persists the locked
+cleanup decision in a private replay marker, including zero-child series.
+Constraint failure rolls the entire edit and all child cancellations back. The
+ledger tail also reapplies the combined
+approval/attendance/rejection signup guard so #152 remains compatible.
 
 **Hosted resolution:** not applied or verified on hosted Development. Production
 was not accessed.

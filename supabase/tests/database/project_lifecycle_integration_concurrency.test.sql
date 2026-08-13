@@ -4,7 +4,7 @@
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(11);
+SELECT extensions.plan(17);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -72,6 +72,30 @@ VALUES
    'oneTime', 'manual',
    '{"oneTime":{"date":"2030-09-03","startTime":"10:00","endTime":"12:00","volunteers":10}}',
    true, 'upcoming');
+
+INSERT INTO public.projects (
+  id, creator_id, organization_id, title, location, description, event_type,
+  verification_method, schedule, require_login, status, recurrence_rule,
+  recurrence_parent_id, recurrence_sequence, recurrence_occurrence_date
+)
+VALUES
+  ('ef200000-0000-4000-8000-000000000004',
+   'ef000000-0000-4000-8000-000000000001',
+   'ef100000-0000-4000-8000-000000000001',
+   'Series child lock parent', 'Local', 'Integration fixture',
+   'oneTime', 'manual',
+   '{"oneTime":{"date":"2030-09-04","startTime":"10:00","endTime":"12:00","volunteers":10}}',
+   true, 'upcoming',
+   '{"frequency":"weekly","interval":1,"end_type":"never"}',
+   NULL, NULL, NULL),
+  ('ef200000-0000-4000-8000-000000000005',
+   'ef000000-0000-4000-8000-000000000001',
+   'ef100000-0000-4000-8000-000000000001',
+   'Series child lock occurrence', 'Local', 'Integration fixture',
+   'oneTime', 'manual',
+   '{"oneTime":{"date":"2030-09-11","startTime":"10:00","endTime":"12:00","volunteers":10}}',
+   true, 'upcoming', NULL,
+   'ef200000-0000-4000-8000-000000000004', 1, '2030-09-11');
 
 INSERT INTO public.project_signups
   (id, project_id, user_id, schedule_id, status, created_at)
@@ -245,6 +269,85 @@ SELECT extensions.is(
    WHERE project_id = 'ef200000-0000-4000-8000-000000000002'),
   1,
   'the waiting cancellation includes the committed approval exactly once'
+);
+
+SELECT extensions.dblink_disconnect('project_lifecycle_integration_probe');
+SELECT extensions.dblink_connect(
+  'project_lifecycle_integration_probe',
+  'hostaddr=' || host(inet_server_addr()) ||
+  ' port=' || current_setting('port') ||
+  ' dbname=' || current_database() ||
+  ' user=' || current_user ||
+  ' password=' || current_user ||
+  ' sslmode=disable'
+);
+SELECT extensions.dblink_exec(
+  'project_lifecycle_integration_probe',
+  'SET ROLE authenticated'
+);
+SELECT extensions.dblink_exec(
+  'project_lifecycle_integration_probe',
+  'SET "request.jwt.claims" = ''{"sub":"ef000000-0000-4000-8000-000000000001","role":"authenticated"}'''
+);
+
+-- Series ending must lock and recheck each child before deciding whether it is
+-- eligible for cancellation or safe to include in the calendar-cleanup receipt.
+BEGIN;
+SELECT 1
+FROM public.projects
+WHERE id = 'ef200000-0000-4000-8000-000000000005'
+FOR UPDATE;
+
+SELECT extensions.dblink_send_query(
+  'project_lifecycle_integration_probe',
+  $$SELECT public.end_recurring_project_series_transactional(
+    'ef200000-0000-4000-8000-000000000004'
+  )::text$$
+);
+SELECT pg_sleep(0.25);
+SELECT extensions.is(
+  extensions.dblink_is_busy('project_lifecycle_integration_probe'),
+  1,
+  'series ending waits for the eligible child lock before deciding cleanup'
+);
+
+UPDATE public.projects
+SET status = 'completed'
+WHERE id = 'ef200000-0000-4000-8000-000000000005';
+COMMIT;
+
+CREATE TEMP TABLE series_child_race AS
+SELECT payload::jsonb
+FROM extensions.dblink_get_result(
+  'project_lifecycle_integration_probe'
+) AS result(payload text);
+
+SELECT extensions.is(
+  (SELECT payload->>'outcome' FROM series_child_race),
+  'ended',
+  'series ending commits after refreshing the child state'
+);
+SELECT extensions.is(
+  (SELECT payload->>'cancelledOccurrences' FROM series_child_race),
+  '0',
+  'a child completed before lock acquisition is not reported as cancelled'
+);
+SELECT extensions.is(
+  (SELECT payload->'calendarCleanupProjectIds' FROM series_child_race),
+  '[]'::jsonb,
+  'a child completed before lock acquisition is excluded from cleanup IDs'
+);
+SELECT extensions.is(
+  (SELECT status FROM public.projects
+   WHERE id = 'ef200000-0000-4000-8000-000000000005'),
+  'completed',
+  'the completed child remains completed after the series ends'
+);
+SELECT extensions.is(
+  (SELECT count(*) FROM public.project_cancellation_jobs
+   WHERE project_id = 'ef200000-0000-4000-8000-000000000005'),
+  0::bigint,
+  'the ineligible child creates no cancellation receipt'
 );
 
 SELECT extensions.dblink_disconnect('project_lifecycle_integration_probe');

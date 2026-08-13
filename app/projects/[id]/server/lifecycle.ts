@@ -14,31 +14,12 @@ import { getPluginRegistry } from "@/lib/plugins/registry";
 import { runProjectClone } from "@/lib/plugins/lifecycle";
 import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
 import { canUserManageProject } from "./access-helpers";
+import { getExactProjectStatusTransitionReceipt } from "./status-transition-receipt";
 import {
   validateRecurrenceRule,
   validateProjectSchedule,
   validateProjectTimezone,
 } from "@/lib/projects/schedule-validation";
-
-const ALLOWED_PROJECT_STATUS_TRANSITIONS: Record<
-  ProjectStatus,
-  readonly ProjectStatus[]
-> = {
-  upcoming: ["in-progress", "completed"],
-  "in-progress": ["completed"],
-  completed: [],
-  cancelled: [],
-};
-
-function isAllowedProjectStatusTransition(
-  currentStatus: ProjectStatus,
-  nextStatus: ProjectStatus,
-) {
-  return (
-    ALLOWED_PROJECT_STATUS_TRANSITIONS[currentStatus]?.includes(nextStatus) ??
-    false
-  );
-}
 
 async function getProjectForMutation(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -95,8 +76,8 @@ function getExactCancellationReceipt(
 }
 
 type RecurringSeriesEndReceipt = {
-  outcome: "ended" | "replayed";
-  endedRecurringSeries: true;
+  outcome: "ended" | "replayed" | "unchanged";
+  endedRecurringSeries: boolean;
   cancelledOccurrences: number;
   calendarCleanupProjectIds: string[];
 };
@@ -118,8 +99,10 @@ function getExactRecurringSeriesEndReceipt(
   );
 
   if (
-    (outcome !== "ended" && outcome !== "replayed") ||
-    endedRecurringSeries !== true ||
+    (outcome !== "ended" &&
+      outcome !== "replayed" &&
+      outcome !== "unchanged") ||
+    typeof endedRecurringSeries !== "boolean" ||
     !Number.isSafeInteger(cancelledOccurrences) ||
     (cancelledOccurrences as number) < 0 ||
     !Array.isArray(calendarCleanupProjectIds) ||
@@ -133,8 +116,14 @@ function getExactRecurringSeriesEndReceipt(
 
   if (
     (outcome === "ended" &&
-      cancelledOccurrences !== calendarCleanupProjectIds.length) ||
-    (outcome === "replayed" && cancelledOccurrences !== 0)
+      (endedRecurringSeries !== true ||
+        cancelledOccurrences !== calendarCleanupProjectIds.length)) ||
+    (outcome === "replayed" &&
+      (endedRecurringSeries !== true || cancelledOccurrences !== 0)) ||
+    (outcome === "unchanged" &&
+      (endedRecurringSeries !== false ||
+        cancelledOccurrences !== 0 ||
+        calendarCleanupProjectIds.length !== 0))
   ) {
     return null;
   }
@@ -258,24 +247,29 @@ export async function updateProjectStatus(
       return { error: "You don't have permission to update this project" };
     }
 
-    if (!isAllowedProjectStatusTransition(project.status, newStatus)) {
+    if (newStatus !== "in-progress" && newStatus !== "completed") {
       return { error: "Project status transition is not allowed" };
     }
 
-    const { data: updatedProject, error: updateError } = await supabase
-      .from("projects")
-      .update({ status: newStatus })
-      .eq("id", projectId)
-      .eq("status", project.status)
-      .select("id")
-      .maybeSingle();
+    const { data: transitionResult, error: transitionError } =
+      await supabase.rpc("transition_project_status_transactional", {
+        p_project_id: projectId,
+        p_status: newStatus,
+      });
+    const transitionReceipt =
+      getExactProjectStatusTransitionReceipt(transitionResult);
 
-    if (updateError) {
-      console.error("Error updating project status:", updateError);
-      return { error: "Failed to update project status" };
-    }
-
-    if (!updatedProject || updatedProject.id !== projectId) {
+    if (
+      transitionError ||
+      !transitionReceipt ||
+      transitionReceipt.projectId !== projectId ||
+      transitionReceipt.status !== newStatus
+    ) {
+      if (process.env.NODE_ENV !== "test") {
+        console.error("Error updating project status transactionally:", {
+          code: transitionError?.code,
+        });
+      }
       return { error: "Failed to update project status" };
     }
   }
@@ -593,7 +587,7 @@ export async function updateProject(
     const { data: project } = await supabase
       .from("projects")
       .select(
-        "creator_id, organization_id, can_be_managed_by_staff, recurrence_parent_id, recurrence_rule, visibility",
+        "creator_id, organization_id, can_be_managed_by_staff, recurrence_parent_id, recurrence_rule, recurrence_generation_id, visibility",
       )
       .eq("id", projectId)
       .single();
@@ -610,6 +604,8 @@ export async function updateProject(
     };
 
     const mutableSanitizedUpdates = sanitizedUpdates as Record<string, unknown>;
+    const submittedRecurrenceGeneration =
+      sanitizedUpdates.recurrence_generation_id;
     const immutableProjectFields = [
       "id",
       "creator_id",
@@ -628,6 +624,7 @@ export async function updateProject(
       "cancellation_reason",
       "cancellation_tenant_id",
       "recurrence_parent_id",
+      "recurrence_generation_id",
       "recurrence_sequence",
       "recurrence_occurrence_date",
     ] as const;
@@ -706,12 +703,37 @@ export async function updateProject(
     let cancelledOccurrences = 0;
 
     if (disablesRecurrence && project.recurrence_parent_id === null) {
+      const atomicSeriesUpdates = Object.fromEntries(
+        Object.entries(mutableSanitizedUpdates).filter(
+          ([, value]) => value !== undefined,
+        ),
+      );
+      if (project.recurrence_rule !== null) {
+        if (
+          typeof submittedRecurrenceGeneration !== "string" ||
+          submittedRecurrenceGeneration !== project.recurrence_generation_id
+        ) {
+          return {
+            error:
+              "Project recurrence changed. Refresh the project before ending this series.",
+            endedRecurringSeries: false,
+            cancelledOccurrences,
+          };
+        }
+        atomicSeriesUpdates.series_end_generation =
+          submittedRecurrenceGeneration;
+      } else if (typeof submittedRecurrenceGeneration === "string") {
+        atomicSeriesUpdates.series_end_generation =
+          submittedRecurrenceGeneration;
+      } else {
+        atomicSeriesUpdates.series_end_expect_ordinary = true;
+      }
       const { data: seriesEndResult, error: seriesEndError } =
         await supabase.rpc("end_recurring_project_series_transactional", {
           p_project_id: projectId,
+          p_updates: atomicSeriesUpdates,
         });
       const receipt = getExactRecurringSeriesEndReceipt(seriesEndResult);
-
       if (seriesEndError || !receipt) {
         if (process.env.NODE_ENV !== "test") {
           console.error("Error ending recurring project series:", {
@@ -724,11 +746,11 @@ export async function updateProject(
           cancelledOccurrences,
         };
       }
-
       endedRecurringSeries = receipt.endedRecurringSeries;
       cancelledOccurrences = receipt.cancelledOccurrences;
-      delete mutableSanitizedUpdates.recurrence_rule;
-
+      for (const field of Object.keys(mutableSanitizedUpdates)) {
+        delete mutableSanitizedUpdates[field];
+      }
       for (const cleanupProjectId of receipt.calendarCleanupProjectIds) {
         try {
           await removeCalendarEventForProject(cleanupProjectId);
