@@ -689,14 +689,14 @@ gates in [testing and release](testing-and-release.md) are open. Do not copy a
 Development fixture, connection link, import preview, or policy decision into
 Production, and do not treat a Development screenshot as Production evidence.
 
-At this guide's current evidence point, the repository has 286 migrations
-through `20260813013300`; the Development database remains at 273 through
-`20260812152300`; and Production has 236 through `20260811001500`. The thirteen
+At this guide's current evidence point, the repository has 287 migrations
+through `20260813020000`; the Development database remains at 273 through
+`20260812152300`; and Production has 236 through `20260811001500`. The fourteen
 unmerged migrations have not been applied or deployed in hosted Development.
 The Development Vercel alias still serves earlier code built from the
 272-migration tree because the external 100-deployment-per-day project cap
 blocked its refresh. Neither the database nor hosted code gate is current for
-the 286-migration repository tree.
+the 287-migration repository tree.
 
 ## Development rehearsal state at this guide's verification point
 
@@ -728,8 +728,8 @@ the 286-migration repository tree.
   `20260812132725_csf_drive_metadata_compare_and_set_fence`, and the external
   Vercel 100-deployment-per-day project cap prevented a refreshed deployment.
 - Hosted Development Supabase remains at 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`; this repository has 286 through
-  `20260813013300_close_csf_representative_and_publication_races`. The thirteen
+  `20260812152300_atomic_csf_post_replies`; this repository has 287 through
+  `20260813020000_cancellation_preserves_unknown_delivery_outcomes`. The fourteen
   unmerged
   migrations are
   `20260812161500_atomic_project_signup_rejection`,
@@ -743,25 +743,29 @@ the 286-migration repository tree.
   `20260813012206_google_cap_effect_fencing`,
   `20260813013000_reconcile_project_lifecycle_boundaries`,
   `20260813013100_lock_project_lifecycle_transactions`,
-  `20260813013200_recheck_csf_activity_partner_authorization_under_lock`, and
-  `20260813013300_close_csf_representative_and_publication_races`; they have not been
+  `20260813013200_recheck_csf_activity_partner_authorization_under_lock`,
+  `20260813013300_close_csf_representative_and_publication_races`, and
+  `20260813020000_cancellation_preserves_unknown_delivery_outcomes`; they have not been
   applied or deployed to any hosted database.
 - The `20260813013200` migration preserves the seven activity/partner-club
   under-lock authorization rechecks. `20260813013300` extends that boundary to
   representative assignment and revocation and serializes activity publication
   against term closure with the shared advisory and term row locks.
+- `20260813020000` preserves ambiguous delivery evidence during cancellation,
+  recomputes current ambiguous-delivery and unexpired processing-lease counts
+  under the campaign lock, and keeps later provider reconciliation possible.
 - The last exact local isolated union replay passed all 133 pgTAP files and
   5,523 assertions against the preceding 282-migration shape. It has not been
-  re-established for the current 286-migration target and is not hosted
+  re-established for the current 287-migration target and is not hosted
   acceptance.
 - Pull requests #152, #158, #174, #177, #179, and #181 are merged in current
-  `development`; #180 remains open with a later migration. The 286-row pin is
+  `development`; #180 remains open with a later migration. The 287-row pin is
   provisional, and the last migration pull request to merge must recompute the
   count, head, and exact tail from the merged tree.
 - The 95 INFO / 0 WARN / 0 ERROR security and 611 INFO / 0 WARN / 0 ERROR
   performance advisor counts were captured on the preceding 272-migration
   Development shape. They have not been re-established for either hosted 273 or
-  repository 286 and are not current-parity evidence.
+  repository 287 and are not current-parity evidence.
 - The seven-argument metadata RPC exists, the old four-argument overload is
   absent, and only `service_role` can execute the current RPC; `anon` and
   `authenticated` cannot. The Drive metadata RPC is no longer the Preview
@@ -800,16 +804,16 @@ Do not use real chapter rows or credentials until every item is checked:
       `scripts/production-cutover-preflight.sql` with the reviewed Production
       read-only URL. It must select the exact 236-row baseline, pass every
       shared blocker, and name any cancellation-job transitions for explicit
-      review. Rehearse the full 50-migration transition on a Production-shaped
+      review. Rehearse the full 51-migration transition on a Production-shaped
       clone and verify the backup restore before scheduling the window.
 - [ ] At T-0 enable maintenance mode, stop writers and scheduled workers, take
       the final snapshots, and pair the schema push with the exact compatible
       application deployment. A partial or divergent ledger is a stop.
-- [ ] Replay the ordered migration ledger through `20260813013300` in the
+- [ ] Replay the ordered migration ledger through `20260813020000` in the
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.
-- [ ] Re-run the preflight on the 286-row target and require the shared tenant
+- [ ] Re-run the preflight on the 287-row target and require the shared tenant
       and receipt checks plus the target-only relation, constraint, and index
       and extension-posture checks to pass before reopening writes.
 - [ ] Pass the final combined static, focused source, database, private-plugin,
