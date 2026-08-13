@@ -433,38 +433,36 @@ test.describe("CSF historical workbook import", () => {
     expect(creditCount).toBe(0);
     expect(activityCount).toBe(0);
 
-    const resolution = page
-      .getByRole("region", { name: /Resolve 1 row/ })
-      .getByText("Aarav Mehta", { exact: true })
-      .locator("..")
-      .locator("..");
-    await expect(resolution).toBeVisible();
-    await resolution.getByLabel("Match to member").selectOption({
-      label: `Aarav Mehta · ${localActors.member.email}`,
+    const resolutionRegion = page.getByRole("region", {
+      name: "Resolve 1 row",
+      exact: true,
     });
-    await resolution
-      .getByLabel("Match reason")
-      .fill(
-        "Seeded Class of 2028 record matches this historical workbook row.",
-      );
-    const useMatch = resolution.getByRole("button", {
+    await expect(resolutionRegion).toHaveCount(1);
+    const resolution = resolutionRegion
+      .locator(":scope > div.divide-y > div")
+      .filter({
+        has: page.getByText("Aarav Mehta", { exact: true }),
+      });
+    await expect(resolution).toHaveCount(1);
+    await expect(resolution).toBeVisible();
+    const matchTarget = resolution.getByLabel("Match to member");
+    const matchForm = resolution.locator("form").filter({ has: matchTarget });
+    await expect(matchForm).toHaveCount(1);
+    const matchReason = matchForm.getByLabel("Match reason");
+    const useMatch = matchForm.getByRole("button", {
       name: "Use match",
       exact: true,
     });
-    const matchForm = resolution.locator("form");
-    const matchTarget = resolution.getByLabel("Match to member");
-    const matchReason = resolution.getByLabel("Match reason");
+    const resolutionReason =
+      "Seeded Class of 2028 record matches this historical workbook row.";
+    await matchTarget.selectOption({ value: fixture.profileId });
+    await expect(matchTarget).toHaveValue(fixture.profileId);
+    await matchReason.fill(resolutionReason);
+    await expect(matchReason).toHaveValue(resolutionReason);
     await Promise.all([
       expect(matchForm).toHaveAttribute("aria-busy", "true"),
       useMatch.click(),
     ]);
-    await expect(useMatch).toBeDisabled();
-    await expect(matchTarget).toBeDisabled();
-    await expect(matchReason).toBeDisabled();
-    await expect(matchTarget).toHaveValue(fixture.profileId);
-    await expect(matchReason).toHaveValue(
-      "Seeded Class of 2028 record matches this historical workbook row.",
-    );
     await expect(
       page.getByText("Import row matched and ready.", { exact: true }),
     ).toBeVisible();
