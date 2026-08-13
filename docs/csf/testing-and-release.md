@@ -96,7 +96,11 @@ their named runs only.
   hosted per campaign card in `components/CsfCommunicationsCampaigns.tsx`.
   Focused private coverage lives in
   `lib/plugins/private/plugins/dvhs-csf/services/communications-actions.test.ts`.
-  This closes CLEAN-022 at the repository-local/source-contract level only.
+  CLEAN-022 is source-complete in this repository-local contract, but it is
+  not publishable: `cdbeb59e` is local-only and is not contained in the locally
+  known private `origin/development` history. The strict release check must
+  fail until that private commit is merged first and the local remote-tracking
+  ref reflects the merge; the root gitlink can be published only afterward.
   Docker-backed isolated verification, the full exact-tree replay, hosted
   Development acceptance, provider/browser gates, and Production remain
   unverified and pending.
@@ -136,12 +140,13 @@ their named runs only.
   zero term applications were committed.
 - No names or email addresses are recorded here. Real-source evidence remains
   aggregate-only.
-- The caller-summary correction and inactive-access hardening are combined in
-  private development commit
-  `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, and this root worktree's gitlink
-  points to that exact commit locally. It also contains the meeting hardening
-  and `ca817bf` preview-summary correction. The stale Ready Development SHA
-  above does not include that local gitlink update.
+- The current root gitlink is
+  `cdbeb59e6cc086e8794ec8b35157ab043f65c01c`. The locally known private
+  `origin/development` still ends at
+  `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, so the current target is not
+  contained there and remains a local-only, private-first release blocker. It
+  also contains the meeting hardening and `ca817bf` preview-summary correction.
+  The stale Ready Development SHA above does not include this local gitlink.
 - The Drive metadata RPC is no longer the current Preview blocker. Production
   remains untouched.
 
@@ -374,12 +379,13 @@ does not claim a live import was committed or any Production readiness.
 
 Private PR #46 merged the implementation to the private repository's
 `development` branch as `fbd18fa`; maintainability follow-up PR #47 produced
-the meeting follow-up commit `4f20fa5`. The root integration candidate pins
-combined private `development`
-`605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, which contains that follow-up and
-the inactive-membership hardening. It does not claim a deployment merely
-because the private branches merged. No provider, hosted database, Production
-credential, live roster, or real Google source was used.
+the meeting follow-up commit `4f20fa5`. The historical August 12 integration
+candidate pinned private `development`
+`605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, which contained that follow-up and
+the inactive-membership hardening. That historical pin is not the current root
+gitlink; the current local-only target is `cdbeb59e`. Neither state claims a
+deployment merely because private work merged. No provider, hosted database,
+Production credential, live roster, or real Google source was used.
 
 | ID          | Severity | Surface                              | Confirmed finding                                                                                                                                                                                                                                                                | Implemented contract                                                                                                                                                                                                                                                                                                                                                                             | Current evidence boundary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Status                                         |
 | ----------- | -------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
@@ -422,7 +428,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
 - [x] `bun run csf:test:workflows`, `bun run csf:test:scale`, and the 5-route cron probe passed locally; cron recorded 269 assertions, zero dispatch, and zero egress
 - [ ] Supabase advisor closeout: the preceding 272-migration Development snapshot is 95 INFO/0 WARN/0 ERROR for security and 611 INFO/0 WARN/0 ERROR for performance; re-establish it after hosted Development reaches the exact 289-migration repository target, and run Production's release-time post-apply advisor check
 - [x] Post-hardening private-plugin isolation browser/API smoke
-- [x] Exact detached private gitlink, registry/runtime contracts, and strict submodule validation pass
+- [ ] Current private-gitlink publication gate: the exact detached checkout and registry/runtime contracts are locally valid, but strict validation intentionally fails because `cdbeb59e` is not contained in locally known private `origin/development`; merge private first, then publish the root gitlink
 - [x] `bun audit --production`: no vulnerabilities
 - [ ] Complete visible signup → organization/install → import → application → points → meetings/clubs → close/reopen mutation lifecycle
 - [ ] Complete Google reconnect/revocation and Drive failure-state execution; connected OAuth/Picker and one real-source Preview retry are current Development evidence

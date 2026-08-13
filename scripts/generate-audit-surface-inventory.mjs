@@ -225,6 +225,143 @@ export function rpcCallSites(source) {
   return calls;
 }
 
+function sourceLine(sourceFile, node) {
+  return (
+    sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1
+  );
+}
+
+function isAdminClientModule(moduleName, file) {
+  const resolvedModule = moduleName.startsWith(".")
+    ? resolve(dirname(file), moduleName).replaceAll("\\", "/")
+    : moduleName;
+  return /(?:^|\/)supabase\/admin$/u.test(resolvedModule);
+}
+
+export function serviceRoleReferences(source, file = "source.ts") {
+  const sourceFile = ts.createSourceFile(
+    file,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const references = [];
+  const factoryLocals = new Map();
+  const namespaceLocals = new Set();
+
+  function record(kind, name, localName, node) {
+    references.push({
+      kind,
+      name,
+      localName,
+      match: compact(node.getText(sourceFile)).slice(0, 160),
+      line: sourceLine(sourceFile, node),
+    });
+  }
+
+  for (const statement of sourceFile.statements) {
+    if (
+      ts.isImportDeclaration(statement) &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      isAdminClientModule(statement.moduleSpecifier.text, file)
+    ) {
+      const bindings = statement.importClause?.namedBindings;
+      if (bindings && ts.isNamedImports(bindings)) {
+        for (const element of bindings.elements) {
+          const importedName = element.propertyName?.text ?? element.name.text;
+          if (importedName !== "getAdminClient") continue;
+          factoryLocals.set(element.name.text, "getAdminClient");
+          record(
+            "factory-import",
+            "getAdminClient",
+            element.name.text,
+            element,
+          );
+        }
+      } else if (bindings && ts.isNamespaceImport(bindings)) {
+        namespaceLocals.add(bindings.name.text);
+        record(
+          "factory-import",
+          "getAdminClient",
+          `${bindings.name.text}.getAdminClient`,
+          bindings,
+        );
+      }
+      continue;
+    }
+
+    if (
+      ts.isFunctionDeclaration(statement) &&
+      statement.name?.text === "getAdminClient"
+    ) {
+      factoryLocals.set("getAdminClient", "getAdminClient");
+      record(
+        "factory-definition",
+        "getAdminClient",
+        "getAdminClient",
+        statement.name,
+      );
+      continue;
+    }
+
+    if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        if (
+          ts.isIdentifier(declaration.name) &&
+          declaration.initializer &&
+          ts.isIdentifier(declaration.initializer) &&
+          factoryLocals.has(declaration.initializer.text)
+        ) {
+          factoryLocals.set(declaration.name.text, "getAdminClient");
+        }
+      }
+    }
+  }
+
+  function visit(node) {
+    if (ts.isCallExpression(node)) {
+      if (
+        ts.isIdentifier(node.expression) &&
+        factoryLocals.has(node.expression.text)
+      ) {
+        record("factory-call", "getAdminClient", node.expression.text, node);
+      } else if (
+        ts.isPropertyAccessExpression(node.expression) &&
+        node.expression.name.text === "getAdminClient" &&
+        ts.isIdentifier(node.expression.expression) &&
+        namespaceLocals.has(node.expression.expression.text)
+      ) {
+        record(
+          "factory-call",
+          "getAdminClient",
+          node.expression.getText(sourceFile),
+          node,
+        );
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+
+  for (const finding of collectMatches(
+    source,
+    /\b(?:SUPABASE_(?:SERVICE_ROLE_KEY|SECRET_KEY)|SERVICE_ROLE_KEY)\b/gu,
+  )) {
+    references.push({
+      kind: "credential-reference",
+      name: finding.match,
+      localName: finding.match,
+      ...finding,
+    });
+  }
+
+  return references.sort(
+    (left, right) =>
+      left.line - right.line || left.kind.localeCompare(right.kind),
+  );
+}
+
 export function sqlFunctionDefinitions(source, file) {
   const definitions = [];
   const pattern =
@@ -404,10 +541,7 @@ export async function buildSurfaceInventory(rootDirectory) {
     for (const action of exportedServerActions(source, file))
       serverActions.push({ file, ...action });
     for (const rpc of rpcCallSites(source)) rpcCalls.push({ file, ...rpc });
-    for (const finding of collectMatches(
-      source,
-      /\b(?:createAdminClient|createServiceRoleClient|SUPABASE_(?:SERVICE_ROLE_KEY|SECRET_KEY)|SERVICE_ROLE_KEY)\b/gu,
-    )) {
+    for (const finding of serviceRoleReferences(source, file)) {
       serviceRoleCalls.push({ file, ...finding });
     }
     const kinds = boundaryKinds(file, source);

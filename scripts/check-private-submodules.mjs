@@ -167,6 +167,46 @@ if (existsSync(submodulePath)) {
     else warn(message);
   }
 
+  if (strict && indexCommit) {
+    const remoteTrackingRef = `refs/remotes/origin/${expectedBranch}`;
+    const remoteRefResult = git(
+      ["show-ref", "--verify", "--quiet", remoteTrackingRef],
+      { cwd: submodulePath },
+    );
+    if (!remoteRefResult.ok) {
+      fail(
+        `Missing locally known private ref origin/${expectedBranch}. Strict publication validation uses local refs only and does not fetch. Update that local remote-tracking ref after the private-first merge, then rerun before publishing the root gitlink.`,
+      );
+    } else {
+      const targetExists = git(["cat-file", "-e", `${indexCommit}^{commit}`], {
+        cwd: submodulePath,
+      });
+      if (!targetExists.ok) {
+        fail(
+          `Committed private gitlink ${indexCommit} is absent from the local private object store, so containment in origin/${expectedBranch} cannot be verified. Publish and merge the private commit to private origin/${expectedBranch} before publishing the root gitlink, then update the local remote-tracking ref. This strict check uses local refs only and does not fetch.`,
+        );
+      } else {
+        const containment = git(
+          ["merge-base", "--is-ancestor", indexCommit, remoteTrackingRef],
+          { cwd: submodulePath },
+        );
+        if (containment.ok) {
+          log(
+            `${expectedPath} committed gitlink is contained in the locally known origin/${expectedBranch} history.`,
+          );
+        } else if (containment.status === 1) {
+          fail(
+            `Committed private gitlink ${indexCommit} is not contained in the locally known origin/${expectedBranch} history. Publish and merge the private commit to private origin/${expectedBranch} before publishing the root gitlink. This strict check uses local refs only and does not fetch.`,
+          );
+        } else {
+          fail(
+            `Could not verify committed private gitlink ${indexCommit} against locally known origin/${expectedBranch}: ${containment.stderr || containment.status}. This strict check uses local refs only and does not fetch.`,
+          );
+        }
+      }
+    }
+  }
+
   if (!isExactDetachedGitlink) {
     const aheadBehind = git(
       [

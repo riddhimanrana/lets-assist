@@ -775,12 +775,13 @@ the 289-migration repository tree.
   absent, and only `service_role` can execute the current RPC; `anon` and
   `authenticated` cannot. The Drive metadata RPC is no longer the Preview
   blocker.
-- The caller-summary correction and inactive-access hardening are combined in
-  private development commit
-  `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, and this root worktree's gitlink
-  points to that exact commit locally. It also contains the meeting hardening
-  and `ca817bf` preview-summary correction. The stale Ready Development SHA
-  above does not include that local gitlink update.
+- The current root gitlink is
+  `cdbeb59e6cc086e8794ec8b35157ab043f65c01c`. The locally known private
+  `origin/development` still ends at
+  `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, so the current target is not
+  contained there and remains a local-only, private-first release blocker. It
+  also contains the meeting hardening and `ca817bf` preview-summary correction.
+  The stale Ready Development SHA above does not include this local gitlink.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
 - Three controlled Development test messages produced three signature-verified

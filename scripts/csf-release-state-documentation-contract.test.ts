@@ -156,10 +156,13 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(currentState).toContain("zero term applications were committed");
     expect(currentState).toContain("No names or email addresses");
     expect(currentState).toContain(
-      "caller-summary correction and inactive-access hardening are combined in private development commit `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`",
+      "current root gitlink is `cdbeb59e6cc086e8794ec8b35157ab043f65c01c`",
     );
     expect(currentState).toContain(
-      "root worktree's gitlink points to that exact commit locally",
+      "locally known private `origin/development` still ends at `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`",
+    );
+    expect(currentState).toContain(
+      "current target is not contained there and remains a local-only, private-first release blocker",
     );
     expect(currentState).not.toContain(
       "Preview failed before reading or importing rows because the seven-argument RPC was missing",
@@ -303,10 +306,13 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(rehearsalState).toContain("zero term applications were committed");
     expect(rehearsalState).toContain("No names or email addresses");
     expect(rehearsalState).toContain(
-      "caller-summary correction and inactive-access hardening are combined in private development commit `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`",
+      "current root gitlink is `cdbeb59e6cc086e8794ec8b35157ab043f65c01c`",
     );
     expect(rehearsalState).toContain(
-      "root worktree's gitlink points to that exact commit locally",
+      "locally known private `origin/development` still ends at `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`",
+    );
+    expect(rehearsalState).toContain(
+      "current target is not contained there and remains a local-only, private-first release blocker",
     );
     expect(rehearsalState).not.toContain(
       "Preview failed before reading or importing rows because the seven-argument RPC was missing",
@@ -449,7 +455,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(aud037).toContain("Not fixable from this repository");
   });
 
-  test("CLEAN-022 is closed at the repository-local/source-contract level without overstating acceptance", () => {
+  test("CLEAN-022 is source-complete locally but release-blocked without overstating acceptance", () => {
     const clean022 = between(cleanupRegister, "| CLEAN-022", "| AUD-030");
 
     expect(clean022).toContain(
@@ -462,7 +468,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "settlement reserve plus the minimum provider window before acknowledging a scheduler reservation or advancing fairness",
     );
     expect(clean022).toContain(
-      "Closed at the repository-local/source-contract level",
+      "Source-complete at the repository-local/source-contract level, but not publishable",
     );
     expect(clean022).toContain("root gitlink commit `8419171d`");
     expect(clean022).toContain("`cdbeb59e6cc086e8794ec8b35157ab043f65c01c`");
@@ -486,6 +492,12 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "`lib/plugins/private/plugins/dvhs-csf/services/communications-actions.test.ts`",
     );
     expect(clean022).toContain(
+      "exact `cdbeb59e` target is local-only and not contained in the locally known private `origin/development`",
+    );
+    expect(clean022).toContain(
+      "strict root release check must fail until the private commit merges first",
+    );
+    expect(clean022).toContain(
       "full exact-tree local isolated replay, Docker-backed verification, hosted Development acceptance, provider/browser gates, and Production remain unverified and pending",
     );
     expect(clean022).toContain(
@@ -498,7 +510,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(clean022).not.toContain("is not fully closed");
   });
 
-  test("the integrated private cancellation module backs the CLEAN-022 closure claims", () => {
+  test("the integrated private cancellation module backs the CLEAN-022 source-completion claims", () => {
     expect(csfCommunicationsActions).toContain(
       'export type CsfCancellationOutcome =\n  "clean" | "ambiguous" | "leased" | "ambiguous_and_leased";',
     );
