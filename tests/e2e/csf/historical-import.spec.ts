@@ -45,6 +45,21 @@ function createHistoricalWorkbook(activityTitle: string) {
   return XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
 }
 
+async function countWholePreviewBlockers(
+  fixture: HistoricalImportFixture,
+  previewJobId: string,
+) {
+  const { count, error } = await fixture.admin
+    .schema("plugin_data")
+    .from("csf_sheet_import_rows")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", fixture.organizationId)
+    .eq("job_id", previewJobId)
+    .in("import_status", ["ambiguous", "conflict", "duplicate", "error"]);
+  assertNoSupabaseError("Could not count whole-preview import blockers", error);
+  return count ?? 0;
+}
+
 async function loadFixture(): Promise<HistoricalImportFixture> {
   const local = getCsfIsolatedSupabaseEnv();
   const admin = createClient(local.url, local.serviceRoleKey, {
@@ -237,13 +252,19 @@ test.describe("CSF historical workbook import", () => {
     await expect(progress).toContainText(
       "SourceScopeMapPreviewReconcileCommitResult",
     );
+    await expect(progress.getByRole("listitem")).toHaveCount(7);
+    await expect(progress.getByRole("button")).toHaveCount(0);
+    await expect(progress.getByRole("link")).toHaveCount(0);
+    await expect(progress.locator('[aria-current="step"]')).toHaveText(
+      "Reconcile",
+    );
     await expect(
       page.getByRole("heading", { name: "Preview needs reconciliation" }),
     ).toBeVisible();
     await expect(
       page.getByText(fixture.workbookName, { exact: false }),
     ).toBeVisible();
-    await expect(page.getByText("S26", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("S26 · A1:C2", { exact: true })).toBeVisible();
     await expect(
       page.getByText("1 normalized row", { exact: true }),
     ).toBeVisible();
@@ -278,12 +299,15 @@ test.describe("CSF historical workbook import", () => {
       source_type: "class_history",
       source_file_name: fixture.workbookName,
       source_sheet_tab: "S26",
+      source_range: "A1:C2",
       snapshot_row_count: 1,
       mapping_version: 1,
     });
-    expect(preview.source_range).toBeTruthy();
     expect(preview.source_content_hash).toMatch(/^[a-f0-9]{64}$/);
     expect(preview.snapshot_hash).toMatch(/^[a-f0-9]{64}$/);
+    await expect
+      .poll(() => countWholePreviewBlockers(fixture, preview.id))
+      .toBe(1);
 
     const { data: previewRow, error: previewRowError } = await plugin
       .from("csf_sheet_import_rows")
@@ -342,11 +366,26 @@ test.describe("CSF historical workbook import", () => {
       name: "Use match",
       exact: true,
     });
-    await useMatch.click();
+    const matchForm = resolution.locator("form");
+    const matchTarget = resolution.getByLabel("Match to member");
+    const matchReason = resolution.getByLabel("Match reason");
+    await Promise.all([
+      expect(matchForm).toHaveAttribute("aria-busy", "true"),
+      useMatch.click(),
+    ]);
     await expect(useMatch).toBeDisabled();
+    await expect(matchTarget).toBeDisabled();
+    await expect(matchReason).toBeDisabled();
+    await expect(matchTarget).toHaveValue(fixture.profileId);
+    await expect(matchReason).toHaveValue(
+      "Seeded Class of 2028 record matches this historical workbook row.",
+    );
     await expect(
       page.getByText("Import row matched and ready.", { exact: true }),
     ).toBeVisible();
+    await expect(matchForm).toHaveAttribute("aria-busy", "false");
+    await expect(matchTarget).toHaveValue("");
+    await expect(matchReason).toHaveValue("");
 
     await expect
       .poll(async () => {
@@ -366,6 +405,12 @@ test.describe("CSF historical workbook import", () => {
         matched_profile_id: fixture.profileId,
         resolution_status: "resolved",
       });
+    await expect
+      .poll(() => countWholePreviewBlockers(fixture, preview.id))
+      .toBe(0);
+    await expect(progress.locator('[aria-current="step"]')).toHaveText(
+      "Commit",
+    );
 
     const commit = page.getByRole("button", {
       name: "Verify source and commit",
@@ -463,25 +508,53 @@ test.describe("CSF historical workbook import", () => {
     });
     expect(audit?.correlation_id).toBeTruthy();
 
-    await commit.click();
+    // A completed preview intentionally replaces the commit action with this
+    // disabled state. The UI cannot submit another claim, so verify durable
+    // one-row cardinality rather than pretending a second click was exercised.
     await expect(
-      page.getByText("This preview was already imported: 1 rows committed", {
-        exact: false,
-      }),
-    ).toBeVisible();
-    const { count: committedCreditCount, error: committedCreditCountError } =
-      await plugin
+      page.getByRole("button", { name: "Committed", exact: true }),
+    ).toBeDisabled();
+    const [
+      { count: committedCreditCount, error: committedCreditCountError },
+      { count: committedActivityCount, error: committedActivityCountError },
+      { count: committedAuditCount, error: committedAuditCountError },
+    ] = await Promise.all([
+      plugin
         .from("csf_credit_records")
         .select("id", { count: "exact", head: true })
         .eq("organization_id", fixture.organizationId)
         .eq("profile_id", fixture.profileId)
         .eq("term_id", fixture.termId)
-        .contains("evidence", sourceReference);
+        .contains("evidence", sourceReference),
+      plugin
+        .from("csf_profile_activity_events")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", fixture.organizationId)
+        .eq("profile_id", fixture.profileId)
+        .eq("term_id", fixture.termId)
+        .contains("source_ref", sourceReference),
+      plugin
+        .from("csf_admin_audit_events")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", fixture.organizationId)
+        .eq("action", "sheet_import.row_committed")
+        .eq("target_id", fixture.importRowId),
+    ]);
     assertNoSupabaseError(
       "Could not count idempotent historical credits",
       committedCreditCountError,
     );
+    assertNoSupabaseError(
+      "Could not count idempotent historical activity rows",
+      committedActivityCountError,
+    );
+    assertNoSupabaseError(
+      "Could not count idempotent historical audit rows",
+      committedAuditCountError,
+    );
     expect(committedCreditCount).toBe(1);
+    expect(committedActivityCount).toBe(1);
+    expect(committedAuditCount).toBe(1);
     expectNoBrowserFailures(failures);
   });
 });
