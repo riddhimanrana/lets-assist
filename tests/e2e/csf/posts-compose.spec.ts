@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 
 import {
   cleanFeedPosts,
@@ -13,7 +14,8 @@ import {
 } from "./helpers";
 
 const TITLE_PREFIX = "E2E compose";
-const composedTitle = `${TITLE_PREFIX} spring class update`;
+const PLUGIN_KEY = "dvhs-csf";
+const composedTitle = `${TITLE_PREFIX} spring class update ${randomUUID()}`;
 const composedBody =
   "Fictional class announcement composed by the browser suite. No real students are addressed.";
 // The fixture helper removes replies through the canonical audited RPC before
@@ -21,6 +23,8 @@ const composedBody =
 const composedReply =
   "Follow-up from the browser suite: room moved to the fictional annex.";
 
+// Regressions caught: post success hidden by auto-close; unchecked email
+// ambiguously reported; queue intent confused with provider delivery.
 test.describe("officer post compose in the class Stream", () => {
   test.describe.configure({ mode: "serial" });
 
@@ -86,27 +90,72 @@ test.describe("officer post compose in the class Stream", () => {
     await expect(emailToggle).not.toBeChecked();
 
     await dialog.getByRole("button", { name: "Publish post" }).click();
+    const publicationResult = dialog.getByRole("status", {
+      name: "Post publication result",
+    });
+    await expect(publicationResult).toContainText("Post published.");
+    await expect(publicationResult).toContainText("Email not queued");
+    await expect(
+      dialog.getByRole("button", { name: "Publish post" }),
+    ).toBeDisabled();
+    await dialog.getByRole("button", { name: "Acknowledge result" }).click();
     await expect(dialog).toBeHidden();
 
     // The mutation is durable server-side; a reload proves the Stream renders
     // the published post with its compose-side status.
     await expect
       .poll(async () => {
-        const { data } = await fixture.admin
+        const { data, error } = await fixture.admin
           .schema("plugin_data")
           .from("csf_announcements")
-          .select("status, audience, audience_cohort_id, pinned")
+          .select(
+            "id, status, audience, audience_cohort_id, pinned, email_requested, email_campaign_id",
+          )
           .eq("organization_id", fixture.organizationId)
           .eq("title", composedTitle)
           .maybeSingle();
+        if (error) {
+          throw new Error(
+            `Could not load the unchecked announcement: ${error.message}`,
+          );
+        }
         return data;
       })
       .toEqual({
+        id: expect.any(String),
         status: "published",
         audience: "class",
         audience_cohort_id: fixture.cohortIdsByYear[2028],
         pinned: false,
+        email_requested: false,
+        email_campaign_id: null,
       });
+    const { data: noEmailAnnouncement, error: noEmailAnnouncementError } =
+      await fixture.admin
+        .schema("plugin_data")
+        .from("csf_announcements")
+        .select("id")
+        .eq("organization_id", fixture.organizationId)
+        .eq("title", composedTitle)
+        .single();
+    if (noEmailAnnouncementError || !noEmailAnnouncement) {
+      throw new Error(
+        `Could not reload the unchecked announcement: ${noEmailAnnouncementError?.message ?? "missing announcement"}`,
+      );
+    }
+    const { data: noEmailCampaigns, error: noEmailCampaignsError } =
+      await fixture.admin
+        .schema("plugin_data")
+        .from("csf_communication_campaigns")
+        .select("id")
+        .eq("organization_id", fixture.organizationId)
+        .eq("source_announcement_id", noEmailAnnouncement.id);
+    if (noEmailCampaignsError) {
+      throw new Error(
+        `Could not check unchecked announcement campaigns: ${noEmailCampaignsError.message}`,
+      );
+    }
+    expect(noEmailCampaigns).toEqual([]);
 
     await page.reload({ waitUntil: "domcontentloaded" });
     const composedEntry = page
@@ -242,5 +291,261 @@ test.describe("officer post compose in the class Stream", () => {
       `${CSF_ORGANIZATION_PATH}/plugins/dvhs-csf/cohorts`,
     );
     expect(response?.status()).toBe(404);
+  });
+
+  test("an officer sees queued email as ledger work, not provider delivery", async ({
+    page,
+  }) => {
+    const failures = watchBrowserFailures(page);
+    const queuedTitle = `${TITLE_PREFIX} queued ${randomUUID()}`;
+    const queuedBody =
+      "Fictional namespaced announcement proving a queued CSF email without provider dispatch.";
+    let originalConfiguration: Record<string, unknown> | null = null;
+    let queuedCampaignId: string | null = null;
+    let cleanupError: Error | null = null;
+
+    try {
+      const { data: install, error: installError } = await fixture.admin
+        .from("organization_plugin_installs")
+        .select("configuration")
+        .eq("organization_id", fixture.organizationId)
+        .eq("plugin_key", PLUGIN_KEY)
+        .eq("enabled", true)
+        .single();
+      if (installError || !install) {
+        throw new Error(
+          `Could not load the isolated CSF plugin configuration: ${installError?.message ?? "missing install"}`,
+        );
+      }
+      const savedConfiguration: Record<string, unknown> =
+        install.configuration &&
+        typeof install.configuration === "object" &&
+        !Array.isArray(install.configuration)
+          ? structuredClone(install.configuration)
+          : {};
+      originalConfiguration = savedConfiguration;
+      const configured = structuredClone(savedConfiguration);
+      const communications: Record<string, unknown> =
+        configured.communications &&
+        typeof configured.communications === "object" &&
+        !Array.isArray(configured.communications)
+          ? structuredClone(
+              configured.communications as Record<string, unknown>,
+            )
+          : {};
+      const broadcastTopics: Record<string, unknown> =
+        communications.broadcastTopics &&
+        typeof communications.broadcastTopics === "object" &&
+        !Array.isArray(communications.broadcastTopics)
+          ? structuredClone(
+              communications.broadcastTopics as Record<string, unknown>,
+            )
+          : {};
+      const topicSuffix = randomUUID().replaceAll("-", "");
+      broadcastTopics.term_members = {
+        topicKey: `e2e-compose-${topicSuffix}`,
+        resendTopicId: `topic_e2e_compose_${topicSuffix}`,
+      };
+      configured.communications = { ...communications, broadcastTopics };
+      const { error: configureError } = await fixture.admin
+        .from("organization_plugin_installs")
+        .update({ configuration: configured })
+        .eq("organization_id", fixture.organizationId)
+        .eq("plugin_key", PLUGIN_KEY);
+      if (configureError) {
+        throw new Error(
+          `Could not configure the synthetic term_members topic: ${configureError.message}`,
+        );
+      }
+
+      await loginAs(page, "admin");
+      await page.goto(
+        `${CSF_ORGANIZATION_PATH}?tab=csf-cohorts&csf_cohort=${fixture.cohortIdsByYear[2028]}&csf_cohort_tab=stream`,
+        { waitUntil: "domcontentloaded" },
+      );
+      const stream = page.getByRole("region", { name: "Class stream" });
+      await stream
+        .getByRole("button", { name: "Announce something to Class of 2028" })
+        .click();
+      const dialog = page.getByRole("dialog");
+      await dialog.getByLabel("Title").fill(queuedTitle);
+      await dialog.getByLabel("Message").fill(queuedBody);
+      await dialog
+        .getByRole("checkbox", { name: "Also send this as an email" })
+        .check();
+      await dialog.getByRole("button", { name: "Publish post" }).click();
+
+      const publicationResult = dialog.getByRole("status", {
+        name: "Post publication result",
+      });
+      await expect(publicationResult).toContainText("Post published.");
+      await expect(publicationResult).toContainText("Email queued");
+      await expect(
+        dialog.getByRole("button", { name: "Publish post" }),
+      ).toBeDisabled();
+
+      const { data: announcement, error: announcementError } =
+        await fixture.admin
+          .schema("plugin_data")
+          .from("csf_announcements")
+          .select("id, email_requested, email_campaign_id")
+          .eq("organization_id", fixture.organizationId)
+          .eq("title", queuedTitle)
+          .single();
+      if (announcementError || !announcement?.email_campaign_id) {
+        throw new Error(
+          `Could not load the queued announcement receipt: ${announcementError?.message ?? "missing campaign link"}`,
+        );
+      }
+      expect(announcement.email_requested).toBe(true);
+      queuedCampaignId = announcement.email_campaign_id;
+
+      const { data: term, error: termError } = await fixture.admin
+        .schema("plugin_data")
+        .from("csf_terms")
+        .select("id")
+        .eq("organization_id", fixture.organizationId)
+        .eq("is_current", true)
+        .single();
+      if (termError || !term) {
+        throw new Error(
+          `Could not load the current CSF term: ${termError?.message ?? "missing term"}`,
+        );
+      }
+      const { data: campaign, error: campaignError } = await fixture.admin
+        .schema("plugin_data")
+        .from("csf_communication_campaigns")
+        .select(
+          "id, source_announcement_id, status, term_id, audience_kind, audience_cohort_id, content_finalized_at, audience_finalized_at, audience_size",
+        )
+        .eq("organization_id", fixture.organizationId)
+        .eq("id", queuedCampaignId)
+        .single();
+      if (campaignError || !campaign) {
+        throw new Error(
+          `Could not load the queued campaign: ${campaignError?.message ?? "missing campaign"}`,
+        );
+      }
+      expect(campaign).toMatchObject({
+        id: queuedCampaignId,
+        source_announcement_id: announcement.id,
+        status: "queued",
+        term_id: term.id,
+        audience_kind: "cohort_members",
+        audience_cohort_id: fixture.cohortIdsByYear[2028],
+        content_finalized_at: expect.any(String),
+        audience_finalized_at: expect.any(String),
+      });
+
+      const { data: snapshots, error: snapshotsError } = await fixture.admin
+        .schema("plugin_data")
+        .from("csf_communication_recipient_snapshots")
+        .select("id, campaign_id, profile_id, subscription_decision")
+        .eq("organization_id", fixture.organizationId)
+        .eq("campaign_id", queuedCampaignId);
+      expect(snapshotsError).toBeNull();
+      expect(snapshots?.length).toBe(campaign.audience_size);
+      expect(snapshots?.every((snapshot) => snapshot.profile_id !== null)).toBe(
+        true,
+      );
+      expect(
+        snapshots?.every(
+          (snapshot) =>
+            snapshot.campaign_id === queuedCampaignId &&
+            snapshot.subscription_decision === "included",
+        ),
+      ).toBe(true);
+
+      const { data: deliveries, error: deliveriesError } = await fixture.admin
+        .schema("plugin_data")
+        .from("csf_communication_deliveries")
+        .select("id, status, provider_message_id, sent_at, delivered_at")
+        .eq("organization_id", fixture.organizationId)
+        .eq("campaign_id", queuedCampaignId);
+      expect(deliveriesError).toBeNull();
+      expect(deliveries?.length).toBe(campaign.audience_size);
+      expect(
+        deliveries?.every(
+          (delivery) =>
+            delivery.status === "queued" &&
+            delivery.provider_message_id === null &&
+            delivery.sent_at === null &&
+            delivery.delivered_at === null,
+        ),
+      ).toBe(true);
+
+      const { data: attempts, error: attemptsError } = await fixture.admin
+        .schema("plugin_data")
+        .from("csf_communication_dispatch_attempts")
+        .select(
+          "id, state, provider_message_id, dispatch_authorized_at, dispatch_authorized_to, settled_at",
+        )
+        .eq("organization_id", fixture.organizationId)
+        .eq("campaign_id", queuedCampaignId);
+      expect(attemptsError).toBeNull();
+      expect(attempts?.length).toBe(campaign.audience_size);
+      expect(
+        attempts?.every(
+          (attempt) =>
+            attempt.state === "queued" &&
+            attempt.provider_message_id === null &&
+            attempt.dispatch_authorized_at === null &&
+            attempt.dispatch_authorized_to === null &&
+            attempt.settled_at === null,
+        ),
+      ).toBe(true);
+      const { data: providerEvents, error: providerEventsError } =
+        await fixture.admin
+          .schema("plugin_data")
+          .from("csf_communication_provider_events")
+          .select("id")
+          .eq("organization_id", fixture.organizationId)
+          .in(
+            "attempt_id",
+            (attempts ?? []).map((attempt) => attempt.id),
+          );
+      expect(providerEventsError).toBeNull();
+      expect(providerEvents).toEqual([]);
+
+      await dialog.getByRole("button", { name: "Acknowledge result" }).click();
+      await expect(dialog).toBeHidden();
+      expectNoBrowserFailures(failures);
+    } finally {
+      if (queuedCampaignId) {
+        const { error: cancelError } = await fixture.admin
+          .schema("plugin_data")
+          .rpc("csf_cancel_communication_campaign", {
+            p_organization_id: fixture.organizationId,
+            p_campaign_id: queuedCampaignId,
+            p_reason: "Synthetic browser acceptance cleanup.",
+            p_actor_user_id: fixture.organizationAdminUserId,
+            p_correlation_id: randomUUID(),
+          });
+        if (cancelError) {
+          cleanupError = new Error(
+            `Could not cancel the synthetic campaign: ${cancelError.message}`,
+          );
+        }
+      }
+      try {
+        await cleanFeedPosts(fixture, queuedTitle);
+      } catch (error) {
+        cleanupError ??=
+          error instanceof Error ? error : new Error(String(error));
+      }
+      if (originalConfiguration) {
+        const { error: restoreError } = await fixture.admin
+          .from("organization_plugin_installs")
+          .update({ configuration: originalConfiguration })
+          .eq("organization_id", fixture.organizationId)
+          .eq("plugin_key", PLUGIN_KEY);
+        if (restoreError) {
+          cleanupError ??= new Error(
+            `Could not restore the isolated CSF plugin configuration: ${restoreError.message}`,
+          );
+        }
+      }
+    }
+    if (cleanupError) throw cleanupError;
   });
 });
