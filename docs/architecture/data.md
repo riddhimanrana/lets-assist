@@ -33,9 +33,10 @@ Imports retain immutable source identity, range/tab provenance, mapping versions
 ### CSF source constraints
 
 - The identity-free historical S26 inventory is 167 records for 2027, 167 for 2028, and 88 for 2029: 422 total.
-- The 2030 workbook is a template for an application cycle, not historical membership or roster evidence.
+- The Class of 2030 source is header-only (0 rows): do not import. Class of 2030 must enter through the new application-cycle/member-review workflow, not historical import.
 - Historical sheets do not contain reliable account identifiers. They must not auto-link a profile to an account; linking requires separately corroborated evidence and reviewed conflict handling.
-- A Spring application source cannot seed a Fall roster. Application, cohort, membership, and term state remain distinct.
+- Application responses create application records, never members, and do not independently establish a roster.
+- The Spring 2026 application source cannot seed a Fall 2026 roster. Its responses may attach only after reviewed member/application reconciliation. Application, cohort, membership, and term state remain distinct.
 - Persist each source snapshot immutably before preview. Commit must revalidate the current actor, organization, install/entitlement, source identity and version, mapping, and target term; preview-time authorization is not sufficient.
 
 These constraints describe source shape without recording identities. Source rows and account-link evidence remain private, server-only data.

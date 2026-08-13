@@ -6,7 +6,7 @@ Use the narrowest focused regression first, then expand to the appropriate gate.
 
 Keep evidence environment- and revision-specific:
 
-- **Locally verified:** a fresh static inventory of this worktree on 2026-08-12 contains 286 ordered migration files through `20260813013300_close_csf_representative_and_publication_races.sql` and 138 pgTAP SQL files. The last recorded full local isolated union replay covered 133 pgTAP files and 5,523 assertions. It does not cover the five newer files. The recorded evidence does not establish a 282-migration pairing, so this closeout does not claim either 287 current migrations or a completed 282/133 replay.
+- **Locally verified:** a fresh static inventory of this exact worktree contains 286 migration SQL files through `20260813013300_close_csf_representative_and_publication_races.sql` and 138 pgTAP SQL files. The last recorded full local isolated union replay was the exact 282-migration/133-pgTAP shape and passed 5,523 assertions. The current tree contains five newer pgTAP files not covered by that replay.
 - **Hosted Development verified:** only checks run against the hosted Development database and exact deployed application SHA belong in this class. This local-only closeout ran none; previously recorded hosted evidence remains historical and must not be promoted to exact-current parity.
 - **Production unverified:** no Production database, application, browser, worker, or provider gate was run. Production remains untouched and unverified by this closeout.
 
