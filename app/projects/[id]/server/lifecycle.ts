@@ -13,7 +13,7 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { getPluginRegistry } from "@/lib/plugins/registry";
 import { runProjectClone } from "@/lib/plugins/lifecycle";
 import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
-import { canUserManageProject } from "./access";
+import { canUserManageProject } from "./access-helpers";
 import {
   validateRecurrenceRule,
   validateProjectSchedule,
