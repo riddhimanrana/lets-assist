@@ -128,6 +128,50 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
   },
 ] as const;
 
+const vpPublicityHelpScenario = staffRoleNavigationMatrix.find(
+  (scenario) => scenario.actor === "vpPublicity",
+);
+
+if (!vpPublicityHelpScenario) {
+  throw new Error("The Help coverage requires the VP Publicity role scenario.");
+}
+
+const helpRoleNavigationMatrix = [
+  {
+    actor: "member",
+    label: "Member",
+    requiredGuide: "Submit service proof",
+    forbiddenGuide: "Post to a graduating class",
+    forbiddenGuideContent:
+      "Publish an update to one class or the chapter audience.",
+    forbiddenCapability: "manage_posts",
+  },
+  {
+    actor: vpPublicityHelpScenario.actor,
+    label: vpPublicityHelpScenario.label,
+    requiredGuide: "Post to a graduating class",
+    forbiddenGuide: "Review member point submissions",
+    forbiddenGuideContent: "Check proof and record a reasoned outcome.",
+    forbiddenCapability: "verify_submissions",
+  },
+  {
+    actor: "admin",
+    label: "Organization admin",
+    requiredGuide: "Assign an officer position",
+    forbiddenGuide: "Check membership and semester status",
+    forbiddenGuideContent:
+      "See the reviewed application, membership, and semester outcome.",
+    forbiddenCapability: "member audience only",
+  },
+] as const satisfies readonly {
+  actor: LocalActor;
+  label: string;
+  requiredGuide: string;
+  forbiddenGuide: string;
+  forbiddenGuideContent: string;
+  forbiddenCapability: string;
+}[];
+
 async function expectCanonicalNavigation(
   page: Page,
   scenario: Pick<
@@ -221,6 +265,23 @@ async function expectExplicitStaffRouteDenial(
     ),
   ).toBeVisible();
   expectNoPrivateBoundaryMarkers(await page.locator("body").innerText());
+}
+
+async function openHelpFromMore(page: Page) {
+  const moreButton = page.getByRole("button", { name: "More", exact: true });
+  await expect(moreButton).toBeVisible();
+  await moreButton.click();
+  await page.getByRole("menuitem", { name: "Help", exact: true }).click();
+
+  // The current Help section has aria-labelledby="csf-help-heading", but its
+  // referenced ID is not rendered. Assert the actual route heading, then scope
+  // all Help content to the section containing its named search field.
+  await expect(
+    page.getByRole("heading", { name: "Help", exact: true }),
+  ).toBeVisible();
+  const helpSearch = page.getByRole("textbox", { name: "Search CSF help" });
+  await expect(helpSearch).toBeVisible();
+  return helpSearch.locator("xpath=ancestor::section");
 }
 
 test.describe("DVHS CSF role-aware navigation", () => {
@@ -327,6 +388,54 @@ test.describe("DVHS CSF role-aware navigation", () => {
       if (scenario.deniedRoute) {
         await expectExplicitStaffRouteDenial(page, scenario.deniedRoute);
       }
+
+      expectNoBrowserFailures(failures);
+    });
+  }
+
+  for (const scenario of helpRoleNavigationMatrix) {
+    test(`${scenario.label} Help filters guides by current capabilities`, async ({
+      page,
+    }) => {
+      const failures = watchBrowserFailures(page);
+      await loginAs(page, scenario.actor);
+      const helpSurface = await openHelpFromMore(page);
+
+      // Regression: Help leaks actions/copy for unheld capabilities, or its
+      // search bypasses role filtering.
+      await expect(
+        helpSurface.getByRole("heading", {
+          name: scenario.requiredGuide,
+          exact: true,
+        }),
+        `${scenario.requiredGuide} requires this role`,
+      ).toBeVisible();
+      await expect(
+        helpSurface.getByRole("heading", {
+          name: scenario.forbiddenGuide,
+          exact: true,
+        }),
+        `${scenario.forbiddenGuide} requires ${scenario.forbiddenCapability}`,
+      ).toHaveCount(0);
+
+      const helpSearch = helpSurface.getByRole("textbox", {
+        name: "Search CSF help",
+      });
+      await helpSearch.fill(scenario.forbiddenGuide);
+      await expect(helpSearch).toHaveValue(scenario.forbiddenGuide);
+      await expect(
+        helpSurface.getByRole("heading", {
+          name: scenario.forbiddenGuide,
+          exact: true,
+        }),
+        `search must not return ${scenario.forbiddenGuide}`,
+      ).toHaveCount(0);
+      await expect(
+        helpSurface.getByText(scenario.forbiddenGuideContent, { exact: true }),
+        `search must not return ${scenario.forbiddenGuide} content`,
+      ).toHaveCount(0);
+      await helpSearch.fill("");
+      await expect(helpSearch).toHaveValue("");
 
       expectNoBrowserFailures(failures);
     });
