@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Request } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 
@@ -43,6 +43,31 @@ function createHistoricalWorkbook(activityTitle: string) {
   ]);
   XLSX.utils.book_append_sheet(workbook, sheet, "S26");
   return XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
+}
+
+function isSameOriginServerAction(request: Request, origin: string) {
+  const headers = request.headers();
+  return (
+    request.method() === "POST" &&
+    new URL(request.url()).origin === origin &&
+    Boolean(headers["next-action"]) &&
+    Boolean(headers["content-type"])
+  );
+}
+
+function replayableServerActionHeaders(headers: Record<string, string>) {
+  const browserOwnedHeaders = new Set([
+    "cookie",
+    "host",
+    "content-length",
+    "connection",
+    "accept-encoding",
+  ]);
+  return Object.fromEntries(
+    Object.entries(headers).filter(
+      ([name]) => !browserOwnedHeaders.has(name.toLowerCase()),
+    ),
+  );
 }
 
 async function countWholePreviewBlockers(
@@ -421,7 +446,26 @@ test.describe("CSF historical workbook import", () => {
       exact: true,
     });
     await expect(commit).toBeEnabled();
+    const initialCommitRequest = page.waitForRequest((request) =>
+      isSameOriginServerAction(request, new URL(page.url()).origin),
+    );
     await commit.click();
+    const capturedCommitRequest = await initialCommitRequest;
+    const capturedCommitBody = capturedCommitRequest.postDataBuffer();
+    if (!capturedCommitBody?.byteLength) {
+      throw new Error("The commit Server Action request did not carry a body.");
+    }
+    const capturedCommitHeaders = capturedCommitRequest.headers();
+    const replayHeaders = replayableServerActionHeaders(capturedCommitHeaders);
+    if (
+      !replayHeaders["next-action"] ||
+      !replayHeaders["content-type"] ||
+      !replayHeaders.origin
+    ) {
+      throw new Error(
+        "The commit Server Action protocol headers are incomplete.",
+      );
+    }
     await expect(
       page.getByText("Imported 1 rows; 0 need review; 0 failed.", {
         exact: true,
@@ -552,17 +596,31 @@ test.describe("CSF historical workbook import", () => {
     });
     expect(audit?.correlation_id).toBeTruthy();
 
-    // A completed preview intentionally replaces the commit action with this
-    // disabled state. The UI cannot submit another claim, so verify durable
-    // one-row cardinality rather than pretending a second click was exercised.
+    // A completed preview replaces the UI action, so replay the captured
+    // authenticated Server Action at the supported browser request boundary.
     await expect(
       page.getByRole("button", { name: "Committed", exact: true }),
     ).toBeDisabled();
+    const replayResponse = await page
+      .context()
+      .request.post(capturedCommitRequest.url(), {
+        headers: replayHeaders,
+        data: capturedCommitBody,
+      });
+    expect(replayResponse.status()).toBe(200);
+    expect(replayResponse.ok()).toBeTruthy();
     const [
+      { count: committedJobCount, error: committedJobCountError },
       { count: committedCreditCount, error: committedCreditCountError },
       { count: committedActivityCount, error: committedActivityCountError },
       { count: committedAuditCount, error: committedAuditCountError },
     ] = await Promise.all([
+      plugin
+        .from("csf_sheet_import_jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", fixture.organizationId)
+        .eq("mode", "commit")
+        .eq("preview_job_id", fixture.previewJobId),
       plugin
         .from("csf_credit_records")
         .select("id", { count: "exact", head: true })
@@ -585,6 +643,10 @@ test.describe("CSF historical workbook import", () => {
         .eq("target_id", fixture.importRowId),
     ]);
     assertNoSupabaseError(
+      "Could not count idempotent historical commit jobs",
+      committedJobCountError,
+    );
+    assertNoSupabaseError(
       "Could not count idempotent historical credits",
       committedCreditCountError,
     );
@@ -596,6 +658,7 @@ test.describe("CSF historical workbook import", () => {
       "Could not count idempotent historical audit rows",
       committedAuditCountError,
     );
+    expect(committedJobCount).toBe(1);
     expect(committedCreditCount).toBe(1);
     expect(committedActivityCount).toBe(1);
     expect(committedAuditCount).toBe(1);
