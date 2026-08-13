@@ -21,6 +21,16 @@ export type GoogleCapClaim = {
   userId: string | null;
 };
 
+type EffectRow = {
+  decision: "execute" | "identity_changed" | "lease_lost" | "no_local_user";
+  user_id: string | null;
+};
+
+export type GoogleCapEffectAuthorization = {
+  decision: EffectRow["decision"];
+  userId: string | null;
+};
+
 function sha256(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
@@ -42,6 +52,24 @@ function oneClaimRow(value: unknown): ClaimRow | null {
     return null;
   }
   return candidate as ClaimRow;
+}
+
+function oneEffectRow(value: unknown): EffectRow | null {
+  const row = Array.isArray(value) ? value[0] : value;
+  if (!row || typeof row !== "object") return null;
+  const candidate = row as Partial<EffectRow>;
+  if (
+    !["execute", "identity_changed", "lease_lost", "no_local_user"].includes(
+      candidate.decision ?? "",
+    ) ||
+    (candidate.user_id !== null && typeof candidate.user_id !== "string") ||
+    (candidate.decision === "execute" &&
+      typeof candidate.user_id !== "string") ||
+    (candidate.decision !== "execute" && candidate.user_id !== null)
+  ) {
+    return null;
+  }
+  return candidate as EffectRow;
 }
 
 export async function claimGoogleCapEvent(
@@ -74,6 +102,34 @@ export async function claimGoogleCapEvent(
     decision: row.decision,
     claimToken: row.claim_token,
     attemptCount: row.attempt_count,
+    userId: row.user_id,
+  };
+}
+
+export async function beginGoogleCapEventEffect(options: {
+  receiptId: string;
+  claimToken: string;
+  googleSubject: string;
+}): Promise<GoogleCapEffectAuthorization> {
+  const service = getAdminClient();
+  const { data, error } = await service.rpc("begin_google_cap_event_effect", {
+    p_receipt_id: options.receiptId,
+    p_claim_token: options.claimToken,
+    p_google_subject: options.googleSubject,
+  });
+  if (error) {
+    throw new Error("Failed to fence Google CAP Auth effect");
+  }
+
+  const row = oneEffectRow(data);
+  if (!row) {
+    throw new Error(
+      "Google CAP effect authorization returned an invalid result",
+    );
+  }
+
+  return {
+    decision: row.decision,
     userId: row.user_id,
   };
 }

@@ -819,9 +819,9 @@ describe("CSF operator documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(274);
+    expect(migrations).toHaveLength(275);
     expect(migrations.at(-1)).toBe(
-      "20260812193329_google_cap_replay_safety.sql",
+      "20260813012206_google_cap_effect_fencing.sql",
     );
 
     const currentState = between(
@@ -830,9 +830,11 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 274 ordered migrations through",
+      "repository branch has 275 ordered migrations through",
     );
-    expect(currentState).toContain("`20260812193329_google_cap_replay_safety`");
+    expect(currentState).toContain(
+      "`20260813012206_google_cap_effect_fencing`",
+    );
     expect(currentState).toContain(
       "Hosted Development Supabase remains at 273 ordered migrations through",
     );
@@ -846,7 +848,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(currentState).toContain(
       "Production remains at 236 ordered migrations through `20260811001500`",
     );
-    expect(currentState).toContain("38-migration cutover has not run");
+    expect(currentState).toContain("39-migration cutover has not run");
     expect(currentState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
     );
@@ -920,10 +922,10 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Hosted Development Supabase remains at 273 ordered migrations through",
     );
     expect(rehearsalState).toContain(
-      "this repository has 274 through `20260812193329_google_cap_replay_safety`",
+      "this repository has 275 through `20260813012206_google_cap_effect_fencing`",
     );
     expect(rehearsalState).toContain(
-      "The unmerged migration has not been applied or deployed there",
+      "The unmerged migrations have not been applied or deployed there",
     );
     expect(rehearsalState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
@@ -972,14 +974,14 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Related references",
     );
     expect(cutover).toContain(
-      "Replay the ordered migration ledger through `20260812193329`",
+      "Replay the ordered migration ledger through `20260813012206`",
     );
     expect(cutover).toContain(
       "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
     );
     expect(cutover).toContain("exact 236-row baseline");
-    expect(cutover).toContain("full 38-migration transition");
-    expect(cutover).toContain("preflight on the 274-row target");
+    expect(cutover).toContain("full 39-migration transition");
+    expect(cutover).toContain("preflight on the 275-row target");
   });
 
   test("production cutover baseline tracks the exact pending migration range", () => {
@@ -990,16 +992,16 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Hosted Development Supabase remains at 273 ordered migrations through `20260812152300`",
     );
     expect(productionCutoverRunbook).toContain(
-      "this repository has 274 through `20260812193329_google_cap_replay_safety`",
+      "this repository has 275 through `20260813012206_google_cap_effect_fencing`",
     );
     expect(productionCutoverRunbook).toContain(
-      "The unmerged Google CAP migration has not been applied or deployed in hosted Development",
+      "The two unmerged Google CAP migrations have not been applied or deployed in hosted Development",
     );
     expect(productionCutoverRunbook).toContain(
       "repository ledger ended at 272 through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Production therefore has exactly 38 pending migrations",
+      "Production therefore has exactly 39 pending migrations",
     );
     expect(productionCutoverRunbook).toContain(
       "external Vercel 100-deployment-per-day project cap",

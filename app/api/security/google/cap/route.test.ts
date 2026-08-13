@@ -23,6 +23,7 @@ let handleBehavior: () => Promise<{
   actionCount: number;
   errorCount: number;
   safeOutcome: string;
+  settlement?: "hold";
 }> = async () => ({
   actionCount: 1,
   errorCount: 0,
@@ -35,14 +36,20 @@ let claimBehavior: () => Promise<Record<string, unknown>> = async () => ({
   attemptCount: 1,
   userId: "33333333-3333-4333-8333-333333333333",
 });
+let beginEffectBehavior: () => Promise<Record<string, unknown>> = async () => ({
+  decision: "execute",
+  userId: "33333333-3333-4333-8333-333333333333",
+});
 let finishBehavior: () => Promise<boolean> = async () => true;
 
 const calls = {
   validate: 0,
   claim: 0,
+  beginEffect: 0,
   handle: 0,
   finish: 0,
 };
+const callOrder: string[] = [];
 
 mock.module("@/lib/security/google-cap-request", () => ({
   GoogleCapRequestError: RequestFailure,
@@ -53,6 +60,7 @@ mock.module("@/lib/security/google-cap", () => ({
   GoogleCapValidationError: ValidationFailure,
   validateGoogleCapToken: async () => {
     calls.validate += 1;
+    callOrder.push("validate");
     return validateBehavior();
   },
   getGoogleCapEventDescriptor: () => ({
@@ -65,17 +73,26 @@ mock.module("@/lib/security/google-cap", () => ({
   }),
   handleGoogleCapPayload: async () => {
     calls.handle += 1;
+    callOrder.push("handle");
     return handleBehavior();
   },
+  googleCapEventRequiresAuthEffect: () => true,
 }));
 
 mock.module("@/lib/security/google-cap-receipts", () => ({
   claimGoogleCapEvent: async () => {
     calls.claim += 1;
+    callOrder.push("claim");
     return claimBehavior();
+  },
+  beginGoogleCapEventEffect: async () => {
+    calls.beginEffect += 1;
+    callOrder.push("beginEffect");
+    return beginEffectBehavior();
   },
   finishGoogleCapEvent: async () => {
     calls.finish += 1;
+    callOrder.push("finish");
     return finishBehavior();
   },
 }));
@@ -97,8 +114,10 @@ function request() {
 beforeEach(() => {
   calls.validate = 0;
   calls.claim = 0;
+  calls.beginEffect = 0;
   calls.handle = 0;
   calls.finish = 0;
+  callOrder.length = 0;
   logRecords.length = 0;
   readBehavior = async () => RAW_TOKEN;
   validateBehavior = async () => ({ jti: RAW_JTI });
@@ -114,6 +133,10 @@ beforeEach(() => {
     attemptCount: 1,
     userId: "33333333-3333-4333-8333-333333333333",
   });
+  beginEffectBehavior = async () => ({
+    decision: "execute",
+    userId: "33333333-3333-4333-8333-333333333333",
+  });
   finishBehavior = async () => true;
 });
 
@@ -124,7 +147,13 @@ describe("POST /api/security/google/cap", () => {
     };
     const response = await POST(request());
     expect(response.status).toBe(413);
-    expect(calls).toEqual({ validate: 0, claim: 0, handle: 0, finish: 0 });
+    expect(calls).toEqual({
+      validate: 0,
+      claim: 0,
+      beginEffect: 0,
+      handle: 0,
+      finish: 0,
+    });
   });
 
   test("returns 400 for a signature or claim validation failure", async () => {
@@ -133,6 +162,16 @@ describe("POST /api/security/google/cap", () => {
     };
     const response = await POST(request());
     expect(response.status).toBe(400);
+    expect(calls.claim).toBe(0);
+  });
+
+  test("returns 503 for a transient JWKS validation dependency failure", async () => {
+    validateBehavior = async () => {
+      throw new Error("synthetic JWKS timeout");
+    };
+    const response = await POST(request());
+    expect(response.status).toBe(503);
+    expect(response.headers.get("retry-after")).toBe("30");
     expect(calls.claim).toBe(0);
   });
 
@@ -147,6 +186,7 @@ describe("POST /api/security/google/cap", () => {
     const response = await POST(request());
     expect(response.status).toBe(202);
     expect(await response.json()).toEqual({ received: true, replayed: true });
+    expect(calls.beginEffect).toBe(0);
     expect(calls.handle).toBe(0);
     expect(calls.finish).toBe(0);
   });
@@ -162,13 +202,73 @@ describe("POST /api/security/google/cap", () => {
     const response = await POST(request());
     expect(response.status).toBe(503);
     expect(response.headers.get("retry-after")).toBe("30");
+    expect(calls.beginEffect).toBe(0);
     expect(calls.handle).toBe(0);
   });
 
-  test("settles a successful security action before returning 202", async () => {
+  test("revalidates identity under the lease immediately before an Auth effect", async () => {
     const response = await POST(request());
     expect(response.status).toBe(202);
-    expect(calls).toEqual({ validate: 1, claim: 1, handle: 1, finish: 1 });
+    expect(calls).toEqual({
+      validate: 1,
+      claim: 1,
+      beginEffect: 1,
+      handle: 1,
+      finish: 1,
+    });
+    expect(callOrder).toEqual([
+      "validate",
+      "claim",
+      "beginEffect",
+      "handle",
+      "finish",
+    ]);
+  });
+
+  test("keeps an actionable event retryable when no local identity exists", async () => {
+    claimBehavior = async () => ({
+      receiptId: "11111111-1111-4111-8111-111111111111",
+      decision: "execute",
+      claimToken: "22222222-2222-4222-8222-222222222222",
+      attemptCount: 1,
+      userId: null,
+    });
+    beginEffectBehavior = async () => ({
+      decision: "no_local_user",
+      userId: null,
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(503);
+    expect(calls.handle).toBe(0);
+    expect(calls.finish).toBe(0);
+  });
+
+  test("a stale worker cannot mutate Auth after lease takeover", async () => {
+    beginEffectBehavior = async () => ({
+      decision: "lease_lost",
+      userId: null,
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(503);
+    expect(calls.handle).toBe(0);
+    expect(calls.finish).toBe(0);
+  });
+
+  test("an identity owner changed after claim is retried before Auth mutation", async () => {
+    beginEffectBehavior = async () => ({
+      decision: "identity_changed",
+      userId: null,
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(503);
+    expect(calls.handle).toBe(0);
+    expect(calls.finish).toBe(0);
   });
 
   test("returns 503 after a retryable action failure so Google redelivers", async () => {
@@ -180,6 +280,20 @@ describe("POST /api/security/google/cap", () => {
     const response = await POST(request());
     expect(response.status).toBe(503);
     expect(calls.finish).toBe(1);
+  });
+
+  test("does not release the effect fence after an ambiguous Auth outcome", async () => {
+    handleBehavior = async () => ({
+      actionCount: 0,
+      errorCount: 1,
+      safeOutcome: "auth_outcome_unknown",
+      settlement: "hold",
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(503);
+    expect(calls.finish).toBe(0);
   });
 
   test("returns 503 when durable settlement is lost after the action", async () => {

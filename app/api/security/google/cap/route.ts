@@ -4,11 +4,13 @@ import { NextResponse } from "next/server";
 
 import {
   getGoogleCapEventDescriptor,
+  googleCapEventRequiresAuthEffect,
   GoogleCapValidationError,
   handleGoogleCapPayload,
   validateGoogleCapToken,
 } from "@/lib/security/google-cap";
 import {
+  beginGoogleCapEventEffect,
   claimGoogleCapEvent,
   finishGoogleCapEvent,
   type GoogleCapClaim,
@@ -78,7 +80,39 @@ export async function POST(request: Request) {
       return retryResponse(requestId);
     }
 
-    const result = await handleGoogleCapPayload(decoded, claim.userId);
+    let effectUserId = claim.userId;
+    if (googleCapEventRequiresAuthEffect(descriptor.eventType)) {
+      if (!descriptor.googleSubject) {
+        throw new GoogleCapValidationError(
+          "CAP event is missing its required user subject",
+        );
+      }
+      const effect = await beginGoogleCapEventEffect({
+        receiptId: claim.receiptId,
+        claimToken: claim.claimToken,
+        googleSubject: descriptor.googleSubject,
+      });
+      if (effect.decision !== "execute" || !effect.userId) {
+        console.warn("Google CAP event deferred", {
+          requestId,
+          outcome: effect.decision,
+          attemptCount: claim.attemptCount,
+          durationMs: Math.round(performance.now() - startedAt),
+        });
+        return retryResponse(requestId);
+      }
+      effectUserId = effect.userId;
+    }
+
+    const result = await handleGoogleCapPayload(decoded, effectUserId);
+    if (result.settlement === "hold") {
+      console.error("Google CAP Auth outcome requires reconciliation", {
+        requestId,
+        outcome: result.safeOutcome,
+        durationMs: Math.round(performance.now() - startedAt),
+      });
+      return retryResponse(requestId);
+    }
     const succeeded = result.errorCount === 0;
     const settled = await finishGoogleCapEvent({
       receiptId: claim.receiptId,

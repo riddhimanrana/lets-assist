@@ -25,7 +25,7 @@ mock.module("@/lib/supabase/admin", () => ({
   }),
 }));
 
-const { claimGoogleCapEvent, finishGoogleCapEvent } =
+const { beginGoogleCapEventEffect, claimGoogleCapEvent, finishGoogleCapEvent } =
   await import("./google-cap-receipts");
 
 const descriptor = {
@@ -74,6 +74,51 @@ describe("Google CAP durable receipts", () => {
     rpcResult = { data: [{ decision: "execute" }], error: null };
     await expect(
       claimGoogleCapEvent(descriptor, "signed.jwt.token"),
+    ).rejects.toThrow("invalid result");
+  });
+
+  test("revalidates the raw subject through a lease-fenced effect RPC", async () => {
+    rpcResult = {
+      data: [
+        {
+          decision: "execute",
+          user_id: "33333333-3333-4333-8333-333333333333",
+        },
+      ],
+      error: null,
+    };
+
+    expect(
+      await beginGoogleCapEventEffect({
+        receiptId: "11111111-1111-4111-8111-111111111111",
+        claimToken: "22222222-2222-4222-8222-222222222222",
+        googleSubject: "raw-google-subject",
+      }),
+    ).toEqual({
+      decision: "execute",
+      userId: "33333333-3333-4333-8333-333333333333",
+    });
+    expect(rpcCalls[0]).toEqual({
+      name: "begin_google_cap_event_effect",
+      args: {
+        p_receipt_id: "11111111-1111-4111-8111-111111111111",
+        p_claim_token: "22222222-2222-4222-8222-222222222222",
+        p_google_subject: "raw-google-subject",
+      },
+    });
+  });
+
+  test("fails closed when the effect authorization shape is invalid", async () => {
+    rpcResult = {
+      data: [{ decision: "execute", user_id: null }],
+      error: null,
+    };
+    await expect(
+      beginGoogleCapEventEffect({
+        receiptId: "11111111-1111-4111-8111-111111111111",
+        claimToken: "22222222-2222-4222-8222-222222222222",
+        googleSubject: "raw-google-subject",
+      }),
     ).rejects.toThrow("invalid result");
   });
 

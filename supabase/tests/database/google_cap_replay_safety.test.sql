@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(34);
+SELECT extensions.plan(47);
 
 SELECT extensions.has_table(
   'private',
@@ -103,6 +103,33 @@ SELECT extensions.ok(
   'the server role can settle its claimed Google CAP event'
 );
 
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'anon',
+    'public.begin_google_cap_event_effect(uuid,uuid,text)',
+    'EXECUTE'
+  ),
+  'anonymous clients cannot begin Google CAP Auth effects'
+);
+
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    'authenticated',
+    'public.begin_google_cap_event_effect(uuid,uuid,text)',
+    'EXECUTE'
+  ),
+  'authenticated clients cannot begin Google CAP Auth effects'
+);
+
+SELECT extensions.ok(
+  has_function_privilege(
+    'service_role',
+    'public.begin_google_cap_event_effect(uuid,uuid,text)',
+    'EXECUTE'
+  ),
+  'the server role can begin a lease-fenced Google CAP Auth effect'
+);
+
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -193,6 +220,20 @@ SELECT extensions.is(
   ),
   false,
   'a forged claim token cannot settle another worker receipt'
+);
+
+CREATE TEMP TABLE first_effect AS
+SELECT *
+FROM public.begin_google_cap_event_effect(
+  (SELECT receipt_id FROM first_claim),
+  (SELECT claim_token FROM first_claim),
+  'synthetic-google-subject'
+);
+
+SELECT extensions.is(
+  (SELECT decision FROM first_effect),
+  'execute',
+  'the live lease owner fences and revalidates before its Auth effect'
 );
 
 SELECT extensions.is(
@@ -384,14 +425,32 @@ SELECT extensions.is(
   'an initially unlinked Google subject has no resolved local user'
 );
 
-UPDATE private.google_cap_event_receipts
-SET status = 'failed',
-    claim_token = NULL,
-    lease_expires_at = NULL,
-    safe_outcome = 'retryable_failure',
-    action_count = 0,
-    error_count = 1
-WHERE id = (SELECT receipt_id FROM unmapped_claim);
+CREATE TEMP TABLE unmapped_effect AS
+SELECT *
+FROM public.begin_google_cap_event_effect(
+  (SELECT receipt_id FROM unmapped_claim),
+  (SELECT claim_token FROM unmapped_claim),
+  'late-linked-google-subject'
+);
+
+SELECT extensions.is(
+  (SELECT decision FROM unmapped_effect),
+  'no_local_user',
+  'an actionable event without a local identity remains retryable'
+);
+
+SELECT extensions.ok(
+  (
+    SELECT
+      status = 'failed'
+      AND claim_token IS NULL
+      AND safe_outcome = 'no_local_user'
+      AND completed_at IS NULL
+    FROM private.google_cap_event_receipts
+    WHERE id = (SELECT receipt_id FROM unmapped_claim)
+  ),
+  'no-local-user does not permanently complete the actionable receipt'
+);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -492,19 +551,36 @@ SELECT extensions.is(
   'the first claim resolves the identity owner at claim time'
 );
 
-UPDATE private.google_cap_event_receipts
-SET status = 'failed',
-    claim_token = NULL,
-    lease_expires_at = NULL,
-    safe_outcome = 'retryable_failure',
-    action_count = 0,
-    error_count = 1
-WHERE id = (SELECT receipt_id FROM assigned_claim);
-
 UPDATE auth.identities
 SET user_id = 'ca000000-0000-4000-8000-000000000004',
     updated_at = now()
 WHERE id = 'ca100000-0000-4000-8000-000000000003';
+
+CREATE TEMP TABLE reassigned_effect AS
+SELECT *
+FROM public.begin_google_cap_event_effect(
+  (SELECT receipt_id FROM assigned_claim),
+  (SELECT claim_token FROM assigned_claim),
+  'reassigned-google-subject'
+);
+
+SELECT extensions.is(
+  (SELECT decision FROM reassigned_effect),
+  'identity_changed',
+  'identity ownership is revalidated immediately before the Auth effect'
+);
+
+SELECT extensions.ok(
+  (
+    SELECT
+      status = 'failed'
+      AND claim_token IS NULL
+      AND safe_outcome = 'identity_changed'
+    FROM private.google_cap_event_receipts
+    WHERE id = (SELECT receipt_id FROM assigned_claim)
+  ),
+  'an ownership change releases the stale claim without mutating Auth'
+);
 
 SELECT extensions.is(
   (
@@ -520,11 +596,120 @@ SELECT extensions.is(
   'a failed receipt cannot keep acting on a stale identity owner'
 );
 
+INSERT INTO auth.users (
+  id, aud, role, email, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+)
+VALUES (
+  'ca000000-0000-4000-8000-000000000005',
+  'authenticated',
+  'authenticated',
+  'google-cap-takeover@local.test',
+  now(),
+  '{"provider":"google","providers":["google"]}'::jsonb,
+  '{}'::jsonb,
+  now(),
+  now()
+);
+
+INSERT INTO auth.identities (
+  id, provider_id, user_id, identity_data, provider, created_at, updated_at
+)
+VALUES (
+  'ca100000-0000-4000-8000-000000000005',
+  'takeover-google-subject',
+  'ca000000-0000-4000-8000-000000000005',
+  '{"sub":"takeover-google-subject"}'::jsonb,
+  'google',
+  now(),
+  now()
+);
+
+CREATE TEMP TABLE expired_claim AS
+SELECT *
+FROM public.claim_google_cap_event(
+  repeat('8', 64), repeat('9', 64), repeat('0', 64),
+  'https://schemas.openid.net/secevent/risc/event-type/sessions-revoked',
+  timestamptz '2026-08-12 19:05:00+00',
+  'takeover-google-subject'
+);
+
+UPDATE private.google_cap_event_receipts
+SET lease_expires_at = pg_catalog.clock_timestamp() - interval '1 second'
+WHERE id = (SELECT receipt_id FROM expired_claim);
+
+CREATE TEMP TABLE takeover_claim AS
+SELECT *
+FROM public.claim_google_cap_event(
+  repeat('8', 64), repeat('9', 64), repeat('0', 64),
+  'https://schemas.openid.net/secevent/risc/event-type/sessions-revoked',
+  timestamptz '2026-08-12 19:05:00+00',
+  'takeover-google-subject'
+);
+
+SELECT extensions.is(
+  (
+    SELECT decision
+    FROM public.begin_google_cap_event_effect(
+      (SELECT receipt_id FROM expired_claim),
+      (SELECT claim_token FROM expired_claim),
+      'takeover-google-subject'
+    )
+  ),
+  'lease_lost',
+  'an expired worker cannot begin an Auth effect after lease takeover'
+);
+
+SELECT extensions.is(
+  (
+    SELECT decision
+    FROM public.begin_google_cap_event_effect(
+      (SELECT receipt_id FROM takeover_claim),
+      (SELECT claim_token FROM takeover_claim),
+      'takeover-google-subject'
+    )
+  ),
+  'execute',
+  'the current lease owner can atomically fence its Auth effect'
+);
+
+SELECT extensions.throws_ok(
+  $$
+    SELECT public.claim_google_cap_event(
+      repeat('a0', 32), repeat('b0', 32), repeat('0', 64),
+      'https://schemas.openid.net/secevent/risc/event-type/account-enabled',
+      timestamptz '2026-08-12 19:06:00+00',
+      'takeover-google-subject'
+    )
+  $$,
+  '23505',
+  NULL,
+  'an effect-started event remains exclusive and cannot be reclaimed'
+);
+
+SELECT extensions.ok(
+  pg_catalog.pg_get_functiondef(
+    'public.claim_google_cap_event(text,text,text,text,timestamptz,text)'::regprocedure
+  ) NOT LIKE '%identity_data%',
+  'the claim resolver has no unindexed JSON identity fallback'
+);
+
 SELECT extensions.has_index(
   'private',
   'google_cap_event_receipts',
   'google_cap_event_receipts_processing_subject_uidx',
   'one processing receipt per provider identity is enforced by the database'
+);
+
+SELECT extensions.ok(
+  (
+    SELECT pg_catalog.pg_get_expr(index_state.indpred, index_state.indrelid)
+      LIKE '%status = ANY%processing%effect_started%'
+    FROM pg_catalog.pg_index AS index_state
+    WHERE index_state.indexrelid =
+      'private.google_cap_event_receipts_processing_subject_uidx'::regclass
+  ),
+  'the subject uniqueness index covers processing and effect-started receipts'
 );
 
 SELECT * FROM extensions.finish();
