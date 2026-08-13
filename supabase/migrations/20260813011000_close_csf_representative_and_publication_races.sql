@@ -404,6 +404,11 @@ REVOKE ALL ON FUNCTION plugin_data.csf_set_activity_status_locked_impl(
 )
 FROM PUBLIC, anon, authenticated, service_role;
 
+GRANT EXECUTE ON FUNCTION plugin_data.csf_set_activity_status_locked_impl(
+  uuid, uuid, text, text, uuid, uuid
+)
+TO postgres;
+
 COMMENT ON FUNCTION plugin_data.csf_assign_partner_representative(
   uuid, uuid, text, text, text, date, boolean, uuid, uuid
 ) IS

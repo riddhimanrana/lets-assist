@@ -14,9 +14,12 @@ const repairMigrationPath = `supabase/migrations/${REPAIR_MIGRATION_VERSION}_clo
 const repairMigration = existsSync(join(repositoryRoot, repairMigrationPath))
   ? read(repairMigrationPath)
   : "";
-const concurrencyTest = read(
+const concurrencyTest = [
   "supabase/tests/database/csf_activity_partner_authorization_recheck.test.sql",
-);
+  "supabase/tests/database/csf_activity_partner_authorization_controls.test.sql",
+]
+  .map(read)
+  .join("\n");
 const opportunityActions = read(
   "lib/plugins/private/plugins/dvhs-csf/server/actions/opportunities.ts",
 );
@@ -295,6 +298,15 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
     }
   });
 
+  test("the replaced publication implementation grants only its reviewed owner", () => {
+    expect(repairMigration).toMatch(
+      /REVOKE ALL ON FUNCTION plugin_data\.csf_set_activity_status_locked_impl\([\s\S]*?FROM PUBLIC, anon, authenticated, service_role;[\s\S]*?GRANT EXECUTE ON FUNCTION plugin_data\.csf_set_activity_status_locked_impl\([\s\S]*?TO postgres;/u,
+    );
+    expect(repairMigration).not.toMatch(
+      /GRANT EXECUTE ON FUNCTION plugin_data\.csf_set_activity_status_locked_impl\([\s\S]*?TO (?:PUBLIC|anon|authenticated|service_role);/u,
+    );
+  });
+
   test("only the unchanged stable signatures are explicitly service-callable", () => {
     for (const operation of operations) {
       const migration = operationMigration(operation.name);
@@ -397,8 +409,8 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
       );
     }
     for (const requestId of [
-      "f9a00000-0000-4000-8000-000000000008",
-      "f9a00000-0000-4000-8000-000000000009",
+      "faa00000-0000-4000-8000-000000000008",
+      "faa00000-0000-4000-8000-000000000009",
     ]) {
       expect(concurrencyTest).toContain(requestId);
     }
