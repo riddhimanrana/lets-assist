@@ -25,8 +25,10 @@ mock.module("@/lib/supabase/admin", () => ({
   getAdminClient: () => ({ from: () => ({}) }),
 }));
 mock.module("@/app/projects/[id]/server/access", () => ({
-  canUserManageProject: async () => true,
   getProject: async () => ({ project: null, error: null }),
+}));
+mock.module("@/app/projects/[id]/server/access-helpers", () => ({
+  canUserManageProject: async () => true,
 }));
 mock.module("@/lib/supabase/auth-helpers", () => ({
   getAuthUser: async () => ({ user: { id: "clone-user" }, error: null }),
