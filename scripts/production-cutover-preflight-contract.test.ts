@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync, readdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const repositoryRoot = join(import.meta.dir, "..");
@@ -15,6 +23,10 @@ const architectureAudit = readFileSync(
 
 const PRODUCTION_HEAD = "20260811001500";
 const TARGET_HEAD = "20260812203500";
+const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
+const HARD_FAIL_SITES = 27;
+const hardFailStatements =
+  preflight.match(/^[ \t]*SELECT 1 \/ 0 AS preflight_check_failed;$/gmu) ?? [];
 const PENDING_VERSIONS = [
   "20260811063522",
   "20260811073000",
@@ -152,7 +164,11 @@ describe("Production cutover preflight source contract", () => {
     expect(preflight).toContain(
       "current_setting('transaction_read_only') = 'on'",
     );
-    expect(preflight.match(/\\quit 3/gu)?.length ?? 0).toBeGreaterThan(5);
+    expect(preflight).not.toContain("\\quit");
+    expect(hardFailStatements).toHaveLength(HARD_FAIL_SITES);
+    expect([...new Set(hardFailStatements.map((line) => line.trim()))]).toEqual(
+      [HARD_FAIL_STATEMENT],
+    );
     for (const blockingCheck of [
       "read_only_transaction",
       "baseline_shape_ready",
@@ -460,3 +476,119 @@ describe("Production cutover preflight source contract", () => {
     }
   });
 });
+
+function binaryAvailable(binary: string) {
+  return spawnSync(binary, ["--version"], { stdio: "ignore" }).status === 0;
+}
+
+const localPostgresAvailable = ["initdb", "pg_ctl", "psql"].every(
+  binaryAvailable,
+);
+
+function fixtureScript(checkPasses: boolean, failureCommand: string) {
+  return `${[
+    "\\set ON_ERROR_STOP on",
+    "BEGIN TRANSACTION READ ONLY;",
+    `SELECT ${checkPasses} AS check_pass`,
+    "\\gset",
+    "\\if :check_pass",
+    "  \\echo 'PASS FIXTURE'",
+    "\\else",
+    "  \\echo 'FAIL FIXTURE'",
+    `  ${failureCommand}`,
+    "\\endif",
+    "ROLLBACK;",
+  ].join("\n")}\n`;
+}
+
+function withDisposableCluster(
+  assertions: (runFixture: (script: string) => number) => void,
+) {
+  // The cluster lives in a temporary directory and listens on a unix socket
+  // only, so it can never reach or be reached by a hosted database.
+  const root = mkdtempSync(join(tmpdir(), "pf-"));
+  const dataDirectory = join(root, "d");
+  let started = false;
+  try {
+    const initialized = spawnSync(
+      "initdb",
+      ["-D", dataDirectory, "-A", "trust", "-U", "postgres", "--no-sync"],
+      { stdio: "ignore" },
+    );
+    if (initialized.status !== 0) {
+      throw new Error(
+        "initdb could not create the disposable preflight cluster",
+      );
+    }
+    const start = spawnSync(
+      "pg_ctl",
+      [
+        "-D",
+        dataDirectory,
+        "-o",
+        `-k ${root} -c listen_addresses=''`,
+        "-w",
+        "start",
+      ],
+      { stdio: "ignore" },
+    );
+    if (start.status !== 0) {
+      throw new Error(
+        "pg_ctl could not start the disposable preflight cluster",
+      );
+    }
+    started = true;
+    assertions((script) => {
+      const scriptPath = join(root, "fixture.sql");
+      writeFileSync(scriptPath, script);
+      return (
+        spawnSync(
+          "psql",
+          [
+            "-X",
+            "-h",
+            root,
+            "-U",
+            "postgres",
+            "-d",
+            "postgres",
+            "-f",
+            scriptPath,
+          ],
+          { stdio: "ignore" },
+        ).status ?? -1
+      );
+    });
+  } finally {
+    if (started) {
+      spawnSync(
+        "pg_ctl",
+        ["-D", dataDirectory, "-w", "-m", "immediate", "stop"],
+        {
+          stdio: "ignore",
+        },
+      );
+    }
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+// Executing the full Production preflight needs a Production-shaped ledger, so
+// these tests run the identical hard-fail construct inside the same
+// ON_ERROR_STOP / \if guard shape against a throwaway local cluster.
+describe.skipIf(!localPostgresAvailable)(
+  "Production cutover preflight failure branches abort psql",
+  () => {
+    test("a FAIL branch exits non-zero, a PASS control path still exits zero, and \\quit 3 would not have failed", () => {
+      const [firstHardFail] = hardFailStatements;
+      const hardFail = (firstHardFail ?? "").trim();
+      expect(hardFail).toBe(HARD_FAIL_STATEMENT);
+
+      withDisposableCluster((runFixture) => {
+        expect(runFixture(fixtureScript(false, hardFail))).toBe(3);
+        expect(runFixture(fixtureScript(true, hardFail))).toBe(0);
+        expect(runFixture(fixtureScript(false, "\\quit 3"))).toBe(0);
+      });
+    }, 120_000);
+  },
+);

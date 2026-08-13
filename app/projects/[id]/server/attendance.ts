@@ -6,7 +6,7 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { revalidatePath } from "next/cache";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { resolveServerCheckoutTime } from "@/lib/attendance/checkout";
-import { canUserManageProject } from "./access";
+import { canUserManageProject } from "./access-helpers";
 
 /**
  * Manually check in a participant by the project creator
