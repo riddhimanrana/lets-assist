@@ -74,7 +74,10 @@ procedure; this is the DVHS path through them.
    add those terms individually. **Add one semester** is only for restoring a
    genuinely missing record or creating an approved exceptional record. On that
    exceptional form, leave **Current semester** unchecked unless the term is
-   meant to replace the current term immediately.
+   meant to replace the current term immediately. This creates the Class of
+   2030 cohort shell, not student records; populate that class through the new
+   application cycle using the explicit profile and application-resolution
+   sequence below.
 5. **Make Fall 2026 current.** On the Fall 2026 term, open **Term actions** and
    select **Set as current**. Exactly one semester is current at a time.
 6. **Prepare Spring 2027 and Fall 2027 without making either current.** Under
@@ -187,6 +190,15 @@ record through the audited member-correction workflow first, then issue a new
 link.
 
 ## Give a whole class its reusable join link
+
+For Classes of 2027–2029, the historical class sheets do not supply reliable
+account emails. Before publishing a link as an automatic record-discovery path,
+establish a current, unique school or personal email from the approved current
+application cycle or another reviewed current source, then record it through the
+audited member-correction workflow. Never backfill an address from the Spring
+2026 comparison workbook merely to make a match. Without current corroborating
+email evidence, the student can submit a review request, but **Connect account**
+remains unavailable until an officer corrects the record.
 
 1. Open **Members → Account connections**.
 2. Select **Class link**. The dialog is titled **Create a reusable class link**.
@@ -334,21 +346,23 @@ Grant the replacement seat first, confirm it is effective today — a future
 
 ## Import the reviewed Fall 2026 starting records
 
-Use this source order:
+Import exactly these three Spring 2026 class sheets as **Historical records**,
+one class at a time:
 
-1. Preview, reconcile, and—only in the authorized Production cutover—commit the
-   primary `CSF Application - Spring 2026 (Responses)` application seed first.
-   Choose **Applications** as the **Record type**. Its grade and semester values
-   establish the initial class targets. Do not first load a class-history sheet
-   as **Student roster** to manufacture a competing primary identity source.
-2. Only after that application seed is reviewed, process the historical
-   Classes of 2027–2030 sheets as **Historical records**. Reconcile every
-   overlap against the primary application result; never let a historical row
-   silently replace newer application identity or class evidence.
+1. **Class of 2027** — tab `S26`, range `A1:O168`, 167 rows after the header.
+2. **Class of 2028** — tab `S26`, range `A1:O168`, 167 rows after the header.
+3. **Class of 2029** — tab `S26`, range `A1:N89`, 88 rows after the header.
 
-Each source keeps its own immutable preview. **Preview**, **Reconcile**, and
-**Commit** are separate boundaries; a clean preview neither imports rows nor
-authorizes a commit.
+Class of 2026 is out of scope. Do not select, preview, reconcile, or import its
+rows. Skip the template-only Class of 2030 workbook; create Class of 2030
+student records through the new application cycle sequence below instead. Do
+not use the Spring 2026 application response workbook as a Fall 2026 roster
+seed.
+
+Each of the three approved sources keeps its own immutable preview. **Preview**,
+**Reconcile**, and **Commit** are separate boundaries; a clean preview neither
+imports rows nor authorizes a commit. Choose **Historical records**, never
+**Student roster** or **Applications**, as the **Record type** for these sheets.
 
 ### Connect Google first — and connect it yourself
 
@@ -430,23 +444,26 @@ never copy the Development fixture rows or connection links forward.
 
 ### Privacy-safe source totals verified 2026-08-11
 
-| Graduating class | Historical source  | Exact bounded range |             Rows after header |
-| ---------------- | ------------------ | ------------------- | ----------------------------: |
-| 2027             | `c/o 2027` → `S26` | `A1:O168`           |                           167 |
-| 2028             | `c/o 2028` → `S26` | `A1:O168`           |                           167 |
-| 2029             | `c/o 2029` → `S26` | `A1:N89`            |                            88 |
-| 2030             | `c/o 2030` → `F26` | `A1:O1`             | 0; header only, do not import |
+| Graduating class | Historical source  | Exact bounded range | Rows after header |
+| ---------------- | ------------------ | ------------------- | ----------------: |
+| 2027             | `c/o 2027` → `S26` | `A1:O168`           |               167 |
+| 2028             | `c/o 2028` → `S26` | `A1:O168`           |               167 |
+| 2029             | `c/o 2029` → `S26` | `A1:N89`            |                88 |
 
 The three non-empty class sheets contain 422 unique names with no exact
 cross-class overlap. They do not contain reliable account emails, so they are
-historical evidence—not sufficient account-connection evidence by themselves.
+historical evidence, not account-connection evidence. Account connections
+require current canonical evidence: the signed-in account's confirmed address,
+an exact name, and one matching active class, revalidated by the server.
 
-The Spring 2026 application source is `CSF Application - Spring 2026
-(Responses)` → `Form Responses 1`, bounded range `A1:Q518`: 517 response rows,
-516 unique emails/names, and one duplicate response. Its grade distribution is
-90 grade 9, 176 grade 10, 166 grade 11, and 85 grade 12.
+For historical comparison only, the Spring 2026 application source is `CSF
+Application - Spring 2026 (Responses)` → `Form Responses 1`, bounded range
+`A1:Q518`: 517 response rows, 516 unique emails/names, and one duplicate
+response. Its grade distribution is 90 grade 9, 176 grade 10, 166 grade 11, and
+85 grade 12. These aggregates help explain reconciliation differences; they do
+not expand the import scope or authorize an account connection.
 
-Exact-name reconciliation before any commit currently produces:
+The historical exact-name comparison currently produces:
 
 | Fall 2026 class | Application-only | Class-sheet-only | Exact overlap |
 | --------------- | ---------------: | ---------------: | ------------: |
@@ -454,9 +471,52 @@ Exact-name reconciliation before any commit currently produces:
 | 2028            |               11 |                3 |           164 |
 | 2029            |                2 |                0 |            88 |
 
-These differences are a review queue, not errors to auto-resolve. Grade 12
-responses belong to the graduated Class of 2026 and must not be placed in an
-active Fall 2026 class.
+These differences require historical reconciliation, not automatic identity
+resolution. Class of 2026 remains out of scope, and the Class of 2030 template
+remains unimported.
+
+## Create and resolve Class of 2030 from the new application cycle
+
+An application response never creates a student profile, and an application
+decision never creates one. The central application import refuses a row with
+no reviewed profile target. Never select, preview, or import the Class of 2030
+workbook. Use the current application form and this sequence:
+
+1. Keep the Class of 2030 combined class link attached to the reviewed new
+   application form. A student submits that current form before an officer
+   creates or resolves platform records.
+2. Open **More → Imports**, choose **Applications**, select the exact current
+   response file, tab, and bounded range, complete the mapping, and select
+   **Preview normalized rows**. Preview persists source evidence but creates no
+   profile, application, term membership, or account connection.
+3. A row without a reviewed profile is held for reconciliation. Open **Members
+   → Add member**, use **Add a student record**, enter the exact reviewed name
+   and current unique school/personal email, choose **Class** = Class of 2030,
+   and select **Add student record**. Wait for **Student record created.** If a
+   current profile already exists, review it instead of creating a duplicate.
+4. The staff profile action records a replay-safe `profile.create` audit receipt
+   and places the permanent profile in the selected class. It does not create
+   the imported application, term membership, or account connection. The audit
+   receipt identifies the staff write; it does not replace the source-row
+   evidence.
+5. Return to the application preview. Select the profile under **Match to
+   member**, enter a 4–500 character **Match reason** naming the corroborating
+   current evidence, and select **Use match**. Profile creation and import-row
+   reconciliation are two separate audited actions: reconciliation records the
+   selected target, actor, reason, and immutable source-row history. Name
+   similarity alone is not evidence.
+6. Resolve or explicitly skip every row, then select **Verify source and
+   commit**. A targetless application row cannot be committed. Commit attaches
+   the application to the reviewed profile with source provenance; it does not
+   decide the application or create term membership.
+7. Open **Applications → Review queue**, complete the required checks and dues
+   review, and use **Record decision**. **Approve application** creates or
+   updates term membership atomically with the application decision and
+   history. Approving the application creates or updates term membership; it
+   does not create the profile.
+8. Connect the account separately through the exact-email class-link,
+   student-link, or reasoned officer-review path. Neither profile creation nor
+   application processing silently connects an account.
 
 ## Set up Fall 2026 policy only from approved chapter facts
 
@@ -761,9 +821,11 @@ Do not use real chapter rows or credentials until every item is checked:
       revocation, and failure-state checks without committing during rehearsal.
 - [ ] Test every class and student-specific link while signed out or in a
       private window; complete existing-account claim and officer-review paths.
-- [ ] Commit the Spring 2026 application seed before historical class sheets,
-      reconcile counts and identity conflicts, then accept applications,
-      service/points, posts, Communications, and role-aware Help journeys.
+- [ ] Commit only the approved Class of 2027, 2028, and 2029 `S26` historical
+      sheets at their exact bounded ranges; keep Class of 2026 out of scope,
+      skip the Class of 2030 template, create 2030 through the new application
+      cycle, and then accept applications, service/points, posts,
+      Communications, and role-aware Help journeys.
 - [ ] Verify sender domain, consent topics, one-recipient delivery, signed
       webhook reduction, unknown-outcome handling, and Production scheduled-post
       publication without claiming a fixed delivery time.

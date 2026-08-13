@@ -23,6 +23,7 @@ function between(text: string, start: string, end: string) {
 const operatorGuide = flow(
   readRepositoryFile("docs/csf/dvhs-fall-2026-operator-guide.md"),
 );
+const officerRunbook = flow(readRepositoryFile("docs/csf/officer-runbook.md"));
 const testingAndRelease = flow(
   readRepositoryFile("docs/csf/testing-and-release.md"),
 );
@@ -164,6 +165,23 @@ describe("CSF release-state documentation truthfulness guards", () => {
     );
     expect(testingAndRelease).toContain(
       "earlier 618-row/23-column shape must not be used",
+    );
+  });
+
+  test("the officer runbook tracks the exact current cutover ledger", () => {
+    expect(officerRunbook).toContain(
+      "this repository carries 286 ordered migrations through `20260813013300`",
+    );
+    expect(officerRunbook).toContain(
+      "50-migration Production cutover gates remain pending",
+    );
+    expect(officerRunbook).toContain("ordered ledger through `20260813013300`");
+    expect(officerRunbook).toContain("current 286-migration repository ledger");
+    expect(officerRunbook).not.toContain(
+      "this repository carries 277 ordered migrations",
+    );
+    expect(officerRunbook).not.toContain(
+      "41-migration Production cutover gates remain pending",
     );
   });
 

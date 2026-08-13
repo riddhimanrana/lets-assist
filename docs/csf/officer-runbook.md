@@ -1,7 +1,7 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** the August 11 tree's replay/build/DV+CSF browser gates and hosted Development acceptance are historical evidence only. Development is at `20260812073000`; this release-integration repository continues with the unpublished ordered series through `20260812101100`, so exact hosted parity and the final combined replay are pending. The historical Development environment had leaked-password protection enabled, the unused `pg_graphql` extension removed, working Maps/project creation, searchable role-aware Help, and proven controlled email delivery/webhook reduction. Hosted enabled scheduled-post publication, live chapter Google OAuth/Picker/import, remaining visible role mutations, accessibility, Production webhook rotation, and Production cutover remain pending.
+**Current status:** this repository carries 286 ordered migrations through `20260813013300`; hosted Development Supabase remains at 273 through `20260812152300`, and Production remains at 236 through `20260811001500`. The `dev.lets-assist.com` alias still serves Ready code from the earlier 272-migration tree because the external deployment cap blocked a refresh, so neither hosted database parity nor exact-current-code acceptance is established. Google OAuth and Picker are connected: the bounded Spring 2026 application preview stored 85 rows, failed during sealing, and committed zero applications. Reconnect, revocation, failure-state, remaining visible role-mutation, accessibility, Production webhook-rotation, and 50-migration Production cutover gates remain pending.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
@@ -178,7 +178,7 @@ This section is the one-time cutover procedure from Google Classroom + spreadshe
 
 ### 10.1 One-time semester and cohort setup
 
-1. Create cohorts Class of 2027 through Class of 2030 (2026 exists only if seeding history for graduated seniors) and terms Spring 2025, Fall 2025, Spring 2026 (closed) and Fall 2026 (current) through **Classes → Semesters & setup** (§2).
+1. Create cohorts Class of 2027 through Class of 2030 and terms Spring 2025, Fall 2025, Spring 2026 (closed) and Fall 2026 (current) through **Classes → Semesters & setup** (§2). Class of 2026 is out of scope. The Class of 2030 setup creates its cohort and terms only; never import its template workbook. Create each 2030 profile from reviewed current application evidence, then resolve the separate application row to that existing profile as described in §10.3.
 2. In **More → Communications → Settings**, confirm the two stored values for the **Term members** audience: **Consent topic key** and **Resend topic id**. That section holds nothing else — sender domain and provider health are verified outside it, against the provider. An established consent key is read-only, because opt-outs are stored under that exact key; changing one takes a dedicated audited migration. A missing pair keeps broadcast queueing disabled for that audience rather than guessing a scope. Do not use the generic organization-plugin JSON editor; cohort posts email through the same announcements consent topic.
 
 ### 10.2 Legacy data seed (rehearse locally first: `bun run dev`)
@@ -186,17 +186,22 @@ This section is the one-time cutover procedure from Google Classroom + spreadshe
 Import in this order through the existing Sheets workspace preview → commit fence; every commit is staff-approved and reversible only forward:
 
 1. **Club registry and policies** — `rosters/Clubs Points.xlsx`, `rosters/Spring 2025 CSF Returning Clubs Responses.xlsx`, `rosters/CSF Club Audit Spring 2026 Responses.xlsx` as partner-form imports → partner clubs with per-club point policy.
-2. **Member roster** — `rosters/CSF Application Spring 2026 Responses.xlsx` as `application_responses` for Spring 2026. Expect ~517 rows / ~516 unique profiles; grade maps 9→2029, 10→2028, 11→2027, 12→2026.
+2. **Historical class records** — import only Class of 2027 `S26` `A1:O168` (167 rows after the header), Class of 2028 `S26` `A1:O168` (167 rows), and Class of 2029 `S26` `A1:N89` (88 rows) as **Historical records**. Class of 2026 is out of scope: do not select, preview, or import it. Skip the template-only Class of 2030 workbook and create 2030 student records through the new application cycle. These sheets are historical evidence, not account-connection evidence; current canonical email, exact-name, and active-class checks still govern every connection.
 3. **March 2025 chapter attendance** — `rosters/CSF March Meeting Attendance 2025.xlsx` as `meeting_attendance` for Spring 2025. Name-only rows will land ambiguous/unmatched — resolve what you can; `skipped` is an honest terminal state for departed students.
 4. **Per-club Fall 2025 points** — normalize first: `bun run csf:normalize:legacy` (drafts editable mappings under `.artifacts/legacy-csf/mappings/`), review each mapping (sheet selection, club name, excluded rows, points-per-mark), then `bun run csf:normalize:legacy --apply` and upload each normalized workbook from `.artifacts/legacy-csf/normalized/` as a `partner_club_audit` import for Fall 2025.
 
-Acceptance: per-cohort roster counts match the application grade distribution; spot-check at least three clubs' point totals against their source workbooks; ambiguous-row queues triaged to zero or documented.
+Acceptance: the three historical previews use the exact bounded ranges and show 167, 167, and 88 rows respectively; the Class of 2030 template has no import job; spot-check at least three clubs' point totals against their source workbooks; ambiguous-row queues are triaged to zero or documented.
 
 ### 10.3 Student rollout (replaces the four Classroom codes)
 
-1. Create four cohort onboarding links (§4) — one per graduating class, Fall 2026 term, combined link type. These replace the Freshman/Sophomore/Junior/Senior Google Classroom codes everywhere the chapter publishes them.
-2. Students who sign up through a cohort link skip the generic platform tour, confirm **We found your CSF record — is this you?**, pick a username in place, and get the CSF member tour on their **Feed**.
-3. Students whose sign-up email is not on the roster submit a link request; resolve them in **Members → Account connections → Matches to review**. Ranked suggestions help an officer locate evidence, but **Connect account** is not offered at all until stable corroborating identity evidence is present and every hard conflict is cleared. Never expose roster names to students.
+1. For Class of 2030, attach the reviewed new application form to the combined link and keep the template workbook unimported. After a current response arrives, preview it as **Applications**. A targetless response is held for reconciliation and cannot commit.
+2. From that reviewed response, use **Members → Add member → Add a student record** to create the permanent Class of 2030 profile with its current unique email. This replay-safe staff action records `profile.create` audit history but creates no imported application, term membership, or account connection.
+3. Return to the application preview, select the profile under **Match to member**, enter the required 4–500 character **Match reason**, and select **Use match**. This separate audited reconciliation records the target and source-row reason. Only after every row is resolved or skipped may the officer commit; commit attaches the application to the existing profile but does not decide it.
+4. Review the committed application through **Applications → Review queue**. Approval creates or updates term membership atomically with the decision and history; neither the import nor the decision creates the profile. Account connection remains a separate exact-email or reasoned-review action.
+5. Before publishing links for Classes of 2027–2029, establish a current, unique school or personal email on each imported historical profile that is expected to support automatic discovery or a student-specific link. Use the current approved application cycle or another reviewed current source, then record the change through the audited member-correction workflow. Never copy an address from the historical comparison workbook merely to make a match.
+6. Create four cohort onboarding links (§4) — one per graduating class, Fall 2026 term, combined link type. These replace the Freshman/Sophomore/Junior/Senior Google Classroom codes everywhere the chapter publishes them.
+7. A student whose confirmed sign-in email uniquely matches the current email on one same-class profile may see **We found your CSF record — is this you?**, confirm it, pick a username in place, and get the CSF member tour on their **Feed**. The historical class sheet alone can never produce that result.
+8. A student whose current unique email has not been established submits a link request instead. Resolve it in **Members → Account connections → Matches to review**, but understand that **Connect account** remains unavailable until an officer first records current corroborating email evidence through the audited correction workflow. Ranked suggestions only help locate evidence. Never expose roster names to students.
 
 ### 10.4 Posts and announcement email
 
@@ -259,9 +264,9 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Complete green PR checks; least-privilege `PRIVATE_SUBMODULE_TOKEN`, GitGuardian disposition for the removed local-only fixture password, and authenticated Vercel Preview diagnosis remain open
 - [x] Post-hardening production build and full private-plugin unit-suite rerun
 - [ ] Persistent isolated Supabase development branch after explicit `$0.01344/hour` cost confirmation
-- [ ] Re-establish the stable Development alias and prove branch-scoped non-production Supabase parity against the ordered ledger through `20260812101100`; the earlier alias/parity evidence applies only to its historical tree
+- [ ] Re-establish the stable Development alias and prove branch-scoped non-production Supabase parity against the ordered ledger through `20260813013300`; the earlier alias/parity evidence applies only to its historical tree
 - [x] Authorize local and hosted Development Google origins/callbacks, including `http://localhost:3001` and `https://dev.lets-assist.com`
-- [ ] Confirm `dvhighcsf@gmail.com` in-product, then complete Picker, import, reconnect, revocation, and failure-state verification
+- [ ] Complete Google reconnect, revocation, and failure-state verification; the exact chapter identity, Picker selection, and one bounded failed-preview attempt are current Development evidence, not full import acceptance
 - [ ] Complete synthetic visible mutation lifecycle for every actor
 - [ ] Keyboard, focus, and screen-reader acceptance
 - [ ] Three native Google Slides decks created and visually accepted
@@ -276,6 +281,6 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Prove an enabled hosted scheduled-post worker invocation and visible synthetic schedule → Feed transition before relying on it in that environment
 - [x] Configure and repeatedly verify hosted `csf-communications-dispatch`; document that GitHub scheduling is irregular and does not promise fixed-time delivery
 
-No live chapter Google OAuth/Picker/Drive import or Google write has been performed. Development uses a separate hosted Supabase project, but exact parity with the current 268-migration integration ledger has not been re-established. Production has been inspected read-only but not mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.
+Live chapter Google OAuth, Picker selection, and one bounded Development preview have been performed; the preview stopped at its failed seal after storing 85 rows and committed zero applications. No chapter import commit or Google write has been performed. Development uses a separate hosted Supabase project, but exact parity with the current 286-migration repository ledger and exact-current-code alias evidence have not been established. Production has been inspected read-only but not mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.
 
 See [testing and release](testing-and-release.md) for current evidence and residual risk. See the [product contract](product-contract.md) for the full product, permission, data, and acceptance contracts.
