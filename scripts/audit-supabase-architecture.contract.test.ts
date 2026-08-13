@@ -549,7 +549,7 @@ describe("Supabase architecture audit source contract", () => {
 
   test("keeps both new pgTAP plans exact", () => {
     expect(pgTapPlan(storagePgtap)).toEqual({ actual: 25, declared: 25 });
-    expect(pgTapPlan(relationPgtap)).toEqual({ actual: 15, declared: 15 });
+    expect(pgTapPlan(relationPgtap)).toEqual({ actual: 16, declared: 16 });
   });
 
   test("reconciles relation and independent column ACL layers", () => {

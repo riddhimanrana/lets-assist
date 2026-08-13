@@ -3,9 +3,9 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** This repository carries 274 ordered migrations through the atomic
-staff-invite issuer-redemption boundary. Hosted Development Supabase remains at
-273 through the preceding atomic post-reply boundary. The
+**Status:** This repository carries 275 ordered migrations through the
+staff-invite issuer capability guard. Hosted Development Supabase remains at 273
+through the preceding atomic post-reply boundary. The
 `dev.lets-assist.com` alias still serves the earlier Ready code at
 `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository tree ended at 272
 through `20260812132725`, because the external Vercel 100-deployment-per-day
@@ -22,13 +22,13 @@ only.
 
 ## Current hosted Development state
 
-- The repository branch has 274 ordered migrations through
-  `20260812185500_atomic_staff_invite_issuer_redemption`.
+- The repository branch has 275 ordered migrations through
+  `20260812193400_protect_staff_invite_issuer_capability`.
 - Hosted Development Supabase remains at 273 ordered migrations through
   `20260812152300_atomic_csf_post_replies`; it has not received the repository's
-  new staff-invite issuer-redemption migration.
+  two staff-invite issuer migrations.
 - Production remains at 236 ordered migrations through `20260811001500`; the
-  38-migration cutover has not run.
+  39-migration cutover has not run.
 - The last accepted Development advisor snapshot was captured on the preceding
   272-migration shape: 95 INFO, 0 WARN, and 0 ERROR security findings, plus 611
   INFO, 0 WARN, and 0 ERROR performance findings. Those counts have not been
@@ -382,8 +382,8 @@ The current officer procedure is documented in the [officer runbook](officer-run
   unexecuted.
 - Development uses a distinct hosted Supabase project. Its database remains at
   273 ordered migrations through `20260812152300_atomic_csf_post_replies`; this
-  repository branch has 274 through
-  `20260812185500_atomic_staff_invite_issuer_redemption`. The Ready alias still serves
+  repository branch has 275 through
+  `20260812193400_protect_staff_invite_issuer_capability`. The Ready alias still serves
   development SHA `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository
   tree ended at 272 through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`; the external Vercel
