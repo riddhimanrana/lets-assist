@@ -521,68 +521,100 @@ test.describe("officer post compose in the class Stream", () => {
     } catch (error) {
       testFailure = error instanceof Error ? error : new Error(String(error));
     } finally {
-      let campaignIdForCleanup = queuedCampaignId;
-      if (!campaignIdForCleanup) {
-        const { data: queuedAnnouncement, error: recoveryError } =
-          await fixture.admin
-            .schema("plugin_data")
-            .from("csf_announcements")
-            .select("id, body, email_campaign_id")
-            .eq("organization_id", fixture.organizationId)
-            .eq("title", queuedTitle)
-            .maybeSingle();
-        if (recoveryError) {
-          recordCleanupFailure(
-            "Could not recover the synthetic announcement for campaign cleanup",
-            recoveryError,
-          );
-        } else if (queuedAnnouncement) {
-          if (!queuedAnnouncement.body.includes(queuedBody)) {
+      try {
+        let campaignIdForCleanup = queuedCampaignId;
+        let postCleanupAllowed = false;
+
+        if (!campaignIdForCleanup) {
+          try {
+            const { data: queuedAnnouncement, error: recoveryError } =
+              await fixture.admin
+                .schema("plugin_data")
+                .from("csf_announcements")
+                .select("id, body, email_campaign_id")
+                .eq("organization_id", fixture.organizationId)
+                .eq("title", queuedTitle)
+                .maybeSingle();
+            if (recoveryError) {
+              recordCleanupFailure(
+                "Could not recover the synthetic announcement for campaign cleanup",
+                recoveryError,
+              );
+            } else if (!queuedAnnouncement) {
+              postCleanupAllowed = true;
+            } else if (!queuedAnnouncement.body.includes(queuedBody)) {
+              recordCleanupFailure(
+                "Recovered announcement did not match the synthetic body marker",
+              );
+            } else if (queuedAnnouncement.email_campaign_id) {
+              campaignIdForCleanup = queuedAnnouncement.email_campaign_id;
+            } else {
+              postCleanupAllowed = true;
+            }
+          } catch (error) {
             recordCleanupFailure(
-              "Recovered announcement did not match the synthetic body marker",
-            );
-          } else if (queuedAnnouncement.email_campaign_id) {
-            campaignIdForCleanup = queuedAnnouncement.email_campaign_id;
-          } else {
-            recordCleanupFailure(
-              "Recovered synthetic announcement has no campaign link to cancel",
+              "Could not recover the synthetic announcement for campaign cleanup",
+              error,
             );
           }
         }
-      }
-      if (campaignIdForCleanup) {
-        const { error: cancelError } = await fixture.admin
-          .schema("plugin_data")
-          .rpc("csf_cancel_communication_campaign", {
-            p_organization_id: fixture.organizationId,
-            p_campaign_id: campaignIdForCleanup,
-            p_reason: "Synthetic browser acceptance cleanup.",
-            p_actor_user_id: fixture.organizationAdminUserId,
-            p_correlation_id: randomUUID(),
-          });
-        if (cancelError) {
-          recordCleanupFailure(
-            "Could not cancel the synthetic campaign",
-            cancelError,
-          );
+
+        if (campaignIdForCleanup) {
+          try {
+            const { error: cancelError } = await fixture.admin
+              .schema("plugin_data")
+              .rpc("csf_cancel_communication_campaign", {
+                p_organization_id: fixture.organizationId,
+                p_campaign_id: campaignIdForCleanup,
+                p_reason: "Synthetic browser acceptance cleanup.",
+                p_actor_user_id: fixture.organizationAdminUserId,
+                p_correlation_id: randomUUID(),
+              });
+            if (cancelError) {
+              recordCleanupFailure(
+                "Could not cancel the synthetic campaign",
+                cancelError,
+              );
+            } else {
+              postCleanupAllowed = true;
+            }
+          } catch (error) {
+            recordCleanupFailure(
+              "Could not cancel the synthetic campaign",
+              error,
+            );
+          }
         }
-      }
-      try {
-        await cleanFeedPosts(fixture, queuedTitle);
+
+        if (postCleanupAllowed) {
+          try {
+            await cleanFeedPosts(fixture, queuedTitle);
+          } catch (error) {
+            recordCleanupFailure("Could not clean the synthetic post", error);
+          }
+        }
       } catch (error) {
-        recordCleanupFailure("Could not clean the synthetic post", error);
-      }
-      if (originalConfiguration) {
-        const { error: restoreError } = await fixture.admin
-          .from("organization_plugin_installs")
-          .update({ configuration: originalConfiguration })
-          .eq("organization_id", fixture.organizationId)
-          .eq("plugin_key", PLUGIN_KEY);
-        if (restoreError) {
-          recordCleanupFailure(
-            "Could not restore the isolated CSF plugin configuration",
-            restoreError,
-          );
+        recordCleanupFailure("Unexpected queued-email cleanup failure", error);
+      } finally {
+        if (originalConfiguration) {
+          try {
+            const { error: restoreError } = await fixture.admin
+              .from("organization_plugin_installs")
+              .update({ configuration: originalConfiguration })
+              .eq("organization_id", fixture.organizationId)
+              .eq("plugin_key", PLUGIN_KEY);
+            if (restoreError) {
+              recordCleanupFailure(
+                "Could not restore the isolated CSF plugin configuration",
+                restoreError,
+              );
+            }
+          } catch (error) {
+            recordCleanupFailure(
+              "Could not restore the isolated CSF plugin configuration",
+              error,
+            );
+          }
         }
       }
     }
