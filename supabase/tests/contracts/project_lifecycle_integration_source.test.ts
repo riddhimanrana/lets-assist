@@ -138,15 +138,30 @@ describe("combined project lifecycle source contract", () => {
       "receipts.recurrence_generation_id = v_generation_id",
     );
     expect(privateSeriesEndFunction).toContain(
+      "v_prior_receipt.update_fingerprint",
+    );
+    expect(privateSeriesEndFunction).toContain(
+      "project series end request does not match committed edit",
+    );
+    expect(
+      privateSeriesEndFunction.indexOf("RETURN pg_catalog.jsonb_build_object("),
+    ).toBeLessThan(privateSeriesEndFunction.indexOf("v_edited :="));
+    expect(privateSeriesEndFunction).toContain(
       "project recurrence generation changed; refresh required",
     );
     expect(privateSeriesEndFunction).toContain(
       "v_compatibility_current AND v_generation_id IS NULL",
     );
     expect(privateSeriesEndFunction).toMatch(
-      /v_compatibility_current[\s\S]*children\.status = 'cancelled'[\s\S]*v_outcome := 'replayed'/,
+      /v_compatibility_current[\s\S]*children\.status = 'cancelled'[\s\S]*'outcome', 'replayed'/,
     );
     expect(privateSeriesEndFunction).toContain("v_outcome := 'unchanged'");
+    expect(repairMigration).toContain(
+      "CREATE TRIGGER project_series_end_receipts_reject_update",
+    );
+    expect(repairMigration).not.toContain(
+      "ON CONFLICT (project_id, recurrence_generation_id) DO UPDATE",
+    );
     expect(privateSeriesEndFunction).toMatch(
       /SET[\s\S]*recurrence_rule = NULL/,
     );

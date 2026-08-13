@@ -53,6 +53,8 @@ CREATE TABLE private.project_series_end_receipts (
   project_id uuid NOT NULL
     REFERENCES public.projects(id) ON DELETE CASCADE,
   recurrence_generation_id uuid NOT NULL,
+  update_fingerprint text NOT NULL
+    CHECK (update_fingerprint ~ '^[0-9a-f]{64}$'),
   calendar_cleanup_project_ids jsonb NOT NULL DEFAULT '[]'::jsonb
     CHECK (
       pg_catalog.jsonb_typeof(calendar_cleanup_project_ids) = 'array'
@@ -65,12 +67,35 @@ CREATE TABLE private.project_series_end_receipts (
 
 REVOKE ALL ON TABLE private.project_series_end_receipts
   FROM PUBLIC, anon, authenticated, service_role;
-GRANT SELECT, INSERT, UPDATE, DELETE
+GRANT SELECT, INSERT, DELETE
   ON TABLE private.project_series_end_receipts
   TO postgres;
 
 COMMENT ON TABLE private.project_series_end_receipts IS
-  'Generation-bound replay marker for atomic recurring-series endings, including series that had no eligible child occurrences.';
+  'Immutable generation-and-edit-bound replay marker for atomic recurring-series endings, including series that had no eligible child occurrences.';
+COMMENT ON COLUMN private.project_series_end_receipts.update_fingerprint IS
+  'SHA-256 digest of the canonical ordinary parent edit bound to this recurrence generation.';
+
+CREATE FUNCTION private.reject_project_series_end_receipt_update()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  RAISE EXCEPTION 'project series end receipts are immutable'
+    USING ERRCODE = '55000';
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.reject_project_series_end_receipt_update()
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.reject_project_series_end_receipt_update()
+  TO postgres;
+
+CREATE TRIGGER project_series_end_receipts_reject_update
+BEFORE UPDATE ON private.project_series_end_receipts
+FOR EACH ROW
+EXECUTE FUNCTION private.reject_project_series_end_receipt_update();
 
 -- Keep the mature cancellation implementation intact behind an exact-active
 -- authorization wrapper. The wrapper and delegated transaction hold the same
@@ -758,6 +783,7 @@ DECLARE
   v_generation_supplied boolean := false;
   v_expect_ordinary boolean := false;
   v_compatibility_current boolean := false;
+  v_update_fingerprint text;
 BEGIN
   IF v_actor_id IS NULL
     OR p_project_id IS NULL
@@ -846,6 +872,22 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
+  v_update_fingerprint := pg_catalog.encode(
+    extensions.digest(
+      pg_catalog.convert_to(
+        (
+          p_updates
+            - 'series_end_generation'
+            - 'series_end_expect_ordinary'
+            - 'series_end_compatibility_current'
+        )::text,
+        'UTF8'
+      ),
+      'sha256'
+    ),
+    'hex'
+  );
+
   SELECT parents.*
   INTO v_parent
   FROM public.projects AS parents
@@ -892,6 +934,41 @@ BEGIN
     IF NOT FOUND THEN
       RAISE EXCEPTION 'recurring project permission denied'
         USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  IF v_parent.recurrence_rule IS NULL
+    AND v_generation_id IS NOT NULL
+    AND NOT v_expect_ordinary
+  THEN
+    SELECT receipts.*
+    INTO v_prior_receipt
+    FROM private.project_series_end_receipts AS receipts
+    WHERE receipts.project_id = p_project_id
+      AND receipts.recurrence_generation_id = v_generation_id
+    FOR SHARE;
+
+    IF FOUND THEN
+      IF NOT v_compatibility_current
+        AND v_prior_receipt.update_fingerprint
+          IS DISTINCT FROM v_update_fingerprint
+      THEN
+        RAISE EXCEPTION 'project series end request does not match committed edit'
+          USING ERRCODE = '40001';
+      END IF;
+
+      RETURN pg_catalog.jsonb_build_object(
+        'outcome', 'replayed',
+        'endedRecurringSeries', true,
+        'cancelledOccurrences', 0,
+        'calendarCleanupProjectIds',
+          v_prior_receipt.calendar_cleanup_project_ids
+      );
+    END IF;
+
+    IF v_generation_supplied THEN
+      RAISE EXCEPTION 'project recurrence generation is stale'
+        USING ERRCODE = '40001';
     END IF;
   END IF;
 
@@ -948,30 +1025,24 @@ BEGIN
         AND children.status = 'cancelled';
 
       IF pg_catalog.jsonb_array_length(v_cleanup_ids) > 0 THEN
-        v_outcome := 'replayed';
+        RETURN pg_catalog.jsonb_build_object(
+          'outcome', 'replayed',
+          'endedRecurringSeries', true,
+          'cancelledOccurrences', 0,
+          'calendarCleanupProjectIds', v_cleanup_ids
+        );
       ELSE
-        v_outcome := 'unchanged';
-        v_ended_recurring_series := false;
+        RETURN pg_catalog.jsonb_build_object(
+          'outcome', 'unchanged',
+          'endedRecurringSeries', false,
+          'cancelledOccurrences', 0,
+          'calendarCleanupProjectIds', '[]'::jsonb
+        );
       END IF;
     ELSE
-      SELECT receipts.*
-      INTO v_prior_receipt
-      FROM private.project_series_end_receipts AS receipts
-      WHERE receipts.project_id = p_project_id
-        AND receipts.recurrence_generation_id = v_generation_id
-      FOR SHARE;
-
-      IF FOUND THEN
-        v_cleanup_ids := v_prior_receipt.calendar_cleanup_project_ids;
-        v_outcome := 'replayed';
-      ELSIF v_generation_supplied THEN
-        RAISE EXCEPTION 'project recurrence generation is stale'
-          USING ERRCODE = '40001';
-      ELSE
-        v_cleanup_ids := '[]'::jsonb;
-        v_outcome := 'unchanged';
-        v_ended_recurring_series := false;
-      END IF;
+      v_cleanup_ids := '[]'::jsonb;
+      v_outcome := 'unchanged';
+      v_ended_recurring_series := false;
     END IF;
   ELSE
     IF v_generation_id IS NULL
@@ -1018,6 +1089,7 @@ BEGIN
     INSERT INTO private.project_series_end_receipts (
       project_id,
       recurrence_generation_id,
+      update_fingerprint,
       calendar_cleanup_project_ids,
       cancelled_occurrences,
       ended_at
@@ -1025,16 +1097,11 @@ BEGIN
     VALUES (
       p_project_id,
       v_generation_id,
+      v_update_fingerprint,
       v_cleanup_ids,
       v_cancelled_count,
       pg_catalog.statement_timestamp()
-    )
-    ON CONFLICT (project_id, recurrence_generation_id) DO UPDATE
-    SET
-      calendar_cleanup_project_ids =
-        EXCLUDED.calendar_cleanup_project_ids,
-      cancelled_occurrences = EXCLUDED.cancelled_occurrences,
-      ended_at = EXCLUDED.ended_at;
+    );
 
     v_outcome := 'ended';
   END IF;

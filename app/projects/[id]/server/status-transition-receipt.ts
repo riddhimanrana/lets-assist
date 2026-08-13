@@ -36,12 +36,18 @@ export function getExactProjectStatusTransitionReceipt(
     return null;
   }
 
-  if (
-    (receipt.outcome === "transitioned" &&
-      receipt.previousStatus === receipt.status) ||
-    (receipt.outcome === "replayed" &&
-      receipt.previousStatus !== receipt.status)
-  ) {
+  const isTransition =
+    receipt.outcome === "transitioned" &&
+    ((receipt.previousStatus === "upcoming" &&
+      (receipt.status === "in-progress" || receipt.status === "completed")) ||
+      (receipt.previousStatus === "in-progress" &&
+        receipt.status === "completed"));
+  const isReplay =
+    receipt.outcome === "replayed" &&
+    (receipt.status === "in-progress" || receipt.status === "completed") &&
+    receipt.previousStatus === receipt.status;
+
+  if (!isTransition && !isReplay) {
     return null;
   }
 

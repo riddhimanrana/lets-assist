@@ -843,25 +843,29 @@ contrary to the current public-function boundary.
 
 **Local evidence:** the source contract asserts the parent lock, private call to
 the canonical cancellation transaction, fixed empty paths, public invoker
-wrapper, and absence of a public definer. The pgTAP transaction and two-session
-serialization proofs, architecture audit, and fresh replay pass. The exact
-merged candidate now replays 279 ordered migrations, retains rejection and
-lifecycle entries in both reviewed public ACL catalogs, and orders the `161500`
-rejection transaction before the `215733` union guard. The three inherited #152
-assertions now prove that active administrators cannot bypass capacity-safe
-approval or unrejection through a direct browser update, while manager and
-participant cancellation remain available. The full generated isolated gate
-passes 132 database files and 5,459 pgTAP assertions. Hosted Development and
-Production were not moved.
+wrapper, immutable generation-and-edit-bound replay receipt, and absence of a
+public definer. The pgTAP transaction and two-session serialization proofs cover
+status versus cancellation, child generation versus series ending, and
+membership revocation before locked authority recheck; the architecture audit
+and fresh replay also pass. The exact merged candidate now replays 279 ordered
+migrations, retains rejection and lifecycle entries in both reviewed public ACL
+catalogs, and orders the `161500` rejection transaction before the `215733`
+union guard. The three inherited #152 assertions now prove that active
+administrators cannot bypass capacity-safe approval or unrejection through a
+direct browser update, while manager and participant cancellation remain
+available. The full generated isolated gate passes 132 database files and 5,475
+pgTAP assertions. Hosted Development and Production were not moved.
 
 **Local resolution candidate:** the one-argument public SECURITY INVOKER
 signature remains as a compatibility wrapper. A new two-argument invoker
 overload delegates to a private transaction that locks the parent and child
 rows, applies a strict allowlist of ordinary edits, delegates every eligible
 child to canonical cancellation, clears recurrence, and persists the locked
-cleanup decision in a private replay marker, including zero-child series.
-Constraint failure rolls the entire edit and all child cancellations back. The
-ledger tail also reapplies the combined
+cleanup decision in a private replay marker, including zero-child series. The
+marker binds the exact canonical ordinary edit to the recurrence generation;
+exact retries return before mutating the parent, while mismatched reuse is
+rejected. Constraint failure rolls the entire edit and all child cancellations
+back. The ledger tail also reapplies the combined
 approval/attendance/rejection signup guard so #152 remains compatible.
 
 **Hosted resolution:** not applied or verified on hosted Development. Production

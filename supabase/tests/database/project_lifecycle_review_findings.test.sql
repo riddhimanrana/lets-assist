@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(67);
+SELECT extensions.plan(74);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -212,6 +212,12 @@ SELECT recurrence_generation_id AS generation_id
 FROM public.projects
 WHERE id = 'f9200000-0000-4000-8000-000000000010';
 GRANT SELECT ON zero_child_series_generation TO authenticated;
+
+CREATE TEMP TABLE recurring_parent_generation AS
+SELECT recurrence_generation_id AS generation_id
+FROM public.projects
+WHERE id = 'f9200000-0000-4000-8000-000000000005';
+GRANT SELECT ON recurring_parent_generation TO authenticated;
 
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" =
@@ -827,7 +833,15 @@ SET LOCAL "request.jwt.claims" =
   '{"sub":"f9000000-0000-4000-8000-000000000001","role":"authenticated"}';
 CREATE TEMP TABLE recurring_series_receipt AS
 SELECT public.end_recurring_project_series_transactional(
-  'f9200000-0000-4000-8000-000000000005'
+  'f9200000-0000-4000-8000-000000000005',
+  jsonb_build_object(
+    'recurrence_rule', NULL,
+    'title', 'Committed series title',
+    'series_end_generation', (
+      SELECT generation_id::text
+      FROM recurring_parent_generation
+    )
+  )
 ) AS receipt;
 RESET ROLE;
 
@@ -841,6 +855,12 @@ SELECT extensions.is(
    WHERE id = 'f9200000-0000-4000-8000-000000000005'),
   NULL::jsonb,
   'series ending clears the parent recurrence rule'
+);
+SELECT extensions.is(
+  (SELECT title FROM public.projects
+   WHERE id = 'f9200000-0000-4000-8000-000000000005'),
+  'Committed series title',
+  'series ending commits its ordinary parent edit'
 );
 SELECT extensions.is(
   (SELECT status FROM public.projects
@@ -863,6 +883,78 @@ SELECT extensions.is(
   (SELECT receipt->>'cancelledOccurrences' FROM recurring_series_receipt),
   '1',
   'series ending reports the exact number of children it cancelled'
+);
+SELECT extensions.ok(
+  (
+    SELECT update_fingerprint ~ '^[0-9a-f]{64}$'
+    FROM private.project_series_end_receipts
+    WHERE project_id = 'f9200000-0000-4000-8000-000000000005'
+  ),
+  'the generation receipt stores a canonical edit fingerprint'
+);
+SELECT extensions.throws_ok(
+  $$UPDATE private.project_series_end_receipts
+    SET ended_at = pg_catalog.clock_timestamp()
+    WHERE project_id = 'f9200000-0000-4000-8000-000000000005'$$,
+  '55000',
+  'project series end receipts are immutable',
+  'the committed generation receipt cannot be rewritten'
+);
+UPDATE public.projects
+SET title = 'Intervening series title'
+WHERE id = 'f9200000-0000-4000-8000-000000000005';
+
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f9000000-0000-4000-8000-000000000001","role":"authenticated"}';
+SELECT extensions.is(
+  public.end_recurring_project_series_transactional(
+    'f9200000-0000-4000-8000-000000000005',
+    jsonb_build_object(
+      'recurrence_rule', NULL,
+      'title', 'Committed series title',
+      'series_end_generation', (
+        SELECT generation_id::text
+        FROM recurring_parent_generation
+      )
+    )
+  )->>'outcome',
+  'replayed',
+  'an exact series retry replays its immutable receipt'
+);
+RESET ROLE;
+SELECT extensions.is(
+  (SELECT title FROM public.projects
+   WHERE id = 'f9200000-0000-4000-8000-000000000005'),
+  'Intervening series title',
+  'an exact retry cannot overwrite an intervening ordinary edit'
+);
+
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"f9000000-0000-4000-8000-000000000001","role":"authenticated"}';
+SELECT extensions.throws_ok(
+  $$SELECT public.end_recurring_project_series_transactional(
+    'f9200000-0000-4000-8000-000000000005',
+    jsonb_build_object(
+      'recurrence_rule', NULL,
+      'title', 'Mismatched retry title',
+      'series_end_generation', (
+        SELECT generation_id::text
+        FROM recurring_parent_generation
+      )
+    )
+  )$$,
+  '40001',
+  'project series end request does not match committed edit',
+  'a generation receipt cannot be rebound to different ordinary edits'
+);
+RESET ROLE;
+SELECT extensions.is(
+  (SELECT title FROM public.projects
+   WHERE id = 'f9200000-0000-4000-8000-000000000005'),
+  'Intervening series title',
+  'a mismatched retry leaves the intervening edit intact'
 );
 SET LOCAL ROLE service_role;
 SELECT extensions.throws_ok(

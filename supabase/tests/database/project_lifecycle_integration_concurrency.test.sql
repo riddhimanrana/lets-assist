@@ -4,7 +4,7 @@
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(17);
+SELECT extensions.plan(26);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -18,13 +18,16 @@ VALUES
   ('ef000000-0000-4000-8000-000000000003', 'authenticated', 'authenticated',
    'integration-vol-two@local.test', now(), '{}', '{}', now(), now()),
   ('ef000000-0000-4000-8000-000000000004', 'authenticated', 'authenticated',
-   'integration-inactive-admin@local.test', now(), '{}', '{}', now(), now());
+   'integration-inactive-admin@local.test', now(), '{}', '{}', now(), now()),
+  ('ef000000-0000-4000-8000-000000000005', 'authenticated', 'authenticated',
+   'integration-active-staff@local.test', now(), '{}', '{}', now(), now());
 
 UPDATE public.profiles
 SET email = CASE id
   WHEN 'ef000000-0000-4000-8000-000000000001'::uuid THEN 'integration-owner@local.test'
   WHEN 'ef000000-0000-4000-8000-000000000002'::uuid THEN 'integration-vol-one@local.test'
   WHEN 'ef000000-0000-4000-8000-000000000003'::uuid THEN 'integration-vol-two@local.test'
+  WHEN 'ef000000-0000-4000-8000-000000000005'::uuid THEN 'integration-active-staff@local.test'
   ELSE 'integration-inactive-admin@local.test'
 END
 WHERE id::text LIKE 'ef000000-0000-4000-8000-00000000000%';
@@ -39,12 +42,19 @@ VALUES (
 );
 
 INSERT INTO public.organization_members (organization_id, user_id, role, status)
-VALUES (
-  'ef100000-0000-4000-8000-000000000001',
-  'ef000000-0000-4000-8000-000000000004',
-  'admin',
-  'inactive'
-);
+VALUES
+  (
+    'ef100000-0000-4000-8000-000000000001',
+    'ef000000-0000-4000-8000-000000000004',
+    'admin',
+    'inactive'
+  ),
+  (
+    'ef100000-0000-4000-8000-000000000001',
+    'ef000000-0000-4000-8000-000000000005',
+    'staff',
+    'active'
+  );
 
 INSERT INTO public.projects (
   id, creator_id, organization_id, title, location, description, event_type,
@@ -71,6 +81,20 @@ VALUES
    'Inactive admin denied', 'Local', 'Integration fixture',
    'oneTime', 'manual',
    '{"oneTime":{"date":"2030-09-03","startTime":"10:00","endTime":"12:00","volunteers":10}}',
+   true, 'upcoming'),
+  ('ef200000-0000-4000-8000-000000000007',
+   'ef000000-0000-4000-8000-000000000001',
+   'ef100000-0000-4000-8000-000000000001',
+   'Cancellation wins status race', 'Local', 'Integration fixture',
+   'oneTime', 'manual',
+   '{"oneTime":{"date":"2030-09-07","startTime":"10:00","endTime":"12:00","volunteers":10}}',
+   true, 'upcoming'),
+  ('ef200000-0000-4000-8000-000000000008',
+   'ef000000-0000-4000-8000-000000000001',
+   'ef100000-0000-4000-8000-000000000001',
+   'Membership revocation wins status race', 'Local', 'Integration fixture',
+   'oneTime', 'manual',
+   '{"oneTime":{"date":"2030-09-08","startTime":"10:00","endTime":"12:00","volunteers":10}}',
    true, 'upcoming');
 
 INSERT INTO public.projects (
@@ -95,7 +119,16 @@ VALUES
    'oneTime', 'manual',
    '{"oneTime":{"date":"2030-09-11","startTime":"10:00","endTime":"12:00","volunteers":10}}',
    true, 'upcoming', NULL,
-   'ef200000-0000-4000-8000-000000000004', 1, '2030-09-11');
+   'ef200000-0000-4000-8000-000000000004', 1, '2030-09-11'),
+  ('ef200000-0000-4000-8000-000000000006',
+   'ef000000-0000-4000-8000-000000000001',
+   'ef100000-0000-4000-8000-000000000001',
+   'Series generation race parent', 'Local', 'Integration fixture',
+   'oneTime', 'manual',
+   '{"oneTime":{"date":"2030-09-06","startTime":"10:00","endTime":"12:00","volunteers":10}}',
+   true, 'upcoming',
+   '{"frequency":"weekly","interval":1,"end_type":"never"}',
+   NULL, NULL, NULL);
 
 INSERT INTO public.project_signups
   (id, project_id, user_id, schedule_id, status, created_at)
@@ -348,6 +381,199 @@ SELECT extensions.is(
    WHERE project_id = 'ef200000-0000-4000-8000-000000000005'),
   0::bigint,
   'the ineligible child creates no cancellation receipt'
+);
+
+SELECT extensions.dblink_disconnect('project_lifecycle_integration_probe');
+SELECT extensions.dblink_connect(
+  'project_lifecycle_integration_probe',
+  'hostaddr=' || host(inet_server_addr()) ||
+  ' port=' || current_setting('port') ||
+  ' dbname=' || current_database() ||
+  ' user=' || current_user ||
+  ' password=' || current_user ||
+  ' sslmode=disable'
+);
+SELECT extensions.dblink_exec(
+  'project_lifecycle_integration_probe',
+  'SET ROLE authenticated'
+);
+SELECT extensions.dblink_exec(
+  'project_lifecycle_integration_probe',
+  'SET "request.jwt.claims" = ''{"sub":"ef000000-0000-4000-8000-000000000001","role":"authenticated"}'''
+);
+
+-- Cancellation and ordinary status transitions serialize on the project row.
+-- A transition that queued second must refresh the committed cancellation.
+BEGIN;
+SELECT 1
+FROM public.projects
+WHERE id = 'ef200000-0000-4000-8000-000000000007'
+FOR UPDATE;
+
+SELECT extensions.dblink_send_query(
+  'project_lifecycle_integration_probe',
+  $$SELECT public.transition_project_status_transactional(
+    'ef200000-0000-4000-8000-000000000007', 'in-progress'
+  )::text$$
+);
+SELECT pg_sleep(0.25);
+SELECT extensions.is(
+  extensions.dblink_is_busy('project_lifecycle_integration_probe'),
+  1,
+  'status transition waits while cancellation owns the project boundary'
+);
+
+SET LOCAL request.jwt.claims =
+  '{"sub":"ef000000-0000-4000-8000-000000000001","role":"authenticated"}';
+SET LOCAL ROLE authenticated;
+SELECT public.cancel_project_transactional(
+  'ef200000-0000-4000-8000-000000000007', 'Cancellation won status race'
+);
+RESET ROLE;
+COMMIT;
+
+SELECT *
+FROM extensions.dblink_get_result(
+  'project_lifecycle_integration_probe', false
+) AS result(payload text);
+SELECT extensions.ok(
+  extensions.dblink_error_message('project_lifecycle_integration_probe')
+    LIKE '%project status transition is not allowed%',
+  'the waiting status transition refuses the committed cancellation'
+);
+SELECT extensions.is(
+  (SELECT status FROM public.projects
+   WHERE id = 'ef200000-0000-4000-8000-000000000007'),
+  'cancelled',
+  'cancellation-first ordering cannot be overwritten by a status transition'
+);
+
+-- Child generation and series ending use the same parent-row boundary. A
+-- generator queued second must recheck the cleared recurrence rule.
+SELECT extensions.dblink_disconnect('project_lifecycle_integration_probe');
+SELECT extensions.dblink_connect(
+  'project_lifecycle_integration_probe',
+  'hostaddr=' || host(inet_server_addr()) ||
+  ' port=' || current_setting('port') ||
+  ' dbname=' || current_database() ||
+  ' user=' || current_user ||
+  ' password=' || current_user ||
+  ' sslmode=disable'
+);
+SELECT extensions.dblink_exec(
+  'project_lifecycle_integration_probe',
+  'SET ROLE service_role'
+);
+BEGIN;
+SELECT 1
+FROM public.projects
+WHERE id = 'ef200000-0000-4000-8000-000000000006'
+FOR UPDATE;
+
+SELECT extensions.dblink_send_query(
+  'project_lifecycle_integration_probe',
+  $$INSERT INTO public.projects (
+      id, creator_id, organization_id, title, location, description, event_type,
+      verification_method, schedule, require_login, status,
+      recurrence_parent_id, recurrence_sequence, recurrence_occurrence_date
+    ) VALUES (
+      'ef200000-0000-4000-8000-000000000009',
+      'ef000000-0000-4000-8000-000000000001',
+      'ef100000-0000-4000-8000-000000000001',
+      'Queued generated child', 'Local', 'Integration fixture',
+      'oneTime', 'manual',
+      '{"oneTime":{"date":"2030-09-13","startTime":"10:00","endTime":"12:00","volunteers":10}}',
+      true, 'upcoming',
+      'ef200000-0000-4000-8000-000000000006', 1, '2030-09-13'
+    )
+    RETURNING id::text$$
+);
+SELECT pg_sleep(0.25);
+SELECT extensions.is(
+  extensions.dblink_is_busy('project_lifecycle_integration_probe'),
+  1,
+  'child generation waits while series ending owns the parent boundary'
+);
+
+SET LOCAL request.jwt.claims =
+  '{"sub":"ef000000-0000-4000-8000-000000000001","role":"authenticated"}';
+SET LOCAL ROLE authenticated;
+SELECT public.end_recurring_project_series_transactional(
+  'ef200000-0000-4000-8000-000000000006'
+);
+RESET ROLE;
+COMMIT;
+
+SELECT *
+FROM extensions.dblink_get_result(
+  'project_lifecycle_integration_probe', false
+) AS result(child_id text);
+SELECT extensions.ok(
+  extensions.dblink_error_message('project_lifecycle_integration_probe')
+    LIKE '%recurrence parent is no longer active%',
+  'the waiting generator refuses a parent whose series already ended'
+);
+SELECT extensions.is(
+  (SELECT count(*) FROM public.projects
+   WHERE id = 'ef200000-0000-4000-8000-000000000009'),
+  0::bigint,
+  'series-ending-first ordering creates no stale recurrence child'
+);
+
+-- Membership revocation owns the member row before a staff status transition
+-- reaches its under-lock authorization recheck.
+SELECT extensions.dblink_disconnect('project_lifecycle_integration_probe');
+SELECT extensions.dblink_connect(
+  'project_lifecycle_integration_probe',
+  'hostaddr=' || host(inet_server_addr()) ||
+  ' port=' || current_setting('port') ||
+  ' dbname=' || current_database() ||
+  ' user=' || current_user ||
+  ' password=' || current_user ||
+  ' sslmode=disable'
+);
+SELECT extensions.dblink_exec(
+  'project_lifecycle_integration_probe',
+  'SET ROLE authenticated'
+);
+SELECT extensions.dblink_exec(
+  'project_lifecycle_integration_probe',
+  'SET "request.jwt.claims" = ''{"sub":"ef000000-0000-4000-8000-000000000005","role":"authenticated"}'''
+);
+BEGIN;
+UPDATE public.organization_members
+SET status = 'inactive'
+WHERE organization_id = 'ef100000-0000-4000-8000-000000000001'
+  AND user_id = 'ef000000-0000-4000-8000-000000000005';
+
+SELECT extensions.dblink_send_query(
+  'project_lifecycle_integration_probe',
+  $$SELECT public.transition_project_status_transactional(
+    'ef200000-0000-4000-8000-000000000008', 'in-progress'
+  )::text$$
+);
+SELECT pg_sleep(0.25);
+SELECT extensions.is(
+  extensions.dblink_is_busy('project_lifecycle_integration_probe'),
+  1,
+  'staff status transition waits while membership revocation owns authority'
+);
+COMMIT;
+
+SELECT *
+FROM extensions.dblink_get_result(
+  'project_lifecycle_integration_probe', false
+) AS result(payload text);
+SELECT extensions.ok(
+  extensions.dblink_error_message('project_lifecycle_integration_probe')
+    LIKE '%project status transition permission denied%',
+  'the waiting transition refuses authority revoked before its locked recheck'
+);
+SELECT extensions.is(
+  (SELECT status FROM public.projects
+   WHERE id = 'ef200000-0000-4000-8000-000000000008'),
+  'upcoming',
+  'membership-revocation-first ordering leaves project status unchanged'
 );
 
 SELECT extensions.dblink_disconnect('project_lifecycle_integration_probe');
