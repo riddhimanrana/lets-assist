@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { removeCalendarEventForSignup } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
+import { hasSuperAdminMetadata } from "@/lib/auth/super-admin";
 import { canUserManageProject } from "./access";
 
 const UNREJECT_OUTCOMES = [
@@ -62,13 +63,18 @@ export async function unrejectSignup(signupId: string) {
       return { error: "You don't have permission to unreject this signup" };
     }
 
+    const canonicalSignupId = canonicalUuid(signupId);
+    if (!canonicalSignupId) {
+      return { error: "Signup not found" };
+    }
+
     const { data: signup, error: signupError } = await supabase
       .from("project_signups")
       .select("id, project_id, status")
-      .eq("id", signupId)
+      .eq("id", canonicalSignupId)
       .maybeSingle();
 
-    if (signupError || !signup || signup.id !== signupId) {
+    if (signupError || !signup || signup.id !== canonicalSignupId) {
       return { error: "Signup not found" };
     }
 
@@ -96,7 +102,7 @@ export async function unrejectSignup(signupId: string) {
     // still-rejected row. A page-time count followed by UPDATE would overbook.
     const { data: transitionRows, error: updateError } = await supabase.rpc(
       "unreject_project_signup_with_capacity",
-      { p_signup_id: signupId },
+      { p_signup_id: canonicalSignupId },
     );
     const transition = getExactUnrejectTransition(transitionRows);
 
@@ -157,6 +163,10 @@ type SignupRejectionEnvelope = {
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
+function canonicalUuid(value: string): string | null {
+  return UUID_PATTERN.test(value) ? value.toLowerCase() : null;
+}
+
 function isSignupRejectionEnvelope(
   value: unknown,
 ): value is SignupRejectionEnvelope {
@@ -213,13 +223,43 @@ async function rejectSignupTransactionally(
     };
   }
 
-  if (!UUID_PATTERN.test(signupId)) {
+  const canonicalSignupId = canonicalUuid(signupId);
+  if (!canonicalSignupId) {
     return { outcome: "rejected", error: "Signup not found" };
   }
 
   const supabase = await createClient();
+  const { data: signup, error: signupError } = await supabase
+    .from("project_signups")
+    .select("id, project_id")
+    .eq("id", canonicalSignupId)
+    .maybeSingle();
+
+  if (signupError || !signup || signup.id !== canonicalSignupId) {
+    return { outcome: "rejected", error: "Signup not found" };
+  }
+
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("id, creator_id, organization_id, can_be_managed_by_staff")
+    .eq("id", signup.project_id)
+    .maybeSingle();
+
+  if (
+    projectError ||
+    !project ||
+    project.id !== signup.project_id ||
+    (!hasSuperAdminMetadata(user) &&
+      !(await canUserManageProject(supabase, project, user.id)))
+  ) {
+    return {
+      outcome: "rejected",
+      error: "You don't have permission to reject this signup",
+    };
+  }
+
   const { data, error } = await supabase.rpc("reject_project_signup", {
-    p_signup_id: signupId,
+    p_signup_id: canonicalSignupId,
   });
 
   if (error) {
@@ -229,7 +269,11 @@ async function rejectSignupTransactionally(
     return { outcome: "rejected", error: rejectionErrorMessage(error.code) };
   }
 
-  if (!isSignupRejectionEnvelope(data) || data.signupId !== signupId) {
+  if (
+    !isSignupRejectionEnvelope(data) ||
+    data.signupId !== canonicalSignupId ||
+    data.projectId !== signup.project_id
+  ) {
     console.error("Signup rejection returned an unrecognized outcome envelope");
     return { outcome: "rejected", error: "Failed to reject signup" };
   }
@@ -277,6 +321,11 @@ export async function cancelSignup(
   const adminSupabase = getAdminClient();
 
   try {
+    const canonicalSignupId = canonicalUuid(signupId);
+    if (!canonicalSignupId) {
+      return { error: "Signup not found" };
+    }
+
     const { user, error: userError } = await getAuthUser();
     if (userError) {
       return { error: "Failed to cancel signup" };
@@ -291,10 +340,10 @@ export async function cancelSignup(
     const { data: signup, error: signupError } = await signupLookupClient
       .from("project_signups")
       .select("*") // Fetch all signup details without join alias
-      .eq("id", signupId)
+      .eq("id", canonicalSignupId)
       .maybeSingle();
 
-    if (signupError || !signup || signup.id !== signupId) {
+    if (signupError || !signup || signup.id !== canonicalSignupId) {
       return { error: "Signup not found" };
     }
 
@@ -350,7 +399,7 @@ export async function cancelSignup(
     const { data: cancelledSignup, error: cancelError } = await deleteClient
       .from("project_signups")
       .update({ status: "cancelled" })
-      .eq("id", signupId)
+      .eq("id", canonicalSignupId)
       .in("status", ["pending", "approved"])
       .select("id")
       .maybeSingle();
@@ -360,7 +409,7 @@ export async function cancelSignup(
       return { error: "Failed to cancel signup" };
     }
 
-    if (cancelledSignup && cancelledSignup.id !== signupId) {
+    if (cancelledSignup && cancelledSignup.id !== canonicalSignupId) {
       return { error: "Failed to cancel signup" };
     }
 
@@ -372,7 +421,7 @@ export async function cancelSignup(
         await deleteClient
           .from("project_signups")
           .select("id, status")
-          .eq("id", signupId)
+          .eq("id", canonicalSignupId)
           .maybeSingle();
 
       if (currentSignupError) {
@@ -384,7 +433,7 @@ export async function cancelSignup(
       }
 
       if (
-        currentSignup?.id === signupId &&
+        currentSignup?.id === canonicalSignupId &&
         currentSignup.status === "cancelled"
       ) {
         revalidateSignupPaths(signup.project_id);
@@ -396,7 +445,7 @@ export async function cancelSignup(
 
     // Remove calendar event only after the DB write is proven
     try {
-      await removeCalendarEventForSignup(signupId);
+      await removeCalendarEventForSignup(canonicalSignupId);
     } catch (calendarError) {
       console.error("Error removing calendar event:", calendarError);
       // Don't fail the cancellation if calendar removal fails

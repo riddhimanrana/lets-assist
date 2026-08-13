@@ -6,7 +6,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(49);
+SELECT extensions.plan(56);
 
 SELECT extensions.has_function(
   'public',
@@ -128,7 +128,10 @@ VALUES
   ('af000000-0000-4000-8000-000000000008', 'authenticated', 'authenticated',
    'rejection-inactive-staff@local.test', now(), '{}', '{}', now(), now()),
   ('af000000-0000-4000-8000-000000000009', 'authenticated', 'authenticated',
-   'rejection-statusless-admin@local.test', now(), '{}', '{}', now(), now());
+   'rejection-statusless-admin@local.test', now(), '{}', '{}', now(), now()),
+  ('af000000-0000-4000-8000-000000000010', 'authenticated', 'authenticated',
+   'rejection-super-admin@local.test', now(),
+   '{"is_super_admin":true}', '{}', now(), now());
 
 INSERT INTO public.organizations (id, name, username, type, join_code, created_by)
 VALUES
@@ -302,6 +305,10 @@ VALUES
   ('af300000-0000-4000-8000-000000000020',
    'af200000-0000-4000-8000-000000000003',
    'af000000-0000-4000-8000-000000000004', NULL, 'cross-tenant-slot',
+   'pending'),
+  ('af300000-0000-4000-8000-000000000021',
+   'af200000-0000-4000-8000-000000000001',
+   'af000000-0000-4000-8000-000000000004', NULL, 'super-admin-slot',
    'pending');
 
 -- ---------------------------------------------------------------------------
@@ -698,6 +705,103 @@ SELECT extensions.is(
   ),
   ARRAY['pending', 'approved', 'pending'],
   'no refused rejection changed a signup'
+);
+
+-- The organization-members UPDATE policy delegates to private organization
+-- helpers. Those helpers must not let a deactivated actor use their own stale
+-- role to reactivate the row that restores moderation authority.
+SELECT set_config(
+  'request.jwt.claim.sub', 'af000000-0000-4000-8000-000000000007', true
+);
+SET LOCAL ROLE authenticated;
+
+SELECT extensions.results_eq(
+  $$
+    UPDATE public.organization_members
+    SET status = 'active'
+    WHERE organization_id = 'af100000-0000-4000-8000-000000000001'
+      AND user_id = 'af000000-0000-4000-8000-000000000007'
+    RETURNING status::text
+  $$,
+  $$ SELECT NULL::text WHERE false $$,
+  'an inactive admin cannot self-reactivate through status-blind helpers'
+);
+
+RESET ROLE;
+SELECT extensions.is(
+  (
+    SELECT members.status
+    FROM public.organization_members AS members
+    WHERE members.organization_id = 'af100000-0000-4000-8000-000000000001'
+      AND members.user_id = 'af000000-0000-4000-8000-000000000007'
+  ),
+  'inactive',
+  'the denied self-reactivation leaves inactive membership unchanged'
+);
+
+SELECT set_config(
+  'request.jwt.claim.sub', 'af000000-0000-4000-8000-000000000009', true
+);
+SET LOCAL ROLE authenticated;
+
+SELECT extensions.results_eq(
+  $$
+    UPDATE public.organization_members
+    SET status = 'active'
+    WHERE organization_id = 'af100000-0000-4000-8000-000000000001'
+      AND user_id = 'af000000-0000-4000-8000-000000000009'
+    RETURNING status::text
+  $$,
+  $$ SELECT NULL::text WHERE false $$,
+  'a NULL-status admin cannot self-activate through status-blind helpers'
+);
+
+RESET ROLE;
+SELECT extensions.ok(
+  (
+    SELECT members.status IS NULL
+    FROM public.organization_members AS members
+    WHERE members.organization_id = 'af100000-0000-4000-8000-000000000001'
+      AND members.user_id = 'af000000-0000-4000-8000-000000000009'
+  ),
+  'the denied self-activation leaves NULL membership status unchanged'
+);
+
+-- Super administrators retain their pre-existing moderation authority through
+-- the only path that may now enter rejected. The uppercase UUID spelling also
+-- proves the direct RPC returns PostgreSQL's lowercase canonical UUID.
+SELECT set_config(
+  'request.jwt.claim.sub', 'af000000-0000-4000-8000-000000000010', true
+);
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"af000000-0000-4000-8000-000000000010","role":"authenticated","app_metadata":{"is_super_admin":true}}',
+  true
+);
+
+CREATE TEMP TABLE super_admin_rejection AS
+SELECT public.reject_project_signup(
+  'AF300000-0000-4000-8000-000000000021'::uuid
+) AS result;
+
+SELECT extensions.is(
+  (SELECT result ->> 'outcome' FROM super_admin_rejection),
+  'accepted',
+  'a super admin rejects without project ownership or organization membership'
+);
+SELECT extensions.is(
+  (SELECT result ->> 'signupId' FROM super_admin_rejection),
+  'af300000-0000-4000-8000-000000000021',
+  'the direct RPC canonicalizes uppercase UUID input in its committed result'
+);
+SELECT extensions.is(
+  (
+    SELECT signups.status
+    FROM public.project_signups AS signups
+    WHERE signups.id = 'af300000-0000-4000-8000-000000000021'
+  ),
+  'rejected',
+  'the super-admin rejection commits'
 );
 
 -- ---------------------------------------------------------------------------

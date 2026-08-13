@@ -6,8 +6,289 @@
 -- and the compatibility notification action trusted caller-supplied recipient
 -- and project identifiers. The public boundary now accepts only the signup ID;
 -- every other coordinate and the acting user come from locked database state.
+--
+-- This migration deliberately remains earlier than
+-- 20260812215733_reconcile_project_lifecycle_boundaries from follow-up #158.
+-- It owns only the rejection-specific guard. The later migration must replace
+-- that guard with the full approval/attendance/rejection union and must never
+-- be applied before this file.
 
 BEGIN;
+
+-- Organization-member RLS delegates to these helpers. Requiring explicit
+-- active status here prevents inactive or NULL-status staff/admin users from
+-- using their stale role to reactivate their own membership.
+CREATE OR REPLACE FUNCTION private.get_user_org_role(p_org_id uuid)
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT members.role
+  FROM public.organization_members AS members
+  WHERE members.organization_id = p_org_id
+    AND members.user_id = auth.uid()
+    AND members.status = 'active'
+  LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION private.is_org_member(p_org_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.organization_members AS members
+    WHERE members.organization_id = p_org_id
+      AND members.user_id = auth.uid()
+      AND members.status = 'active'
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION private.is_org_staff_or_admin(p_org_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.organization_members AS members
+    WHERE members.organization_id = p_org_id
+      AND members.user_id = auth.uid()
+      AND members.status = 'active'
+      AND members.role IN ('admin', 'staff')
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION private.is_org_admin(p_org_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.organization_members AS members
+    WHERE members.organization_id = p_org_id
+      AND members.user_id = auth.uid()
+      AND members.status = 'active'
+      AND members.role = 'admin'
+  );
+$$;
+
+REVOKE ALL ON FUNCTION private.get_user_org_role(uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION private.is_org_member(uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION private.is_org_staff_or_admin(uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION private.is_org_admin(uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.get_user_org_role(uuid),
+  private.is_org_member(uuid),
+  private.is_org_staff_or_admin(uuid),
+  private.is_org_admin(uuid)
+  TO authenticated, service_role;
+
+COMMENT ON FUNCTION private.get_user_org_role(uuid) IS
+  'Returns the current user role only for an explicitly active membership in the exact organization.';
+COMMENT ON FUNCTION private.is_org_member(uuid) IS
+  'Returns true only for an explicitly active current-user membership in the exact organization.';
+COMMENT ON FUNCTION private.is_org_staff_or_admin(uuid) IS
+  'Returns true only for explicitly active staff or admin membership in the exact organization.';
+COMMENT ON FUNCTION private.is_org_admin(uuid) IS
+  'Returns true only for explicitly active admin membership in the exact organization.';
+
+-- Forward-replace the private capacity transaction created before this branch.
+-- Its old COALESCE(status, 'active') predicate admitted NULL-status managers
+-- through direct RPC calls even when the Server Action failed closed.
+CREATE OR REPLACE FUNCTION private.unreject_project_signup_with_capacity(
+  p_signup_id uuid
+)
+RETURNS TABLE (
+  outcome text,
+  project_id uuid
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_actor_id uuid := auth.uid();
+  v_signup_snapshot record;
+  v_signup record;
+  v_project record;
+  v_window record;
+  v_active_count bigint := 0;
+BEGIN
+  outcome := 'refused';
+  project_id := NULL;
+
+  IF p_signup_id IS NULL OR v_actor_id IS NULL THEN
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  SELECT
+    signups.id,
+    signups.project_id,
+    signups.schedule_id,
+    signups.status
+  INTO v_signup_snapshot
+  FROM public.project_signups AS signups
+  WHERE signups.id = p_signup_id;
+
+  IF NOT FOUND THEN
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  IF NULLIF(pg_catalog.btrim(v_signup_snapshot.schedule_id), '') IS NOT NULL THEN
+    PERFORM pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended(
+        'lets-assist-project-signup:'
+          || v_signup_snapshot.project_id::text
+          || ':'
+          || v_signup_snapshot.schedule_id,
+        0
+      )
+    );
+  END IF;
+
+  SELECT
+    projects.creator_id,
+    projects.organization_id,
+    projects.can_be_managed_by_staff,
+    projects.status,
+    projects.pause_signups
+  INTO v_project
+  FROM public.projects AS projects
+  WHERE projects.id = v_signup_snapshot.project_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  SELECT
+    signups.id,
+    signups.project_id,
+    signups.schedule_id,
+    signups.status
+  INTO v_signup
+  FROM public.project_signups AS signups
+  WHERE signups.id = p_signup_id
+    AND signups.project_id = v_signup_snapshot.project_id
+    AND signups.schedule_id IS NOT DISTINCT FROM v_signup_snapshot.schedule_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  IF v_project.creator_id IS DISTINCT FROM v_actor_id
+    AND NOT COALESCE(public.is_super_admin(), false)
+  THEN
+    PERFORM members.user_id
+    FROM public.organization_members AS members
+    WHERE members.organization_id = v_project.organization_id
+      AND members.user_id = v_actor_id
+      AND members.status = 'active'
+      AND (
+        members.role = 'admin'
+        OR (
+          members.role = 'staff'
+          AND v_project.can_be_managed_by_staff IS TRUE
+        )
+      )
+    FOR SHARE OF members;
+
+    IF NOT FOUND THEN
+      RETURN NEXT;
+      RETURN;
+    END IF;
+  END IF;
+
+  project_id := v_signup.project_id;
+
+  IF v_signup.status <> 'rejected' THEN
+    outcome := 'invalid_state';
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  IF NULLIF(pg_catalog.btrim(v_signup.schedule_id), '') IS NULL THEN
+    outcome := 'invalid_slot';
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  IF COALESCE(v_project.pause_signups, false)
+    OR v_project.status IN ('cancelled', 'completed')
+  THEN
+    outcome := 'project_closed';
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  SELECT slot.capacity, slot.starts_at, slot.ends_at
+  INTO v_window
+  FROM private.resolve_project_schedule_slot(
+    v_signup.project_id,
+    v_signup.schedule_id
+  ) AS slot;
+
+  IF NOT FOUND THEN
+    outcome := 'invalid_slot';
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  SELECT pg_catalog.count(*)
+  INTO v_active_count
+  FROM public.project_signups AS signups
+  WHERE signups.project_id = v_signup.project_id
+    AND signups.schedule_id = v_signup.schedule_id
+    AND signups.status IN ('approved', 'attended');
+
+  IF v_active_count >= v_window.capacity THEN
+    outcome := 'slot_full';
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  UPDATE public.project_signups AS signups
+  SET status = 'approved'
+  WHERE signups.id = p_signup_id
+    AND signups.status = 'rejected';
+
+  IF NOT FOUND THEN
+    outcome := 'invalid_state';
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  outcome := 'approved';
+  RETURN NEXT;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.unreject_project_signup_with_capacity(uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.unreject_project_signup_with_capacity(uuid)
+  TO authenticated;
+
+COMMENT ON FUNCTION private.unreject_project_signup_with_capacity(uuid) IS
+  'Private SECURITY DEFINER rejected-to-approved transaction. Derives the actor, requires explicit active management authority under lock, and preserves canonical capacity and lock ordering.';
 
 CREATE OR REPLACE FUNCTION private.reject_project_signup(
   p_signup_id uuid
@@ -102,7 +383,9 @@ BEGIN
   -- Project ownership is stable under the project lock. For organization
   -- managers, lock and re-read the exact membership after both domain rows are
   -- locked so deactivation or role changes serialize with this decision.
-  IF v_project.creator_id IS DISTINCT FROM v_actor_id THEN
+  IF v_project.creator_id IS DISTINCT FROM v_actor_id
+    AND NOT COALESCE(public.is_super_admin(), false)
+  THEN
     PERFORM members.user_id
     FROM public.organization_members AS members
     WHERE members.organization_id = v_project.organization_id

@@ -819,9 +819,9 @@ describe("CSF operator documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(273);
+    expect(migrations).toHaveLength(274);
     expect(migrations.at(-1)).toBe(
-      "20260812152300_atomic_csf_post_replies.sql",
+      "20260812161500_atomic_project_signup_rejection.sql",
     );
 
     const currentState = between(
@@ -830,16 +830,19 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 273 ordered migrations through",
+      "repository branch has 274 ordered migrations through",
+    );
+    expect(currentState).toContain(
+      "`20260812161500_atomic_project_signup_rejection`",
+    );
+    expect(currentState).toContain(
+      "Hosted Development Supabase has 273 ordered migrations through",
     );
     expect(currentState).toContain("`20260812152300_atomic_csf_post_replies`");
     expect(currentState).toContain(
-      "Hosted Development Supabase also has 273 ordered migrations through",
-    );
-    expect(currentState).toContain(
       "Production remains at 236 ordered migrations through `20260811001500`",
     );
-    expect(currentState).toContain("37-migration cutover has not run");
+    expect(currentState).toContain("38-migration cutover has not run");
     expect(currentState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
     );
@@ -910,13 +913,17 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`cf330e5faa844d63a2f41c8f0be4d1c727d51a47`",
     );
     expect(rehearsalState).toContain(
-      "Hosted Development Supabase and this repository each have 273 ordered migrations through",
+      "Hosted Development Supabase has 273 ordered migrations through",
     );
+    expect(rehearsalState).toContain("this repository has 274 through");
     expect(rehearsalState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
     );
     expect(rehearsalState).toContain(
       "`20260812152300_atomic_csf_post_replies`",
+    );
+    expect(rehearsalState).toContain(
+      "`20260812161500_atomic_project_signup_rejection`",
     );
     expect(rehearsalState).toContain(
       "external Vercel 100-deployment-per-day project cap",
@@ -959,14 +966,14 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Related references",
     );
     expect(cutover).toContain(
-      "Replay the ordered migration ledger through `20260812152300`",
+      "Replay the ordered migration ledger through `20260812161500`",
     );
     expect(cutover).toContain(
       "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
     );
     expect(cutover).toContain("exact 236-row baseline");
-    expect(cutover).toContain("full 37-migration transition");
-    expect(cutover).toContain("preflight on the 273-row target");
+    expect(cutover).toContain("full 38-migration transition");
+    expect(cutover).toContain("preflight on the 274-row target");
   });
 
   test("production cutover baseline tracks the exact pending migration range", () => {
@@ -974,13 +981,13 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Production has 236 ordered migrations through `20260811001500`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Hosted Development Supabase and this repository each have 273 ordered migrations through `20260812152300`",
+      "Hosted Development Supabase has 273 ordered migrations through `20260812152300`; this repository has 274 through `20260812161500`",
     );
     expect(productionCutoverRunbook).toContain(
       "repository ledger ended at 272 through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Production therefore has exactly 37 pending migrations",
+      "Production therefore has exactly 38 pending migrations",
     );
     expect(productionCutoverRunbook).toContain(
       "external Vercel 100-deployment-per-day project cap",

@@ -7,7 +7,10 @@ import { isProjectVisible } from "@/utils/project";
 import { type Project } from "@/types";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getProjectCreatorProfileById } from "@/lib/profile/public";
-import { canManageProjectAccess } from "@/lib/projects/management-access";
+import {
+  activeOrganizationRole,
+  canManageProjectAccess,
+} from "@/lib/projects/management-access";
 import { isMissingWaiverDisableEsignatureColumnError } from "./shared";
 
 export async function isProjectCreator(projectId: string) {
@@ -80,8 +83,7 @@ export async function canUserManageProject(
   return canManageProjectAccess({
     creatorId: project.creator_id ?? null,
     userId,
-    organizationRole:
-      (membership?.status ?? "active") === "active" ? membership?.role : null,
+    organizationRole: activeOrganizationRole(membership),
     canBeManagedByStaff: project.can_be_managed_by_staff,
   });
 }
@@ -131,11 +133,11 @@ export async function getCurrentUserProjectPermissions(
     if (orgId && !isCreator) {
       const { data: membership } = await supabase
         .from("organization_members")
-        .select("role")
+        .select("role, status")
         .eq("organization_id", orgId)
         .eq("user_id", user.id)
         .single();
-      isOrgAdmin = membership?.role === "admin";
+      isOrgAdmin = activeOrganizationRole(membership) === "admin";
     }
 
     return {

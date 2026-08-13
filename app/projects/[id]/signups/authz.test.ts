@@ -65,11 +65,15 @@ describe("organizer roster loader authorization", () => {
     expect(rosterLoaderSource).not.toMatch(/role\s*===\s*["']staff["']/u);
   });
 
-  test("rejection leaves the decision to the server transaction", () => {
+  test("rejection prechecks active management before the server transaction", () => {
     expect(cancellationSource).toContain(
       'supabase.rpc("reject_project_signup"',
     );
-    expect(cancellationSource).toContain("p_signup_id: signupId");
+    expect(cancellationSource).toContain("p_signup_id: canonicalSignupId");
+    expect(cancellationSource).toContain(
+      "await canUserManageProject(supabase, project, user.id)",
+    );
+    expect(cancellationSource).toContain("hasSuperAdminMetadata(user)");
     expect(cancellationSource).not.toContain("p_expected_user_id");
     expect(cancellationSource).not.toContain("p_expected_project_id");
     expect(cancellationSource).not.toMatch(/status:\s*["']rejected["']/u);
