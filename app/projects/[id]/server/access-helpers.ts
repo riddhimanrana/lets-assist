@@ -1,6 +1,9 @@
 import "server-only";
 
-import { canManageProjectAccess } from "@/lib/projects/management-access";
+import {
+  activeOrganizationRole,
+  canManageProjectAccess,
+} from "@/lib/projects/management-access";
 import { createClient } from "@/lib/supabase/server";
 
 export type ManageableProjectRecord = {
@@ -42,8 +45,7 @@ export async function canUserManageProject(
   return canManageProjectAccess({
     creatorId: project.creator_id ?? null,
     userId,
-    organizationRole:
-      (membership?.status ?? "active") === "active" ? membership?.role : null,
+    organizationRole: activeOrganizationRole(membership),
     canBeManagedByStaff: project.can_be_managed_by_staff,
   });
 }
