@@ -3,9 +3,10 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** This repository carries 279 ordered migrations through the atomic AI
+**Status:** This repository carries 280 ordered migrations through the atomic AI
 quota boundary, including the active staff-invite issuer, atomic
-project-signup rejection, and content-report integrity migrations; hosted
+project-signup rejection, content-report integrity, and CSF meeting-permission
+migrations; hosted
 Development Supabase remains at 273 through the atomic post-reply boundary. The
 `dev.lets-assist.com` alias still serves earlier Ready code at
 `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository tree ended at 272
@@ -23,23 +24,25 @@ only.
 
 ## Current hosted Development state
 
-- The repository branch has 279 ordered migrations through
+- The repository branch has 280 ordered migrations through
   `20260813010000_atomic_ai_quota_receipts`.
 - Hosted Development Supabase has 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`; the six newest repository
+  `20260812152300_atomic_csf_post_replies`; it is seven reviewed migrations
+  behind this repository branch. The seven newest repository
   migrations, `20260812161500_atomic_project_signup_rejection`,
   `20260812185500_atomic_staff_invite_issuer_redemption`,
   `20260812193400_protect_staff_invite_issuer_capability`,
   `20260812203000_make_content_reports_server_written`,
-  `20260812203500_close_plugin_data_browser_default_acl`, and
+  `20260812203500_close_plugin_data_browser_default_acl`,
+  `20260812220000_csf_meeting_permission_followups`, and
   `20260813010000_atomic_ai_quota_receipts`, have not been applied to any hosted
   database.
 - Production remains at 236 ordered migrations through `20260811001500`; the
-  43-migration cutover has not run.
+  44-migration cutover has not run.
 - The last accepted Development advisor snapshot was captured on the preceding
   272-migration shape: 95 INFO, 0 WARN, and 0 ERROR security findings, plus 611
   INFO, 0 WARN, and 0 ERROR performance findings. Those counts have not been
-  re-established for either the hosted 273 or repository 279 shape and are not
+  re-established for either the hosted 273 or repository 280 shape and are not
   current-parity evidence.
 - `dev.lets-assist.com` still serves exact development SHA
   `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose Ready repository tree ended
@@ -58,9 +61,11 @@ only.
 - No names or email addresses are recorded here. Real-source evidence remains
   aggregate-only.
 - The caller-summary correction and inactive-access hardening are combined in
-  private development commit `605342c`, and this root worktree's gitlink points
-  to that exact commit locally. The stale Ready Development SHA above does not
-  include that local gitlink update.
+  private development commit
+  `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, and this root worktree's gitlink
+  points to that exact commit locally. It also contains the meeting hardening
+  and `ca817bf` preview-summary correction. The stale Ready Development SHA
+  above does not include that local gitlink update.
 - The Drive metadata RPC is no longer the current Preview blocker. Production
   remains untouched.
 
@@ -289,6 +294,21 @@ does not claim a live import was committed or any Production readiness.
 | ----------- | -------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
 | CSF-E2E-061 | P0       | Contextual import commits | Meeting-attendance and partner-club-audit commits selected only `pending` rows and wrote attendance, submissions, credits, and activity events while ambiguous, conflicting, duplicate, invalid, and in-flight siblings were untouched, recording the result as `partially_completed`. The workspace's disabled button was the only barrier, and a disabled button is not an authorization boundary. | Both contextual commits refuse before any business write while a sibling row in the same authoritative population is unresolved, and hold that population locked while deciding. The readiness vocabulary reuses the existing `import_status` and `commit_outcome_state` columns rather than adding a second status model. | Exact local and CI replay passed all new pgTAP contracts, the strict private gitlink, DV/CSF browser packs, trace validation, and teardown. Hosted Development carries the migration and Ready deployment. Google OAuth and the visible blocked-then-reconciled real-source journey remain open. | Applied to hosted Development; live import acceptance pending |
 
+### August 12 meeting identity and capability delta
+
+Private PR #46 merged the implementation to the private repository's
+`development` branch as `fbd18fa`; maintainability follow-up PR #47 produced
+the meeting follow-up commit `4f20fa5`. The root integration candidate pins
+combined private `development`
+`605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, which contains that follow-up and
+the inactive-membership hardening. It does not claim a deployment merely
+because the private branches merged. No provider, hosted database, Production
+credential, live roster, or real Google source was used.
+
+| ID          | Severity | Surface                              | Confirmed finding                                                                                                                                                                                                                                                                | Implemented contract                                                                                                                                                                                                                                                                                                                                                                             | Current evidence boundary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Status                                         |
+| ----------- | -------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| CSF-E2E-062 | P1       | Meetings / attendance import privacy | Scheduling-only and cohort views could query and serialize active-student identity options; hidden preview rows retained submitted identity fields; direct meeting preview/commit and generic row-recovery actions accepted broader legacy import grants than the visible route. | Manual correction requires `reconcile_meeting_attendance`; Google preview/commit also requires exact `import_meetings` at every route, loader, component, and Server Action boundary. Meeting row decisions derive source type server-side and require reconciliation. Non-correction views receive no roster options, and the permitted picker loads only minimal active tenant-scoped options. | Exact root integration passed typecheck, exact lint, 8 focused private meeting/import test files carrying 223 tests and 1,372 expectations, and the canonical test orchestrator discovering 207 root plus 206 plugin files after `development` was merged in. The earlier 72-test/739-expectation and 205-root figures described the pre-merge subset and tree. The private repository exposes no GitHub workflow, so private hosted CI is unavailable rather than green. Root CI, compiled role journeys, and hosted Development remain pending. | Private merged; root/hosted acceptance pending |
+
 The current officer procedure is documented in the [officer runbook](officer-runbook.md). It deliberately marks live Google and cloud-only steps as release-gated.
 
 ## Browser lifecycle matrix
@@ -390,13 +410,15 @@ The current officer procedure is documented in the [officer runbook](officer-run
   unexecuted.
 - Development uses a distinct hosted Supabase project. Its database has 273
   ordered migrations through `20260812152300_atomic_csf_post_replies`; this
-  repository branch has 279 through
+  repository branch has 280 through
   `20260813010000_atomic_ai_quota_receipts`, including
   `20260812161500_atomic_project_signup_rejection`,
   `20260812185500_atomic_staff_invite_issuer_redemption`,
   `20260812193400_protect_staff_invite_issuer_capability`,
   `20260812203000_make_content_reports_server_written`, and
-  `20260812203500_close_plugin_data_browser_default_acl`. The Ready alias still
+  `20260812203500_close_plugin_data_browser_default_acl`,
+  `20260812220000_csf_meeting_permission_followups`, and
+  `20260813010000_atomic_ai_quota_receipts`. The Ready alias still
   serves development SHA `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository
   tree ended at 272 through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`; the external Vercel
