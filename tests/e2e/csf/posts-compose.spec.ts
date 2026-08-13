@@ -30,6 +30,91 @@ const composedBody =
 const composedReply =
   "Follow-up from the browser suite: room moved to the fictional annex.";
 
+const safelyTerminalCampaignStatuses = new Set([
+  "cancelled",
+  "completed",
+  "failed",
+]);
+
+async function safelyCleanPostPrefix(
+  fixture: CsfFeedFixture,
+  titlePrefix: string,
+) {
+  const { data: posts, error: postsError } = await fixture.admin
+    .schema("plugin_data")
+    .from("csf_announcements")
+    .select("id, email_campaign_id")
+    .eq("organization_id", fixture.organizationId)
+    .like("title", `${titlePrefix}%`);
+  if (postsError) {
+    throw new Error(
+      `Could not load synthetic announcements for safe cleanup: ${postsError.message}`,
+    );
+  }
+
+  const failures: Error[] = [];
+  const campaignIds = [
+    ...new Set(
+      (posts ?? [])
+        .map((post) => post.email_campaign_id)
+        .filter((campaignId): campaignId is string => campaignId !== null),
+    ),
+  ];
+
+  for (const campaignId of campaignIds) {
+    const { data: cancellation, error: cancellationError } = await fixture.admin
+      .schema("plugin_data")
+      .rpc("csf_cancel_communication_campaign", {
+        p_organization_id: fixture.organizationId,
+        p_campaign_id: campaignId,
+        p_reason: "Synthetic browser acceptance cleanup.",
+        p_actor_user_id: fixture.organizationAdminUserId,
+        p_correlation_id: randomUUID(),
+      });
+    const cancellationStatus =
+      cancellation &&
+      typeof cancellation === "object" &&
+      !Array.isArray(cancellation) &&
+      cancellation.status;
+    if (!cancellationError && cancellationStatus === "cancelled") continue;
+
+    const { data: campaign, error: campaignError } = await fixture.admin
+      .schema("plugin_data")
+      .from("csf_communication_campaigns")
+      .select("status")
+      .eq("organization_id", fixture.organizationId)
+      .eq("id", campaignId)
+      .maybeSingle();
+    if (campaignError) {
+      failures.push(
+        new Error(
+          `Could not verify campaign ${campaignId} after cancellation: ${campaignError.message}`,
+        ),
+      );
+    } else if (
+      !campaign ||
+      !safelyTerminalCampaignStatuses.has(campaign.status)
+    ) {
+      failures.push(
+        new Error(
+          cancellationError
+            ? `Could not cancel campaign ${campaignId}: ${cancellationError.message}`
+            : `Campaign ${campaignId} did not confirm cancellation.`,
+        ),
+      );
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new AggregateError(
+      failures,
+      "Synthetic post cleanup left campaign linkage intact",
+    );
+  }
+
+  await cleanFeedPosts(fixture, titlePrefix);
+}
+
 // Regressions caught: post success hidden by auto-close; unchecked email
 // ambiguously reported; queue intent confused with provider delivery.
 test.describe("officer post compose in the class Stream", () => {
@@ -39,11 +124,11 @@ test.describe("officer post compose in the class Stream", () => {
 
   test.beforeAll(async () => {
     fixture = await loadCsfFeedFixture();
-    await cleanFeedPosts(fixture, TITLE_PREFIX);
+    await safelyCleanPostPrefix(fixture, TITLE_PREFIX);
   });
 
   test.afterAll(async () => {
-    if (fixture) await cleanFeedPosts(fixture, TITLE_PREFIX);
+    if (fixture) await safelyCleanPostPrefix(fixture, TITLE_PREFIX);
   });
 
   test("an organization admin composes and pins a published class post", async ({
@@ -532,77 +617,7 @@ test.describe("officer post compose in the class Stream", () => {
       testFailure = error instanceof Error ? error : new Error(String(error));
     } finally {
       try {
-        let campaignIdForCleanup = queuedCampaignId;
-        let postCleanupAllowed = false;
-
-        if (!campaignIdForCleanup) {
-          try {
-            const { data: queuedAnnouncement, error: recoveryError } =
-              await fixture.admin
-                .schema("plugin_data")
-                .from("csf_announcements")
-                .select("id, body, email_campaign_id")
-                .eq("organization_id", fixture.organizationId)
-                .eq("title", queuedTitle)
-                .maybeSingle();
-            if (recoveryError) {
-              recordCleanupFailure(
-                "Could not recover the synthetic announcement for campaign cleanup",
-                recoveryError,
-              );
-            } else if (!queuedAnnouncement) {
-              postCleanupAllowed = true;
-            } else if (!queuedAnnouncement.body.includes(queuedBody)) {
-              recordCleanupFailure(
-                "Recovered announcement did not match the synthetic body marker",
-              );
-            } else if (queuedAnnouncement.email_campaign_id) {
-              campaignIdForCleanup = queuedAnnouncement.email_campaign_id;
-            } else {
-              postCleanupAllowed = true;
-            }
-          } catch (error) {
-            recordCleanupFailure(
-              "Could not recover the synthetic announcement for campaign cleanup",
-              error,
-            );
-          }
-        }
-
-        if (campaignIdForCleanup) {
-          try {
-            const { error: cancelError } = await fixture.admin
-              .schema("plugin_data")
-              .rpc("csf_cancel_communication_campaign", {
-                p_organization_id: fixture.organizationId,
-                p_campaign_id: campaignIdForCleanup,
-                p_reason: "Synthetic browser acceptance cleanup.",
-                p_actor_user_id: fixture.organizationAdminUserId,
-                p_correlation_id: randomUUID(),
-              });
-            if (cancelError) {
-              recordCleanupFailure(
-                "Could not cancel the synthetic campaign",
-                cancelError,
-              );
-            } else {
-              postCleanupAllowed = true;
-            }
-          } catch (error) {
-            recordCleanupFailure(
-              "Could not cancel the synthetic campaign",
-              error,
-            );
-          }
-        }
-
-        if (postCleanupAllowed) {
-          try {
-            await cleanFeedPosts(fixture, queuedTitle);
-          } catch (error) {
-            recordCleanupFailure("Could not clean the synthetic post", error);
-          }
-        }
+        await safelyCleanPostPrefix(fixture, queuedTitle);
       } catch (error) {
         recordCleanupFailure("Unexpected queued-email cleanup failure", error);
       } finally {
