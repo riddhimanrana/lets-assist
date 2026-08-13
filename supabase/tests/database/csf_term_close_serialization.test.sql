@@ -1,7 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(4);
+SELECT extensions.plan(8);
 
 CREATE TEMP TABLE csf_term_close_serialization_fixture (
   admin_id uuid NOT NULL,
@@ -11,11 +11,15 @@ CREATE TEMP TABLE csf_term_close_serialization_fixture (
   profile_id uuid NOT NULL,
   membership_id uuid NOT NULL,
   credit_id uuid NOT NULL,
+  activity_id uuid NOT NULL,
+  activity_request_id uuid NOT NULL,
   correlation_id uuid NOT NULL
 ) ON COMMIT PRESERVE ROWS;
 
 INSERT INTO csf_term_close_serialization_fixture
 SELECT
+  gen_random_uuid(),
+  gen_random_uuid(),
   gen_random_uuid(),
   gen_random_uuid(),
   gen_random_uuid(),
@@ -116,6 +120,21 @@ INSERT INTO plugin_data.csf_term_memberships (
   'active'
 FROM csf_term_close_serialization_fixture;
 
+INSERT INTO plugin_data.csf_opportunities (
+  id, organization_id, term_id, title, body, starts_at, status,
+  signup_mode, created_by_user_id
+) SELECT
+  activity_id,
+  organization_id,
+  term_id,
+  'Concurrent publication',
+  'This draft must not publish after its semester closes.',
+  '2033-04-01 17:00:00+00',
+  'draft',
+  'none',
+  admin_id
+FROM csf_term_close_serialization_fixture;
+
 SELECT extensions.dblink_connect(
   'term_writer',
   -- Use the container interface rather than loopback. Supabase's local
@@ -132,6 +151,16 @@ SELECT extensions.dblink_connect(
   ' sslmode=disable'
 );
 
+SELECT extensions.dblink_connect(
+  'activity_publisher',
+  'hostaddr=' || host(inet_server_addr()) ||
+  ' port=' || current_setting('port') ||
+  ' dbname=' || current_database() ||
+  ' user=' || current_user ||
+  ' password=' || current_user ||
+  ' sslmode=disable'
+);
+
 BEGIN;
 
 SELECT plugin_data.csf_close_term_v2(
@@ -143,6 +172,26 @@ SELECT plugin_data.csf_close_term_v2(
     (SELECT term_id FROM csf_term_close_serialization_fixture)
   )->>'evidenceHash',
   (SELECT admin_id FROM csf_term_close_serialization_fixture)
+);
+
+SELECT extensions.dblink_send_query(
+  'activity_publisher',
+  format(
+    $query$
+    SELECT plugin_data.csf_set_activity_status(
+      %L::uuid,
+      %L::uuid,
+      'published',
+      NULL,
+      %L::uuid,
+      %L::uuid
+    )::text
+    $query$,
+    (SELECT organization_id FROM csf_term_close_serialization_fixture),
+    (SELECT activity_id FROM csf_term_close_serialization_fixture),
+    (SELECT admin_id FROM csf_term_close_serialization_fixture),
+    (SELECT activity_request_id FROM csf_term_close_serialization_fixture)
+  )
 );
 
 SELECT extensions.dblink_send_query(
@@ -170,12 +219,49 @@ SELECT extensions.dblink_send_query(
 
 SELECT pg_sleep(0.25);
 SELECT extensions.is(
+  extensions.dblink_is_busy('activity_publisher'),
+  1,
+  'activity publication waits on the semester-close transaction lock'
+);
+SELECT extensions.is(
   extensions.dblink_is_busy('term_writer'),
   1,
   'a concurrent evidence insert waits on the semester-close transaction lock'
 );
 
 COMMIT;
+
+SELECT *
+FROM extensions.dblink_get_result('activity_publisher', false)
+  AS result(payload text);
+SELECT extensions.ok(
+  position(
+    'Activities cannot be published in a closed or archived semester.'
+    IN extensions.dblink_error_message('activity_publisher')
+  ) > 0,
+  'the waiting publisher fails after observing the committed closed semester'
+);
+SELECT extensions.ok(
+  (
+    SELECT status = 'draft'
+      AND published_at IS NULL
+    FROM plugin_data.csf_opportunities
+    WHERE id = (
+      SELECT activity_id FROM csf_term_close_serialization_fixture
+    )
+  ),
+  'the publish-vs-close loser writes no activity state'
+);
+SELECT extensions.is(
+  (SELECT count(*)::integer
+   FROM plugin_data.csf_admin_audit_events
+   WHERE correlation_id = (
+     SELECT activity_request_id FROM csf_term_close_serialization_fixture
+   )),
+  0,
+  'the publish-vs-close loser writes no audit receipt'
+);
+SELECT extensions.dblink_disconnect('activity_publisher');
 
 SELECT *
 FROM extensions.dblink_get_result('term_writer', false) AS result(id uuid);

@@ -22,7 +22,7 @@ const architectureAudit = readFileSync(
 );
 
 const PRODUCTION_HEAD = "20260811001500";
-const TARGET_HEAD = "20260813013100";
+const TARGET_HEAD = "20260813013300";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
 const HARD_FAIL_SITES = 28;
 const hardFailStatements =
@@ -76,6 +76,8 @@ const PENDING_VERSIONS = [
   "20260813012206",
   "20260813013000",
   "20260813013100",
+  "20260813013200",
+  "20260813013300",
 ] as const;
 
 function readMigration(version: string) {
@@ -87,7 +89,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 236 -> 284 ledger and all 48 pending versions", () => {
+  test("pins the exact 236 -> 286 ledger and all 50 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -101,18 +103,26 @@ describe("Production cutover preflight source contract", () => {
     const pinnedBaseline = [...baselineBlock.matchAll(/'(\d{14})'/gu)].map(
       (match) => match[1],
     );
+    const targetTailBlock = preflight.slice(
+      preflight.indexOf("-- BEGIN EXACT PRODUCTION TARGET TAIL"),
+      preflight.indexOf("-- END EXACT PRODUCTION TARGET TAIL"),
+    );
+    const pinnedTargetTail = [...targetTailBlock.matchAll(/'(\d{14})'/gu)].map(
+      (match) => match[1],
+    );
 
-    expect(migrations).toHaveLength(284);
+    expect(migrations).toHaveLength(286);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
     expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
       migrations.slice(0, 236).map((name) => name.slice(0, 14)),
     );
     expect(pending).toEqual([...PENDING_VERSIONS]);
+    expect(pinnedTargetTail).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 236");
-    expect(preflight).toContain("count(*) = 284");
+    expect(preflight).toContain("count(*) = 286");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("48 migrations pending");
+    expect(preflight).toContain("50 migrations pending");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
     }
