@@ -13,6 +13,7 @@ export {
 export { togglePauseSignups, signUpForProject } from "./server/signup";
 export {
   unrejectSignup,
+  rejectSignup,
   createRejectionNotification,
   cancelSignup,
 } from "./server/cancellation";

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { NextRequest, NextResponse } from "next/server";
 import { generateText, Output } from "ai";
 import { z } from "zod";
@@ -12,6 +14,11 @@ import type { DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
 import { gatewayModel } from "@/lib/ai/gateway";
 import { AI_MODEL_FAST, AI_MODEL_FALLBACK_CHAIN } from "@/lib/ai/models";
 import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
+import {
+  buildAnalyzeWaiverQuotaIdentity,
+  consumeAnalyzeWaiverQuota,
+} from "@/lib/ai/analyze-waiver-rate-limit";
+import { getRequestIp } from "@/lib/ai/parse-project-rate-limit-config";
 
 const FIELD_TYPES = [
   "signature",
@@ -1301,13 +1308,75 @@ export async function POST(request: NextRequest) {
       process.env.NODE_ENV !== "production" &&
       process.env.ENABLE_E2E_AUTH_BYPASS === "true";
     let posthogDistinctId: string | undefined;
+    let expectedContentDigest: string | null = null;
 
     if (!isE2EBypassEnabled) {
-      const authResult = await getAuthUser();
+      const authResult = await getAuthUser({ sensitive: true });
+      if (authResult.error) {
+        return NextResponse.json(
+          {
+            error:
+              "Waiver analysis is temporarily unavailable. Please try again.",
+          },
+          { status: 503 },
+        );
+      }
       if (!authResult.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       posthogDistinctId = authResult.user.id;
+      const quotaIdentity = buildAnalyzeWaiverQuotaIdentity(
+        authResult.user.id,
+        request.headers,
+      );
+      expectedContentDigest = quotaIdentity.expectedContentDigest;
+
+      let quota: Awaited<ReturnType<typeof consumeAnalyzeWaiverQuota>>;
+      try {
+        quota = await consumeAnalyzeWaiverQuota({
+          userId: authResult.user.id,
+          requestIp: getRequestIp(request.headers),
+          requestKey: quotaIdentity.requestKey,
+          requestFingerprint: quotaIdentity.requestFingerprint,
+        });
+      } catch (rateLimitError) {
+        console.error("Waiver analysis rate-limit check failed", {
+          errorClass:
+            rateLimitError instanceof Error
+              ? rateLimitError.name
+              : "unknown_error",
+        });
+        return NextResponse.json(
+          {
+            error:
+              "Waiver analysis is temporarily unavailable. Please try again.",
+          },
+          { status: 503 },
+        );
+      }
+
+      if (!quota.allowed) {
+        const retryAfterSeconds = Math.max(
+          Math.ceil((new Date(quota.resetAt).getTime() - Date.now()) / 1_000),
+          1,
+        );
+        return NextResponse.json(
+          {
+            error: "Too many waiver-analysis requests. Please try again later.",
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": retryAfterSeconds.toString() },
+          },
+        );
+      }
+
+      if (quota.replayed && !quota.recovered) {
+        return NextResponse.json(
+          { error: "This waiver-analysis request was already accepted." },
+          { status: 409 },
+        );
+      }
     }
 
     const MAX_PDF_BYTES = 20 * 1024 * 1024; // 20MB
@@ -1365,6 +1434,16 @@ export async function POST(request: NextRequest) {
 
     const arrayBuffer = await file.arrayBuffer();
     const pdfBytes = Buffer.from(arrayBuffer);
+    if (
+      expectedContentDigest &&
+      createHash("sha256").update(pdfBytes).digest("hex") !==
+        expectedContentDigest
+    ) {
+      return NextResponse.json(
+        { error: "Uploaded PDF did not match request metadata" },
+        { status: 400 },
+      );
+    }
 
     let pdfDoc: PDFDocument;
     try {
@@ -1815,10 +1894,12 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
         }
       } catch (fallbackError) {
         if (process.env.NODE_ENV !== "test") {
-          console.warn(
-            "Vision fallback failed, continuing without fallback fields:",
-            fallbackError,
-          );
+          console.warn("Waiver analysis vision fallback failed", {
+            errorClass:
+              fallbackError instanceof Error
+                ? fallbackError.name
+                : "unknown_error",
+          });
         }
       }
     }
@@ -1860,11 +1941,12 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
       },
     });
   } catch (error) {
-    console.error("AI waiver analysis error:", error);
+    console.error("AI waiver analysis failed", {
+      errorClass: error instanceof Error ? error.name : "unknown_error",
+    });
     return NextResponse.json(
       {
         error: "Failed to analyze waiver",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     );

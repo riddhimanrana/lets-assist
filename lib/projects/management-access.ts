@@ -19,3 +19,29 @@ export function canManageProjectAccess(
     input.organizationRole === "staff" && input.canBeManagedByStaff === true
   );
 }
+
+export const ACTIVE_ORGANIZATION_MEMBER_STATUS = "active";
+
+export type OrganizationMembershipRow = {
+  role?: string | null;
+  status?: string | null;
+} | null;
+
+/**
+ * The role a membership row currently confers, or null when it confers none.
+ *
+ * Only an explicitly active membership confers anything: `invited`, `inactive`,
+ * anything future, and an absent or null status all fail closed. The database
+ * side of this policy — public.reject_project_signup and
+ * app_private.is_project_organizer — compares `status` for equality for the same
+ * reason. Returning null instead of a boolean keeps the single policy decision
+ * inside canManageProjectAccess rather than duplicating it per call site.
+ */
+export function activeOrganizationRole(
+  membership: OrganizationMembershipRow | undefined,
+): string | null {
+  if (!membership) return null;
+  if (membership.status !== ACTIVE_ORGANIZATION_MEMBER_STATUS) return null;
+
+  return membership.role ?? null;
+}

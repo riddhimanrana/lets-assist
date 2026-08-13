@@ -39,6 +39,8 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-032](#aud-032) | P1  | Project status         | Browser writes could bypass cancellation atomicity or revive cancelled projects, and failures were console-only        | **Fixed locally**; hosted Development pending                |
 | [AUD-033](#aud-033) | P1  | Recurrence             | Series ending and child generation lacked one serialized parent boundary and exposed a public definer                  | **Fixed locally**; hosted Development pending                |
 | [AUD-034](#aud-034) | P1  | Cancellation worker    | Healthy pagination spent the abandoned-lease retry budget and could amplify retries                                    | **Fixed locally**; hosted Development pending                |
+| [AUD-041](#aud-041) | P1  | Moderation evidence    | Reporters could directly create, rewrite, or delete `content_reports` evidence and retries duplicated it               | **Fixed locally**; hosted Development pending                |
+| [AUD-042](#aud-042) | P1  | Plugin data ACLs       | `plugin_data` default privileges re-granted `authenticated` on every future table, sequence, and routine               | **Fixed locally**; hosted Development pending                |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -895,6 +897,121 @@ provider idempotency key.
 
 **Hosted resolution:** not applied or verified on hosted Development. No
 provider request was made, and Production was not accessed.
+
+---
+
+<a id="aud-041"></a>
+
+## AUD-041 — Content reports were client-written {#aud-041}
+
+**Priority:** P1 · **Status:** Fixed and verified locally; hosted Development pending
+
+`authenticated` held INSERT, UPDATE, and DELETE on `public.content_reports` with
+matching owner policies, so a reporter could file evidence with a status and
+priority of their choosing, rewrite or delete it after a moderator had seen it,
+attach an arbitrary UUID as the reported target, and forge the moderation
+dashboard's `Content URL:` marker inside their own free-text description. The
+route carried no durable rate limit of any kind — neither per user nor per
+address — so submission volume was bounded only by the client, and a retried
+submission created a second report.
+
+`20260812203000_make_content_reports_server_written.sql` revokes every browser
+write grant and column grant, drops the write policies, keeps owner-scoped
+SELECT, and rewrites the reviewed relation catalog with a literal body rather
+than deparsing the live catalog. Writes now go through one `SECURITY DEFINER`
+transaction that only `service_role` may execute. Under an advisory lock on the
+request fingerprint it replays a still-open duplicate, confirms the target
+exists in the literal relation its type names, decides the user and address
+buckets together so neither is charged unless both pass, resolves the
+reporter's durable pseudonym, and derives status, priority, and timestamps
+itself.
+
+Four properties of that transaction are worth stating exactly, because each
+replaced a weaker earlier design in this branch:
+
+- **Replay is bounded, not permanent.** Deduplication is keyed on a
+  `request_fingerprint` plus a server-derived `replay_expires_at`, currently 15
+  minutes. Inside the window a retry returns the original report; past it, the
+  same report can be filed again with an incremented `request_sequence`, so a
+  dismissed issue that recurs is not silently swallowed. Client-supplied time
+  never enters the fingerprint.
+- **The reporter pseudonym is opaque, not derived.** `reporter_reference` is a
+  random UUID held in the server-only `public.reporter_references` mapping, not
+  a hash of the account identifier, so nobody holding a user UUID can recompute
+  it. The mapping is `ON DELETE SET NULL` on its reporter and carries no client
+  grants and no RLS policy.
+- **A forged target cannot reach the queue.** Existence is checked in the
+  transaction against `public.projects`, `public.profiles`, or
+  `public.organizations`. The refusal is generic; reporter visibility stays in
+  the caller's own RLS-scoped session, which is the only place that knows who is
+  asking.
+- **Refused work still costs.** `public.consume_content_report_attempt` charges
+  a separate, higher attempt ceiling before any target lookup, so invisible
+  targets, malformed locations, and replays are bounded too, while the
+  stored-report quota is only charged when a report is actually written.
+
+`reporter_id` became `ON DELETE SET NULL`, and account deletion and enforcement
+bans detach the reporter instead of deleting the evidence. A failed detach
+aborts the ban outright rather than leaving reports pointed at an account that
+is about to become unreachable.
+
+The route keeps its public request and success shapes. It revalidates the actor
+against the auth server, reads a byte-bounded body, parses a strict schema, and
+refuses a target the reporter cannot already read. A reported URL is kept only
+when it resolves to the configured origin, and is stored as a relative path; a
+preview or alias host is simply absent rather than fatal, since the target type
+and identifier are authoritative. Genuinely unsafe locations — other schemes,
+embedded credentials, authority-relative or backslash forms, control and bidi
+characters — are still refused, and the dashboard links to a stored location
+only when it is a safe leading-slash path. Logs carry the content type and
+reason only — no reporter identity, target identifier, IP, or database error
+text.
+
+Local evidence: 84 pgTAP assertions in
+`supabase/tests/database/content_reports_server_written.test.sql`, 8
+two-connection assertions in
+`supabase/tests/database/content_reports_submission_concurrency.test.sql`, and
+82 route, service, domain, and retention tests. Withholding the migration fails
+the contract outright: the direct-write denial assertions fail against the old
+grants and the transaction the rest of the file exercises does not exist.
+No provider, hosted Development, or Production resource was accessed.
+
+---
+
+<a id="aud-042"></a>
+
+## AUD-042 — Legacy plugin_data default ACLs could re-expose new private objects {#aud-042}
+
+**Priority:** P1 · **Status:** Fixed and verified locally; hosted Development pending
+
+Schema `USAGE` was already denied to `anon` and `authenticated`, but
+`plugin_data` still carried schema-scoped default privileges naming
+`authenticated` for every future table, sequence, and routine, so the next
+private-plugin migration would have re-granted it. The trigger function
+`plugin_data.csf_stamp_application_policy_version` also still carried `PUBLIC`,
+`anon`, and `authenticated` EXECUTE from the built-in default in force when it
+was created.
+
+`20260812203500_close_plugin_data_browser_default_acl.sql` revokes schema,
+existing-object, and default privileges from `PUBLIC`, `anon`, and
+`authenticated` for every role that owns an object in the schema plus the role
+applying the ledger, preserves `service_role` usage, and fails closed on any
+residual browser-facing privilege or default. No event trigger is introduced.
+
+One limit is deliberate and documented in the migration: PostgreSQL's built-in
+global default grants `EXECUTE` on new functions to `PUBLIC`, and per
+`ALTER DEFAULT PRIVILEGES` a per-schema entry cannot revoke a globally granted
+default. Revoking it globally for a shared owner role would reach far outside
+this schema. Schema `USAGE` denial is therefore the enforced gate, and both the
+migration probe and the pgTAP contract prove it by creating a table, identity
+sequence, and function and then calling as `anon` and `authenticated`, rather
+than by reading the ACL alone.
+
+Local evidence: 17 pgTAP assertions in
+`supabase/tests/database/plugin_data_browser_default_acl.test.sql` and a clean
+migration replay. Withholding the migration fails 5 of those 17 — the existing
+routine grant, the browser-facing default ACL entries, and inheritance on a new
+table, sequence, and routine. Production was not queried or changed.
 
 ---
 

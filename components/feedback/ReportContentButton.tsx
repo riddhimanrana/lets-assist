@@ -28,8 +28,11 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Flag, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
-type ContentType =
-  "project" | "profile" | "comment" | "image" | "organization" | "other";
+// The types the moderation queue can actually resolve and act on. The wider
+// list this once carried (comment, image, other) had no target relation and no
+// moderator action behind it, so every such report was accepted by the form
+// and then refused by the API.
+type ContentType = "project" | "profile" | "organization";
 
 type ReportReason =
   | "spam"
@@ -128,7 +131,10 @@ export function ReportContentButton({
           contentId,
           reason,
           description: description.trim(),
-          url: window.location.href,
+          // The path only. The host is whatever alias the browser happens to
+          // be on — a preview or branch deployment is not the canonical origin
+          // — and the server would discard it anyway.
+          url: `${window.location.pathname}${window.location.search}${window.location.hash}`,
           // Include rich metadata for better moderation context
           metadata: {
             title: contentTitle,
