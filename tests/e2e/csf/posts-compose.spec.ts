@@ -496,6 +496,24 @@ test.describe("officer post compose in the class Stream", () => {
         );
       }
 
+      const { data: cohortMembers, error: cohortMembersError } =
+        await fixture.admin
+          .schema("plugin_data")
+          .from("csf_profile_cohort_memberships")
+          .select("profile_id")
+          .eq("organization_id", fixture.organizationId)
+          .eq("cohort_id", fixture.cohortIdsByYear[2028])
+          .eq("status", "active");
+      if (cohortMembersError) {
+        throw new Error(
+          `Could not load the seeded Class of 2028 audience: ${cohortMembersError.message}`,
+        );
+      }
+      const cohortProfileIds = new Set(
+        (cohortMembers ?? []).map((member) => member.profile_id),
+      );
+      expect(cohortProfileIds.size).toBeGreaterThan(0);
+
       await loginAs(page, "admin");
       await page.goto(
         `${CSF_ORGANIZATION_PATH}?tab=csf-cohorts&csf_cohort=${fixture.cohortIdsByYear[2028]}&csf_cohort_tab=stream`,
@@ -574,6 +592,15 @@ test.describe("officer post compose in the class Stream", () => {
         content_finalized_at: expect.any(String),
         audience_finalized_at: expect.any(String),
       });
+      if (
+        typeof campaign.audience_size !== "number" ||
+        campaign.audience_size < 1
+      ) {
+        throw new Error(
+          "Queued Class of 2028 campaign did not freeze a positive audience.",
+        );
+      }
+      const audienceSize = campaign.audience_size;
 
       const { data: snapshots, error: snapshotsError } = await fixture.admin
         .schema("plugin_data")
@@ -582,12 +609,24 @@ test.describe("officer post compose in the class Stream", () => {
         .eq("organization_id", fixture.organizationId)
         .eq("campaign_id", queuedCampaignId);
       expect(snapshotsError).toBeNull();
-      expect(snapshots?.length).toBe(campaign.audience_size);
-      expect(snapshots?.every((snapshot) => snapshot.profile_id !== null)).toBe(
-        true,
-      );
+      const recipientSnapshots = snapshots ?? [];
+      expect(recipientSnapshots).toHaveLength(audienceSize);
+      expect(recipientSnapshots.length).toBeGreaterThan(0);
+      expect(audienceSize).toBe(cohortProfileIds.size);
       expect(
-        snapshots?.every(
+        new Set(
+          recipientSnapshots.map((snapshot) => snapshot.profile_id ?? ""),
+        ),
+      ).toEqual(cohortProfileIds);
+      expect(
+        recipientSnapshots.every(
+          (snapshot) =>
+            snapshot.profile_id !== null &&
+            cohortProfileIds.has(snapshot.profile_id),
+        ),
+      ).toBe(true);
+      expect(
+        recipientSnapshots.every(
           (snapshot) =>
             snapshot.campaign_id === queuedCampaignId &&
             snapshot.subscription_decision === "included",
@@ -597,13 +636,22 @@ test.describe("officer post compose in the class Stream", () => {
       const { data: deliveries, error: deliveriesError } = await fixture.admin
         .schema("plugin_data")
         .from("csf_communication_deliveries")
-        .select("id, status, provider_message_id, sent_at, delivered_at")
+        .select(
+          "id, recipient_snapshot_id, status, provider_message_id, sent_at, delivered_at",
+        )
         .eq("organization_id", fixture.organizationId)
         .eq("campaign_id", queuedCampaignId);
       expect(deliveriesError).toBeNull();
-      expect(deliveries?.length).toBe(campaign.audience_size);
+      const queuedDeliveries = deliveries ?? [];
+      expect(queuedDeliveries).toHaveLength(audienceSize);
+      expect(queuedDeliveries.length).toBeGreaterThan(0);
       expect(
-        deliveries?.every(
+        new Set(
+          queuedDeliveries.map((delivery) => delivery.recipient_snapshot_id),
+        ),
+      ).toEqual(new Set(recipientSnapshots.map((snapshot) => snapshot.id)));
+      expect(
+        queuedDeliveries.every(
           (delivery) =>
             delivery.status === "queued" &&
             delivery.provider_message_id === null &&
@@ -616,15 +664,24 @@ test.describe("officer post compose in the class Stream", () => {
         .schema("plugin_data")
         .from("csf_communication_dispatch_attempts")
         .select(
-          "id, state, provider_message_id, dispatch_authorized_at, dispatch_authorized_to, settled_at",
+          "id, delivery_id, recipient_snapshot_id, attempt_number, state, provider_message_id, dispatch_authorized_at, dispatch_authorized_to, settled_at",
         )
         .eq("organization_id", fixture.organizationId)
         .eq("campaign_id", queuedCampaignId);
       expect(attemptsError).toBeNull();
-      expect(attempts?.length).toBe(campaign.audience_size);
+      const queuedAttempts = attempts ?? [];
+      expect(queuedAttempts).toHaveLength(queuedDeliveries.length);
+      expect(queuedAttempts.length).toBeGreaterThan(0);
       expect(
-        attempts?.every(
+        new Set(queuedAttempts.map((attempt) => attempt.delivery_id)),
+      ).toEqual(new Set(queuedDeliveries.map((delivery) => delivery.id)));
+      expect(
+        new Set(queuedAttempts.map((attempt) => attempt.recipient_snapshot_id)),
+      ).toEqual(new Set(recipientSnapshots.map((snapshot) => snapshot.id)));
+      expect(
+        queuedAttempts.every(
           (attempt) =>
+            attempt.attempt_number === 1 &&
             attempt.state === "queued" &&
             attempt.provider_message_id === null &&
             attempt.dispatch_authorized_at === null &&
@@ -640,7 +697,7 @@ test.describe("officer post compose in the class Stream", () => {
           .eq("organization_id", fixture.organizationId)
           .in(
             "attempt_id",
-            (attempts ?? []).map((attempt) => attempt.id),
+            queuedAttempts.map((attempt) => attempt.id),
           );
       expect(providerEventsError).toBeNull();
       expect(providerEvents).toEqual([]);
