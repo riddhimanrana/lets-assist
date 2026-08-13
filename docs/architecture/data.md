@@ -16,7 +16,7 @@ The enforced browser boundary for `plugin_data` is schema `USAGE`, which `PUBLIC
 
 ## Private helper schemas
 
-`private` and `app_private` are omitted from PostgREST's exposed schemas; that routing boundary does not replace function ACLs. Some helpers are invoked from reviewed RLS policies and therefore intentionally retain narrow role execution. Every function in `private` or `app_private` requires explicit per-object execution revokes and reviewed grants, including a deliberate decision for `PUBLIC`, `anon`, `authenticated`, and `service_role`. A new or replaced definer must also use a fixed safe `search_path`.
+`private` and `app_private` are omitted from PostgREST's exposed schemas; that routing boundary does not replace function ACLs. Some helpers are invoked from reviewed RLS policies and therefore intentionally retain narrow role execution. Repository policy requires every function in `private` or `app_private` to carry explicit per-object execution revokes and reviewed grants, including a deliberate decision for `PUBLIC`, `anon`, `authenticated`, and `service_role`. A new or replaced definer must also use a fixed safe `search_path`. The DV student and household helpers retain `authenticated` execution only because authenticated DV policies call them; `PUBLIC`, `anon`, and `service_role` do not.
 
 ## Moderation evidence
 

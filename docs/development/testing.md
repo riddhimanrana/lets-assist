@@ -6,7 +6,7 @@ Use the narrowest focused regression first, then expand to the appropriate gate.
 
 Keep evidence environment- and revision-specific:
 
-- **Locally verified:** a fresh static inventory of this exact worktree contains 288 migration SQL files through `20260813085442_harden_private_is_plugin_enabled_acl.sql` and 139 pgTAP SQL files. The last recorded full local isolated union replay was the exact 282-migration/133-pgTAP shape and passed 5,523 assertions. The current tree contains six newer pgTAP files not covered by that replay.
+- **Locally verified:** a fresh static inventory of this exact worktree contains 289 migration SQL files through `20260813091801_harden_dv_private_policy_helper_acls.sql` and 140 pgTAP SQL files. The last recorded full local isolated union replay was the exact 282-migration/133-pgTAP shape and passed 5,523 assertions. The current tree contains seven newer pgTAP files not covered by that replay.
 - **Hosted Development verified:** only checks run against the hosted Development database and exact deployed application SHA belong in this class. This local-only closeout ran none; previously recorded hosted evidence remains historical and must not be promoted to exact-current parity.
 - **Production unverified:** no Production database, application, browser, worker, or provider gate was run. Production remains untouched and unverified by this closeout.
 

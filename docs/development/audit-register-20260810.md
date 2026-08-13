@@ -41,7 +41,7 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-034](#aud-034) | P1  | Cancellation worker    | Healthy pagination spent the abandoned-lease retry budget and could amplify retries                                    | **Fixed locally**; hosted Development pending                |
 | [AUD-041](#aud-041) | P1  | Moderation evidence    | Reporters could directly create, rewrite, or delete `content_reports` evidence and retries duplicated it               | **Fixed locally**; hosted Development pending                |
 | [AUD-042](#aud-042) | P1  | Plugin data ACLs       | `plugin_data` default privileges re-granted `authenticated` on every future table, sequence, and routine               | **Fixed locally**; hosted Development pending                |
-| [AUD-043](#aud-043) | P1  | Private function ACLs  | Dormant `private.is_plugin_enabled(uuid,text)` retained default `PUBLIC` execute without a runtime caller              | **Fixed locally**; exact replay pending                      |
+| [AUD-043](#aud-043) | P1  | Private function ACLs  | Three fixed-path private definers retained default `PUBLIC` execute beyond their reviewed callers                      | **Fixed locally**; exact replay pending                      |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -1022,7 +1022,7 @@ table, sequence, and routine. Production was not queried or changed.
 
 <a id="aud-043"></a>
 
-## AUD-043 — Dormant private plugin predicate retained default execute
+## AUD-043 — Private helper definers retained default execute
 
 **Priority:** P1 · **Status:** Fixed locally; exact replay and hosted Development pending
 
@@ -1040,6 +1040,24 @@ search path drifts. The source contract pins the zero-caller fact and the
 owner-only ACL; eight pgTAP assertions cover the runtime signature, definition,
 effective denials, and owner grant. Because the function remains in `private`,
 the public callable catalog is unchanged. Production was not accessed.
+
+The follow-up found the same inherited `PUBLIC` capability on
+`private.is_dv_student(uuid)` and
+`private.can_access_dv_household(uuid)`. Both are stable SQL `SECURITY DEFINER`
+functions with `search_path = ''`; unlike the dormant plugin predicate, they
+remain runtime dependencies of 20 DV policies declared `TO authenticated`
+(13 student-policy callers and 7 household-policy callers). No application,
+service, private-plugin, `anon`, or `service_role` caller requires execution.
+
+`20260813091801_harden_dv_private_policy_helper_acls.sql` therefore preserves
+both definitions, revokes `PUBLIC`, `anon`, `authenticated`, and `service_role`,
+then grants only the proven policy role `authenticated` plus owner `postgres`.
+The source contract pins the exact signatures, security/search-path mode, 20
+policy names and roles, absence of another runtime caller, unchanged policy
+ledger, and explicit ACL statements. Twenty pgTAP assertions pin the exact
+direct ACL and effective role posture. The focused source contract passes;
+exact database replay and hosted Development remain pending. Production was not
+accessed.
 
 ---
 

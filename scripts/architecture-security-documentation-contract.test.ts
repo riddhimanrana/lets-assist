@@ -50,7 +50,10 @@ describe("architecture security documentation contract", () => {
       "Never grant `plugin_data` schema usage to `PUBLIC`, `anon`, or `authenticated`",
     );
     expect(data).toContain(
-      "Every function in `private` or `app_private` requires explicit per-object execution revokes and reviewed grants",
+      "Repository policy requires every function in `private` or `app_private` to carry explicit per-object execution revokes and reviewed grants",
+    );
+    expect(data).toContain(
+      "The DV student and household helpers retain `authenticated` execution only because authenticated DV policies call them",
     );
 
     expect(migrationLedger).toContain(
@@ -58,6 +61,12 @@ describe("architecture security documentation contract", () => {
     );
     expect(migrationLedger).toContain(
       "REVOKE ALL ON FUNCTION private.is_plugin_enabled(uuid, text)",
+    );
+    expect(migrationLedger).toContain(
+      "REVOKE ALL ON FUNCTION private.is_dv_student(uuid)",
+    );
+    expect(migrationLedger).toContain(
+      "REVOKE ALL ON FUNCTION private.can_access_dv_household(uuid)",
     );
     expect(migrationLedger).toMatch(
       /REVOKE ALL ON FUNCTION app_private\.[^(]+\([^;]+FROM PUBLIC, anon, authenticated/u,
