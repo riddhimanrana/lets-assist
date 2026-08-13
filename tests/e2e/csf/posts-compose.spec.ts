@@ -302,7 +302,15 @@ test.describe("officer post compose in the class Stream", () => {
       "Fictional namespaced announcement proving a queued CSF email without provider dispatch.";
     let originalConfiguration: Record<string, unknown> | null = null;
     let queuedCampaignId: string | null = null;
-    let cleanupError: Error | null = null;
+    let testFailure: Error | null = null;
+    const cleanupFailures: Error[] = [];
+    const recordCleanupFailure = (message: string, error?: unknown) => {
+      cleanupFailures.push(
+        error instanceof Error
+          ? new Error(`${message}: ${error.message}`)
+          : new Error(message),
+      );
+    };
 
     try {
       const { data: install, error: installError } = await fixture.admin
@@ -510,28 +518,59 @@ test.describe("officer post compose in the class Stream", () => {
       await dialog.getByRole("button", { name: "Acknowledge result" }).click();
       await expect(dialog).toBeHidden();
       expectNoBrowserFailures(failures);
+    } catch (error) {
+      testFailure = error instanceof Error ? error : new Error(String(error));
     } finally {
-      if (queuedCampaignId) {
+      let campaignIdForCleanup = queuedCampaignId;
+      if (!campaignIdForCleanup) {
+        const { data: queuedAnnouncement, error: recoveryError } =
+          await fixture.admin
+            .schema("plugin_data")
+            .from("csf_announcements")
+            .select("id, body, email_campaign_id")
+            .eq("organization_id", fixture.organizationId)
+            .eq("title", queuedTitle)
+            .maybeSingle();
+        if (recoveryError) {
+          recordCleanupFailure(
+            "Could not recover the synthetic announcement for campaign cleanup",
+            recoveryError,
+          );
+        } else if (queuedAnnouncement) {
+          if (!queuedAnnouncement.body.includes(queuedBody)) {
+            recordCleanupFailure(
+              "Recovered announcement did not match the synthetic body marker",
+            );
+          } else if (queuedAnnouncement.email_campaign_id) {
+            campaignIdForCleanup = queuedAnnouncement.email_campaign_id;
+          } else {
+            recordCleanupFailure(
+              "Recovered synthetic announcement has no campaign link to cancel",
+            );
+          }
+        }
+      }
+      if (campaignIdForCleanup) {
         const { error: cancelError } = await fixture.admin
           .schema("plugin_data")
           .rpc("csf_cancel_communication_campaign", {
             p_organization_id: fixture.organizationId,
-            p_campaign_id: queuedCampaignId,
+            p_campaign_id: campaignIdForCleanup,
             p_reason: "Synthetic browser acceptance cleanup.",
             p_actor_user_id: fixture.organizationAdminUserId,
             p_correlation_id: randomUUID(),
           });
         if (cancelError) {
-          cleanupError = new Error(
-            `Could not cancel the synthetic campaign: ${cancelError.message}`,
+          recordCleanupFailure(
+            "Could not cancel the synthetic campaign",
+            cancelError,
           );
         }
       }
       try {
         await cleanFeedPosts(fixture, queuedTitle);
       } catch (error) {
-        cleanupError ??=
-          error instanceof Error ? error : new Error(String(error));
+        recordCleanupFailure("Could not clean the synthetic post", error);
       }
       if (originalConfiguration) {
         const { error: restoreError } = await fixture.admin
@@ -540,12 +579,25 @@ test.describe("officer post compose in the class Stream", () => {
           .eq("organization_id", fixture.organizationId)
           .eq("plugin_key", PLUGIN_KEY);
         if (restoreError) {
-          cleanupError ??= new Error(
-            `Could not restore the isolated CSF plugin configuration: ${restoreError.message}`,
+          recordCleanupFailure(
+            "Could not restore the isolated CSF plugin configuration",
+            restoreError,
           );
         }
       }
     }
-    if (cleanupError) throw cleanupError;
+    if (cleanupFailures.length > 0) {
+      if (testFailure) {
+        throw new AggregateError(
+          [testFailure, ...cleanupFailures],
+          "CSF queued-email acceptance and cleanup failed",
+        );
+      }
+      throw new AggregateError(
+        cleanupFailures,
+        "CSF queued-email acceptance cleanup failed",
+      );
+    }
+    if (testFailure) throw testFailure;
   });
 });
