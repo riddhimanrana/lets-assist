@@ -12,6 +12,7 @@ const fixtureRoots: string[] = [];
 type FixtureOptions = {
   checkoutDrift?: boolean;
   developmentRef?: "contained" | "missing" | "uncontained";
+  missingTargetObject?: boolean;
 };
 
 function runGit(cwd: string, ...args: string[]) {
@@ -94,10 +95,25 @@ function createFixture(options: FixtureOptions = {}) {
   runGit(root, "submodule", "init", "lib/plugins/private");
   runGit(root, "submodule", "absorbgitdirs", "lib/plugins/private");
 
+  if (options.missingTargetObject) {
+    const objectPath = runGit(
+      privateRepository,
+      "rev-parse",
+      "--path-format=absolute",
+      "--git-path",
+      `objects/${targetCommit.slice(0, 2)}/${targetCommit.slice(2)}`,
+    );
+    rmSync(objectPath);
+  }
+
   return root;
 }
 
 function runCheck(root: string, strict = true) {
+  const env = { ...process.env };
+  delete env.PRIVATE_SUBMODULE_STRICT;
+  delete env.PRIVATE_PLUGINS_BRANCH;
+
   const result = spawnSync(
     "node",
     [checkScript, ...(strict ? ["--strict"] : [])],
@@ -105,7 +121,7 @@ function runCheck(root: string, strict = true) {
       cwd: root,
       encoding: "utf8",
       env: {
-        ...process.env,
+        ...env,
         GIT_CONFIG_COUNT: "1",
         GIT_CONFIG_KEY_0: "protocol.https.allow",
         GIT_CONFIG_VALUE_0: "never",
@@ -166,6 +182,21 @@ describe("private submodule strict publication check", () => {
       "Update that local remote-tracking ref after the private-first merge",
     );
     expect(result.output).toContain("does not fetch");
+  });
+
+  test("fails when the committed gitlink is absent from the local object store", () => {
+    const result = runCheck(
+      createFixture({
+        developmentRef: "uncontained",
+        missingTargetObject: true,
+      }),
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain(
+      "is absent from the local private object store",
+    );
+    expect(result.output).toContain("uses local refs only and does not fetch");
   });
 
   test("preserves the non-strict exact-gitlink behavior for local work", () => {

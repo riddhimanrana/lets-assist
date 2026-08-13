@@ -11,6 +11,16 @@ function occurrences(value: string) {
   return workflow.split(value).length - 1;
 }
 
+function jobBlock(name: string, nextName?: string) {
+  const start = workflow.indexOf(`  ${name}:\n`);
+  expect(start).toBeGreaterThanOrEqual(0);
+  const end = nextName
+    ? workflow.indexOf(`  ${nextName}:\n`, start)
+    : workflow.length;
+  expect(end).toBeGreaterThan(start);
+  return workflow.slice(start, end);
+}
+
 describe("private plugin CI credential", () => {
   test("uses one repository-scoped SSH secret instead of a reusable access token", () => {
     expect(workflow).not.toContain("PRIVATE_SUBMODULE_TOKEN");
@@ -53,5 +63,39 @@ describe("private plugin CI credential", () => {
   test("keeps the strict detached-gitlink validation enabled", () => {
     expect(workflow).not.toContain("PRIVATE_SUBMODULE_ALLOW_DETACHED_GITLINK");
     expect(occurrences("bun run plugin:submodules:check:strict")).toBe(2);
+  });
+
+  test("fetches complete private history before each strict containment check", () => {
+    const jobs = [
+      jobBlock("quality", "db-replay-validation"),
+      jobBlock("db-replay-validation"),
+    ];
+
+    for (const job of jobs) {
+      const checkoutStart = job.indexOf(
+        "      - name: Checkout exact private plugin gitlink\n",
+      );
+      const normalizeStart = job.indexOf(
+        "      - name: Normalize private plugin remote metadata\n",
+      );
+      const strictStart = job.indexOf(
+        "      - name: Validate exact private plugin gitlink\n",
+      );
+
+      expect(checkoutStart).toBeGreaterThanOrEqual(0);
+      expect(normalizeStart).toBeGreaterThan(checkoutStart);
+      expect(strictStart).toBeGreaterThan(normalizeStart);
+
+      const privateCheckout = job.slice(checkoutStart, normalizeStart);
+      expect(privateCheckout).toContain("          fetch-depth: 0\n");
+      expect(privateCheckout).toContain(
+        "          persist-credentials: false\n",
+      );
+
+      const strictCheck = job.slice(strictStart);
+      expect(strictCheck).toContain(
+        "        run: bun run plugin:submodules:check:strict\n",
+      );
+    }
   });
 });

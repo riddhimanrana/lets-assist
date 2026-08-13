@@ -248,7 +248,7 @@ DV Speech & Debate plugin posture:
 - Added `bun run plugin:audit:data-access` to fail future client components or shared browser helpers that try to construct `plugin_data` queries directly.
 - Added `bun run plugin:test:contracts` to sync registered plugin runtime contracts from the local registry into `public.plugin_runtime_contracts`, verify registered plugins have contracts, reject `plugin_data` declarations with `rls-client`, verify no data boundary allows `rls_allowed`, and verify all organizations have isolation profiles.
 - `bun run db:audit:plugin-isolation` now fails if `anon` regains `plugin_data` schema usage/default privileges or if `authenticated` direct grants are reintroduced.
-- `bun run plugin:submodules:check` verifies the private plugin submodule path, remote URL, expected `development` branch, and registry file. Strict mode is available with `bun run plugin:submodules:check:strict` before publishing and fails if the submodule is unpublished ahead of or behind `origin/development`.
+- `bun run plugin:submodules:check` verifies the private plugin submodule path, remote URL, expected `development` branch, and registry file. Strict mode is available with `bun run plugin:submodules:check:strict` before publishing; it uses local refs only, requires the committed gitlink object to exist in the local private object store and be contained in the locally known `origin/development` history, and fails branch checkouts that are ahead of or behind that ref.
 - The private plugin submodule should point at the commit that removes DV from the registry during this takedown; publish the submodule commit before publishing the root gitlink.
 
 ### 2026-07-11: DV server-only cutover and re-enable

@@ -95,6 +95,7 @@ jobs:
           ref: ${{ steps.private-plugin-gitlink.outputs.sha }}
           path: lib/plugins/private
           ssh-key: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Normalize private plugin remote metadata
@@ -185,6 +186,7 @@ jobs:
           ref: ${{ steps.private-plugin-gitlink.outputs.sha }}
           path: lib/plugins/private
           ssh-key: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Normalize private plugin remote metadata
