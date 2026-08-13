@@ -19,6 +19,11 @@ test("derives a bounded client IP while retaining a per-user quota", () => {
   assert.ok(PARSE_PROJECT_IP_LIMIT >= PARSE_PROJECT_USER_LIMIT);
 });
 
+test("returns no IP dimension when forwarding headers are unresolved", () => {
+  assert.equal(getRequestIp(new Headers()), null);
+  assert.equal(getRequestIp(new Headers({ "x-real-ip": "   " })), null);
+});
+
 test("project parser authenticates, validates input, meters, and emits user telemetry", () => {
   const route = readFileSync(
     join(process.cwd(), "app/api/ai/parse-project/route.ts"),

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { NextRequest, NextResponse } from "next/server";
 import { generateText, Output } from "ai";
 import { z } from "zod";
@@ -12,7 +14,10 @@ import type { DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
 import { gatewayModel } from "@/lib/ai/gateway";
 import { AI_MODEL_FAST, AI_MODEL_FALLBACK_CHAIN } from "@/lib/ai/models";
 import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
-import { consumeAnalyzeWaiverQuota } from "@/lib/ai/analyze-waiver-rate-limit";
+import {
+  buildAnalyzeWaiverQuotaIdentity,
+  consumeAnalyzeWaiverQuota,
+} from "@/lib/ai/analyze-waiver-rate-limit";
 import { getRequestIp } from "@/lib/ai/parse-project-rate-limit-config";
 
 const FIELD_TYPES = [
@@ -1303,6 +1308,7 @@ export async function POST(request: NextRequest) {
       process.env.NODE_ENV !== "production" &&
       process.env.ENABLE_E2E_AUTH_BYPASS === "true";
     let posthogDistinctId: string | undefined;
+    let expectedContentDigest: string | null = null;
 
     if (!isE2EBypassEnabled) {
       const authResult = await getAuthUser({ sensitive: true });
@@ -1319,13 +1325,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       posthogDistinctId = authResult.user.id;
+      const quotaIdentity = buildAnalyzeWaiverQuotaIdentity(
+        authResult.user.id,
+        request.headers,
+      );
+      expectedContentDigest = quotaIdentity.expectedContentDigest;
 
       let quota: Awaited<ReturnType<typeof consumeAnalyzeWaiverQuota>>;
       try {
-        quota = await consumeAnalyzeWaiverQuota(
-          authResult.user.id,
-          getRequestIp(request.headers),
-        );
+        quota = await consumeAnalyzeWaiverQuota({
+          userId: authResult.user.id,
+          requestIp: getRequestIp(request.headers),
+          requestKey: quotaIdentity.requestKey,
+          requestFingerprint: quotaIdentity.requestFingerprint,
+        });
       } catch (rateLimitError) {
         console.error("Waiver analysis rate-limit check failed", {
           errorClass:
@@ -1355,6 +1368,13 @@ export async function POST(request: NextRequest) {
             status: 429,
             headers: { "Retry-After": retryAfterSeconds.toString() },
           },
+        );
+      }
+
+      if (quota.replayed && !quota.recovered) {
+        return NextResponse.json(
+          { error: "This waiver-analysis request was already accepted." },
+          { status: 409 },
         );
       }
     }
@@ -1414,6 +1434,16 @@ export async function POST(request: NextRequest) {
 
     const arrayBuffer = await file.arrayBuffer();
     const pdfBytes = Buffer.from(arrayBuffer);
+    if (
+      expectedContentDigest &&
+      createHash("sha256").update(pdfBytes).digest("hex") !==
+        expectedContentDigest
+    ) {
+      return NextResponse.json(
+        { error: "Uploaded PDF did not match request metadata" },
+        { status: 400 },
+      );
+    }
 
     let pdfDoc: PDFDocument;
     try {

@@ -51,12 +51,15 @@ export type ProjectFeedbackSummary = {
 async function consumeFeedbackQuota(userId: string): Promise<boolean> {
   try {
     const requestHeaders = await headers();
+    const requestIp = getRequestIp(requestHeaders);
     const quota = await consumeAiQuota({
       feature: "project-feedback",
       windowSeconds: 3600,
       buckets: [
         { scope: "user", identifier: userId, limit: 10 },
-        { scope: "ip", identifier: getRequestIp(requestHeaders), limit: 30 },
+        ...(requestIp
+          ? [{ scope: "ip", identifier: requestIp, limit: 30 }]
+          : []),
       ],
     });
     return quota.allowed;
