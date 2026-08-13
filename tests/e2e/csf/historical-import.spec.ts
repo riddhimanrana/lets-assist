@@ -445,9 +445,11 @@ test.describe("CSF historical workbook import", () => {
       });
     await expect(resolution).toHaveCount(1);
     await expect(resolution).toBeVisible();
-    const matchTarget = resolution.getByLabel("Match to member");
-    const matchForm = resolution.locator("form").filter({ has: matchTarget });
+    const matchForm = resolution.locator("form").filter({
+      has: page.getByLabel("Match to member"),
+    });
     await expect(matchForm).toHaveCount(1);
+    const matchTarget = matchForm.getByLabel("Match to member");
     const matchReason = matchForm.getByLabel("Match reason");
     const useMatch = matchForm.getByRole("button", {
       name: "Use match",

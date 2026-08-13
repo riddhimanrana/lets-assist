@@ -579,6 +579,23 @@ test.describe("officer post compose in the class Stream", () => {
         .getByRole("checkbox", { name: "Also send this as an email" })
         .check();
       await dialog.getByRole("button", { name: "Publish post" }).click();
+      await expect(dialog).toBeVisible();
+      const postPublishedResult = dialog.getByRole("alert").filter({
+        hasText: "The post was saved separately from its email outcome.",
+      });
+      await expect(
+        postPublishedResult.getByText("Post published.", { exact: true }),
+      ).toBeVisible();
+      const emailQueuedResult = dialog.getByRole("alert").filter({
+        hasText: "Email queued to",
+      });
+      await expect(
+        emailQueuedResult.getByText("Email queued", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        dialog.getByRole("button", { name: "Publish post" }),
+      ).toHaveCount(0);
+      await dialog.getByRole("button", { name: "Close result" }).click();
       await expect(dialog).toBeHidden();
 
       const { data: announcement, error: announcementError } =

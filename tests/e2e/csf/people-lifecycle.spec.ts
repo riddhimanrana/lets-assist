@@ -508,6 +508,9 @@ test.describe("CSF visible people lifecycle", () => {
     const directorySearch = page.getByLabel("Search members");
     await directorySearch.fill(fixture.profileEmail);
     await page.getByRole("button", { name: "Apply", exact: true }).click();
+    if (!fixture.profileId) {
+      throw new Error("The connected CSF profile id is missing.");
+    }
     const profileName = `Avery Lifecycle-${fixture.profileEmail.slice(16, 24)}`;
     const connectedProfileLink = page.getByRole("link", {
       name: new RegExp(profileName),
