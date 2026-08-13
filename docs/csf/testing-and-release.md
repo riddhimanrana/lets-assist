@@ -3,12 +3,12 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** This repository carries 278 ordered migrations through the atomic AI
-quota boundary, including the preceding atomic project-signup rejection,
-content-report integrity, and CSF meeting-permission migrations; hosted
-Development Supabase remains at 273
-through the atomic post-reply boundary. The `dev.lets-assist.com` alias still
-serves earlier Ready code at
+**Status:** This repository carries 280 ordered migrations through the atomic AI
+quota boundary, including the active staff-invite issuer, atomic
+project-signup rejection, content-report integrity, and CSF meeting-permission
+migrations; hosted
+Development Supabase remains at 273 through the atomic post-reply boundary. The
+`dev.lets-assist.com` alias still serves earlier Ready code at
 `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository tree ended at 272
 through `20260812132725`, because the external Vercel 100-deployment-per-day
 project cap prevented the refreshed deployment. Google OAuth and Picker are
@@ -24,23 +24,25 @@ only.
 
 ## Current hosted Development state
 
-- The repository branch has 278 ordered migrations through
+- The repository branch has 280 ordered migrations through
   `20260813010000_atomic_ai_quota_receipts`.
 - Hosted Development Supabase has 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`; it is five reviewed migrations behind
-  this repository branch. The five newest repository
+  `20260812152300_atomic_csf_post_replies`; it is seven reviewed migrations
+  behind this repository branch. The seven newest repository
   migrations, `20260812161500_atomic_project_signup_rejection`,
+  `20260812185500_atomic_staff_invite_issuer_redemption`,
+  `20260812193400_protect_staff_invite_issuer_capability`,
   `20260812203000_make_content_reports_server_written`,
   `20260812203500_close_plugin_data_browser_default_acl`,
   `20260812220000_csf_meeting_permission_followups`, and
   `20260813010000_atomic_ai_quota_receipts`, have not been applied to any hosted
   database.
 - Production remains at 236 ordered migrations through `20260811001500`; the
-  42-migration cutover has not run.
+  44-migration cutover has not run.
 - The last accepted Development advisor snapshot was captured on the preceding
   272-migration shape: 95 INFO, 0 WARN, and 0 ERROR security findings, plus 611
   INFO, 0 WARN, and 0 ERROR performance findings. Those counts have not been
-  re-established for either the hosted 273 or repository 278 shape and are not
+  re-established for either the hosted 273 or repository 280 shape and are not
   current-parity evidence.
 - `dev.lets-assist.com` still serves exact development SHA
   `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose Ready repository tree ended
@@ -58,12 +60,12 @@ only.
   zero term applications were committed.
 - No names or email addresses are recorded here. Real-source evidence remains
   aggregate-only.
-- The caller-summary correction is the private plugin fix merged by private PR
-  #45 at `ca817bf`. On `development` the root worktree's gitlink points to that
-  commit locally; this integration branch advances the gitlink to private
-  `development` `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, which contains
-  `ca817bf` as an ancestor, so the correction stays pinned. The stale Ready
-  Development SHA above does not include either gitlink.
+- The caller-summary correction and inactive-access hardening are combined in
+  private development commit
+  `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, and this root worktree's gitlink
+  points to that exact commit locally. It also contains the meeting hardening
+  and `ca817bf` preview-summary correction. The stale Ready Development SHA
+  above does not include that local gitlink update.
 - The Drive metadata RPC is no longer the current Preview blocker. Production
   remains untouched.
 
@@ -408,9 +410,11 @@ The current officer procedure is documented in the [officer runbook](officer-run
   unexecuted.
 - Development uses a distinct hosted Supabase project. Its database has 273
   ordered migrations through `20260812152300_atomic_csf_post_replies`; this
-  repository branch has 278 through
+  repository branch has 280 through
   `20260813010000_atomic_ai_quota_receipts`, including
   `20260812161500_atomic_project_signup_rejection`,
+  `20260812185500_atomic_staff_invite_issuer_redemption`,
+  `20260812193400_protect_staff_invite_issuer_capability`,
   `20260812203000_make_content_reports_server_written`, and
   `20260812203500_close_plugin_data_browser_default_acl`,
   `20260812220000_csf_meeting_permission_followups`, and

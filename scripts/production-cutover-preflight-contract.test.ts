@@ -66,6 +66,8 @@ const PENDING_VERSIONS = [
   "20260812132725",
   "20260812152300",
   "20260812161500",
+  "20260812185500",
+  "20260812193400",
   "20260812203000",
   "20260812203500",
   "20260812220000",
@@ -81,7 +83,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 236 -> 278 ledger and all 42 pending versions", () => {
+  test("pins the exact 236 -> 280 ledger and all 44 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -96,7 +98,7 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    expect(migrations).toHaveLength(278);
+    expect(migrations).toHaveLength(280);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
     expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
@@ -104,9 +106,9 @@ describe("Production cutover preflight source contract", () => {
     );
     expect(pending).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 236");
-    expect(preflight).toContain("count(*) = 278");
+    expect(preflight).toContain("count(*) = 280");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("42 migrations pending");
+    expect(preflight).toContain("44 migrations pending");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
     }
@@ -242,6 +244,18 @@ describe("Production cutover preflight source contract", () => {
     );
     expect(preflightFunctionAclBlock).toContain("security_invoker=true");
     expect(preflightFunctionAclBlock).toContain("function_record.prosecdef");
+
+    const issuerGuard = readMigration("20260812193400");
+    expect(issuerGuard).toContain(
+      "CREATE OR REPLACE FUNCTION private.protect_staff_join_token_issuer()",
+    );
+    expect(issuerGuard).toMatch(
+      /NEW\.staff_join_token_issued_by\s+IS DISTINCT FROM OLD\.staff_join_token_issued_by/u,
+    );
+    expect(issuerGuard).toContain(
+      "REVOKE ALL ON FUNCTION private.protect_staff_join_token_issuer()",
+    );
+    expect(issuerGuard).toContain("TO postgres;");
   });
 
   test("verifies the moderation evidence shape this cutover introduces", () => {

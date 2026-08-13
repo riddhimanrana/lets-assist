@@ -6,6 +6,7 @@ import {
 } from "@/lib/plugins/resolve-plugin-surfaces";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveOrganizationMembershipRole } from "@/lib/organization/active-membership";
 import type {
   AnonymousProfileExperienceBehavior,
   OrganizationPluginAccessRole,
@@ -21,6 +22,7 @@ export interface ResolveOrganizationPluginBehaviorHookOptions {
   organizationName?: string;
   hook: OrganizationPluginBehaviorHook;
   viewerRole?: OrganizationPluginAccessRole | null;
+  viewerUserId?: string;
   target?: OrganizationPluginSurfaceRenderTargetContext;
   hookInput?: Record<string, unknown>;
   useAdminClient?: boolean;
@@ -67,6 +69,15 @@ export async function resolveOrganizationPluginBehaviorHook<
   const supabase = options.useAdminClient
     ? getAdminClient()
     : await createClient();
+  const viewerRole = options.viewerUserId
+    ? await getActiveOrganizationMembershipRole(
+        supabase,
+        options.organizationId,
+        options.viewerUserId,
+      )
+    : options.viewerRole;
+  if (options.viewerUserId && !viewerRole) return [];
+
   const installRows = await loadAccessibleOrganizationPluginAccess({
     supabase,
     organizationIds: [options.organizationId],
@@ -86,7 +97,7 @@ export async function resolveOrganizationPluginBehaviorHook<
       plugin.manifest.minimumRole ??
       "member";
 
-    if (!hasSurfaceAccess(requiredAccess, options.viewerRole)) {
+    if (!hasSurfaceAccess(requiredAccess, viewerRole)) {
       continue;
     }
 
@@ -104,7 +115,7 @@ export async function resolveOrganizationPluginBehaviorHook<
       organizationSlug: options.organizationSlug,
       organizationName: options.organizationName,
       pluginConfiguration: configuration,
-      viewerRole: options.viewerRole,
+      viewerRole,
       target: options.target,
       hookInput: options.hookInput,
     });

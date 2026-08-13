@@ -746,12 +746,11 @@ The private action keeps its existing parameters and accepts one optional final
 request UUID. The UI retains that UUID across an unknown add/delete outcome and
 reuses it on an unchanged manual retry; changing the body discards the stale
 key. Private PR #44 merged first into the private repository's `development`
-branch at `d4188dd7`; the `development` root gitlink `ca817bf` contains that
-reply code plus the later preview-summary correction, and the meeting-roster
-follow-up `4f20fa5` contains `ca817bf` in turn. The combined private
-`development` gitlink `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b` contains
-both. Audited source evidence passes 48 focused private tests (220 expectations),
-all 121 database files and 5,126 pgTAP assertions, including observed
+branch at `d4188dd7`; the current root gitlink
+`605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b` contains that reply code, the later
+preview-summary correction, meeting hardening, and inactive-access hardening.
+Audited source evidence passes 48 focused private tests (220 expectations), all
+121 database files and 5,126 pgTAP assertions, including observed
 two-connection advisory-lock waits for same-request replay and a staff-only
 `manage_posts` revocation. The exact integrated branch still requires fresh
 replay. Hosted Development migration, advisor, and browser acceptance also

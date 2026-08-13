@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(82);
+SELECT extensions.plan(92);
 
 -- Organization bearer capabilities must never be readable through the Data API.
 WITH client_roles(role_name) AS (
@@ -14,6 +14,7 @@ WITH client_roles(role_name) AS (
     ('staff_join_token'),
     ('staff_join_token_created_at'),
     ('staff_join_token_expires_at'),
+    ('staff_join_token_issued_by'),
     ('auto_join_domain')
 )
 SELECT extensions.ok(
@@ -90,6 +91,62 @@ SELECT extensions.ok(
     'EXECUTE'
   ),
   'anon cannot call the join-code RPC'
+);
+
+SELECT extensions.ok(
+  CASE
+    WHEN to_regprocedure('private.protect_staff_join_token_issuer()') IS NULL
+      THEN false
+    ELSE
+      has_function_privilege(
+        'postgres',
+        'private.protect_staff_join_token_issuer()',
+        'EXECUTE'
+      )
+      AND NOT has_function_privilege(
+        'service_role',
+        'private.protect_staff_join_token_issuer()',
+        'EXECUTE'
+      )
+      AND NOT has_function_privilege(
+        'authenticated',
+        'private.protect_staff_join_token_issuer()',
+        'EXECUTE'
+      )
+      AND NOT has_function_privilege(
+        'anon',
+        'private.protect_staff_join_token_issuer()',
+        'EXECUTE'
+      )
+      AND NOT has_function_privilege(
+        'public',
+        'private.protect_staff_join_token_issuer()',
+        'EXECUTE'
+      )
+  END,
+  'the issuer trigger function exists with postgres-only execution'
+);
+
+SELECT extensions.ok(
+  NOT has_column_privilege(
+    'authenticated',
+    'public.organizations',
+    'staff_join_token_issued_by',
+    'SELECT'
+  )
+  AND NOT has_column_privilege(
+    'authenticated',
+    'public.organizations',
+    'staff_join_token_issued_by',
+    'INSERT'
+  )
+  AND NOT has_column_privilege(
+    'authenticated',
+    'public.organizations',
+    'staff_join_token_issued_by',
+    'UPDATE'
+  ),
+  'authenticated receives no direct issuer-column browser grant'
 );
 
 SELECT extensions.ok(
@@ -251,6 +308,14 @@ VALUES (
   false,
   'fd000000-0000-4000-8000-000000000001'
 );
+
+-- Model the historical hosted table-level write grant explicitly. These grants
+-- are transaction-local test setup and roll back; the trigger must remain the
+-- defense even when relation ACL drift exposes a newly added capability column.
+GRANT INSERT (staff_join_token_issued_by),
+      UPDATE (staff_join_token_issued_by)
+  ON public.organizations
+  TO authenticated;
 
 SET LOCAL request.jwt.claims =
   '{"sub":"fd000000-0000-4000-8000-000000000001","role":"authenticated"}';
@@ -525,6 +590,38 @@ SELECT extensions.throws_ok(
 
 SELECT extensions.throws_ok(
   $$
+    UPDATE public.organizations
+    SET staff_join_token_issued_by = 'fd000000-0000-4000-8000-000000000002'
+    WHERE id = 'fd100000-0000-4000-8000-000000000001'
+  $$,
+  '42501',
+  'staff invite token issuer requires a server-authorized operation',
+  'authenticated admins cannot rebind staff-token issuer authority'
+);
+
+SELECT extensions.throws_ok(
+  $$
+    INSERT INTO public.organizations (
+      id, name, username, type, join_code, created_by,
+      staff_join_token_issued_by
+    )
+    VALUES (
+      'fd100000-0000-4000-8000-000000000007',
+      'Issuer Injection Boundary Organization',
+      'issuer-injection-boundary-org',
+      'school',
+      '701007',
+      'fd000000-0000-4000-8000-000000000001',
+      'fd000000-0000-4000-8000-000000000002'
+    )
+  $$,
+  '42501',
+  'staff invite token issuer requires a server-authorized operation',
+  'authenticated creators cannot bind an issuer during organization insert'
+);
+
+SELECT extensions.throws_ok(
+  $$
     INSERT INTO public.organizations (
       id, name, username, type, join_code, verified, created_by
     )
@@ -625,6 +722,62 @@ SELECT extensions.is(
 
 RESET ROLE;
 SET LOCAL ROLE service_role;
+
+SELECT extensions.lives_ok(
+  $$
+    UPDATE public.organizations
+    SET staff_join_token = 'fd700000-0000-4000-8000-000000000001',
+        staff_join_token_created_at = now(),
+        staff_join_token_expires_at = now() + interval '30 days',
+        staff_join_token_issued_by = 'fd000000-0000-4000-8000-000000000001'
+    WHERE id = 'fd100000-0000-4000-8000-000000000001'
+  $$,
+  'service-role staff-token generation can bind the active issuer'
+);
+
+SELECT extensions.is(
+  (
+    SELECT staff_join_token_issued_by
+    FROM public.organizations
+    WHERE id = 'fd100000-0000-4000-8000-000000000001'
+  ),
+  'fd000000-0000-4000-8000-000000000001'::uuid,
+  'service-role issuer binding is persisted'
+);
+
+UPDATE public.organization_members
+SET status = 'inactive'
+WHERE organization_id = 'fd100000-0000-4000-8000-000000000001'
+  AND user_id = 'fd000000-0000-4000-8000-000000000001';
+
+RESET ROLE;
+SET LOCAL request.jwt.claims =
+  '{"sub":"fd000000-0000-4000-8000-000000000001","role":"authenticated"}';
+SET LOCAL ROLE authenticated;
+
+SELECT extensions.throws_ok(
+  $$
+    UPDATE public.organizations
+    SET staff_join_token_issued_by = 'fd000000-0000-4000-8000-000000000002'
+    WHERE id = 'fd100000-0000-4000-8000-000000000001'
+  $$,
+  '42501',
+  'staff invite token issuer requires a server-authorized operation',
+  'an inactive admin retaining organization update access cannot rebind the issuer'
+);
+
+RESET ROLE;
+SET LOCAL ROLE service_role;
+
+SELECT extensions.is(
+  (
+    SELECT staff_join_token_issued_by
+    FROM public.organizations
+    WHERE id = 'fd100000-0000-4000-8000-000000000001'
+  ),
+  'fd000000-0000-4000-8000-000000000001'::uuid,
+  'rejected inactive-admin rebinding preserves the service-issued authority'
+);
 
 SELECT extensions.results_eq(
   $$
