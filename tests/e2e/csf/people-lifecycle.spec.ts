@@ -423,6 +423,7 @@ test.describe("CSF visible people lifecycle", () => {
         `Submitted school address ${fixture.profileEmail} · Account confirmation is checked in Resolve`,
         { exact: true },
       )
+      .locator("..")
       .locator("..");
     await expect(fixtureRequestCard).toHaveCount(1);
     await fixtureRequestCard
