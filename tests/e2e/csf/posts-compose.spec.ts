@@ -15,6 +15,13 @@ import {
 
 const TITLE_PREFIX = "E2E compose";
 const PLUGIN_KEY = "dvhs-csf";
+type StoredPluginConfiguration =
+  | null
+  | boolean
+  | number
+  | string
+  | StoredPluginConfiguration[]
+  | { [key: string]: StoredPluginConfiguration };
 const composedTitle = `${TITLE_PREFIX} spring class update ${randomUUID()}`;
 const composedBody =
   "Fictional class announcement composed by the browser suite. No real students are addressed.";
@@ -300,7 +307,8 @@ test.describe("officer post compose in the class Stream", () => {
     const queuedTitle = `${TITLE_PREFIX} queued ${randomUUID()}`;
     const queuedBody =
       "Fictional namespaced announcement proving a queued CSF email without provider dispatch.";
-    let originalConfiguration: Record<string, unknown> | null = null;
+    let originalConfiguration: StoredPluginConfiguration | null = null;
+    let configurationWasSaved = false;
     let queuedCampaignId: string | null = null;
     let testFailure: Error | null = null;
     const cleanupFailures: Error[] = [];
@@ -325,14 +333,16 @@ test.describe("officer post compose in the class Stream", () => {
           `Could not load the isolated CSF plugin configuration: ${installError?.message ?? "missing install"}`,
         );
       }
-      const savedConfiguration: Record<string, unknown> =
-        install.configuration &&
-        typeof install.configuration === "object" &&
-        !Array.isArray(install.configuration)
-          ? structuredClone(install.configuration)
+      originalConfiguration = structuredClone(
+        install.configuration,
+      ) as StoredPluginConfiguration;
+      configurationWasSaved = true;
+      const configured: Record<string, unknown> =
+        originalConfiguration &&
+        typeof originalConfiguration === "object" &&
+        !Array.isArray(originalConfiguration)
+          ? structuredClone(originalConfiguration)
           : {};
-      originalConfiguration = savedConfiguration;
-      const configured = structuredClone(savedConfiguration);
       const communications: Record<string, unknown> =
         configured.communications &&
         typeof configured.communications === "object" &&
@@ -596,7 +606,7 @@ test.describe("officer post compose in the class Stream", () => {
       } catch (error) {
         recordCleanupFailure("Unexpected queued-email cleanup failure", error);
       } finally {
-        if (originalConfiguration) {
+        if (configurationWasSaved) {
           try {
             const { error: restoreError } = await fixture.admin
               .from("organization_plugin_installs")
