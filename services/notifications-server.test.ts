@@ -255,7 +255,6 @@ describe("server notification callers", () => {
   const repoRoot = join(import.meta.dir, "..");
 
   for (const relativePath of [
-    "app/projects/[id]/server/cancellation.ts",
     "app/admin/moderation/server/notifications.ts",
     "app/admin/moderation/server/reports.ts",
   ]) {
@@ -269,4 +268,21 @@ describe("server notification callers", () => {
       expect(source).not.toMatch(/from\s+["']@\/lib\/supabase\/client["']/u);
     });
   }
+
+  // Rejection notifications are written inside public.reject_project_signup, so
+  // this module must not notify from TypeScript through either service: a
+  // separate insert here would be a delivery that could fail on its own again.
+  test("app/projects/[id]/server/cancellation.ts leaves rejection notifications to the database transaction", () => {
+    const source = readFileSync(
+      join(repoRoot, "app/projects/[id]/server/cancellation.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain('supabase.rpc("reject_project_signup"');
+    expect(source).not.toMatch(/from\s+["']@\/services\/notifications["']/u);
+    expect(source).not.toMatch(
+      /from\s+["']@\/services\/notifications-server["']/u,
+    );
+    expect(source).not.toMatch(/from\s+["']@\/lib\/supabase\/client["']/u);
+  });
 });

@@ -65,6 +65,7 @@ const PENDING_VERSIONS = [
   "20260812115556",
   "20260812132725",
   "20260812152300",
+  "20260812161500",
   "20260812220000",
 ] as const;
 
@@ -77,7 +78,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 236 -> 274 ledger and all 38 pending versions", () => {
+  test("pins the exact 236 -> 275 ledger and all 39 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -92,7 +93,7 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    expect(migrations).toHaveLength(274);
+    expect(migrations).toHaveLength(275);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
     expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
@@ -100,9 +101,9 @@ describe("Production cutover preflight source contract", () => {
     );
     expect(pending).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 236");
-    expect(preflight).toContain("count(*) = 274");
+    expect(preflight).toContain("count(*) = 275");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("38 migrations pending");
+    expect(preflight).toContain("39 migrations pending");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
     }

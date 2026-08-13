@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(40);
+SELECT extensions.plan(41);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -518,13 +518,25 @@ SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" =
   '{"sub":"ad000000-0000-4000-8000-000000000001","role":"authenticated"}';
 
-SELECT extensions.lives_ok(
+-- Rejection owes the volunteer a notification, so it left client status
+-- moderation entirely and now belongs to public.reject_project_signup.
+SELECT extensions.throws_ok(
   $$
     UPDATE public.project_signups
     SET status = 'rejected'
     WHERE id = 'ad200000-0000-4000-8000-000000000004'
   $$,
-  'a project manager retains signup status moderation'
+  '42501',
+  'signup rejection requires the server-authorized operation',
+  'even a project manager cannot reject a signup with a direct update'
+);
+SELECT extensions.lives_ok(
+  $$
+    UPDATE public.project_signups
+    SET status = 'approved'
+    WHERE id = 'ad200000-0000-4000-8000-000000000004'
+  $$,
+  'a project manager retains the rest of signup status moderation'
 );
 SELECT extensions.is(
   (
@@ -532,7 +544,7 @@ SELECT extensions.is(
     FROM public.project_signups AS signups
     WHERE signups.id = 'ad200000-0000-4000-8000-000000000004'
   ),
-  'rejected',
+  'approved',
   'manager status moderation persists'
 );
 
