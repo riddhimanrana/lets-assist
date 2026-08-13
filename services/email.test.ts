@@ -211,3 +211,86 @@ describe("Resend concurrent idempotency is an unknown outcome", () => {
     }
   });
 });
+
+/**
+ * THE OTHER DIRECTION OF THE SAME MISTAKE.
+ *
+ * Everything above is about never calling an ambiguous outcome retryable. This
+ * is about never calling a PROVABLY PRE-SEND outcome ambiguous, which is just as
+ * damaging in the CSF ledger and considerably quieter: `unknown_outcome` is
+ * terminal there -- no transition back to queued or processing, no successor
+ * attempt behind it -- so a recipient who was never mailed never will be, and an
+ * officer has to reconcile a send that did not happen.
+ *
+ * The caller that hits this is the dispatch cron route. It arms an abort signal
+ * with whatever time is left in its wall-clock budget, and the worker then makes
+ * two database round trips -- claim, then authorize -- before the send. On a busy
+ * invocation's last pass the signal can therefore fire before the request opens.
+ */
+describe("a cancellation observed before the provider request is pre-send", () => {
+  test("an already-aborted signal is retryable, not unknown, and sends nothing", async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    const result = await sendEmail({
+      to: "student@example.test",
+      subject: "Synthetic cancelled announcement",
+      text: "Body",
+      type: "transactional",
+      idempotencyKey: "csf-att-synthetic-2",
+      signal: controller.signal,
+    });
+
+    expect(result).toMatchObject({
+      outcome: "retryable_pre_send",
+      success: false,
+      skipped: false,
+      phase: "transport_setup",
+      code: "request_cancelled_before_send",
+    });
+    // The point of the branch: the transport is never reached, so there is
+    // nothing for the provider to have accepted.
+    expect(resendSend).toHaveBeenCalledTimes(0);
+    expect(String(result.error)).not.toContain("student@example.test");
+  });
+
+  test("the CSF ledger settlement follows: retryable, never a terminal unknown", async () => {
+    const { mapTransportResultToSettlement } = await import(
+      "./csf-communications-dispatch"
+    );
+    const controller = new AbortController();
+    controller.abort();
+
+    const settlement = mapTransportResultToSettlement(
+      await sendEmail({
+        to: "student@example.test",
+        subject: "Synthetic cancelled announcement",
+        text: "Body",
+        type: "transactional",
+        signal: controller.signal,
+      }),
+    );
+
+    expect(settlement.outcome).toBe("retryable_failure");
+    // A retryable settlement must carry no provider message identity: naming a
+    // message would mean the request was accepted.
+    expect(settlement.providerMessageId).toBeNull();
+  });
+
+  test("a live signal still reaches the provider", async () => {
+    // Anti-tautology. Without this, deleting the send call entirely would leave
+    // the assertions above passing.
+    const controller = new AbortController();
+
+    const result = await sendEmail({
+      to: "student@example.test",
+      subject: "Synthetic live announcement",
+      text: "Body",
+      type: "transactional",
+      signal: controller.signal,
+    });
+
+    expect(result.outcome).toBe("accepted");
+    expect(resendSend).toHaveBeenCalledTimes(1);
+  });
+});

@@ -47,6 +47,29 @@ const MAX_MAINTENANCE_CAMPAIGNS_PER_PASS = 50;
 /** Absolute wall-clock ceiling. No awaited scheduler or worker operation may outlive it. */
 const RUN_DEADLINE_MS = 45_000;
 const LEASE_SECONDS = 120;
+/**
+ * The smallest provider budget worth starting a pass with.
+ *
+ * The abort signal is armed here but the send does not happen here: the worker
+ * still has to claim a batch and authorize the attempt, which is two database
+ * round trips. Starting a pass with a budget smaller than those round trips
+ * take means arming a signal that is guaranteed to fire before the send, and
+ * `sendEmail` reports that as a pre-send cancellation -- correct, but it still
+ * consumed a claim and a lease for no reason. Requiring a real window keeps the
+ * attempt queued for the next tick instead.
+ *
+ * It is a ceiling on the floor, not a fixed floor: a deliberately small
+ * configured deadline must still do work rather than turn the route into a
+ * no-op, so the requirement never exceeds a quarter of the configured budget.
+ */
+const MAX_MIN_PROVIDER_WINDOW_MS = 2_000;
+
+function minimumProviderWindowMs(runDeadlineMs: number): number {
+  return Math.min(
+    MAX_MIN_PROVIDER_WINDOW_MS,
+    Math.max(1, Math.floor(runDeadlineMs / 4)),
+  );
+}
 
 class RunDeadlineExceeded extends Error {
   constructor() {
@@ -275,6 +298,7 @@ export async function POST(request: NextRequest) {
     5_000,
     Math.max(1, Math.floor(runDeadlineMs / 4)),
   );
+  const minProviderWindowMs = minimumProviderWindowMs(runDeadlineMs);
   const batchSize = Math.min(
     readPositiveInteger(
       process.env.CSF_COMMUNICATIONS_WORKER_BATCH_SIZE,
@@ -315,6 +339,22 @@ export async function POST(request: NextRequest) {
 
   const queuedOrganizationIds = new Set<string>();
   const processedOrganizationIds = new Set<string>();
+  /**
+   * Tenants this invocation already found empty.
+   *
+   * The allocator's eligibility snapshot can name a tenant whose queue drained,
+   * or whose only "work" was an expired lease that the claim itself reaped. That
+   * is not a reason to end the invocation -- the acknowledgement already rotated
+   * the durable cursor, so the next scope call returns a DIFFERENT tenant
+   * whenever another eligible one exists. Ending the run instead meant one
+   * drained chapter withheld service from every other chapter until the next
+   * tick.
+   *
+   * The set is what keeps that from becoming a spin: the allocator returns the
+   * same tenant only when it is the sole eligible one, and seeing it a second
+   * time ends the loop exactly as before.
+   */
+  const exhaustedOrganizationIds = new Set<string>();
   let workerPasses = 0;
 
   // Reserve ONE tenant coordinate immediately before processing it. Marking ten
@@ -359,6 +399,12 @@ export async function POST(request: NextRequest) {
 
     const [organizationId] = organizationScope(scopeResult.data);
     if (!organizationId) break;
+    if (exhaustedOrganizationIds.has(organizationId)) {
+      // The allocator came back to a tenant this invocation already found empty,
+      // which means it is the only eligible one left. There is nothing more to do
+      // this tick.
+      break;
+    }
     const reservationId =
       scopeResult.data && typeof scopeResult.data === "object"
         ? (scopeResult.data as { reservationId?: unknown }).reservationId
@@ -401,7 +447,7 @@ export async function POST(request: NextRequest) {
 
     workerPasses += 1;
     const providerTimeMs = deadlineAt - Date.now() - settlementReserveMs;
-    if (providerTimeMs <= 0) {
+    if (providerTimeMs < minProviderWindowMs) {
       deadlineReached = true;
       break;
     }
@@ -435,8 +481,10 @@ export async function POST(request: NextRequest) {
       if (report.claimed === 0) {
         // The allocator's eligibility snapshot may have named an expired lease
         // that this claim just reaped or work another concurrent worker won.
-        // Do not spin on the same durable coordinate within this invocation.
-        break;
+        // Remember the tenant so this invocation cannot spin on it, then move on
+        // to the next one rather than abandoning every other chapter's queue.
+        exhaustedOrganizationIds.add(organizationId);
+        continue;
       }
     } catch (error) {
       if (error instanceof RunDeadlineExceeded) {

@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
 mock.module("server-only", () => ({}));
 
@@ -36,6 +36,7 @@ const MIGRATION = resolve(
   import.meta.dir,
   "../../../../supabase/migrations/20260730001003_dvhs_csf_durable_communications.sql",
 );
+const MIGRATIONS_DIR = dirname(MIGRATION);
 const ROUTE_SOURCE = resolve(import.meta.dir, "./implementation.ts");
 
 /**
@@ -293,6 +294,165 @@ describe("quarantine reason vocabulary is identical across the route and the SQL
         `route claims ${sqlstate} for "${marker}" but the migration raises ` +
           `${[...observed].sort().join(", ")} across its ${raw} occurrence(s)`,
       ).toEqual([sqlstate]);
+    }
+  });
+});
+
+/**
+ * THE REVERSE DIRECTION: EVERY FAULT THE RECORD PATH CAN RAISE IS ACCOUNTED FOR.
+ *
+ * The tests above prove that each marker the route claims is real. They say
+ * nothing about the raises with NO marker, and that asymmetry is where the bug
+ * lived: `permanentQuarantineFault` returned null for them, the route classified
+ * retryable, and answered 503. Resend retries every non-200 forever, so a
+ * permanently unfixable event -- a purged campaign, a snapshot whose campaign
+ * disagrees with the routing tag, a value the ledger's own bounds reject -- was
+ * redelivered indefinitely while nothing durable was ever written. The quarantine
+ * exists precisely to stop that, and these faults were the ones it never caught.
+ *
+ * Two of them fell through a hair's breadth of substring: the table matched "does
+ * not exist in this organization" while the resolver raises "no longer exists in
+ * this organization".
+ *
+ * So each RAISE in the two functions the route's record RPC actually reaches is
+ * required to be either classified permanent or named in the route's explicit
+ * retryable-by-design list. Neither is not an option, which is what makes a new
+ * RAISE a decision somebody has to make rather than a silent 503 loop.
+ */
+describe("every ledger fault reachable from the record path is classified", () => {
+  const route =
+    require("./implementation") as typeof import("./implementation");
+
+  /**
+   * The transitive record path. `csf_record_communication_provider_event` is the
+   * RPC the route calls, and it calls the resolver in the same transaction, so a
+   * resolver raise surfaces to the route indistinguishably from its own.
+   */
+  const RECORD_PATH_FUNCTIONS = [
+    "csf_record_communication_provider_event",
+    "csf_resolve_communication_provider_evidence",
+  ];
+
+  function functionBody(name: string): string {
+    const declaration = `CREATE OR REPLACE FUNCTION plugin_data.${name}(`;
+    const from = migrationSql.lastIndexOf(declaration);
+    expect(from, `function not found: ${name}`).toBeGreaterThan(-1);
+    const open = migrationSql.indexOf("$$", from);
+    const close = migrationSql.indexOf("$$", open + 2);
+    expect(close, `unterminated body: ${name}`).toBeGreaterThan(open);
+    return migrationSql.slice(open, close);
+  }
+
+  test("the record RPC still calls the resolver in the same transaction", () => {
+    // If this stops being true the pairing above is over-broad rather than
+    // wrong, but the list should be corrected rather than left stale.
+    expect(
+      functionBody("csf_record_communication_provider_event"),
+    ).toContain("plugin_data.csf_resolve_communication_provider_evidence(");
+  });
+
+  test("no later migration redefines either function", () => {
+    // The whole test reads ONE migration. If a forward migration replaced either
+    // body, this file would be auditing a superseded definition and passing on
+    // text nothing executes.
+    for (const name of RECORD_PATH_FUNCTIONS) {
+      const declaration = `FUNCTION plugin_data.${name}(`;
+      const owning = readdirSync(MIGRATIONS_DIR)
+        .filter((file) => file.endsWith(".sql"))
+        .filter((file) =>
+          readFileSync(resolve(MIGRATIONS_DIR, file), "utf8").includes(
+            declaration,
+          ),
+        );
+      expect(owning, `${name} is defined in more than one migration`).toEqual([
+        "20260730001003_dvhs_csf_durable_communications.sql",
+      ]);
+    }
+  });
+
+  test("each raise is permanent-with-a-quarantine-code or retryable by design", () => {
+    const retryable = [...route.CSF_RETRYABLE_LEDGER_FAULT_MARKERS];
+    expect(retryable.length).toBeGreaterThan(0);
+
+    const unclassified: string[] = [];
+    let examined = 0;
+
+    for (const name of RECORD_PATH_FUNCTIONS) {
+      for (const statement of raiseStatements(functionBody(name))) {
+        const code = statement.text.match(
+          /USING ERRCODE = '([0-9A-Z]{5})'/,
+        )?.[1];
+        // A raise with no ERRCODE surfaces as P0001, which the route cannot
+        // classify by construction. There are none today; if one appears it
+        // belongs in this report rather than being skipped.
+        if (!code) {
+          unclassified.push(`${name}: RAISE without USING ERRCODE`);
+          continue;
+        }
+
+        // The diagnostic as the client receives it: the first quoted literal,
+        // with SQL's doubled-quote escape undone. `%` placeholders are left as
+        // written, and no marker spans one.
+        const message = (
+          statement.text.match(/'((?:[^']|'')+)'/)?.[1] ?? ""
+        ).replace(/''/gu, "'");
+        expect(message.length, `unreadable diagnostic in ${name}`).toBeGreaterThan(
+          0,
+        );
+
+        examined += 1;
+
+        const error = { message, code };
+        const permanent = route.ledgerFailureClass(error) === "permanent";
+        const byDesign = retryable.some((marker) => message.includes(marker));
+
+        if (permanent && byDesign) {
+          unclassified.push(
+            `${name}: "${message.slice(0, 70)}" is both permanent and retryable-by-design`,
+          );
+          continue;
+        }
+        if (permanent) {
+          // Permanence and a durable code are the same fact; prove the second.
+          expect(
+            [...route.CSF_ROUTE_QUARANTINE_REASON_CODES] as string[],
+            `no admitted quarantine code for "${message.slice(0, 70)}"`,
+          ).toContain(route.ledgerReasonCode(error));
+          continue;
+        }
+        if (!byDesign) {
+          unclassified.push(`${name} [${code}]: ${message.slice(0, 100)}`);
+        }
+      }
+    }
+
+    // Anti-tautology: an extraction that found nothing would report a clean
+    // sheet. Both functions raise well into double figures.
+    expect(examined).toBeGreaterThan(20);
+    expect(
+      unclassified,
+      `these raises are neither classified permanent nor named retryable by design, ` +
+        `so they answer 503 and Resend redelivers them forever:\n  ` +
+        unclassified.join("\n  "),
+    ).toEqual([]);
+  });
+
+  test("the retryable-by-design markers are real, and each is genuinely a lost race", () => {
+    // Guards the escape hatch. Without this, the test above could be satisfied
+    // by adding any sentence to the retryable list, whether or not the migration
+    // raises it.
+    const bodies = RECORD_PATH_FUNCTIONS.map(functionBody).join("\n");
+    for (const marker of route.CSF_RETRYABLE_LEDGER_FAULT_MARKERS) {
+      expect(bodies, `no raise carries the retryable marker: ${marker}`).toContain(
+        marker,
+      );
+      // A retryable marker must not also be classified permanent, for any of the
+      // SQLSTATEs the permanent table uses.
+      for (const sqlstate of ["22004", "22023", "23503", "23505", "23514"]) {
+        expect(
+          route.ledgerFailureClass({ message: marker, code: sqlstate }),
+        ).toBe("retryable");
+      }
     }
   });
 });

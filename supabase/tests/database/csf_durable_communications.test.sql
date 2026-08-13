@@ -8,7 +8,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(421);
+SELECT extensions.plan(427);
 
 -- This transaction is one synthetic local backend. Direct fixture inserts do
 -- not pass through the server wrapper that derives the hosted project ref, so
@@ -5400,6 +5400,105 @@ SELECT extensions.is(
   ),
   2,
   'cancellation never enqueues a successor attempt for anything it settled'
+);
+
+-- ---------------------------------------------------------------------------
+-- CANCELLATION DOES NOT RESOLVE THE AMBIGUITY IT JUST CREATED.
+--
+-- The two recipients above are deliberately different cases, and the difference
+-- is the whole point:
+--
+--   * cancelled.recipient   -- claimed, its lease lapsed, reaped to
+--                              unknown_outcome by this same cancellation. The
+--                              provider may already have accepted it.
+--   * cancelled.midflight   -- never claimed, never leased, provably never
+--                              handed to the provider. 'failed' is the truth.
+--
+-- (Which of the two the single-row claim above took is decided by the ledger's
+-- claim ordering, not by these names; the assertions below name the addresses
+-- explicitly so the two cases cannot be confused for each other.)
+--
+-- The delivery sweep used to match BOTH, because a reaped attempt is in neither
+-- 'queued' nor 'processing'. So the same call that recorded "we do not know"
+-- wrote status = 'failed', which asserts "it was not sent" -- and 'failed' is
+-- terminal in csf_communication_delivery_transition_allowed(), so when the
+-- message HAD been accepted and Resend's email.delivered arrived afterwards,
+-- the webhook could not move the row. A student who was mailed stayed recorded
+-- as not mailed, permanently.
+-- ---------------------------------------------------------------------------
+
+SELECT extensions.is(
+  (
+    SELECT delivery.status
+      || '|' || (delivery.unknown_outcome_at IS NOT NULL)::text
+      || '|' || delivery.review_state
+    FROM plugin_data.csf_communication_deliveries AS delivery
+    JOIN plugin_data.csf_communication_recipient_snapshots AS snapshot
+      ON snapshot.id = delivery.recipient_snapshot_id
+    WHERE delivery.campaign_id = 'bd400000-0000-4000-8000-000000000005'
+      AND snapshot.recipient_email = 'cancelled.recipient@local.test'
+  ),
+  'queued|true|pending',
+  'the reaped recipient keeps the reviewable ambiguous state instead of being called failed'
+);
+
+-- THE POSITIVE CONTROL. Without it, "never write failed" would pass by never
+-- settling anything, which would strand every cancelled recipient in the queue.
+SELECT extensions.is(
+  (
+    SELECT delivery.status
+      || '|' || (delivery.unknown_outcome_at IS NULL)::text
+      || '|' || (delivery.failed_at IS NOT NULL)::text
+    FROM plugin_data.csf_communication_deliveries AS delivery
+    JOIN plugin_data.csf_communication_recipient_snapshots AS snapshot
+      ON snapshot.id = delivery.recipient_snapshot_id
+    WHERE delivery.campaign_id = 'bd400000-0000-4000-8000-000000000005'
+      AND snapshot.recipient_email = 'cancelled.midflight@local.test'
+  ),
+  'failed|true|true',
+  'the never-dispatched recipient still settles as a definite failure'
+);
+
+-- THE REAPER'S EVIDENCE SURVIVES. last_error carried the lapsed-lease sentence,
+-- and the sweep overwrote it with the officer's cancellation reason -- replacing
+-- the one field that said why this recipient is under review.
+SELECT extensions.ok(
+  (
+    SELECT delivery.last_error LIKE '%lease lapsed%'
+    FROM plugin_data.csf_communication_deliveries AS delivery
+    JOIN plugin_data.csf_communication_recipient_snapshots AS snapshot
+      ON snapshot.id = delivery.recipient_snapshot_id
+    WHERE delivery.campaign_id = 'bd400000-0000-4000-8000-000000000005'
+      AND snapshot.recipient_email = 'cancelled.recipient@local.test'
+  ),
+  'the ambiguous delivery keeps the lapsed-lease reason rather than the cancellation reason'
+);
+
+-- THE COUNTS ARE THE OFFICER-FACING TRUTH, so they are reported separately: one
+-- recipient provably stopped, one who may have been mailed anyway.
+SELECT extensions.is(
+  (
+    SELECT (result->>'deliveriesSettled') || '|'
+      || (result->>'deliveriesLeftAmbiguous')
+    FROM t_cancel
+  ),
+  '1|1',
+  'cancellation reports what it settled and what it could not settle separately'
+);
+
+-- AND THE PROVIDER CAN STILL CORRECT THE RECORD. This is the consequence the
+-- whole fix exists for: had the row been written 'failed', this transition would
+-- be refused and the send would be misreported forever.
+SELECT extensions.ok(
+  plugin_data.csf_communication_delivery_transition_allowed('queued', 'sent'),
+  'the ambiguous delivery is still reachable by a later provider event'
+);
+SELECT extensions.ok(
+  NOT plugin_data.csf_communication_delivery_transition_allowed('failed', 'sent')
+    AND NOT plugin_data.csf_communication_delivery_transition_allowed(
+      'failed', 'delivered'
+    ),
+  'and would not have been, because failed is terminal'
 );
 
 SELECT extensions.is(

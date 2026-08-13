@@ -629,8 +629,8 @@ gates in [testing and release](testing-and-release.md) are open. Do not copy a
 Development fixture, connection link, import preview, or policy decision into
 Production, and do not treat a Development screenshot as Production evidence.
 
-At this guide's current evidence point, the repository has 279 migrations
-through `20260813010000`, the Development database has 273 through
+At this guide's current evidence point, the repository has 280 migrations
+through `20260813020000`, the Development database has 273 through
 `20260812152300`, and Production has 236 through `20260811001500`. The
 Development Vercel alias still serves earlier code built from the 272-migration
 tree because the external 100-deployment-per-day project cap blocked its
@@ -665,20 +665,22 @@ refresh. Neither database parity nor exact-current-code hosted evidence exists.
   stale: its repository tree ended at 272 through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`, and the external
   Vercel 100-deployment-per-day project cap prevented a refreshed deployment.
-- This repository has 279 ordered migrations through
-  `20260813010000_atomic_ai_quota_receipts`; Hosted Development Supabase remains
-  at 273 through `20260812152300_atomic_csf_post_replies`. The six newest
-  repository migrations — `20260812161500_atomic_project_signup_rejection`,
+- This repository has 280 ordered migrations through
+  `20260813020000_cancellation_preserves_unknown_delivery_outcomes`; Hosted
+  Development Supabase remains at 273 through
+  `20260812152300_atomic_csf_post_replies`. The seven newest repository
+  migrations — `20260812161500_atomic_project_signup_rejection`,
   `20260812185500_atomic_staff_invite_issuer_redemption`,
   `20260812193400_protect_staff_invite_issuer_capability`,
   `20260812203000_make_content_reports_server_written`,
-  `20260812203500_close_plugin_data_browser_default_acl`, and
-  `20260813010000_atomic_ai_quota_receipts` — are not applied to any hosted
-  database.
+  `20260812203500_close_plugin_data_browser_default_acl`,
+  `20260813010000_atomic_ai_quota_receipts`, and
+  `20260813020000_cancellation_preserves_unknown_delivery_outcomes` — are not
+  applied to any hosted database.
 - The 95 INFO / 0 WARN / 0 ERROR security and 611 INFO / 0 WARN / 0 ERROR
   performance advisor counts were captured on the preceding 272-migration
   Development shape. They have not been re-established for either hosted 273 or
-  repository 279 and are not current-parity evidence.
+  repository 280 and are not current-parity evidence.
 - The seven-argument metadata RPC exists, the old four-argument overload is
   absent, and only `service_role` can execute the current RPC; `anon` and
   `authenticated` cannot. The Drive metadata RPC is no longer the Preview
@@ -720,11 +722,11 @@ Do not use real chapter rows or credentials until every item is checked:
 - [ ] At T-0 enable maintenance mode, stop writers and scheduled workers, take
       the final snapshots, and pair the schema push with the exact compatible
       application deployment. A partial or divergent ledger is a stop.
-- [ ] Replay the ordered migration ledger through `20260813010000` in the
+- [ ] Replay the ordered migration ledger through `20260813020000` in the
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.
-- [ ] Re-run the preflight on the 279-row target and require the shared tenant
+- [ ] Re-run the preflight on the 280-row target and require the shared tenant
       and receipt checks plus the target-only relation, constraint, and index
       and extension-posture checks to pass before reopening writes.
 - [ ] Pass the final combined static, focused source, database, private-plugin,
