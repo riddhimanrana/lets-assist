@@ -131,14 +131,41 @@ async function loadFixture(): Promise<PeopleLifecycleFixture> {
 
 async function cleanFixture(fixture: PeopleLifecycleFixture) {
   const plugin = fixture.admin.schema("plugin_data");
+  let profileId = fixture.profileId;
+  if (!profileId) {
+    const { data: discoveredProfile, error: profileDiscoveryError } =
+      await plugin
+        .from("csf_profiles")
+        .select("id")
+        .eq("organization_id", fixture.organizationId)
+        .eq("normalized_school_email", fixture.profileEmail)
+        .maybeSingle();
+    assertNoSupabaseError(
+      "Could not discover the fixture profile for cleanup",
+      profileDiscoveryError,
+    );
+    profileId = discoveredProfile?.id;
+    fixture.profileId = profileId;
+  }
+
+  const { data: discoveredRequest, error: requestDiscoveryError } = await plugin
+    .from("csf_profile_link_requests")
+    .select("id, user_id")
+    .eq("organization_id", fixture.organizationId)
+    .eq("signed_in_email", fixture.profileEmail)
+    .maybeSingle();
+  assertNoSupabaseError(
+    "Could not discover the fixture connection request for cleanup",
+    requestDiscoveryError,
+  );
 
   let staffPositionId = fixture.staffPositionId;
-  if (!staffPositionId && fixture.profileId) {
+  if (!staffPositionId && profileId) {
     const { data: discoveredPosition, error: discoveryError } = await plugin
       .from("csf_staff_positions")
       .select("id")
       .eq("organization_id", fixture.organizationId)
-      .eq("profile_id", fixture.profileId)
+      .eq("profile_id", profileId)
       .eq("role_id", fixture.roleId)
       .eq("school_year", assignmentSchoolYear)
       .eq("status", "active")
@@ -161,8 +188,39 @@ async function cleanFixture(fixture: PeopleLifecycleFixture) {
     assertNoSupabaseError("Could not revoke the fixture staff access", error);
   }
 
-  if (fixture.userId) {
-    const { error } = await plugin
+  let userId = fixture.userId ?? discoveredRequest?.user_id ?? undefined;
+  if (!userId && profileId) {
+    const { data: discoveredAccount, error: accountDiscoveryError } =
+      await plugin
+        .from("csf_profile_accounts")
+        .select("user_id")
+        .eq("organization_id", fixture.organizationId)
+        .eq("profile_id", profileId)
+        .maybeSingle();
+    assertNoSupabaseError(
+      "Could not discover the fixture profile account for cleanup",
+      accountDiscoveryError,
+    );
+    userId = discoveredAccount?.user_id;
+  }
+  if (!userId) {
+    const usersResult = await fixture.admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1_000,
+    });
+    if (usersResult.error) {
+      throw new Error(
+        `Could not discover the fixture auth user for cleanup: ${usersResult.error.message}`,
+      );
+    }
+    userId = usersResult.data.users.find(
+      (user) => user.email === fixture.profileEmail,
+    )?.id;
+  }
+  fixture.userId = userId;
+
+  if (profileId || userId) {
+    let accountCleanup = plugin
       .from("csf_profile_accounts")
       .update({
         status: "revoked",
@@ -170,35 +228,41 @@ async function cleanFixture(fixture: PeopleLifecycleFixture) {
         revoked_at: new Date().toISOString(),
         notes: "Retired synthetic people-lifecycle browser fixture.",
       })
-      .eq("organization_id", fixture.organizationId)
-      .eq("user_id", fixture.userId);
+      .eq("organization_id", fixture.organizationId);
+    if (profileId) accountCleanup = accountCleanup.eq("profile_id", profileId);
+    else if (userId) accountCleanup = accountCleanup.eq("user_id", userId);
+    const { error } = await accountCleanup;
     assertNoSupabaseError(
       "Could not revoke the fixture profile account",
       error,
     );
+  }
 
+  if (userId) {
     const { error: membershipError } = await fixture.admin
       .from("organization_members")
       .delete()
       .eq("organization_id", fixture.organizationId)
-      .eq("user_id", fixture.userId);
+      .eq("user_id", userId);
     assertNoSupabaseError(
       "Could not remove the fixture host membership",
       membershipError,
     );
   }
 
-  const { error: requestError } = await plugin
-    .from("csf_profile_link_requests")
-    .delete()
-    .eq("organization_id", fixture.organizationId)
-    .eq("id", fixture.requestId);
-  assertNoSupabaseError(
-    "Could not clean the fixture connection request",
-    requestError,
-  );
+  if (discoveredRequest) {
+    const { error: requestError } = await plugin
+      .from("csf_profile_link_requests")
+      .delete()
+      .eq("organization_id", fixture.organizationId)
+      .eq("id", discoveredRequest.id);
+    assertNoSupabaseError(
+      "Could not clean the fixture connection request",
+      requestError,
+    );
+  }
 
-  if (fixture.profileId) {
+  if (profileId) {
     // The visible lifecycle writes immutable audit history. Retire and
     // de-identify the test-owned record instead of trying to delete that audit.
     const { error } = await plugin
@@ -215,12 +279,12 @@ async function cleanFixture(fixture: PeopleLifecycleFixture) {
         normalized_personal_email: null,
       })
       .eq("organization_id", fixture.organizationId)
-      .eq("id", fixture.profileId);
+      .eq("id", profileId);
     assertNoSupabaseError("Could not retire the fixture profile", error);
   }
 
-  if (fixture.userId) {
-    const { error } = await fixture.admin.auth.admin.deleteUser(fixture.userId);
+  if (userId) {
+    const { error } = await fixture.admin.auth.admin.deleteUser(userId);
     assertNoSupabaseError("Could not delete the fixture auth user", error);
   }
 }
