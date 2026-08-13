@@ -27,7 +27,7 @@ import {
   cloneAnonymousWaiverSignatureToSignup,
   getCurrentSignups,
   persistWaiverSignature,
-} from "./waiver-assets";
+} from "./waiver-persistence";
 import { registerAnonymousSignup } from "./signup-anonymous";
 import { registerAuthenticatedSignup } from "./signup-registered";
 
