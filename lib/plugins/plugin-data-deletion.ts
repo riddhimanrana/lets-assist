@@ -430,6 +430,40 @@ async function runPermanentPluginDataDeletionWithLease(options: {
     };
   }
 
+  if (
+    !(await hasActiveOrganizationAdminMembership(
+      service,
+      input.organizationId,
+      input.actor.id,
+    ))
+  ) {
+    const { data: completed, error: completeError } = await service.rpc(
+      "complete_plugin_data_deletion_request",
+      {
+        p_request_id: receipt.request_id,
+        p_claim_token: receipt.claim_token,
+        p_status: "retryable_failed",
+        p_safe_error_code: "authorization_revoked",
+      },
+    );
+    if (completeError || completed !== true) {
+      return {
+        success: false,
+        status: "manual_reconciliation",
+        canRetry: false,
+        error:
+          "Admin access was revoked after this deletion request was claimed, and its durable receipt could not be finalized. No plugin code ran; contact platform support before retrying.",
+      };
+    }
+    return {
+      success: false,
+      status: "retryable_failed",
+      canRetry: true,
+      error:
+        "Admin access was revoked before permanent deletion began. No plugin code ran; restore current admin authority before retrying.",
+    };
+  }
+
   const hookResult = await runPluginDataDelete(definition, {
     organization: organizationContext(organization, "admin"),
     actor: input.actor,

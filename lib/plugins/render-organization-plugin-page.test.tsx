@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 mock.module("server-only", () => ({}));
 
 let renderCalls = 0;
+let authUser: { id: string } | null = { id: "user-1" };
+const renderedRoles: string[] = [];
 
 class Query {
   private filters: Array<[string, unknown]> = [];
@@ -56,7 +58,7 @@ mock.module("@/lib/supabase/admin", () => ({
   getAdminClient: () => client,
 }));
 mock.module("@/lib/supabase/auth-helpers", () => ({
-  getAuthUser: async () => ({ user: { id: "user-1" } }),
+  getAuthUser: async () => ({ user: authUser }),
 }));
 mock.module("@/lib/plugins/organization-plugin-context", () => ({
   readOrganizationPluginContext: async (
@@ -72,10 +74,19 @@ mock.module("@/lib/plugins/registry", () => ({
       version: "1.0.0",
       visibility: "private",
       minimumRole: "member",
+      routes: [{ path: "public-info", label: "Public", minimumRole: "public" }],
     },
     renderOrganizationPage: async () => {
       renderCalls += 1;
       return "private page";
+    },
+    renderOrganizationRoute: async (
+      _routePath: string,
+      props: { userRole: string },
+    ) => {
+      renderCalls += 1;
+      renderedRoles.push(props.userRole);
+      return "public route";
     },
   }),
 }));
@@ -93,6 +104,8 @@ const { renderOrganizationPluginPage } =
 
 beforeEach(() => {
   renderCalls = 0;
+  authUser = { id: "user-1" };
+  renderedRoles.length = 0;
 });
 
 describe("direct organization plugin page membership status", () => {
@@ -104,5 +117,29 @@ describe("direct organization plugin page membership status", () => {
       }),
     ).rejects.toThrow("NOT_FOUND");
     expect(renderCalls).toBe(0);
+  });
+
+  test("an inactive authenticated user reaches a public route as public, never member or admin", async () => {
+    await renderOrganizationPluginPage({
+      organizationIdentifier: "test-org",
+      pluginKey: "private-plugin",
+      routePath: "public-info",
+    });
+
+    expect(renderCalls).toBe(1);
+    expect(renderedRoles).toEqual(["public"]);
+  });
+
+  test("an anonymous user reaches a public route with the same public role", async () => {
+    authUser = null;
+
+    await renderOrganizationPluginPage({
+      organizationIdentifier: "test-org",
+      pluginKey: "private-plugin",
+      routePath: "public-info",
+    });
+
+    expect(renderCalls).toBe(1);
+    expect(renderedRoles).toEqual(["public"]);
   });
 });

@@ -412,6 +412,7 @@ export async function generateStaffLink(
         staff_join_token: token,
         staff_join_token_created_at: new Date().toISOString(),
         staff_join_token_expires_at: expiresAt.toISOString(),
+        staff_join_token_issued_by: user.id,
       })
       .eq("id", organizationId);
 
@@ -470,6 +471,7 @@ export async function revokeStaffLink(organizationId: string) {
         staff_join_token: null,
         staff_join_token_created_at: null,
         staff_join_token_expires_at: null,
+        staff_join_token_issued_by: null,
       })
       .eq("id", organizationId);
 

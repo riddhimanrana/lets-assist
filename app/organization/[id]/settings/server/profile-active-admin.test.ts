@@ -8,6 +8,7 @@ type Row = Record<string, unknown>;
 let membershipStatus = "active";
 let revokeAfterOrganizationRead = false;
 let organizationWrites = 0;
+const organizationPatches: Row[] = [];
 
 class MembershipQuery {
   private filters: Array<[string, unknown]> = [];
@@ -67,10 +68,11 @@ class OrganizationQuery {
     };
   }
 
-  update(_patch: Row) {
+  update(patch: Row) {
     return {
       eq: async () => {
         organizationWrites += 1;
+        organizationPatches.push(patch);
         return { error: null };
       },
     };
@@ -103,12 +105,14 @@ mock.module("@/lib/supabase/auth-helpers", () => ({
   getAuthUser: async () => ({ user: { id: "admin-1" } }),
 }));
 
-const { generateStaffLink, updateOrganization } = await import("./profile");
+const { generateStaffLink, revokeStaffLink, updateOrganization } =
+  await import("./profile");
 
 beforeEach(() => {
   membershipStatus = "active";
   revokeAfterOrganizationRead = false;
   organizationWrites = 0;
+  organizationPatches.length = 0;
 });
 
 describe("organization settings active admin revalidation", () => {
@@ -140,5 +144,27 @@ describe("organization settings active admin revalidation", () => {
       error: "Only admins can update organization details",
     });
     expect(organizationWrites).toBe(0);
+  });
+
+  test("staff token generation binds the token to the authenticated active admin", async () => {
+    const result = await generateStaffLink("org-1");
+
+    expect(result.success).toBe(true);
+    expect(organizationPatches).toHaveLength(1);
+    expect(organizationPatches[0]).toMatchObject({
+      staff_join_token_issued_by: "admin-1",
+    });
+  });
+
+  test("staff token revocation clears its issuer binding", async () => {
+    const result = await revokeStaffLink("org-1");
+
+    expect(result).toEqual({ success: true });
+    expect(organizationPatches).toEqual([
+      expect.objectContaining({
+        staff_join_token: null,
+        staff_join_token_issued_by: null,
+      }),
+    ]);
   });
 });

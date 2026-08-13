@@ -5,6 +5,8 @@ mock.module("server-only", () => ({}));
 let membershipStatus = "active";
 let lifecycleCalls = 0;
 let installWrites = 0;
+let deactivateOnAcquire = true;
+let deactivateOnRefresh = false;
 
 class Query {
   private filters: Array<[string, unknown]> = [];
@@ -80,13 +82,14 @@ const adminClient = {
     if (name === "acquire_plugin_control_plane_transition_lock") {
       // The action-level authorization result was valid, but access is revoked
       // while the consequential transition is acquiring its lease.
-      membershipStatus = "inactive";
+      if (deactivateOnAcquire) membershipStatus = "inactive";
       return { data: true, error: null };
     }
-    if (
-      name === "refresh_plugin_control_plane_transition_lock" ||
-      name === "release_plugin_control_plane_transition_lock"
-    ) {
+    if (name === "refresh_plugin_control_plane_transition_lock") {
+      if (deactivateOnRefresh) membershipStatus = "inactive";
+      return { data: true, error: null };
+    }
+    if (name === "release_plugin_control_plane_transition_lock") {
       return { data: true, error: null };
     }
     throw new Error(`Unexpected RPC: ${name}`);
@@ -128,10 +131,30 @@ beforeEach(() => {
   membershipStatus = "active";
   lifecycleCalls = 0;
   installWrites = 0;
+  deactivateOnAcquire = true;
+  deactivateOnRefresh = false;
 });
 
 describe("plugin control-plane active admin revalidation", () => {
   test("revocation after an earlier admin result prevents lifecycle and install writes", async () => {
+    const result = await transitionOrganizationPluginInstall({
+      organizationId: "org-1",
+      pluginKey: "private-plugin",
+      actor: { id: "actor-1", type: "user" },
+      organizationRole: "admin",
+      transition: { kind: "install_or_enable", targetVersion: "1.0.0" },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/current.*organization admin/i);
+    expect(lifecycleCalls).toBe(0);
+    expect(installWrites).toBe(0);
+  });
+
+  test("revocation during lease refresh is revalidated before lifecycle invocation", async () => {
+    deactivateOnAcquire = false;
+    deactivateOnRefresh = true;
+
     const result = await transitionOrganizationPluginInstall({
       organizationId: "org-1",
       pluginKey: "private-plugin",

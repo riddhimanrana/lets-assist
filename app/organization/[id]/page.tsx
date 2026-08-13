@@ -197,6 +197,8 @@ export default async function OrganizationPage({
     user && previewSource === "remote"
       ? getRemoteUserIdForLocalUser(user.email) || user.id
       : user?.id;
+  const pluginViewerUserId =
+    previewSource === "remote" ? undefined : effectiveUserId;
 
   let userRole: string | null = null;
   if (user && effectiveUserId) {
@@ -225,7 +227,7 @@ export default async function OrganizationPage({
         organizationName: organization.name,
         hook: "organization.tabs",
         viewerRole: pluginRole,
-        viewerUserId: effectiveUserId,
+        viewerUserId: pluginViewerUserId,
         target: {
           userId: user?.id ?? null,
           userEmail: user?.email ?? null,
@@ -373,7 +375,7 @@ export default async function OrganizationPage({
         organizationId: organization.id,
         surface: "organization.overview.cards",
         viewerRole: pluginRole,
-        viewerUserId: effectiveUserId,
+        viewerUserId: pluginViewerUserId,
         target: {
           userId: user?.id ?? null,
         },
@@ -387,7 +389,7 @@ export default async function OrganizationPage({
         organizationName: organization.name,
         hook: "organization.navigation.overrides",
         viewerRole: pluginRole,
-        viewerUserId: effectiveUserId,
+        viewerUserId: pluginViewerUserId,
         target: {
           userId: user?.id ?? null,
           userEmail: user?.email ?? null,
@@ -460,7 +462,7 @@ export default async function OrganizationPage({
         await resolveOrganizationPlugins({
           organizationId: organization.id,
           userRole: pluginRole,
-          viewerUserId: effectiveUserId,
+          viewerUserId: pluginViewerUserId,
         })
       ).filter((plugin) => isAllowedPluginSurface(plugin.key))
     : [];

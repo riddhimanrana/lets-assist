@@ -22,7 +22,10 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type {
   OrganizationPluginAccessRole,
+  OrganizationPluginPageRole,
+  OrganizationPluginPageRenderer,
   OrganizationPluginRouteDefinition,
+  OrganizationPluginRouteRenderer,
   OrganizationPluginSurfaceAccessLevel,
 } from "@/types";
 
@@ -47,8 +50,10 @@ type OrganizationPluginRouteRow = {
 
 function hasPluginRouteAccess(
   minimumAccess: OrganizationPluginSurfaceAccessLevel | undefined,
-  userRole: OrganizationPluginAccessRole,
+  userRole: OrganizationPluginPageRole,
 ) {
+  if (minimumAccess === "public") return true;
+  if (userRole === "public") return false;
   return hasOrganizationPluginRoleAccess(userRole, minimumAccess);
 }
 
@@ -147,12 +152,13 @@ export async function renderOrganizationPluginPage(options: {
   if (!userRole && !isPublicManifestRoute) {
     notFound();
   }
-  const effectiveUserRole = userRole ?? "member";
+  const effectiveUserRole: OrganizationPluginPageRole = userRole ?? "public";
 
   const resolvedPlugin = await resolveOrganizationPluginByKey({
     organizationId: organization.id,
-    userRole: effectiveUserRole,
+    userRole,
     ...(userRole && user ? { viewerUserId: user.id } : {}),
+    allowPublicAccess: isPublicManifestRoute,
     pluginKey,
     failureMode: "throw",
   });
@@ -205,17 +211,21 @@ export async function renderOrganizationPluginPage(options: {
   }
 
   let pluginContent: ReactNode | null = null;
+  const renderOrganizationRoute = definition.renderOrganizationRoute as
+    OrganizationPluginRouteRenderer | undefined;
+  const renderOrganizationPage = definition.renderOrganizationPage as
+    OrganizationPluginPageRenderer | undefined;
   if (routePath) {
     pluginContent =
-      (await definition.renderOrganizationRoute?.(routePath, {
+      (await renderOrganizationRoute?.(routePath, {
         organizationId: organization.id,
         organizationSlug,
         organizationName: organization.name,
         userRole: effectiveUserRole,
         configuration: resolvedPlugin.configuration,
       })) ?? null;
-  } else if (definition.renderOrganizationPage) {
-    pluginContent = await definition.renderOrganizationPage({
+  } else if (renderOrganizationPage) {
+    pluginContent = await renderOrganizationPage({
       organizationId: organization.id,
       organizationSlug,
       organizationName: organization.name,

@@ -10,10 +10,12 @@ const organization = {
   username: "test-org",
   staff_join_token: "staff-token",
   staff_join_token_expires_at: "2026-09-01T00:00:00.000Z",
+  staff_join_token_issued_by: "issuer-admin" as string | null,
 };
 let memberships: Row[] = [];
 let inserts = 0;
 let updates = 0;
+let rpcCalls = 0;
 
 class Query {
   private filters: Array<[string, unknown]> = [];
@@ -89,6 +91,60 @@ const adminClient = {
   from(table: string) {
     return new Query(table);
   },
+  async rpc(name: string, payload: Record<string, unknown>) {
+    if (name !== "redeem_staff_join_token") {
+      throw new Error(`Unexpected RPC: ${name}`);
+    }
+    rpcCalls += 1;
+
+    const base = {
+      org_username: organization.username,
+      org_name: organization.name,
+    };
+    if (
+      payload.p_org_username !== organization.username ||
+      payload.p_staff_token !== organization.staff_join_token ||
+      !organization.staff_join_token_issued_by
+    ) {
+      return {
+        data: [{ status: "invalid_token", ...base }],
+        error: null,
+      };
+    }
+
+    const issuer = memberships.find(
+      (row) =>
+        row.organization_id === organization.id &&
+        row.user_id === organization.staff_join_token_issued_by &&
+        row.role === "admin" &&
+        row.status === "active",
+    );
+    if (!issuer) {
+      return { data: [{ status: "error", ...base }], error: null };
+    }
+
+    const target = memberships.find(
+      (row) =>
+        row.organization_id === organization.id &&
+        row.user_id === payload.p_user_id,
+    );
+    if (target?.status !== undefined && target.status !== "active") {
+      return { data: [{ status: "error", ...base }], error: null };
+    }
+    if (!target) {
+      inserts += 1;
+      memberships.push({
+        organization_id: organization.id,
+        user_id: payload.p_user_id,
+        role: "staff",
+        status: "active",
+      });
+    } else if (target.role === "member") {
+      updates += 1;
+      target.role = "staff";
+    }
+    return { data: [{ status: "success", ...base }], error: null };
+  },
 };
 
 mock.module("@/lib/supabase/admin", () => ({
@@ -101,6 +157,8 @@ beforeEach(() => {
   memberships = [];
   inserts = 0;
   updates = 0;
+  rpcCalls = 0;
+  organization.staff_join_token_issued_by = "issuer-admin";
 });
 
 describe("applyStaffInviteForUser active authority", () => {
@@ -108,7 +166,7 @@ describe("applyStaffInviteForUser active authority", () => {
     memberships = [
       {
         organization_id: organization.id,
-        user_id: "former-admin",
+        user_id: "issuer-admin",
         role: "admin",
         status: "inactive",
       },
@@ -128,6 +186,7 @@ describe("applyStaffInviteForUser active authority", () => {
 
     expect(result.status).toBe("error");
     expect(inserts).toBe(0);
+    expect(rpcCalls).toBe(1);
     expect(
       memberships.some((membership) => membership.user_id === "invitee"),
     ).toBe(false);
@@ -137,7 +196,7 @@ describe("applyStaffInviteForUser active authority", () => {
     memberships = [
       {
         organization_id: organization.id,
-        user_id: "active-admin",
+        user_id: "issuer-admin",
         role: "admin",
         status: "active",
       },
@@ -163,8 +222,100 @@ describe("applyStaffInviteForUser active authority", () => {
 
     expect(result.status).toBe("error");
     expect(updates).toBe(0);
+    expect(rpcCalls).toBe(1);
     expect(
       memberships.find((membership) => membership.user_id === "invitee"),
     ).toMatchObject({ role: "member", status: "inactive" });
+  });
+
+  test("an unrelated active admin cannot authorize a token issued by an inactive admin", async () => {
+    memberships = [
+      {
+        organization_id: organization.id,
+        user_id: "issuer-admin",
+        role: "admin",
+        status: "inactive",
+      },
+      {
+        organization_id: organization.id,
+        user_id: "other-admin",
+        role: "admin",
+        status: "active",
+      },
+    ];
+
+    const result = await applyStaffInviteForUser(
+      {
+        userId: "invitee",
+        staffToken: "staff-token",
+        orgUsername: organization.username,
+      },
+      {
+        adminClient: adminClient as never,
+        now: new Date("2026-08-12T12:00:00.000Z"),
+      },
+    );
+
+    expect(result.status).toBe("error");
+    expect(rpcCalls).toBe(1);
+    expect(inserts).toBe(0);
+  });
+
+  test("legacy tokens without an issuer fail closed", async () => {
+    organization.staff_join_token_issued_by = null;
+    memberships = [
+      {
+        organization_id: organization.id,
+        user_id: "other-admin",
+        role: "admin",
+        status: "active",
+      },
+    ];
+
+    const result = await applyStaffInviteForUser(
+      {
+        userId: "invitee",
+        staffToken: "staff-token",
+        orgUsername: organization.username,
+      },
+      {
+        adminClient: adminClient as never,
+        now: new Date("2026-08-12T12:00:00.000Z"),
+      },
+    );
+
+    expect(result.status).toBe("invalid_token");
+    expect(rpcCalls).toBe(1);
+    expect(inserts).toBe(0);
+  });
+
+  test("an active issuer atomically creates staff membership through the RPC", async () => {
+    memberships = [
+      {
+        organization_id: organization.id,
+        user_id: "issuer-admin",
+        role: "admin",
+        status: "active",
+      },
+    ];
+
+    const result = await applyStaffInviteForUser(
+      {
+        userId: "invitee",
+        staffToken: "staff-token",
+        orgUsername: organization.username,
+      },
+      {
+        adminClient: adminClient as never,
+        now: new Date("2026-08-12T12:00:00.000Z"),
+      },
+    );
+
+    expect(result.status).toBe("success");
+    expect(rpcCalls).toBe(1);
+    expect(inserts).toBe(1);
+    expect(
+      memberships.find((membership) => membership.user_id === "invitee"),
+    ).toMatchObject({ role: "staff", status: "active" });
   });
 });

@@ -79,11 +79,16 @@ export async function resolveOrganizationPlugins(options: {
   organizationId: string;
   userRole: OrganizationPluginAccessRole | null;
   viewerUserId?: string;
+  allowPublicAccess?: boolean;
   failureMode?: PluginAccessFailureMode;
 }): Promise<ResolvedOrganizationPlugin[]> {
   const { organizationId } = options;
 
-  if (!options.userRole && !options.viewerUserId) {
+  if (
+    !options.userRole &&
+    !options.viewerUserId &&
+    !options.allowPublicAccess
+  ) {
     return [];
   }
 
@@ -101,7 +106,7 @@ export async function resolveOrganizationPlugins(options: {
         options.viewerUserId,
       )
     : options.userRole;
-  if (!userRole) return [];
+  if (!userRole && !options.allowPublicAccess) return [];
 
   const accessRows = await loadAccessibleOrganizationPluginAccess({
     supabase,
@@ -129,7 +134,10 @@ export async function resolveOrganizationPlugins(options: {
     }
 
     const minimumRole = definition.manifest.minimumRole ?? "member";
-    if (!hasOrganizationPluginAccess(userRole, minimumRole)) {
+    if (
+      !options.allowPublicAccess &&
+      !hasOrganizationPluginAccess(userRole, minimumRole)
+    ) {
       continue;
     }
 
@@ -158,6 +166,7 @@ export async function resolveOrganizationPluginByKey(options: {
   organizationId: string;
   userRole: OrganizationPluginAccessRole | null;
   viewerUserId?: string;
+  allowPublicAccess?: boolean;
   pluginKey: string;
   failureMode?: PluginAccessFailureMode;
 }): Promise<ResolvedOrganizationPlugin | null> {
@@ -165,6 +174,7 @@ export async function resolveOrganizationPluginByKey(options: {
     organizationId: options.organizationId,
     userRole: options.userRole,
     viewerUserId: options.viewerUserId,
+    allowPublicAccess: options.allowPublicAccess,
     failureMode: options.failureMode,
   });
 

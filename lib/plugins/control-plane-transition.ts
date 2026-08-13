@@ -261,8 +261,8 @@ async function transitionOrganizationPluginInstallWithLease(
   };
 
   async function runLifecycle(invocation: PluginLifecycleInvocation) {
-    await requireCurrentTransitionAuthority(service, input);
     await refreshLease();
+    await requireCurrentTransitionAuthority(service, input);
     switch (invocation.hook) {
       case "install":
         return runPluginInstall(definition, {
@@ -306,8 +306,8 @@ async function transitionOrganizationPluginInstallWithLease(
     callbacks: {
       runLifecycle,
       createInstall: async ({ enabled, installedVersion, configuration }) => {
-        await requireCurrentTransitionAuthority(service, input);
         await refreshLease();
+        await requireCurrentTransitionAuthority(service, input);
         const now = new Date().toISOString();
         const { error } = await service
           .from("organization_plugin_installs")
@@ -330,8 +330,8 @@ async function transitionOrganizationPluginInstallWithLease(
       updateInstall: async (mutation) => {
         if (!current)
           throw new Error("Plugin install state disappeared before update.");
-        await requireCurrentTransitionAuthority(service, input);
         await refreshLease();
+        await requireCurrentTransitionAuthority(service, input);
         const now = new Date().toISOString();
         const { data, error } = await service
           .from("organization_plugin_installs")
@@ -348,8 +348,8 @@ async function transitionOrganizationPluginInstallWithLease(
       removeInstall: async () => {
         if (!current)
           throw new Error("Plugin install state disappeared before uninstall.");
-        await requireCurrentTransitionAuthority(service, input);
         await refreshLease();
+        await requireCurrentTransitionAuthority(service, input);
         const { data, error } = await service
           .from("organization_plugin_installs")
           .delete()

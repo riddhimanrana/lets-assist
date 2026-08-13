@@ -23,6 +23,7 @@ let hookResult: { success: boolean; error?: string } = { success: true };
 let hookCalls = 0;
 let strictAuditError: Error | null = null;
 let completeSucceeds = true;
+let revokeActorAfterClaim = false;
 
 class Query {
   private filters: Array<[string, unknown]> = [];
@@ -60,6 +61,16 @@ const adminClient = {
       case "release_plugin_control_plane_transition_lock":
         return { data: true, error: null };
       case "begin_plugin_data_deletion_request":
+        if (revokeActorAfterClaim) {
+          const actorMembership = (
+            tables.get("organization_members") ?? []
+          ).find(
+            (row) =>
+              row.organization_id === ORGANIZATION_ID &&
+              row.user_id === ACTOR_ID,
+          );
+          if (actorMembership) actorMembership.status = "inactive";
+        }
         return {
           data: [
             {
@@ -211,6 +222,7 @@ beforeEach(() => {
   hookCalls = 0;
   strictAuditError = null;
   completeSucceeds = true;
+  revokeActorAfterClaim = false;
 });
 
 describe("runPermanentPluginDataDeletion", () => {
@@ -313,6 +325,27 @@ describe("runPermanentPluginDataDeletion", () => {
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/organization admin/i);
     expect(hookCalls).toBe(0);
+  });
+
+  test("finalizes a claimed request safely when admin access is revoked before the hook", async () => {
+    revokeActorAfterClaim = true;
+
+    const result = await runPermanentPluginDataDeletion(validInput());
+
+    expect(result).toMatchObject({
+      success: false,
+      status: "retryable_failed",
+      canRetry: true,
+    });
+    expect(hookCalls).toBe(0);
+    expect(completeCalls).toEqual([
+      expect.objectContaining({
+        p_request_id: REQUEST_ID,
+        p_claim_token: CLAIM_TOKEN,
+        p_status: "retryable_failed",
+        p_safe_error_code: "authorization_revoked",
+      }),
+    ]);
   });
 
   test("requires ordinary uninstall to finish before permanent deletion", async () => {

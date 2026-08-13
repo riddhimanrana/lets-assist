@@ -16,6 +16,12 @@ interface ApplyStaffInviteOptions {
   now?: Date;
 }
 
+type StaffInviteRedemptionRow = {
+  status: StaffInviteOutcome["status"];
+  org_username: string;
+  org_name: string | null;
+};
+
 export async function applyStaffInviteForUser(
   params: ApplyStaffInviteParams,
   options: ApplyStaffInviteOptions = {},
@@ -25,132 +31,37 @@ export async function applyStaffInviteForUser(
   const now = options.now ?? new Date();
 
   try {
-    const { data: org, error: orgError } = await adminClient
-      .from("organizations")
-      .select(
-        "id, name, username, staff_join_token, staff_join_token_expires_at",
-      )
-      .eq("username", orgUsername)
-      .single();
-
-    if (orgError || !org) {
-      return { status: "org_not_found", orgUsername };
+    const { data, error } = await adminClient.rpc("redeem_staff_join_token", {
+      p_user_id: userId,
+      p_staff_token: staffToken,
+      p_org_username: orgUsername,
+      p_redeemed_at: now.toISOString(),
+    });
+    if (error) {
+      console.error("Error redeeming staff invite:", error);
+      return { status: "error", orgUsername };
     }
 
-    if (org.staff_join_token !== staffToken) {
-      return {
-        status: "invalid_token",
-        orgUsername: org.username,
-        orgName: org.name,
-      };
-    }
-
-    const expiresAt = org.staff_join_token_expires_at;
-    if (!expiresAt || new Date(expiresAt).getTime() < now.getTime()) {
-      return {
-        status: "expired_token",
-        orgUsername: org.username,
-        orgName: org.name,
-      };
-    }
-
-    const { data: activeAdmin, error: activeAdminError } = await adminClient
-      .from("organization_members")
-      .select("id")
-      .eq("organization_id", org.id)
-      .eq("role", "admin")
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
-
-    if (activeAdminError || !activeAdmin) {
-      return {
-        status: "error",
-        orgUsername: org.username,
-        orgName: org.name,
-      };
-    }
-
-    const { error: memberError } = await adminClient
-      .from("organization_members")
-      .insert({
-        organization_id: org.id,
-        user_id: userId,
-        role: "staff",
-        status: "active",
-        joined_at: now.toISOString(),
-      });
-
-    if (!memberError) {
-      return {
-        status: "success",
-        orgUsername: org.username,
-        orgName: org.name,
-      };
-    }
-
-    if (memberError.code !== "23505") {
-      console.error(`Error adding staff member to org ${org.id}:`, memberError);
-      return {
-        status: "error",
-        orgUsername: org.username,
-        orgName: org.name,
-      };
-    }
-
-    // Duplicate membership exists: upgrade member -> staff, but never downgrade admin/staff
-    const { data: existingMembership, error: queryError } = await adminClient
-      .from("organization_members")
-      .select("role,status")
-      .eq("organization_id", org.id)
-      .eq("user_id", userId)
-      .single();
-
-    if (queryError || !existingMembership) {
-      console.error(
-        `Error querying existing membership for org ${org.id}:`,
-        queryError,
-      );
-      return {
-        status: "error",
-        orgUsername: org.username,
-        orgName: org.name,
-      };
-    }
-
-    if (existingMembership.status !== "active") {
-      return {
-        status: "error",
-        orgUsername: org.username,
-        orgName: org.name,
-      };
-    }
-
-    if (existingMembership.role === "member") {
-      const { error: updateError } = await adminClient
-        .from("organization_members")
-        .update({ role: "staff" })
-        .eq("organization_id", org.id)
-        .eq("user_id", userId)
-        .eq("status", "active");
-
-      if (updateError) {
-        console.error(
-          `Error updating membership role to staff for org ${org.id}:`,
-          updateError,
-        );
-        return {
-          status: "error",
-          orgUsername: org.username,
-          orgName: org.name,
-        };
-      }
+    const row = (
+      Array.isArray(data) ? data[0] : data
+    ) as StaffInviteRedemptionRow | null;
+    if (
+      !row ||
+      ![
+        "success",
+        "invalid_token",
+        "expired_token",
+        "org_not_found",
+        "error",
+      ].includes(row.status)
+    ) {
+      return { status: "error", orgUsername };
     }
 
     return {
-      status: "success",
-      orgUsername: org.username,
-      orgName: org.name,
+      status: row.status,
+      orgUsername: row.org_username || orgUsername,
+      orgName: row.org_name,
     };
   } catch (error) {
     console.error("Error processing staff invite:", error);
