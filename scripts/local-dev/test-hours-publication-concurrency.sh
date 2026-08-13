@@ -7,12 +7,15 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${ROOT_DIR}"
 
-DATABASE_URL="$(
-  bunx supabase status -o env \
-    | sed -n 's/^DB_URL=//p' \
-    | tr -d '"' \
-    | head -n 1
-)"
+DATABASE_URL="${DATABASE_URL:-${SUPABASE_DB_URL:-}}"
+if [[ -z "${DATABASE_URL}" ]]; then
+  DATABASE_URL="$(
+    bunx supabase status -o env \
+      | sed -n 's/^DB_URL=//p' \
+      | tr -d '"' \
+      | head -n 1
+  )"
+fi
 
 case "${DATABASE_URL}" in
   postgresql://postgres:*@127.0.0.1:*/*|postgresql://postgres:*@localhost:*/*) ;;
@@ -202,6 +205,54 @@ if [[ "${RESULT_COUNTS}" != "1:1:1" ]]; then
   echo "Concurrent publication produced unexpected receipt:certificate:outbox counts: ${RESULT_COUNTS}" >&2
   exit 1
 fi
+
+# Publication must acquire the final membership lock mode before delegating.
+# A concurrent deactivation waits for the committed replay instead of creating
+# a SHARE -> UPDATE lock upgrade deadlock inside the publication transaction.
+(
+  psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_A}" <<'SQL'
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+SELECT public.publish_volunteer_hours_transactional(
+  'ac000000-0000-4000-8000-000000000003',
+  'ac200000-0000-4000-8000-000000000001',
+  'oneTime',
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  'hours-publication:v1:abababababababababababababababababababababababababababababababab'
+) ->> 'outcome';
+SELECT pg_sleep(1);
+COMMIT;
+SQL
+) &
+SESSION_A_PID=$!
+
+sleep 0.2
+
+psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_B}" <<'SQL'
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+UPDATE public.organization_members
+SET status = 'inactive'
+WHERE organization_id = 'ac100000-0000-4000-8000-000000000001'
+  AND user_id = 'ac000000-0000-4000-8000-000000000003';
+SELECT status
+FROM public.organization_members
+WHERE organization_id = 'ac100000-0000-4000-8000-000000000001'
+  AND user_id = 'ac000000-0000-4000-8000-000000000003';
+COMMIT;
+SQL
+
+wait "${SESSION_A_PID}"
+
+grep -qx 'replayed' "${OUTPUT_A}"
+grep -qx 'inactive' "${OUTPUT_B}"
+
+psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+UPDATE public.organization_members
+SET status = 'active'
+WHERE organization_id = 'ac100000-0000-4000-8000-000000000001'
+  AND user_id = 'ac000000-0000-4000-8000-000000000003';
+SQL
 
 HOURS_DELIVERY_ID="$(
   psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 <<'SQL'

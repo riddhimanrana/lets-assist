@@ -5,8 +5,8 @@ import { join } from "node:path";
 const repositoryRoot = join(import.meta.dir, "../../..");
 const read = (path: string) => readFileSync(join(repositoryRoot, path), "utf8");
 
-const BASE_MIGRATION_VERSION = "20260812225436";
-const REPAIR_MIGRATION_VERSION = "20260813011000";
+const BASE_MIGRATION_VERSION = "20260813013200";
+const REPAIR_MIGRATION_VERSION = "20260813013300";
 const baseMigration = read(
   `supabase/migrations/${BASE_MIGRATION_VERSION}_recheck_csf_activity_partner_authorization_under_lock.sql`,
 );

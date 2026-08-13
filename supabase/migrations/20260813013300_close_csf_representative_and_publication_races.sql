@@ -1,11 +1,11 @@
 -- AUD-036 follow-up: close the remaining representative-authority and
 -- activity-publication races without changing any public signature.
 --
--- This migration is deliberately ordered after the open #174 migration tail
--- (20260812203500), the open #158 migration tail (20260812215733), and this
--- branch's original authorization fence (20260812225436). It only replaces
--- the three functions named below; it does not restate either dependency's
--- definitions.
+-- This migration is deliberately ordered after merged Google CAP effect
+-- fencing (20260813012206), merged project-lifecycle serialization
+-- (20260813013100), and this branch's authorization fence (20260813013200).
+-- It only replaces the three functions named below; it does not restate those
+-- independent definitions.
 
 BEGIN;
 

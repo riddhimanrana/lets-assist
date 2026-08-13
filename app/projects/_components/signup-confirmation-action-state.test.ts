@@ -88,4 +88,21 @@ describe("authenticated project signup confirmation", () => {
     expect(modal).not.toMatch(/if \(error\)[\s\S]{0,200}setComment\(""\)/);
     expect(modal).toContain("disabled={isLoading}");
   });
+
+  test("automatic status persistence uses the authorized action and exposes rejection", () => {
+    const statusWriter = projectDetails.slice(
+      projectDetails.indexOf("const updateProjectStatusInDB = async"),
+      projectDetails.indexOf(
+        "// Helper function to get attendees for a specific schedule slot",
+      ),
+    );
+
+    expect(statusWriter).toContain(
+      "await updateProjectStatus(project.id, newStatus)",
+    );
+    expect(statusWriter).toContain("toast.error");
+    expect(statusWriter).toContain('label: "Refresh"');
+    expect(statusWriter).not.toContain('.from("projects")');
+    expect(statusWriter).not.toContain(".update({ status: newStatus })");
+  });
 });
