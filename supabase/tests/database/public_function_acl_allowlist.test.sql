@@ -33,12 +33,15 @@ SELECT extensions.results_eq(
         ('public.can_insert_project(uuid,text,uuid)', 'authenticated'),
         ('public.can_keep_or_set_public_visibility(uuid,uuid)', 'authenticated'),
         ('public.cancel_project_transactional(uuid,text)', 'authenticated'),
+        ('public.end_recurring_project_series_transactional(uuid)', 'authenticated'),
+        ('public.end_recurring_project_series_transactional(uuid,jsonb)', 'authenticated'),
         ('public.get_public_attendees(uuid)', 'anon'),
         ('public.get_public_attendees(uuid)', 'authenticated'),
         ('public.is_project_organizer(uuid,uuid)', 'authenticated'),
         ('public.is_super_admin()', 'authenticated'),
         ('public.is_trusted_member(uuid)', 'authenticated'),
         ('public.reject_project_signup(uuid)', 'authenticated'),
+        ('public.transition_project_status_transactional(uuid,text)', 'authenticated'),
         ('public.unreject_project_signup_with_capacity(uuid)', 'authenticated')
     ) AS expected(signature, role_name)
     ORDER BY 1, 2

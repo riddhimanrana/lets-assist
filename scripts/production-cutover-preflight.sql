@@ -1,4 +1,4 @@
--- Production 236 -> repository target 282 cutover preflight.
+-- Production 236 -> repository target 284 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -10,7 +10,7 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   236 rows headed by 20260811001500
---   post-cutover  282 rows headed by 20260813012206 with the exact 46-row tail
+--   post-cutover  284 rows headed by 20260813013100 with the exact 48-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -43,7 +43,7 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 236/baseline or exactly 282/target'
+\echo '    PASS: exactly 236/baseline or exactly 284/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
@@ -146,9 +146,9 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260811001500'
     ) = 0 AS baseline_ledger,
-  count(*) = 282
+  count(*) = 284
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260813012206'
+    AND max(version::text) = '20260813013100'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
@@ -173,14 +173,14 @@ SELECT
       '20260812152300','20260812161500','20260812185500',
       '20260812193329','20260812193400','20260812203000',
       '20260812203500','20260812220000','20260813010000',
-      '20260813012206'
+      '20260813012206','20260813013000','20260813013100'
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
 \gset
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 46 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 48 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'
@@ -1216,6 +1216,7 @@ SELECT
       ('public.project_feedback_requests'),
       ('public.reporter_references'),
       ('public.api_rate_limit_receipts'),
+      ('private.project_series_end_receipts'),
       ('private.plugin_data_deletion_requests'),
       ('private.google_cap_event_receipts'),
       ('app_private.storage_object_policy_contract')
@@ -1233,6 +1234,7 @@ SELECT
       ('public.project_feedback_requests'),
       ('public.reporter_references'),
       ('public.api_rate_limit_receipts'),
+      ('private.project_series_end_receipts'),
       ('private.plugin_data_deletion_requests'),
       ('private.google_cap_event_receipts'),
       ('app_private.storage_object_policy_contract')
@@ -1665,12 +1667,15 @@ SELECT
       ('public.can_insert_project(uuid,text,uuid)', 'authenticated'),
       ('public.can_keep_or_set_public_visibility(uuid,uuid)', 'authenticated'),
       ('public.cancel_project_transactional(uuid,text)', 'authenticated'),
+      ('public.end_recurring_project_series_transactional(uuid)', 'authenticated'),
+      ('public.end_recurring_project_series_transactional(uuid,jsonb)', 'authenticated'),
       ('public.get_public_attendees(uuid)', 'anon'),
       ('public.get_public_attendees(uuid)', 'authenticated'),
       ('public.is_project_organizer(uuid,uuid)', 'authenticated'),
       ('public.is_super_admin()', 'authenticated'),
       ('public.is_trusted_member(uuid)', 'authenticated'),
       ('public.reject_project_signup(uuid)', 'authenticated'),
+      ('public.transition_project_status_transactional(uuid,text)', 'authenticated'),
       ('public.unreject_project_signup_with_capacity(uuid)', 'authenticated')
   ),
   client(role_name) AS (

@@ -18,62 +18,83 @@ function sliceBetween(source: string, start: string, end: string) {
 }
 
 describe("combined project lifecycle source contract", () => {
-  test("cancellation owns only its transactional RPC while other status writes retain exact CAS proof", () => {
+  test("every consequential project status write uses an actor-derived transactional RPC", () => {
     const lifecycle = read("app/projects/[id]/server/lifecycle.ts");
+    const repairMigration = read(
+      "supabase/migrations/20260813013100_lock_project_lifecycle_transactions.sql",
+    );
     const statusAction = sliceBetween(
       lifecycle,
       "export async function updateProjectStatus(",
       "export async function cloneProject(",
     );
+    const statusTransaction = sliceBetween(
+      repairMigration,
+      "CREATE OR REPLACE FUNCTION private.transition_project_status_transactional(",
+      "REVOKE ALL ON FUNCTION\n  private.transition_project_status_transactional",
+    );
 
     expect(statusAction.match(/cancel_project_transactional/g)).toHaveLength(1);
+    expect(
+      statusAction.match(/transition_project_status_transactional/g),
+    ).toHaveLength(1);
     expect(statusAction).not.toContain("enqueue_project_cancellation_job");
     expect(statusAction).not.toContain('from("project_cancellation_jobs")');
-    expect(statusAction).toContain('.eq("status", project.status)');
-    expect(statusAction).toContain("updatedProject.id !== projectId");
+    expect(statusAction).not.toMatch(
+      /\.from\("projects"\)[\s\S]*?\.update\(\{\s*status:/u,
+    );
+    expect(statusAction).toContain("getExactProjectStatusTransitionReceipt");
     expect(statusAction).toMatch(
       /receipt\.outcome === "cancelled"[\s\S]*removeCalendarEventForProject/,
     );
     expect(statusAction).toMatch(
       /receipt\.outcome === "cancelled"[\s\S]*receipt\.jobStatus === "pending"[\s\S]*fetch\(/,
     );
+    expect(statusTransaction).toContain("OR p_status IS NULL");
+    expect(statusTransaction).toContain(") IS NOT TRUE THEN");
+    expect(statusTransaction).toContain("members.status = 'active'");
+    expect(statusTransaction).toMatch(
+      /FROM public\.projects AS projects[\s\S]*FOR UPDATE;/,
+    );
   });
 
   test("unreject and cancellation share a deadlock-safe project boundary and active membership rule", () => {
-    const unrejectMigration = read(
-      "supabase/migrations/20260812100100_atomic_signup_unreject_capacity.sql",
-    );
-    const cancellationMigration = read(
-      "supabase/migrations/20260812100500_project_cancellation_hostile_review_hardening.sql",
+    const repairMigration = read(
+      "supabase/migrations/20260813013100_lock_project_lifecycle_transactions.sql",
     );
     const unreject = sliceBetween(
-      unrejectMigration,
-      "CREATE OR REPLACE FUNCTION public.unreject_project_signup_with_capacity(",
-      "REVOKE ALL ON FUNCTION public.unreject_project_signup_with_capacity",
+      repairMigration,
+      "CREATE OR REPLACE FUNCTION private.unreject_project_signup_with_capacity(",
+      "REVOKE ALL ON FUNCTION private.unreject_project_signup_with_capacity",
     );
     const cancellation = sliceBetween(
-      cancellationMigration,
-      "CREATE FUNCTION public.cancel_project_transactional(",
-      "COMMENT ON FUNCTION public.cancel_project_transactional",
+      repairMigration,
+      "CREATE OR REPLACE FUNCTION private.cancel_project_transactional(",
+      "REVOKE ALL ON FUNCTION private.cancel_project_transactional",
     );
 
     const slotLock = unreject.indexOf("pg_advisory_xact_lock");
     const projectLock = unreject.indexOf(
-      "-- Lock the project before the signup",
+      "FROM public.projects AS projects",
+      slotLock,
     );
-    const signupLock = unreject.indexOf("-- Lock and refresh the exact signup");
+    const signupLock = unreject.indexOf(
+      "FROM public.project_signups AS signups",
+      projectLock,
+    );
 
     expect(slotLock).toBeGreaterThanOrEqual(0);
     expect(projectLock).toBeGreaterThan(slotLock);
     expect(signupLock).toBeGreaterThan(projectLock);
     expect(unreject.slice(projectLock, signupLock)).toContain("FOR UPDATE");
     expect(unreject.slice(signupLock)).toContain("FOR UPDATE");
-    expect(cancellation).toContain(
-      "COALESCE(members.status, 'active') = 'active'",
-    );
+    expect(cancellation).toContain("members.status = 'active'");
+    expect(cancellation).not.toContain("COALESCE(members.status");
+    expect(unreject).toContain("members.status = 'active'");
+    expect(unreject).not.toContain("COALESCE(members.status");
     expect(cancellation).toContain("FOR SHARE OF members");
     expect(cancellation).toMatch(
-      /FROM public\.projects AS projects[\s\S]*FOR UPDATE;[\s\S]*SET status = 'cancelled'/,
+      /FROM public\.projects AS projects[\s\S]*FOR UPDATE;[\s\S]*RETURN private\.cancel_project_transactional_legacy_status_fallback\(/,
     );
   });
 
@@ -82,21 +103,117 @@ describe("combined project lifecycle source contract", () => {
     const updateAction = lifecycle.slice(
       lifecycle.indexOf("export async function updateProject("),
     );
+    const repairMigration = read(
+      "supabase/migrations/20260813013100_lock_project_lifecycle_transactions.sql",
+    );
+    const privateSeriesEndFunction = sliceBetween(
+      repairMigration,
+      "CREATE OR REPLACE FUNCTION private.end_recurring_project_series_transactional(",
+      "REVOKE ALL ON FUNCTION\n  private.end_recurring_project_series_transactional",
+    );
 
-    expect(updateAction).toMatch(/rpc\(\s*"cancel_project_transactional"/);
+    expect(updateAction).toMatch(
+      /rpc\(\s*"end_recurring_project_series_transactional"/,
+    );
     expect(updateAction).not.toContain('status: "cancelled"');
     expect(updateAction).toMatch(
-      /receipt\.outcome === "cancelled"[\s\S]*removeCalendarEventForProject\(occurrence\.id\)/,
+      /receipt\.calendarCleanupProjectIds[\s\S]*removeCalendarEventForProject\(cleanupProjectId\)/,
+    );
+    expect(updateAction).toContain("submittedRecurrenceGeneration");
+    expect(updateAction).toContain("series_end_generation");
+    expect(privateSeriesEndFunction).toContain(
+      "private.cancel_project_transactional(",
+    );
+    expect(privateSeriesEndFunction).toContain("FOR UPDATE");
+    expect(privateSeriesEndFunction).toContain("SECURITY DEFINER");
+    expect(privateSeriesEndFunction).toContain("p_updates jsonb");
+    expect(privateSeriesEndFunction).toContain("members.status = 'active'");
+    expect(privateSeriesEndFunction).toContain(
+      "app_private.can_keep_or_set_public_visibility(",
+    );
+    expect(privateSeriesEndFunction).toContain(
+      "private.project_series_end_receipts",
+    );
+    expect(privateSeriesEndFunction).toContain(
+      "receipts.recurrence_generation_id = v_generation_id",
+    );
+    expect(privateSeriesEndFunction).toContain(
+      "v_prior_receipt.update_fingerprint",
+    );
+    expect(privateSeriesEndFunction).toContain(
+      "project series end request does not match committed edit",
+    );
+    expect(
+      privateSeriesEndFunction.indexOf("RETURN pg_catalog.jsonb_build_object("),
+    ).toBeLessThan(privateSeriesEndFunction.indexOf("v_edited :="));
+    expect(privateSeriesEndFunction).toContain(
+      "project recurrence generation changed; refresh required",
+    );
+    expect(privateSeriesEndFunction).toContain(
+      "series end generation required; refresh required",
+    );
+    expect(privateSeriesEndFunction).toContain(
+      "v_compatibility_current AND v_generation_id IS NULL",
+    );
+    expect(privateSeriesEndFunction).toMatch(
+      /v_compatibility_current[\s\S]*children\.status = 'cancelled'[\s\S]*'outcome', 'replayed'/,
+    );
+    expect(privateSeriesEndFunction).toContain("v_outcome := 'unchanged'");
+    expect(repairMigration).toContain(
+      "CREATE TRIGGER project_series_end_receipts_reject_update",
+    );
+    expect(repairMigration).not.toContain(
+      "ON CONFLICT (project_id, recurrence_generation_id) DO UPDATE",
+    );
+    expect(privateSeriesEndFunction).toMatch(
+      /SET[\s\S]*recurrence_rule = NULL/,
+    );
+    expect(repairMigration).toContain(
+      "public.end_recurring_project_series_transactional(uuid, jsonb)",
+    );
+    expect(repairMigration).toContain(
+      "ending project recurrence requires a generation-bound lifecycle RPC",
+    );
+    expect(repairMigration).toMatch(
+      /REVOKE ALL ON FUNCTION\s+private\.end_recurring_project_series_transactional\(uuid, jsonb\)[\s\S]*?FROM PUBLIC, anon, authenticated, service_role;[\s\S]*?GRANT EXECUTE ON FUNCTION\s+private\.end_recurring_project_series_transactional\(uuid, jsonb\)[\s\S]*?TO authenticated;/,
     );
   });
 
-  test("the callable catalog retains both invoker wrappers without SECURITY DEFINER exceptions", () => {
+  test("series lock-wait retries stay generation-bound while stale generations remain rejected", () => {
+    const concurrency = read(
+      "supabase/tests/database/project_lifecycle_integration_concurrency.test.sql",
+    );
+    const reviewFindings = read(
+      "supabase/tests/database/project_lifecycle_review_findings.test.sql",
+    );
+    const childLockRace = sliceBetween(
+      concurrency,
+      "-- Series ending must lock and recheck each child",
+      "-- Cancellation and ordinary status transitions serialize",
+    );
+    const generationRace = sliceBetween(
+      concurrency,
+      "-- Child generation and series ending use the same parent-row boundary",
+      "-- Membership revocation owns the member row",
+    );
+
+    expect(childLockRace).toContain("'series_end_generation'");
+    expect(generationRace).toContain("'series_end_generation'");
+    expect(reviewFindings).toMatch(
+      /project recurrence generation changed; refresh required[\s\S]*a delayed retry cannot end a replacement recurrence generation/,
+    );
+  });
+
+  test("the additive catalogs retain lifecycle authorities without SECURITY DEFINER exceptions", () => {
     const audit = read("scripts/audit-supabase-architecture.sh");
     const aclTest = read(
       "supabase/tests/database/public_function_acl_allowlist.test.sql",
     );
-    const boundaryMigration = read(
+    const transactionBoundaryMigration = read(
       "supabase/migrations/20260812104754_harden_project_transaction_rpc_boundaries.sql",
+    );
+    const lifecycleBoundaryMigration = read(
+      "supabase/migrations/20260813013100_lock_project_lifecycle_transactions.sql",
     );
     const securityDefinerAudit = sliceBetween(
       audit,
@@ -106,6 +223,9 @@ describe("combined project lifecycle source contract", () => {
 
     for (const signature of [
       "public.cancel_project_transactional(uuid,text)",
+      "public.end_recurring_project_series_transactional(uuid)",
+      "public.end_recurring_project_series_transactional(uuid,jsonb)",
+      "public.transition_project_status_transactional(uuid,text)",
       "public.unreject_project_signup_with_capacity(uuid)",
     ]) {
       expect(audit).toContain(signature);
@@ -116,29 +236,70 @@ describe("combined project lifecycle source contract", () => {
       "unreject_project_signup_with_capacity",
     );
     expect(securityDefinerAudit).not.toContain("cancel_project_transactional");
-    expect(boundaryMigration).toContain(
+    expect(transactionBoundaryMigration).toContain(
       "ALTER FUNCTION public.cancel_project_transactional(uuid, text)\n  SET SCHEMA private",
     );
-    expect(boundaryMigration).toContain(
+    expect(transactionBoundaryMigration).toContain(
       "CREATE OR REPLACE FUNCTION public.cancel_project_transactional(",
     );
-    expect(boundaryMigration).toContain(
+    expect(transactionBoundaryMigration).toContain(
       "ALTER FUNCTION public.unreject_project_signup_with_capacity(uuid)\n  SET SCHEMA private",
     );
-    expect(boundaryMigration).toContain(
+    expect(transactionBoundaryMigration).toContain(
       "CREATE OR REPLACE FUNCTION public.unreject_project_signup_with_capacity(",
     );
     expect(
-      boundaryMigration.match(
+      transactionBoundaryMigration.match(
         /LANGUAGE sql\nSECURITY INVOKER\nSET search_path = ''/g,
       ),
     ).toHaveLength(2);
-    expect(boundaryMigration.match(/SET search_path = ''/g)).toHaveLength(2);
-    expect(boundaryMigration).toContain(
+    expect(
+      transactionBoundaryMigration.match(/SET search_path = ''/g),
+    ).toHaveLength(2);
+    expect(lifecycleBoundaryMigration).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.end_recurring_project_series_transactional\([\s\S]*?p_updates jsonb[\s\S]*?LANGUAGE sql\nSECURITY INVOKER\nSET search_path = ''/,
+    );
+    expect(transactionBoundaryMigration).toContain(
       "DROP INDEX public.projects_id_organization_id_uidx",
     );
-    expect(boundaryMigration).not.toContain(
+    expect(transactionBoundaryMigration).not.toContain(
       "DROP INDEX public.projects_id_organization_id_key",
+    );
+  });
+
+  test("the forward repair preserves the union of lifecycle and rejection hardening", () => {
+    const repair = read(
+      "supabase/migrations/20260813013100_lock_project_lifecycle_transactions.sql",
+    );
+
+    expect(repair).toContain("v_attending boolean");
+    expect(repair).toMatch(
+      /IF v_approving OR v_attending THEN[\s\S]*FOR UPDATE;/,
+    );
+    expect(repair).toMatch(
+      /IF v_attending[\s\S]*v_project_status IN \('inactive', 'cancelled'\)/,
+    );
+    expect(repair).toMatch(
+      /IF NEW\.status = 'approved'[\s\S]*signup approval requires a capacity-safe transactional RPC/,
+    );
+    expect(repair).toMatch(
+      /IF NEW\.status = 'rejected'[\s\S]*signup rejection requires the server-authorized operation/,
+    );
+    expect(repair).toMatch(
+      /IF NEW\.status = 'attended'[\s\S]*attendance requires a server-authorized operation/,
+    );
+    expect(repair).toContain("SET search_path = ''");
+    expect(repair).toContain(
+      "CREATE OR REPLACE FUNCTION private.publish_volunteer_hours_transactional(",
+    );
+    expect(repair).toMatch(
+      /CREATE OR REPLACE FUNCTION private\.publish_volunteer_hours_transactional\([\s\S]*?members\.status = 'active'[\s\S]*?FOR UPDATE OF members;/,
+    );
+    expect(repair).not.toContain(
+      "CREATE OR REPLACE FUNCTION app_private.is_project_organizer(",
+    );
+    expect(repair).not.toContain(
+      "CREATE OR REPLACE FUNCTION app_private.can_manage_project(",
     );
   });
 

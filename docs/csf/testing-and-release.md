@@ -3,12 +3,13 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** This repository carries 282 ordered migrations through
-`20260813012206_google_cap_effect_fencing`, including the project-signup
-rejection, active staff-invite issuer, content-report integrity, atomic AI
-quota, CSF meeting-permission, and Google CAP migrations. Hosted Development
-Supabase remains at 273 through the atomic post-reply boundary; the nine
-unmerged migrations have not been applied or deployed there. The
+**Status:** This repository carries 284 ordered migrations through
+`20260813013100_lock_project_lifecycle_transactions`, including project-signup
+rejection, active staff-invite issuer, content-report integrity, plugin ACL,
+atomic AI quota, CSF meeting-permission, Google CAP effect fencing, and the
+project-lifecycle transaction repair. Hosted Development Supabase remains at
+273 through the atomic post-reply boundary; the eleven unmerged migrations have
+not been applied or deployed there. The
 `dev.lets-assist.com` alias still serves the earlier Ready code at
 `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository tree ended at 272
 through `20260812132725`, because the external Vercel 100-deployment-per-day
@@ -25,27 +26,29 @@ only.
 
 ## Current hosted Development state
 
-- The repository branch has 282 ordered migrations through
-  `20260813012206_google_cap_effect_fencing`.
+- The repository branch has 284 ordered migrations through
+  `20260813013100_lock_project_lifecycle_transactions`.
 - Hosted Development Supabase remains at 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`. The nine unmerged migrations are
+  `20260812152300_atomic_csf_post_replies`. The eleven unmerged migrations are
   `20260812161500_atomic_project_signup_rejection`,
   `20260812185500_atomic_staff_invite_issuer_redemption`,
   `20260812193329_google_cap_replay_safety`,
   `20260812193400_protect_staff_invite_issuer_capability`,
   `20260812203000_make_content_reports_server_written`,
   `20260812203500_close_plugin_data_browser_default_acl`,
-  `20260812220000_csf_meeting_permission_followups`, and
-  `20260813010000_atomic_ai_quota_receipts`, and
-  `20260813012206_google_cap_effect_fencing`. They are repository-only local
-  work: hosted Development database parity, application deployment, and
-  provider acceptance have not been established for it.
+  `20260812220000_csf_meeting_permission_followups`,
+  `20260813010000_atomic_ai_quota_receipts`,
+  `20260813012206_google_cap_effect_fencing`,
+  `20260813013000_reconcile_project_lifecycle_boundaries`, and
+  `20260813013100_lock_project_lifecycle_transactions`. They are repository-only
+  local work: hosted Development database parity, application deployment, and
+  provider acceptance have not been established for them.
 - Production remains at 236 ordered migrations through `20260811001500`; the
-  46-migration cutover has not run.
+  48-migration cutover has not run.
 - The last accepted Development advisor snapshot was captured on the preceding
   272-migration shape: 95 INFO, 0 WARN, and 0 ERROR security findings, plus 611
   INFO, 0 WARN, and 0 ERROR performance findings. Those counts have not been
-  re-established for either the hosted 273 or repository 282 shape and are not
+  re-established for either the hosted 273 or repository 284 shape and are not
   current-parity evidence.
 - `dev.lets-assist.com` still serves exact development SHA
   `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose Ready repository tree ended
@@ -413,8 +416,8 @@ The current officer procedure is documented in the [officer runbook](officer-run
   unexecuted.
 - Development uses a distinct hosted Supabase project. Its database remains at
   273 ordered migrations through `20260812152300_atomic_csf_post_replies`; this
-  repository branch has 282 through
-  `20260813012206_google_cap_effect_fencing`, including
+  repository branch has 284 through
+  `20260813013100_lock_project_lifecycle_transactions`, including
   `20260812161500_atomic_project_signup_rejection`,
   `20260812185500_atomic_staff_invite_issuer_redemption`,
   `20260812193329_google_cap_replay_safety`,
@@ -422,9 +425,11 @@ The current officer procedure is documented in the [officer runbook](officer-run
   `20260812203000_make_content_reports_server_written`,
   `20260812203500_close_plugin_data_browser_default_acl`,
   `20260812220000_csf_meeting_permission_followups`,
-  `20260813010000_atomic_ai_quota_receipts`, and
-  `20260813012206_google_cap_effect_fencing`. These nine migrations have not
-  been applied or deployed in hosted Development. The Ready alias still
+  `20260813010000_atomic_ai_quota_receipts`,
+  `20260813012206_google_cap_effect_fencing`,
+  `20260813013000_reconcile_project_lifecycle_boundaries`, and
+  `20260813013100_lock_project_lifecycle_transactions`. These eleven migrations
+  have not been applied or deployed in hosted Development. The Ready alias still
   serves development SHA `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository
   tree ended at 272 through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`; the external Vercel
