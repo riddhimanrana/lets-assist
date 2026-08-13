@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { detachContentReportReporter } from "@/lib/moderation/content-report-retention";
+
 export type DeleteUserWithCleanupOptions = {
   deleteProjects?: boolean;
   deleteOrganizations?: boolean;
@@ -54,9 +56,13 @@ export async function deleteUserWithCleanup(
   }
 
   if (!dryRun) {
+    // Moderation evidence is retained with the actor detached rather than
+    // deleted, so an account removal cannot erase reports about other content.
+    await detachContentReportReporter(supabaseAdmin, userId);
+    notes.push("content_reports retained with the reporter link detached.");
+
     // Delete user data from public tables (respecting foreign key constraints)
     const deletionSteps = [
-      { table: "content_reports", where: { reporter_id: userId } },
       { table: "feedback", where: { user_id: userId } },
       { table: "notifications", where: { user_id: userId } },
       { table: "notification_settings", where: { user_id: userId } },

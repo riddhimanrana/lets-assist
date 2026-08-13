@@ -248,16 +248,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const requestIp = getRequestIp(req.headers);
     const quota = await consumeAiQuota({
       feature: "paper-signup-scan",
       windowSeconds: SCAN_WINDOW_SECONDS,
       buckets: [
         { scope: "user", identifier: user.id, limit: SCAN_USER_LIMIT },
-        {
-          scope: "ip",
-          identifier: getRequestIp(req.headers),
-          limit: SCAN_IP_LIMIT,
-        },
+        ...(requestIp
+          ? [
+              {
+                scope: "ip",
+                identifier: requestIp,
+                limit: SCAN_IP_LIMIT,
+              },
+            ]
+          : []),
         {
           scope: "project",
           identifier: batch.project_id,
