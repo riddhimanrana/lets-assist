@@ -337,8 +337,11 @@ const POSTS: LabelContract[] = [
       "Post saved; email status unknown",
       "Email queued",
       "Email not queued",
-      "Email queue status unknown",
     ],
+  },
+  {
+    component: "CsfPostPublicationResult.ts",
+    labels: ["Email queue status unknown"],
   },
 ];
 
