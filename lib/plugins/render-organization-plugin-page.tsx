@@ -34,6 +34,7 @@ type OrganizationRecord = {
 
 type MembershipRow = {
   role: OrganizationPluginAccessRole;
+  status: string | null;
 };
 
 type OrganizationPluginRouteRow = {
@@ -134,9 +135,10 @@ export async function renderOrganizationPluginPage(options: {
     ? await readOrganizationPluginContext<MembershipRow>("membership", () =>
         supabase
           .from("organization_members")
-          .select("role")
+          .select("role,status")
           .eq("organization_id", organization.id)
           .eq("user_id", user.id)
+          .eq("status", "active")
           .maybeSingle(),
       )
     : null;
@@ -150,6 +152,7 @@ export async function renderOrganizationPluginPage(options: {
   const resolvedPlugin = await resolveOrganizationPluginByKey({
     organizationId: organization.id,
     userRole: effectiveUserRole,
+    ...(userRole && user ? { viewerUserId: user.id } : {}),
     pluginKey,
     failureMode: "throw",
   });

@@ -20,6 +20,7 @@ import {
 } from "@/lib/plugins/lifecycle";
 import { getRegisteredPlugin } from "@/lib/plugins/registry";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { hasActiveOrganizationAdminMembership } from "@/lib/organization/active-membership";
 import type {
   OrganizationPluginAccessRole,
   OrganizationPluginLifecycleContext,
@@ -63,6 +64,29 @@ type RegisteredPlugin = NonNullable<ReturnType<typeof getRegisteredPlugin>>;
 type PluginAdminClient = ReturnType<typeof getAdminClient>;
 
 const CONTROL_PLANE_LOCK_TTL_SECONDS = 900;
+
+async function hasCurrentTransitionAuthority(
+  service: PluginAdminClient,
+  input: PluginControlPlaneInput,
+): Promise<boolean> {
+  if (input.actor.type === "admin") return true;
+  return hasActiveOrganizationAdminMembership(
+    service,
+    input.organizationId,
+    input.actor.id,
+  );
+}
+
+async function requireCurrentTransitionAuthority(
+  service: PluginAdminClient,
+  input: PluginControlPlaneInput,
+): Promise<void> {
+  if (!(await hasCurrentTransitionAuthority(service, input))) {
+    throw new Error(
+      "A current active organization admin is required for plugin transitions.",
+    );
+  }
+}
 
 function organizationContext(
   organization: OrganizationRow,
@@ -113,6 +137,16 @@ async function transitionOrganizationPluginInstallWithLease(
   service: PluginAdminClient,
   lockToken: string,
 ) {
+  if (!(await hasCurrentTransitionAuthority(service, input))) {
+    return {
+      success: false,
+      changed: false,
+      actions: [],
+      error:
+        "A current active organization admin is required for plugin transitions.",
+    };
+  }
+
   async function refreshLease() {
     const { data, error } = await service.rpc(
       "refresh_plugin_control_plane_transition_lock",
@@ -227,6 +261,7 @@ async function transitionOrganizationPluginInstallWithLease(
   };
 
   async function runLifecycle(invocation: PluginLifecycleInvocation) {
+    await requireCurrentTransitionAuthority(service, input);
     await refreshLease();
     switch (invocation.hook) {
       case "install":
@@ -271,6 +306,7 @@ async function transitionOrganizationPluginInstallWithLease(
     callbacks: {
       runLifecycle,
       createInstall: async ({ enabled, installedVersion, configuration }) => {
+        await requireCurrentTransitionAuthority(service, input);
         await refreshLease();
         const now = new Date().toISOString();
         const { error } = await service
@@ -294,6 +330,7 @@ async function transitionOrganizationPluginInstallWithLease(
       updateInstall: async (mutation) => {
         if (!current)
           throw new Error("Plugin install state disappeared before update.");
+        await requireCurrentTransitionAuthority(service, input);
         await refreshLease();
         const now = new Date().toISOString();
         const { data, error } = await service
@@ -311,6 +348,7 @@ async function transitionOrganizationPluginInstallWithLease(
       removeInstall: async () => {
         if (!current)
           throw new Error("Plugin install state disappeared before uninstall.");
+        await requireCurrentTransitionAuthority(service, input);
         await refreshLease();
         const { data, error } = await service
           .from("organization_plugin_installs")
@@ -375,6 +413,15 @@ export async function transitionOrganizationPluginInstall(
   }
 
   const service = getAdminClient();
+  if (!(await hasCurrentTransitionAuthority(service, input))) {
+    return {
+      success: false,
+      changed: false,
+      actions: [],
+      error:
+        "A current active organization admin is required for plugin transitions.",
+    };
+  }
   const lockToken = crypto.randomUUID();
   const { data: acquired, error: acquireError } = await service.rpc(
     "acquire_plugin_control_plane_transition_lock",

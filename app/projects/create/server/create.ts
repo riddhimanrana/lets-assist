@@ -314,6 +314,7 @@ export async function createBasicProject(
           .select("role")
           .eq("organization_id", projectData.basicInfo.organizationId)
           .eq("user_id", user.id)
+          .eq("status", "active")
           .single();
 
         const userRole = member?.role || null;
@@ -321,6 +322,7 @@ export async function createBasicProject(
         const plugins = await resolveOrganizationPlugins({
           organizationId: projectData.basicInfo.organizationId,
           userRole,
+          viewerUserId: user.id,
         });
 
         for (const resolved of plugins) {

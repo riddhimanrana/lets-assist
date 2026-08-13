@@ -339,12 +339,14 @@ export async function cloneProject(projectId: string) {
         .select("role")
         .eq("organization_id", source.organization_id)
         .eq("user_id", user.id)
+        .eq("status", "active")
         .maybeSingle();
 
       const viewerRole = toOrganizationPluginAccessRole(orgMember?.role);
       const installedPlugins = await resolveOrganizationPlugins({
         organizationId: source.organization_id,
         userRole: viewerRole,
+        viewerUserId: user.id,
       });
 
       const registry = getPluginRegistry();

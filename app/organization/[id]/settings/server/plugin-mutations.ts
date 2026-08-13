@@ -39,7 +39,11 @@ export async function setOrganizationPluginInstallState(options: {
 
   const adminSupabase = getAdminClient();
 
-  const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
+  const isAdmin = await isOrganizationAdminForSettings(
+    organizationId,
+    user.id,
+    adminSupabase,
+  );
   if (!isAdmin) {
     return {
       success: false,
@@ -190,7 +194,11 @@ export async function uninstallOrganizationPlugin(options: {
   }
 
   const adminSupabase = getAdminClient();
-  const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
+  const isAdmin = await isOrganizationAdminForSettings(
+    organizationId,
+    user.id,
+    adminSupabase,
+  );
 
   if (!isAdmin) {
     return {
@@ -350,7 +358,11 @@ export async function updateOrganizationPluginToLatest(options: {
 
   const adminSupabase = getAdminClient();
 
-  const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
+  const isAdmin = await isOrganizationAdminForSettings(
+    organizationId,
+    user.id,
+    adminSupabase,
+  );
   if (!isAdmin) {
     return {
       success: false,
@@ -464,7 +476,11 @@ export async function updateOrganizationPluginConfiguration(options: {
 
   const adminSupabase = getAdminClient();
 
-  const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
+  const isAdmin = await isOrganizationAdminForSettings(
+    organizationId,
+    user.id,
+    adminSupabase,
+  );
   if (!isAdmin) {
     return {
       success: false,

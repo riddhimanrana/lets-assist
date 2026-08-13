@@ -15,6 +15,7 @@ import type {
   OrganizationPluginExperience,
   ResolvedOrganizationPlugin,
 } from "@/types";
+import { getActiveOrganizationMembershipRole } from "@/lib/organization/active-membership";
 
 export interface ResolvedOrganizationPluginExperience {
   organizationId: string;
@@ -77,11 +78,12 @@ export async function resolveOrganizationPluginExperiences(
 export async function resolveOrganizationPlugins(options: {
   organizationId: string;
   userRole: OrganizationPluginAccessRole | null;
+  viewerUserId?: string;
   failureMode?: PluginAccessFailureMode;
 }): Promise<ResolvedOrganizationPlugin[]> {
-  const { organizationId, userRole } = options;
+  const { organizationId } = options;
 
-  if (!userRole) {
+  if (!options.userRole && !options.viewerUserId) {
     return [];
   }
 
@@ -91,6 +93,15 @@ export async function resolveOrganizationPlugins(options: {
   } catch {
     supabase = await createClient();
   }
+
+  const userRole = options.viewerUserId
+    ? await getActiveOrganizationMembershipRole(
+        supabase,
+        organizationId,
+        options.viewerUserId,
+      )
+    : options.userRole;
+  if (!userRole) return [];
 
   const accessRows = await loadAccessibleOrganizationPluginAccess({
     supabase,
@@ -146,12 +157,14 @@ export async function resolveOrganizationPlugins(options: {
 export async function resolveOrganizationPluginByKey(options: {
   organizationId: string;
   userRole: OrganizationPluginAccessRole | null;
+  viewerUserId?: string;
   pluginKey: string;
   failureMode?: PluginAccessFailureMode;
 }): Promise<ResolvedOrganizationPlugin | null> {
   const plugins = await resolveOrganizationPlugins({
     organizationId: options.organizationId,
     userRole: options.userRole,
+    viewerUserId: options.viewerUserId,
     failureMode: options.failureMode,
   });
 

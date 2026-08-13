@@ -54,12 +54,30 @@ export async function applyStaffInviteForUser(
       };
     }
 
+    const { data: activeAdmin, error: activeAdminError } = await adminClient
+      .from("organization_members")
+      .select("id")
+      .eq("organization_id", org.id)
+      .eq("role", "admin")
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+
+    if (activeAdminError || !activeAdmin) {
+      return {
+        status: "error",
+        orgUsername: org.username,
+        orgName: org.name,
+      };
+    }
+
     const { error: memberError } = await adminClient
       .from("organization_members")
       .insert({
         organization_id: org.id,
         user_id: userId,
         role: "staff",
+        status: "active",
         joined_at: now.toISOString(),
       });
 
@@ -83,7 +101,7 @@ export async function applyStaffInviteForUser(
     // Duplicate membership exists: upgrade member -> staff, but never downgrade admin/staff
     const { data: existingMembership, error: queryError } = await adminClient
       .from("organization_members")
-      .select("role")
+      .select("role,status")
       .eq("organization_id", org.id)
       .eq("user_id", userId)
       .single();
@@ -100,12 +118,21 @@ export async function applyStaffInviteForUser(
       };
     }
 
+    if (existingMembership.status !== "active") {
+      return {
+        status: "error",
+        orgUsername: org.username,
+        orgName: org.name,
+      };
+    }
+
     if (existingMembership.role === "member") {
       const { error: updateError } = await adminClient
         .from("organization_members")
         .update({ role: "staff" })
         .eq("organization_id", org.id)
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .eq("status", "active");
 
       if (updateError) {
         console.error(

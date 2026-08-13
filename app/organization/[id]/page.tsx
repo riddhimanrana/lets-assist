@@ -37,6 +37,7 @@ type Props = {
 type OrganizationMemberRecord = {
   user_id: string;
   role: string;
+  status: string | null;
 };
 
 type OrganizationReadModelRow = {
@@ -201,9 +202,10 @@ export default async function OrganizationPage({
   if (user && effectiveUserId) {
     const { data: memberRecord } = (await readClient
       .from("organization_members")
-      .select("user_id, role")
+      .select("user_id, role, status")
       .eq("organization_id", organization.id)
       .eq("user_id", effectiveUserId)
+      .eq("status", "active")
       .maybeSingle()) as {
       data: OrganizationMemberRecord | null;
       error: { message?: string } | null;
@@ -223,6 +225,7 @@ export default async function OrganizationPage({
         organizationName: organization.name,
         hook: "organization.tabs",
         viewerRole: pluginRole,
+        viewerUserId: effectiveUserId,
         target: {
           userId: user?.id ?? null,
           userEmail: user?.email ?? null,
@@ -370,6 +373,7 @@ export default async function OrganizationPage({
         organizationId: organization.id,
         surface: "organization.overview.cards",
         viewerRole: pluginRole,
+        viewerUserId: effectiveUserId,
         target: {
           userId: user?.id ?? null,
         },
@@ -383,6 +387,7 @@ export default async function OrganizationPage({
         organizationName: organization.name,
         hook: "organization.navigation.overrides",
         viewerRole: pluginRole,
+        viewerUserId: effectiveUserId,
         target: {
           userId: user?.id ?? null,
           userEmail: user?.email ?? null,
@@ -455,6 +460,7 @@ export default async function OrganizationPage({
         await resolveOrganizationPlugins({
           organizationId: organization.id,
           userRole: pluginRole,
+          viewerUserId: effectiveUserId,
         })
       ).filter((plugin) => isAllowedPluginSurface(plugin.key))
     : [];

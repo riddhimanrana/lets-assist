@@ -12,6 +12,7 @@ import {
   usernameUnavailableMessage,
 } from "@/lib/organization/reserved-slugs";
 import { validateOrganizationUsername } from "@/lib/organization/username";
+import { hasActiveOrganizationAdminMembership } from "@/lib/organization/active-membership";
 
 const ALLOWED_FILE_TYPES = [
   "image/jpeg",
@@ -93,6 +94,9 @@ export async function updateOrganization(data: OrganizationUpdateData) {
 
   // Get the current organization data
   const admin = getAdminClient();
+  if (!(await hasActiveOrganizationAdminMembership(admin, data.id, user.id))) {
+    return { error: "Only admins can update organization details" };
+  }
   const { data: currentOrg, error: orgError } = await admin
     .from("organizations")
     .select("username, logo_url, verified, auto_join_domain")
@@ -235,6 +239,11 @@ export async function updateOrganization(data: OrganizationUpdateData) {
     }
 
     // Update the organization
+    if (
+      !(await hasActiveOrganizationAdminMembership(admin, data.id, user.id))
+    ) {
+      return { error: "Only admins can update organization details" };
+    }
     const { error: updateError } = await admin
       .from("organizations")
       .update({
@@ -371,7 +380,6 @@ export async function generateStaffLink(
   expiresInDays: number = 30,
 ) {
   "use server";
-  const supabase = await createClient();
 
   // Verify that user is authenticated using getClaims() for better performance
   const { user } = await getAuthUser();
@@ -380,15 +388,14 @@ export async function generateStaffLink(
   }
 
   // Verify the user is an admin of the organization
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("role")
-    .eq("organization_id", organizationId)
-    .eq("user_id", user.id)
-    .eq("role", "admin")
-    .single();
-
-  if (!membership) {
+  const admin = getAdminClient();
+  if (
+    !(await hasActiveOrganizationAdminMembership(
+      admin,
+      organizationId,
+      user.id,
+    ))
+  ) {
     return { error: "Only admins can generate staff invite links" };
   }
 
@@ -399,7 +406,6 @@ export async function generateStaffLink(
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
     // Update the organization with the new staff token
-    const admin = getAdminClient();
     const { error: updateError } = await admin
       .from("organizations")
       .update({
@@ -438,7 +444,6 @@ export async function generateStaffLink(
  */
 export async function revokeStaffLink(organizationId: string) {
   "use server";
-  const supabase = await createClient();
 
   // Verify that user is authenticated using getClaims() for better performance
   const { user } = await getAuthUser();
@@ -447,20 +452,18 @@ export async function revokeStaffLink(organizationId: string) {
   }
 
   // Verify the user is an admin of the organization
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("role")
-    .eq("organization_id", organizationId)
-    .eq("user_id", user.id)
-    .eq("role", "admin")
-    .single();
-
-  if (!membership) {
+  const admin = getAdminClient();
+  if (
+    !(await hasActiveOrganizationAdminMembership(
+      admin,
+      organizationId,
+      user.id,
+    ))
+  ) {
     return { error: "Only admins can revoke staff invite links" };
   }
 
   try {
-    const admin = getAdminClient();
     const { error: updateError } = await admin
       .from("organizations")
       .update({
@@ -493,7 +496,6 @@ export async function revokeStaffLink(organizationId: string) {
  */
 export async function getStaffLinkDetails(organizationId: string) {
   "use server";
-  const supabase = await createClient();
 
   // Verify that user is authenticated using getClaims() for better performance
   const { user } = await getAuthUser();
@@ -502,20 +504,18 @@ export async function getStaffLinkDetails(organizationId: string) {
   }
 
   // Verify the user is an admin of the organization
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("role")
-    .eq("organization_id", organizationId)
-    .eq("user_id", user.id)
-    .eq("role", "admin")
-    .single();
-
-  if (!membership) {
+  const admin = getAdminClient();
+  if (
+    !(await hasActiveOrganizationAdminMembership(
+      admin,
+      organizationId,
+      user.id,
+    ))
+  ) {
     return { error: "Only admins can view staff link details" };
   }
 
   try {
-    const admin = getAdminClient();
     const { data: org, error } = await admin
       .from("organizations")
       .select(
