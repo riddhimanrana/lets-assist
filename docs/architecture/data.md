@@ -30,6 +30,16 @@ Two quotas are kept apart. A higher attempt ceiling is charged before the target
 
 Imports retain immutable source identity, range/tab provenance, mapping versions, and raw snapshots. Preview and reconcile are separate from commit. Spreadsheet values are treated as untrusted input and exports must prevent formula injection.
 
+### CSF source constraints
+
+- The identity-free historical S26 inventory is 167 records for 2027, 167 for 2028, and 88 for 2029: 422 total.
+- The 2030 workbook is a template for an application cycle, not historical membership or roster evidence.
+- Historical sheets do not contain reliable account identifiers. They must not auto-link a profile to an account; linking requires separately corroborated evidence and reviewed conflict handling.
+- A Spring application source cannot seed a Fall roster. Application, cohort, membership, and term state remain distinct.
+- Persist each source snapshot immutably before preview. Commit must revalidate the current actor, organization, install/entitlement, source identity and version, mapping, and target term; preview-time authorization is not sufficient.
+
+These constraints describe source shape without recording identities. Source rows and account-link evidence remain private, server-only data.
+
 ## Sensitive data
 
 Do not commit real member/student workbooks, contact exports, OAuth tokens, browser state, traces, or provider payloads. Local fixtures use fictional identities and reserved domains. Curated evidence is manually reviewed and lives only under `docs/csf/evidence/`.
