@@ -261,7 +261,6 @@ beforeEach(() => {
 });
 
 describe("the bounded CSF dispatch worker route", () => {
-
   test("a malformed transport environment claims nothing and sends nothing", async () => {
     delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     delete process.env.SUPABASE_SECRET_KEY;
@@ -485,7 +484,11 @@ describe("the bounded CSF dispatch worker route", () => {
         };
       }
       return {
-        data: { organizationCount: 0, organizationIds: [], reservationId: null },
+        data: {
+          organizationCount: 0,
+          organizationIds: [],
+          reservationId: null,
+        },
         error: null,
       };
     };

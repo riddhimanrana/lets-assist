@@ -42,9 +42,8 @@ process.env.CSF_UNSUBSCRIBE_TOKEN_SECRET =
   "synthetic-unsubscribe-secret-value-0123456789";
 
 const route = await import("./route");
-const { createCsfUnsubscribeToken } = await import(
-  "@/services/csf-unsubscribe-token"
-);
+const { createCsfUnsubscribeToken } =
+  await import("@/services/csf-unsubscribe-token");
 const { NextRequest } = await import("next/server");
 
 const ORG = "bd100000-0000-4000-8000-000000000001";
@@ -102,7 +101,7 @@ describe("GET renders a confirmation and records nothing", () => {
     // recipient's consent exactly as it found it.
     expect(rpcCalls).toHaveLength(0);
     expect(response.status).toBe(200);
-    expect(html).toContain("<form method=\"post\"");
+    expect(html).toContain('<form method="post"');
   });
 
   test("the resubscribe variant is equally inert", async () => {
@@ -114,9 +113,9 @@ describe("GET renders a confirmation and records nothing", () => {
     // Keeps the bearer secret out of the referrer and the history entry the
     // submit would otherwise create.
     const issued = token();
-    const html = await route.GET(getRequest(`token=${issued}`)).then((r) =>
-      r.text(),
-    );
+    const html = await route
+      .GET(getRequest(`token=${issued}`))
+      .then((r) => r.text());
 
     expect(html).toContain(`name="token" value="${issued}"`);
     expect(html).toContain('action="/unsubscribe/csf/confirm"');
@@ -133,9 +132,9 @@ describe("GET renders a confirmation and records nothing", () => {
   test("the recipient address is never rendered into the page", async () => {
     // The token's bearer already knows the address, but the page is fetched by
     // scanners and can end up in proxy logs and browser history.
-    const html = await route.GET(getRequest(`token=${token()}`)).then((r) =>
-      r.text(),
-    );
+    const html = await route
+      .GET(getRequest(`token=${token()}`))
+      .then((r) => r.text());
     expect(html).not.toContain(RECIPIENT);
   });
 });

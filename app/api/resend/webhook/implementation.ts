@@ -604,7 +604,8 @@ const PERMANENT_LEDGER_FAULTS: ReadonlyArray<{
     sqlstate: "22023",
     marker: "provider message identity is at most",
     code: "malformed_event_shape",
-    detail: "the provider message identity exceeds the length the ledger can store",
+    detail:
+      "the provider message identity exceeds the length the ledger can store",
   },
   {
     sqlstate: "22023",

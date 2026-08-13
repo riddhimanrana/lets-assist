@@ -346,9 +346,9 @@ describe("every ledger fault reachable from the record path is classified", () =
   test("the record RPC still calls the resolver in the same transaction", () => {
     // If this stops being true the pairing above is over-broad rather than
     // wrong, but the list should be corrected rather than left stale.
-    expect(
-      functionBody("csf_record_communication_provider_event"),
-    ).toContain("plugin_data.csf_resolve_communication_provider_evidence(");
+    expect(functionBody("csf_record_communication_provider_event")).toContain(
+      "plugin_data.csf_resolve_communication_provider_evidence(",
+    );
   });
 
   test("no later migration redefines either function", () => {
@@ -396,9 +396,10 @@ describe("every ledger fault reachable from the record path is classified", () =
         const message = (
           statement.text.match(/'((?:[^']|'')+)'/)?.[1] ?? ""
         ).replace(/''/gu, "'");
-        expect(message.length, `unreadable diagnostic in ${name}`).toBeGreaterThan(
-          0,
-        );
+        expect(
+          message.length,
+          `unreadable diagnostic in ${name}`,
+        ).toBeGreaterThan(0);
 
         examined += 1;
 
@@ -443,9 +444,10 @@ describe("every ledger fault reachable from the record path is classified", () =
     // raises it.
     const bodies = RECORD_PATH_FUNCTIONS.map(functionBody).join("\n");
     for (const marker of route.CSF_RETRYABLE_LEDGER_FAULT_MARKERS) {
-      expect(bodies, `no raise carries the retryable marker: ${marker}`).toContain(
-        marker,
-      );
+      expect(
+        bodies,
+        `no raise carries the retryable marker: ${marker}`,
+      ).toContain(marker);
       // A retryable marker must not also be classified permanent, for any of the
       // SQLSTATEs the permanent table uses.
       for (const sqlstate of ["22004", "22023", "23503", "23505", "23514"]) {

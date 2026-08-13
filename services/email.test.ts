@@ -255,9 +255,8 @@ describe("a cancellation observed before the provider request is pre-send", () =
   });
 
   test("the CSF ledger settlement follows: retryable, never a terminal unknown", async () => {
-    const { mapTransportResultToSettlement } = await import(
-      "./csf-communications-dispatch"
-    );
+    const { mapTransportResultToSettlement } =
+      await import("./csf-communications-dispatch");
     const controller = new AbortController();
     controller.abort();
 
