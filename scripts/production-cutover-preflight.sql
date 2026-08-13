@@ -1,4 +1,4 @@
--- Production 236 -> repository target 281 cutover preflight.
+-- Production 236 -> repository target 282 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -10,7 +10,7 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   236 rows headed by 20260811001500
---   post-cutover  281 rows headed by 20260813011000 with the exact 45-row tail
+--   post-cutover  282 rows headed by 20260813011000 with the exact 46-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -20,7 +20,7 @@
 --
 -- The target count, head, and tail below are computed from this branch's
 -- supabase/migrations directory alone.
--- Pull requests #152, #174, and #179 are merged in current development;
+-- Pull requests #152, #174, #177, and #179 are merged in current development;
 -- #158 and #175 remain open with later or interleaving versions. This pin is
 -- provisional, and the last migration pull request to merge must recompute it
 -- from the merged tree before any cutover relies on it.
@@ -50,7 +50,7 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 236/baseline or exactly 281/target'
+\echo '    PASS: exactly 236/baseline or exactly 282/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
@@ -153,7 +153,7 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260811001500'
     ) = 0 AS baseline_ledger,
-  count(*) = 281
+  count(*) = 282
     AND min(version::text) = '20260325181408'
     AND max(version::text) = '20260813011000'
     AND :'baseline_versions_exact'::boolean
@@ -180,7 +180,8 @@ SELECT
       '20260812114638','20260812115556','20260812132725',
       '20260812152300','20260812161500','20260812185500',
       '20260812193400','20260812203000','20260812203500',
-      '20260812225436','20260813010000','20260813011000'
+      '20260812220000','20260812225436','20260813010000',
+      '20260813011000'
       -- END EXACT PRODUCTION TARGET TAIL
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
@@ -188,7 +189,7 @@ FROM supabase_migrations.schema_migrations
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 45 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 46 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'

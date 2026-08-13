@@ -822,7 +822,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(281);
+    expect(migrations).toHaveLength(282);
     expect(migrations.at(-1)).toBe(
       "20260813011000_close_csf_representative_and_publication_races.sql",
     );
@@ -833,19 +833,20 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 281 ordered migrations through",
+      "repository branch has 282 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260812203500_close_plugin_data_browser_default_acl`",
     );
+    expect(currentState).toContain("`20260813010000_atomic_ai_quota_receipts`");
     expect(currentState).toContain(
-      "`20260812161500_atomic_project_signup_rejection`",
+      "`20260812220000_csf_meeting_permission_followups`",
     );
     expect(currentState).toContain(
       "`20260813011000_close_csf_representative_and_publication_races`",
     );
     expect(currentState).toContain(
-      "exact local isolated union replay passed all 131 pgTAP files and 5,485 assertions",
+      "exact local isolated union replay passed all 133 pgTAP files and 5,523 assertions",
     );
     expect(currentState).toContain(
       "`20260812193400_protect_staff_invite_issuer_capability`",
@@ -854,13 +855,12 @@ describe("CSF operator documentation truthfulness guards", () => {
       "Hosted Development Supabase has 273 ordered migrations through",
     );
     expect(currentState).toContain(
-      "have not been applied to any hosted database",
+      "nine reviewed migrations behind this repository branch",
     );
-    expect(currentState).toContain("`20260813010000_atomic_ai_quota_receipts`");
     expect(currentState).toContain(
       "Production remains at 236 ordered migrations through `20260811001500`",
     );
-    expect(currentState).toContain("45-migration cutover has not run");
+    expect(currentState).toContain("46-migration cutover has not run");
     expect(currentState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
     );
@@ -901,7 +901,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(currentState).toContain("zero term applications were committed");
     expect(currentState).toContain("No names or email addresses");
     expect(currentState).toContain(
-      "caller-summary correction and inactive-access hardening are combined in private development commit `605342c`",
+      "caller-summary correction and inactive-access hardening are combined in private development commit `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`",
     );
     expect(currentState).toContain(
       "root worktree's gitlink points to that exact commit locally",
@@ -916,7 +916,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "### External and action-time gates",
       "## Artifact index",
     );
-    expect(externalGates).toContain("repository branch has 281 through");
+    expect(externalGates).toContain("repository branch has 282 through");
     expect(externalGates).toContain(
       "`20260813011000_close_csf_representative_and_publication_races`",
     );
@@ -941,7 +941,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`cf330e5faa844d63a2f41c8f0be4d1c727d51a47`",
     );
     expect(rehearsalState).toContain(
-      "This repository has 281 ordered migrations through",
+      "This repository has 282 ordered migrations through",
     );
     expect(rehearsalState).toContain(
       "Hosted Development Supabase remains at 273 through",
@@ -962,7 +962,13 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`20260812161500_atomic_project_signup_rejection`",
     );
     expect(rehearsalState).toContain(
-      "exact local isolated union replay passed all 131 pgTAP files and 5,485 assertions",
+      "`20260812220000_csf_meeting_permission_followups`",
+    );
+    expect(rehearsalState).toContain(
+      "`20260813010000_atomic_ai_quota_receipts`",
+    );
+    expect(rehearsalState).toContain(
+      "exact local isolated union replay passed all 133 pgTAP files and 5,523 assertions",
     );
     expect(rehearsalState).toContain("not applied to any hosted database");
     expect(rehearsalState).toContain(
@@ -973,7 +979,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
     expect(rehearsalState).toContain("deployment is Ready but stale");
     expect(rehearsalState).toContain(
-      "They have not been re-established for either hosted 273 or repository 281",
+      "They have not been re-established for either hosted 273 or repository 282",
     );
     expect(rehearsalState).toContain(
       "seven-argument metadata RPC exists, the old four-argument overload is absent",
@@ -993,7 +999,7 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(rehearsalState).toContain("zero term applications were committed");
     expect(rehearsalState).toContain("No names or email addresses");
     expect(rehearsalState).toContain(
-      "caller-summary correction and inactive-access hardening are combined in private development commit `605342c`",
+      "caller-summary correction and inactive-access hardening are combined in private development commit `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`",
     );
     expect(rehearsalState).toContain(
       "root worktree's gitlink points to that exact commit locally",
@@ -1015,8 +1021,8 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
     );
     expect(cutover).toContain("exact 236-row baseline");
-    expect(cutover).toContain("full 45-migration transition");
-    expect(cutover).toContain("preflight on the 281-row target");
+    expect(cutover).toContain("full 46-migration transition");
+    expect(cutover).toContain("preflight on the 282-row target");
   });
 
   test("production cutover baseline tracks the exact pending migration range", () => {
@@ -1030,7 +1036,10 @@ describe("CSF operator documentation truthfulness guards", () => {
       "`20260812161500_atomic_project_signup_rejection`",
     );
     expect(productionCutoverRunbook).toContain(
-      "this repository has 281 through `20260813011000`",
+      "this repository has 282 through `20260813011000`",
+    );
+    expect(productionCutoverRunbook).toContain(
+      "`20260812220000_csf_meeting_permission_followups`",
     );
     expect(productionCutoverRunbook).toContain(
       "`20260812193400_protect_staff_invite_issuer_capability`",
@@ -1039,7 +1048,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "repository ledger ended at 272 through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Production therefore has exactly 45 pending migrations",
+      "Production therefore has exactly 46 pending migrations",
     );
     expect(productionCutoverRunbook).toContain(
       "external Vercel 100-deployment-per-day project cap",
@@ -1107,7 +1116,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       "split 47+26 assertion autocommit dblink pgTAP suite",
     );
     expect(aud036).toContain(
-      "full local isolated replay passed all 131 pgTAP files and 5,485 assertions",
+      "full local isolated replay passed all 133 pgTAP files and 5,523 assertions",
     );
     expect(aud036).toContain("Hosted Development acceptance remains pending");
   });
@@ -1135,12 +1144,9 @@ describe("CSF operator documentation truthfulness guards", () => {
       "## Repository-owned P0–P2",
     );
 
-    expect(preamble).toContain("`AUD-` identifiers are allocated per branch");
-    expect(preamble).toContain("`origin/development` ends at `AUD-029`");
-    expect(preamble).toContain("`AUD-030` (#152)");
-    expect(preamble).toContain("`AUD-031`–`AUD-034` (#158)");
-    expect(preamble).toContain("`AUD-034`–`AUD-035` (#174)");
-    expect(preamble).toContain("takes `AUD-036` and `AUD-037`");
+    expect(preamble).toMatch(
+      /`AUD-` identifiers are allocated per branch[\s\S]*Current `development` includes the merged #152, #174, #177, and #179 findings through `AUD-042`[\s\S]*open #158[\s\S]*retains `AUD-036` and `AUD-037`[\s\S]*merged meeting findings/u,
+    );
   });
 
   test("the ledger pin is declared provisional while migration branches are open", () => {
@@ -1150,7 +1156,7 @@ describe("CSF operator documentation truthfulness guards", () => {
       productionCutoverRunbook,
     ]) {
       expect(document).toContain(
-        "#152, #174, and #179 are merged in current `development`; #158",
+        "#152, #174, #177, and #179 are merged in current `development`;",
       );
       expect(document).toContain(
         "last migration pull request to merge must recompute",
@@ -1159,12 +1165,11 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(productionCutoverRunbook).toContain(
       "the last migration pull request to merge must recompute the count, head, and exact tail from the merged tree",
     );
-    expect(
-      flow(readRepositoryFile("scripts/production-cutover-preflight.sql")),
-    ).toContain("#152, #174, and #179 are merged");
-    expect(
-      flow(readRepositoryFile("scripts/production-cutover-preflight.sql")),
-    ).toContain("#158 and #175 remain open");
+    const preflight = flow(
+      readRepositoryFile("scripts/production-cutover-preflight.sql"),
+    );
+    expect(preflight).toContain("#152, #174, #177, and #179 are merged");
+    expect(preflight).toContain("#158 and #175 remain open");
   });
 
   test("testing and release states the exact nine-function and publication scope", () => {
