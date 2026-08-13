@@ -730,33 +730,69 @@ matching owner policies, so a reporter could file evidence with a status and
 priority of their choosing, rewrite or delete it after a moderator had seen it,
 attach an arbitrary UUID as the reported target, and forge the moderation
 dashboard's `Content URL:` marker inside their own free-text description. The
-route also charged the user quota bucket before the IP bucket, so a submission
-the IP bucket rejected still consumed the user's allowance, and a retried
+route carried no durable rate limit of any kind — neither per user nor per
+address — so submission volume was bounded only by the client, and a retried
 submission created a second report.
 
 `20260812203000_make_content_reports_server_written.sql` revokes every browser
 write grant and column grant, drops the write policies, keeps owner-scoped
 SELECT, and rewrites the reviewed relation catalog with a literal body rather
-than deparsing the live catalog. Writes now go through one
-`SECURITY DEFINER` transaction that only `service_role` may execute: it derives
-status, priority, timestamps, and a pseudonymous `reporter_reference`; decides
-the user and IP buckets together so neither is charged unless both pass; and
-deduplicates on a unique `request_key`, returning the original report for a
-retry. `reporter_id` became `ON DELETE SET NULL`, and account deletion and
-enforcement bans now detach the reporter instead of deleting the evidence.
+than deparsing the live catalog. Writes now go through one `SECURITY DEFINER`
+transaction that only `service_role` may execute. Under an advisory lock on the
+request fingerprint it replays a still-open duplicate, confirms the target
+exists in the literal relation its type names, decides the user and address
+buckets together so neither is charged unless both pass, resolves the
+reporter's durable pseudonym, and derives status, priority, and timestamps
+itself.
+
+Four properties of that transaction are worth stating exactly, because each
+replaced a weaker earlier design in this branch:
+
+- **Replay is bounded, not permanent.** Deduplication is keyed on a
+  `request_fingerprint` plus a server-derived `replay_expires_at`, currently 15
+  minutes. Inside the window a retry returns the original report; past it, the
+  same report can be filed again with an incremented `request_sequence`, so a
+  dismissed issue that recurs is not silently swallowed. Client-supplied time
+  never enters the fingerprint.
+- **The reporter pseudonym is opaque, not derived.** `reporter_reference` is a
+  random UUID held in the server-only `public.reporter_references` mapping, not
+  a hash of the account identifier, so nobody holding a user UUID can recompute
+  it. The mapping is `ON DELETE SET NULL` on its reporter and carries no client
+  grants and no RLS policy.
+- **A forged target cannot reach the queue.** Existence is checked in the
+  transaction against `public.projects`, `public.profiles`, or
+  `public.organizations`. The refusal is generic; reporter visibility stays in
+  the caller's own RLS-scoped session, which is the only place that knows who is
+  asking.
+- **Refused work still costs.** `public.consume_content_report_attempt` charges
+  a separate, higher attempt ceiling before any target lookup, so invisible
+  targets, malformed locations, and replays are bounded too, while the
+  stored-report quota is only charged when a report is actually written.
+
+`reporter_id` became `ON DELETE SET NULL`, and account deletion and enforcement
+bans detach the reporter instead of deleting the evidence. A failed detach
+aborts the ban outright rather than leaving reports pointed at an account that
+is about to become unreachable.
 
 The route keeps its public request and success shapes. It revalidates the actor
-against the auth server, reads a byte-bounded body, parses a strict schema,
-resolves the reported URL against the configured trusted origin and stores it as
-a relative path, and refuses a target the reporter cannot already read through
-their own RLS-scoped session. Logs carry the content type and reason only — no
-reporter identity, target identifier, IP, or database error text.
+against the auth server, reads a byte-bounded body, parses a strict schema, and
+refuses a target the reporter cannot already read. A reported URL is kept only
+when it resolves to the configured origin, and is stored as a relative path; a
+preview or alias host is simply absent rather than fatal, since the target type
+and identifier are authoritative. Genuinely unsafe locations — other schemes,
+embedded credentials, authority-relative or backslash forms, control and bidi
+characters — are still refused, and the dashboard links to a stored location
+only when it is a safe leading-slash path. Logs carry the content type and
+reason only — no reporter identity, target identifier, IP, or database error
+text.
 
-Local evidence: 43 pgTAP assertions in
-`supabase/tests/database/content_reports_server_written.test.sql` and 51
-route/service/domain tests. Withholding the migration fails the contract
-outright: the three direct-write denial assertions fail against the old grants
-and the transaction the rest of the file exercises does not exist.
+Local evidence: 84 pgTAP assertions in
+`supabase/tests/database/content_reports_server_written.test.sql`, 8
+two-connection assertions in
+`supabase/tests/database/content_reports_submission_concurrency.test.sql`, and
+82 route, service, domain, and retention tests. Withholding the migration fails
+the contract outright: the direct-write denial assertions fail against the old
+grants and the transaction the rest of the file exercises does not exist.
 No provider, hosted Development, or Production resource was accessed.
 
 ---

@@ -98,7 +98,9 @@ record.
 - **D10** mirrors the reviewed effective client-grant catalog before
   `20260812100900` revokes and rebuilds public relation ACLs.
 - **T1–T3** run only on the 275 shape and prove target relations, expected
-  validated constraints/indexes, and removal of `pg_graphql`.
+  validated constraints/indexes, the reporter-detachment behavior moderation
+  evidence depends on, the server-only posture of the two content report
+  functions, and removal of `pg_graphql`.
 
 Do not run the script with a write-capable URL and do not remediate rows inside
 the preflight. Resolve through the owning product/admin path or a separately

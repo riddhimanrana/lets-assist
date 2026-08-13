@@ -1211,6 +1211,7 @@ SELECT
       ('public.hours_publication_email_outbox'),
       ('public.project_cancellation_deliveries'),
       ('public.project_feedback_requests'),
+      ('public.reporter_references'),
       ('private.plugin_data_deletion_requests'),
       ('app_private.storage_object_policy_contract')
   ) AS required(relation_name)
@@ -1225,6 +1226,7 @@ SELECT
       ('public.hours_publication_email_outbox'),
       ('public.project_cancellation_deliveries'),
       ('public.project_feedback_requests'),
+      ('public.reporter_references'),
       ('private.plugin_data_deletion_requests'),
       ('app_private.storage_object_policy_contract')
   ) AS required(relation_name)
@@ -1238,7 +1240,8 @@ SELECT
 
   \echo ''
   \echo '=============================================================='
-  \echo 'T2  Target constraints and indexes — PASS: 0 missing/invalid'
+  \echo 'T2  Target constraints, indexes, detachment, and definer ACLs'
+  \echo '    PASS: 0 missing/invalid'
   \echo '=============================================================='
   SELECT expected.kind, expected.relation_name, expected.object_name
   FROM (
@@ -1262,7 +1265,25 @@ SELECT
       ('index', 'plugin_data.csf_onboarding_links',
         'csf_onboarding_links_active_cohort_uidx'),
       ('index', 'plugin_data.csf_admin_audit_events',
-        'csf_admin_audit_events_post_reply_request_idx')
+        'csf_admin_audit_events_post_reply_request_idx'),
+      ('index', 'public.content_reports',
+        'content_reports_request_occurrence_uidx'),
+      ('constraint', 'public.content_reports',
+        'content_reports_request_fingerprint_format_check'),
+      ('constraint', 'public.content_reports',
+        'content_reports_request_identity_complete_check'),
+      ('constraint', 'public.reporter_references',
+        'reporter_references_reporter_id_key'),
+      ('fk_delete_set_null', 'public.content_reports',
+        'content_reports_reporter_id_fkey'),
+      ('fk_delete_set_null', 'public.reporter_references',
+        'reporter_references_reporter_id_fkey'),
+      ('fk_delete_restrict', 'public.content_reports',
+        'content_reports_reporter_reference_fkey'),
+      ('server_only_function', 'public',
+        'submit_content_report(text,uuid,text,uuid,text,text,integer,text[],integer[],integer)'),
+      ('server_only_function', 'public',
+        'consume_content_report_attempt(text[],integer[],integer)')
   ) AS expected(kind, relation_name, object_name)
   WHERE (
     expected.kind = 'constraint'
@@ -1284,6 +1305,32 @@ SELECT
         AND index_state.indrelid = to_regclass(expected.relation_name)
         AND index_state.indisvalid
         AND index_state.indisready
+    )
+  ) OR (
+    expected.kind IN ('fk_delete_set_null', 'fk_delete_restrict')
+    AND NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_constraint AS constraint_record
+      WHERE constraint_record.conname = expected.object_name
+        AND constraint_record.conrelid = to_regclass(expected.relation_name)
+        AND constraint_record.contype = 'f'
+        AND constraint_record.convalidated
+        AND constraint_record.confdeltype = CASE expected.kind
+          WHEN 'fk_delete_set_null' THEN 'n'::"char"
+          ELSE 'r'::"char"
+        END
+    )
+  ) OR (
+    expected.kind = 'server_only_function'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_proc AS function_record
+      WHERE function_record.oid = to_regprocedure(
+          expected.relation_name || '.' || expected.object_name
+        )
+        AND function_record.prosecdef
+        AND function_record.proconfig @> ARRAY['search_path=""']
+        AND has_function_privilege('service_role', function_record.oid, 'EXECUTE')
     )
   )
   ORDER BY expected.kind, expected.object_name;
@@ -1311,7 +1358,25 @@ SELECT
         ('index', 'plugin_data.csf_onboarding_links',
           'csf_onboarding_links_active_cohort_uidx'),
         ('index', 'plugin_data.csf_admin_audit_events',
-          'csf_admin_audit_events_post_reply_request_idx')
+          'csf_admin_audit_events_post_reply_request_idx'),
+        ('index', 'public.content_reports',
+          'content_reports_request_occurrence_uidx'),
+        ('constraint', 'public.content_reports',
+          'content_reports_request_fingerprint_format_check'),
+        ('constraint', 'public.content_reports',
+          'content_reports_request_identity_complete_check'),
+        ('constraint', 'public.reporter_references',
+          'reporter_references_reporter_id_key'),
+        ('fk_delete_set_null', 'public.content_reports',
+          'content_reports_reporter_id_fkey'),
+        ('fk_delete_set_null', 'public.reporter_references',
+          'reporter_references_reporter_id_fkey'),
+        ('fk_delete_restrict', 'public.content_reports',
+          'content_reports_reporter_reference_fkey'),
+        ('server_only_function', 'public',
+          'submit_content_report(text,uuid,text,uuid,text,text,integer,text[],integer[],integer)'),
+        ('server_only_function', 'public',
+          'consume_content_report_attempt(text[],integer[],integer)')
     ) AS expected(kind, relation_name, object_name)
     WHERE (
       expected.kind = 'constraint'
@@ -1333,6 +1398,32 @@ SELECT
           AND index_state.indrelid = to_regclass(expected.relation_name)
           AND index_state.indisvalid
           AND index_state.indisready
+      )
+    ) OR (
+      expected.kind IN ('fk_delete_set_null', 'fk_delete_restrict')
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_constraint AS constraint_record
+        WHERE constraint_record.conname = expected.object_name
+          AND constraint_record.conrelid = to_regclass(expected.relation_name)
+          AND constraint_record.contype = 'f'
+          AND constraint_record.convalidated
+          AND constraint_record.confdeltype = CASE expected.kind
+            WHEN 'fk_delete_set_null' THEN 'n'::"char"
+            ELSE 'r'::"char"
+          END
+      )
+    ) OR (
+      expected.kind = 'server_only_function'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_proc AS function_record
+        WHERE function_record.oid = to_regprocedure(
+            expected.relation_name || '.' || expected.object_name
+          )
+          AND function_record.prosecdef
+          AND function_record.proconfig @> ARRAY['search_path=""']
+          AND has_function_privilege('service_role', function_record.oid, 'EXECUTE')
       )
     )
   ) AS t2_pass

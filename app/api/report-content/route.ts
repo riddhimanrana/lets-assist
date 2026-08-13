@@ -16,6 +16,14 @@ const UNAVAILABLE = {
 } as const;
 
 export async function POST(request: Request) {
+  // Scheduled once, for every exit. Several refusals below — a rejected
+  // target, an exhausted quota — are exactly the ones worth having telemetry
+  // for, and attaching the flush to individual branches had already missed
+  // them. `forceFlush` on an empty buffer costs nothing.
+  after(async () => {
+    await flushLogs();
+  });
+
   try {
     const { user, error: authError } = await getAuthUser({ sensitive: true });
 
@@ -80,9 +88,6 @@ export async function POST(request: Request) {
     }
 
     if (result.status === "unavailable") {
-      after(async () => {
-        await flushLogs();
-      });
       return NextResponse.json(UNAVAILABLE.body, UNAVAILABLE.init);
     }
 
@@ -122,10 +127,6 @@ export async function POST(request: Request) {
       replayed: result.status === "replayed",
     });
 
-    after(async () => {
-      await flushLogs();
-    });
-
     return NextResponse.json({
       success: true,
       reportId: result.reportId,
@@ -136,10 +137,6 @@ export async function POST(request: Request) {
       "Unexpected error in report-content API",
       new Error("report_request_failed"),
     );
-
-    after(async () => {
-      await flushLogs();
-    });
 
     return NextResponse.json(
       { error: "Internal server error" },

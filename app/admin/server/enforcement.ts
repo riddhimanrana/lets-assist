@@ -247,6 +247,27 @@ export async function deleteAndBlacklistUser(input: {
   const supportUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com"}/help`;
   const normalizedEmail = userEmail?.trim().toLowerCase() ?? null;
 
+  // Reports filed by this account are evidence about other people's content,
+  // so enforcement detaches the reporter instead of deleting the rows.
+  //
+  // This runs first, and a failure aborts the whole action. Unlike account
+  // deletion, this path bans the auth row rather than removing it, so the
+  // `ON DELETE SET NULL` foreign key never fires and nothing downstream would
+  // repeat the detachment: continuing past a failure would delete the profile
+  // and ban the account while leaving the reports still pointing at a
+  // now-unreachable identity. Aborting here destroys nothing — the detach
+  // itself is idempotent and is a subset of the intended end state — so the
+  // action can simply be retried.
+  try {
+    await detachContentReportReporter(service, input.userId);
+  } catch (detachError) {
+    console.error("Enforcement: content_reports detach failed:", detachError);
+    return {
+      error:
+        "Could not detach this account from its moderation reports. No data was removed. Please retry.",
+    };
+  }
+
   // Email before deleting data
   if (input.sendEmail !== false && userEmail) {
     await sendEmail({
@@ -279,14 +300,6 @@ export async function deleteAndBlacklistUser(input: {
     if (blacklistError) {
       console.error("Error adding email to blacklist:", blacklistError);
     }
-  }
-
-  // Reports filed by this account are evidence about other people's content,
-  // so enforcement detaches the reporter instead of deleting the rows.
-  try {
-    await detachContentReportReporter(service, input.userId);
-  } catch (detachError) {
-    console.error("Delete cleanup: content_reports detach:", detachError);
   }
 
   // Delete all public user data

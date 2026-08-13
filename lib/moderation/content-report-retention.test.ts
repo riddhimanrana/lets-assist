@@ -153,6 +153,23 @@ describe("content report retention", () => {
     );
   });
 
+  test("a failed detach stops account deletion before anything is removed", async () => {
+    const { client, operations } = recordingClient({
+      updateError: { message: "connection reset" },
+    });
+
+    expect(
+      deleteUserWithCleanup(client, USER_ID, {
+        deleteProjects: false,
+        deleteOrganizations: false,
+      }),
+    ).rejects.toThrow(/Failed to detach content reports/u);
+
+    expect(operations.some((operation) => operation.verb === "delete")).toBe(
+      false,
+    );
+  });
+
   test("account deletion still removes the reporter's own private records", async () => {
     const { client, operations } = recordingClient();
 

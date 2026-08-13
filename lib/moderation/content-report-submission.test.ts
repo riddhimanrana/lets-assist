@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  buildContentReportRequestKey,
+  buildContentReportFingerprint,
   buildReportDescription,
   contentReportSchema,
   ContentReportBodyError,
@@ -55,6 +55,24 @@ describe("content report submission boundary", () => {
         metadata: { reportedAt: "yesterday" },
       }).success,
     ).toBe(false);
+  });
+
+  test("the advertised target types are exactly the ones that resolve", () => {
+    for (const contentType of ["project", "profile", "organization"]) {
+      expect(
+        contentReportSchema.safeParse({ ...validSubmission, contentType })
+          .success,
+      ).toBe(true);
+    }
+
+    // These were accepted by the schema and then refused a step later, because
+    // no relation and no moderator action stands behind them.
+    for (const contentType of ["comment", "image", "other"]) {
+      expect(
+        contentReportSchema.safeParse({ ...validSubmission, contentType })
+          .success,
+      ).toBe(false);
+    }
   });
 
   test("only the target types the moderation queue can act on are resolvable", () => {
@@ -136,11 +154,30 @@ describe("reported content URL normalization", () => {
     );
   });
 
-  test("anything that is not the trusted origin is refused", () => {
-    for (const candidate of [
-      "https://evil.test/projects/abc",
+  test("a location this deployment cannot vouch for is dropped, not fatal", () => {
+    // Preview, branch, and custom aliases are all legitimately not the
+    // configured origin. The browser sends whichever one it is on, and the
+    // report itself is still valid: the target type and identifier are what
+    // moderators act on.
+    for (const alias of [
+      "https://lets-assist-git-feature.vercel.app/projects/abc",
+      "https://lets-assist-abc123.vercel.app/projects/abc",
+      "https://staging.lets-assist.com/projects/abc",
       "http://lets-assist.com/projects/abc",
       "https://lets-assist.com.evil.test/projects/abc",
+      "https://evil.test/projects/abc",
+      "https://lets-assist.cоm/projects/abc",
+    ]) {
+      expect(
+        normalizeReportedContentUrl(alias, TRUSTED_ORIGIN),
+      ).toBeUndefined();
+    }
+  });
+
+  test("an unsafe spelling is refused outright", () => {
+    // Nothing here has a benign reading, so these stay hard failures rather
+    // than being silently dropped.
+    for (const candidate of [
       "https://user:pass@lets-assist.com/projects/abc",
       "//evil.test/projects/abc",
       "\\\\evil.test/projects/abc",
@@ -150,7 +187,6 @@ describe("reported content URL normalization", () => {
       "https://lets-assist.com/projects/abc\u0000",
       "https://lets-assist.com/projects/\u202Eabc",
       "https://lets-assist\u200B.com/projects/abc",
-      "https://lets-assist.cоm/projects/abc",
     ]) {
       expect(() =>
         normalizeReportedContentUrl(candidate, TRUSTED_ORIGIN),
@@ -165,12 +201,12 @@ describe("reported content URL normalization", () => {
         "http://localhost:3000",
       ),
     ).toBe("/projects/abc");
-    expect(() =>
+    expect(
       normalizeReportedContentUrl(
         "http://localhost:3000/projects/abc",
         TRUSTED_ORIGIN,
       ),
-    ).toThrow(ContentReportBodyError);
+    ).toBeUndefined();
   });
 });
 
@@ -205,62 +241,121 @@ describe("report description composition", () => {
   });
 });
 
-describe("content report request key", () => {
+describe("content report request fingerprint", () => {
   const base = {
     reporterId: "20000000-0000-4000-8000-000000000001",
     submission: validSubmission,
     normalizedUrl: "/projects/abc",
   };
 
-  test("is a stable sha256 over the substance of the report", () => {
-    const key = buildContentReportRequestKey(base);
-    expect(key).toMatch(/^[0-9a-f]{64}$/u);
-    expect(buildContentReportRequestKey({ ...base })).toBe(key);
+  test("two submissions of the same substance fingerprint identically", () => {
+    // Built independently rather than by reusing one object, so this asserts
+    // canonicalization rather than that a pure function is pure.
+    const first = buildContentReportFingerprint({
+      reporterId: "20000000-0000-4000-8000-000000000001",
+      submission: {
+        contentType: "project",
+        contentId: "10000000-0000-4000-8000-000000000001",
+        reason: "spam",
+        description: "This project contains repeated promotional content.",
+      },
+      normalizedUrl: "/projects/abc",
+    });
+    const retried = buildContentReportFingerprint({
+      reporterId: "20000000-0000-4000-8000-000000000001",
+      submission: {
+        reason: "spam",
+        contentId: "10000000-0000-4000-8000-000000000001",
+        description: "This project contains repeated promotional content.",
+        contentType: "project",
+      },
+      normalizedUrl: "/projects/abc",
+    });
+
+    expect(first).toMatch(/^[0-9a-f]{64}$/u);
+    expect(retried).toBe(first);
   });
 
-  test("ignores the client clock so a retry resolves to the same report", () => {
-    const first = buildContentReportRequestKey({
+  test("carries no time component, so a retry resolves to the same report", () => {
+    const first = buildContentReportFingerprint({
       ...base,
       submission: {
         ...validSubmission,
         metadata: { reportedAt: "2026-08-12T00:00:00.000Z" },
       },
     });
-    const retried = buildContentReportRequestKey({
+    const retried = buildContentReportFingerprint({
       ...base,
       submission: {
         ...validSubmission,
         metadata: { reportedAt: "2026-08-12T00:00:05.000Z" },
       },
     });
+
     expect(retried).toBe(first);
   });
 
-  test("changes with the reporter, the target, and the report content", () => {
-    const key = buildContentReportRequestKey(base);
-    expect(
-      buildContentReportRequestKey({
-        ...base,
-        reporterId: "20000000-0000-4000-8000-000000000002",
-      }),
-    ).not.toBe(key);
-    expect(
-      buildContentReportRequestKey({
-        ...base,
-        submission: { ...validSubmission, reason: "harassment" },
-      }),
-    ).not.toBe(key);
-    expect(
-      buildContentReportRequestKey({
-        ...base,
-        submission: {
-          ...validSubmission,
-          contentId: "10000000-0000-4000-8000-000000000002",
+  test("each part of the report's substance changes the fingerprint", () => {
+    const vectors: Array<
+      [string, Parameters<typeof buildContentReportFingerprint>[0]]
+    > = [
+      [
+        "a different reporter",
+        { ...base, reporterId: "20000000-0000-4000-8000-000000000002" },
+      ],
+      [
+        "a different reason",
+        { ...base, submission: { ...validSubmission, reason: "harassment" } },
+      ],
+      [
+        "a different target",
+        {
+          ...base,
+          submission: {
+            ...validSubmission,
+            contentId: "10000000-0000-4000-8000-000000000002",
+          },
         },
-      }),
-    ).not.toBe(key);
-    expect(
-      buildContentReportRequestKey({ ...base, normalizedUrl: "/projects/xyz" }),
-    ).not.toBe(key);
+      ],
+      [
+        "a different target type",
+        {
+          ...base,
+          submission: { ...validSubmission, contentType: "organization" },
+        },
+      ],
+      [
+        "different reporter prose",
+        {
+          ...base,
+          submission: {
+            ...validSubmission,
+            description: "A materially different complaint about this project.",
+          },
+        },
+      ],
+      ["a different location", { ...base, normalizedUrl: "/projects/xyz" }],
+      ["no location at all", { ...base, normalizedUrl: undefined }],
+      [
+        "different supporting metadata",
+        {
+          ...base,
+          submission: { ...validSubmission, metadata: { title: "Something" } },
+        },
+      ],
+    ];
+
+    const baseline = buildContentReportFingerprint(base);
+    const seen = new Set([baseline]);
+
+    for (const [label, input] of vectors) {
+      const fingerprint = buildContentReportFingerprint(input);
+      expect(
+        fingerprint,
+        `${label} must not collide with the baseline`,
+      ).not.toBe(baseline);
+      expect(seen.has(fingerprint), `${label} must be distinct`).toBe(false);
+      seen.add(fingerprint);
+    }
   });
 });

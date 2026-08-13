@@ -2,6 +2,13 @@ import { createHash } from "node:crypto";
 
 import { z } from "zod";
 
+import {
+  escapeReportMetadataMarkers,
+  resolveSafeReportPath,
+  sanitizeReportBody,
+  sanitizeReportLine,
+} from "@/lib/moderation/report-description";
+
 /**
  * Pure input boundary for `POST /api/report-content`.
  *
@@ -10,17 +17,17 @@ import { z } from "zod";
  * a submitted report.
  */
 
-const REPORT_METADATA_LABELS = [
-  "Content URL:",
-  "Content Title:",
-  "Content Creator:",
-  "Context:",
-  "Reported at:",
-] as const;
-
 export const MAX_CONTENT_REPORT_BODY_BYTES = 16 * 1024;
 
-/** Targets the moderation queue can actually act on. */
+/**
+ * Targets the moderation queue can actually act on.
+ *
+ * This is also the complete set of reportable types the API advertises. The
+ * enum used to include `comment`, `image`, and `other`, none of which resolve
+ * to a relation or to any moderator action, so every such submission was
+ * accepted by the schema and then refused a step later. The database keeps its
+ * historical `content_type` check so pre-existing rows stay readable.
+ */
 export const CONTENT_REPORT_TARGET_RELATIONS = {
   project: "projects",
   profile: "profiles",
@@ -40,14 +47,7 @@ const boundedMetadataText = (max: number) => z.string().trim().min(1).max(max);
 
 export const contentReportSchema = z
   .object({
-    contentType: z.enum([
-      "project",
-      "profile",
-      "comment",
-      "image",
-      "organization",
-      "other",
-    ]),
+    contentType: z.enum(["project", "profile", "organization"]),
     contentId: z.uuid(),
     reason: z.enum([
       "spam",
@@ -131,16 +131,26 @@ export async function readBoundedContentReportBody(
   }
 }
 
-function escapeMetadataMarkers(value: string): string {
-  let escaped = value;
-  for (const label of REPORT_METADATA_LABELS) {
-    escaped = escaped.replaceAll(label, `${label.slice(0, -1)}﹕`);
-  }
-  return escaped;
+/**
+ * Reporter prose, with its line structure kept and every marker neutralized.
+ *
+ * Sanitization runs before escaping, and the escape itself is
+ * whitespace-tolerant, so a label split across a newline, a tab, or several
+ * spaces cannot survive into a line the dashboard would read as metadata.
+ */
+function reportBodyText(value: string): string {
+  return escapeReportMetadataMarkers(sanitizeReportBody(value));
 }
 
-function oneLineMetadata(value: string): string {
-  return escapeMetadataMarkers(value).replace(/\s+/gu, " ").trim();
+/**
+ * A single metadata value.
+ *
+ * Collapsing must happen before escaping. Escaping first and collapsing after
+ * is what let `Content\nURL: https://evil.test` become a real marker: the
+ * escape saw no label, and the collapse then manufactured one.
+ */
+function reportLineText(value: string): string {
+  return escapeReportMetadataMarkers(sanitizeReportLine(value));
 }
 
 /** C0/C1 controls plus the bidi and zero-width characters used to disguise a host. */
@@ -179,6 +189,17 @@ function hasDisallowedUrlCharacter(value: string): boolean {
  * attacker-chosen absolute URL would put a clickable off-origin link in the
  * moderation dashboard. Storing a relative path also keeps evidence valid
  * across origin changes.
+ *
+ * The location is corroborating detail, not the subject of the report: the
+ * target type and identifier are authoritative and are what moderators act on.
+ * So a location that is merely *not* the canonical origin is dropped rather
+ * than fatal. The browser always sends `window.location.href`, which on a
+ * Vercel preview, branch, or custom alias is legitimately a different origin
+ * than the configured one; refusing those turned every report filed from an
+ * alias into a `400`. Genuinely hostile spellings — control or bidi
+ * characters, an authority-relative path, a non-HTTP scheme, embedded
+ * credentials — are still refused outright, because there is no benign reading
+ * of them.
  */
 export function normalizeReportedContentUrl(
   value: string | undefined,
@@ -211,32 +232,31 @@ export function normalizeReportedContentUrl(
     throw new ContentReportBodyError("invalid");
   }
   // `URL` has already punycoded any confusable host, so origin equality is
-  // exact rather than visual.
-  if (parsed.origin !== base.origin) {
-    throw new ContentReportBodyError("invalid");
-  }
+  // exact rather than visual. A different origin is simply not something this
+  // deployment can vouch for, so nothing is stored for it.
+  if (parsed.origin !== base.origin) return undefined;
 
-  const relative = `${parsed.pathname}${parsed.search}${parsed.hash}`;
-  if (relative.length > 2_048) throw new ContentReportBodyError("invalid");
-  return relative;
+  return resolveSafeReportPath(
+    `${parsed.pathname}${parsed.search}${parsed.hash}`,
+  );
 }
 
 export function buildReportDescription(
   input: ContentReportSubmission,
   normalizedUrl: string | undefined,
 ): string {
-  const details = [escapeMetadataMarkers(input.description)];
+  const details = [reportBodyText(input.description)];
   if (normalizedUrl) details.push(`\n\nContent URL: ${normalizedUrl}`);
   if (input.metadata?.title) {
-    details.push(`\nContent Title: ${oneLineMetadata(input.metadata.title)}`);
+    details.push(`\nContent Title: ${reportLineText(input.metadata.title)}`);
   }
   if (input.metadata?.creator) {
     details.push(
-      `\nContent Creator: ${oneLineMetadata(input.metadata.creator)}`,
+      `\nContent Creator: ${reportLineText(input.metadata.creator)}`,
     );
   }
   if (input.metadata?.context) {
-    details.push(`\nContext: ${oneLineMetadata(input.metadata.context)}`);
+    details.push(`\nContext: ${reportLineText(input.metadata.context)}`);
   }
   if (input.metadata?.reportedAt) {
     details.push(`\nReported at: ${input.metadata.reportedAt}`);
@@ -245,15 +265,18 @@ export function buildReportDescription(
 }
 
 /**
- * The idempotency key for one report.
+ * The substance of one report, as a stable digest.
  *
- * It is derived from the reporter and the substance of the report so a retried
- * or replayed submission resolves to the report that already exists instead of
- * charging quota twice or duplicating evidence. `metadata.reportedAt` is
- * deliberately excluded: it is a client clock reading that changes on every
- * attempt and would defeat the whole mechanism.
+ * It identifies *what* was reported by *whom*, and deliberately carries no
+ * time component: `metadata.reportedAt` is a client clock reading that changes
+ * on every attempt, and no client value may decide how long a retry keeps
+ * replaying. The database pairs this fingerprint with its own clock to bound
+ * the replay window (see `CONTENT_REPORT_REPLAY_WINDOW_SECONDS`), so a network
+ * retry resolves to the report that already exists while an identical report
+ * filed after the window — for instance because the first one was reviewed and
+ * dismissed — is still allowed to become a new report.
  */
-export function buildContentReportRequestKey(input: {
+export function buildContentReportFingerprint(input: {
   reporterId: string;
   submission: ContentReportSubmission;
   normalizedUrl: string | undefined;

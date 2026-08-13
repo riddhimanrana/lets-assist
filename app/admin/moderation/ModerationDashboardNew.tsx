@@ -62,6 +62,10 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { DataTable } from "./data-table";
 import { getReportColumns, getFlaggedColumns } from "./columns";
+import {
+  parseReportDescription,
+  resolveSafeReportPath,
+} from "@/lib/moderation/report-description";
 
 // Types
 type AiReasoningStep = {
@@ -587,11 +591,22 @@ export default function ModerationDashboard({
     [selectedReport?.description],
   );
 
+  /**
+   * Where the "view content" affordance points.
+   *
+   * The stored location is only used when it is a safe application-relative
+   * path. Anything else — an absolute URL, a scheme-relative authority, a
+   * legacy row written before locations were normalized — is discarded in
+   * favor of the path derived from the report's own target type and
+   * identifier, which are server-owned. A reporter must never be able to
+   * choose where a moderator's click goes.
+   */
   const getReportContentUrl = (
     report: ContentReport,
-    fallbackUrl?: string | null,
+    storedLocation?: string | null,
   ) => {
-    if (fallbackUrl) return fallbackUrl;
+    const safeLocation = resolveSafeReportPath(storedLocation);
+    if (safeLocation) return safeLocation;
 
     if (report.content_type === "project" && report.content_id) {
       return `/projects/${report.content_id}`;
@@ -1494,60 +1509,6 @@ export default function ModerationDashboard({
 }
 
 // Helper functions
-type ParsedReportDescription = {
-  notes: string;
-  metadata: {
-    contentUrl?: string;
-    contentTitle?: string;
-    contentCreator?: string;
-    context?: string;
-    reportedAt?: string;
-  };
-};
-
-const REPORT_METADATA_KEYS = [
-  { key: "contentUrl", label: "Content URL:" },
-  { key: "contentTitle", label: "Content Title:" },
-  { key: "contentCreator", label: "Content Creator:" },
-  { key: "context", label: "Context:" },
-  { key: "reportedAt", label: "Reported at:" },
-] as const;
-
-function parseReportDescription(
-  description?: string | null,
-): ParsedReportDescription {
-  const raw = (description || "").trim();
-  const metadata: ParsedReportDescription["metadata"] = {};
-
-  if (!raw) {
-    return { notes: "", metadata };
-  }
-
-  const indexes = REPORT_METADATA_KEYS.map((entry) => ({
-    ...entry,
-    index: raw.indexOf(entry.label),
-  }))
-    .filter((entry) => entry.index >= 0)
-    .sort((a, b) => a.index - b.index);
-
-  const firstMetadataIndex = indexes.length > 0 ? indexes[0].index : raw.length;
-  const notes = raw.slice(0, firstMetadataIndex).trim();
-
-  indexes.forEach((entry, idx) => {
-    const start = entry.index + entry.label.length;
-    const end = idx < indexes.length - 1 ? indexes[idx + 1].index : raw.length;
-    const value = raw.slice(start, end).replace(/\s+/g, " ").trim();
-    if (value) {
-      metadata[entry.key] = value;
-    }
-  });
-
-  return {
-    notes: notes || (indexes.length === 0 ? raw : ""),
-    metadata,
-  };
-}
-
 function formatSafeDate(value?: string | null, pattern = "PPp") {
   if (!value) return "Unknown";
   const parsed = new Date(value);

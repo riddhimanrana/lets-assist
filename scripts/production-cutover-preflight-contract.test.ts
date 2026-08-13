@@ -225,6 +225,46 @@ describe("Production cutover preflight source contract", () => {
     expect(preflightFunctionAclBlock).toContain("function_record.prosecdef");
   });
 
+  test("verifies the moderation evidence shape this cutover introduces", () => {
+    const targetShapeBlock = preflight.slice(
+      preflight.indexOf("T1  Target-only relation inventory"),
+      preflight.indexOf("T3  Target pg_graphql posture"),
+    );
+
+    // The relation the reporter pseudonym mapping lives in, the objects that
+    // bound retry replay, and the detachment behavior moderation evidence
+    // depends on when an account goes away.
+    for (const expected of [
+      "public.reporter_references",
+      "content_reports_request_occurrence_uidx",
+      "content_reports_request_fingerprint_format_check",
+      "content_reports_request_identity_complete_check",
+      "reporter_references_reporter_id_key",
+      "content_reports_reporter_id_fkey",
+      "content_reports_reporter_reference_fkey",
+      "submit_content_report(text,uuid,text,uuid,text,text,integer,text[],integer[],integer)",
+      "consume_content_report_attempt(text[],integer[],integer)",
+    ]) {
+      expect(targetShapeBlock).toContain(expected);
+    }
+    expect(targetShapeBlock).toContain("confdeltype");
+    expect(targetShapeBlock).toContain("'fk_delete_set_null' THEN 'n'");
+    expect(targetShapeBlock).toContain("function_record.prosecdef");
+    expect(targetShapeBlock).toContain("ARRAY['search_path=\"\"']");
+    expect(targetShapeBlock).toContain(
+      "has_function_privilege('service_role', function_record.oid, 'EXECUTE')",
+    );
+
+    // The two report functions are server-only, so they must never appear in
+    // the client function ACL catalog T5b compares against.
+    const functionAclBlock = preflight.slice(
+      preflight.indexOf("T5  Public read-model and function ACL posture"),
+      preflight.indexOf("T6  Exact target relation ACL"),
+    );
+    expect(functionAclBlock).not.toContain("submit_content_report");
+    expect(functionAclBlock).not.toContain("consume_content_report_attempt");
+  });
+
   test("requires exact target relation and storage contracts", () => {
     const relationAclBlock = preflight.slice(
       preflight.indexOf("T6  Exact target relation ACL"),
