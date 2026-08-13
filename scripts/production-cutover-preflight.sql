@@ -1,4 +1,4 @@
--- Production 236 -> repository target 276 cutover preflight.
+-- Production 236 -> repository target 277 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -10,7 +10,7 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   236 rows headed by 20260811001500
---   post-cutover  276 rows headed by 20260812203500 with the exact 40-row tail
+--   post-cutover  277 rows headed by 20260813010000 with the exact 41-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -43,7 +43,7 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 236/baseline or exactly 276/target'
+\echo '    PASS: exactly 236/baseline or exactly 277/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
@@ -146,9 +146,9 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260811001500'
     ) = 0 AS baseline_ledger,
-  count(*) = 276
+  count(*) = 277
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260812203500'
+    AND max(version::text) = '20260813010000'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
@@ -171,14 +171,14 @@ SELECT
       '20260812101000','20260812101100','20260812104754',
       '20260812114638','20260812115556','20260812132725',
       '20260812152300','20260812161500','20260812203000',
-      '20260812203500'
+      '20260812203500','20260813010000'
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
 \gset
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 40 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 41 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'
@@ -1213,6 +1213,7 @@ SELECT
       ('public.project_cancellation_deliveries'),
       ('public.project_feedback_requests'),
       ('public.reporter_references'),
+      ('public.api_rate_limit_receipts'),
       ('private.plugin_data_deletion_requests'),
       ('app_private.storage_object_policy_contract')
   ) AS required(relation_name)
@@ -1228,6 +1229,7 @@ SELECT
       ('public.project_cancellation_deliveries'),
       ('public.project_feedback_requests'),
       ('public.reporter_references'),
+      ('public.api_rate_limit_receipts'),
       ('private.plugin_data_deletion_requests'),
       ('app_private.storage_object_policy_contract')
   ) AS required(relation_name)
@@ -1286,7 +1288,9 @@ SELECT
       ('server_only_function', 'public',
         'consume_content_report_attempt(text[],integer[],integer)'),
       ('server_only_function', 'public',
-        'detach_content_report_reporter(uuid)')
+        'detach_content_report_reporter(uuid)'),
+      ('index', 'public.api_rate_limit_receipts',
+        'api_rate_limit_receipts_expiry_idx')
   ) AS expected(kind, relation_name, object_name)
   WHERE (
     expected.kind = 'constraint'
@@ -1381,7 +1385,9 @@ SELECT
         ('server_only_function', 'public',
           'consume_content_report_attempt(text[],integer[],integer)'),
         ('server_only_function', 'public',
-          'detach_content_report_reporter(uuid)')
+          'detach_content_report_reporter(uuid)'),
+        ('index', 'public.api_rate_limit_receipts',
+          'api_rate_limit_receipts_expiry_idx')
     ) AS expected(kind, relation_name, object_name)
     WHERE (
       expected.kind = 'constraint'

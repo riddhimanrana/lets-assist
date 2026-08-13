@@ -22,7 +22,7 @@ const architectureAudit = readFileSync(
 );
 
 const PRODUCTION_HEAD = "20260811001500";
-const TARGET_HEAD = "20260812203500";
+const TARGET_HEAD = "20260813010000";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
 const HARD_FAIL_SITES = 27;
 const hardFailStatements =
@@ -68,6 +68,7 @@ const PENDING_VERSIONS = [
   "20260812161500",
   "20260812203000",
   "20260812203500",
+  "20260813010000",
 ] as const;
 
 function readMigration(version: string) {
@@ -79,7 +80,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 236 -> 276 ledger and all 40 pending versions", () => {
+  test("pins the exact 236 -> 277 ledger and all 41 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -94,7 +95,7 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    expect(migrations).toHaveLength(276);
+    expect(migrations).toHaveLength(277);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
     expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
@@ -102,9 +103,9 @@ describe("Production cutover preflight source contract", () => {
     );
     expect(pending).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 236");
-    expect(preflight).toContain("count(*) = 276");
+    expect(preflight).toContain("count(*) = 277");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("40 migrations pending");
+    expect(preflight).toContain("41 migrations pending");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
     }
@@ -253,6 +254,8 @@ describe("Production cutover preflight source contract", () => {
     // depends on when an account goes away.
     for (const expected of [
       "public.reporter_references",
+      "public.api_rate_limit_receipts",
+      "api_rate_limit_receipts_expiry_idx",
       "content_reports_request_occurrence_uidx",
       "content_reports_request_fingerprint_format_check",
       "content_reports_request_identity_complete_check",
