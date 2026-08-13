@@ -629,14 +629,14 @@ gates in [testing and release](testing-and-release.md) are open. Do not copy a
 Development fixture, connection link, import preview, or policy decision into
 Production, and do not treat a Development screenshot as Production evidence.
 
-At this guide's current evidence point, the repository has 281 migrations
+At this guide's current evidence point, the repository has 282 migrations
 through `20260813012206`; the Development database remains at 273 through
-`20260812152300`; and Production has 236 through `20260811001500`. The eight
+`20260812152300`; and Production has 236 through `20260811001500`. The nine
 unmerged migrations have not been applied or deployed in hosted Development.
 The Development Vercel alias still serves earlier code built from the
 272-migration tree because the external 100-deployment-per-day project cap
 blocked its refresh. Neither the database nor hosted code gate is current for
-the 281-migration repository tree.
+the 282-migration repository tree.
 
 ## Development rehearsal state at this guide's verification point
 
@@ -668,29 +668,32 @@ the 281-migration repository tree.
   `20260812132725_csf_drive_metadata_compare_and_set_fence`, and the external
   Vercel 100-deployment-per-day project cap prevented a refreshed deployment.
 - Hosted Development Supabase remains at 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`; this repository has 281 through
-  `20260813012206_google_cap_effect_fencing`. The eight unmerged migrations are
+  `20260812152300_atomic_csf_post_replies`; this repository has 282 through
+  `20260813012206_google_cap_effect_fencing`. The nine unmerged migrations are
   `20260812161500_atomic_project_signup_rejection`,
   `20260812185500_atomic_staff_invite_issuer_redemption`,
   `20260812193329_google_cap_replay_safety`,
   `20260812193400_protect_staff_invite_issuer_capability`,
   `20260812203000_make_content_reports_server_written`,
   `20260812203500_close_plugin_data_browser_default_acl`,
+  `20260812220000_csf_meeting_permission_followups`, and
   `20260813010000_atomic_ai_quota_receipts`, and
   `20260813012206_google_cap_effect_fencing`; they have not been applied or
   deployed to any hosted database.
 - The 95 INFO / 0 WARN / 0 ERROR security and 611 INFO / 0 WARN / 0 ERROR
   performance advisor counts were captured on the preceding 272-migration
   Development shape. They have not been re-established for either hosted 273 or
-  repository 281 and are not current-parity evidence.
+  repository 282 and are not current-parity evidence.
 - The seven-argument metadata RPC exists, the old four-argument overload is
   absent, and only `service_role` can execute the current RPC; `anon` and
   `authenticated` cannot. The Drive metadata RPC is no longer the Preview
   blocker.
 - The caller-summary correction and inactive-access hardening are combined in
-  private development commit `605342c`, and this root worktree's gitlink points
-  to that exact commit locally. The stale Ready Development SHA above does not
-  include that local gitlink update.
+  private development commit
+  `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, and this root worktree's gitlink
+  points to that exact commit locally. It also contains the meeting hardening
+  and `ca817bf` preview-summary correction. The stale Ready Development SHA
+  above does not include that local gitlink update.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
 - Three controlled Development test messages produced three signature-verified
@@ -719,7 +722,7 @@ Do not use real chapter rows or credentials until every item is checked:
       `scripts/production-cutover-preflight.sql` with the reviewed Production
       read-only URL. It must select the exact 236-row baseline, pass every
       shared blocker, and name any cancellation-job transitions for explicit
-      review. Rehearse the full 45-migration transition on a Production-shaped
+      review. Rehearse the full 46-migration transition on a Production-shaped
       clone and verify the backup restore before scheduling the window.
 - [ ] At T-0 enable maintenance mode, stop writers and scheduled workers, take
       the final snapshots, and pair the schema push with the exact compatible
@@ -728,7 +731,7 @@ Do not use real chapter rows or credentials until every item is checked:
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.
-- [ ] Re-run the preflight on the 281-row target and require the shared tenant
+- [ ] Re-run the preflight on the 282-row target and require the shared tenant
       and receipt checks plus the target-only relation, constraint, and index
       and extension-posture checks to pass before reopening writes.
 - [ ] Pass the final combined static, focused source, database, private-plugin,
