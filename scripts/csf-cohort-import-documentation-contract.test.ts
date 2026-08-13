@@ -45,6 +45,7 @@ const officerRunbook = flow(readDoc("officer-runbook.md"));
 const newChapterOnboarding = flow(readDoc("new-chapter-onboarding.md"));
 const sourceData = flow(readDoc("source-data.md"));
 const productContract = flow(readDoc("product-contract.md"));
+const dataArchitecture = flow(readRepositoryFile("docs/architecture/data.md"));
 const profileWriteMigration = flow(
   readRepositoryFile(
     "supabase/migrations/20260801234028_dvhs_csf_atomic_profile_write.sql",
@@ -247,6 +248,15 @@ describe("CSF cohort import documentation truthfulness guards", () => {
     );
     expect(importRowsAction).toContain(
       "Keep the match reason to 500 characters or fewer.",
+    );
+    expect(dataArchitecture).toContain(
+      "The provided Class of 2030 source is header-only with 0 data rows",
+    );
+    expect(dataArchitecture).toContain(
+      "Operationally it is template-only: do not import it",
+    );
+    expect(dataArchitecture).toContain(
+      "ordinary member and application paths, or the audited semester-correction path",
     );
     expect(productContract).toContain(
       "One atomic server transaction updates the application decision, creates/updates the term membership when approved",

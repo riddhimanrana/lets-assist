@@ -41,6 +41,7 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-034](#aud-034) | P1  | Cancellation worker    | Healthy pagination spent the abandoned-lease retry budget and could amplify retries                                    | **Fixed locally**; hosted Development pending                |
 | [AUD-041](#aud-041) | P1  | Moderation evidence    | Reporters could directly create, rewrite, or delete `content_reports` evidence and retries duplicated it               | **Fixed locally**; hosted Development pending                |
 | [AUD-042](#aud-042) | P1  | Plugin data ACLs       | `plugin_data` default privileges re-granted `authenticated` on every future table, sequence, and routine               | **Fixed locally**; hosted Development pending                |
+| [AUD-043](#aud-043) | P1  | Private function ACLs  | Dormant `private.is_plugin_enabled(uuid,text)` retained default `PUBLIC` execute without a runtime caller              | **Fixed locally**; exact replay pending                      |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
@@ -1016,6 +1017,29 @@ Local evidence: 17 pgTAP assertions in
 migration replay. Withholding the migration fails 5 of those 17 — the existing
 routine grant, the browser-facing default ACL entries, and inheritance on a new
 table, sequence, and routine. Production was not queried or changed.
+
+---
+
+<a id="aud-043"></a>
+
+## AUD-043 — Dormant private plugin predicate retained default execute
+
+**Priority:** P1 · **Status:** Fixed locally; exact replay and hosted Development pending
+
+`private.is_plugin_enabled(uuid,text)` was created as a fixed-empty-path
+`SECURITY DEFINER`, but its historical migration did not state an execution ACL,
+so PostgreSQL's default `PUBLIC` execute remained. `private` is omitted from the
+PostgREST exposed-schema list, and a repository-wide source scan found no
+runtime caller, so no browser-callable exploit or required `service_role`
+capability is claimed.
+
+`20260813085442_harden_private_is_plugin_enabled_acl.sql` preserves the stable
+definition, revokes execution from `PUBLIC`, `anon`, `authenticated`, and
+`service_role`, grants only owner `postgres`, and fails if the definer or empty
+search path drifts. The source contract pins the zero-caller fact and the
+owner-only ACL; eight pgTAP assertions cover the runtime signature, definition,
+effective denials, and owner grant. Because the function remains in `private`,
+the public callable catalog is unchanged. Production was not accessed.
 
 ---
 

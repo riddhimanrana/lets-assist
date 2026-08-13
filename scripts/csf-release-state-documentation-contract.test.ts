@@ -39,9 +39,9 @@ describe("CSF release-state documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(287);
+    expect(migrations).toHaveLength(288);
     expect(migrations.at(-1)).toBe(
-      "20260813020000_cancellation_preserves_unknown_delivery_outcomes.sql",
+      "20260813085442_harden_private_is_plugin_enabled_acl.sql",
     );
 
     const currentState = between(
@@ -50,7 +50,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 287 ordered migrations through",
+      "repository branch has 288 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260812203500_close_plugin_data_browser_default_acl`",
@@ -78,6 +78,9 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "`20260813020000_cancellation_preserves_unknown_delivery_outcomes`",
     );
     expect(currentState).toContain(
+      "`20260813085442_harden_private_is_plugin_enabled_acl`",
+    );
+    expect(currentState).toContain(
       "exact local isolated union replay passed all 133 pgTAP files and 5,523 assertions",
     );
     expect(currentState).toContain(
@@ -86,7 +89,9 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(currentState).toContain(
       "Hosted Development Supabase remains at 273 ordered migrations through",
     );
-    expect(currentState).toContain("The fourteen unmerged migrations are");
+    expect(currentState).toContain(
+      "The fifteen repository-only migrations are",
+    );
     expect(currentState).toContain("`20260813010000_atomic_ai_quota_receipts`");
     expect(currentState).toContain(
       "`20260813013000_reconcile_project_lifecycle_boundaries`",
@@ -100,7 +105,8 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(currentState).toContain(
       "Production remains at 236 ordered migrations through `20260811001500`",
     );
-    expect(currentState).toContain("51-migration cutover has not run");
+    expect(currentState).toContain("52-migration cutover has not run");
+    expect(currentState).not.toContain("50 migrations are Production-pending");
     expect(currentState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
     );
@@ -156,12 +162,15 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "### External and action-time gates",
       "## Artifact index",
     );
-    expect(externalGates).toContain("repository branch has 287 through");
+    expect(externalGates).toContain("repository branch has 288 through");
     expect(externalGates).toContain(
       "`20260813013300_close_csf_representative_and_publication_races`",
     );
     expect(externalGates).toContain(
       "`20260813020000_cancellation_preserves_unknown_delivery_outcomes`",
+    );
+    expect(externalGates).toContain(
+      "`20260813085442_harden_private_is_plugin_enabled_acl`",
     );
     expect(testingAndRelease).toContain(
       "That table is the superseded July source snapshot",
@@ -176,13 +185,13 @@ describe("CSF release-state documentation truthfulness guards", () => {
 
   test("the officer runbook tracks the exact current cutover ledger", () => {
     expect(officerRunbook).toContain(
-      "this repository carries 287 ordered migrations through `20260813020000`",
+      "this repository carries 288 ordered migrations through `20260813085442`",
     );
     expect(officerRunbook).toContain(
-      "51-migration Production cutover gates remain pending",
+      "52-migration Production cutover gates remain pending",
     );
-    expect(officerRunbook).toContain("ordered ledger through `20260813020000`");
-    expect(officerRunbook).toContain("current 287-migration repository ledger");
+    expect(officerRunbook).toContain("ordered ledger through `20260813085442`");
+    expect(officerRunbook).toContain("current 288-migration repository ledger");
     expect(officerRunbook).not.toContain(
       "this repository carries 277 ordered migrations",
     );
@@ -204,9 +213,11 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "Hosted Development Supabase remains at 273 ordered migrations through",
     );
     expect(rehearsalState).toContain(
-      "this repository has 287 through `20260813020000_cancellation_preserves_unknown_delivery_outcomes`",
+      "this repository has 288 through `20260813085442_harden_private_is_plugin_enabled_acl`",
     );
-    expect(rehearsalState).toContain("The fourteen unmerged migrations are");
+    expect(rehearsalState).toContain(
+      "The fifteen repository-only migrations are",
+    );
     expect(rehearsalState).toContain(
       "`20260812203500_close_plugin_data_browser_default_acl`",
     );
@@ -224,6 +235,9 @@ describe("CSF release-state documentation truthfulness guards", () => {
     );
     expect(rehearsalState).toContain(
       "`20260813020000_cancellation_preserves_unknown_delivery_outcomes`",
+    );
+    expect(rehearsalState).toContain(
+      "`20260813085442_harden_private_is_plugin_enabled_acl`",
     );
     expect(rehearsalState).toContain(
       "`20260812161500_atomic_project_signup_rejection`",
@@ -254,7 +268,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
     );
     expect(rehearsalState).toContain("deployment is Ready but stale");
     expect(rehearsalState).toContain(
-      "They have not been re-established for either hosted 273 or repository 287",
+      "They have not been re-established for either hosted 273 or repository 288",
     );
     expect(rehearsalState).toContain(
       "seven-argument metadata RPC exists, the old four-argument overload is absent",
@@ -290,14 +304,14 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "## Related references",
     );
     expect(cutover).toContain(
-      "Replay the ordered migration ledger through `20260813020000`",
+      "Replay the ordered migration ledger through `20260813085442`",
     );
     expect(cutover).toContain(
       "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
     );
     expect(cutover).toContain("exact 236-row baseline");
-    expect(cutover).toContain("full 51-migration transition");
-    expect(cutover).toContain("preflight on the 287-row target");
+    expect(cutover).toContain("full 52-migration transition");
+    expect(cutover).toContain("preflight on the 288-row target");
   });
 
   test("production cutover baseline tracks the exact pending migration range", () => {
@@ -308,10 +322,10 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "Hosted Development Supabase remains at 273 ordered migrations through `20260812152300`",
     );
     expect(productionCutoverRunbook).toContain(
-      "this repository has 287 through `20260813020000_cancellation_preserves_unknown_delivery_outcomes`",
+      "this repository has 288 through `20260813085442_harden_private_is_plugin_enabled_acl`",
     );
     expect(productionCutoverRunbook).toContain(
-      "The fourteen unmerged migrations have not been applied or deployed in hosted Development",
+      "The fifteen repository-only migrations have not been applied or deployed in hosted Development",
     );
     expect(productionCutoverRunbook).toContain(
       "`20260812220000_csf_meeting_permission_followups`",
@@ -323,7 +337,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "repository ledger ended at 272 through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Production therefore has exactly 51 pending migrations",
+      "Production therefore has exactly 52 pending migrations",
     );
     expect(productionCutoverRunbook).not.toContain("38 pending migrations");
     expect(productionCutoverRunbook).not.toContain("exactly 38 pending");
@@ -370,6 +384,9 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(productionCutoverRunbook).not.toContain("174 pending migrations");
     expect(productionCutoverRunbook).not.toContain(
       "repository ledger is at 223",
+    );
+    expect(productionCutoverRunbook).not.toContain(
+      "T1–T7 run only on the 286 shape",
     );
     expect(productionCutoverRunbook).not.toContain(
       "expect exactly 174 pending",
@@ -434,6 +451,10 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "full exact replay and hosted Development acceptance remain pending",
     );
     expect(clean022).not.toContain("full local isolated replay passed");
+    expect(clean022).toContain("root and database portions are complete");
+    expect(clean022).toContain(
+      "private officer-message dependency remains pending",
+    );
   });
 
   test("the register records the current cross-branch AUD identifier drift", () => {

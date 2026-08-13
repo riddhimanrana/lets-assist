@@ -12,7 +12,11 @@ Uninstall never accesses `plugin_data`; it removes only platform install/configu
 
 Because plugin hooks may cross non-transactional provider boundaries, a process crash can leave a `processing` receipt whose outcome is unknown. That state is not automatically rerun. Explicitly reported idempotent failures may retry under the same globally bound request key with a fresh claim token; successful deletion is durable before audit is attempted.
 
-The enforced browser boundary for `plugin_data` is schema `USAGE`, which `anon` and `authenticated` do not hold. Object grants and the schema's default privileges are also closed for both roles, but PostgreSQL's built-in global default still puts `EXECUTE` for `PUBLIC` on any newly created function, and a per-schema `ALTER DEFAULT PRIVILEGES` cannot revoke a globally granted default. A new private-plugin function therefore carries a `PUBLIC` execute bit that is unreachable without schema usage. Never grant `plugin_data` usage to a browser role, and keep proving unreachability by calling as those roles rather than by reading the ACL.
+The enforced browser boundary for `plugin_data` is schema `USAGE`, which `PUBLIC`, `anon`, and `authenticated` do not hold. Object grants and the schema's default privileges are also closed for browser roles, but PostgreSQL's built-in global default still puts `EXECUTE` for `PUBLIC` on any newly created function, and a per-schema `ALTER DEFAULT PRIVILEGES` cannot revoke a globally granted default. A new private-plugin function therefore carries a `PUBLIC` execute bit that is unreachable without schema usage. Never grant `plugin_data` schema usage to `PUBLIC`, `anon`, or `authenticated`, and keep proving unreachability by calling as browser roles rather than by reading the object ACL alone.
+
+## Private helper schemas
+
+`private` and `app_private` are omitted from PostgREST's exposed schemas; that routing boundary does not replace function ACLs. Some helpers are invoked from reviewed RLS policies and therefore intentionally retain narrow role execution. Every function in `private` or `app_private` requires explicit per-object execution revokes and reviewed grants, including a deliberate decision for `PUBLIC`, `anon`, `authenticated`, and `service_role`. A new or replaced definer must also use a fixed safe `search_path`.
 
 ## Moderation evidence
 
@@ -33,7 +37,7 @@ Imports retain immutable source identity, range/tab provenance, mapping versions
 ### CSF source constraints
 
 - The identity-free historical S26 inventory is 167 records for 2027, 167 for 2028, and 88 for 2029: 422 total.
-- The Class of 2030 source is header-only (0 rows) and must not be historically imported. Use the ordinary student-record/application flow (`Members` → `Add member`, then `Applications` → `Review queue`) or an audited semester correction—never historical import.
+- The provided Class of 2030 source is header-only with 0 data rows. Operationally it is template-only: do not import it. Use only the ordinary member and application paths, or the audited semester-correction path (`Members` → `Add member`, then `Applications` → `Review queue`, or a reviewed correction)—never historical import.
 - Historical sheets do not contain reliable account identifiers. They must not auto-link a profile to an account; linking requires separately corroborated evidence and reviewed conflict handling.
 - Application responses create application records, never members, and do not independently establish a roster.
 - The Spring 2026 application source cannot seed a Fall 2026 roster. Its responses may attach only after reviewed member/application reconciliation. Application, cohort, membership, and term state remain distinct.

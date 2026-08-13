@@ -5295,9 +5295,18 @@ SELECT extensions.is(
   'the campaign that will be cancelled has queued work'
 );
 
--- One recipient is handed to a worker, then that worker's lease lapses. This is the
--- case cancellation used to strand: the claim path refuses to yield work for a
--- cancelled campaign, so nothing would ever settle a lapsed lease afterwards.
+-- Make the claimed recipient deterministic rather than relying on UUID order
+-- among attempts created at the same transaction timestamp.
+UPDATE plugin_data.csf_communication_dispatch_attempts AS attempt
+SET available_at = now() - interval '1 minute'
+FROM plugin_data.csf_communication_recipient_snapshots AS snapshot
+WHERE attempt.recipient_snapshot_id = snapshot.id
+  AND attempt.campaign_id = 'bd400000-0000-4000-8000-000000000005'
+  AND snapshot.recipient_email = 'cancelled.recipient@local.test';
+
+-- cancelled.recipient is handed to a worker, then that worker's lease lapses.
+-- This is the case cancellation used to strand: the claim path refuses to yield
+-- work for a cancelled campaign, so nothing would settle a lapsed lease later.
 SELECT extensions.is(
   (
     SELECT plugin_data.csf_claim_communication_dispatch_batch(
@@ -5414,9 +5423,8 @@ SELECT extensions.is(
 --   * cancelled.midflight   -- never claimed, never leased, provably never
 --                              handed to the provider. 'failed' is the truth.
 --
--- (Which of the two the single-row claim above took is decided by the ledger's
--- claim ordering, not by these names; the assertions below name the addresses
--- explicitly so the two cases cannot be confused for each other.)
+-- The fixture explicitly makes cancelled.recipient available first before the
+-- single-row claim, so these address-specific assertions cannot swap cases.
 --
 -- The delivery sweep used to match BOTH, because a reaped attempt is in neither
 -- 'queued' nor 'processing'. So the same call that recorded "we do not know"
