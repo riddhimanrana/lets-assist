@@ -1,17 +1,37 @@
-import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
-import { notifyAdminsBatched } from "@/services/admin-notifications";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { logError, logInfo, flushLogs } from "@/lib/logger";
+import { submitContentReport } from "@/lib/moderation/content-report-service";
+import {
+  contentReportSchema,
+  ContentReportBodyError,
+  readBoundedContentReportBody,
+} from "@/lib/moderation/content-report-submission";
+
+const UNAVAILABLE = {
+  body: { error: "Reporting is temporarily unavailable." },
+  init: { status: 503, headers: { "Retry-After": "5" } },
+} as const;
 
 export async function POST(request: Request) {
+  // Scheduled once, for every exit. Several refusals below — a rejected
+  // target, an exhausted quota — are exactly the ones worth having telemetry
+  // for, and attaching the flush to individual branches had already missed
+  // them. `forceFlush` on an empty buffer costs nothing.
+  after(async () => {
+    await flushLogs();
+  });
+
   try {
-    const supabase = await createClient();
+    const { user, error: authError } = await getAuthUser({ sensitive: true });
 
-    // Get authenticated user using getClaims() for better performance
-    const { user } = await getAuthUser();
-
+    if (authError) {
+      return NextResponse.json(
+        { error: "Authentication is temporarily unavailable." },
+        { status: 503, headers: { "Retry-After": "5" } },
+      );
+    }
     if (!user) {
       return NextResponse.json(
         { error: "You must be signed in to report content." },
@@ -19,173 +39,74 @@ export async function POST(request: Request) {
       );
     }
 
-    // Parse request body
-    const body = await request.json();
-    const { contentType, contentId, reason, description, url, metadata } = body;
-
-    // Validate required fields
-    if (!contentType || !contentId || !reason || !description) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
-    }
-
-    // Validate content type
-    const validContentTypes = [
-      "project",
-      "profile",
-      "comment",
-      "image",
-      "organization",
-      "other",
-    ];
-    if (!validContentTypes.includes(contentType)) {
-      return NextResponse.json(
-        { error: "Invalid content type" },
-        { status: 400 },
-      );
-    }
-
-    // Validate reason
-    const validReasons = [
-      "spam",
-      "harassment",
-      "inappropriate_content",
-      "misinformation",
-      "copyright",
-      "privacy_violation",
-      "violence",
-      "hate_speech",
-      "other",
-    ];
-    if (!validReasons.includes(reason)) {
-      return NextResponse.json(
-        { error: "Invalid report reason" },
-        { status: 400 },
-      );
-    }
-
-    // Validate description length
-    if (description.trim().length < 10) {
-      return NextResponse.json(
-        { error: "Description must be at least 10 characters" },
-        { status: 400 },
-      );
-    }
-
-    if (description.length > 1000) {
-      return NextResponse.json(
-        { error: "Description must be less than 1000 characters" },
-        { status: 400 },
-      );
-    }
-
-    // Build enhanced description with URL and metadata
-    let enhancedDescription = description.trim();
-    if (url || metadata) {
-      const details: string[] = [enhancedDescription];
-
-      if (url) {
-        details.push(`\n\nContent URL: ${url}`);
-      }
-
-      if (metadata) {
-        if (metadata.title) details.push(`\nContent Title: ${metadata.title}`);
-        if (metadata.creator)
-          details.push(`\nContent Creator: ${metadata.creator}`);
-        if (metadata.context) details.push(`\nContext: ${metadata.context}`);
-        if (metadata.reportedAt)
-          details.push(`\nReported at: ${metadata.reportedAt}`);
-      }
-
-      enhancedDescription = details.join("");
-    }
-
-    // Determine priority based on reason
-    const highPriorityReasons = ["violence", "hate_speech"];
-    const priority = highPriorityReasons.includes(reason) ? "high" : "normal";
-
-    // Insert the report into content_reports table
-    const { data, error } = await supabase
-      .from("content_reports")
-      .insert({
-        reporter_id: user?.id || null, // Allow anonymous reports
-        content_type: contentType,
-        content_id: contentId,
-        reason: reason,
-        description: enhancedDescription,
-        status: "pending",
-        priority: priority,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (error) {
-      logError("Failed to insert content report", error, {
-        reporter_id: user?.id,
-        content_type: contentType,
-        content_id: contentId,
-        reason,
-      });
-
-      after(async () => {
-        await flushLogs();
-      });
-
-      return NextResponse.json(
-        { error: "Failed to submit report" },
-        { status: 500 },
-      );
-    }
-
+    let body: unknown;
     try {
-      await notifyAdminsBatched({
-        type: "content_report",
-        reportId: data.id,
-        reason,
-        contentType,
-        priority,
-      });
-    } catch (notifError) {
-      logError(
-        "Failed to send admin notification for content report",
-        notifError,
+      body = await readBoundedContentReportBody(request);
+    } catch (bodyError) {
+      return NextResponse.json(
+        { error: "Invalid report details" },
         {
-          report_id: data.id,
-          content_type: contentType,
-          reason,
+          status:
+            bodyError instanceof ContentReportBodyError &&
+            bodyError.code === "too_large"
+              ? 413
+              : 400,
         },
       );
-      // Don't fail the request if notification fails
+    }
+
+    const parsed = contentReportSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid report details" },
+        { status: 400 },
+      );
+    }
+
+    const result = await submitContentReport({
+      reporterId: user.id,
+      submission: parsed.data,
+      requestHeaders: request.headers,
+    });
+
+    if (result.status === "invalid_input") {
+      return NextResponse.json(
+        { error: "Invalid report details" },
+        { status: 400 },
+      );
+    }
+
+    if (result.status === "rate_limited") {
+      return NextResponse.json(
+        { error: "Too many reports. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": result.retryAfterSeconds.toString() },
+        },
+      );
+    }
+
+    if (result.status === "unavailable") {
+      return NextResponse.json(UNAVAILABLE.body, UNAVAILABLE.init);
     }
 
     logInfo("Content report submitted successfully", {
-      report_id: data.id,
-      reporter_id: user?.id,
-      content_type: contentType,
-      content_id: contentId,
-      reason,
-      priority,
-    });
-
-    after(async () => {
-      await flushLogs();
+      report_id: result.reportId,
+      content_type: parsed.data.contentType,
+      reason: parsed.data.reason,
+      replayed: result.status === "replayed",
     });
 
     return NextResponse.json({
       success: true,
-      reportId: data.id,
+      reportId: result.reportId,
       message: "Report submitted successfully",
     });
-  } catch (error) {
-    logError("Unexpected error in report-content API", error);
-
-    after(async () => {
-      await flushLogs();
-    });
+  } catch {
+    logError(
+      "Unexpected error in report-content API",
+      new Error("report_request_failed"),
+    );
 
     return NextResponse.json(
       { error: "Internal server error" },

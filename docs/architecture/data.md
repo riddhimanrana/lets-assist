@@ -12,6 +12,20 @@ Uninstall never accesses `plugin_data`; it removes only platform install/configu
 
 Because plugin hooks may cross non-transactional provider boundaries, a process crash can leave a `processing` receipt whose outcome is unknown. That state is not automatically rerun. Explicitly reported idempotent failures may retry under the same globally bound request key with a fresh claim token; successful deletion is durable before audit is attempted.
 
+The enforced browser boundary for `plugin_data` is schema `USAGE`, which `anon` and `authenticated` do not hold. Object grants and the schema's default privileges are also closed for both roles, but PostgreSQL's built-in global default still puts `EXECUTE` for `PUBLIC` on any newly created function, and a per-schema `ALTER DEFAULT PRIVILEGES` cannot revoke a globally granted default. A new private-plugin function therefore carries a `PUBLIC` execute bit that is unreachable without schema usage. Never grant `plugin_data` usage to a browser role, and keep proving unreachability by calling as those roles rather than by reading the ACL.
+
+## Moderation evidence
+
+`content_reports` is server-written. Browser roles hold owner-scoped `SELECT` and no `INSERT`, `UPDATE`, or `DELETE`; every report is created by one reviewed `SECURITY DEFINER` transaction that only `service_role` may execute. Status, priority, timestamps, the pseudonymous reporter reference, and the quota decision are derived inside that transaction, so they cannot be supplied by a client.
+
+A report may only name a target the reporter can already read through their own RLS-scoped session, and only for the target types the moderation queue can act on (`project`, `profile`, `organization`). The transaction independently confirms the target row exists in the literal relation its type names, so a forged identifier cannot become a queue item even if the caller's session check is wrong. Neither check is an enumeration oracle: the session check can confirm nothing the reporter could not read directly, and an unresolvable target is refused with the same generic `400` as any other invalid input.
+
+Deduplication is bounded rather than permanent. Each submission carries a deterministic `request_fingerprint` derived from the reporter and the substance of the report, and the stored row carries a server-derived `replay_expires_at` 15 minutes out. A retry inside that window replays the original report without duplicating evidence or charging quota; the same report filed after it is a new report with an incremented `request_sequence`, which is what lets a dismissed issue be raised again. Client-supplied time never contributes to the fingerprint.
+
+Two quotas are kept apart. A higher attempt ceiling is charged before the target lookup, so submissions that store nothing — an invisible target, a malformed location, a replay — are still bounded; the stored-report quota is charged only when a report is written. In both cases the user and address buckets are decided together: if either is exhausted, neither is charged. When no trusted address is available the address dimension is omitted rather than collapsed into a shared bucket.
+
+`reporter_reference` is a random UUID drawn from the server-only `public.reporter_references` mapping, not a value derived from the account identifier, so holding a user UUID does not let anyone recompute it. Deleting or banning an account detaches the reporter link (`reporter_id` becomes null, in both the report and the mapping) and keeps the report and its reference. That is the retention boundary: moderation history and repeat-offender correlation survive, the personal link does not.
+
 ## Evidence and imports
 
 Imports retain immutable source identity, range/tab provenance, mapping versions, and raw snapshots. Preview and reconcile are separate from commit. Spreadsheet values are treated as untrusted input and exports must prevent formula injection.
