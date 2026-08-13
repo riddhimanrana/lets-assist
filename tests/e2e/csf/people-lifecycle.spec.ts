@@ -508,10 +508,21 @@ test.describe("CSF visible people lifecycle", () => {
     const directorySearch = page.getByLabel("Search members");
     await directorySearch.fill(fixture.profileEmail);
     await page.getByRole("button", { name: "Apply", exact: true }).click();
-    const connectedRow = page
-      .getByRole("row")
-      .filter({ hasText: fixture.profileEmail });
-    await expect(connectedRow).toBeVisible();
+    const profileName = `Avery Lifecycle-${fixture.profileEmail.slice(16, 24)}`;
+    const connectedProfileLink = page.getByRole("link", {
+      name: new RegExp(profileName),
+    });
+    const connectedRow = page.getByRole("row").filter({
+      has: connectedProfileLink,
+    });
+    await expect(connectedProfileLink).toBeVisible();
+    await expect(connectedProfileLink).toHaveAttribute(
+      "href",
+      new RegExp(
+        `^${CSF_ORGANIZATION_PATH.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\?(?=[^#]*\\btab=csf-members(?:&|$))(?=[^#]*\\bcsf_profile=${fixture.profileId}(?:&|$))`,
+      ),
+    );
+    await expect(connectedRow).toContainText(profileName);
     await expect(
       connectedRow.getByText("Connected", { exact: true }),
     ).toBeVisible();

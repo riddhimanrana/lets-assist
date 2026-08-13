@@ -217,19 +217,10 @@ test.describe("officer post compose in the class Stream", () => {
     await expect(emailToggle).not.toBeChecked();
 
     await dialog.getByRole("button", { name: "Publish post" }).click();
-    const publicationResult = dialog.getByRole("status", {
-      name: "Post publication result",
-    });
-    await expect(publicationResult).toContainText("Post published.");
-    await expect(publicationResult).toContainText("Email not queued");
-    await expect(
-      dialog.getByRole("button", { name: "Publish post" }),
-    ).toBeDisabled();
-    await dialog.getByRole("button", { name: "Acknowledge result" }).click();
     await expect(dialog).toBeHidden();
 
-    // The mutation is durable server-side; a reload proves the Stream renders
-    // the published post with its compose-side status.
+    // The successful compose closes immediately. The database receipt and a
+    // reloaded Stream card are the durable publication and email-queue truth.
     await expect
       .poll(async () => {
         const { data, error } = await fixture.admin
@@ -290,6 +281,15 @@ test.describe("officer post compose in the class Stream", () => {
       .getByRole("article")
       .filter({ hasText: composedTitle });
     await expect(composedEntry).toHaveCount(1);
+    await expect(
+      composedEntry.getByRole("heading", {
+        name: composedTitle,
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      composedEntry.getByText(composedBody, { exact: true }),
+    ).toBeVisible();
     // Published is the Stream's expected state and deliberately carries no
     // badge; the states an officer still has to act on are the ones that do.
     await expect(composedEntry.getByText("Draft", { exact: true })).toHaveCount(
@@ -530,15 +530,7 @@ test.describe("officer post compose in the class Stream", () => {
         .getByRole("checkbox", { name: "Also send this as an email" })
         .check();
       await dialog.getByRole("button", { name: "Publish post" }).click();
-
-      const publicationResult = dialog.getByRole("status", {
-        name: "Post publication result",
-      });
-      await expect(publicationResult).toContainText("Post published.");
-      await expect(publicationResult).toContainText("Email queued");
-      await expect(
-        dialog.getByRole("button", { name: "Publish post" }),
-      ).toBeDisabled();
+      await expect(dialog).toBeHidden();
 
       const { data: announcement, error: announcementError } =
         await fixture.admin
@@ -702,8 +694,21 @@ test.describe("officer post compose in the class Stream", () => {
       expect(providerEventsError).toBeNull();
       expect(providerEvents).toEqual([]);
 
-      await dialog.getByRole("button", { name: "Acknowledge result" }).click();
-      await expect(dialog).toBeHidden();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      const queuedEntry = page
+        .getByRole("region", { name: "Class stream" })
+        .getByRole("article")
+        .filter({ hasText: queuedTitle });
+      await expect(queuedEntry).toHaveCount(1);
+      await expect(
+        queuedEntry.getByRole("heading", {
+          name: queuedTitle,
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(
+        queuedEntry.getByText(queuedBody, { exact: true }),
+      ).toBeVisible();
       expectNoBrowserFailures(failures);
     } catch (error) {
       testFailure = error instanceof Error ? error : new Error(String(error));

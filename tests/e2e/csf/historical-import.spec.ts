@@ -130,17 +130,10 @@ async function loadFixture(): Promise<HistoricalImportFixture> {
   }
 
   const [
-    { data: profile, error: profileError },
     { data: cohort, error: cohortError },
     { data: term, error: termError },
     usersResult,
   ] = await Promise.all([
-    plugin
-      .from("csf_profiles")
-      .select("id")
-      .eq("organization_id", organization.id)
-      .eq("normalized_school_email", localActors.member.email)
-      .single(),
     plugin
       .from("csf_cohorts")
       .select("id")
@@ -156,10 +149,6 @@ async function loadFixture(): Promise<HistoricalImportFixture> {
     admin.auth.admin.listUsers({ page: 1, perPage: 1_000 }),
   ]);
   assertNoSupabaseError(
-    "Could not load Aarav Mehta's fixture profile",
-    profileError,
-  );
-  assertNoSupabaseError(
     "Could not load the Class of 2028 fixture",
     cohortError,
   );
@@ -172,16 +161,52 @@ async function loadFixture(): Promise<HistoricalImportFixture> {
   const adminUser = usersResult.data.users.find(
     (user) => user.email === localActors.admin.email,
   );
-  if (!profile || !cohort || !term || !adminUser) {
+  const memberUser = usersResult.data.users.find(
+    (user) => user.email === localActors.member.email,
+  );
+  if (!cohort || !term || !adminUser || !memberUser) {
     throw new Error(
       "The isolated CSF historical-import fixture is incomplete.",
     );
   }
+
+  const { data: memberAccount, error: memberAccountError } = await plugin
+    .from("csf_profile_accounts")
+    .select("profile_id")
+    .eq("organization_id", organization.id)
+    .eq("user_id", memberUser.id)
+    .eq("status", "verified")
+    .eq("is_primary", true)
+    .single();
+  assertNoSupabaseError(
+    "Could not load the canonical member account link",
+    memberAccountError,
+  );
+  if (!memberAccount) {
+    throw new Error("The canonical member account link is missing.");
+  }
+
+  const { data: cohortMembership, error: cohortMembershipError } = await plugin
+    .from("csf_profile_cohort_memberships")
+    .select("profile_id")
+    .eq("organization_id", organization.id)
+    .eq("profile_id", memberAccount.profile_id)
+    .eq("cohort_id", cohort.id)
+    .eq("status", "active")
+    .single();
+  assertNoSupabaseError(
+    "Could not verify the canonical member cohort",
+    cohortMembershipError,
+  );
+  if (!cohortMembership) {
+    throw new Error("The canonical Class of 2028 member is missing.");
+  }
+
   return {
     admin,
     adminUserId: adminUser.id,
     organizationId: organization.id,
-    profileId: profile.id,
+    profileId: cohortMembership.profile_id,
     cohortId: cohort.id,
     termId: term.id,
     runToken,
