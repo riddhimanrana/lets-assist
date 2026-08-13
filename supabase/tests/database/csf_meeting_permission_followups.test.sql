@@ -76,7 +76,7 @@ INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data,
   raw_user_meta_data, created_at, updated_at
 ) VALUES
-  ('ea000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'meeting-manage-import@local.test', now(), '{}', '{}', now(), now()),
+  ('ea000000-0000-4000-8000-000000000010', 'authenticated', 'authenticated', 'meeting-manage-import@local.test', now(), '{}', '{}', now(), now()),
   ('ea000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'meeting-full@local.test', now(), '{}', '{}', now(), now()),
   ('ea000000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'meeting-legacy@local.test', now(), '{}', '{}', now(), now()),
   ('ea000000-0000-4000-8000-000000000004', 'authenticated', 'authenticated', 'meeting-no-membership@local.test', now(), '{}', '{}', now(), now()),
@@ -87,11 +87,12 @@ INSERT INTO auth.users (
 INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES
   ('ea100000-0000-4000-8000-000000000001', 'Meeting Permission One', 'meeting-permission-one', 'school', '995101'),
-  ('ea100000-0000-4000-8000-000000000002', 'Meeting Permission Two', 'meeting-permission-two', 'school', '995102');
+  ('ea100000-0000-4000-8000-000000000002', 'Meeting Permission Two', 'meeting-permission-two', 'school', '995102')
+ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.organization_members (organization_id, user_id, role, status)
 VALUES
-  ('ea100000-0000-4000-8000-000000000001', 'ea000000-0000-4000-8000-000000000001', 'member', 'active'),
+  ('ea100000-0000-4000-8000-000000000001', 'ea000000-0000-4000-8000-000000000010', 'member', 'active'),
   ('ea100000-0000-4000-8000-000000000001', 'ea000000-0000-4000-8000-000000000002', 'member', 'active'),
   ('ea100000-0000-4000-8000-000000000001', 'ea000000-0000-4000-8000-000000000003', 'member', 'active'),
   ('ea100000-0000-4000-8000-000000000001', 'ea000000-0000-4000-8000-000000000005', 'member', 'active'),
@@ -125,7 +126,7 @@ INSERT INTO plugin_data.csf_role_permissions (
 INSERT INTO plugin_data.csf_staff_positions (
   id, organization_id, user_id, role_id, school_year, display_title, status
 ) VALUES
-  ('ea300000-0000-4000-8000-000000000001', 'ea100000-0000-4000-8000-000000000001', 'ea000000-0000-4000-8000-000000000001', 'ea200000-0000-4000-8000-000000000001', '2050-2051', 'Meeting manager', 'active'),
+  ('ea300000-0000-4000-8000-000000000001', 'ea100000-0000-4000-8000-000000000001', 'ea000000-0000-4000-8000-000000000010', 'ea200000-0000-4000-8000-000000000001', '2050-2051', 'Meeting manager', 'active'),
   ('ea300000-0000-4000-8000-000000000002', 'ea100000-0000-4000-8000-000000000001', 'ea000000-0000-4000-8000-000000000002', 'ea200000-0000-4000-8000-000000000002', '2050-2051', 'Meeting reconciler', 'active'),
   ('ea300000-0000-4000-8000-000000000003', 'ea100000-0000-4000-8000-000000000001', 'ea000000-0000-4000-8000-000000000003', 'ea200000-0000-4000-8000-000000000003', '2050-2051', 'Legacy sheet officer', 'active'),
   ('ea300000-0000-4000-8000-000000000005', 'ea100000-0000-4000-8000-000000000001', 'ea000000-0000-4000-8000-000000000005', 'ea200000-0000-4000-8000-000000000005', '2050-2051', 'Meeting scheduler', 'active'),
@@ -135,7 +136,7 @@ INSERT INTO plugin_data.csf_staff_positions (
 INSERT INTO plugin_data.csf_terms (
   id, organization_id, code, label, school_year, semester, lifecycle_status, is_current
 ) VALUES
-  ('ea400000-0000-4000-8000-000000000001', 'ea100000-0000-4000-8000-000000000001', 'F50', 'Fall 2050', '2050-2051', 'fall', 'open', true),
+  ('ea400000-0000-4000-8000-000000000001', 'ea100000-0000-4000-8000-000000000001', 'F50', 'Fall 2050', '2050-2051', 'fall', 'open', false),
   ('ea400000-0000-4000-8000-000000000002', 'ea100000-0000-4000-8000-000000000002', 'F50', 'Fall 2050', '2050-2051', 'fall', 'open', true);
 
 INSERT INTO plugin_data.csf_profiles (
@@ -184,7 +185,7 @@ SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_correct_meeting_attendance(
     'ea100000-0000-4000-8000-000000000001', 'ea600000-0000-4000-8000-000000000001',
     'ea500000-0000-4000-8000-000000000001', 'set', 'attended', 'Import-only authority must be denied.',
-    'ea000000-0000-4000-8000-000000000001', 'eaf00000-0000-4000-8000-000000000003'
+    'ea000000-0000-4000-8000-000000000010', 'eaf00000-0000-4000-8000-000000000003'
   )$$,
   '42501', 'Not authorized for the requested CSF meeting operation.',
   'import_meetings does not imply reconciliation authority'
@@ -228,7 +229,7 @@ SELECT extensions.throws_ok(
     'ea100000-0000-4000-8000-000000000001', 'ea400000-0000-4000-8000-000000000001',
     'ea600000-0000-4000-8000-000000000001', 'Unauthorized replacement', '2050-09-10', NULL, 'Library',
     'https://docs.google.com/spreadsheets/d/replacement-denied', true, 1, 'active',
-    'eaf00000-0000-4000-8000-000000000007', 'ea000000-0000-4000-8000-000000000001'
+    'eaf00000-0000-4000-8000-000000000007', 'ea000000-0000-4000-8000-000000000010'
   )$$,
   '42501', 'Not authorized for the requested CSF meeting operation.',
   'replacing an existing source also requires reconciliation authority'
@@ -259,7 +260,7 @@ SELECT extensions.lives_ok(
     'ea100000-0000-4000-8000-000000000001', 'ea400000-0000-4000-8000-000000000001',
     NULL, 'New sourced meeting', '2050-10-01', NULL, 'Library',
     'https://docs.google.com/spreadsheets/d/new-source', true, 2, 'active',
-    'eaf00000-0000-4000-8000-000000000009', 'ea000000-0000-4000-8000-000000000001'
+    'eaf00000-0000-4000-8000-000000000009', 'ea000000-0000-4000-8000-000000000010'
   )$$,
   'creating a new sourced meeting requires manage plus import but not reconcile'
 );
@@ -286,7 +287,7 @@ SELECT extensions.throws_ok(
 SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_assert_import_actor(
     'ea100000-0000-4000-8000-000000000001',
-    'ea000000-0000-4000-8000-000000000001',
+    'ea000000-0000-4000-8000-000000000010',
     'meeting_attendance'
   )$$,
   '42501', 'Not authorized for the requested CSF meeting operation.',
