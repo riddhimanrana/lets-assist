@@ -76,7 +76,8 @@ procedure; this is the DVHS path through them.
    exceptional form, leave **Current semester** unchecked unless the term is
    meant to replace the current term immediately. This creates the Class of
    2030 cohort shell, not student records; populate that class through the new
-   application cycle.
+   application cycle using the explicit profile and application-resolution
+   sequence below.
 5. **Make Fall 2026 current.** On the Fall 2026 term, open **Term actions** and
    select **Set as current**. Exactly one semester is current at a time.
 6. **Prepare Spring 2027 and Fall 2027 without making either current.** Under
@@ -354,8 +355,9 @@ one class at a time:
 
 Class of 2026 is out of scope. Do not select, preview, reconcile, or import its
 rows. Skip the template-only Class of 2030 workbook; create Class of 2030
-student records through the new application cycle instead. Do not use the
-Spring 2026 application response workbook as a Fall 2026 roster seed.
+student records through the new application cycle sequence below instead. Do
+not use the Spring 2026 application response workbook as a Fall 2026 roster
+seed.
 
 Each of the three approved sources keeps its own immutable preview. **Preview**,
 **Reconcile**, and **Commit** are separate boundaries; a clean preview neither
@@ -472,6 +474,49 @@ The historical exact-name comparison currently produces:
 These differences require historical reconciliation, not automatic identity
 resolution. Class of 2026 remains out of scope, and the Class of 2030 template
 remains unimported.
+
+## Create and resolve Class of 2030 from the new application cycle
+
+An application response never creates a student profile, and an application
+decision never creates one. The central application import refuses a row with
+no reviewed profile target. Never select, preview, or import the Class of 2030
+workbook. Use the current application form and this sequence:
+
+1. Keep the Class of 2030 combined class link attached to the reviewed new
+   application form. A student submits that current form before an officer
+   creates or resolves platform records.
+2. Open **More → Imports**, choose **Applications**, select the exact current
+   response file, tab, and bounded range, complete the mapping, and select
+   **Preview normalized rows**. Preview persists source evidence but creates no
+   profile, application, term membership, or account connection.
+3. A row without a reviewed profile is held for reconciliation. Open **Members
+   → Add member**, use **Add a student record**, enter the exact reviewed name
+   and current unique school/personal email, choose **Class** = Class of 2030,
+   and select **Add student record**. Wait for **Student record created.** If a
+   current profile already exists, review it instead of creating a duplicate.
+4. The staff profile action records a replay-safe `profile.create` audit receipt
+   and places the permanent profile in the selected class. It does not create
+   the imported application, term membership, or account connection. The audit
+   receipt identifies the staff write; it does not replace the source-row
+   evidence.
+5. Return to the application preview. Select the profile under **Match to
+   member**, enter a 4–500 character **Match reason** naming the corroborating
+   current evidence, and select **Use match**. Profile creation and import-row
+   reconciliation are two separate audited actions: reconciliation records the
+   selected target, actor, reason, and immutable source-row history. Name
+   similarity alone is not evidence.
+6. Resolve or explicitly skip every row, then select **Verify source and
+   commit**. A targetless application row cannot be committed. Commit attaches
+   the application to the reviewed profile with source provenance; it does not
+   decide the application or create term membership.
+7. Open **Applications → Review queue**, complete the required checks and dues
+   review, and use **Record decision**. **Approve application** creates or
+   updates term membership atomically with the application decision and
+   history. Approving the application creates or updates term membership; it
+   does not create the profile.
+8. Connect the account separately through the exact-email class-link,
+   student-link, or reasoned officer-review path. Neither profile creation nor
+   application processing silently connects an account.
 
 ## Set up Fall 2026 policy only from approved chapter facts
 
