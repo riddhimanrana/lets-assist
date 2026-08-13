@@ -5,6 +5,7 @@ import {
   cleanFeedPosts,
   loadCsfFeedFixture,
   type CsfFeedFixture,
+  type GuardedFeedPostCleanup,
 } from "./feed-fixtures";
 import {
   CSF_ORGANIZATION_PATH,
@@ -40,79 +41,113 @@ async function safelyCleanPostPrefix(
   fixture: CsfFeedFixture,
   titlePrefix: string,
 ) {
-  const { data: posts, error: postsError } = await fixture.admin
-    .schema("plugin_data")
-    .from("csf_announcements")
-    .select("id, email_campaign_id")
-    .eq("organization_id", fixture.organizationId)
-    .like("title", `${titlePrefix}%`);
-  if (postsError) {
-    throw new Error(
-      `Could not load synthetic announcements for safe cleanup: ${postsError.message}`,
-    );
-  }
-
-  const failures: Error[] = [];
-  const campaignIds = [
-    ...new Set(
-      (posts ?? [])
-        .map((post) => post.email_campaign_id)
-        .filter((campaignId): campaignId is string => campaignId !== null),
-    ),
-  ];
-
-  for (const campaignId of campaignIds) {
-    const { data: cancellation, error: cancellationError } = await fixture.admin
+  const loadCandidates = async (): Promise<GuardedFeedPostCleanup[]> => {
+    const { data: posts, error: postsError } = await fixture.admin
       .schema("plugin_data")
-      .rpc("csf_cancel_communication_campaign", {
-        p_organization_id: fixture.organizationId,
-        p_campaign_id: campaignId,
-        p_reason: "Synthetic browser acceptance cleanup.",
-        p_actor_user_id: fixture.organizationAdminUserId,
-        p_correlation_id: randomUUID(),
-      });
-    const cancellationStatus =
-      cancellation &&
-      typeof cancellation === "object" &&
-      !Array.isArray(cancellation) &&
-      cancellation.status;
-    if (!cancellationError && cancellationStatus === "cancelled") continue;
-
-    const { data: campaign, error: campaignError } = await fixture.admin
-      .schema("plugin_data")
-      .from("csf_communication_campaigns")
-      .select("status")
+      .from("csf_announcements")
+      .select("id, email_campaign_id")
       .eq("organization_id", fixture.organizationId)
-      .eq("id", campaignId)
-      .maybeSingle();
-    if (campaignError) {
-      failures.push(
-        new Error(
-          `Could not verify campaign ${campaignId} after cancellation: ${campaignError.message}`,
-        ),
-      );
-    } else if (
-      !campaign ||
-      !safelyTerminalCampaignStatuses.has(campaign.status)
-    ) {
-      failures.push(
-        new Error(
-          cancellationError
-            ? `Could not cancel campaign ${campaignId}: ${cancellationError.message}`
-            : `Campaign ${campaignId} did not confirm cancellation.`,
-        ),
+      .like("title", `${titlePrefix}%`);
+    if (postsError) {
+      throw new Error(
+        `Could not load synthetic announcements for safe cleanup: ${postsError.message}`,
       );
     }
-  }
+    return (posts ?? []).map((post) => ({
+      id: post.id,
+      emailCampaignId: post.email_campaign_id,
+    }));
+  };
 
-  if (failures.length > 0) {
-    throw new AggregateError(
-      failures,
-      "Synthetic post cleanup left campaign linkage intact",
+  const sameCampaignLinks = (
+    left: GuardedFeedPostCleanup[],
+    right: GuardedFeedPostCleanup[],
+  ) => {
+    if (left.length !== right.length) return false;
+    const rightLinks = new Map(
+      right.map((post) => [post.id, post.emailCampaignId]),
     );
+    return left.every(
+      (post) => rightLinks.get(post.id) === post.emailCampaignId,
+    );
+  };
+
+  let candidates = await loadCandidates();
+  for (let pass = 0; pass < 3; pass += 1) {
+    const failures: Error[] = [];
+    const campaignIds = [
+      ...new Set(
+        candidates
+          .map((post) => post.emailCampaignId)
+          .filter((campaignId): campaignId is string => campaignId !== null),
+      ),
+    ];
+
+    for (const campaignId of campaignIds) {
+      const { data: cancellation, error: cancellationError } =
+        await fixture.admin
+          .schema("plugin_data")
+          .rpc("csf_cancel_communication_campaign", {
+            p_organization_id: fixture.organizationId,
+            p_campaign_id: campaignId,
+            p_reason: "Synthetic browser acceptance cleanup.",
+            p_actor_user_id: fixture.organizationAdminUserId,
+            p_correlation_id: randomUUID(),
+          });
+      const cancellationStatus =
+        cancellation &&
+        typeof cancellation === "object" &&
+        !Array.isArray(cancellation) &&
+        cancellation.status;
+      if (!cancellationError && cancellationStatus === "cancelled") continue;
+
+      const { data: campaign, error: campaignError } = await fixture.admin
+        .schema("plugin_data")
+        .from("csf_communication_campaigns")
+        .select("status")
+        .eq("organization_id", fixture.organizationId)
+        .eq("id", campaignId)
+        .maybeSingle();
+      if (campaignError) {
+        failures.push(
+          new Error(
+            `Could not verify campaign ${campaignId} after cancellation: ${campaignError.message}`,
+          ),
+        );
+      } else if (
+        !campaign ||
+        !safelyTerminalCampaignStatuses.has(campaign.status)
+      ) {
+        failures.push(
+          new Error(
+            cancellationError
+              ? `Could not cancel campaign ${campaignId}: ${cancellationError.message}`
+              : `Campaign ${campaignId} did not confirm cancellation.`,
+          ),
+        );
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new AggregateError(
+        failures,
+        "Synthetic post cleanup left campaign linkage intact",
+      );
+    }
+
+    const currentCandidates = await loadCandidates();
+    if (sameCampaignLinks(candidates, currentCandidates)) {
+      await cleanFeedPosts(fixture, titlePrefix, {
+        expectedPosts: currentCandidates,
+      });
+      return;
+    }
+    candidates = currentCandidates;
   }
 
-  await cleanFeedPosts(fixture, titlePrefix);
+  throw new Error(
+    "Synthetic announcement campaign links changed during safe cleanup.",
+  );
 }
 
 // Regressions caught: post success hidden by auto-close; unchecked email
