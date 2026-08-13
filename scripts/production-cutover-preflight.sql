@@ -1,4 +1,4 @@
--- Production 236 -> repository target 277 cutover preflight.
+-- Production 236 -> repository target 279 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -10,7 +10,7 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   236 rows headed by 20260811001500
---   post-cutover  277 rows headed by 20260813012206 with the exact 41-row tail
+--   post-cutover  279 rows headed by 20260813012206 with the exact 43-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -43,7 +43,7 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 236/baseline or exactly 277/target'
+\echo '    PASS: exactly 236/baseline or exactly 279/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
@@ -146,7 +146,7 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260811001500'
     ) = 0 AS baseline_ledger,
-  count(*) = 277
+  count(*) = 279
     AND min(version::text) = '20260325181408'
     AND max(version::text) = '20260813012206'
     AND :'baseline_versions_exact'::boolean
@@ -171,7 +171,7 @@ SELECT
       '20260812101000','20260812101100','20260812104754',
       '20260812114638','20260812115556','20260812132725',
       '20260812152300','20260812161500','20260812193329',
-      '20260813010000',
+      '20260812203000','20260812203500','20260813010000',
       '20260813012206'
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
@@ -179,7 +179,7 @@ FROM supabase_migrations.schema_migrations
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 41 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 43 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'
@@ -1213,6 +1213,7 @@ SELECT
       ('public.hours_publication_email_outbox'),
       ('public.project_cancellation_deliveries'),
       ('public.project_feedback_requests'),
+      ('public.reporter_references'),
       ('public.api_rate_limit_receipts'),
       ('private.plugin_data_deletion_requests'),
       ('private.google_cap_event_receipts'),
@@ -1229,6 +1230,7 @@ SELECT
       ('public.hours_publication_email_outbox'),
       ('public.project_cancellation_deliveries'),
       ('public.project_feedback_requests'),
+      ('public.reporter_references'),
       ('public.api_rate_limit_receipts'),
       ('private.plugin_data_deletion_requests'),
       ('private.google_cap_event_receipts'),
@@ -1244,7 +1246,8 @@ SELECT
 
   \echo ''
   \echo '=============================================================='
-  \echo 'T2  Target constraints and indexes — PASS: 0 missing/invalid'
+  \echo 'T2  Target constraints, indexes, detachment, and definer ACLs'
+  \echo '    PASS: 0 missing/invalid'
   \echo '=============================================================='
   SELECT expected.kind, expected.relation_name, expected.object_name
   FROM (
@@ -1271,6 +1274,26 @@ SELECT
         'csf_admin_audit_events_post_reply_request_idx'),
       ('index', 'private.google_cap_event_receipts',
         'google_cap_event_receipts_processing_subject_uidx'),
+      ('index', 'public.content_reports',
+        'content_reports_request_occurrence_uidx'),
+      ('constraint', 'public.content_reports',
+        'content_reports_request_fingerprint_format_check'),
+      ('constraint', 'public.content_reports',
+        'content_reports_request_identity_complete_check'),
+      ('constraint', 'public.reporter_references',
+        'reporter_references_reporter_id_key'),
+      ('fk_delete_set_null', 'public.content_reports',
+        'content_reports_reporter_id_fkey'),
+      ('fk_delete_set_null', 'public.reporter_references',
+        'reporter_references_reporter_id_fkey'),
+      ('fk_delete_restrict', 'public.content_reports',
+        'content_reports_reporter_reference_fkey'),
+      ('server_only_function', 'public',
+        'submit_content_report(text,uuid,text,uuid,text,text,integer,text[],integer[],integer)'),
+      ('server_only_function', 'public',
+        'consume_content_report_attempt(text[],integer[],integer)'),
+      ('server_only_function', 'public',
+        'detach_content_report_reporter(uuid)'),
       ('index', 'public.api_rate_limit_receipts',
         'api_rate_limit_receipts_expiry_idx')
   ) AS expected(kind, relation_name, object_name)
@@ -1294,6 +1317,32 @@ SELECT
         AND index_state.indrelid = to_regclass(expected.relation_name)
         AND index_state.indisvalid
         AND index_state.indisready
+    )
+  ) OR (
+    expected.kind IN ('fk_delete_set_null', 'fk_delete_restrict')
+    AND NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_constraint AS constraint_record
+      WHERE constraint_record.conname = expected.object_name
+        AND constraint_record.conrelid = to_regclass(expected.relation_name)
+        AND constraint_record.contype = 'f'
+        AND constraint_record.convalidated
+        AND constraint_record.confdeltype = CASE expected.kind
+          WHEN 'fk_delete_set_null' THEN 'n'::"char"
+          ELSE 'r'::"char"
+        END
+    )
+  ) OR (
+    expected.kind = 'server_only_function'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_proc AS function_record
+      WHERE function_record.oid = to_regprocedure(
+          expected.relation_name || '.' || expected.object_name
+        )
+        AND function_record.prosecdef
+        AND function_record.proconfig @> ARRAY['search_path=""']
+        AND has_function_privilege('service_role', function_record.oid, 'EXECUTE')
     )
   )
   ORDER BY expected.kind, expected.object_name;
@@ -1324,6 +1373,26 @@ SELECT
           'csf_admin_audit_events_post_reply_request_idx'),
         ('index', 'private.google_cap_event_receipts',
           'google_cap_event_receipts_processing_subject_uidx'),
+        ('index', 'public.content_reports',
+          'content_reports_request_occurrence_uidx'),
+        ('constraint', 'public.content_reports',
+          'content_reports_request_fingerprint_format_check'),
+        ('constraint', 'public.content_reports',
+          'content_reports_request_identity_complete_check'),
+        ('constraint', 'public.reporter_references',
+          'reporter_references_reporter_id_key'),
+        ('fk_delete_set_null', 'public.content_reports',
+          'content_reports_reporter_id_fkey'),
+        ('fk_delete_set_null', 'public.reporter_references',
+          'reporter_references_reporter_id_fkey'),
+        ('fk_delete_restrict', 'public.content_reports',
+          'content_reports_reporter_reference_fkey'),
+        ('server_only_function', 'public',
+          'submit_content_report(text,uuid,text,uuid,text,text,integer,text[],integer[],integer)'),
+        ('server_only_function', 'public',
+          'consume_content_report_attempt(text[],integer[],integer)'),
+        ('server_only_function', 'public',
+          'detach_content_report_reporter(uuid)'),
         ('index', 'public.api_rate_limit_receipts',
           'api_rate_limit_receipts_expiry_idx')
     ) AS expected(kind, relation_name, object_name)
@@ -1347,6 +1416,32 @@ SELECT
           AND index_state.indrelid = to_regclass(expected.relation_name)
           AND index_state.indisvalid
           AND index_state.indisready
+      )
+    ) OR (
+      expected.kind IN ('fk_delete_set_null', 'fk_delete_restrict')
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_constraint AS constraint_record
+        WHERE constraint_record.conname = expected.object_name
+          AND constraint_record.conrelid = to_regclass(expected.relation_name)
+          AND constraint_record.contype = 'f'
+          AND constraint_record.convalidated
+          AND constraint_record.confdeltype = CASE expected.kind
+            WHEN 'fk_delete_set_null' THEN 'n'::"char"
+            ELSE 'r'::"char"
+          END
+      )
+    ) OR (
+      expected.kind = 'server_only_function'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_proc AS function_record
+        WHERE function_record.oid = to_regprocedure(
+            expected.relation_name || '.' || expected.object_name
+          )
+          AND function_record.prosecdef
+          AND function_record.proconfig @> ARRAY['search_path=""']
+          AND has_function_privilege('service_role', function_record.oid, 'EXECUTE')
       )
     )
   ) AS t2_pass

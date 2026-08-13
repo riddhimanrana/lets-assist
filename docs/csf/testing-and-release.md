@@ -3,11 +3,12 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** This repository carries 277 ordered migrations through
-`20260813012206_google_cap_effect_fencing`. Hosted Development Supabase remains
-at 273 through the atomic post-reply boundary; the four unmerged migrations
-have not been applied or deployed there. The `dev.lets-assist.com` alias still
-serves the earlier Ready code at
+**Status:** This repository carries 279 ordered migrations through
+`20260813012206_google_cap_effect_fencing`, including the project-signup
+rejection, content-report integrity, atomic AI quota, and Google CAP migrations.
+Hosted Development Supabase remains at 273 through the atomic post-reply
+boundary; the six unmerged migrations have not been applied or deployed there.
+The `dev.lets-assist.com` alias still serves the earlier Ready code at
 `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository tree ended at 272
 through `20260812132725`, because the external Vercel 100-deployment-per-day
 project cap prevented the refreshed deployment. Google OAuth and Picker are
@@ -23,23 +24,25 @@ only.
 
 ## Current hosted Development state
 
-- The repository branch has 277 ordered migrations through
+- The repository branch has 279 ordered migrations through
   `20260813012206_google_cap_effect_fencing`.
 - Hosted Development Supabase remains at 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`. The four unmerged migrations are
+  `20260812152300_atomic_csf_post_replies`. The six unmerged migrations are
   `20260812161500_atomic_project_signup_rejection`,
   `20260812193329_google_cap_replay_safety`,
+  `20260812203000_make_content_reports_server_written`,
+  `20260812203500_close_plugin_data_browser_default_acl`,
   `20260813010000_atomic_ai_quota_receipts`, and
   `20260813012206_google_cap_effect_fencing`. They are
   repository-only local work: hosted Development database parity, application
   deployment, and provider acceptance have not been established for it.
 - Production remains at 236 ordered migrations through `20260811001500`; the
-  41-migration cutover has not run.
+  43-migration cutover has not run.
 - The last accepted Development advisor snapshot was captured on the preceding
   272-migration shape: 95 INFO, 0 WARN, and 0 ERROR security findings, plus 611
   INFO, 0 WARN, and 0 ERROR performance findings. Those counts have not been
-  re-established for 273 and do not establish the repository's 277-migration
-  target.
+  re-established for either the hosted 273 or repository 279 shape and are not
+  current-parity evidence.
 - `dev.lets-assist.com` still serves exact development SHA
   `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose Ready repository tree ended
   at 272 through `20260812132725_csf_drive_metadata_compare_and_set_fence`.
@@ -389,10 +392,10 @@ The current officer procedure is documented in the [officer runbook](officer-run
   unexecuted.
 - Development uses a distinct hosted Supabase project. Its database remains at
   273 ordered migrations through `20260812152300_atomic_csf_post_replies`; this
-  repository branch has 277 through
-  `20260813012206_google_cap_effect_fencing`. The four unmerged migrations have not been
-  applied or deployed in hosted Development. The Ready alias still serves
-  development SHA `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository
+  repository branch has 279 through
+  `20260813012206_google_cap_effect_fencing`. The six unmerged migrations have
+  not been applied or deployed in hosted Development. The Ready alias still
+  serves development SHA `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository
   tree ended at 272 through
   `20260812132725_csf_drive_metadata_compare_and_set_fence`; the external Vercel
   100-deployment-per-day project cap blocked the refreshed code deployment.
