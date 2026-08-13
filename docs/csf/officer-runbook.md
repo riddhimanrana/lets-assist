@@ -178,7 +178,7 @@ This section is the one-time cutover procedure from Google Classroom + spreadshe
 
 ### 10.1 One-time semester and cohort setup
 
-1. Create cohorts Class of 2027 through Class of 2030 (2026 exists only if seeding history for graduated seniors) and terms Spring 2025, Fall 2025, Spring 2026 (closed) and Fall 2026 (current) through **Classes → Semesters & setup** (§2).
+1. Create cohorts Class of 2027 through Class of 2030 and terms Spring 2025, Fall 2025, Spring 2026 (closed) and Fall 2026 (current) through **Classes → Semesters & setup** (§2). Class of 2026 is out of scope. The Class of 2030 setup creates its cohort and terms; its student records come through the new application cycle, not a historical workbook.
 2. In **More → Communications → Settings**, confirm the two stored values for the **Term members** audience: **Consent topic key** and **Resend topic id**. That section holds nothing else — sender domain and provider health are verified outside it, against the provider. An established consent key is read-only, because opt-outs are stored under that exact key; changing one takes a dedicated audited migration. A missing pair keeps broadcast queueing disabled for that audience rather than guessing a scope. Do not use the generic organization-plugin JSON editor; cohort posts email through the same announcements consent topic.
 
 ### 10.2 Legacy data seed (rehearse locally first: `bun run dev`)
@@ -186,15 +186,15 @@ This section is the one-time cutover procedure from Google Classroom + spreadshe
 Import in this order through the existing Sheets workspace preview → commit fence; every commit is staff-approved and reversible only forward:
 
 1. **Club registry and policies** — `rosters/Clubs Points.xlsx`, `rosters/Spring 2025 CSF Returning Clubs Responses.xlsx`, `rosters/CSF Club Audit Spring 2026 Responses.xlsx` as partner-form imports → partner clubs with per-club point policy.
-2. **Member roster** — `rosters/CSF Application Spring 2026 Responses.xlsx` as `application_responses` for Spring 2026. Expect ~517 rows / ~516 unique profiles; grade maps 9→2029, 10→2028, 11→2027, 12→2026.
+2. **Historical class records** — import only Class of 2027 `S26` `A1:O168` (167 rows after the header), Class of 2028 `S26` `A1:O168` (167 rows), and Class of 2029 `S26` `A1:N89` (88 rows) as **Historical records**. Class of 2026 is out of scope: do not select, preview, or import it. Skip the template-only Class of 2030 workbook and create 2030 student records through the new application cycle. These sheets are historical evidence, not account-connection evidence; current canonical email, exact-name, and active-class checks still govern every connection.
 3. **March 2025 chapter attendance** — `rosters/CSF March Meeting Attendance 2025.xlsx` as `meeting_attendance` for Spring 2025. Name-only rows will land ambiguous/unmatched — resolve what you can; `skipped` is an honest terminal state for departed students.
 4. **Per-club Fall 2025 points** — normalize first: `bun run csf:normalize:legacy` (drafts editable mappings under `.artifacts/legacy-csf/mappings/`), review each mapping (sheet selection, club name, excluded rows, points-per-mark), then `bun run csf:normalize:legacy --apply` and upload each normalized workbook from `.artifacts/legacy-csf/normalized/` as a `partner_club_audit` import for Fall 2025.
 
-Acceptance: per-cohort roster counts match the application grade distribution; spot-check at least three clubs' point totals against their source workbooks; ambiguous-row queues triaged to zero or documented.
+Acceptance: the three historical previews use the exact bounded ranges and show 167, 167, and 88 rows respectively; the Class of 2030 template has no import job; spot-check at least three clubs' point totals against their source workbooks; ambiguous-row queues are triaged to zero or documented.
 
 ### 10.3 Student rollout (replaces the four Classroom codes)
 
-1. Create four cohort onboarding links (§4) — one per graduating class, Fall 2026 term, combined link type. These replace the Freshman/Sophomore/Junior/Senior Google Classroom codes everywhere the chapter publishes them.
+1. Create four cohort onboarding links (§4) — one per graduating class, Fall 2026 term, combined link type. These replace the Freshman/Sophomore/Junior/Senior Google Classroom codes everywhere the chapter publishes them. For Class of 2030, attach the reviewed new application form; do not prepopulate the class from its template-only workbook.
 2. Students who sign up through a cohort link skip the generic platform tour, confirm **We found your CSF record — is this you?**, pick a username in place, and get the CSF member tour on their **Feed**.
 3. Students whose sign-up email is not on the roster submit a link request; resolve them in **Members → Account connections → Matches to review**. Ranked suggestions help an officer locate evidence, but **Connect account** is not offered at all until stable corroborating identity evidence is present and every hard conflict is cleared. Never expose roster names to students.
 

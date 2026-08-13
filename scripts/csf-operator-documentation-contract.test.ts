@@ -71,6 +71,7 @@ function expectInOrder(text: string, labels: string[]) {
 
 const operatorGuide = flow(readDoc("dvhs-fall-2026-operator-guide.md"));
 const officerRunbook = flow(readDoc("officer-runbook.md"));
+const sourceData = flow(readDoc("source-data.md"));
 const productContract = flow(readDoc("product-contract.md"));
 const testingAndRelease = flow(readDoc("testing-and-release.md"));
 const productionCutoverRunbook = flow(
@@ -712,26 +713,81 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
   });
 
-  test("the application seed precedes class-history records and commit", () => {
+  test("the approved historical sheets preserve preview and commit boundaries", () => {
     const sourceOrder = between(
       operatorGuide,
       "## Import the reviewed Fall 2026 starting records",
       "### Connect Google first",
     );
     expectInOrder(sourceOrder, [
-      "`CSF Application - Spring 2026 (Responses)`",
-      "**Applications** as the **Record type**",
-      "Classes of 2027–2030",
-      "**Historical records**",
+      "Class of 2027",
+      "Class of 2028",
+      "Class of 2029",
     ]);
+    expect(sourceOrder).toContain("**Historical records**");
     expect(sourceOrder).toContain(
-      "Do not first load a class-history sheet as **Student roster**",
+      "Do not use the Spring 2026 application response workbook as a Fall 2026 roster seed",
     );
     expect(sourceOrder).toContain(
       "**Preview**, **Reconcile**, and **Commit** are separate boundaries",
     );
     expect(sourceOrder).toContain(
       "a clean preview neither imports rows nor authorizes a commit",
+    );
+    expect(sourceOrder).toContain(
+      "Choose **Historical records**, never **Student roster** or **Applications**",
+    );
+  });
+
+  test("the operator import scope is limited to Classes of 2027 through 2029", () => {
+    const sourceOrder = between(
+      operatorGuide,
+      "## Import the reviewed Fall 2026 starting records",
+      "### Connect Google first",
+    );
+    expectInOrder(sourceOrder, [
+      "Class of 2027",
+      "`S26`",
+      "`A1:O168`",
+      "167 rows",
+      "Class of 2028",
+      "`S26`",
+      "`A1:O168`",
+      "167 rows",
+      "Class of 2029",
+      "`S26`",
+      "`A1:N89`",
+      "88 rows",
+    ]);
+    expect(sourceOrder).toContain("Class of 2026 is out of scope");
+    expect(sourceOrder).toContain("template-only Class of 2030 workbook");
+    expect(sourceOrder).toContain("new application cycle");
+    expect(sourceOrder).not.toContain("Classes of 2027–2030 sheets");
+
+    const legacySeed = between(
+      officerRunbook,
+      "### 10.2 Legacy data seed",
+      "### 10.3 Student rollout",
+    );
+    expect(legacySeed).toContain("Class of 2026 is out of scope");
+    expect(legacySeed).toContain("template-only Class of 2030 workbook");
+    expect(legacySeed).toContain("new application cycle");
+    expect(sourceData).toContain(
+      "12th → Class of 2026 (out of scope; do not import)",
+    );
+  });
+
+  test("historical imports are not documented as account-connection evidence", () => {
+    const sourceTotals = between(
+      operatorGuide,
+      "### Privacy-safe source totals",
+      "## Set up Fall 2026 policy",
+    );
+    expect(sourceTotals).toContain(
+      "historical evidence, not account-connection evidence",
+    );
+    expect(sourceTotals).toContain(
+      "Account connections require current canonical evidence",
     );
   });
 
