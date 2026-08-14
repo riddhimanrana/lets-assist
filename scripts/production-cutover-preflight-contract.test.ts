@@ -22,9 +22,9 @@ const architectureAudit = readFileSync(
 );
 
 const PRODUCTION_HEAD = "20260811001500";
-const TARGET_HEAD = "20260813013300";
+const TARGET_HEAD = "20260814001123";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
-const HARD_FAIL_SITES = 28;
+const HARD_FAIL_SITES = 29;
 const hardFailStatements =
   preflight.match(/^[ \t]*SELECT 1 \/ 0 AS preflight_check_failed;$/gmu) ?? [];
 const PENDING_VERSIONS = [
@@ -78,6 +78,10 @@ const PENDING_VERSIONS = [
   "20260813013100",
   "20260813013200",
   "20260813013300",
+  "20260813020000",
+  "20260813085442",
+  "20260813091801",
+  "20260814001123",
 ] as const;
 
 function readMigration(version: string) {
@@ -89,7 +93,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 236 -> 286 ledger and all 50 pending versions", () => {
+  test("pins the exact 236 -> 290 ledger and all 54 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -111,7 +115,7 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    expect(migrations).toHaveLength(286);
+    expect(migrations).toHaveLength(290);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
     expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
@@ -120,9 +124,10 @@ describe("Production cutover preflight source contract", () => {
     expect(pending).toEqual([...PENDING_VERSIONS]);
     expect(pinnedTargetTail).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 236");
-    expect(preflight).toContain("count(*) = 286");
+    expect(preflight).toContain("count(*) = 290");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("50 migrations pending");
+    expect(preflight).toContain("54 migrations pending");
+    expect(preflight).not.toContain("count(*) = 288");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
     }
@@ -260,6 +265,22 @@ describe("Production cutover preflight source contract", () => {
     expect(preflightFunctionAclBlock).toContain("security_invoker=true");
     expect(preflightFunctionAclBlock).toContain("function_record.prosecdef");
 
+    const privateDvAclMigration = readMigration("20260813091801");
+    for (const helperName of ["is_dv_student", "can_access_dv_household"]) {
+      expect(privateDvAclMigration).toContain(
+        `REVOKE ALL ON FUNCTION private.${helperName}(uuid)`,
+      );
+      expect(privateDvAclMigration).toContain(
+        `GRANT EXECUTE ON FUNCTION private.${helperName}(uuid)`,
+      );
+    }
+    expect(privateDvAclMigration).toContain(
+      "FROM PUBLIC, anon, authenticated, service_role;",
+    );
+    expect(
+      privateDvAclMigration.match(/TO authenticated, postgres;/gu),
+    ).toHaveLength(2);
+
     const issuerGuard = readMigration("20260812193400");
     expect(issuerGuard).toContain(
       "CREATE OR REPLACE FUNCTION private.protect_staff_join_token_issuer()",
@@ -271,6 +292,41 @@ describe("Production cutover preflight source contract", () => {
       "REVOKE ALL ON FUNCTION private.protect_staff_join_token_issuer()",
     );
     expect(issuerGuard).toContain("TO postgres;");
+  });
+
+  test("T8 proves the begin lock order and denies every non-owner base caller", () => {
+    const t8 = preflight.slice(
+      preflight.indexOf("T8  Central import lineage"),
+      preflight.indexOf("E1  Invalid indexes"),
+    );
+    expect(t8).toContain("pg_catalog.pg_get_functiondef(wrapper.oid)");
+
+    const orderedCalls = [
+      "PERFORM plugin_data.csf_lock_identity_mutation(p_organization_id);",
+      "PERFORM plugin_data.csf_assert_import_actor_for_job(",
+      "PERFORM plugin_data.csf_lock_active_import_profiles(",
+      "RETURN plugin_data.csf_begin_import_row_for_attempt_identity_base(",
+    ];
+    for (const call of orderedCalls) {
+      expect(t8).toContain(`'${call}'`);
+    }
+    for (let index = 0; index < orderedCalls.length - 1; index += 1) {
+      expect(t8).toContain(
+        `begin_boundary.wrapper_definition,\n        '${orderedCalls[index]}'\n      ) < pg_catalog.strpos(\n        begin_boundary.wrapper_definition,\n        '${orderedCalls[index + 1]}'`,
+      );
+    }
+
+    const baseSignature =
+      "plugin_data.csf_begin_import_row_for_attempt_identity_base(uuid,uuid,uuid)";
+    expect(t8).toContain(`'anon',\n        begin_boundary.base_oid`);
+    expect(t8).toContain(`'authenticated',\n        begin_boundary.base_oid`);
+    expect(t8).toContain("begin_boundary.base_proacl");
+    expect(t8).toContain(
+      "pg_catalog.acldefault('f', begin_boundary.base_owner)",
+    );
+    expect(t8).toContain("privilege.grantee = 0");
+    expect(t8).toContain("privilege.privilege_type = 'EXECUTE'");
+    expect(t8).toContain(`'${baseSignature}'`);
   });
 
   test("verifies the moderation evidence shape this cutover introduces", () => {

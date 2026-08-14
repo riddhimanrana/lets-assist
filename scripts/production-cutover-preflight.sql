@@ -1,4 +1,4 @@
--- Production 236 -> repository target 286 cutover preflight.
+-- Production 236 -> repository target 290 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -10,7 +10,7 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   236 rows headed by 20260811001500
---   post-cutover  286 rows headed by 20260813013300 with the exact 50-row tail
+--   post-cutover  290 rows headed by 20260814001123 with the exact 54-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -50,7 +50,7 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 236/baseline or exactly 286/target'
+\echo '    PASS: exactly 236/baseline or exactly 290/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
@@ -153,9 +153,9 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260811001500'
     ) = 0 AS baseline_ledger,
-  count(*) = 286
+  count(*) = 290
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260813013300'
+    AND max(version::text) = '20260814001123'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
@@ -182,7 +182,9 @@ SELECT
       '20260812193329','20260812193400','20260812203000',
       '20260812203500','20260812220000','20260813010000',
       '20260813012206','20260813013000','20260813013100',
-      '20260813013200','20260813013300'
+      '20260813013200','20260813013300',
+      '20260813020000','20260813085442','20260813091801',
+      '20260814001123'
       -- END EXACT PRODUCTION TARGET TAIL
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
@@ -190,7 +192,7 @@ FROM supabase_migrations.schema_migrations
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 50 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 54 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'
@@ -2213,6 +2215,128 @@ SELECT
     \echo 'PASS T7: target storage posture exactly matches its contracts.'
   \else
     \echo 'FAIL T7: target bucket, RLS, policy, or posture contract drifted.'
+    SELECT 1 / 0 AS preflight_check_failed;
+  \endif
+
+  \echo ''
+  \echo '=============================================================='
+  \echo 'T8  Central import lineage and transport-settlement boundary'
+  \echo '    PASS: identity-first begin; unknown-only five-argument settlement'
+  \echo '=============================================================='
+  WITH reviewed_boundary(signature) AS (
+    VALUES
+      ('plugin_data.csf_begin_import_row_for_attempt(uuid,uuid,uuid)'),
+      ('plugin_data.csf_fail_import_row_for_attempt(uuid,uuid,uuid,text,text)')
+  ),
+  boundary_state AS (
+    SELECT
+      reviewed_boundary.signature,
+      function_record.oid,
+      function_record.prosecdef,
+      function_record.proconfig,
+      function_record.proacl,
+      function_record.proowner
+    FROM reviewed_boundary
+    LEFT JOIN pg_catalog.pg_proc AS function_record
+      ON function_record.oid = to_regprocedure(reviewed_boundary.signature)
+  ),
+  begin_boundary AS (
+    SELECT
+      wrapper.oid AS wrapper_oid,
+      pg_catalog.pg_get_functiondef(wrapper.oid) AS wrapper_definition,
+      base.oid AS base_oid,
+      base.proacl AS base_proacl,
+      base.proowner AS base_owner
+    FROM pg_catalog.pg_proc AS wrapper
+    LEFT JOIN pg_catalog.pg_proc AS base
+      ON base.oid = to_regprocedure(
+        'plugin_data.csf_begin_import_row_for_attempt_identity_base(uuid,uuid,uuid)'
+      )
+    WHERE wrapper.oid = to_regprocedure(
+      'plugin_data.csf_begin_import_row_for_attempt(uuid,uuid,uuid)'
+    )
+  )
+  SELECT
+    count(*) = 2
+      AND bool_and(oid IS NOT NULL)
+      AND bool_and(prosecdef)
+      AND bool_and(proconfig @> ARRAY['search_path=""'])
+      AND bool_and(has_function_privilege('service_role', oid, 'EXECUTE'))
+      AND bool_and(NOT has_function_privilege('anon', oid, 'EXECUTE'))
+      AND bool_and(NOT has_function_privilege('authenticated', oid, 'EXECUTE'))
+      AND bool_and(NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.aclexplode(
+          coalesce(proacl, pg_catalog.acldefault('f', proowner))
+        ) AS privilege
+        WHERE privilege.grantee = 0
+          AND privilege.privilege_type = 'EXECUTE'
+      ))
+      AND to_regprocedure(
+        'plugin_data.csf_fail_import_row_for_attempt(uuid,uuid,uuid,text,text,boolean)'
+      ) IS NULL
+      AND to_regprocedure(
+        'plugin_data.csf_begin_import_row_for_attempt_identity_base(uuid,uuid,uuid)'
+      ) IS NOT NULL
+      AND bool_and(begin_boundary.base_oid IS NOT NULL)
+      AND bool_and(NOT has_function_privilege(
+        'service_role',
+        begin_boundary.base_oid,
+        'EXECUTE'
+      ))
+      AND bool_and(NOT has_function_privilege(
+        'anon',
+        begin_boundary.base_oid,
+        'EXECUTE'
+      ))
+      AND bool_and(NOT has_function_privilege(
+        'authenticated',
+        begin_boundary.base_oid,
+        'EXECUTE'
+      ))
+      AND bool_and(NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.aclexplode(
+          coalesce(
+            begin_boundary.base_proacl,
+            pg_catalog.acldefault('f', begin_boundary.base_owner)
+          )
+        ) AS privilege
+        WHERE privilege.grantee = 0
+          AND privilege.privilege_type = 'EXECUTE'
+      ))
+      AND bool_and(pg_catalog.strpos(
+        begin_boundary.wrapper_definition,
+        'PERFORM plugin_data.csf_lock_identity_mutation(p_organization_id);'
+      ) > 0)
+      AND bool_and(pg_catalog.strpos(
+        begin_boundary.wrapper_definition,
+        'PERFORM plugin_data.csf_lock_identity_mutation(p_organization_id);'
+      ) < pg_catalog.strpos(
+        begin_boundary.wrapper_definition,
+        'PERFORM plugin_data.csf_assert_import_actor_for_job('
+      ))
+      AND bool_and(pg_catalog.strpos(
+        begin_boundary.wrapper_definition,
+        'PERFORM plugin_data.csf_assert_import_actor_for_job('
+      ) < pg_catalog.strpos(
+        begin_boundary.wrapper_definition,
+        'PERFORM plugin_data.csf_lock_active_import_profiles('
+      ))
+      AND bool_and(pg_catalog.strpos(
+        begin_boundary.wrapper_definition,
+        'PERFORM plugin_data.csf_lock_active_import_profiles('
+      ) < pg_catalog.strpos(
+        begin_boundary.wrapper_definition,
+        'RETURN plugin_data.csf_begin_import_row_for_attempt_identity_base('
+      )) AS target_import_lineage_pass
+  FROM boundary_state
+  CROSS JOIN begin_boundary
+  \gset
+  \if :target_import_lineage_pass
+    \echo 'PASS T8: central import lineage and settlement ACLs are exact.'
+  \else
+    \echo 'FAIL T8: central import lineage signature, lock boundary, or ACL drifted.'
     SELECT 1 / 0 AS preflight_check_failed;
   \endif
 \endif

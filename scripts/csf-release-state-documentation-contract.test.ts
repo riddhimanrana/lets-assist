@@ -23,6 +23,7 @@ function between(text: string, start: string, end: string) {
 const operatorGuide = flow(
   readRepositoryFile("docs/csf/dvhs-fall-2026-operator-guide.md"),
 );
+const officerRunbook = flow(readRepositoryFile("docs/csf/officer-runbook.md"));
 const testingAndRelease = flow(
   readRepositoryFile("docs/csf/testing-and-release.md"),
 );
@@ -32,15 +33,21 @@ const productionCutoverRunbook = flow(
 const cleanupRegister = flow(
   readRepositoryFile("docs/development/cleanup-register.md"),
 );
+const csfCommunicationsActions = readRepositoryFile(
+  "lib/plugins/private/plugins/dvhs-csf/communications-actions.ts",
+);
+const csfCommunicationsActionsTest = readRepositoryFile(
+  "lib/plugins/private/plugins/dvhs-csf/services/communications-actions.test.ts",
+);
 
 describe("CSF release-state documentation truthfulness guards", () => {
   test("current status separates the repository ledger from hosted database and deployed code", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(286);
+    expect(migrations).toHaveLength(290);
     expect(migrations.at(-1)).toBe(
-      "20260813013300_close_csf_representative_and_publication_races.sql",
+      "20260814001123_csf_import_lineage_transport_settlement.sql",
     );
 
     const currentState = between(
@@ -49,7 +56,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 286 ordered migrations through",
+      "repository branch has 290 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260812203500_close_plugin_data_browser_default_acl`",
@@ -74,6 +81,15 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "`20260813013300_close_csf_representative_and_publication_races`",
     );
     expect(currentState).toContain(
+      "`20260813020000_cancellation_preserves_unknown_delivery_outcomes`",
+    );
+    expect(currentState).toContain(
+      "`20260813085442_harden_private_is_plugin_enabled_acl`",
+    );
+    expect(currentState).toContain(
+      "`20260813091801_harden_dv_private_policy_helper_acls`",
+    );
+    expect(currentState).toContain(
       "exact local isolated union replay passed all 133 pgTAP files and 5,523 assertions",
     );
     expect(currentState).toContain(
@@ -82,7 +98,9 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(currentState).toContain(
       "Hosted Development Supabase remains at 273 ordered migrations through",
     );
-    expect(currentState).toContain("The thirteen unmerged migrations are");
+    expect(currentState).toContain(
+      "The seventeen repository-only migrations are",
+    );
     expect(currentState).toContain("`20260813010000_atomic_ai_quota_receipts`");
     expect(currentState).toContain(
       "`20260813013000_reconcile_project_lifecycle_boundaries`",
@@ -96,7 +114,8 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(currentState).toContain(
       "Production remains at 236 ordered migrations through `20260811001500`",
     );
-    expect(currentState).toContain("50-migration cutover has not run");
+    expect(currentState).toContain("54-migration cutover has not run");
+    expect(currentState).not.toContain("50 migrations are Production-pending");
     expect(currentState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
     );
@@ -137,10 +156,13 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(currentState).toContain("zero term applications were committed");
     expect(currentState).toContain("No names or email addresses");
     expect(currentState).toContain(
-      "caller-summary correction and inactive-access hardening are combined in private development commit `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`",
+      "current root gitlink is `cdbeb59e6cc086e8794ec8b35157ab043f65c01c`",
     );
     expect(currentState).toContain(
-      "root worktree's gitlink points to that exact commit locally",
+      "locally known private `origin/development` still ends at `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`",
+    );
+    expect(currentState).toContain(
+      "current target is not contained there and remains a local-only, private-first release blocker",
     );
     expect(currentState).not.toContain(
       "Preview failed before reading or importing rows because the seven-argument RPC was missing",
@@ -152,9 +174,18 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "### External and action-time gates",
       "## Artifact index",
     );
-    expect(externalGates).toContain("repository branch has 286 through");
+    expect(externalGates).toContain("repository branch has 290 through");
     expect(externalGates).toContain(
       "`20260813013300_close_csf_representative_and_publication_races`",
+    );
+    expect(externalGates).toContain(
+      "`20260813020000_cancellation_preserves_unknown_delivery_outcomes`",
+    );
+    expect(externalGates).toContain(
+      "`20260813085442_harden_private_is_plugin_enabled_acl`",
+    );
+    expect(externalGates).toContain(
+      "`20260813091801_harden_dv_private_policy_helper_acls`",
     );
     expect(testingAndRelease).toContain(
       "That table is the superseded July source snapshot",
@@ -164,6 +195,23 @@ describe("CSF release-state documentation truthfulness guards", () => {
     );
     expect(testingAndRelease).toContain(
       "earlier 618-row/23-column shape must not be used",
+    );
+  });
+
+  test("the officer runbook tracks the exact current cutover ledger", () => {
+    expect(officerRunbook).toContain(
+      "this repository carries 290 ordered migrations through `20260814001123`",
+    );
+    expect(officerRunbook).toContain(
+      "54-migration Production cutover gates remain pending",
+    );
+    expect(officerRunbook).toContain("ordered ledger through `20260814001123`");
+    expect(officerRunbook).toContain("current 290-migration repository ledger");
+    expect(officerRunbook).not.toContain(
+      "this repository carries 277 ordered migrations",
+    );
+    expect(officerRunbook).not.toContain(
+      "41-migration Production cutover gates remain pending",
     );
   });
 
@@ -180,9 +228,11 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "Hosted Development Supabase remains at 273 ordered migrations through",
     );
     expect(rehearsalState).toContain(
-      "this repository has 286 through `20260813013300_close_csf_representative_and_publication_races`",
+      "this repository has 290 through `20260814001123_csf_import_lineage_transport_settlement`",
     );
-    expect(rehearsalState).toContain("The thirteen unmerged migrations are");
+    expect(rehearsalState).toContain(
+      "The seventeen repository-only migrations are",
+    );
     expect(rehearsalState).toContain(
       "`20260812203500_close_plugin_data_browser_default_acl`",
     );
@@ -194,6 +244,18 @@ describe("CSF release-state documentation truthfulness guards", () => {
     );
     expect(rehearsalState).toContain(
       "`20260813013200_recheck_csf_activity_partner_authorization_under_lock`",
+    );
+    expect(rehearsalState).toContain(
+      "`20260813013300_close_csf_representative_and_publication_races`",
+    );
+    expect(rehearsalState).toContain(
+      "`20260813020000_cancellation_preserves_unknown_delivery_outcomes`",
+    );
+    expect(rehearsalState).toContain(
+      "`20260813085442_harden_private_is_plugin_enabled_acl`",
+    );
+    expect(rehearsalState).toContain(
+      "`20260813091801_harden_dv_private_policy_helper_acls`",
     );
     expect(rehearsalState).toContain(
       "`20260812161500_atomic_project_signup_rejection`",
@@ -224,7 +286,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
     );
     expect(rehearsalState).toContain("deployment is Ready but stale");
     expect(rehearsalState).toContain(
-      "They have not been re-established for either hosted 273 or repository 286",
+      "They have not been re-established for either hosted 273 or repository 290",
     );
     expect(rehearsalState).toContain(
       "seven-argument metadata RPC exists, the old four-argument overload is absent",
@@ -244,10 +306,13 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(rehearsalState).toContain("zero term applications were committed");
     expect(rehearsalState).toContain("No names or email addresses");
     expect(rehearsalState).toContain(
-      "caller-summary correction and inactive-access hardening are combined in private development commit `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`",
+      "current root gitlink is `cdbeb59e6cc086e8794ec8b35157ab043f65c01c`",
     );
     expect(rehearsalState).toContain(
-      "root worktree's gitlink points to that exact commit locally",
+      "locally known private `origin/development` still ends at `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`",
+    );
+    expect(rehearsalState).toContain(
+      "current target is not contained there and remains a local-only, private-first release blocker",
     );
     expect(rehearsalState).not.toContain(
       "Preview failed before reading or importing rows because the seven-argument RPC was missing",
@@ -260,14 +325,14 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "## Related references",
     );
     expect(cutover).toContain(
-      "Replay the ordered migration ledger through `20260813013300`",
+      "Replay the ordered migration ledger through `20260814001123`",
     );
     expect(cutover).toContain(
       "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
     );
     expect(cutover).toContain("exact 236-row baseline");
-    expect(cutover).toContain("full 50-migration transition");
-    expect(cutover).toContain("preflight on the 286-row target");
+    expect(cutover).toContain("full 54-migration transition");
+    expect(cutover).toContain("preflight on the 290-row target");
   });
 
   test("production cutover baseline tracks the exact pending migration range", () => {
@@ -278,10 +343,10 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "Hosted Development Supabase remains at 273 ordered migrations through `20260812152300`",
     );
     expect(productionCutoverRunbook).toContain(
-      "this repository has 286 through `20260813013300_close_csf_representative_and_publication_races`",
+      "this repository has 290 through `20260814001123_csf_import_lineage_transport_settlement`",
     );
     expect(productionCutoverRunbook).toContain(
-      "The thirteen unmerged migrations have not been applied or deployed in hosted Development",
+      "The seventeen repository-only migrations have not been applied or deployed in hosted Development",
     );
     expect(productionCutoverRunbook).toContain(
       "`20260812220000_csf_meeting_permission_followups`",
@@ -293,7 +358,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "repository ledger ended at 272 through `20260812132725`",
     );
     expect(productionCutoverRunbook).toContain(
-      "Production therefore has exactly 50 pending migrations",
+      "Production therefore has exactly 54 pending migrations",
     );
     expect(productionCutoverRunbook).not.toContain("38 pending migrations");
     expect(productionCutoverRunbook).not.toContain("exactly 38 pending");
@@ -342,6 +407,9 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "repository ledger is at 223",
     );
     expect(productionCutoverRunbook).not.toContain(
+      "T1–T7 run only on the 286 shape",
+    );
+    expect(productionCutoverRunbook).not.toContain(
       "expect exactly 174 pending",
     );
     expect(productionCutoverRunbook).toContain("Production remains untouched");
@@ -366,7 +434,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "split 47+26 assertion autocommit dblink pgTAP suite",
     );
     expect(aud036).toContain(
-      "full local isolated replay passed all 133 pgTAP files and 5,523 assertions",
+      "exact 290-migration/140-file replay passed 5,718 assertions",
     );
     expect(aud036).toContain("Hosted Development acceptance remains pending");
   });
@@ -385,6 +453,128 @@ describe("CSF release-state documentation truthfulness guards", () => {
     );
     expect(aud037).toContain("private plugin repository");
     expect(aud037).toContain("Not fixable from this repository");
+  });
+
+  test("CLEAN-022 is source-complete locally but release-blocked without overstating acceptance", () => {
+    const clean022 = between(cleanupRegister, "| CLEAN-022", "| AUD-030");
+
+    expect(clean022).toContain(
+      "`20260813020000_cancellation_preserves_unknown_delivery_outcomes.sql`",
+    );
+    expect(clean022).toContain(
+      "Cancellation replays recompute current ambiguous-delivery and unexpired processing-lease counts under the campaign lock",
+    );
+    expect(clean022).toContain(
+      "settlement reserve plus the minimum provider window before acknowledging a scheduler reservation or advancing fairness",
+    );
+    expect(clean022).toContain(
+      "Source-complete at the repository-local/source-contract level, but not publishable",
+    );
+    expect(clean022).toContain("root gitlink commit `8419171d`");
+    expect(clean022).toContain("`cdbeb59e6cc086e8794ec8b35157ab043f65c01c`");
+    expect(clean022).toContain("`49266bf`");
+    expect(clean022).toContain("`cdbeb59e`");
+    expect(clean022).toContain("`communications-actions.ts` types the outcome");
+    expect(clean022).toContain("(`CsfCancellationOutcome`");
+    expect(clean022).toContain(
+      "`components/CsfCommunicationsActions.tsx` closes the cancel dialog only for the `clean` outcome",
+    );
+    expect(clean022).toContain(
+      "accessible `ActionStatus` polite status region",
+    );
+    expect(clean022).toContain(
+      "`components/CsfCommunicationsCampaigns.tsx` hosts that dialog per campaign card",
+    );
+    expect(clean022).not.toContain(
+      "`lib/plugins/private/plugins/dvhs-csf/communications-actions.ts`:",
+    );
+    expect(clean022).toContain(
+      "`lib/plugins/private/plugins/dvhs-csf/services/communications-actions.test.ts`",
+    );
+    expect(clean022).toContain(
+      "exact `cdbeb59e` target is local-only and not contained in the locally known private `origin/development`",
+    );
+    expect(clean022).toContain(
+      "strict root release check must fail until the private commit merges first",
+    );
+    expect(clean022).toContain(
+      "full exact-tree local isolated replay, Docker-backed verification, hosted Development acceptance, provider/browser gates, and Production remain unverified and pending",
+    );
+    expect(clean022).toContain(
+      "does not imply deployment or runtime database acceptance",
+    );
+    expect(clean022).not.toContain("full local isolated replay passed");
+    expect(clean022).not.toContain(
+      "private officer-message dependency remains pending",
+    );
+    expect(clean022).not.toContain("is not fully closed");
+  });
+
+  test("the integrated private cancellation module backs the CLEAN-022 source-completion claims", () => {
+    expect(csfCommunicationsActions).toContain(
+      'export type CsfCancellationOutcome =\n  "clean" | "ambiguous" | "leased" | "ambiguous_and_leased";',
+    );
+    expect(csfCommunicationsActions).toContain(
+      "cancellationOutcome: cancellationOutcome(cancellation)",
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'test("closes after a clean cancellation"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "shouldCloseCancelCampaignDialog",
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "uses warning toast styling for attention outcomes and success for clean outcomes",
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "keeps the empty polite status region mounted and out of footer spacing",
+    );
+
+    expect(csfCommunicationsActionsTest).toContain(
+      'describe("CSF campaign cancellation result"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'test("reports a clean cancellation only when no work remains ambiguous or leased"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'cancellationOutcome: "clean"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "Campaign cancelled. Outstanding work was settled; no retry was scheduled.",
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'test("reports deliveries that remain queued and under review without recipient data"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'cancellationOutcome: "ambiguous"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "1 delivery remains queued and under review because its provider outcome is uncertain. Do not retry it; reconcile it from provider evidence.",
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'test("reports attempts that remain leased and may still settle"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'cancellationOutcome: "leased"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "2 delivery attempts are still leased and may still settle. Do not retry them; reload the campaign and review the resulting delivery outcomes.",
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'test("reports one ambiguous delivery and one leased attempt with exact combined grammar"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'test("reports plural ambiguous deliveries and leased attempts with exact combined grammar"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      'cancellationOutcome: "ambiguous_and_leased"',
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "Do not retry this outstanding work; reconcile uncertain outcomes from provider evidence and reload the campaign to review leased attempts after they settle.",
+    );
+    expect(csfCommunicationsActionsTest).toContain(
+      "2 deliveries remain queued and under review because their provider outcomes are uncertain. 3 delivery attempts are still leased and may still settle.",
+    );
   });
 
   test("the register records the current cross-branch AUD identifier drift", () => {

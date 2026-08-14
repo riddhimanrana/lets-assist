@@ -41,10 +41,13 @@ Priority scale: **P0** exploitable now against real users · **P1** security-rel
 | [AUD-034](#aud-034) | P1  | Cancellation worker    | Healthy pagination spent the abandoned-lease retry budget and could amplify retries                                    | **Fixed locally**; hosted Development pending                |
 | [AUD-041](#aud-041) | P1  | Moderation evidence    | Reporters could directly create, rewrite, or delete `content_reports` evidence and retries duplicated it               | **Fixed locally**; hosted Development pending                |
 | [AUD-042](#aud-042) | P1  | Plugin data ACLs       | `plugin_data` default privileges re-granted `authenticated` on every future table, sequence, and routine               | **Fixed locally**; hosted Development pending                |
+| [AUD-043](#aud-043) | P1  | Private function ACLs  | Three fixed-path private definers retained default `PUBLIC` execute beyond their reviewed callers                      | **Fixed locally**; exact replay pending                      |
 
 **Clean results worth recording:** all 176 base tables in `public` and `plugin_data` have RLS enabled (131 + 45, zero exceptions). The private buckets `csf-private`, `data-exports`, and `waiver-signatures` have **zero** `storage.objects` policies — service-role only, which is the correct posture. Hosted `development` security advisors return 90 lints, all `INFO`/`rls_enabled_no_policy` on `plugin_data.csf_*`, which is the intended deny-all design; zero `ERROR` or `WARN`.
 
-**Static surface inventory, local only:** the initial generator run after rebasing over `development` `15ba480` and private gitlink `8efdc9a` found 46 route handlers, 351 exported Server Actions, 166 RPC call sites, 464 SQL function definitions (321 marked `SECURITY DEFINER`), 359 RLS policy definitions, 10 storage buckets, 12 cron routes, 2 webhook routes, 3 OAuth callback boundaries, 38 upload boundaries, 20 file-processing boundaries, and 8 service-role references. These are source-definition counts, not distinct effective database objects or proof of reachability. Generated JSON/Markdown remains ignored under `.artifacts/` and records the exact commit of each run.
+**Static surface inventory, local only:** the initial generator run after rebasing over `development` `15ba480` and private gitlink `8efdc9a` found 46 route handlers, 351 exported Server Actions, 166 RPC call sites, 464 SQL function definitions (321 marked `SECURITY DEFINER`), 359 RLS policy definitions, 10 storage buckets, 12 cron routes, 2 webhook routes, 3 OAuth callback boundaries, 38 upload boundaries, 20 file-processing boundaries, and 8 credential-name references. That last historical count did not recognize the repository's actual `getAdminClient` factory. The corrected local generator run at root HEAD `295a39c9` with private gitlink `cdbeb59e` records 389 reviewed service-role/admin indicators: 1 factory definition, 141 imports (including reviewed relative paths and import renames), 239 calls, and 8 credential references. Tests, docs, and generated artifacts are excluded. These are source-definition and call-site counts, not distinct effective database objects or proof of reachability. Generated JSON/Markdown remains ignored under `.artifacts/` and records the exact commit and dirty state of each run.
+
+**Current private publication boundary, local only:** root gitlink `cdbeb59e6cc086e8794ec8b35157ab043f65c01c` exists only in the local private object store and is not an ancestor of the locally known private `origin/development`. The root candidate is release-blocked until that private commit merges first and the local remote-tracking ref reflects it. The strict checker uses local refs and performs no fetch. This does not close or update hosted Development or Production evidence.
 
 ---
 
@@ -750,9 +753,12 @@ The private action keeps its existing parameters and accepts one optional final
 request UUID. The UI retains that UUID across an unknown add/delete outcome and
 reuses it on an unchanged manual retry; changing the body discards the stale
 key. Private PR #44 merged first into the private repository's `development`
-branch at `d4188dd7`; the current root gitlink
-`605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b` contains that reply code, the later
-preview-summary correction, meeting hardening, and inactive-access hardening.
+branch at `d4188dd7`; locally known private `origin/development` at `605342ca`
+contains that reply code, the later preview-summary correction, meeting
+hardening, and inactive-access hardening. The current root gitlink `cdbeb59e`
+also contains that work but is local-only and not yet contained in the locally
+known private `origin/development`, so the root candidate remains release-blocked
+until the private-first merge.
 Audited source evidence passes 48 focused private tests (220 expectations), all
 121 database files and 5,126 pgTAP assertions, including observed
 two-connection advisory-lock waits for same-request replay and a staff-only
@@ -1016,6 +1022,47 @@ Local evidence: 17 pgTAP assertions in
 migration replay. Withholding the migration fails 5 of those 17 — the existing
 routine grant, the browser-facing default ACL entries, and inheritance on a new
 table, sequence, and routine. Production was not queried or changed.
+
+---
+
+<a id="aud-043"></a>
+
+## AUD-043 — Private helper definers retained default execute
+
+**Priority:** P1 · **Status:** Fixed locally; exact replay and hosted Development pending
+
+`private.is_plugin_enabled(uuid,text)` was created as a fixed-empty-path
+`SECURITY DEFINER`, but its historical migration did not state an execution ACL,
+so PostgreSQL's default `PUBLIC` execute remained. `private` is omitted from the
+PostgREST exposed-schema list, and a repository-wide source scan found no
+runtime caller, so no browser-callable exploit or required `service_role`
+capability is claimed.
+
+`20260813085442_harden_private_is_plugin_enabled_acl.sql` preserves the stable
+definition, revokes execution from `PUBLIC`, `anon`, `authenticated`, and
+`service_role`, grants only owner `postgres`, and fails if the definer or empty
+search path drifts. The source contract pins the zero-caller fact and the
+owner-only ACL; eight pgTAP assertions cover the runtime signature, definition,
+effective denials, and owner grant. Because the function remains in `private`,
+the public callable catalog is unchanged. Production was not accessed.
+
+The follow-up found the same inherited `PUBLIC` capability on
+`private.is_dv_student(uuid)` and
+`private.can_access_dv_household(uuid)`. Both are stable SQL `SECURITY DEFINER`
+functions with `search_path = ''`; unlike the dormant plugin predicate, they
+remain runtime dependencies of 20 DV policies declared `TO authenticated`
+(13 student-policy callers and 7 household-policy callers). No application,
+service, private-plugin, `anon`, or `service_role` caller requires execution.
+
+`20260813091801_harden_dv_private_policy_helper_acls.sql` therefore preserves
+both definitions, revokes `PUBLIC`, `anon`, `authenticated`, and `service_role`,
+then grants only the proven policy role `authenticated` plus owner `postgres`.
+The source contract pins the exact signatures, security/search-path mode, 20
+policy names and roles, absence of another runtime caller, unchanged policy
+ledger, and explicit ACL statements. Twenty pgTAP assertions pin the exact
+direct ACL and effective role posture. The focused source contract passes;
+exact database replay and hosted Development remain pending. Production was not
+accessed.
 
 ---
 

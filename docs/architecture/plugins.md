@@ -4,6 +4,12 @@ The public repository owns plugin contracts, installation state, entitlement che
 
 Plugin availability is resolved per request from persisted install and entitlement state. Environment-variable allowlists are not a rollout system. Browser code must not query `plugin_data` directly, and a missing private registry must fail closed rather than silently producing an empty registry.
 
+## Private CSF tenant boundary
+
+The CSF implementation is a server-only adapter behind the public plugin contract. It must not enter a browser bundle, expose `plugin_data`, or accept tenant scope inferred only from submitted identifiers. Each request authenticates the actor, resolves current install and entitlement state, proves the organization capability and target-resource relationship, and passes explicit organization scope into the private implementation. The service and transaction then revalidate that scope; elevated database credentials do not replace either check.
+
+CSF validation, consequential-transition approval, idempotency, durable receipts/outbox writes, and redacted audit events follow the platform responsibilities in [platform architecture](platform.md). Plugin caches must be private to every authorization dimension or disabled. Retries use the same organization-bound request identity, and ambiguous provider outcomes are reconciled rather than blindly replayed.
+
 Private changes follow a two-PR sequence:
 
 1. Branch and merge the implementation in `lets-assist-plugins`.

@@ -425,6 +425,15 @@ export async function finalizeCsfCampaignAudience(
  *
  * Requires an actor holding the tenant-scoped staff capability, settles the
  * outstanding work, and never enqueues a retry behind it.
+ *
+ * "CANCELLED" DOES NOT MEAN "NOBODY WAS MAILED", AND THE CALLER HAS TO BE ABLE
+ * TO SAY SO. An attempt whose lease had already lapsed may have reached the
+ * provider before the officer clicked cancel, so the ledger settles it as an
+ * unknown outcome and leaves its delivery queued and under review rather than
+ * asserting a failure it cannot prove. `deliveriesLeftAmbiguous` is how many
+ * recipients are in that position. Reporting only `attemptsSettled` let a
+ * confirmation screen say the send was stopped when some of it may already have
+ * gone out.
  */
 export async function cancelCsfCampaign(
   plugin: CsfPluginRpc,
@@ -438,6 +447,12 @@ export async function cancelCsfCampaign(
 ): Promise<{
   status: string;
   attemptsSettled: number;
+  /** Recipients this cancellation proved were never handed to the provider. */
+  deliveriesSettled: number;
+  /** Recipients who may have been mailed anyway and are awaiting review. */
+  deliveriesLeftAmbiguous: number;
+  /** Live leases reported rather than stolen; each may still settle honestly. */
+  attemptsStillLeased: number;
   idempotentReplay: boolean;
 }> {
   const response = await plugin.rpc("csf_cancel_communication_campaign", {
@@ -456,6 +471,9 @@ export async function cancelCsfCampaign(
   return {
     status: String(data.status ?? "unknown"),
     attemptsSettled: Number(data.attemptsSettled ?? 0),
+    deliveriesSettled: Number(data.deliveriesSettled ?? 0),
+    deliveriesLeftAmbiguous: Number(data.deliveriesLeftAmbiguous ?? 0),
+    attemptsStillLeased: Number(data.attemptsStillLeased ?? 0),
     idempotentReplay: data.idempotentReplay === true,
   };
 }
