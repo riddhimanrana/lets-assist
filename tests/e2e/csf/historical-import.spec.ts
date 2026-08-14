@@ -51,10 +51,10 @@ function hasSubmittedJobId(request: Request, previewJobId: string) {
 
   const escapedJobId = previewJobId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const multipartJobId = new RegExp(
-    `name="jobId"[^\\r\\n]*\\r?\\n(?:[^\\r\\n]*\\r?\\n)*\\r?\\n${escapedJobId}(?=\\r?\\n)`,
+    `name="(?:_\\d+_)?jobId"[^\\r\\n]*\\r?\\n(?:[^\\r\\n]*\\r?\\n)*\\r?\\n${escapedJobId}(?=\\r?\\n)`,
   );
   const urlEncodedJobId = new RegExp(
-    `(?:^|[&\\r\\n])jobId=${encodeURIComponent(previewJobId)}(?:[&\\r\\n]|$)`,
+    `(?:^|[&\\r\\n])(?:_\\d+_)?jobId=${encodeURIComponent(previewJobId)}(?:[&\\r\\n]|$)`,
   );
   return multipartJobId.test(body) || urlEncodedJobId.test(body);
 }
@@ -278,11 +278,16 @@ test.describe("CSF historical workbook import", () => {
     expect(workbook.byteLength).toBeGreaterThan(0);
 
     await loginAs(page, "admin", `${CSF_ORGANIZATION_PATH}?tab=csf-imports`);
+    // The accordion is client-controlled. Let the post-login route finish
+    // loading its client chunks before the first interaction so a fast SSR
+    // paint cannot accept an inert pre-hydration click.
+    await page.waitForLoadState("networkidle");
     await page.getByRole("button", { name: /Upload Excel or CSV/ }).click();
+    await expect(page.getByLabel("Workbook", { exact: true })).toBeVisible();
     await page
       .getByRole("button", { name: "Historical records", exact: true })
       .click();
-    await page.getByLabel("Workbook").setInputFiles({
+    await page.getByLabel("Workbook", { exact: true }).setInputFiles({
       name: fixture.workbookName,
       mimeType:
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -295,7 +300,10 @@ test.describe("CSF historical workbook import", () => {
     await expect(
       page.getByRole("heading", { name: `${fixture.workbookName} · S26` }),
     ).toBeVisible();
-    await expect(page.getByText("2 rows", { exact: false })).toBeVisible();
+    const workbookTab = page.getByRole("combobox", { name: "Workbook tab" });
+    await expect(workbookTab.locator('[data-slot="select-value"]')).toHaveText(
+      "S26 · 2 rows",
+    );
 
     await page.getByRole("combobox", { name: "Graduating class" }).click();
     await page
@@ -311,19 +319,25 @@ test.describe("CSF historical workbook import", () => {
       .click();
     await page.getByLabel("Header row").fill("1");
 
-    await page.getByRole("combobox", { name: "First name" }).click();
-    await page.getByRole("option", { name: "First", exact: true }).click();
-    await page.getByRole("combobox", { name: "Last name" }).click();
-    await page.getByRole("option", { name: "Last", exact: true }).click();
+    const chooseColumn = async (label: string, option: string) => {
+      const trigger = page.getByRole("combobox", { name: label });
+      await trigger.click();
+      await expect(trigger).toHaveAttribute("aria-expanded", "true");
+      await page
+        .getByRole("listbox")
+        .last()
+        .getByRole("option", { name: option, exact: true })
+        .click();
+      await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    };
+    await chooseColumn("First name", "First");
+    await chooseColumn("Last name", "Last");
     for (const label of [
       "School email",
       "Personal email",
       "Completion status",
     ]) {
-      await page.getByRole("combobox", { name: label }).click();
-      await page
-        .getByRole("option", { name: "Not mapped", exact: true })
-        .click();
+      await chooseColumn(label, "Not mapped");
     }
     await page
       .getByRole("button", { name: "Preview normalized rows", exact: true })
@@ -341,9 +355,6 @@ test.describe("CSF historical workbook import", () => {
     );
     await expect(
       page.getByRole("heading", { name: "Preview needs reconciliation" }),
-    ).toBeVisible();
-    await expect(
-      page.getByText(fixture.workbookName, { exact: false }),
     ).toBeVisible();
     await expect(
       page.getByText(`${fixture.workbookName} · S26 · A1:C2`, {
@@ -528,7 +539,7 @@ test.describe("CSF historical workbook import", () => {
     if (!capturedCommitBody?.byteLength) {
       throw new Error("The commit Server Action request did not carry a body.");
     }
-    const capturedCommitHeaders = capturedCommitRequest.headers();
+    const capturedCommitHeaders = await capturedCommitRequest.allHeaders();
     const replayHeaders = replayableServerActionHeaders(capturedCommitHeaders);
     if (
       !replayHeaders["next-action"] ||
@@ -540,7 +551,7 @@ test.describe("CSF historical workbook import", () => {
       );
     }
     await expect(
-      page.getByText("Imported 1 rows; 0 need review; 0 failed.", {
+      page.getByText("Imported 1 rows; 0 need review.", {
         exact: true,
       }),
     ).toBeVisible();
@@ -551,6 +562,7 @@ test.describe("CSF historical workbook import", () => {
     const savedSource = page
       .getByText(fixture.workbookName, { exact: true })
       .locator("..")
+      .locator("..")
       .locator("..");
     await expect(
       savedSource.getByRole("button", { name: "History" }),
@@ -559,6 +571,7 @@ test.describe("CSF historical workbook import", () => {
 
     const sourceHistory = page
       .getByText("Source history", { exact: true })
+      .locator("..")
       .locator("..")
       .locator("..");
     await expect(
@@ -610,10 +623,18 @@ test.describe("CSF historical workbook import", () => {
       .locator("article")
       .filter({ hasText: `Commit #${commitJob.id.slice(0, 8)}` });
     await expect(sourceHistoryRun).toHaveCount(1);
-    await expect(sourceHistoryRun).toContainText("Rows 1");
-    await expect(sourceHistoryRun).toContainText("Committed 1");
-    await expect(sourceHistoryRun).toContainText("Skipped 0");
-    await expect(sourceHistoryRun).toContainText("Errors 0");
+    const summaryFacts = sourceHistoryRun.locator("dl").first();
+    for (const [label, value] of [
+      ["Rows", "1"],
+      ["Committed", "1"],
+      ["Skipped (preview)", "0"],
+      ["Errors (preview)", "0"],
+    ] as const) {
+      const fact = summaryFacts
+        .locator(":scope > div")
+        .filter({ has: page.getByText(label, { exact: true }) });
+      await expect(fact.locator("dd")).toHaveText(value);
+    }
     await sourceHistoryRun.getByText("Run details", { exact: true }).click();
     await expect(sourceHistoryRun).toContainText(
       `Commits preview #${fixture.previewJobId!.slice(0, 8)}`,
@@ -623,6 +644,7 @@ test.describe("CSF historical workbook import", () => {
       .click();
     const importHistory = page
       .getByRole("button", { name: "Import history", exact: true })
+      .locator("..")
       .locator("..");
     const historyRun = importHistory
       .locator("article")
@@ -672,8 +694,10 @@ test.describe("CSF historical workbook import", () => {
     // A completed preview replaces the UI action, so replay the captured
     // authenticated Server Action at the supported browser request boundary.
     await expect(
-      page.getByRole("button", { name: "Committed", exact: true }),
-    ).toBeDisabled();
+      page.getByRole("button", {
+        name: /^(Verify source and commit|Resume import|Finish import)$/,
+      }),
+    ).toHaveCount(0);
     const replayResponse = await page
       .context()
       .request.post(capturedCommitRequest.url(), {

@@ -3,27 +3,27 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** This repository carries 290 ordered migrations through
-`20260814001123_csf_import_lineage_transport_settlement`, including project-signup
+**Status:** This repository carries 291 ordered migrations through
+`20260814051720_csf_post_mutation_outcome_recovery`, including project-signup
 rejection, active staff-invite issuer, content-report integrity, plugin ACL,
 atomic AI quota, CSF meeting-permission, Google CAP effect fencing, and the
 project-lifecycle transaction repair plus the CSF under-lock authorization and
 publication/term-close serialization repairs. Hosted Development Supabase
-remains at 273 through the atomic post-reply boundary; the seventeen
+remains at 273 through the atomic post-reply boundary; the eighteen
 repository-only migrations have not been applied or deployed there. The
 `dev.lets-assist.com` alias still serves the earlier Ready code at
 `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository tree ended at 272
 through `20260812132725`, because the external Vercel 100-deployment-per-day
-project cap prevented the refreshed deployment. The last exact local isolated
-union replay passed all 133 pgTAP files and 5,523 assertions against the
-preceding 282-migration shape; it has not been re-established for the current
-290-migration target, and hosted acceptance remains pending. Google
+project cap prevented the refreshed deployment. The current exact local isolated
+union replay passed all 291 migrations and 141 pgTAP files with 5,761
+assertions and 84 CSF tables present; it is local evidence only, and hosted
+acceptance remains pending. Google
 OAuth and Picker are connected. On
 that earlier deployed code,
 the real Spring 2026 application Preview passed the metadata RPC and stored 85
 preview rows, then failed at the seal because the caller supplied a reserved
 derived summary key. Zero term applications were committed. Production remains
-at 236 ordered migrations through `20260811001500`, so 54 migrations are
+at 236 ordered migrations through `20260811001500`, so 55 migrations are
 Production-pending; Production remains untouched.
 
 **Latest contract amendment:** August 12, 2026; this current-state amendment
@@ -33,10 +33,10 @@ their named runs only.
 
 ## Current hosted Development state
 
-- The repository branch has 290 ordered migrations through
-  `20260814001123_csf_import_lineage_transport_settlement`.
+- The repository branch has 291 ordered migrations through
+  `20260814051720_csf_post_mutation_outcome_recovery`.
 - Hosted Development Supabase remains at 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`. The seventeen repository-only migrations are
+  `20260812152300_atomic_csf_post_replies`. The eighteen repository-only migrations are
   `20260812161500_atomic_project_signup_rejection`,
   `20260812185500_atomic_staff_invite_issuer_redemption`,
   `20260812193329_google_cap_replay_safety`,
@@ -52,12 +52,13 @@ their named runs only.
   `20260813013300_close_csf_representative_and_publication_races`,
   `20260813020000_cancellation_preserves_unknown_delivery_outcomes`,
   `20260813085442_harden_private_is_plugin_enabled_acl`,
-  `20260813091801_harden_dv_private_policy_helper_acls`, and
-  `20260814001123_csf_import_lineage_transport_settlement`. They are
+  `20260813091801_harden_dv_private_policy_helper_acls`,
+  `20260814001123_csf_import_lineage_transport_settlement`, and
+  `20260814051720_csf_post_mutation_outcome_recovery`. They are
   repository-only local work: hosted Development database parity, application
   deployment, and provider acceptance have not been established for them.
 - Pull requests #152, #158, #174, #177, #179, and #181 are merged in current
-  `development`; #180 remains open with a later migration. The 290-row pin is
+  `development`; #180 remains open with a later migration. The 291-row pin is
   therefore provisional, and the last migration pull request to merge must
   recompute the count, head, and exact tail from the merged tree.
 - `20260813013200` closes the CSF activity and partner-club stale-authority
@@ -97,14 +98,15 @@ their named runs only.
   hosted per campaign card in `components/CsfCommunicationsCampaigns.tsx`.
   Focused private coverage lives in
   `lib/plugins/private/plugins/dvhs-csf/services/communications-actions.test.ts`.
-  CLEAN-022 is source-complete in this repository-local contract, but it is
-  not publishable: `cdbeb59e` is local-only and is not contained in the locally
-  known private `origin/development` history. The strict release check must
-  fail until that private commit is merged first and the local remote-tracking
-  ref reflects the merge; the root gitlink can be published only afterward.
-  Docker-backed isolated verification, the full exact-tree replay, hosted
-  Development acceptance, provider/browser gates, and Production remain
-  unverified and pending.
+  CLEAN-022 is source-complete in this repository-local contract and its
+  private lineage is now published: `cdbeb59e` is contained in the locally
+  known private `origin/development`, whose head
+  `c33b9c2ac7f084d14daad5df999d5eda3a2c2ac1` (`c33b9c2`) is also the staged
+  root gitlink target, and the strict submodule publication gate passes. The
+  earlier record that `cdbeb59e` was local-only and that the strict release
+  check must fail until a private-first merge is superseded history.
+  Docker-backed isolated verification, hosted Development acceptance,
+  provider/browser gates, and Production remain unverified and pending.
 - `20260813085442` keeps the dormant fixed-path
   `private.is_plugin_enabled(uuid,text)` helper owner-only. A repository-wide
   caller scan found no role requiring execution, so `PUBLIC`, `anon`,
@@ -118,17 +120,22 @@ their named runs only.
   begin and commit, removes the caller-selected six-argument failure overload,
   and exposes only the service-role five-argument unknown-only transport
   settlement. Focused lifecycle/RPC, concurrency, signature, and ACL evidence
-  is accepted; the full exact-tree replay remains pending.
-- The last exact local isolated union replay passed all 133 pgTAP files and
-  5,523 assertions against the preceding 282-migration shape. This historical
-  local result does not establish acceptance for the current 290-migration
-  target.
+  is accepted, and the exact 291-migration replay covers it.
+- `20260814051720` adds the service-only
+  `plugin_data.csf_resolve_post_mutation_outcome(uuid,uuid,uuid)` resolver for
+  an ambiguous `csf_mutate_post` result: it rechecks `manage_posts` before and
+  after the same per-request advisory lock and performs only a bounded
+  immutable receipt read that reports committed-versus-not-written, never
+  receipt contents.
+- The current exact local isolated union replay passed all 291 migrations and
+  141 pgTAP files with 5,761 assertions and 84 CSF tables present. It is local
+  evidence only and does not establish hosted or Production acceptance.
 - Production remains at 236 ordered migrations through `20260811001500`; the
-  54-migration cutover has not run.
+  55-migration cutover has not run.
 - The last accepted Development advisor snapshot was captured on the preceding
   272-migration shape: 95 INFO, 0 WARN, and 0 ERROR security findings, plus 611
   INFO, 0 WARN, and 0 ERROR performance findings. Those counts have not been
-  re-established for either the hosted 273 or repository 290 shape and are not
+  re-established for either the hosted 273 or repository 291 shape and are not
   current-parity evidence.
 - `dev.lets-assist.com` still serves exact development SHA
   `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose Ready repository tree ended
@@ -146,13 +153,19 @@ their named runs only.
   zero term applications were committed.
 - No names or email addresses are recorded here. Real-source evidence remains
   aggregate-only.
-- The current root gitlink is
-  `cdbeb59e6cc086e8794ec8b35157ab043f65c01c`. The locally known private
-  `origin/development` still ends at
+- Superseded August 13 gitlink snapshot, retained verbatim for lineage: "The
+  current root gitlink is `cdbeb59e6cc086e8794ec8b35157ab043f65c01c`. The
+  locally known private `origin/development` still ends at
   `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, so the current target is not
-  contained there and remains a local-only, private-first release blocker. It
-  also contains the meeting hardening and `ca817bf` preview-summary correction.
-  The stale Ready Development SHA above does not include this local gitlink.
+  contained there and remains a local-only, private-first release blocker."
+  That snapshot no longer describes this tree.
+- The private-first merge has since been published: the locally known private
+  `origin/development` and the staged root gitlink are both
+  `c33b9c2ac7f084d14daad5df999d5eda3a2c2ac1` (`c33b9c2`), which contains
+  `cdbeb59e`, the meeting hardening, and the `ca817bf` preview-summary
+  correction. The target is published and contained, and the strict submodule
+  publication gate passes. The stale Ready Development SHA above does not
+  include this gitlink.
 - The Drive metadata RPC is no longer the current Preview blocker. Production
   remains untouched.
 
@@ -389,8 +402,11 @@ the meeting follow-up commit `4f20fa5`. The historical August 12 integration
 candidate pinned private `development`
 `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, which contained that follow-up and
 the inactive-membership hardening. That historical pin is not the current root
-gitlink; the current local-only target is `cdbeb59e`. Neither state claims a
-deployment merely because private work merged. No provider, hosted database,
+gitlink; the later `cdbeb59e` target and the historical pin are both contained
+in the published private `origin/development` head
+`c33b9c2ac7f084d14daad5df999d5eda3a2c2ac1` (`c33b9c2`), which the staged root
+gitlink pins. Neither state claims a deployment merely because private work
+merged. No provider, hosted database,
 Production credential, live roster, or real Google source was used.
 
 | ID          | Severity | Surface                              | Confirmed finding                                                                                                                                                                                                                                                                | Implemented contract                                                                                                                                                                                                                                                                                                                                                                             | Current evidence boundary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Status                                         |
@@ -418,7 +434,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
 
 ## Acceptance gates
 
-- [x] Historical clean isolated replay: 214 migrations, 82 CSF tables, 63 pgTAP files, and 3,165/3,165 assertions; this is retained run evidence, not a current 290-ledger replay
+- [x] Historical clean isolated replay: 214 migrations, 82 CSF tables, 63 pgTAP files, and 3,165/3,165 assertions; this is retained run evidence, not the current 291-ledger replay
 - [x] Profile-claim concurrency/idempotent retry, tenant foreign keys, legacy-close revocation, nine evidence-write guards, and real `dblink` two-session close-vs-insert race
 - [x] Private-plugin CSF unit/security suite: 2,337 passed
 - [x] Import parser/reconciliation and idempotency tests for the implemented contracts
@@ -432,9 +448,9 @@ The current officer procedure is documented in the [officer runbook](officer-run
 - [x] Latest focused hardening gate: 73/73 Bun tests with 761 expectations; root typecheck clean; focused ESLint clean
 - [x] Formatting, source organization, typecheck, and lint: 0 errors and 0 warnings
 - [x] `bun run csf:test:workflows`, `bun run csf:test:scale`, and the 5-route cron probe passed locally; cron recorded 269 assertions, zero dispatch, and zero egress
-- [ ] Supabase advisor closeout: the preceding 272-migration Development snapshot is 95 INFO/0 WARN/0 ERROR for security and 611 INFO/0 WARN/0 ERROR for performance; re-establish it after hosted Development reaches the exact 290-migration repository target, and run Production's release-time post-apply advisor check
+- [ ] Supabase advisor closeout: the preceding 272-migration Development snapshot is 95 INFO/0 WARN/0 ERROR for security and 611 INFO/0 WARN/0 ERROR for performance; re-establish it after hosted Development reaches the exact 291-migration repository target, and run Production's release-time post-apply advisor check
 - [x] Post-hardening private-plugin isolation browser/API smoke
-- [ ] Current private-gitlink publication gate: the exact detached checkout and registry/runtime contracts are locally valid, but strict validation intentionally fails because `cdbeb59e` is not contained in locally known private `origin/development`; merge private first, then publish the root gitlink
+- [x] Current private-gitlink publication gate: the exact detached checkout and registry/runtime contracts are locally valid, and strict validation passes because the staged gitlink `c33b9c2ac7f084d14daad5df999d5eda3a2c2ac1` (`c33b9c2`) is the published head of the locally known private `origin/development` and contains the historical `cdbeb59e` target; the earlier intentional failure is superseded
 - [x] `bun audit --production`: no vulnerabilities
 - [ ] Complete visible signup → organization/install → import → application → points → meetings/clubs → close/reopen mutation lifecycle
 - [ ] Complete Google reconnect/revocation and Drive failure-state execution; connected OAuth/Picker and one real-source Preview retry are current Development evidence
@@ -498,8 +514,8 @@ The current officer procedure is documented in the [officer runbook](officer-run
   unexecuted.
 - Development uses a distinct hosted Supabase project. Its database remains at
   273 ordered migrations through `20260812152300_atomic_csf_post_replies`; this
-  repository branch has 290 through
-  `20260814001123_csf_import_lineage_transport_settlement`, including
+  repository branch has 291 through
+  `20260814051720_csf_post_mutation_outcome_recovery`, including
   `20260812161500_atomic_project_signup_rejection`,
   `20260812185500_atomic_staff_invite_issuer_redemption`,
   `20260812193329_google_cap_replay_safety`,
@@ -515,8 +531,9 @@ The current officer procedure is documented in the [officer runbook](officer-run
   `20260813013300_close_csf_representative_and_publication_races`,
   `20260813020000_cancellation_preserves_unknown_delivery_outcomes`,
   `20260813085442_harden_private_is_plugin_enabled_acl`,
-  `20260813091801_harden_dv_private_policy_helper_acls`, and
-  `20260814001123_csf_import_lineage_transport_settlement`. These seventeen
+  `20260813091801_harden_dv_private_policy_helper_acls`,
+  `20260814001123_csf_import_lineage_transport_settlement`, and
+  `20260814051720_csf_post_mutation_outcome_recovery`. These eighteen
   migrations have not been applied or deployed in hosted Development. The Ready alias still
   serves development SHA `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository
   tree ended at 272 through

@@ -22,9 +22,9 @@ const architectureAudit = readFileSync(
 );
 
 const PRODUCTION_HEAD = "20260811001500";
-const TARGET_HEAD = "20260814001123";
+const TARGET_HEAD = "20260814051720";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
-const HARD_FAIL_SITES = 29;
+const HARD_FAIL_SITES = 30;
 const hardFailStatements =
   preflight.match(/^[ \t]*SELECT 1 \/ 0 AS preflight_check_failed;$/gmu) ?? [];
 const PENDING_VERSIONS = [
@@ -82,6 +82,7 @@ const PENDING_VERSIONS = [
   "20260813085442",
   "20260813091801",
   "20260814001123",
+  "20260814051720",
 ] as const;
 
 function readMigration(version: string) {
@@ -93,7 +94,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 236 -> 290 ledger and all 54 pending versions", () => {
+  test("pins the exact 236 -> 291 ledger and all 55 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -115,7 +116,7 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    expect(migrations).toHaveLength(290);
+    expect(migrations).toHaveLength(291);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
     expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
@@ -124,10 +125,10 @@ describe("Production cutover preflight source contract", () => {
     expect(pending).toEqual([...PENDING_VERSIONS]);
     expect(pinnedTargetTail).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 236");
-    expect(preflight).toContain("count(*) = 290");
+    expect(preflight).toContain("count(*) = 291");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("54 migrations pending");
-    expect(preflight).not.toContain("count(*) = 288");
+    expect(preflight).toContain("55 migrations pending");
+    expect(preflight).not.toContain("count(*) = 290");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
     }
@@ -217,6 +218,8 @@ describe("Production cutover preflight source contract", () => {
       "target_function_acl_pass",
       "target_relation_acl_pass",
       "target_storage_contract_pass",
+      "target_import_lineage_pass",
+      "target_post_outcome_resolver_pass",
       "e1_pass",
       "e2_pass",
       "e6_pass",
@@ -297,7 +300,7 @@ describe("Production cutover preflight source contract", () => {
   test("T8 proves the begin lock order and denies every non-owner base caller", () => {
     const t8 = preflight.slice(
       preflight.indexOf("T8  Central import lineage"),
-      preflight.indexOf("E1  Invalid indexes"),
+      preflight.indexOf("T9  CSF post-mutation outcome resolver"),
     );
     expect(t8).toContain("pg_catalog.pg_get_functiondef(wrapper.oid)");
 
@@ -327,6 +330,61 @@ describe("Production cutover preflight source contract", () => {
     expect(t8).toContain("privilege.grantee = 0");
     expect(t8).toContain("privilege.privilege_type = 'EXECUTE'");
     expect(t8).toContain(`'${baseSignature}'`);
+  });
+
+  test("T9 proves the resolver's manage_posts bracket around the same-request lock and denies every non-service caller", () => {
+    const migration = readMigration("20260814051720");
+    const lockIndex = migration.indexOf(
+      "PERFORM pg_catalog.pg_advisory_xact_lock(",
+    );
+    expect(lockIndex).toBeGreaterThan(0);
+    expect(migration).toContain("'plugin_data.csf_post_mutation_request:'");
+    expect(migration.slice(0, lockIndex)).toContain("'manage_posts'");
+    expect(migration.slice(lockIndex)).toContain("'manage_posts'");
+    expect(migration.slice(lockIndex)).toContain(
+      "AND audit.correlation_id = p_request_id",
+    );
+    expect(migration.slice(lockIndex)).toContain(
+      "AND audit.source_type = 'post_mutation_request'",
+    );
+    expect(migration.slice(lockIndex)).toContain(
+      "AND audit.actor_user_id = p_actor_user_id",
+    );
+    expect(migration.slice(lockIndex)).toContain("LIMIT 1");
+    expect(migration).toContain(
+      "REVOKE ALL ON FUNCTION plugin_data.csf_resolve_post_mutation_outcome(\n  uuid, uuid, uuid\n) FROM PUBLIC, anon, authenticated, service_role;",
+    );
+    expect(migration).toContain(
+      "GRANT EXECUTE ON FUNCTION plugin_data.csf_resolve_post_mutation_outcome(\n  uuid, uuid, uuid\n) TO service_role;",
+    );
+
+    const t9 = preflight.slice(
+      preflight.indexOf("T9  CSF post-mutation outcome resolver"),
+      preflight.indexOf("E1  Invalid indexes"),
+    );
+    expect(t9).toContain(
+      "'plugin_data.csf_resolve_post_mutation_outcome(uuid,uuid,uuid)'",
+    );
+    expect(t9).toContain("pg_catalog.pg_get_functiondef(function_record.oid)");
+    expect(t9).toContain("'PERFORM pg_catalog.pg_advisory_xact_lock('");
+    expect(t9).toContain("'''plugin_data.csf_post_mutation_request:'''");
+    expect(t9).toContain("'''manage_posts'''");
+    expect(t9).toContain("after_lock_definition");
+    expect(t9).toContain("first_permission_position");
+    expect(t9).toContain("'audit.organization_id = p_organization_id'");
+    expect(t9).toContain("'audit.correlation_id = p_request_id'");
+    expect(t9).toContain("'audit.source_type = ''post_mutation_request'''");
+    expect(t9).toContain("'audit.actor_user_id = p_actor_user_id'");
+    expect(t9).toContain("'LIMIT 1'");
+    expect(t9).toContain(
+      "pg_catalog.acldefault('f', resolver_boundary.proowner)",
+    );
+    expect(t9).toContain("privilege.grantee = 0");
+    expect(t9).toContain("privilege.privilege_type = 'EXECUTE'");
+    expect(t9).toContain("target_post_outcome_resolver_pass");
+    expect(t9).toContain(`'service_role',\n        resolver_boundary.oid`);
+    expect(t9).toContain(`'anon',\n        resolver_boundary.oid`);
+    expect(t9).toContain(`'authenticated',\n        resolver_boundary.oid`);
   });
 
   test("verifies the moderation evidence shape this cutover introduces", () => {

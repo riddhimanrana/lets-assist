@@ -24,40 +24,60 @@ test.describe("transactional semester-close preflight", () => {
     await expect(
       page.getByText("Semester close preflight", { exact: true }),
     ).toBeVisible();
-    await expect(page.getByText("8 unresolved", { exact: true })).toBeVisible();
 
+    // Counts marked with a number are invariant across the suite. Imports is
+    // not: earlier full-suite import journeys intentionally leave immutable
+    // reconciliation evidence behind, so we only require that it still has
+    // unresolved work and reconcile the header total against the rendered sum.
     const expectedGroups = [
-      { label: "Applications", count: "4", route: "csf-applications" },
+      { label: "Applications", count: 4, route: "csf-applications" },
       {
         label: "Point submissions",
-        count: "2",
+        count: 2,
         route: "csf-activities&csf_service=points",
       },
       {
         label: "Point appeals",
-        count: "0",
+        count: 0,
         route: "csf-activities&csf_service=points",
       },
       {
         label: "Attendance",
-        count: "0",
+        count: 0,
         route: "csf-activities&csf_service=meetings",
       },
-      { label: "Dues", count: "0", route: "csf-applications" },
-      { label: "Imports", count: "2", route: "csf-imports" },
+      { label: "Dues", count: 0, route: "csf-applications" },
+      { label: "Imports", count: null, route: "csf-imports" },
     ] as const;
 
+    let totalUnresolved = 0;
     for (const group of expectedGroups) {
       const link = page.getByRole("link", {
         name: new RegExp(`^${group.label}\\b`),
       });
       await expect(link).toBeVisible();
-      await expect(link).toContainText(group.count);
       await expect(link).toHaveAttribute(
         "href",
         new RegExp(`tab=${group.route}(?:&|#|$)`),
       );
+
+      const badgeText = (
+        await link.locator('[data-slot="badge"]').innerText()
+      ).trim();
+      expect(badgeText).toMatch(/^\d+$/);
+      const renderedCount = Number.parseInt(badgeText, 10);
+      expect(renderedCount).toBeGreaterThanOrEqual(0);
+      if (group.count === null) {
+        expect(renderedCount).toBeGreaterThan(0);
+      } else {
+        expect(renderedCount).toBe(group.count);
+      }
+      totalUnresolved += renderedCount;
     }
+
+    await expect(
+      page.getByText(`${totalUnresolved} unresolved`, { exact: true }),
+    ).toBeVisible();
 
     await expect(
       page.getByRole("button", { name: "Close term" }),

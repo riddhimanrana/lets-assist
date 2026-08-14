@@ -329,10 +329,19 @@ const POSTS: LabelContract[] = [
       "Save as draft",
       "Publish now",
       "Schedule for later",
+      "Also send this as an email",
+      "Post saved",
+      "Email queued",
+    ],
+  },
+  {
+    // The outcome alerts and submit-button states were extracted from the
+    // compose dialog into this feedback component; the labels live here now.
+    component: "CsfPostComposeFeedback.tsx",
+    labels: [
       "Post saved",
       "Publish post",
       "Schedule post",
-      "Also send this as an email",
       "Post saved; email not queued",
       "Post saved; email status unknown",
       "Email queued",

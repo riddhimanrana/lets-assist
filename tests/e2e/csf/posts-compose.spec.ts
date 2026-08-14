@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Route } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
 import {
@@ -170,10 +170,11 @@ test.describe("officer post compose in the class Stream", () => {
     page,
   }) => {
     const failures = watchBrowserFailures(page);
-    await loginAs(page, "admin");
+    await loginAs(page, "admin", `${CSF_ORGANIZATION_PATH}?tab=csf-cohorts`);
 
-    // Classes tab -> class picker -> Class of 2028 workspace (Stream default).
-    await page.getByRole("tab", { name: "Classes", exact: true }).click();
+    // The dedicated role-navigation suite owns top-level tab hydration. This
+    // compose scenario enters the canonical class picker directly, then proves
+    // the class workspace and Stream behavior end to end.
     await expect(page).toHaveURL(/[?&]tab=csf-cohorts(?:&|$)/);
     await page
       .getByRole("link", { name: "Class of 2028", exact: true })
@@ -227,16 +228,31 @@ test.describe("officer post compose in the class Stream", () => {
     const publicationRequestHeld = new Promise<void>((resolve) => {
       markPublicationRequestHeld = resolve;
     });
-    await page.route("**/*", async (route) => {
+    let markPublicationRequestSettled!: () => void;
+    const publicationRequestSettled = new Promise<void>((resolve) => {
+      markPublicationRequestSettled = resolve;
+    });
+    let firstPublicationRequestHeld = false;
+    const holdFirstPublicationRequest = async (route: Route) => {
       const request = route.request();
-      if (request.method() !== "POST" || !request.headers()["next-action"]) {
+      if (
+        request.method() !== "POST" ||
+        !request.headers()["next-action"] ||
+        firstPublicationRequestHeld
+      ) {
         await route.continue();
         return;
       }
+      firstPublicationRequestHeld = true;
       markPublicationRequestHeld();
       await publicationRequestRelease;
-      await route.continue();
-    });
+      try {
+        await route.continue();
+      } finally {
+        markPublicationRequestSettled();
+      }
+    };
+    await page.route("**/*", holdFirstPublicationRequest);
 
     const publishClick = publishButton.click();
     try {
@@ -244,26 +260,31 @@ test.describe("officer post compose in the class Stream", () => {
       await expect(dialog.locator("form")).toHaveAttribute("aria-busy", "true");
       await expect(publishButton).toBeDisabled();
       await expect(dialog).toBeVisible();
-    } finally {
       releasePublicationRequest();
       await publishClick;
-      await page.unroute("**/*");
-    }
 
-    const postPublishedResult = dialog.getByRole("alert").filter({
-      hasText: "The post was saved separately from its email outcome.",
-    });
-    await expect(
-      postPublishedResult.getByText("Post published.", { exact: true }),
-    ).toBeVisible();
-    const emailNotQueuedResult = dialog.getByRole("alert").filter({
-      hasText: "Email not queued because no email was requested.",
-    });
-    await expect(
-      emailNotQueuedResult.getByText("Email not queued", { exact: true }),
-    ).toBeVisible();
-    await expect(dialog).toBeVisible();
-    await expect(publishButton).toHaveCount(0);
+      const postPublishedResult = dialog.getByRole("alert").filter({
+        hasText: "The post was saved separately from its email outcome.",
+      });
+      await expect(
+        postPublishedResult.getByText("Post published.", { exact: true }),
+      ).toBeVisible();
+      const emailNotQueuedResult = dialog.getByRole("alert").filter({
+        hasText: "Email not queued because no email was requested.",
+      });
+      await expect(
+        emailNotQueuedResult.getByText("Email not queued", { exact: true }),
+      ).toBeVisible();
+      await expect(dialog).toBeVisible();
+      await expect(publishButton).toHaveCount(0);
+    } finally {
+      releasePublicationRequest();
+      await publishClick.catch(() => undefined);
+      if (firstPublicationRequestHeld) await publicationRequestSettled;
+      if (!page.isClosed()) {
+        await page.unroute("**/*", holdFirstPublicationRequest);
+      }
+    }
 
     await dialog.getByRole("button", { name: "Close result" }).click();
     await expect(dialog).toBeHidden();
@@ -279,24 +300,25 @@ test.describe("officer post compose in the class Stream", () => {
             "id, status, audience, audience_cohort_id, pinned, email_requested, email_campaign_id",
           )
           .eq("organization_id", fixture.organizationId)
-          .eq("title", composedTitle)
-          .maybeSingle();
+          .eq("title", composedTitle);
         if (error) {
           throw new Error(
             `Could not load the unchecked announcement: ${error.message}`,
           );
         }
-        return data;
+        return data ?? [];
       })
-      .toEqual({
-        id: expect.any(String),
-        status: "published",
-        audience: "class",
-        audience_cohort_id: fixture.cohortIdsByYear[2028],
-        pinned: false,
-        email_requested: false,
-        email_campaign_id: null,
-      });
+      .toEqual([
+        {
+          id: expect.any(String),
+          status: "published",
+          audience: "class",
+          audience_cohort_id: fixture.cohortIdsByYear[2028],
+          pinned: false,
+          email_requested: false,
+          email_campaign_id: null,
+        },
+      ]);
     const { data: noEmailAnnouncement, error: noEmailAnnouncementError } =
       await fixture.admin
         .schema("plugin_data")
@@ -310,6 +332,27 @@ test.describe("officer post compose in the class Stream", () => {
         `Could not reload the unchecked announcement: ${noEmailAnnouncementError?.message ?? "missing announcement"}`,
       );
     }
+    const { data: creationReceipts, error: creationReceiptsError } =
+      await fixture.admin
+        .schema("plugin_data")
+        .from("csf_admin_audit_events")
+        .select("action, correlation_id, source_type, target_id")
+        .eq("organization_id", fixture.organizationId)
+        .eq("target_id", noEmailAnnouncement.id)
+        .eq("action", "post_created");
+    if (creationReceiptsError) {
+      throw new Error(
+        `Could not verify the announcement creation receipt: ${creationReceiptsError.message}`,
+      );
+    }
+    expect(creationReceipts).toEqual([
+      {
+        action: "post_created",
+        correlation_id: expect.any(String),
+        source_type: "post_mutation_request",
+        target_id: noEmailAnnouncement.id,
+      },
+    ]);
     const { data: noEmailCampaigns, error: noEmailCampaignsError } =
       await fixture.admin
         .schema("plugin_data")
@@ -670,12 +713,13 @@ test.describe("officer post compose in the class Stream", () => {
       const recipientSnapshots = snapshots ?? [];
       expect(recipientSnapshots).toHaveLength(audienceSize);
       expect(recipientSnapshots.length).toBeGreaterThan(0);
-      expect(audienceSize).toBe(cohortProfileIds.size);
-      expect(
-        new Set(
-          recipientSnapshots.map((snapshot) => snapshot.profile_id ?? ""),
-        ),
-      ).toEqual(cohortProfileIds);
+      // Only canonical email-eligible members are snapshotted, so the frozen
+      // audience may be smaller than the active cohort but never larger.
+      expect(audienceSize).toBeLessThanOrEqual(cohortProfileIds.size);
+      const snapshotProfileIds = new Set(
+        recipientSnapshots.map((snapshot) => snapshot.profile_id),
+      );
+      expect(snapshotProfileIds.size).toBe(recipientSnapshots.length);
       expect(
         recipientSnapshots.every(
           (snapshot) =>

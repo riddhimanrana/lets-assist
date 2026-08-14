@@ -1,4 +1,4 @@
--- Production 236 -> repository target 290 cutover preflight.
+-- Production 236 -> repository target 291 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -10,7 +10,7 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   236 rows headed by 20260811001500
---   post-cutover  290 rows headed by 20260814001123 with the exact 54-row tail
+--   post-cutover  291 rows headed by 20260814051720 with the exact 55-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -50,7 +50,7 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 236/baseline or exactly 290/target'
+\echo '    PASS: exactly 236/baseline or exactly 291/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
@@ -153,9 +153,9 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260811001500'
     ) = 0 AS baseline_ledger,
-  count(*) = 290
+  count(*) = 291
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260814001123'
+    AND max(version::text) = '20260814051720'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
@@ -184,7 +184,7 @@ SELECT
       '20260813012206','20260813013000','20260813013100',
       '20260813013200','20260813013300',
       '20260813020000','20260813085442','20260813091801',
-      '20260814001123'
+      '20260814001123','20260814051720'
       -- END EXACT PRODUCTION TARGET TAIL
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
@@ -192,7 +192,7 @@ FROM supabase_migrations.schema_migrations
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 54 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 55 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'
@@ -2337,6 +2337,156 @@ SELECT
     \echo 'PASS T8: central import lineage and settlement ACLs are exact.'
   \else
     \echo 'FAIL T8: central import lineage signature, lock boundary, or ACL drifted.'
+    SELECT 1 / 0 AS preflight_check_failed;
+  \endif
+
+  \echo ''
+  \echo '=============================================================='
+  \echo 'T9  CSF post-mutation outcome resolver boundary'
+  \echo '    PASS: service-only ACL; manage_posts recheck brackets the'
+  \echo '    same-request advisory lock around a bounded receipt read'
+  \echo '=============================================================='
+  WITH resolver AS (
+    SELECT
+      function_record.oid,
+      function_record.prosecdef,
+      function_record.proconfig,
+      function_record.proacl,
+      function_record.proowner,
+      CASE
+        WHEN function_record.oid IS NULL THEN NULL::text
+        ELSE pg_catalog.pg_get_functiondef(function_record.oid)
+      END AS definition
+    FROM (
+      VALUES (
+        'plugin_data.csf_resolve_post_mutation_outcome(uuid,uuid,uuid)'
+      )
+    ) AS expected(signature)
+    LEFT JOIN pg_catalog.pg_proc AS function_record
+      ON function_record.oid = to_regprocedure(expected.signature)
+  ),
+  resolver_boundary AS (
+    SELECT
+      resolver.*,
+      pg_catalog.strpos(
+        resolver.definition,
+        'PERFORM pg_catalog.pg_advisory_xact_lock('
+      ) AS lock_position,
+      pg_catalog.strpos(
+        resolver.definition,
+        '''plugin_data.csf_post_mutation_request:'''
+      ) AS lock_key_position,
+      pg_catalog.strpos(
+        resolver.definition,
+        'plugin_data.csf_actor_has_permission('
+      ) AS first_authorization_position,
+      pg_catalog.strpos(
+        resolver.definition,
+        '''manage_posts'''
+      ) AS first_permission_position,
+      CASE
+        WHEN resolver.definition IS NULL THEN ''
+        ELSE pg_catalog.substr(
+          resolver.definition,
+          pg_catalog.strpos(
+            resolver.definition,
+            'PERFORM pg_catalog.pg_advisory_xact_lock('
+          ) + 1
+        )
+      END AS after_lock_definition
+    FROM resolver
+  )
+  SELECT
+    bool_and(
+      resolver_boundary.oid IS NOT NULL
+      AND resolver_boundary.prosecdef
+      AND coalesce(resolver_boundary.proconfig, ARRAY[]::text[])
+        @> ARRAY['search_path=""']
+      AND has_function_privilege(
+        'service_role',
+        resolver_boundary.oid,
+        'EXECUTE'
+      )
+      AND NOT has_function_privilege(
+        'anon',
+        resolver_boundary.oid,
+        'EXECUTE'
+      )
+      AND NOT has_function_privilege(
+        'authenticated',
+        resolver_boundary.oid,
+        'EXECUTE'
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.aclexplode(
+          coalesce(
+            resolver_boundary.proacl,
+            pg_catalog.acldefault('f', resolver_boundary.proowner)
+          )
+        ) AS privilege
+        WHERE privilege.grantee = 0
+          AND privilege.privilege_type = 'EXECUTE'
+      )
+      AND resolver_boundary.lock_position > 0
+      AND resolver_boundary.lock_key_position
+        > resolver_boundary.lock_position
+      AND resolver_boundary.first_authorization_position > 0
+      AND resolver_boundary.first_authorization_position
+        < resolver_boundary.lock_position
+      AND resolver_boundary.first_permission_position > 0
+      AND resolver_boundary.first_permission_position
+        < resolver_boundary.lock_position
+      AND pg_catalog.strpos(
+        resolver_boundary.after_lock_definition,
+        '|| p_organization_id::text || '':'' || p_request_id::text,'
+      ) > 0
+      AND pg_catalog.strpos(
+        resolver_boundary.after_lock_definition,
+        'plugin_data.csf_actor_has_permission('
+      ) > 0
+      AND pg_catalog.strpos(
+        resolver_boundary.after_lock_definition,
+        '''manage_posts'''
+      ) > 0
+      AND pg_catalog.strpos(
+        resolver_boundary.after_lock_definition,
+        'FROM plugin_data.csf_admin_audit_events'
+      ) > pg_catalog.strpos(
+        resolver_boundary.after_lock_definition,
+        '''manage_posts'''
+      )
+      AND pg_catalog.strpos(
+        resolver_boundary.after_lock_definition,
+        'audit.organization_id = p_organization_id'
+      ) > 0
+      AND pg_catalog.strpos(
+        resolver_boundary.after_lock_definition,
+        'audit.correlation_id = p_request_id'
+      ) > 0
+      AND pg_catalog.strpos(
+        resolver_boundary.after_lock_definition,
+        'audit.source_type = ''post_mutation_request'''
+      ) > 0
+      AND pg_catalog.strpos(
+        resolver_boundary.after_lock_definition,
+        'audit.actor_user_id = p_actor_user_id'
+      ) > 0
+      AND pg_catalog.strpos(
+        resolver_boundary.after_lock_definition,
+        'audit.target_id IS NOT NULL'
+      ) > 0
+      AND pg_catalog.strpos(
+        resolver_boundary.after_lock_definition,
+        'LIMIT 1'
+      ) > 0
+    ) AS target_post_outcome_resolver_pass
+  FROM resolver_boundary
+  \gset
+  \if :target_post_outcome_resolver_pass
+    \echo 'PASS T9: outcome resolver ACL, lock bracket, and bounded read are exact.'
+  \else
+    \echo 'FAIL T9: outcome resolver ACL, lock order, or bounded read drifted.'
     SELECT 1 / 0 AS preflight_check_failed;
   \endif
 \endif

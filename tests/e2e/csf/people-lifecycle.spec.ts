@@ -530,10 +530,18 @@ test.describe("CSF visible people lifecycle", () => {
       connectedRow.getByText("Connected", { exact: true }),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "More", exact: true }).click();
-    await page
-      .getByRole("menuitem", { name: "Staff access", exact: true })
-      .click();
+    const moreButton = page.getByRole("button", {
+      name: "More",
+      exact: true,
+    });
+    await expect(moreButton).toHaveAttribute("aria-expanded", "false");
+    await moreButton.click();
+    const staffAccessItem = page.getByRole("menuitem", {
+      name: "Staff access",
+      exact: true,
+    });
+    await expect(staffAccessItem).toBeVisible();
+    await staffAccessItem.click();
     await expect(
       page.getByRole("heading", { name: "Officer roster", exact: true }),
     ).toBeVisible();
@@ -543,11 +551,10 @@ test.describe("CSF visible people lifecycle", () => {
     const assignmentDialog = page.getByRole("dialog", {
       name: "Assign staff access",
     });
-    // The combobox trigger's accessible name is its search placeholder, so
-    // scope it to this dialog rather than the field's visual label.
-    await assignmentDialog
-      .getByRole("combobox", { name: "Search member by name or email" })
-      .click();
+    const profileField = assignmentDialog
+      .getByText("CSF member profile", { exact: true })
+      .locator("..");
+    await profileField.getByRole("combobox").click();
     await page
       .getByRole("option", { name: new RegExp(fixture.profileEmail) })
       .click();
