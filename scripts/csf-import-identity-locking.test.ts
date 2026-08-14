@@ -6,6 +6,7 @@ const repositoryRoot = join(import.meta.dir, "..");
 const migrationsDirectory = join(repositoryRoot, "supabase/migrations");
 const trackedMigrations = readdirSync(migrationsDirectory)
   .filter((filename) => filename.endsWith(".sql"))
+  .sort((left, right) => left.localeCompare(right))
   .map((filename) => ({
     filename,
     source: readFileSync(join(migrationsDirectory, filename), "utf8"),
@@ -25,6 +26,9 @@ const privilegeRepairMigration = readFileSync(
   "utf8",
 );
 const migration = `${identityLockMigration}\n${privilegeRepairMigration}`;
+const migrationLedger = trackedMigrations
+  .map(({ filename, source }) => `-- ${filename}\n${source}`)
+  .join("\n");
 const raceTest = readFileSync(
   join(
     repositoryRoot,
@@ -81,7 +85,96 @@ function functionBody(name: string) {
   return migration.slice(start, end);
 }
 
+function latestLedgerFunctionBody(name: string) {
+  const start = migrationLedger.lastIndexOf(
+    `CREATE OR REPLACE FUNCTION plugin_data.${name}(`,
+  );
+  expect(
+    start,
+    `${name} must exist in the current migration ledger`,
+  ).toBeGreaterThan(-1);
+  const end = migrationLedger.indexOf("\n$$;", start);
+  expect(end, `${name} must have a complete current body`).toBeGreaterThan(
+    start,
+  );
+  return migrationLedger.slice(start, end);
+}
+
 describe("CSF import identity lock hierarchy", () => {
+  test("begin and commit share the canonical identity-first outer lock order", () => {
+    for (const name of [
+      "csf_begin_import_row_for_attempt",
+      "csf_commit_import_row_for_attempt",
+    ]) {
+      const body = latestLedgerFunctionBody(name);
+      const identity = body.indexOf("csf_lock_identity_mutation(");
+      const authorization = body.indexOf("csf_assert_import_actor_for_job(");
+      const activeTargets = body.indexOf("csf_lock_active_import_profiles(");
+      const baseOperation = body.indexOf(`${name}_identity_base(`);
+
+      expect(identity, `${name} has no outer identity lock`).toBeGreaterThan(
+        -1,
+      );
+      expect(
+        authorization,
+        `${name} has no post-identity actor reauthorization`,
+      ).toBeGreaterThan(identity);
+      expect(
+        activeTargets,
+        `${name} does not lock active targets after reauthorization`,
+      ).toBeGreaterThan(authorization);
+      expect(
+        baseOperation,
+        `${name} does not delegate only after shared outer locks`,
+      ).toBeGreaterThan(activeTargets);
+    }
+  });
+
+  test("transport settlement exposes no caller-selected deterministic outcome", () => {
+    const currentFailure = latestLedgerFunctionBody(
+      "csf_fail_import_row_for_attempt",
+    );
+    expect(currentFailure).not.toContain("p_deterministic boolean");
+    expect(currentFailure).not.toContain("p_deterministic");
+    expect(currentFailure).toContain("'unknown'");
+    expect(currentFailure).not.toContain("v_state = 'failed'");
+
+    expect(migrationLedger).toMatch(
+      /DROP FUNCTION IF EXISTS plugin_data\.csf_fail_import_row_for_attempt\(\s*uuid,\s*uuid,\s*uuid,\s*text,\s*text,\s*boolean\s*\)/u,
+    );
+  });
+
+  test("the import/merge race is built only through the supported lifecycle", () => {
+    const lifecycleOwnedMutation =
+      /\b(?:INSERT\s+INTO|UPDATE)\b[^;]*\b(?:active_commit_attempt_id|commit_frozen_at|commit_outcome_state|commit_attempt_id)\b[^;]*;/giu;
+    const directAttemptMutation =
+      /\b(?:INSERT\s+INTO|UPDATE)\s+plugin_data\.csf_sheet_import_commit_attempts\b[^;]*;/giu;
+
+    expect(
+      raceTest.match(directAttemptMutation) ?? [],
+      "the race fixture must obtain attempts only through csf_claim_import_commit_attempt",
+    ).toEqual([]);
+    expect(
+      raceTest.match(lifecycleOwnedMutation) ?? [],
+      "the race fixture must not write lifecycle-owned import columns",
+    ).toEqual([]);
+
+    for (const lifecycleCall of [
+      "csf_issue_uploaded_source_evidence",
+      "csf_claim_import_commit_attempt",
+      "csf_begin_import_row_for_attempt",
+      "csf_commit_import_row_for_attempt",
+      "dblink_send_query",
+      "dblink_is_busy",
+      "csf_merge_profiles",
+    ]) {
+      expect(
+        raceTest,
+        `the concurrency proof must call ${lifecycleCall}`,
+      ).toContain(lifecycleCall);
+    }
+  });
+
   test("never schema-qualifies PostgreSQL syntax-only conditional expressions", () => {
     const syntaxOnlyConditional =
       /\bpg_catalog\.(?:coalesce|nullif|greatest|least)\s*\(/iu;

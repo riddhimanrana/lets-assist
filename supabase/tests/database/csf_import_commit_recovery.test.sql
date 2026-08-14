@@ -14,7 +14,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(597);
+SELECT extensions.plan(609);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures.
@@ -1577,8 +1577,7 @@ SELECT extensions.is(
       (SELECT id FROM plugin_data.csf_sheet_import_commit_attempts WHERE attempt_number = 1),
       'df500000-0000-4000-8000-000000000001',
       'transport_failure',
-      'The connection closed before the import replied.',
-      false
+      'The connection closed before the import replied.'
     ) ->> 'outcomeState'
   ),
   'unknown',
@@ -1602,6 +1601,20 @@ SELECT extensions.is(
    WHERE id = 'df500000-0000-4000-8000-000000000001'),
   'transport_failure',
   'the durable evidence is the closed reason code that was supplied'
+);
+
+SELECT extensions.is(
+  (
+    SELECT plugin_data.csf_fail_import_row_for_attempt(
+      'df100000-0000-4000-8000-000000000001',
+      (SELECT id FROM plugin_data.csf_sheet_import_commit_attempts WHERE attempt_number = 1),
+      'df500000-0000-4000-8000-000000000001',
+      'different_transport_failure',
+      'A duplicate settlement arrived after the unknown was recorded.'
+    ) ->> 'recorded'
+  ),
+  'false',
+  'duplicate transport settlement cannot overwrite an existing unknown outcome'
 );
 
 -- Prose that reads like a database or provider message is dropped, not clipped: a
@@ -2100,7 +2113,7 @@ SELECT extensions.throws_ok(
   format(
     $$SELECT plugin_data.csf_fail_import_row_for_attempt(
         'df100000-0000-4000-8000-000000000001', %L,
-        'df500000-0000-4000-8000-000000000002', 'commit_failed', NULL, true)$$,
+        'df500000-0000-4000-8000-000000000002', 'commit_failed', NULL)$$,
     (SELECT attempt.id FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
      JOIN plugin_data.csf_sheet_import_jobs AS commit_job
        ON commit_job.id = attempt.commit_job_id
@@ -2875,7 +2888,7 @@ INSERT INTO csf_intended_import_acl (signature, service_role_execute) VALUES
   ('plugin_data.csf_begin_import_row_for_attempt(uuid, uuid, uuid)', true),
   ('plugin_data.csf_import_row_recovery_state(uuid, uuid)', true),
   ('plugin_data.csf_commit_import_row_for_attempt(uuid, uuid, uuid)', true),
-  ('plugin_data.csf_fail_import_row_for_attempt(uuid, uuid, uuid, text, text, boolean)', true),
+  ('plugin_data.csf_fail_import_row_for_attempt(uuid, uuid, uuid, text, text)', true),
   ('plugin_data.csf_flag_import_row_outcome_unknown(uuid, uuid, uuid, text, text)', true),
   ('plugin_data.csf_reconcile_import_row_outcome(uuid, uuid, uuid, text, uuid, text, text)', true),
   ('plugin_data.csf_accept_historical_import_outcome(uuid, uuid, uuid, text)', true),
@@ -3675,10 +3688,9 @@ SELECT extensions.throws_ok(
 -- A deterministically failed row, retried and terminally skipped.
 -- ---------------------------------------------------------------------------
 
--- Row 1 was reconciled to `failed` with `error` status earlier in this file, but it has
--- no attempt lineage, so it is not the deterministic-failure shape this path decides.
--- Row 1 reached `failed`/`error` through reconciliation, so it has no attempt lineage --
--- no attempt wrote it, which is the whole finding. It must still be decidable.
+-- Row 1 reached `failed`/`error` through reconciliation. No attempt wrote it, so
+-- commit_attempt_id is correctly null; the begin-intent attempt still records which
+-- real attempt produced the unknown outcome that the officer reviewed.
 --
 -- Requiring lineage here left it with no retry, no skip, hidden from the recovery
 -- projection, excluded from the commit worklist, and counted as unresolved by finalize
@@ -3688,6 +3700,18 @@ SELECT extensions.is(
    WHERE id = 'df500000-0000-4000-8000-000000000001'),
   NULL,
   'a reconciled not-written row carries no attempt lineage, because no attempt wrote it'
+);
+
+SELECT extensions.is(
+  (SELECT commit_intent_attempt_id FROM plugin_data.csf_sheet_import_rows
+   WHERE id = 'df500000-0000-4000-8000-000000000001'),
+  (SELECT attempt.id
+   FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
+   JOIN plugin_data.csf_sheet_import_jobs AS commit_job
+     ON commit_job.id = attempt.commit_job_id
+   WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000001'
+     AND attempt.attempt_number = 1),
+  'a reconciled not-written row retains the real attempt that began its write intent'
 );
 
 SELECT extensions.is(
@@ -3707,14 +3731,29 @@ SELECT extensions.ok(
     SELECT commit_outcome_state = 'frozen'
       AND import_status = 'pending'
       AND commit_retry_count = 1
-      -- Nothing to name, and nothing invented to name.
-      AND commit_last_failed_attempt_id IS NULL
+      AND commit_attempt_id IS NULL
+      AND commit_intent_attempt_id IS NULL
+      AND commit_intent_correlation_id IS NULL
+      AND commit_intent_started_at IS NULL
       AND commit_outcome_resolution IS NULL
       AND commit_frozen_at IS NOT NULL
     FROM plugin_data.csf_sheet_import_rows
     WHERE id = 'df500000-0000-4000-8000-000000000001'
   ),
-  'retrying a reconciled row restores the frozen decision without fabricating lineage'
+  'retrying a reconciled row clears the superseded live intent without fabricating write lineage'
+);
+
+SELECT extensions.is(
+  (SELECT commit_last_failed_attempt_id
+   FROM plugin_data.csf_sheet_import_rows
+   WHERE id = 'df500000-0000-4000-8000-000000000001'),
+  (SELECT attempt.id
+   FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
+   JOIN plugin_data.csf_sheet_import_jobs AS commit_job
+     ON commit_job.id = attempt.commit_job_id
+   WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000001'
+     AND attempt.attempt_number = 1),
+  'retry moves the original begin-intent attempt into immutable failed-attempt lineage'
 );
 
 -- The reconciliation it superseded stays reconstructible from the append-only ledger.
@@ -3743,7 +3782,7 @@ SELECT extensions.throws_ok(
   format(
     $$SELECT plugin_data.csf_fail_import_row_for_attempt(
         'df100000-0000-4000-8000-000000000001', %L,
-        'df500000-0000-4000-8000-000000000001', 'row_commit_failed', NULL, true)$$,
+        'df500000-0000-4000-8000-000000000001', 'row_commit_failed', NULL)$$,
     (SELECT attempt.id FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
      JOIN plugin_data.csf_sheet_import_jobs AS commit_job
        ON commit_job.id = attempt.commit_job_id
@@ -3815,14 +3854,49 @@ SELECT extensions.is(
       (SELECT attempt.id FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
        JOIN plugin_data.csf_sheet_import_jobs AS commit_job
          ON commit_job.id = attempt.commit_job_id
-       WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000001'
+      WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000001'
          AND attempt.status = 'running'),
       'df500000-0000-4000-8000-000000000002',
-      'row_commit_failed', 'The class was closed', true
+      'row_transport_unanswered', 'The class was closed'
+    ) ->> 'outcomeState'
+  ),
+  'unknown',
+  'an unanswered transport can record only an unknown outcome'
+);
+
+SELECT extensions.is(
+  (
+    SELECT plugin_data.csf_reconcile_import_row_outcome(
+      'df100000-0000-4000-8000-000000000001',
+      'df500000-0000-4000-8000-000000000002',
+      'df000000-0000-4000-8000-000000000001',
+      'accepted_as_not_written',
+      (SELECT commit_outcome_correlation_id
+       FROM plugin_data.csf_sheet_import_rows
+       WHERE id = 'df500000-0000-4000-8000-000000000002'),
+      'row_commit_failed',
+      'The authoritative transaction left no committed write.'
     ) ->> 'outcomeState'
   ),
   'failed',
-  'a structured database error settles the row as a deterministic failure'
+  'authoritative database reconciliation, not the transport caller, settles a terminal failure'
+);
+
+SELECT extensions.is(
+  (
+    SELECT plugin_data.csf_fail_import_row_for_attempt(
+      'df100000-0000-4000-8000-000000000001',
+      (SELECT attempt.id FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
+       JOIN plugin_data.csf_sheet_import_jobs AS commit_job
+         ON commit_job.id = attempt.commit_job_id
+       WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000001'
+         AND attempt.status = 'running'),
+      'df500000-0000-4000-8000-000000000002',
+      'late_transport_failure', NULL
+    ) ->> 'recorded'
+  ),
+  'false',
+  'late transport settlement cannot overwrite an authoritative terminal failure'
 );
 
 -- A decision is refused while a writer still holds the fence.
@@ -4300,13 +4374,30 @@ SELECT extensions.is(
       (SELECT attempt.id FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
        JOIN plugin_data.csf_sheet_import_jobs AS commit_job
          ON commit_job.id = attempt.commit_job_id
-       WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000006'),
+      WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000006'),
       'df500000-0000-4000-8000-000000000021',
-      'row_commit_failed', NULL, true
+      'row_transport_unanswered', NULL
+    ) ->> 'outcomeState'
+  ),
+  'unknown',
+  'and a transport settlement leaves its authoritative outcome unknown'
+);
+
+SELECT extensions.is(
+  (
+    SELECT plugin_data.csf_reconcile_import_row_outcome(
+      'df100000-0000-4000-8000-000000000001',
+      'df500000-0000-4000-8000-000000000021',
+      'df000000-0000-4000-8000-000000000001',
+      'accepted_as_not_written',
+      (SELECT commit_outcome_correlation_id
+       FROM plugin_data.csf_sheet_import_rows
+       WHERE id = 'df500000-0000-4000-8000-000000000021'),
+      'row_commit_failed', NULL
     ) ->> 'outcomeState'
   ),
   'failed',
-  'and it deterministically fails'
+  'authoritative reconciliation confirms that the finalize-only row was not written'
 );
 
 -- Finalizing now is honest: an undecided failure is still outstanding.
@@ -4335,6 +4426,17 @@ SELECT extensions.is(
   'the failed row is not quietly returned to the worklist'
 );
 
+SELECT extensions.is(
+  (SELECT commit_intent_attempt_id FROM plugin_data.csf_sheet_import_rows
+   WHERE id = 'df500000-0000-4000-8000-000000000021'),
+  (SELECT attempt.id
+   FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
+   JOIN plugin_data.csf_sheet_import_jobs AS commit_job
+     ON commit_job.id = attempt.commit_job_id
+   WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000006'),
+  'the reconciled skip candidate still names the attempt that began its unknown write intent'
+);
+
 -- Terminal skip.
 SELECT extensions.is(
   (
@@ -4354,12 +4456,26 @@ SELECT extensions.ok(
       AND commit_outcome_state = 'failed'
       AND commit_outcome_resolution = 'terminally_skipped'
       AND commit_outcome_resolved_by = 'df000000-0000-4000-8000-000000000001'
-      -- The attempt that failed it stays nameable.
-      AND commit_last_failed_attempt_id IS NOT NULL
+      AND commit_attempt_id IS NULL
+      AND commit_intent_attempt_id = commit_last_failed_attempt_id
+      AND commit_intent_correlation_id = commit_outcome_correlation_id
+      AND commit_intent_started_at IS NOT NULL
     FROM plugin_data.csf_sheet_import_rows
     WHERE id = 'df500000-0000-4000-8000-000000000021'
   ),
-  'the skip is coherent across every dimension and keeps its prior attempt lineage'
+  'the terminal skip keeps the original intent coordinate while preserving null write lineage'
+);
+
+SELECT extensions.is(
+  (SELECT commit_last_failed_attempt_id
+   FROM plugin_data.csf_sheet_import_rows
+   WHERE id = 'df500000-0000-4000-8000-000000000021'),
+  (SELECT attempt.id
+   FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
+   JOIN plugin_data.csf_sheet_import_jobs AS commit_job
+     ON commit_job.id = attempt.commit_job_id
+   WHERE commit_job.preview_job_id = 'df300000-0000-4000-8000-000000000006'),
+  'terminal skip records the original begin-intent attempt as the last failed attempt'
 );
 
 -- Now the finalize-only claim, which is the step nothing could previously reach.
@@ -10709,6 +10825,60 @@ SELECT extensions.is(
   ),
   ARRAY[]::text[],
   'the very same digest as a JSON string, with all four records agreeing, raises no source-evidence blocker'
+);
+
+-- ---------------------------------------------------------------------------
+-- Retry-edge authority belongs to the database, never to the transport caller.
+-- ---------------------------------------------------------------------------
+
+SELECT extensions.ok(
+  to_regprocedure(
+    'plugin_data.csf_fail_import_row_for_attempt(uuid,uuid,uuid,text,text)'
+  ) IS NOT NULL,
+  'transport settlement exposes the five-argument unknown-only signature'
+);
+
+SELECT extensions.ok(
+  to_regprocedure(
+    'plugin_data.csf_fail_import_row_for_attempt(uuid,uuid,uuid,text,text,boolean)'
+  ) IS NULL,
+  'the caller-selectable deterministic boolean signature no longer exists'
+);
+
+SELECT extensions.ok(
+  coalesce(has_function_privilege(
+    'service_role',
+    to_regprocedure(
+      'plugin_data.csf_fail_import_row_for_attempt(uuid,uuid,uuid,text,text)'
+    ),
+    'EXECUTE'
+  ), false),
+  'service_role can record an unanswered transport outcome through the reviewed signature'
+);
+
+SELECT extensions.ok(
+  NOT coalesce(has_function_privilege(
+    'anon',
+    to_regprocedure(
+      'plugin_data.csf_fail_import_row_for_attempt(uuid,uuid,uuid,text,text)'
+    ),
+    'EXECUTE'
+  ), false)
+  AND NOT coalesce(has_function_privilege(
+    'authenticated',
+    to_regprocedure(
+      'plugin_data.csf_fail_import_row_for_attempt(uuid,uuid,uuid,text,text)'
+    ),
+    'EXECUTE'
+  ), false)
+  AND NOT coalesce(has_function_privilege(
+    'public',
+    to_regprocedure(
+      'plugin_data.csf_fail_import_row_for_attempt(uuid,uuid,uuid,text,text)'
+    ),
+    'EXECUTE'
+  ), false),
+  'anon, authenticated, and PUBLIC cannot settle authoritative import outcomes'
 );
 
 SELECT * FROM extensions.finish();
