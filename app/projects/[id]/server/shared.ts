@@ -146,7 +146,10 @@ export function getProjectSignupInsertErrorMessage(error: unknown): string {
     return "This project requires a waiver signature before signing up.";
   }
   if (code === "identity_conflict") {
-    return "This email already has a signup for this project. Please try again.";
+    // The guest profile for this email was created by another request while
+    // this one was in flight. Nothing is signed up yet and a retry picks up
+    // that profile, so this is genuinely retryable.
+    return "Another signup for this email is still being processed. Please try again in a moment.";
   }
   if (code === "conflicting_identity") {
     return "We could not confirm who is signing up. Please reload and try again.";

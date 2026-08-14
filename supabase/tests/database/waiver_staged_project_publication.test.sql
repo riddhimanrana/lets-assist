@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(31);
+SELECT extensions.plan(52);
 
 -- ---------------------------------------------------------------------------
 -- Exact execution ACLs. The private storage-proof helper is deliberately not
@@ -389,6 +389,268 @@ SELECT extensions.ok(
     'private.waiver_source_object_exists(text, text)'::regprocedure
   ) NOT LIKE '%RETURN true%',
   'the proof helper never returns a hardcoded true'
+);
+
+
+-- ---------------------------------------------------------------------------
+-- The database boundary: a browser role cannot publish a waiver project
+--
+-- These are the exact writes the application layer used to be the only thing
+-- standing in front of. RLS on public.projects is column blind, so the
+-- organizer really does hold UPDATE on their own row.
+-- ---------------------------------------------------------------------------
+
+-- A published non-waiver project, so the "turn the waiver on afterwards"
+-- transition can be exercised on a live row.
+INSERT INTO public.projects (
+  id, creator_id, title, location, description, event_type,
+  verification_method, schedule, require_login, workflow_status,
+  waiver_required, waiver_allow_upload, waiver_disable_esignature
+)
+VALUES (
+  'd2000000-0000-4000-8000-000000000005',
+  'd1000000-0000-4000-8000-000000000001',
+  'Live Plain Project', 'Local', 'Publication fixture', 'oneTime',
+  'manual',
+  '{"oneTime":{"date":"2099-05-01","startTime":"09:00","endTime":"12:00","volunteers":2}}'::jsonb,
+  false, 'published', false, true, false
+);
+
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" =
+  '{"sub":"d1000000-0000-4000-8000-000000000001","role":"authenticated"}';
+
+-- Control: the organizer really can insert and update their own project rows,
+-- so every refusal below is the waiver boundary and not a missing grant.
+SELECT extensions.lives_ok(
+  $$
+    INSERT INTO public.projects (
+      id, creator_id, title, location, description, event_type,
+      verification_method, schedule, require_login, workflow_status,
+      waiver_required, visibility
+    )
+    VALUES (
+      'd2000000-0000-4000-8000-000000000010',
+      'd1000000-0000-4000-8000-000000000001',
+      'Client Draft Waiver Project', 'Local', 'Boundary control', 'oneTime',
+      'manual',
+      '{"oneTime":{"date":"2099-05-01","startTime":"09:00","endTime":"12:00","volunteers":2}}'::jsonb,
+      false, 'draft', true, 'unlisted'
+    )
+  $$,
+  'an organizer can still stage their own waiver project as a draft'
+);
+
+SELECT extensions.throws_ok(
+  $$
+    INSERT INTO public.projects (
+      id, creator_id, title, location, description, event_type,
+      verification_method, schedule, require_login, workflow_status,
+      waiver_required, visibility
+    )
+    VALUES (
+      'd2000000-0000-4000-8000-000000000011',
+      'd1000000-0000-4000-8000-000000000001',
+      'Client Published Waiver Project', 'Local', 'Boundary', 'oneTime',
+      'manual',
+      '{"oneTime":{"date":"2099-05-01","startTime":"09:00","endTime":"12:00","volunteers":2}}'::jsonb,
+      false, 'published', true, 'unlisted'
+    )
+  $$,
+  '42501',
+  'publishing or reconfiguring a waiver-required project requires the server-authorized waiver operation',
+  'a browser role cannot insert an already published waiver project'
+);
+
+SELECT extensions.throws_ok(
+  $$
+    UPDATE public.projects
+    SET workflow_status = 'published'
+    WHERE id = 'd2000000-0000-4000-8000-000000000003'
+  $$,
+  '42501',
+  'publishing or reconfiguring a waiver-required project requires the server-authorized waiver operation',
+  'a browser role cannot publish a staged waiver project directly'
+);
+
+SELECT extensions.throws_ok(
+  $$
+    UPDATE public.projects
+    SET waiver_required = true
+    WHERE id = 'd2000000-0000-4000-8000-000000000005'
+  $$,
+  '42501',
+  'publishing or reconfiguring a waiver-required project requires the server-authorized waiver operation',
+  'a browser role cannot turn a live project into a waiver project'
+);
+
+SELECT extensions.throws_ok(
+  $$
+    UPDATE public.projects
+    SET waiver_allow_upload = false, waiver_disable_esignature = true
+    WHERE id = 'd2000000-0000-4000-8000-000000000002'
+  $$,
+  '42501',
+  'publishing or reconfiguring a waiver-required project requires the server-authorized waiver operation',
+  'a browser role cannot leave a live waiver project with no way to sign'
+);
+
+SELECT extensions.throws_ok(
+  $$
+    UPDATE public.projects
+    SET waiver_pdf_storage_path =
+      'project_waivers/d2000000-0000-4000-8000-000000000002/source.pdf'
+    WHERE id = 'd2000000-0000-4000-8000-000000000001'
+  $$,
+  '42501',
+  'a waiver source document must belong to its own project',
+  'a browser role cannot pin its project to another project''s waiver document'
+);
+
+SELECT extensions.throws_ok(
+  $$
+    UPDATE public.projects
+    SET waiver_definition_id = 'd3000000-0000-4000-8000-000000000001'
+    WHERE id = 'd2000000-0000-4000-8000-000000000002'
+  $$,
+  '42501',
+  'waiver definitions are attached by the server-authorized operation',
+  'a browser role cannot attach a waiver definition itself'
+);
+
+-- No refusal above changed anything.
+SELECT extensions.is(
+  pg_temp.status_of('d2000000-0000-4000-8000-000000000003'),
+  'draft',
+  'the unsignable project is still unpublished after the direct attempt'
+);
+
+SELECT extensions.is(
+  (
+    SELECT waiver_required
+    FROM public.projects
+    WHERE id = 'd2000000-0000-4000-8000-000000000005'
+  ),
+  false,
+  'the live project is still a non-waiver project'
+);
+
+-- Legacy safety: an already published waiver project stays editable for
+-- everything that is not its waiver configuration, so this boundary does not
+-- strand projects that were published before it existed.
+SELECT extensions.lives_ok(
+  $$
+    UPDATE public.projects
+    SET title = 'Staged E-Signature Project (edited)'
+    WHERE id = 'd2000000-0000-4000-8000-000000000001'
+  $$,
+  'an ordinary edit to a published waiver project is still allowed'
+);
+
+SELECT extensions.is(
+  (
+    SELECT title
+    FROM public.projects
+    WHERE id = 'd2000000-0000-4000-8000-000000000001'
+  ),
+  'Staged E-Signature Project (edited)',
+  'the ordinary edit really applied'
+);
+
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- The sanctioned replacement path stays usable
+-- ---------------------------------------------------------------------------
+
+SELECT extensions.ok(
+  NOT has_function_privilege(
+    role_name,
+    'public.apply_project_waiver_settings(uuid, uuid, boolean, boolean, boolean)',
+    'EXECUTE'
+  ),
+  format('%s cannot execute apply_project_waiver_settings', role_name)
+)
+FROM (VALUES ('anon'), ('authenticated')) AS client_roles(role_name);
+
+SELECT extensions.ok(
+  has_function_privilege(
+    'service_role',
+    'public.apply_project_waiver_settings(uuid, uuid, boolean, boolean, boolean)',
+    'EXECUTE'
+  ),
+  'service_role can execute apply_project_waiver_settings'
+);
+
+CREATE OR REPLACE FUNCTION pg_temp.apply_waiver(
+  p_project_id uuid,
+  p_required boolean DEFAULT NULL,
+  p_allow_upload boolean DEFAULT NULL,
+  p_disable_esignature boolean DEFAULT NULL,
+  p_actor_id uuid DEFAULT 'd1000000-0000-4000-8000-000000000001'
+)
+RETURNS text
+LANGUAGE sql
+AS $$
+  SELECT outcome
+  FROM public.apply_project_waiver_settings(
+    p_project_id, p_actor_id, p_required, p_allow_upload, p_disable_esignature
+  );
+$$;
+
+SELECT extensions.is(
+  pg_temp.apply_waiver(
+    'd2000000-0000-4000-8000-000000000005', true, NULL, NULL,
+    'd1000000-0000-4000-8000-000000000002'
+  ),
+  'forbidden',
+  'a caller who does not manage the project cannot change its waiver settings'
+);
+
+SELECT extensions.is(
+  pg_temp.apply_waiver('d2000000-0000-4000-8000-000000000005', true),
+  'missing_waiver_source',
+  'a live project cannot start requiring a waiver it has no document for'
+);
+
+SELECT extensions.is(
+  (
+    SELECT waiver_required
+    FROM public.projects
+    WHERE id = 'd2000000-0000-4000-8000-000000000005'
+  ),
+  false,
+  'the refused settings change left the project alone'
+);
+
+SELECT extensions.is(
+  pg_temp.apply_waiver(
+    'd2000000-0000-4000-8000-000000000002', NULL, false, NULL
+  ),
+  'no_signing_mode',
+  'a live waiver project cannot lose its last way to be signed'
+);
+
+SELECT extensions.is(
+  pg_temp.apply_waiver('d2000000-0000-4000-8000-000000000002', true),
+  'unchanged',
+  'a settings call that changes nothing is a no-op'
+);
+
+SELECT extensions.is(
+  pg_temp.apply_waiver(
+    'd2000000-0000-4000-8000-000000000002', NULL, true, false
+  ),
+  'missing_waiver_definition',
+  'turning e-signatures on needs a definition to sign'
+);
+
+-- A draft is proved at publication time, not here, so its settings still move
+-- freely. publish_waiver_staged_project is what refuses an unprovable draft.
+SELECT extensions.is(
+  pg_temp.apply_waiver('d2000000-0000-4000-8000-000000000004', true),
+  'updated',
+  'a draft can still change its waiver settings before it is published'
 );
 
 SELECT * FROM extensions.finish();

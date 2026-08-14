@@ -4,7 +4,10 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeRichTextHtml } from "@/lib/security/html.server";
-import { getWaiverPdfRequirementError } from "@/lib/projects/waiver-validation";
+import {
+  getWaiverConfigurationError,
+  getWaiverPdfRequirementError,
+} from "@/lib/projects/waiver-validation";
 import { revalidatePath } from "next/cache";
 import type { EventFormState } from "@/hooks/use-event-form";
 import { createBasicProject } from "./create";
@@ -34,9 +37,17 @@ export async function createProject(formData: FormData) {
     const projectDataStr = formData.get("projectData") as string;
     if (!projectDataStr) return { error: "Missing project data" };
     const projectData = JSON.parse(projectDataStr);
+    const creationIdempotencyKey = formData.get("creationIdempotencyKey");
 
-    // Create basic project record
-    const basicResult = await createBasicProject(projectData);
+    // Create basic project record. The key makes a replayed create resolve to
+    // the row the first attempt created instead of inserting another one.
+    const basicResult = await createBasicProject({
+      ...projectData,
+      creationIdempotencyKey:
+        typeof creationIdempotencyKey === "string"
+          ? creationIdempotencyKey
+          : undefined,
+    });
     if (basicResult.error) return basicResult;
 
     // Return the project ID - client will handle file uploads separately. A
@@ -45,6 +56,7 @@ export async function createProject(formData: FormData) {
       success: true,
       id: basicResult.id,
       requiresWaiverPublication: basicResult.requiresWaiverPublication ?? false,
+      reusedExistingAttempt: basicResult.reusedExistingAttempt ?? false,
     };
   } catch (error) {
     console.error("Error in create project wrapper:", error);
@@ -266,9 +278,9 @@ export async function publishDraft(draftId: string) {
 
   // Create the project from draft data
   const projectData = draft.draft_data;
-  const waiverPdfError = getWaiverPdfRequirementError(projectData);
-  if (waiverPdfError) {
-    return { error: waiverPdfError };
+  const waiverConfigurationError = getWaiverConfigurationError(projectData);
+  if (waiverConfigurationError) {
+    return { error: waiverConfigurationError };
   }
 
   // Drafts intentionally never carry the uploaded waiver PDF, so this path
@@ -342,9 +354,9 @@ export async function updateDraft(
     return { error: "Incomplete project data for draft update" };
   }
 
-  const waiverPdfError = getWaiverPdfRequirementError(projectData);
-  if (waiverPdfError) {
-    return { error: waiverPdfError };
+  const waiverConfigurationError = getWaiverConfigurationError(projectData);
+  if (waiverConfigurationError) {
+    return { error: waiverConfigurationError };
   }
 
   const targetVisibility =

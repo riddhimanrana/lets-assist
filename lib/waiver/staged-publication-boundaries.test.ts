@@ -87,7 +87,12 @@ describe("staged waiver project publication", () => {
     ];
 
     for (const outcome of outcomes) {
-      expect(migration).toContain(`outcome := '${outcome}'`);
+      // The refusal is produced either directly by the publication RPC or by
+      // the shared proof helper it returns verbatim.
+      expect(
+        migration.includes(`outcome := '${outcome}'`) ||
+          migration.includes(`RETURN '${outcome}'`),
+      ).toBe(true);
       expect(creation).toContain(`${outcome}:`);
     }
   });
@@ -111,18 +116,32 @@ describe("creation client retry state", () => {
     expect(failureBlock).toMatch(/return;/u);
   });
 
-  test("a retry finishes the staged row instead of creating another project", () => {
+  test("the attempt is durable, so a reload cannot strand or duplicate the row", () => {
+    // The in-memory ref this replaced did not survive a reload, which left an
+    // invisible draft behind and made every retry insert another project. The
+    // reload and retry semantics themselves are covered behaviorally in
+    // lib/projects/staged-waiver-attempt.test.ts.
+    expect(creator).not.toMatch(/stagedProjectIdRef/u);
+    expect(creator).toMatch(/readStagedWaiverAttempt\(storage\)/u);
     expect(creator).toMatch(
-      /const stagedProjectIdRef = useRef<string \| null>\(null\);/u,
+      /formData\.append\("creationIdempotencyKey", attempt\.idempotencyKey\)/u,
     );
-    expect(creator).toMatch(/let projectId = stagedProjectIdRef\.current;/u);
-    expect(creator).toMatch(/stagedProjectIdRef\.current = projectId;/u);
-    expect(creator).toMatch(/stagedProjectIdRef\.current = null;/u);
+    expect(creator).toMatch(/clearStagedWaiverAttempt\(storage\)/u);
+    expect(creation).toMatch(
+      /creation_idempotency_key: creationIdempotencyKey/u,
+    );
+  });
+
+  test("a retry does not re-upload files or the waiver document", () => {
+    expect(creator).toMatch(/if \(!attempt\.uploadedFiles\) \{/u);
+    expect(creator).toMatch(
+      /if \(state\.waiverPdfFile && !attempt\.waiverAttached\) \{/u,
+    );
   });
 
   test("the client asks the server to publish rather than assuming it", () => {
     expect(creator).toMatch(/await publishWaiverStagedProject\(projectId\)/u);
-    expect(creator).toMatch(/await completeWaiverPublication\(projectId\)/u);
+    expect(creator).toMatch(/await completeWaiverPublication\(/u);
   });
 });
 
@@ -148,10 +167,10 @@ describe("publication database contract", () => {
 
   test("an e-signature project cannot publish without a matching definition", () => {
     expect(migration).toMatch(
-      /IF v_esignature_enabled AND v_project\.waiver_definition_id IS NULL THEN/u,
+      /IF v_esignature_enabled AND p_project\.waiver_definition_id IS NULL THEN/u,
     );
     expect(migration).toMatch(
-      /v_definition\.pdf_storage_path IS DISTINCT FROM\s+v_project\.waiver_pdf_storage_path/u,
+      /v_definition\.pdf_storage_path IS DISTINCT FROM\s+p_project\.waiver_pdf_storage_path/u,
     );
     expect(migration).toMatch(
       /field->>'field_type' IN \('signature', 'initial'\)/u,

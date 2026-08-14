@@ -50,7 +50,14 @@ import {
 } from "./actions";
 import { saveWaiverDefinition } from "../[id]/actions";
 import { useRouter } from "next/navigation";
-import { getWaiverPdfRequirementError } from "@/lib/projects/waiver-validation";
+import { getWaiverConfigurationError } from "@/lib/projects/waiver-validation";
+import {
+  clearStagedWaiverAttempt,
+  createStagedWaiverAttempt,
+  readStagedWaiverAttempt,
+  writeStagedWaiverAttempt,
+  type StagedWaiverAttempt,
+} from "@/lib/projects/staged-waiver-attempt";
 import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/client";
 // Import Zod schemas
 import {
@@ -205,7 +212,7 @@ export default function ProjectCreator({
   const [showWaiverReuploadNotice, setShowWaiverReuploadNotice] = useState(
     shouldPromptWaiverReuploadFromDraft,
   );
-  const waiverPdfRequirementError = getWaiverPdfRequirementError(state);
+  const waiverPdfRequirementError = getWaiverConfigurationError(state);
   const totalSteps = 5 + pluginSteps.length;
   const finalStep = totalSteps;
   const stepLabels = useMemo(
@@ -988,19 +995,32 @@ export default function ProjectCreator({
     }
   };
 
-  // Survives a failed publication so the next attempt finishes the same row.
-  const stagedProjectIdRef = useRef<string | null>(null);
+  // The attempt lives in browser storage, not in a ref, so a reload between
+  // creating the staged row and publishing it resumes the same project instead
+  // of stranding an invisible draft and inserting a duplicate on retry.
+  const attemptStorage = (): Storage | null =>
+    typeof window === "undefined" ? null : window.localStorage;
+
+  const persistAttempt = (attempt: StagedWaiverAttempt) => {
+    writeStagedWaiverAttempt(attemptStorage(), attempt);
+    return attempt;
+  };
 
   /**
    * Uploads the waiver PDF, saves its configuration, and asks the server to
    * publish the staged project. Returns a user-facing reason on failure and
    * null once the project is genuinely published.
+   *
+   * The upload is skipped when this attempt already attached its waiver, so a
+   * retry after a failed publication does not upload a second copy and orphan
+   * the first.
    */
   const completeWaiverPublication = async (
     projectId: string,
+    attempt: StagedWaiverAttempt,
   ): Promise<string | null> => {
     try {
-      if (state.waiverPdfFile) {
+      if (state.waiverPdfFile && !attempt.waiverAttached) {
         const waiverBase64 = await fileToBase64(state.waiverPdfFile);
         const waiverResult = await uploadWaiverPdf(
           projectId,
@@ -1022,6 +1042,9 @@ export default function ProjectCreator({
             return defResult.error;
           }
         }
+
+        persistAttempt({ ...attempt, waiverAttached: true });
+        attempt.waiverAttached = true;
       }
 
       const publishResult = await publishWaiverStagedProject(projectId);
@@ -1111,30 +1134,30 @@ export default function ProjectCreator({
       const formData = new FormData();
       formData.append("projectData", JSON.stringify(state));
 
-      // A staged waiver project from a previous failed attempt is reused so a
-      // retry finishes that row instead of creating a second one.
-      let projectId = stagedProjectIdRef.current;
-      let stagedForWaiver = Boolean(projectId);
+      // The same attempt key is replayed until the project is published, so a
+      // reload or a retry finishes the row an earlier attempt created rather
+      // than inserting another one.
+      const storage = attemptStorage();
+      const attempt = persistAttempt(
+        readStagedWaiverAttempt(storage) ??
+          createStagedWaiverAttempt(crypto.randomUUID()),
+      );
 
-      if (!projectId) {
-        const result = await createProject(formData);
+      formData.append("creationIdempotencyKey", attempt.idempotencyKey);
 
-        if ("error" in result) {
-          toast.dismiss(loadingToast);
-          toast.error(result.error);
-          setIsSubmitting(false);
-          return;
-        }
+      const result = await createProject(formData);
 
-        projectId = result.id ?? null;
-        stagedForWaiver =
-          "requiresWaiverPublication" in result &&
-          Boolean(result.requiresWaiverPublication);
-
-        if (projectId && stagedForWaiver) {
-          stagedProjectIdRef.current = projectId;
-        }
+      if ("error" in result) {
+        toast.dismiss(loadingToast);
+        toast.error(result.error);
+        setIsSubmitting(false);
+        return;
       }
+
+      const projectId = result.id ?? null;
+      const stagedForWaiver =
+        "requiresWaiverPublication" in result &&
+        Boolean(result.requiresWaiverPublication);
 
       if (!projectId) {
         toast.dismiss(loadingToast);
@@ -1142,17 +1165,33 @@ export default function ProjectCreator({
         setIsSubmitting(false);
         return;
       }
+
+      persistAttempt({ ...attempt, projectId });
+      attempt.projectId = projectId;
+
       let hasErrors = false;
 
-      // Step 2: Upload files directly to storage and link metadata to the project
-      const fileUploadResult = await uploadProjectFiles(projectId);
-      hasErrors = hasErrors || fileUploadResult.hasErrors;
+      // Step 2: Upload files directly to storage and link metadata to the
+      // project. Skipped on a retry that already uploaded them, so a second
+      // press does not duplicate the cover image and documents.
+      if (!attempt.uploadedFiles) {
+        const fileUploadResult = await uploadProjectFiles(projectId);
+        hasErrors = hasErrors || fileUploadResult.hasErrors;
+
+        if (!fileUploadResult.hasErrors) {
+          persistAttempt({ ...attempt, uploadedFiles: true });
+          attempt.uploadedFiles = true;
+        }
+      }
 
       // Step 3: Attach the real waiver PDF and its configuration, then ask the
       // database to publish the staged row. Until that succeeds the project
       // stays unpublished: not publicly readable and not signable.
       if (stagedForWaiver) {
-        const publicationError = await completeWaiverPublication(projectId);
+        const publicationError = await completeWaiverPublication(
+          projectId,
+          attempt,
+        );
 
         if (publicationError) {
           toast.dismiss(loadingToast);
@@ -1164,9 +1203,9 @@ export default function ProjectCreator({
           setIsSubmitting(false);
           return;
         }
-
-        stagedProjectIdRef.current = null;
       }
+
+      clearStagedWaiverAttempt(storage);
 
       // Step 5: Finalize project (non-blocking)
       finalizeProject(projectId).catch((error) => {

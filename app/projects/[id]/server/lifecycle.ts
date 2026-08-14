@@ -14,7 +14,46 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { getPluginRegistry } from "@/lib/plugins/registry";
 import { runProjectClone } from "@/lib/plugins/lifecycle";
 import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
+import {
+  extractWaiverSettingUpdates,
+  getWaiverSettingsErrorMessage,
+  type WaiverSettingUpdates,
+} from "@/lib/projects/waiver-settings";
 import { canUserManageProject, getProject } from "./access";
+
+/**
+ * Applies the waiver switches through the sanctioned service-role RPC.
+ *
+ * Returns a user-facing reason when the database refused, or null when the
+ * settings were applied (or were already in the requested state).
+ */
+async function applyWaiverSettings(
+  projectId: string,
+  actorId: string,
+  settings: WaiverSettingUpdates,
+): Promise<string | null> {
+  const admin = getAdminClient();
+  const { data, error } = await admin.rpc("apply_project_waiver_settings", {
+    p_project_id: projectId,
+    p_actor_id: actorId,
+    p_waiver_required: settings.waiver_required,
+    p_waiver_allow_upload: settings.waiver_allow_upload,
+    p_waiver_disable_esignature: settings.waiver_disable_esignature,
+  });
+
+  if (error) {
+    console.error("Error applying project waiver settings:", error);
+    return "This project's waiver settings could not be saved.";
+  }
+
+  const outcome = (data as { outcome: string }[] | null)?.[0]?.outcome;
+
+  if (!outcome) {
+    return "This project's waiver settings could not be saved.";
+  }
+
+  return getWaiverSettingsErrorMessage(outcome);
+}
 
 export async function updateProjectStatus(
   projectId: string,
@@ -229,6 +268,13 @@ export async function cloneProject(projectId: string) {
     creator_synced_at: ________,
     published: _________,
     certificates: __________,
+    // Waiver evidence belongs to the project it was uploaded for. A clone
+    // starts without it and re-attaches its own source and definition, which
+    // is also what the database boundary requires of a client-role insert.
+    waiver_pdf_url: ___________,
+    waiver_pdf_storage_path: ____________,
+    waiver_definition_id: _____________,
+    creation_idempotency_key: ______________,
     ...clonableData
   } = source;
 
@@ -435,10 +481,22 @@ export async function updateProject(
       "creator_synced_at",
       "reviewed_by",
       "reviewed_at",
+      // Publication is a consequential transition, not a generic field write.
+      // It is owned by publish_waiver_staged_project / publishDraft.
+      "workflow_status",
+      "creation_idempotency_key",
     ] as const;
     for (const field of immutableProjectFields) {
       delete mutableSanitizedUpdates[field];
     }
+
+    // Waiver switches leave this generic update entirely. Turning a published
+    // project into a waiver project (or changing how its waiver may be signed)
+    // has to keep proving the waiver, so it goes through the service-role
+    // organizer-scoped RPC the database boundary sanctions.
+    const requestedWaiverSettings = extractWaiverSettingUpdates(
+      mutableSanitizedUpdates,
+    );
 
     // Get current user using getClaims() for better performance
     const { user, error: userError } = await getAuthUser();
@@ -493,6 +551,20 @@ export async function updateProject(
       ) && sanitizedUpdates.recurrence_rule === null;
     const isRecurringParent =
       !project.recurrence_parent_id && !!project.recurrence_rule;
+
+    // Applied before anything else so a refused waiver change leaves the whole
+    // project untouched rather than half saved.
+    if (requestedWaiverSettings) {
+      const waiverSettingsError = await applyWaiverSettings(
+        projectId,
+        user.id,
+        requestedWaiverSettings,
+      );
+
+      if (waiverSettingsError) {
+        return { error: waiverSettingsError };
+      }
+    }
 
     // Update the project
     const { error: updateError } = await supabase

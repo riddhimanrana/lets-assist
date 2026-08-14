@@ -5,7 +5,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sanitizeRichTextHtml } from "@/lib/security/html.server";
-import { getWaiverPdfRequirementError } from "@/lib/projects/waiver-validation";
+import { getWaiverConfigurationError } from "@/lib/projects/waiver-validation";
 import type { EventFormState } from "@/hooks/use-event-form";
 import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
 import { runProjectCreate } from "@/lib/plugins/lifecycle";
@@ -24,10 +24,32 @@ export type CreateBasicProjectResult = {
   error?: string;
   /** True when the row was created unpublished and still needs its waiver. */
   requiresWaiverPublication?: boolean;
+  /** True when an earlier attempt with the same key already created the row. */
+  reusedExistingAttempt?: boolean;
 };
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return (
+    !!error &&
+    typeof error === "object" &&
+    (error as { code?: unknown }).code === "23505"
+  );
+}
+
+function normalizeIdempotencyKey(key: unknown): string | null {
+  return typeof key === "string" && UUID_PATTERN.test(key.trim())
+    ? key.trim().toLowerCase()
+    : null;
+}
+
 export async function createBasicProject(
-  projectData: EventFormState & { userNow?: string },
+  projectData: EventFormState & {
+    userNow?: string;
+    creationIdempotencyKey?: string;
+  },
   isDraft: boolean = false,
 ): Promise<CreateBasicProjectResult> {
   "use server";
@@ -146,12 +168,40 @@ export async function createBasicProject(
     }
   }
 
-  const waiverPdfError = getWaiverPdfRequirementError(projectData);
-  if (waiverPdfError) {
-    return { error: waiverPdfError };
+  const waiverConfigurationError = getWaiverConfigurationError(projectData);
+  if (waiverConfigurationError) {
+    return { error: waiverConfigurationError };
   }
 
   const stagesWaiverPublication = !isDraft && !!projectData.waiverRequired;
+  const creationIdempotencyKey = normalizeIdempotencyKey(
+    projectData.creationIdempotencyKey,
+  );
+
+  // A staged waiver project is created before its PDF exists, so a reload or a
+  // failed publication has to be able to finish the same row. The creator
+  // scoped key makes that convergence durable instead of depending on client
+  // memory: the same key always resolves to the same project.
+  if (creationIdempotencyKey) {
+    const { data: existingAttempt } = await supabase
+      .from("projects")
+      .select("id, workflow_status, waiver_required")
+      .eq("creator_id", user.id)
+      .eq("creation_idempotency_key", creationIdempotencyKey)
+      .maybeSingle();
+
+    if (existingAttempt?.id) {
+      return {
+        success: true,
+        id: existingAttempt.id,
+        reusedExistingAttempt: true,
+        ...(existingAttempt.workflow_status === "draft" &&
+        existingAttempt.waiver_required
+          ? { requiresWaiverPublication: true }
+          : {}),
+      };
+    }
+  }
 
   try {
     // Initialize published field based on event type
@@ -242,6 +292,7 @@ export async function createBasicProject(
         isDraft || stagesWaiverPublication ? "draft" : "published",
       recurrence_rule: recurrenceRule, // Support recurring projects
       signup_form_schema: projectData.signupFormSchema || null,
+      creation_idempotency_key: creationIdempotencyKey,
     };
 
     const projectInsertPayload = {
@@ -287,6 +338,30 @@ export async function createBasicProject(
     }
 
     if (projectError || !project) {
+      // Two submits of the same attempt race here. The loser resolves to the
+      // row the winner created instead of reporting a failure the user would
+      // retry into a duplicate.
+      if (creationIdempotencyKey && isDuplicateKeyError(projectError)) {
+        const { data: racedAttempt } = await supabase
+          .from("projects")
+          .select("id, workflow_status, waiver_required")
+          .eq("creator_id", user.id)
+          .eq("creation_idempotency_key", creationIdempotencyKey)
+          .maybeSingle();
+
+        if (racedAttempt?.id) {
+          return {
+            success: true,
+            id: racedAttempt.id,
+            reusedExistingAttempt: true,
+            ...(racedAttempt.workflow_status === "draft" &&
+            racedAttempt.waiver_required
+              ? { requiresWaiverPublication: true }
+              : {}),
+          };
+        }
+      }
+
       console.error("Error creating project:", projectError);
       return { error: "Failed to create project. Please try again." };
     }

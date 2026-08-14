@@ -72,8 +72,20 @@ export async function uploadProjectWaiverPdf(
       .from(WAIVER_UPLOAD_BUCKET)
       .getPublicUrl(storagePath);
 
-    // Update project with waiver PDF info
-    const { error: updateError } = await supabase
+    // The path this upload supersedes, read before the project is repointed.
+    const { data: previousProject } = await supabase
+      .from("projects")
+      .select("waiver_pdf_storage_path")
+      .eq("id", projectId)
+      .maybeSingle();
+    const supersededStoragePath =
+      previousProject?.waiver_pdf_storage_path ?? null;
+
+    // Written with the service client. Waiver evidence columns are refused for
+    // browser roles at the database boundary, and the path written here is
+    // server generated for the object this request just stored, so it is proof
+    // rather than a client claim.
+    const { error: updateError } = await serviceSupabase
       .from("projects")
       .update({
         waiver_pdf_url: urlData.publicUrl,
@@ -88,6 +100,27 @@ export async function uploadProjectWaiverPdf(
         .from(WAIVER_UPLOAD_BUCKET)
         .remove([storagePath]);
       return { error: "Failed to save waiver PDF to project" };
+    }
+
+    // A retried upload leaves the previous source object unreferenced. Hand it
+    // to the existing deletion queue, which re-checks references at the last
+    // moment, instead of deleting it inline: a definition or a signature may
+    // still name it, and that check belongs in the database.
+    if (supersededStoragePath && supersededStoragePath !== storagePath) {
+      const { error: enqueueError } = await serviceSupabase.rpc(
+        "enqueue_superseded_waiver_source",
+        { p_object_path: supersededStoragePath },
+      );
+
+      if (enqueueError) {
+        // Retention hygiene only: the project already points at the new
+        // object, so a failure here leaves an unreferenced file, not a
+        // correctness problem.
+        console.error(
+          "Failed to queue superseded waiver source for cleanup:",
+          enqueueError,
+        );
+      }
     }
 
     revalidatePath(`/projects/${projectId}`);
@@ -119,12 +152,25 @@ export async function removeProjectWaiverPdf(projectId: string) {
     // Get current waiver PDF path
     const { data: project, error: fetchError } = await supabase
       .from("projects")
-      .select("waiver_pdf_storage_path")
+      .select("waiver_pdf_storage_path, waiver_required, workflow_status")
       .eq("id", projectId)
       .maybeSingle();
 
     if (fetchError || !project) {
       return { error: "Project not found" };
+    }
+
+    // Removing the source from a live waiver project would leave it published,
+    // still demanding a waiver, with nothing to sign. Turning the requirement
+    // off is the explicit decision that has to come first.
+    if (
+      project.waiver_required &&
+      (project.workflow_status ?? "published") === "published"
+    ) {
+      return {
+        error:
+          "Turn off the waiver requirement before removing the waiver PDF from a published project.",
+      };
     }
 
     const serviceSupabase = getAdminClient();
@@ -178,7 +224,7 @@ export async function removeProjectWaiverPdf(projectId: string) {
     }
 
     // Update project to remove waiver PDF info
-    const { error: updateError } = await supabase
+    const { error: updateError } = await serviceSupabase
       .from("projects")
       .update({
         waiver_pdf_url: null,
