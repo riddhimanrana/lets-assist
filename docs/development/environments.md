@@ -29,6 +29,23 @@ Run `bun run dev`. The launcher owns a dedicated project name, ports, containers
 
 Hosted proof requires the actual `development` deployment, branch-scoped environment variables, a Development database/migration history, and authenticated browser acceptance. Local tests do not establish those facts.
 
+Seed only a confirmed non-Production Supabase branch with the supported synthetic
+fixture wrapper:
+
+```sh
+CSF_LOCAL_TEST_PASSWORD='<run-scoped synthetic password>' \
+EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF='<target branch project ref>' \
+SUPABASE_BRANCH_ID='<target branch UUID>' \
+SUPABASE_PARENT_PROJECT_REF='fotdmeakexgrkronxlof' \
+bun run csf:seed:hosted-development
+```
+
+`SUPABASE_PARENT_PROJECT_REF` names the Supabase parent solely for the read-only
+branch metadata lookup; it is expected to be `fotdmeakexgrkronxlof`. The wrapper
+still refuses that Production ref as the seed target, verifies both returned API
+and database hosts against the separate target branch ref, and removes its
+temporary fixture seam in `finally`.
+
 ## Production
 
 `main`, Production Supabase, Production Vercel aliases, live OAuth configuration, and live provider credentials are outside routine cleanup/refactor work.
