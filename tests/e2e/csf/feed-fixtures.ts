@@ -87,6 +87,11 @@ export type SeededFeedPost = {
   publishedAt?: string;
 };
 
+export type GuardedFeedPostCleanup = {
+  id: string;
+  emailCampaignId: string | null;
+};
+
 export async function seedFeedPosts(
   fixture: CsfFeedFixture,
   posts: SeededFeedPost[],
@@ -183,18 +188,41 @@ export async function cleanFeedActivities(
 export async function cleanFeedPosts(
   fixture: CsfFeedFixture,
   titlePrefix: string,
+  options?: { expectedPosts?: GuardedFeedPostCleanup[] },
 ) {
-  const { data: posts, error: postsError } = await fixture.admin
+  const expectedPosts = options?.expectedPosts;
+  if (expectedPosts?.length === 0) return;
+  const postsQuery = fixture.admin
     .schema("plugin_data")
     .from("csf_announcements")
-    .select("id")
-    .eq("organization_id", fixture.organizationId)
-    .like("title", `${titlePrefix}%`);
+    .select("id, email_campaign_id")
+    .eq("organization_id", fixture.organizationId);
+  const { data: posts, error: postsError } = expectedPosts
+    ? await postsQuery.in(
+        "id",
+        expectedPosts.map((post) => post.id),
+      )
+    : await postsQuery.like("title", `${titlePrefix}%`);
   if (postsError) {
     throw new Error(`Could not find fixture feed posts: ${postsError.message}`);
   }
 
   const postIds = (posts ?? []).map((post) => post.id);
+  if (expectedPosts) {
+    const currentCampaigns = new Map(
+      (posts ?? []).map((post) => [post.id, post.email_campaign_id]),
+    );
+    const changed = expectedPosts.some(
+      (post) =>
+        currentCampaigns.get(post.id) === undefined ||
+        currentCampaigns.get(post.id) !== post.emailCampaignId,
+    );
+    if (posts?.length !== expectedPosts.length || changed) {
+      throw new Error(
+        "Synthetic announcement campaign links changed before guarded cleanup.",
+      );
+    }
+  }
   if (postIds.length > 0) {
     const { data: replies, error: repliesError } = await fixture.admin
       .schema("plugin_data")
@@ -228,12 +256,14 @@ export async function cleanFeedPosts(
     }
   }
 
-  const { error } = await fixture.admin
+  const deleteQuery = fixture.admin
     .schema("plugin_data")
     .from("csf_announcements")
     .delete()
-    .eq("organization_id", fixture.organizationId)
-    .like("title", `${titlePrefix}%`);
+    .eq("organization_id", fixture.organizationId);
+  const { error } = expectedPosts
+    ? await deleteQuery.in("id", postIds)
+    : await deleteQuery.like("title", `${titlePrefix}%`);
   if (error) {
     throw new Error(`Could not clean fixture feed posts: ${error.message}`);
   }

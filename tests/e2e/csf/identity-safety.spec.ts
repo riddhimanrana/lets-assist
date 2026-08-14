@@ -393,19 +393,27 @@ test.describe("CSF identity safety", () => {
     // before opening the portaled row menu so a late roster refresh cannot
     // close the menu between the trigger click and the correction action.
     await expect(
-      page.getByText("Showing 2 of 2 matching members."),
+      page.getByRole("tabpanel").getByText("Showing 2 of 2 matching members."),
     ).toBeVisible();
 
     const sourceRow = page.getByRole("row").filter({
       hasText: `wren.alpha.${fixture.suffix}@students.local.test`,
     });
     await expect(sourceRow).toBeVisible();
-    await sourceRow
-      .getByRole("button", { name: `Actions for ${fixture.mergeSourceName}` })
-      .click();
-    await page
-      .getByRole("menuitem", { name: "Merge duplicate record" })
-      .click();
+    const sourceRowActions = sourceRow.getByRole("button", {
+      name: `Actions for ${fixture.mergeSourceName}`,
+      exact: true,
+    });
+    // Base UI only wires the dropdown after hydration, signalled by
+    // aria-expanded on the trigger. Clicking before that opens nothing.
+    await expect(sourceRowActions).toHaveAttribute("aria-expanded", "false");
+    await sourceRowActions.click();
+    const mergeMenuItem = page.getByRole("menuitem", {
+      name: "Merge duplicate record",
+      exact: true,
+    });
+    await expect(mergeMenuItem).toBeVisible();
+    await mergeMenuItem.click();
 
     const dialog = page.getByRole("dialog", {
       name: "Merge a duplicate student record",
@@ -507,21 +515,26 @@ test.describe("CSF identity safety", () => {
     await search.fill(`Vale-${fixture.suffix}`);
     await search.press("Enter");
     await expect(
-      page.getByText("Showing 2 of 2 matching members."),
+      page.getByRole("tabpanel").getByText("Showing 2 of 2 matching members."),
     ).toBeVisible();
 
     const sourceRow = page.getByRole("row").filter({
       hasText: fixture.validMergeSourceName,
     });
     await expect(sourceRow).toBeVisible();
-    await sourceRow
-      .getByRole("button", {
-        name: `Actions for ${fixture.validMergeSourceName}`,
-      })
-      .click();
-    await page
-      .getByRole("menuitem", { name: "Merge duplicate record" })
-      .click();
+    const sourceRowActions = sourceRow.getByRole("button", {
+      name: `Actions for ${fixture.validMergeSourceName}`,
+      exact: true,
+    });
+    // Same hydration gate as the refusal scenario above.
+    await expect(sourceRowActions).toHaveAttribute("aria-expanded", "false");
+    await sourceRowActions.click();
+    const mergeMenuItem = page.getByRole("menuitem", {
+      name: "Merge duplicate record",
+      exact: true,
+    });
+    await expect(mergeMenuItem).toBeVisible();
+    await mergeMenuItem.click();
 
     const dialog = page.getByRole("dialog", {
       name: "Merge a duplicate student record",

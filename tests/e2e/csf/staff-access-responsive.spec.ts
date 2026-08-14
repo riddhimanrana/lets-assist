@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { expect, test, type Page } from "@playwright/test";
 
 import {
@@ -8,6 +10,7 @@ import {
   loginAs,
   watchBrowserFailures,
 } from "./helpers";
+import { loadCsfFeedFixture, type CsfFeedFixture } from "./feed-fixtures";
 
 const STAFF_TAB_URL = `${CSF_ORGANIZATION_PATH}?tab=csf-staff`;
 
@@ -32,6 +35,82 @@ async function openStaffAccess(page: Page) {
   await expect(
     page.getByRole("heading", { name: "Officer roster", exact: true }),
   ).toBeVisible();
+}
+
+async function loadSyntheticSubmission(
+  fixture: CsfFeedFixture,
+  description: string,
+) {
+  const { data, error } = await fixture.admin
+    .schema("plugin_data")
+    .from("csf_point_submissions")
+    .select("id, status")
+    .eq("organization_id", fixture.organizationId)
+    .eq("description", description)
+    .limit(2);
+  if (error) {
+    throw new Error(
+      `Could not verify synthetic point cleanup: ${error.message}`,
+    );
+  }
+  if ((data?.length ?? 0) > 1) {
+    throw new Error("Synthetic point cleanup found more than one durable row.");
+  }
+  return data?.[0] ?? null;
+}
+
+async function withdrawSyntheticSubmission(
+  page: Page,
+  fixture: CsfFeedFixture,
+  description: string,
+) {
+  const deadline = Date.now() + 15_000;
+  let durable = await loadSyntheticSubmission(fixture, description);
+
+  while (!durable && Date.now() < deadline) {
+    const dialog = page.getByRole("dialog");
+    const actionSettledWithoutWrite =
+      (await dialog.isVisible().catch(() => false)) &&
+      (await dialog.locator("form").getAttribute("aria-busy")) !== "true" &&
+      (await dialog
+        .getByRole("alert")
+        .isVisible()
+        .catch(() => false));
+    if (actionSettledWithoutWrite) return;
+    await page.waitForTimeout(100);
+    durable = await loadSyntheticSubmission(fixture, description);
+  }
+
+  if (!durable) {
+    throw new Error(
+      "Synthetic point cleanup could not prove a durable row or a terminal no-write result.",
+    );
+  }
+  if (durable.status === "withdrawn") return;
+
+  await page.goto(`${CSF_ORGANIZATION_PATH}?tab=csf-submissions`, {
+    waitUntil: "domcontentloaded",
+  });
+  const submission = page
+    .getByRole("article")
+    .filter({ has: page.getByText(description, { exact: true }) });
+  await expect(submission).toBeVisible();
+  await submission
+    .getByRole("button", { name: "Withdraw", exact: true })
+    .click();
+  const withdrawal = page.getByRole("dialog", {
+    name: "Withdraw point submission?",
+  });
+  await expect(withdrawal).toContainText(description);
+  await withdrawal
+    .getByRole("button", { name: "Withdraw", exact: true })
+    .click();
+  await expect(withdrawal).toBeHidden();
+  await expect
+    .poll(
+      async () => (await loadSyntheticSubmission(fixture, description))?.status,
+    )
+    .toBe("withdrawn");
 }
 
 test.describe("DVHS CSF staff access presentation", () => {
@@ -135,11 +214,24 @@ test.describe("DVHS CSF staff access presentation", () => {
     await loginAs(page, "admin", STAFF_TAB_URL);
     await openStaffAccess(page);
 
-    // Both wordings are distinct concepts. Whichever the fixture data produces,
-    // neither may be replaced by a generic "no linked account".
-    const body = await page.locator("body").innerText();
-    expect(body).not.toContain("No linked account");
-    expect(body).not.toContain("Unassigned CSF profile");
+    const unlinkedProfileCard = page
+      .getByRole("region", { name: "Officer roster" })
+      .getByRole("button", {
+        name: "Revoke No CSF profile linked's Adviser — Chapter oversight access",
+        exact: true,
+      })
+      .locator("xpath=ancestor::div[@data-slot='item'][1]");
+    await expect(unlinkedProfileCard).toBeVisible();
+    await expect(
+      unlinkedProfileCard.getByText("No CSF profile linked", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      unlinkedProfileCard.getByText("Let's Assist account", { exact: true }),
+    ).toBeVisible();
+    await expect(unlinkedProfileCard).toContainText("Dr. Elena Park");
+    await expect(unlinkedProfileCard).not.toContainText(
+      "No Let's Assist account",
+    );
   });
 
   test("a member cannot reach the staff access workspace", async ({ page }) => {
@@ -227,6 +319,8 @@ test.describe("DVHS CSF proof submission", () => {
     page,
   }) => {
     const failures = watchBrowserFailures(page);
+    const fixture = await loadCsfFeedFixture();
+    const description = `Synthetic phone point claim ${randomUUID()}`;
     await page.setViewportSize({ width: 390, height: 844 });
     await loginAs(
       page,
@@ -244,22 +338,89 @@ test.describe("DVHS CSF proof submission", () => {
     await dialog.getByLabel("One proof file").setInputFiles({
       name: "service-proof.png",
       mimeType: "image/png",
-      buffer: Buffer.alloc(1024, 5),
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "base64",
+      ),
     });
+    await dialog
+      .getByRole("combobox", { name: "Activity", exact: true })
+      .click();
+    await page.getByRole("option", { name: /Library Peer Tutoring/ }).click();
     // Exact, so "Point type" and "Point source" cannot also match.
     await dialog.getByLabel("Points", { exact: true }).fill("1");
-    await dialog
-      .getByRole("button", { name: "Submit for review", exact: true })
-      .click();
+    await dialog.getByLabel("Description").fill(description);
 
-    // The phase is indeterminate: a named progressbar with no value, plus an
-    // announced status. It may resolve quickly, so accept either state.
-    const progress = page.getByRole("progressbar", { name: "Upload progress" });
-    if (await progress.count()) {
-      await expect(progress).not.toHaveAttribute("aria-valuenow", /.*/);
-      await expect(form).toHaveAttribute("aria-busy", "true");
+    let submissionWithdrawn = false;
+    let testFailure: unknown;
+    try {
+      await dialog
+        .getByRole("button", { name: "Submit for review", exact: true })
+        .click();
+
+      // The phase is indeterminate: a named progressbar with no value, plus an
+      // announced status. It may resolve quickly, so accept either state.
+      const progress = page.getByRole("progressbar", {
+        name: "Upload progress",
+      });
+      if (await progress.count()) {
+        await expect(progress).not.toHaveAttribute("aria-valuenow", /.*/);
+        await expect(form).toHaveAttribute("aria-busy", "true");
+      }
+      expect(await page.locator("body").innerText()).not.toMatch(/\b\d{1,3}%/);
+
+      await expect(dialog).toBeHidden();
+      const submission = page
+        .getByRole("article")
+        .filter({ has: page.getByText(description, { exact: true }) });
+      await expect(submission).toBeVisible();
+      await expect(
+        submission.getByText("Submitted", { exact: true }),
+      ).toBeVisible();
+
+      await submission
+        .getByRole("button", { name: "Withdraw", exact: true })
+        .click();
+      const withdrawal = page.getByRole("dialog", {
+        name: "Withdraw point submission?",
+      });
+      await expect(withdrawal).toContainText(description);
+      await withdrawal
+        .getByRole("button", { name: "Withdraw", exact: true })
+        .click();
+      await expect(withdrawal).toBeHidden();
+      await expect(
+        submission.getByText("Withdrawn", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        submission.getByRole("button", { name: "Withdraw", exact: true }),
+      ).toHaveCount(0);
+      submissionWithdrawn = true;
+    } catch (error) {
+      testFailure = error;
     }
-    expect(await page.locator("body").innerText()).not.toMatch(/\b\d{1,3}%/);
+
+    let cleanupFailure: unknown;
+    try {
+      // A failed assertion must not leave a mutable synthetic submission in
+      // the shared isolated browser stack. A bounded service-role read observes
+      // whether the supported action materialized; cleanup itself still uses
+      // the member's audited UI withdrawal and retains immutable history.
+      if (!submissionWithdrawn) {
+        await withdrawSyntheticSubmission(page, fixture, description);
+      }
+    } catch (error) {
+      cleanupFailure = error;
+    }
+
+    if (testFailure && cleanupFailure) {
+      throw new AggregateError(
+        [testFailure, cleanupFailure],
+        "Point submission failed and synthetic cleanup also failed.",
+      );
+    }
+    if (testFailure) throw testFailure;
+    if (cleanupFailure) throw cleanupFailure;
 
     expectNoBrowserFailures(failures);
   });

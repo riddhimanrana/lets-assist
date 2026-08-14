@@ -21,14 +21,14 @@ docs/csf/source-data/
 
 ## Semantics and era mapping
 
-- Grade → cohort at Spring 2026: 9th → Class of 2029, 10th → 2028, 11th → 2027, 12th → 2026 (graduated; import for history only).
+- Grade → cohort at Spring 2026: 9th → Class of 2029, 10th → 2028, 11th → 2027, 12th → Class of 2026 (out of scope; do not import).
 - School emails look like `2xxxxx@students.srvusd.net` (6-digit student number). Personal emails are free-form. The application workbook carries both; most club sheets carry one or neither.
 - "Points" are CSF service points (typically 1 point per attended club meeting, 2 per non-drive event per the club registry), not volunteer hours.
-- Import targets: partner clubs and policies from the registry/audit forms; the application workbook is the roster seed; attendance and club sheets become term-scoped attendance/credit records with `source='sheet'` provenance.
+- Import targets: partner clubs and policies from the registry/audit forms; the approved Class of 2027–2029 `S26` sheets are historical records; attendance and club sheets become term-scoped attendance/credit records with `source='sheet'` provenance. The Spring 2026 application workbook is historical comparison evidence for this cutover, not the roster seed or account-connection evidence. The template-only Class of 2030 workbook is skipped; 2030 student records come through the new application cycle.
 
 ## rosters/
 
-### CSF Application Spring 2026 Responses.xlsx — primary roster seed
+### CSF Application Spring 2026 Responses.xlsx — historical comparison source
 
 One sheet (`Form Responses 1`), 517 data rows, Google Forms export. Columns:
 

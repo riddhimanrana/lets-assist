@@ -5,7 +5,7 @@
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(14);
+SELECT extensions.plan(15);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data,
@@ -87,75 +87,124 @@ INSERT INTO plugin_data.csf_profile_cohort_memberships (
   ('fe100000-0000-4000-8000-000000000001', 'fe400000-0000-4000-8000-000000000008', 'fe300000-0000-4000-8000-000000000001', 'archived');
 
 INSERT INTO plugin_data.csf_sheet_sources (
+  id, organization_id, source_type, title, cohort_id, provider, sync_status,
+  drive_access_state, drive_trashed, drive_file_name, drive_mime_type,
+  uploaded_file_path, settings
+) VALUES (
+  'fe500000-0000-4000-8000-000000000001',
+  'fe100000-0000-4000-8000-000000000001',
+  'student_roster', 'Central race source',
+  'fe300000-0000-4000-8000-000000000001',
+  'uploaded_xlsx', 'not_synced', 'accessible', false,
+  'Central race roster.xlsx',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'fe100000-0000-4000-8000-000000000001/fe500000-0000-4000-8000-000000000001/1.xlsx',
+  jsonb_build_object(
+    'sourceKind', 'student_roster',
+    'stagedUpload', true,
+    'stagingObjectId', 'fe510000-0000-4000-8000-000000000001',
+    'stagingGeneration', 1,
+    'stagingContentHash', repeat('5', 64),
+    'stagingByteLength', 2048,
+    'stagingReadyAt', '2044-08-01T00:00:00Z',
+    'evidenceRevision', repeat('5', 64)
+  )
+);
+
+INSERT INTO plugin_data.csf_sheet_sources (
   id, organization_id, source_type, title, provider, sync_status, settings
 ) VALUES
-  ('fe500000-0000-4000-8000-000000000001', 'fe100000-0000-4000-8000-000000000001', 'student_roster', 'Central race source', 'uploaded_xlsx', 'not_synced', '{"sourceKind":"student_roster"}'),
   ('fe500000-0000-4000-8000-000000000002', 'fe100000-0000-4000-8000-000000000001', 'student_roster', 'Reconcile race source', 'uploaded_xlsx', 'not_synced', '{"sourceKind":"student_roster"}'),
   ('fe500000-0000-4000-8000-000000000003', 'fe100000-0000-4000-8000-000000000001', 'meeting_attendance', 'Meeting race source', 'google_sheets', 'not_synced', '{"sourceKind":"meeting_attendance"}');
 
-INSERT INTO plugin_data.csf_sheet_import_jobs (
-  id, organization_id, source_id, initiated_by, mode, status, source_type,
-  preview_job_id, commit_actor_user_id, commit_actor_snapshot
-) VALUES
-  ('fe600000-0000-4000-8000-000000000001', 'fe100000-0000-4000-8000-000000000001', 'fe500000-0000-4000-8000-000000000001', 'fe000000-0000-4000-8000-000000000001', 'preview', 'completed', 'student_roster', NULL, NULL, NULL),
-  ('fe600000-0000-4000-8000-000000000002', 'fe100000-0000-4000-8000-000000000001', 'fe500000-0000-4000-8000-000000000001', 'fe000000-0000-4000-8000-000000000001', 'commit', 'running', 'student_roster', 'fe600000-0000-4000-8000-000000000001', 'fe000000-0000-4000-8000-000000000001', '{"claimedBy":"fe000000-0000-4000-8000-000000000001"}'),
-  ('fe600000-0000-4000-8000-000000000003', 'fe100000-0000-4000-8000-000000000001', 'fe500000-0000-4000-8000-000000000002', 'fe000000-0000-4000-8000-000000000001', 'preview', 'completed', 'student_roster', NULL, NULL, NULL),
-  ('fe600000-0000-4000-8000-000000000004', 'fe100000-0000-4000-8000-000000000001', 'fe500000-0000-4000-8000-000000000003', 'fe000000-0000-4000-8000-000000000001', 'preview', 'completed', 'meeting_attendance', NULL, NULL, NULL);
-
-INSERT INTO plugin_data.csf_sheet_import_commit_attempts (
-  id, organization_id, commit_job_id, attempt_number, correlation_id,
-  actor_user_id, actor_snapshot, status, lease_expires_at
+INSERT INTO plugin_data.csf_sheet_import_staging_objects (
+  id, organization_id, source_id, generation, status, bucket, object_path,
+  file_extension, content_hash, byte_length, upload_expires_at, ready_at,
+  ready_expires_at
 ) VALUES (
-  'fe700000-0000-4000-8000-000000000001',
+  'fe510000-0000-4000-8000-000000000001',
   'fe100000-0000-4000-8000-000000000001',
-  'fe600000-0000-4000-8000-000000000002',
-  1,
-  'fea00000-0000-4000-8000-000000000001',
-  'fe000000-0000-4000-8000-000000000001',
-  '{"claimedBy":"fe000000-0000-4000-8000-000000000001"}',
-  'running',
-  now() + interval '1 hour'
+  'fe500000-0000-4000-8000-000000000001',
+  1, 'ready', 'csf-private',
+  'fe100000-0000-4000-8000-000000000001/fe500000-0000-4000-8000-000000000001/1.xlsx',
+  'xlsx', repeat('5', 64), 2048,
+  '2044-08-01T01:00:00Z', '2044-08-01T00:00:00Z', '2044-08-01T01:00:00Z'
 );
 
-UPDATE plugin_data.csf_sheet_import_jobs
-SET active_commit_attempt_id = 'fe700000-0000-4000-8000-000000000001'
-WHERE id = 'fe600000-0000-4000-8000-000000000002';
+INSERT INTO plugin_data.csf_sheet_import_jobs (
+  id, organization_id, source_id, initiated_by, mode, status, source_type,
+  source_file_id, source_file_name, source_sheet_tab, source_range,
+  source_modified_at, source_file_metadata, mapping_snapshot, mapping_version,
+  source_content_hash, snapshot_hash, snapshot_row_count,
+  snapshot_contract_version
+) VALUES (
+  'fe600000-0000-4000-8000-000000000001',
+  'fe100000-0000-4000-8000-000000000001',
+  'fe500000-0000-4000-8000-000000000001',
+  'fe000000-0000-4000-8000-000000000001',
+  'preview', 'completed', 'student_roster',
+  'fe510000-0000-4000-8000-000000000001',
+  'Central race roster.xlsx', 'Roster', 'Roster!A1:E2', '2044-08-01T00:00:00Z',
+  jsonb_build_object(
+    'id', 'fe510000-0000-4000-8000-000000000001',
+    'sourceProvider', 'uploaded_xlsx',
+    'name', 'Central race roster.xlsx',
+    'mimeType', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'headRevisionId', repeat('5', 64),
+    'stagingGeneration', 1,
+    'readyAt', '2044-08-01T00:00:00Z',
+    'accessState', 'accessible',
+    'trashed', false
+  ),
+  jsonb_build_object(
+    'version', 1,
+    'sourceType', 'student_roster',
+    'sourceFileId', 'fe510000-0000-4000-8000-000000000001',
+    'sourceProvider', 'uploaded_xlsx',
+    'tabs', jsonb_build_array(
+      jsonb_build_object(
+        'tabName', 'Roster', 'range', 'Roster!A1:E2', 'headerRow', 1
+      )
+    )
+  ),
+  1, repeat('5', 64), repeat('2', 64), 1,
+  'csf-normalized-import/v1'
+);
 
--- The central fixture is immutable successful evidence. Calling the row commit is
--- therefore a real idempotent replay, while merge is allowed to retain its
--- historical source reference.
+INSERT INTO plugin_data.csf_sheet_import_jobs (
+  id, organization_id, source_id, initiated_by, mode, status, source_type
+) VALUES
+  ('fe600000-0000-4000-8000-000000000003', 'fe100000-0000-4000-8000-000000000001', 'fe500000-0000-4000-8000-000000000002', 'fe000000-0000-4000-8000-000000000001', 'preview', 'completed', 'student_roster'),
+  ('fe600000-0000-4000-8000-000000000004', 'fe100000-0000-4000-8000-000000000001', 'fe500000-0000-4000-8000-000000000003', 'fe000000-0000-4000-8000-000000000001', 'preview', 'completed', 'meeting_attendance');
+
+-- The central row is ordinary preview input. Claim, begin, and commit below own
+-- every lifecycle field; this fixture never fabricates an attempt or outcome.
 INSERT INTO plugin_data.csf_sheet_import_rows (
   id, organization_id, job_id, source_id, cohort_id, sheet_tab_name, row_number,
-  row_hash, matched_profile_id, import_status, commit_attempt_id,
-  commit_frozen_at, commit_frozen_by_job_id, commit_frozen_row_hash,
-  commit_frozen_source_id, commit_frozen_source_revision,
-  commit_frozen_payload_hash, commit_frozen_actor_user_id,
-  commit_frozen_actor_snapshot, commit_target_profile_id,
-  commit_resolution_snapshot, commit_outcome_state,
-  commit_outcome_code, commit_outcome_correlation_id
+  source_range, row_hash, matched_profile_id, import_status, normalized_data
 ) VALUES (
   'fe800000-0000-4000-8000-000000000001',
   'fe100000-0000-4000-8000-000000000001',
   'fe600000-0000-4000-8000-000000000001',
   'fe500000-0000-4000-8000-000000000001',
   'fe300000-0000-4000-8000-000000000001',
-  'Roster', 2, repeat('a', 64),
+  'Roster', 2, 'Roster!A1:E2', repeat('a', 64),
   'fe400000-0000-4000-8000-000000000001',
-  'updated',
-  'fe700000-0000-4000-8000-000000000001',
-  now(),
-  'fe600000-0000-4000-8000-000000000002',
-  repeat('a', 64),
-  'fe500000-0000-4000-8000-000000000001',
-  repeat('b', 64),
-  repeat('c', 64),
-  'fe000000-0000-4000-8000-000000000001',
-  '{"claimedBy":"fe000000-0000-4000-8000-000000000001"}',
-  'fe400000-0000-4000-8000-000000000001',
-  '{"basis":"matched_profile"}',
-  'succeeded',
-  'updated',
-  'fea00000-0000-4000-8000-000000000001'
+  'pending',
+  jsonb_build_object(
+    'commitPayload', jsonb_build_object(
+      'version', 'csf-commit-payload/v1',
+      'sourceType', 'student_roster',
+      'identity', jsonb_build_object(
+        'firstName', 'Central', 'lastName', 'Race',
+        'normalizedFirstName', 'central', 'normalizedLastName', 'race'
+      ),
+      'canonicalEmails', jsonb_build_object(
+        'schoolEmail', 'central.race@local.test',
+        'normalizedSchoolEmail', 'central.race@local.test'
+      )
+    )
+  )
 );
 
 -- Reconciliation starts unmatched. Meeting and partner start as mutable live
@@ -206,6 +255,71 @@ INSERT INTO plugin_data.csf_partner_submission_rows (
   2,
   'non_drive'
 );
+
+SELECT extensions.lives_ok(
+  $$
+    SELECT plugin_data.csf_claim_import_commit_attempt(
+      'fe100000-0000-4000-8000-000000000001',
+      'fe600000-0000-4000-8000-000000000001',
+      'fe000000-0000-4000-8000-000000000001',
+      300,
+      (plugin_data.csf_issue_uploaded_source_evidence(
+        'fe100000-0000-4000-8000-000000000001',
+        'fe000000-0000-4000-8000-000000000001',
+        'fe500000-0000-4000-8000-000000000001',
+        'fe600000-0000-4000-8000-000000000001'
+      ) ->> 'evidenceToken')::uuid
+    )
+  $$,
+  'the central race obtains its logical commit, attempt, and frozen row through the supported claim lifecycle'
+);
+
+-- Test-local orchestration only: begin and commit remain the production RPCs.
+-- The pause holds begin's transaction locks long enough for the merge worker to
+-- obtain the identity lock and wait on the import row on the current broken
+-- ordering. The nested exception reports a deadlock as evidence while allowing
+-- the outer transaction to release begin's locks normally.
+CREATE FUNCTION plugin_data.csf_test_begin_then_commit_race()
+RETURNS text
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+DECLARE
+  v_attempt_id uuid;
+  v_state text;
+BEGIN
+  SELECT attempt.id
+  INTO v_attempt_id
+  FROM plugin_data.csf_sheet_import_commit_attempts AS attempt
+  JOIN plugin_data.csf_sheet_import_jobs AS commit_job
+    ON commit_job.id = attempt.commit_job_id
+  WHERE commit_job.preview_job_id = 'fe600000-0000-4000-8000-000000000001'
+    AND attempt.status = 'running';
+
+  PERFORM plugin_data.csf_begin_import_row_for_attempt(
+    'fe100000-0000-4000-8000-000000000001',
+    v_attempt_id,
+    'fe800000-0000-4000-8000-000000000001'
+  );
+  PERFORM pg_catalog.pg_sleep(0.5);
+
+  BEGIN
+    PERFORM plugin_data.csf_commit_import_row_for_attempt(
+      'fe100000-0000-4000-8000-000000000001',
+      v_attempt_id,
+      'fe800000-0000-4000-8000-000000000001'
+    );
+    RETURN 'ok';
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_state = RETURNED_SQLSTATE;
+    RETURN v_state;
+  END;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_test_begin_then_commit_race()
+  FROM PUBLIC, anon, authenticated, service_role;
 
 -- The three merge-first races intentionally exercise post-lock revalidation.
 -- Returning SQLSTATE lets dblink report the expected refusal as a row instead of
@@ -269,6 +383,15 @@ SELECT extensions.dblink_connect(
   ' sslmode=disable'
 );
 SELECT extensions.dblink_connect(
+  'central_merge_worker',
+  'hostaddr=' || host(inet_server_addr()) ||
+  ' port=' || current_setting('port') ||
+  ' dbname=' || current_database() ||
+  ' user=' || current_user ||
+  ' password=' || current_user ||
+  ' sslmode=disable'
+);
+SELECT extensions.dblink_connect(
   'reconcile_race_worker',
   'hostaddr=' || host(inet_server_addr()) ||
   ' port=' || current_setting('port') ||
@@ -301,24 +424,24 @@ CREATE TEMP TABLE import_merge_race_results (
   payload text NOT NULL
 ) ON COMMIT PRESERVE ROWS;
 
--- Central commit first, then merge: the row wrapper owns identity before its
--- attempt/import/profile locks, so merge waits at the common first lock.
-BEGIN;
-
-INSERT INTO import_merge_race_results (label, payload)
-SELECT 'central_replay', plugin_data.csf_commit_import_row_for_attempt(
-  'fe100000-0000-4000-8000-000000000001',
-  'fe700000-0000-4000-8000-000000000001',
-  'fe800000-0000-4000-8000-000000000001'
-)::text;
-
-SELECT extensions.ok(
-  ((SELECT payload FROM import_merge_race_results WHERE label = 'central_replay')::jsonb ->> 'replayed')::boolean,
-  'the central row commit reaches its idempotent replay while retaining identity-first locks'
+-- The worker records intent through begin and holds those real transaction locks.
+-- The merge worker then obtains the identity lock and blocks on that import row.
+-- On the broken ordering, commit asks for identity only after begin owns the row,
+-- completing a real deadlock cycle. With one identity-first order, merge waits at
+-- the common first lock and both operations complete.
+SELECT extensions.dblink_send_query(
+  'central_race_worker',
+  $$SELECT plugin_data.csf_test_begin_then_commit_race()$$
+);
+SELECT pg_catalog.pg_sleep(0.15);
+SELECT extensions.is(
+  extensions.dblink_is_busy('central_race_worker'),
+  1,
+  'the real begin/commit worker remains active while holding begin-intent locks'
 );
 
 SELECT extensions.dblink_send_query(
-  'central_race_worker',
+  'central_merge_worker',
   $query$
   SELECT plugin_data.csf_merge_profiles(
     'fe100000-0000-4000-8000-000000000001'::uuid,
@@ -330,23 +453,31 @@ SELECT extensions.dblink_send_query(
   )::text
   $query$
 );
-SELECT pg_catalog.pg_sleep(0.25);
-SELECT extensions.is(
-  extensions.dblink_is_busy('central_race_worker'),
-  1,
-  'profile merge serializes behind the central row commit'
+SELECT pg_catalog.pg_sleep(0.15);
+SELECT extensions.ok(
+  extensions.dblink_is_busy('central_race_worker') = 1
+    AND extensions.dblink_is_busy('central_merge_worker') = 1,
+  'real begin/commit and profile merge observably overlap in separate sessions'
 );
 
-COMMIT;
+INSERT INTO import_merge_race_results (label, payload)
+SELECT 'central_commit', payload
+FROM extensions.dblink_get_result('central_race_worker', false) AS result(payload text);
+SELECT extensions.dblink_disconnect('central_race_worker');
 
 INSERT INTO import_merge_race_results (label, payload)
 SELECT 'central_merge', payload
-FROM extensions.dblink_get_result('central_race_worker', false) AS result(payload text);
-SELECT extensions.dblink_disconnect('central_race_worker');
-SELECT extensions.is(
-  (SELECT payload::jsonb ->> 'targetProfileId' FROM import_merge_race_results WHERE label = 'central_merge'),
-  'fe400000-0000-4000-8000-000000000002',
-  'central row commit and merge finish without a lock-order deadlock'
+FROM extensions.dblink_get_result('central_merge_worker', false) AS result(payload text);
+SELECT extensions.dblink_disconnect('central_merge_worker');
+
+SELECT extensions.ok(
+  (SELECT payload FROM import_merge_race_results WHERE label = 'central_commit') = 'ok'
+    AND (
+      SELECT payload::jsonb ->> 'targetProfileId'
+      FROM import_merge_race_results
+      WHERE label = 'central_merge'
+    ) = 'fe400000-0000-4000-8000-000000000002',
+  'the supported lifecycle commit and merge finish without 40P01 and preserve the canonical target'
 );
 
 -- Merge first, then reconciliation: the queued decision must re-read the source
@@ -549,6 +680,7 @@ SELECT extensions.is(
   'zero live references remain on merged sources'
 );
 
+DROP FUNCTION plugin_data.csf_test_begin_then_commit_race();
 DROP FUNCTION plugin_data.csf_test_capture_import_merge_race(text);
 
 SELECT * FROM extensions.finish();

@@ -6,7 +6,7 @@
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(26);
+SELECT extensions.plan(29);
 
 -- The dblink sessions below commit independently, so a previous interrupted
 -- run can leave these fixed synthetic fixtures behind. Clean before setup as
@@ -269,16 +269,34 @@ SET search_path = ''
 AS $$
 DECLARE
   v_waiting boolean := false;
-  v_deadline timestamptz := pg_catalog.clock_timestamp() + interval '5 seconds';
+  -- Cold CI runners can take several seconds to execute a queued RPC for the
+  -- first time. Keep the proof strict while giving that backend a bounded
+  -- window to reach the exact staff-access lock.
+  v_deadline timestamptz := pg_catalog.clock_timestamp() + interval '15 seconds';
 BEGIN
   LOOP
     SELECT EXISTS (
       SELECT 1
       FROM pg_catalog.pg_stat_activity AS activity
+      JOIN pg_catalog.pg_locks AS waiting_lock
+        ON waiting_lock.pid = activity.pid
       WHERE activity.pid <> pg_catalog.pg_backend_pid()
         AND activity.query LIKE '%' || p_marker || '%'
         AND activity.wait_event_type = 'Lock'
         AND activity.wait_event = 'advisory'
+        AND waiting_lock.locktype = 'advisory'
+        AND NOT waiting_lock.granted
+        AND waiting_lock.classid::bigint = (
+          (plugin_data.csf_staff_access_lock_key(
+            'fa100000-0000-4000-8000-000000000001'
+          ) >> 32) & 4294967295
+        )
+        AND waiting_lock.objid::bigint = (
+          plugin_data.csf_staff_access_lock_key(
+            'fa100000-0000-4000-8000-000000000001'
+          ) & 4294967295
+        )
+        AND waiting_lock.objsubid = 1
     )
     INTO v_waiting;
     EXIT WHEN v_waiting OR pg_catalog.clock_timestamp() >= v_deadline;
@@ -387,6 +405,10 @@ SELECT plugin_data.csf_update_role(
   'fa000000-0000-4000-8000-000000000001'
 );
 COMMIT;
+SELECT extensions.ok(
+  pg_temp.wait_for_csf_activity_partner_result('representative_assignment_role_revoked'),
+  'the queued representative assignment finishes after the staff-access lock is released'
+);
 SELECT *
 FROM extensions.dblink_get_result('representative_assignment_role_revoked', false)
   AS result(payload text);
@@ -466,6 +488,10 @@ SELECT plugin_data.csf_revoke_staff_position(
   'fa000000-0000-4000-8000-000000000001'
 );
 COMMIT;
+SELECT extensions.ok(
+  pg_temp.wait_for_csf_activity_partner_result('representative_revocation_position_revoked'),
+  'the queued representative revocation finishes after the staff-access lock is released'
+);
 SELECT *
 FROM extensions.dblink_get_result('representative_revocation_position_revoked', false)
   AS result(payload text);
@@ -590,6 +616,10 @@ SELECT plugin_data.csf_update_role(
   'fa000000-0000-4000-8000-000000000001'
 );
 COMMIT;
+SELECT extensions.ok(
+  pg_temp.wait_for_csf_activity_partner_result('activity_retry_after_benign_edit'),
+  'the queued activity retry finishes after the staff-access lock is released'
+);
 INSERT INTO csf_activity_partner_controls_results (key, payload)
 SELECT 'retry_first', payload::jsonb
 FROM extensions.dblink_get_result('activity_retry_after_benign_edit', false)

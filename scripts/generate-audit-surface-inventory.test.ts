@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
 
 import {
+  buildSurfaceInventory,
   exportedServerActions,
   routeMethods,
   rpcCallSites,
+  serviceRoleReferences,
   sqlFunctionDefinitions,
   sqlPolicies,
 } from "./generate-audit-surface-inventory.mjs";
@@ -76,6 +79,76 @@ describe("audit surface inventory parser", () => {
     expect(
       rpcCallSites(`await client.rpc("publish_hours", { value: 1 });`),
     ).toEqual([{ name: "publish_hours", line: 1 }]);
+  });
+
+  test("finds the admin-client factory definition, reviewed import aliases, and real calls", () => {
+    expect(
+      serviceRoleReferences(`
+        import { getAdminClient as getServiceClient } from "@/lib/supabase/admin";
+        const admin = getServiceClient();
+        const documentation = "getAdminClient()";
+      `),
+    ).toEqual([
+      expect.objectContaining({
+        kind: "factory-import",
+        name: "getAdminClient",
+        localName: "getServiceClient",
+        line: 2,
+      }),
+      expect.objectContaining({
+        kind: "factory-call",
+        name: "getAdminClient",
+        localName: "getServiceClient",
+        line: 3,
+      }),
+    ]);
+    expect(
+      serviceRoleReferences(
+        `import { getAdminClient } from "./admin";\ngetAdminClient();`,
+        "lib/supabase/data-export-jobs.ts",
+      ),
+    ).toEqual([
+      expect.objectContaining({ kind: "factory-import", line: 1 }),
+      expect.objectContaining({ kind: "factory-call", line: 2 }),
+    ]);
+    expect(
+      serviceRoleReferences(`export function getAdminClient() { return {}; }`),
+    ).toEqual([
+      expect.objectContaining({
+        kind: "factory-definition",
+        name: "getAdminClient",
+        localName: "getAdminClient",
+        line: 1,
+      }),
+    ]);
+  });
+
+  test("pins representative current admin callsites and excludes tests", async () => {
+    const inventory = await buildSurfaceInventory(join(import.meta.dir, ".."));
+
+    expect(inventory.summary.serviceRoleReferences).toBeGreaterThan(0);
+    expect(inventory.serviceRoleReferences).toContainEqual(
+      expect.objectContaining({
+        file: "services/notifications-server.ts",
+        kind: "factory-call",
+        name: "getAdminClient",
+      }),
+    );
+    expect(inventory.serviceRoleReferences).toContainEqual(
+      expect.objectContaining({
+        file: "lib/supabase/data-export-jobs.ts",
+        kind: "factory-call",
+        name: "getAdminClient",
+      }),
+    );
+    expect(
+      inventory.serviceRoleReferences.every(
+        (entry) =>
+          !entry.file.includes(".test.") &&
+          !entry.file.includes(".spec.") &&
+          !entry.file.startsWith(".artifacts/"),
+      ),
+    ).toBe(true);
   });
 
   test("classifies SQL function security and policy identities", () => {

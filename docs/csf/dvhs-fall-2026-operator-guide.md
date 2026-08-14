@@ -74,7 +74,10 @@ procedure; this is the DVHS path through them.
    add those terms individually. **Add one semester** is only for restoring a
    genuinely missing record or creating an approved exceptional record. On that
    exceptional form, leave **Current semester** unchecked unless the term is
-   meant to replace the current term immediately.
+   meant to replace the current term immediately. This creates the Class of
+   2030 cohort shell, not student records; populate that class through the new
+   application cycle using the explicit profile and application-resolution
+   sequence below.
 5. **Make Fall 2026 current.** On the Fall 2026 term, open **Term actions** and
    select **Set as current**. Exactly one semester is current at a time.
 6. **Prepare Spring 2027 and Fall 2027 without making either current.** Under
@@ -187,6 +190,15 @@ record through the audited member-correction workflow first, then issue a new
 link.
 
 ## Give a whole class its reusable join link
+
+For Classes of 2027–2029, the historical class sheets do not supply reliable
+account emails. Before publishing a link as an automatic record-discovery path,
+establish a current, unique school or personal email from the approved current
+application cycle or another reviewed current source, then record it through the
+audited member-correction workflow. Never backfill an address from the Spring
+2026 comparison workbook merely to make a match. Without current corroborating
+email evidence, the student can submit a review request, but **Connect account**
+remains unavailable until an officer corrects the record.
 
 1. Open **Members → Account connections**.
 2. Select **Class link**. The dialog is titled **Create a reusable class link**.
@@ -334,21 +346,23 @@ Grant the replacement seat first, confirm it is effective today — a future
 
 ## Import the reviewed Fall 2026 starting records
 
-Use this source order:
+Import exactly these three Spring 2026 class sheets as **Historical records**,
+one class at a time:
 
-1. Preview, reconcile, and—only in the authorized Production cutover—commit the
-   primary `CSF Application - Spring 2026 (Responses)` application seed first.
-   Choose **Applications** as the **Record type**. Its grade and semester values
-   establish the initial class targets. Do not first load a class-history sheet
-   as **Student roster** to manufacture a competing primary identity source.
-2. Only after that application seed is reviewed, process the historical
-   Classes of 2027–2030 sheets as **Historical records**. Reconcile every
-   overlap against the primary application result; never let a historical row
-   silently replace newer application identity or class evidence.
+1. **Class of 2027** — tab `S26`, range `A1:O168`, 167 rows after the header.
+2. **Class of 2028** — tab `S26`, range `A1:O168`, 167 rows after the header.
+3. **Class of 2029** — tab `S26`, range `A1:N89`, 88 rows after the header.
 
-Each source keeps its own immutable preview. **Preview**, **Reconcile**, and
-**Commit** are separate boundaries; a clean preview neither imports rows nor
-authorizes a commit.
+Class of 2026 is out of scope. Do not select, preview, reconcile, or import its
+rows. Skip the template-only Class of 2030 workbook; create Class of 2030
+student records through the new application cycle sequence below instead. Do
+not use the Spring 2026 application response workbook as a Fall 2026 roster
+seed.
+
+Each of the three approved sources keeps its own immutable preview. **Preview**,
+**Reconcile**, and **Commit** are separate boundaries; a clean preview neither
+imports rows nor authorizes a commit. Choose **Historical records**, never
+**Student roster** or **Applications**, as the **Record type** for these sheets.
 
 ### Connect Google first — and connect it yourself
 
@@ -430,23 +444,26 @@ never copy the Development fixture rows or connection links forward.
 
 ### Privacy-safe source totals verified 2026-08-11
 
-| Graduating class | Historical source  | Exact bounded range |             Rows after header |
-| ---------------- | ------------------ | ------------------- | ----------------------------: |
-| 2027             | `c/o 2027` → `S26` | `A1:O168`           |                           167 |
-| 2028             | `c/o 2028` → `S26` | `A1:O168`           |                           167 |
-| 2029             | `c/o 2029` → `S26` | `A1:N89`            |                            88 |
-| 2030             | `c/o 2030` → `F26` | `A1:O1`             | 0; header only, do not import |
+| Graduating class | Historical source  | Exact bounded range | Rows after header |
+| ---------------- | ------------------ | ------------------- | ----------------: |
+| 2027             | `c/o 2027` → `S26` | `A1:O168`           |               167 |
+| 2028             | `c/o 2028` → `S26` | `A1:O168`           |               167 |
+| 2029             | `c/o 2029` → `S26` | `A1:N89`            |                88 |
 
 The three non-empty class sheets contain 422 unique names with no exact
 cross-class overlap. They do not contain reliable account emails, so they are
-historical evidence—not sufficient account-connection evidence by themselves.
+historical evidence, not account-connection evidence. Account connections
+require current canonical evidence: the signed-in account's confirmed address,
+an exact name, and one matching active class, revalidated by the server.
 
-The Spring 2026 application source is `CSF Application - Spring 2026
-(Responses)` → `Form Responses 1`, bounded range `A1:Q518`: 517 response rows,
-516 unique emails/names, and one duplicate response. Its grade distribution is
-90 grade 9, 176 grade 10, 166 grade 11, and 85 grade 12.
+For historical comparison only, the Spring 2026 application source is `CSF
+Application - Spring 2026 (Responses)` → `Form Responses 1`, bounded range
+`A1:Q518`: 517 response rows, 516 unique emails/names, and one duplicate
+response. Its grade distribution is 90 grade 9, 176 grade 10, 166 grade 11, and
+85 grade 12. These aggregates help explain reconciliation differences; they do
+not expand the import scope or authorize an account connection.
 
-Exact-name reconciliation before any commit currently produces:
+The historical exact-name comparison currently produces:
 
 | Fall 2026 class | Application-only | Class-sheet-only | Exact overlap |
 | --------------- | ---------------: | ---------------: | ------------: |
@@ -454,9 +471,52 @@ Exact-name reconciliation before any commit currently produces:
 | 2028            |               11 |                3 |           164 |
 | 2029            |                2 |                0 |            88 |
 
-These differences are a review queue, not errors to auto-resolve. Grade 12
-responses belong to the graduated Class of 2026 and must not be placed in an
-active Fall 2026 class.
+These differences require historical reconciliation, not automatic identity
+resolution. Class of 2026 remains out of scope, and the Class of 2030 template
+remains unimported.
+
+## Create and resolve Class of 2030 from the new application cycle
+
+An application response never creates a student profile, and an application
+decision never creates one. The central application import refuses a row with
+no reviewed profile target. Never select, preview, or import the Class of 2030
+workbook. Use the current application form and this sequence:
+
+1. Keep the Class of 2030 combined class link attached to the reviewed new
+   application form. A student submits that current form before an officer
+   creates or resolves platform records.
+2. Open **More → Imports**, choose **Applications**, select the exact current
+   response file, tab, and bounded range, complete the mapping, and select
+   **Preview normalized rows**. Preview persists source evidence but creates no
+   profile, application, term membership, or account connection.
+3. A row without a reviewed profile is held for reconciliation. Open **Members
+   → Add member**, use **Add a student record**, enter the exact reviewed name
+   and current unique school/personal email, choose **Class** = Class of 2030,
+   and select **Add student record**. Wait for **Student record created.** If a
+   current profile already exists, review it instead of creating a duplicate.
+4. The staff profile action records a replay-safe `profile.create` audit receipt
+   and places the permanent profile in the selected class. It does not create
+   the imported application, term membership, or account connection. The audit
+   receipt identifies the staff write; it does not replace the source-row
+   evidence.
+5. Return to the application preview. Select the profile under **Match to
+   member**, enter a 4–500 character **Match reason** naming the corroborating
+   current evidence, and select **Use match**. Profile creation and import-row
+   reconciliation are two separate audited actions: reconciliation records the
+   selected target, actor, reason, and immutable source-row history. Name
+   similarity alone is not evidence.
+6. Resolve or explicitly skip every row, then select **Verify source and
+   commit**. A targetless application row cannot be committed. Commit attaches
+   the application to the reviewed profile with source provenance; it does not
+   decide the application or create term membership.
+7. Open **Applications → Review queue**, complete the required checks and dues
+   review, and use **Record decision**. **Approve application** creates or
+   updates term membership atomically with the application decision and
+   history. Approving the application creates or updates term membership; it
+   does not create the profile.
+8. Connect the account separately through the exact-email class-link,
+   student-link, or reasoned officer-review path. Neither profile creation nor
+   application processing silently connects an account.
 
 ## Set up Fall 2026 policy only from approved chapter facts
 
@@ -629,14 +689,14 @@ gates in [testing and release](testing-and-release.md) are open. Do not copy a
 Development fixture, connection link, import preview, or policy decision into
 Production, and do not treat a Development screenshot as Production evidence.
 
-At this guide's current evidence point, the repository has 286 migrations
-through `20260813013300`; the Development database remains at 273 through
-`20260812152300`; and Production has 236 through `20260811001500`. The thirteen
-unmerged migrations have not been applied or deployed in hosted Development.
+At this guide's current evidence point, the repository has 291 migrations
+through `20260814051720`; the Development database remains at 273 through
+`20260812152300`; and Production has 236 through `20260811001500`. The eighteen
+repository-only migrations have not been applied or deployed in hosted Development.
 The Development Vercel alias still serves earlier code built from the
 272-migration tree because the external 100-deployment-per-day project cap
 blocked its refresh. Neither the database nor hosted code gate is current for
-the 286-migration repository tree.
+the 291-migration repository tree.
 
 ## Development rehearsal state at this guide's verification point
 
@@ -668,10 +728,9 @@ the 286-migration repository tree.
   `20260812132725_csf_drive_metadata_compare_and_set_fence`, and the external
   Vercel 100-deployment-per-day project cap prevented a refreshed deployment.
 - Hosted Development Supabase remains at 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`; this repository has 286 through
-  `20260813013300_close_csf_representative_and_publication_races`. The thirteen
-  unmerged
-  migrations are
+  `20260812152300_atomic_csf_post_replies`; this repository has 291 through
+  `20260814051720_csf_post_mutation_outcome_recovery`. The eighteen
+  repository-only migrations are
   `20260812161500_atomic_project_signup_rejection`,
   `20260812185500_atomic_staff_invite_issuer_redemption`,
   `20260812193329_google_cap_replay_safety`,
@@ -683,35 +742,61 @@ the 286-migration repository tree.
   `20260813012206_google_cap_effect_fencing`,
   `20260813013000_reconcile_project_lifecycle_boundaries`,
   `20260813013100_lock_project_lifecycle_transactions`,
-  `20260813013200_recheck_csf_activity_partner_authorization_under_lock`, and
-  `20260813013300_close_csf_representative_and_publication_races`; they have not been
+  `20260813013200_recheck_csf_activity_partner_authorization_under_lock`,
+  `20260813013300_close_csf_representative_and_publication_races`,
+  `20260813020000_cancellation_preserves_unknown_delivery_outcomes`,
+  `20260813085442_harden_private_is_plugin_enabled_acl`,
+  `20260813091801_harden_dv_private_policy_helper_acls`,
+  `20260814001123_csf_import_lineage_transport_settlement`, and
+  `20260814051720_csf_post_mutation_outcome_recovery`; they have not been
   applied or deployed to any hosted database.
 - The `20260813013200` migration preserves the seven activity/partner-club
   under-lock authorization rechecks. `20260813013300` extends that boundary to
   representative assignment and revocation and serializes activity publication
   against term closure with the shared advisory and term row locks.
-- The last exact local isolated union replay passed all 133 pgTAP files and
-  5,523 assertions against the preceding 282-migration shape. It has not been
-  re-established for the current 286-migration target and is not hosted
-  acceptance.
+- `20260813020000` preserves ambiguous delivery evidence during cancellation,
+  recomputes current ambiguous-delivery and unexpired processing-lease counts
+  under the campaign lock, and keeps later provider reconciliation possible.
+- `20260813091801` removes inherited `PUBLIC` execution from the fixed-path DV
+  student and household policy helpers. Their 20 current RLS callers are all
+  `authenticated`, so only `authenticated` and owner `postgres` retain
+  execution; `anon` and `service_role` do not.
+- `20260814001123` closes the central import lock inversion by applying the
+  identity-first order to begin and commit, removes the caller-selected
+  six-argument failure overload, and leaves only a service-role five-argument
+  settlement that can record an unknown transport outcome.
+- `20260814051720` adds the service-only
+  `plugin_data.csf_resolve_post_mutation_outcome(uuid,uuid,uuid)` resolver: it
+  rechecks `manage_posts` before and after the same per-request advisory lock
+  and reports only whether the caller's own post-mutation receipt committed.
+- The current exact local isolated union replay passed all 291 migrations and
+  141 pgTAP files with 5,761 assertions and 84 CSF tables present. It is local
+  evidence only and is not hosted acceptance.
 - Pull requests #152, #158, #174, #177, #179, and #181 are merged in current
-  `development`; #180 remains open with a later migration. The 286-row pin is
+  `development`; #180 remains open with a later migration. The 291-row pin is
   provisional, and the last migration pull request to merge must recompute the
   count, head, and exact tail from the merged tree.
 - The 95 INFO / 0 WARN / 0 ERROR security and 611 INFO / 0 WARN / 0 ERROR
   performance advisor counts were captured on the preceding 272-migration
   Development shape. They have not been re-established for either hosted 273 or
-  repository 286 and are not current-parity evidence.
+  repository 291 and are not current-parity evidence.
 - The seven-argument metadata RPC exists, the old four-argument overload is
   absent, and only `service_role` can execute the current RPC; `anon` and
   `authenticated` cannot. The Drive metadata RPC is no longer the Preview
   blocker.
-- The caller-summary correction and inactive-access hardening are combined in
-  private development commit
-  `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, and this root worktree's gitlink
-  points to that exact commit locally. It also contains the meeting hardening
-  and `ca817bf` preview-summary correction. The stale Ready Development SHA
-  above does not include that local gitlink update.
+- Superseded August 13 gitlink snapshot, retained verbatim for lineage: "The
+  current root gitlink is `cdbeb59e6cc086e8794ec8b35157ab043f65c01c`. The
+  locally known private `origin/development` still ends at
+  `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`, so the current target is not
+  contained there and remains a local-only, private-first release blocker."
+  That snapshot no longer describes this tree.
+- The private-first merge has since been published: the locally known private
+  `origin/development` and the staged root gitlink are both
+  `c33b9c2ac7f084d14daad5df999d5eda3a2c2ac1` (`c33b9c2`), which contains
+  `cdbeb59e`, the meeting hardening, and the `ca817bf` preview-summary
+  correction. The target is published and contained, and the strict submodule
+  publication gate passes. The stale Ready Development SHA above does not
+  include this gitlink.
 - Fall 2026 application dates, deadlines, meetings, and published policy are
   not yet recorded. No staff position has been assigned.
 - Three controlled Development test messages produced three signature-verified
@@ -740,16 +825,16 @@ Do not use real chapter rows or credentials until every item is checked:
       `scripts/production-cutover-preflight.sql` with the reviewed Production
       read-only URL. It must select the exact 236-row baseline, pass every
       shared blocker, and name any cancellation-job transitions for explicit
-      review. Rehearse the full 50-migration transition on a Production-shaped
+      review. Rehearse the full 55-migration transition on a Production-shaped
       clone and verify the backup restore before scheduling the window.
 - [ ] At T-0 enable maintenance mode, stop writers and scheduled workers, take
       the final snapshots, and pair the schema push with the exact compatible
       application deployment. A partial or divergent ledger is a stop.
-- [ ] Replay the ordered migration ledger through `20260813013300` in the
+- [ ] Replay the ordered migration ledger through `20260814051720` in the
       authorized release gate and prove exact repository/Production ledger parity,
       advisors, function ACLs, relation ACLs, storage posture, and active-member
       storage authorization.
-- [ ] Re-run the preflight on the 286-row target and require the shared tenant
+- [ ] Re-run the preflight on the 291-row target and require the shared tenant
       and receipt checks plus the target-only relation, constraint, and index
       and extension-posture checks to pass before reopening writes.
 - [ ] Pass the final combined static, focused source, database, private-plugin,
@@ -761,9 +846,11 @@ Do not use real chapter rows or credentials until every item is checked:
       revocation, and failure-state checks without committing during rehearsal.
 - [ ] Test every class and student-specific link while signed out or in a
       private window; complete existing-account claim and officer-review paths.
-- [ ] Commit the Spring 2026 application seed before historical class sheets,
-      reconcile counts and identity conflicts, then accept applications,
-      service/points, posts, Communications, and role-aware Help journeys.
+- [ ] Commit only the approved Class of 2027, 2028, and 2029 `S26` historical
+      sheets at their exact bounded ranges; keep Class of 2026 out of scope,
+      skip the Class of 2030 template, create 2030 through the new application
+      cycle, and then accept applications, service/points, posts,
+      Communications, and role-aware Help journeys.
 - [ ] Verify sender domain, consent topics, one-recipient delivery, signed
       webhook reduction, unknown-outcome handling, and Production scheduled-post
       publication without claiming a fixed delivery time.

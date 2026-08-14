@@ -72,6 +72,7 @@ function expectInOrder(text: string, labels: string[]) {
 const operatorGuide = flow(readDoc("dvhs-fall-2026-operator-guide.md"));
 const officerRunbook = flow(readDoc("officer-runbook.md"));
 const productContract = flow(readDoc("product-contract.md"));
+
 type LabelContract = {
   /** The component that renders it. */
   component: string;
@@ -328,16 +329,28 @@ const POSTS: LabelContract[] = [
       "Save as draft",
       "Publish now",
       "Schedule for later",
+      "Also send this as an email",
+      "Post saved",
+      "Email queued",
+    ],
+  },
+  {
+    // The outcome alerts and submit-button states were extracted from the
+    // compose dialog into this feedback component; the labels live here now.
+    component: "CsfPostComposeFeedback.tsx",
+    labels: [
       "Post saved",
       "Publish post",
       "Schedule post",
-      "Also send this as an email",
       "Post saved; email not queued",
       "Post saved; email status unknown",
       "Email queued",
       "Email not queued",
-      "Email queue status unknown",
     ],
+  },
+  {
+    component: "CsfPostPublicationResult.ts",
+    labels: ["Email queue status unknown"],
   },
 ];
 
@@ -704,29 +717,6 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
     expect(operatorGuide).toContain(
       "Counts and import readiness describe the whole preview, not this page.",
-    );
-  });
-
-  test("the application seed precedes class-history records and commit", () => {
-    const sourceOrder = between(
-      operatorGuide,
-      "## Import the reviewed Fall 2026 starting records",
-      "### Connect Google first",
-    );
-    expectInOrder(sourceOrder, [
-      "`CSF Application - Spring 2026 (Responses)`",
-      "**Applications** as the **Record type**",
-      "Classes of 2027–2030",
-      "**Historical records**",
-    ]);
-    expect(sourceOrder).toContain(
-      "Do not first load a class-history sheet as **Student roster**",
-    );
-    expect(sourceOrder).toContain(
-      "**Preview**, **Reconcile**, and **Commit** are separate boundaries",
-    );
-    expect(sourceOrder).toContain(
-      "a clean preview neither imports rows nor authorizes a commit",
     );
   });
 

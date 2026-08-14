@@ -7,6 +7,7 @@ const read = (path: string) => readFileSync(join(repositoryRoot, path), "utf8");
 
 const BASE_MIGRATION_VERSION = "20260813013200";
 const REPAIR_MIGRATION_VERSION = "20260813013300";
+const LATER_MIGRATION_VERSION = "20260813020000";
 const baseMigration = read(
   `supabase/migrations/${BASE_MIGRATION_VERSION}_recheck_csf_activity_partner_authorization_under_lock.sql`,
 );
@@ -209,7 +210,11 @@ describe("CSF activity and partner mutation authorization lock boundary", () => 
       .map((name) => name.slice(0, 14))
       .sort();
 
-    expect(repositoryVersions.at(-1)).toBe(REPAIR_MIGRATION_VERSION);
+    expect(repositoryVersions).toContain(REPAIR_MIGRATION_VERSION);
+    expect(repositoryVersions).toContain(LATER_MIGRATION_VERSION);
+    expect(
+      REPAIR_MIGRATION_VERSION.localeCompare(LATER_MIGRATION_VERSION),
+    ).toBeLessThan(0);
     for (const head of dependencyMigrationHeads) {
       expect(REPAIR_MIGRATION_VERSION.localeCompare(head)).toBeGreaterThan(0);
     }

@@ -162,6 +162,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "@types/sanitize-html": "^2.16.1",
+    "axe-core": "4.11.1",
     "baseline-browser-mapping": "2.11.12",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.0",

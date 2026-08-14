@@ -142,13 +142,14 @@ Only if the chapter has history worth carrying. Skip entirely for a brand-new ch
 Import through the Sheets workspace preview → commit fence. Google and the chapter website are source evidence, not a second database. Every commit is staff-approved and only reversible forward. The order matters, because later imports reference earlier ones:
 
 1. **Club registry and policies** — partner-form imports, producing partner clubs with per-club point policy.
-2. **Member roster** — an application-responses import for the earliest term you are seeding. Grade maps to graduating class.
-3. **Attendance** — a meeting-attendance import per term. Name-only rows will land ambiguous; resolve what you can. `skipped` is an honest terminal state for a departed student.
-4. **Per-club points** — normalize first with `bun run csf:normalize:legacy`, review every generated mapping (sheet selection, club name, excluded rows, points per mark), then re-run with `--apply` and upload each normalized workbook as a partner-club-audit import.
+2. **Student identities and history** — use **Student roster** only for a reviewed roster authorized to create current profiles, or **Historical records** for approved prior-class history. Application responses never seed student identities: each application row must resolve to an existing reviewed profile before it can commit.
+3. **Application responses, when they are in scope** — only after the profiles exist, preview the bounded source and resolve every application row to its existing profile. For an unresolved row, select **Match to member**, enter the required **Match reason**, and select **Use match**; otherwise skip it with a reason. A targetless application row is not ready to commit.
+4. **Attendance** — a meeting-attendance import per term. Name-only rows will land ambiguous; resolve what you can. `skipped` is an honest terminal state for a departed student.
+5. **Per-club points** — normalize first with `bun run csf:normalize:legacy`, review every generated mapping (sheet selection, club name, excluded rows, points per mark), then re-run with `--apply` and upload each normalized workbook as a partner-club-audit import.
 
-**Acceptance before moving on:** per-cohort roster counts match the application grade distribution; at least three clubs' point totals spot-checked against their source workbooks; the ambiguous-row queue is triaged to zero or every remaining row is documented.
+**Acceptance before moving on:** every imported student identity came from an approved roster/history source; every application row either names an existing reviewed profile or is explicitly skipped; at least three clubs' point totals are spot-checked against their source workbooks; the ambiguous-row queue is triaged to zero or every remaining row is documented.
 
-DVHS-specific file names and expected row counts are in [officer runbook §10.2](officer-runbook.md).
+For DVHS, the only historical student imports are the approved Class of 2027–2029 sheets: Class of 2027 `S26` `A1:O168`, Class of 2028 `S26` `A1:O168`, and Class of 2029 `S26` `A1:N89`. Class of 2026 is out of scope, the Class of 2030 workbook has no import job, and the Spring 2026 application-response workbook is comparison evidence only. DVHS-specific file names and expected row counts are in [officer runbook §10.2](officer-runbook.md).
 
 ## Stage 5 — Communications setup
 
@@ -161,7 +162,20 @@ Before any announcement email: save the broadcast topic and the Resend topic id 
 
 What a student experiences: they sign up through the link, skip the generic platform tour, confirm an exact-email claim ("is this you?"), pick a username in place, and land on their class Home with the CSF member tour.
 
-A student whose sign-up email is not on the roster submits a **link request** instead. Officers resolve these in the Members queue, which offers ranked name-similarity suggestions for one-click connection. **Roster names are never exposed to students** — the student sees only their own request's state.
+A student whose sign-up email is not on a current profile submits a **link request** instead. Officers resolve these in the Members queue. Ranked name-similarity suggestions are advisory only; **Connect account** remains unavailable until the confirmed account email, exact name, and one active class corroborate one current profile. **Roster names are never exposed to students** — the student sees only their own request's state.
+
+### New application cycle when no profile exists (DVHS Class of 2030)
+
+The application response does not create the profile, and the application decision does not create the profile. For a class that begins with an empty cohort shell, use this sequence:
+
+1. Keep the reviewed combined class link attached to the new application form. For DVHS, the Class of 2030 workbook remains unimported.
+2. After a student submits the current form, open **More → Imports**, choose **Applications**, select the exact source tab and bounded range, map it, and select **Preview normalized rows**. Preview records source evidence but creates no profile, application, or membership.
+3. A response with no reviewed profile is held for reconciliation. Open **Members → Add member**, use **Add a student record**, enter the exact reviewed identity and current unique school/personal email, choose **Class** = Class of 2030, and select **Add student record**. Wait for **Student record created.** Do not create a duplicate when a current profile already exists.
+4. This staff action creates the permanent profile and class membership through the replay-safe profile-write transaction and records a separate `profile.create` audit receipt. It does not create the imported application, term membership, or account connection, and its audit receipt does not replace the source-row evidence.
+5. Return to the application preview. Select the profile under **Match to member**, enter a 4–500 character **Match reason** that names the corroborating current evidence, and select **Use match**. That separate reconciliation writes the selected target, actor, reason, and source-row audit history. Name similarity alone is not evidence.
+6. When every row is resolved or explicitly skipped, select **Verify source and commit**. A targetless application row cannot be committed. Commit attaches the application to the reviewed profile and preserves source provenance; it does not approve the application or create term membership.
+7. Open **Applications → Review queue**, complete the required checks and dues review, then use **Record decision**. **Approve application** creates or updates term membership atomically with the decision and history; it does not create the profile.
+8. Connect the student's account separately through the exact-email class-link, student-link, or reasoned officer-review path. No application or profile action silently connects an account.
 
 ## Stage 7 — First-term operation
 
