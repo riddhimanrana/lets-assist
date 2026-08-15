@@ -60,8 +60,19 @@ test.describe("admin visible-action matrix", () => {
     page,
   }) => {
     await page.goto(`${CSF_ORGANIZATION_PATH}?tab=csf-applications`);
+    // Everyday controls: the five queue chips plus search stay in view; the
+    // operational dropdowns wait behind one explicit disclosure.
+    const chips = page.locator(
+      '[aria-label="Application work queues"] [role="button"]:visible',
+    );
+    expect(await chips.count()).toBeGreaterThanOrEqual(5);
+    for (const chip of await chips.all()) {
+      await expect(chip).toBeVisible();
+      await expect(chip).toBeEnabled();
+    }
+    await page.getByRole("button", { name: "More filters" }).click();
     const controls = page.locator(
-      '[aria-label="Application views"] button:visible, [aria-label="Application filters"] button:visible, form[role="search"] button:visible, button[aria-label^="Sort applications"]:visible',
+      '[aria-label="Application filters"] button:visible, form[role="search"] button:visible, button[aria-label^="Sort applications"]:visible',
     );
     expect(await controls.count()).toBeGreaterThanOrEqual(8);
     for (const control of await controls.all()) {

@@ -7,7 +7,7 @@ SELECT extensions.plan(22);
 SELECT extensions.ok(
   NOT has_function_privilege(
     'anon',
-    'plugin_data.csf_list_applications_page(uuid,text,text,text,text,text,text,text,uuid,uuid,text,text,text,uuid,integer,boolean)',
+    'plugin_data.csf_list_applications_page(uuid,text,text,text,text,text,text,text,uuid,uuid,text,text,text,uuid,integer,boolean,text,uuid)',
     'EXECUTE'
   ),
   'anonymous clients cannot read the application list projection'
@@ -15,7 +15,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_function_privilege(
     'authenticated',
-    'plugin_data.csf_list_applications_page(uuid,text,text,text,text,text,text,text,uuid,uuid,text,text,text,uuid,integer,boolean)',
+    'plugin_data.csf_list_applications_page(uuid,text,text,text,text,text,text,text,uuid,uuid,text,text,text,uuid,integer,boolean,text,uuid)',
     'EXECUTE'
   ),
   'authenticated clients cannot read the application list projection directly'
@@ -23,7 +23,7 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   has_function_privilege(
     'service_role',
-    'plugin_data.csf_list_applications_page(uuid,text,text,text,text,text,text,text,uuid,uuid,text,text,text,uuid,integer,boolean)',
+    'plugin_data.csf_list_applications_page(uuid,text,text,text,text,text,text,text,uuid,uuid,text,text,text,uuid,integer,boolean,text,uuid)',
     'EXECUTE'
   ),
   'the server role can read the application list projection'
