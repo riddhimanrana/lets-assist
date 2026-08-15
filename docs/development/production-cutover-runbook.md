@@ -2,15 +2,15 @@
 
 Production has 236 ordered migrations through `20260811001500`.
 Hosted Development Supabase remains at 273 ordered migrations through
-`20260812152300`; this repository has 291 through
-`20260814051720_csf_post_mutation_outcome_recovery`. Production
-therefore has exactly 55 pending migrations. The eighteen repository-only
+`20260812152300`; this repository has 292 through
+`20260815100500_dvhs_csf_application_queue_projection`. Production
+therefore has exactly 56 pending migrations. The nineteen repository-only
 migrations have not been applied or deployed in hosted Development. `dev.lets-assist.com`
 still serves the earlier
 Ready code whose repository ledger ended at 272 through `20260812132725`: the
 external Vercel 100-deployment-per-day project cap prevented the refreshed
 deployment. Neither hosted database parity nor application-deployment parity
-has been established for the 291-migration repository target, so the hosted
+has been established for the 292-migration repository target, so the hosted
 release gate remains open.
 
 The exact repository-only tail is
@@ -31,14 +31,14 @@ The exact repository-only tail is
 `20260813085442_harden_private_is_plugin_enabled_acl`,
 `20260813091801_harden_dv_private_policy_helper_acls`,
 `20260814001123_csf_import_lineage_transport_settlement`, and
-`20260814051720_csf_post_mutation_outcome_recovery`; none has been
+`20260815100500_dvhs_csf_application_queue_projection`; none has been
 applied to hosted Development. The current exact local isolated union replay
-passed all 291 migrations, 141 pgTAP files, and 5,761 assertions with 84 CSF
+passed all 292 migrations, 142 pgTAP files, and 5,785 assertions with 84 CSF
 tables present; a local replay is not hosted or Production acceptance
 evidence.
 
 Pull requests #152, #158, #174, #177, #179, and #181 are merged in current
-`development`; #180 remains open with a later migration. The 291-row target is
+`development`; #180 remains open with a later migration. The 292-row target is
 provisional, and the last migration pull request to merge must recompute the
 count, head, and exact tail from the merged tree before any cutover uses them.
 
@@ -104,7 +104,7 @@ psql -X "$PRODUCTION_READONLY_URL" \
 
 Every check is `SELECT` or `SHOW` inside an explicit read-only transaction. The
 script accepts only the exact 236-version Production baseline or exact
-291-version target, exits non-zero on a partial or divergent ledger, and checks
+292-version target, exits non-zero on a partial or divergent ledger, and checks
 relation existence before parsing shape-specific tables. `pipefail` preserves
 that non-zero status through `tee`. Capture the whole output into the change
 record.
@@ -129,7 +129,7 @@ record.
   `DROP EXTENSION ... RESTRICT` fail.
 - **D10** mirrors the reviewed effective client-grant catalog before
   `20260812100900` revokes and rebuilds public relation ACLs.
-- **T1–T9** run only on the 291 shape and prove target relations, expected
+- **T1–T9** run only on the 292 shape and prove target relations, expected
   validated constraints/indexes, the reporter-detachment behavior moderation
   evidence depends on, the server-only posture of the three content report
   functions, lifecycle transaction receipts and ACLs, the atomic AI quota
@@ -150,8 +150,8 @@ reviewed forward migration.
 
 **The Supabase `development` branch is not a rehearsal.** Its 273-migration
 ledger proves ordered application only through `20260812152300` against the
-Development database; it excludes the eighteen repository-only migrations and
-does not prove the repository branch's Production-shaped 236→291 transition. It does not
+Development database; it excludes the nineteen repository-only migrations and
+does not prove the repository branch's Production-shaped 236→292 transition. It does not
 exercise data-dependent DDL, lock behaviour at Production table sizes, or
 Production data.
 
@@ -162,7 +162,7 @@ Production data.
 3. **Verify it is a clone, not a replay** — `list_migrations` on the new ref.
    - **236 rows, head `20260811001500`** → a genuine current-baseline clone.
      Continue.
-   - **291 rows, head `20260814051720`** → it was built by replaying the
+   - **292 rows, head `20260815100500`** → it was built by replaying the
      repository branch, which is the artifact you already have and proves nothing new.
      Abandon and use the fallback.
 
@@ -182,7 +182,7 @@ indisvalid` (must be empty); `verify-supabase-migration-parity.mjs`;
    `get_advisors` (the 95 INFO/0 WARN/0 ERROR security and 611 INFO/0 WARN/0
    ERROR performance counts were captured on the preceding 272-migration
    Development shape and are comparison evidence, not proof for hosted 273 or
-   repository 291);
+   repository 292);
    and
    `supabase db diff --linked` — compare that last one against the destructive
    drift recorded in
@@ -235,7 +235,7 @@ Then restore them into a throwaway Postgres 17 and compare row counts for the to
 ## The window
 
 **Length:** rehearsal-measured duration × 3, floor 90 minutes. Use the timed
-Production-shaped 236→291 rehearsal as the authority; the pending set's
+Production-shaped 236→292 rehearsal as the authority; the pending set's
 validated constraints, index builds, ACL convergence, and cancellation-ledger
 work determine this window. Do not reuse timing assumptions from migrations
 already included in the 236 baseline.
@@ -254,7 +254,7 @@ already included in the 236 baseline.
    - `SELECT ... FROM pg_index WHERE NOT indisvalid` — must be empty
    - `get_advisors(type: 'security')` — expect only the known `INFO`/`rls_enabled_no_policy` shape
    - Re-run `production-cutover-preflight.sql`; it must select the exact
-     291-row target path and pass T1–T9
+     292-row target path and pass T1–T9
    - Storage bucket counts against the **E7** baseline
    - Upgrade DV installs to `2.0.0` through the leased control plane **before** enabling DV traffic
 10. Smoke tests while still in maintenance mode, then again after opening: sign in, view a project, sign up for a project, an organization page, a CSF workspace, one email path.
