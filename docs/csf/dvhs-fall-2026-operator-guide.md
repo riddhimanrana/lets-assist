@@ -644,18 +644,18 @@ If any changed, reload and resolve the current blocker.
    existing opt-outs are stored under that exact key; changing one takes a
    dedicated audited migration. A missing pair keeps broadcast queueing disabled
    for that audience rather than guessing a scope.
-4. In **Campaigns**, create and review a draft, then select **Finalize content**.
-   That freezes content and still queues nothing. Select **Snapshot audience**
-   to record canonical included/excluded totals. Only after reviewing that
-   snapshot select **Finalize & queue**.
+4. In **Campaigns**, start with **New email** and save the draft, then select
+   **Finalize content**. That freezes content and still queues nothing. Select
+   **Review recipients** to record canonical included/excluded totals. Only
+   after reviewing that count select **Queue for sending**.
 5. Read the campaign's **Delivery** panel as three separate facts: its status,
    the **Recipient ledger** counts, and the **Provider attempts** counts.
 
 Queued is not sent, and sent is not delivered:
 
 - A saved draft contacts nobody.
-- **Finalize & queue** says what it does in its own confirmation: it closes the
-  audience, creates the durable delivery ledger, and queues one attempt per
+- **Queue for sending** says what it does in its own confirmation: it closes
+  the audience, creates the durable delivery ledger, and queues one attempt per
   included recipient — _This action does not call the email provider._
 - A queued ledger row is therefore not evidence that an email left the system,
   and never evidence that one arrived. Only a signature-verified provider
