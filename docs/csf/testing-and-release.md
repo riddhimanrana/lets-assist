@@ -15,7 +15,7 @@ repository-only migrations have not been applied or deployed there. The
 `cf330e5faa844d63a2f41c8f0be4d1c727d51a47`, whose repository tree ended at 272
 through `20260812132725`, because the external Vercel 100-deployment-per-day
 project cap prevented the refreshed deployment. The current exact local isolated
-union replay passed all 292 migrations and 142 pgTAP files with 5,785
+union replay passed all 293 migrations and 143 pgTAP files with 5,794
 assertions and 84 CSF tables present; it is local evidence only, and hosted
 acceptance remains pending. Google
 OAuth and Picker are connected. On
@@ -33,10 +33,10 @@ their named runs only.
 
 ## Current hosted Development state
 
-- The repository branch has 292 ordered migrations through
-  `20260815100500_dvhs_csf_application_queue_projection`.
+- The repository branch has 293 ordered migrations through
+  `20260815110000_log_ai_usage_rpc`.
 - Hosted Development Supabase remains at 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`. The nineteen repository-only migrations are
+  `20260812152300_atomic_csf_post_replies`. The twenty repository-only migrations are
   `20260812161500_atomic_project_signup_rejection`,
   `20260812185500_atomic_staff_invite_issuer_redemption`,
   `20260812193329_google_cap_replay_safety`,
@@ -55,7 +55,8 @@ their named runs only.
   `20260813091801_harden_dv_private_policy_helper_acls`,
   `20260814001123_csf_import_lineage_transport_settlement`,
   `20260814051720_csf_post_mutation_outcome_recovery`, and
-  `20260815100500_dvhs_csf_application_queue_projection`. They are
+  `20260815100500_dvhs_csf_application_queue_projection`, and
+  `20260815110000_log_ai_usage_rpc`. They are
   repository-only local work: hosted Development database parity, application
   deployment, and provider acceptance have not been established for them.
 - Pull requests #152, #158, #174, #177, #179, and #181 are merged in current
@@ -128,11 +129,11 @@ their named runs only.
   after the same per-request advisory lock and performs only a bounded
   immutable receipt read that reports committed-versus-not-written, never
   receipt contents.
-- The current exact local isolated union replay passed all 292 migrations and
-  142 pgTAP files with 5,785 assertions and 84 CSF tables present. It is local
+- The current exact local isolated union replay passed all 293 migrations and
+  143 pgTAP files with 5,794 assertions and 84 CSF tables present. It is local
   evidence only and does not establish hosted or Production acceptance.
 - Production remains at 236 ordered migrations through `20260811001500`; the
-  56-migration cutover has not run.
+  57-migration cutover has not run.
 - The last accepted Development advisor snapshot was captured on the preceding
   272-migration shape: 95 INFO, 0 WARN, and 0 ERROR security findings, plus 611
   INFO, 0 WARN, and 0 ERROR performance findings. Those counts have not been
@@ -515,7 +516,7 @@ The current officer procedure is documented in the [officer runbook](officer-run
   unexecuted.
 - Development uses a distinct hosted Supabase project. Its database remains at
   273 ordered migrations through `20260812152300_atomic_csf_post_replies`; this
-  repository branch has 292 through
+  repository branch has 293 through
   `20260815100500_dvhs_csf_application_queue_projection`, including
   `20260812161500_atomic_project_signup_rejection`,
   `20260812185500_atomic_staff_invite_issuer_redemption`,

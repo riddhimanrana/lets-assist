@@ -45,10 +45,8 @@ describe("CSF release-state documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(292);
-    expect(migrations.at(-1)).toBe(
-      "20260815100500_dvhs_csf_application_queue_projection.sql",
-    );
+    expect(migrations).toHaveLength(293);
+    expect(migrations.at(-1)).toBe("20260815110000_log_ai_usage_rpc.sql");
 
     const currentState = between(
       testingAndRelease,
@@ -56,7 +54,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 292 ordered migrations through",
+      "repository branch has 293 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260812203500_close_plugin_data_browser_default_acl`",
@@ -90,7 +88,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "`20260813091801_harden_dv_private_policy_helper_acls`",
     );
     expect(currentState).toContain(
-      "exact local isolated union replay passed all 292 migrations and 142 pgTAP files with 5,785 assertions and 84 CSF tables present",
+      "exact local isolated union replay passed all 293 migrations and 143 pgTAP files with 5,794 assertions and 84 CSF tables present",
     );
     expect(currentState).toContain(
       "`20260815100500_dvhs_csf_application_queue_projection`",
@@ -101,9 +99,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(currentState).toContain(
       "Hosted Development Supabase remains at 273 ordered migrations through",
     );
-    expect(currentState).toContain(
-      "The nineteen repository-only migrations are",
-    );
+    expect(currentState).toContain("The twenty repository-only migrations are");
     expect(currentState).toContain("`20260813010000_atomic_ai_quota_receipts`");
     expect(currentState).toContain(
       "`20260813013000_reconcile_project_lifecycle_boundaries`",
@@ -117,7 +113,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(currentState).toContain(
       "Production remains at 236 ordered migrations through `20260811001500`",
     );
-    expect(currentState).toContain("56-migration cutover has not run");
+    expect(currentState).toContain("57-migration cutover has not run");
     expect(currentState).not.toContain("50 migrations are Production-pending");
     expect(currentState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
@@ -177,7 +173,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "### External and action-time gates",
       "## Artifact index",
     );
-    expect(externalGates).toContain("repository branch has 292 through");
+    expect(externalGates).toContain("repository branch has 293 through");
     expect(externalGates).toContain(
       "`20260813013300_close_csf_representative_and_publication_races`",
     );
@@ -218,7 +214,29 @@ describe("CSF release-state documentation truthfulness guards", () => {
     );
   });
 
-  test("the Development rehearsal and cutover ledger carry the same current evidence", () => {
+  /**
+   * Two kinds of claim live in these documents and they must never be edited
+   * together.
+   *
+   * A DATED RECORD says what someone observed on one run: the rehearsal section
+   * below, with its "was verified as", "Preview failed while sealing", and
+   * "Production was not changed by this rehearsal". Its numbers are evidence of
+   * that run. Rewriting them to today's values would not correct an error, it
+   * would destroy the record.
+   *
+   * A CURRENT-STATE or FORWARD-LOOKING claim must track reality: the "Current
+   * hosted Development state" section above, and the "Production cutover
+   * checklist" at the end of this test, which has to agree with
+   * scripts/production-cutover-preflight.sql.
+   *
+   * The two carry near-identical strings -- "... ordered migrations through ...",
+   * "The N repository-only migrations are", and the union-replay evidence line
+   * -- so a global find-and-replace across this file silently rewrites the
+   * record's assertions into asserting values the record does not contain. The
+   * failure looks like a passing edit until the suite runs. Scope every edit to
+   * one block at a time.
+   */
+  test("the dated rehearsal record stays internally consistent with itself", () => {
     const rehearsalState = between(
       operatorGuide,
       "## Development rehearsal state at this guide's verification point",
@@ -329,14 +347,14 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "## Related references",
     );
     expect(cutover).toContain(
-      "Replay the ordered migration ledger through `20260815100500`",
+      "Replay the ordered migration ledger through `20260815110000`",
     );
     expect(cutover).toContain(
       "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
     );
     expect(cutover).toContain("exact 236-row baseline");
-    expect(cutover).toContain("full 56-migration transition");
-    expect(cutover).toContain("preflight on the 292-row target");
+    expect(cutover).toContain("full 57-migration transition");
+    expect(cutover).toContain("preflight on the 293-row target");
   });
 
   test("production cutover baseline tracks the exact pending migration range", () => {
