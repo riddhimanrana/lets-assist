@@ -9,8 +9,19 @@
  * Should be called after every AI Gateway response.
  */
 
-import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import type { AiWorkloadScope } from "./gateway";
+
+/**
+ * Set once the first write failure has been reported.
+ *
+ * A broken write path is not a per-call incident, it is a standing outage: the
+ * previous implementation called a nonexistent RPC and logged the same error on
+ * every AI call, which is precisely the shape of noise that gets filtered out
+ * and ignored. The first failure is therefore reported loudly and the rest are
+ * counted, so a permanent breakage stays visible without flooding the log.
+ */
+let writeFailuresSinceStartup = 0;
 
 export interface AiUsageRecord {
   /** Organization that should be billed. Null for platform-level calls. */
@@ -42,56 +53,83 @@ export interface AiUsageRecord {
 }
 
 /**
+ * Report a usage-write failure.
+ *
+ * Deliberately not silent. The previous implementation caught every failure and
+ * emitted an indistinguishable one-line console.error, so a write path that was
+ * broken for the lifetime of the project looked identical to a transient blip
+ * and nobody noticed the table was empty.
+ *
+ * The first failure carries the full record so the cause is diagnosable from a
+ * single log line, and every failure re-states the running total so a permanent
+ * outage is legible as one.
+ */
+function reportUsageWriteFailure(
+  record: AiUsageRecord,
+  cause: string,
+  detail?: unknown,
+): void {
+  writeFailuresSinceStartup += 1;
+
+  const summary =
+    `[ai-usage-tracker] BILLING WRITE FAILED (${writeFailuresSinceStartup} since startup) — ` +
+    `AI usage is NOT being recorded. cause=${cause} ` +
+    `scope=${record.gatewayScope} model=${record.modelId} feature=${record.feature ?? "none"}`;
+
+  if (writeFailuresSinceStartup === 1) {
+    console.error(summary, {
+      organizationId: record.organizationId ?? null,
+      userId: record.userId ?? null,
+      pluginKey: record.pluginKey ?? null,
+      inputTokens: record.inputTokens ?? 0,
+      outputTokens: record.outputTokens ?? 0,
+      detail,
+    });
+    return;
+  }
+
+  console.error(summary);
+}
+
+/**
  * Log an AI usage record for billing attribution.
  *
- * This is fire-and-forget — failures are logged but don't propagate.
- * We never want a billing log failure to break user-facing AI features.
+ * Writes through public.log_ai_usage, a service-role-only SECURITY DEFINER
+ * function. plugin_data is not exposed through the Data API, so a direct
+ * supabase-js insert cannot reach it.
+ *
+ * Failures still do not propagate — a billing log must never break a
+ * user-facing AI feature — but they are reported loudly rather than swallowed.
+ * See reportUsageWriteFailure.
  */
 export async function logAiUsage(record: AiUsageRecord): Promise<void> {
   try {
-    const supabase = await createClient();
+    const supabase = getAdminClient();
 
-    const { error } = await supabase.rpc(
-      "execute_sql" as never,
-      {
-        query: `
-        INSERT INTO plugin_data.ai_usage_log (
-          organization_id, user_id, plugin_key, gateway_scope,
-          model_id, feature, input_tokens, output_tokens,
-          estimated_cost_usd, latency_ms, success, error_message, metadata
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
-        )
-      `,
-        args: [
-          record.organizationId ?? null,
-          record.userId ?? null,
-          record.pluginKey ?? null,
-          record.gatewayScope,
-          record.modelId,
-          record.feature ?? null,
-          record.inputTokens ?? 0,
-          record.outputTokens ?? 0,
-          record.estimatedCostUsd ?? null,
-          record.latencyMs ?? null,
-          record.success ?? true,
-          record.errorMessage ?? null,
-          JSON.stringify(record.metadata ?? {}),
-        ],
-      } as never,
-    );
+    const { error } = await supabase.rpc("log_ai_usage", {
+      p_gateway_scope: record.gatewayScope,
+      p_model_id: record.modelId,
+      p_organization_id: record.organizationId ?? null,
+      p_user_id: record.userId ?? null,
+      p_plugin_key: record.pluginKey ?? null,
+      p_feature: record.feature ?? null,
+      p_input_tokens: record.inputTokens ?? 0,
+      p_output_tokens: record.outputTokens ?? 0,
+      p_estimated_cost_usd: record.estimatedCostUsd ?? null,
+      p_latency_ms: record.latencyMs ?? null,
+      p_success: record.success ?? true,
+      p_error_message: record.errorMessage ?? null,
+      p_metadata: record.metadata ?? {},
+    });
 
     if (error) {
-      // Log but don't throw — billing logging should never break features
-      console.error(
-        "[ai-usage-tracker] Failed to log AI usage:",
-        error.message,
-      );
+      reportUsageWriteFailure(record, error.code || "rpc_error", error.message);
     }
   } catch (err) {
-    console.error(
-      "[ai-usage-tracker] Unexpected error logging AI usage:",
-      err instanceof Error ? err.message : err,
+    reportUsageWriteFailure(
+      record,
+      "unexpected_error",
+      err instanceof Error ? `${err.name}: ${err.message}` : err,
     );
   }
 }
