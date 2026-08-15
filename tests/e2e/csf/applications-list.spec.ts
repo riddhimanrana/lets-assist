@@ -32,7 +32,7 @@ test.describe("compact applications list and addressable review", () => {
       "Waiting",
       "Completed",
     ]) {
-      await expect(queueNav.getByRole("link", { name: queue })).toBeVisible();
+      await expect(queueNav.getByRole("button", { name: queue })).toBeVisible();
     }
     await expect(
       page.getByRole("searchbox", { name: "Search applications" }),
