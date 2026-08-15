@@ -353,9 +353,21 @@ export function shouldUseMailpitTransport(): boolean {
   if (configured === "mailpit") return true;
   if (configured === "resend") return false;
 
-  // Local convenience fallback: always route emails to local Mailpit/Inbucket
-  // in development, unless EMAIL_TRANSPORT=resend is explicitly set.
-  return process.env.NODE_ENV !== "production";
+  // The environment fallback MUST key off VERCEL_ENV, never NODE_ENV.
+  //
+  // Next.js sets NODE_ENV=production for every built deployment, Preview
+  // included, so NODE_ENV cannot tell a Preview build from Production. Keying
+  // the fallback off it meant Preview selected the Resend transport and mailed
+  // real people from a non-production environment -- signup verifications,
+  // anonymous-signup confirmations, and feedback requests all went out live
+  // whenever EMAIL_TRANSPORT happened to be unset, which it was.
+  //
+  // VERCEL_ENV is "production" only on Production deployments; it is "preview"
+  // or "development" on other Vercel environments and undefined off-Vercel
+  // (local, CI, tests). Preview therefore falls back to the local transport,
+  // which has no reachable catcher on Vercel and fails closed rather than
+  // delivering to a real inbox.
+  return process.env.VERCEL_ENV?.trim().toLowerCase() !== "production";
 }
 
 export async function sendViaMailpit({
