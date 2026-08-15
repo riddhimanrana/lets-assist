@@ -45,9 +45,9 @@ describe("CSF release-state documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(291);
+    expect(migrations).toHaveLength(292);
     expect(migrations.at(-1)).toBe(
-      "20260814051720_csf_post_mutation_outcome_recovery.sql",
+      "20260815010000_log_ai_usage_rpc.sql",
     );
 
     const currentState = between(
@@ -56,57 +56,19 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 291 ordered migrations through",
+      "repository branch has 292 ordered migrations through",
     );
     expect(currentState).toContain(
-      "`20260812203500_close_plugin_data_browser_default_acl`",
+      "Hosted Development Supabase is at 291 ordered migrations through",
     );
     expect(currentState).toContain(
-      "`20260812161500_atomic_project_signup_rejection`",
+      "exact local isolated union replay passed all 292 migrations and 142 pgTAP files with 5,780 assertions and 84 CSF tables present",
     );
     expect(currentState).toContain(
-      "`20260813013100_lock_project_lifecycle_transactions`",
+      "Hosted Development Supabase is at 291 ordered migrations through",
     );
     expect(currentState).toContain(
-      "Hosted Development Supabase remains at 273 ordered migrations through",
-    );
-    expect(currentState).toContain("`20260813010000_atomic_ai_quota_receipts`");
-    expect(currentState).toContain(
-      "`20260813012206_google_cap_effect_fencing`",
-    );
-    expect(currentState).toContain(
-      "`20260812220000_csf_meeting_permission_followups`",
-    );
-    expect(currentState).toContain(
-      "`20260813013300_close_csf_representative_and_publication_races`",
-    );
-    expect(currentState).toContain(
-      "`20260813020000_cancellation_preserves_unknown_delivery_outcomes`",
-    );
-    expect(currentState).toContain(
-      "`20260813085442_harden_private_is_plugin_enabled_acl`",
-    );
-    expect(currentState).toContain(
-      "`20260813091801_harden_dv_private_policy_helper_acls`",
-    );
-    expect(currentState).toContain(
-      "exact local isolated union replay passed all 291 migrations and 141 pgTAP files with 5,761 assertions and 84 CSF tables present",
-    );
-    expect(currentState).toContain(
-      "`20260814051720_csf_post_mutation_outcome_recovery`",
-    );
-    expect(currentState).toContain(
-      "`20260812193400_protect_staff_invite_issuer_capability`",
-    );
-    expect(currentState).toContain(
-      "Hosted Development Supabase remains at 273 ordered migrations through",
-    );
-    expect(currentState).toContain(
-      "The eighteen repository-only migrations are",
-    );
-    expect(currentState).toContain("`20260813010000_atomic_ai_quota_receipts`");
-    expect(currentState).toContain(
-      "`20260813013000_reconcile_project_lifecycle_boundaries`",
+      "The one remaining repository-only migration is",
     );
     expect(currentState).toContain(
       "hosted Development database parity, application deployment, and provider acceptance have not been established",
@@ -117,7 +79,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
     expect(currentState).toContain(
       "Production remains at 236 ordered migrations through `20260811001500`",
     );
-    expect(currentState).toContain("55-migration cutover has not run");
+    expect(currentState).toContain("56-migration cutover has not run");
     expect(currentState).not.toContain("50 migrations are Production-pending");
     expect(currentState).toContain(
       "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
@@ -218,7 +180,27 @@ describe("CSF release-state documentation truthfulness guards", () => {
     );
   });
 
-  test("the Development rehearsal and cutover ledger carry the same current evidence", () => {
+  /**
+   * Two different kinds of claim live in these documents, and they must not be
+   * updated together.
+   *
+   * A DATED RECORD says what someone observed on one run: the rehearsal section
+   * below, with its "was verified as", "Preview failed while sealing", and
+   * "Production was not changed by this rehearsal". Its numbers are evidence of
+   * that run and stay verbatim forever. Rewriting them to today's values would
+   * not correct an error, it would destroy the record.
+   *
+   * A CURRENT-STATE or FORWARD-LOOKING claim says what is true now, or what an
+   * operator must do next: the "Current hosted Development state" section and
+   * the "Production cutover checklist". Those must track reality and must agree
+   * with scripts/production-cutover-preflight.sql.
+   *
+   * The two carry overlapping strings ("... ordered migrations through ...",
+   * the union-replay evidence line), so a global find-and-replace across this
+   * file will silently corrupt the record's assertions into asserting values it
+   * does not contain. Scope every edit to one block at a time.
+   */
+  test("the dated rehearsal record stays internally consistent with itself", () => {
     const rehearsalState = between(
       operatorGuide,
       "## Development rehearsal state at this guide's verification point",
@@ -329,14 +311,14 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "## Related references",
     );
     expect(cutover).toContain(
-      "Replay the ordered migration ledger through `20260814051720`",
+      "Replay the ordered migration ledger through `20260815010000`",
     );
     expect(cutover).toContain(
       "`scripts/production-cutover-preflight.sql` with the reviewed Production read-only URL",
     );
     expect(cutover).toContain("exact 236-row baseline");
-    expect(cutover).toContain("full 55-migration transition");
-    expect(cutover).toContain("preflight on the 291-row target");
+    expect(cutover).toContain("full 56-migration transition");
+    expect(cutover).toContain("preflight on the 292-row target");
   });
 
   test("production cutover baseline tracks the exact pending migration range", () => {

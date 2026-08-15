@@ -23,7 +23,7 @@ that earlier deployed code,
 the real Spring 2026 application Preview passed the metadata RPC and stored 85
 preview rows, then failed at the seal because the caller supplied a reserved
 derived summary key. Zero term applications were committed. Production remains
-at 236 ordered migrations through `20260811001500`, so 55 migrations are
+at 236 ordered migrations through `20260811001500`, so 56 migrations are
 Production-pending; Production remains untouched.
 
 **Latest contract amendment:** August 12, 2026; this current-state amendment
@@ -33,32 +33,18 @@ their named runs only.
 
 ## Current hosted Development state
 
-- The repository branch has 291 ordered migrations through
-  `20260814051720_csf_post_mutation_outcome_recovery`.
-- Hosted Development Supabase remains at 273 ordered migrations through
-  `20260812152300_atomic_csf_post_replies`. The eighteen repository-only migrations are
-  `20260812161500_atomic_project_signup_rejection`,
-  `20260812185500_atomic_staff_invite_issuer_redemption`,
-  `20260812193329_google_cap_replay_safety`,
-  `20260812193400_protect_staff_invite_issuer_capability`,
-  `20260812203000_make_content_reports_server_written`,
-  `20260812203500_close_plugin_data_browser_default_acl`,
-  `20260812220000_csf_meeting_permission_followups`,
-  `20260813010000_atomic_ai_quota_receipts`,
-  `20260813012206_google_cap_effect_fencing`,
-  `20260813013000_reconcile_project_lifecycle_boundaries`,
-  `20260813013100_lock_project_lifecycle_transactions`,
-  `20260813013200_recheck_csf_activity_partner_authorization_under_lock`,
-  `20260813013300_close_csf_representative_and_publication_races`,
-  `20260813020000_cancellation_preserves_unknown_delivery_outcomes`,
-  `20260813085442_harden_private_is_plugin_enabled_acl`,
-  `20260813091801_harden_dv_private_policy_helper_acls`,
-  `20260814001123_csf_import_lineage_transport_settlement`, and
-  `20260814051720_csf_post_mutation_outcome_recovery`. They are
-  repository-only local work: hosted Development database parity, application
-  deployment, and provider acceptance have not been established for them.
+- The repository branch has 292 ordered migrations through
+  `20260815010000_log_ai_usage_rpc`.
+- Hosted Development Supabase is at 291 ordered migrations through
+  `20260814051720_csf_post_mutation_outcome_recovery`, measured directly against
+  the branch database on August 14, 2026. The eighteen migrations previously
+  recorded here as repository-only have all been applied; that count is
+  superseded. The one remaining repository-only migration is
+  `20260815010000_log_ai_usage_rpc`. It is repository-only local work: hosted
+  Development database parity, application deployment, and provider acceptance
+  have not been established for it.
 - Pull requests #152, #158, #174, #177, #179, and #181 are merged in current
-  `development`; #180 remains open with a later migration. The 291-row pin is
+  `development`; #180 is now merged. The 292-row pin is
   therefore provisional, and the last migration pull request to merge must
   recompute the count, head, and exact tail from the merged tree.
 - `20260813013200` closes the CSF activity and partner-club stale-authority
@@ -127,11 +113,11 @@ their named runs only.
   after the same per-request advisory lock and performs only a bounded
   immutable receipt read that reports committed-versus-not-written, never
   receipt contents.
-- The current exact local isolated union replay passed all 291 migrations and
-  141 pgTAP files with 5,761 assertions and 84 CSF tables present. It is local
+- The current exact local isolated union replay passed all 292 migrations and
+  142 pgTAP files with 5,780 assertions and 84 CSF tables present. It is local
   evidence only and does not establish hosted or Production acceptance.
 - Production remains at 236 ordered migrations through `20260811001500`; the
-  55-migration cutover has not run.
+  56-migration cutover has not run.
 - The last accepted Development advisor snapshot was captured on the preceding
   272-migration shape: 95 INFO, 0 WARN, and 0 ERROR security findings, plus 611
   INFO, 0 WARN, and 0 ERROR performance findings. Those counts have not been
