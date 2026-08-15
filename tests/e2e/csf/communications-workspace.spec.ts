@@ -285,14 +285,16 @@ test.describe("CSF communications workspace", () => {
 
     // Draft through the real dialog: broadcast to term members of the
     // current term, both preselected defaults.
-    await page.getByRole("button", { name: "New campaign" }).click();
+    await page.getByRole("button", { name: "New email" }).click();
     const createDialog = page.getByRole("dialog");
     await expect(
-      createDialog.getByRole("heading", { name: "New CSF email campaign" }),
+      createDialog.getByRole("heading", { name: "New email" }),
     ).toBeVisible();
     await createDialog.getByLabel("Subject").fill(subject);
     await createDialog.getByLabel("Plain-text message").fill(bodyText);
-    await createDialog.getByRole("button", { name: "Save draft" }).click();
+    await createDialog
+      .getByRole("button", { name: "Save and review recipients" })
+      .click();
     await expect(createDialog).toBeHidden();
 
     const { data: draft, error: draftError } = await fixture.admin
@@ -336,16 +338,16 @@ test.describe("CSF communications workspace", () => {
     await expect(finalizeContentDialog).toBeHidden();
 
     await campaignCard
-      .getByRole("button", { name: "Snapshot audience", exact: true })
+      .getByRole("button", { name: "Review recipients", exact: true })
       .click();
     const snapshotDialog = page.getByRole("dialog");
     await expect(
       snapshotDialog.getByRole("heading", {
-        name: "Snapshot the canonical audience?",
+        name: "Lock in who receives this email?",
       }),
     ).toBeVisible();
     await snapshotDialog
-      .getByRole("button", { name: "Snapshot audience", exact: true })
+      .getByRole("button", { name: "Lock in recipients", exact: true })
       .click();
     await expect(snapshotDialog).toBeHidden();
     await expect(
@@ -353,16 +355,16 @@ test.describe("CSF communications workspace", () => {
     ).toBeVisible();
 
     await campaignCard
-      .getByRole("button", { name: "Finalize & queue", exact: true })
+      .getByRole("button", { name: "Queue for sending", exact: true })
       .click();
     const queueDialog = page.getByRole("dialog");
     await expect(
       queueDialog.getByRole("heading", {
-        name: "Finalize this audience and queue delivery work?",
+        name: "Queue this email for sending?",
       }),
     ).toBeVisible();
     await queueDialog
-      .getByRole("button", { name: "Finalize audience & queue", exact: true })
+      .getByRole("button", { name: "Queue for sending", exact: true })
       .click();
     await expect(queueDialog).toBeHidden();
 

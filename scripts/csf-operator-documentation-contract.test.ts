@@ -367,8 +367,8 @@ const COMMUNICATIONS: LabelContract[] = [
     component: "CsfCommunicationsCampaigns.tsx",
     labels: [
       "Finalize content",
-      "Snapshot audience",
-      "Finalize & queue",
+      "Review recipients",
+      "Queue for sending",
       "Recipient ledger",
       "Provider attempts",
       "This action does not call the email provider.",
