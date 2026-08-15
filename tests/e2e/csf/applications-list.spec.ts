@@ -21,16 +21,31 @@ test.describe("compact applications list and addressable review", () => {
   test("renders one compact shadcn-style list with complete operational filters", async ({
     page,
   }) => {
-    await expect(
-      page.getByRole("navigation", { name: "Application views" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /All applications/ }),
-    ).toHaveAttribute("aria-current", "page");
+    const queueNav = page.getByRole("navigation", {
+      name: "Application work queues",
+    });
+    await expect(queueNav).toBeVisible();
+    for (const queue of [
+      "Mine",
+      "Unassigned",
+      "Needs review",
+      "Waiting",
+      "Completed",
+    ]) {
+      await expect(queueNav.getByRole("link", { name: queue })).toBeVisible();
+    }
     await expect(
       page.getByRole("searchbox", { name: "Search applications" }),
     ).toHaveValue("Maya");
 
+    // The queue chips are the everyday vocabulary; the detailed operational
+    // filters stay behind one explicit disclosure until asked for.
+    for (const filter of ["Status", "Eligibility", "Dues"]) {
+      await expect(
+        page.getByRole("button", { name: new RegExp(`^${filter} filter`) }),
+      ).toBeHidden();
+    }
+    await page.getByRole("button", { name: "More filters" }).click();
     for (const filter of [
       "Status",
       "Eligibility",
@@ -46,6 +61,10 @@ test.describe("compact applications list and addressable review", () => {
     await expect(
       page.getByRole("button", { name: "Sort applications: Student name" }),
     ).toBeVisible();
+    await page.getByRole("button", { name: "Hide filters" }).click();
+    await expect(
+      page.getByRole("button", { name: /^Status filter/ }),
+    ).toBeHidden();
 
     const applicationLinks = page.locator('a[href*="csf_application="]');
     await expect(applicationLinks.first()).toBeVisible();
