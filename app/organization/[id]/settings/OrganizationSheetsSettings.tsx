@@ -301,9 +301,9 @@ export default function OrganizationSheetsSettings({
                       <Image
                         src="/resources/google-sheets-logo-2026.png"
                         alt="Google Sheets"
-                        width={24}
+                        width={33}
                         height={24}
-                        className="size-6"
+                        className="h-6 w-auto object-contain"
                       />
                     </span>
                     <div className="space-y-1">
@@ -575,9 +575,9 @@ export default function OrganizationSheetsSettings({
               <Image
                 src="/resources/google-sheets-logo-2026.png"
                 alt="Google Sheets"
-                width={24}
+                width={33}
                 height={24}
-                className="size-6"
+                className="h-6 w-auto object-contain"
               />
             </div>
             <div>
@@ -624,9 +624,9 @@ export default function OrganizationSheetsSettings({
               <Image
                 src="/resources/google-sheets-logo-2026.png"
                 alt="Google Sheets"
-                width={24}
+                width={33}
                 height={24}
-                className="size-6"
+                className="h-6 w-auto object-contain"
               />
             </div>
             <div>
