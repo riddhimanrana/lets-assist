@@ -27,13 +27,10 @@ if (!hasDvPlugin) {
   );
 }
 
-const requiredDefaultPlugins = [
-  "calendar-tools",
-  "community-impact-radar",
-  "dv-speech-debate",
-  "dvhs-csf",
-  "family-liaison-workbench",
-];
+// The two real products. calendar-tools, community-impact-radar and
+// family-liaison-workbench were example plugins seeded for visibility-tier
+// testing and have been removed.
+const requiredDefaultPlugins = ["dv-speech-debate", "dvhs-csf"];
 
 for (const requiredPlugin of requiredDefaultPlugins) {
   if (!pluginKeys.includes(requiredPlugin)) {

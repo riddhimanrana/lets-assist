@@ -227,38 +227,23 @@ const accounts = [
 // Every CSF fixture actor is a DVHS CSF profile record, so shared local mode
 // never creates one. The non-CSF platform accounts are untouched.
 
-const pluginKeys = [
-  "calendar-tools",
-  "community-impact-radar",
-  "dvhs-csf",
-  "family-liaison-workbench",
-];
+// Only the two real products. The example plugins seeded for visibility-tier
+// testing (calendar-tools, community-impact-radar, family-liaison-workbench)
+// were removed. dv-speech-debate is listed so the shared local stack still
+// exercises the entitlement and install control plane, which would otherwise
+// seed nothing at all once dvhs-csf is filtered out of that mode.
+const pluginKeys = ["dv-speech-debate", "dvhs-csf"];
 
 const pluginCatalogRows = [
   {
-    key: "calendar-tools",
-    name: "Calendar Tools",
+    key: "dv-speech-debate",
+    name: "DV Speech and Debate",
     description:
-      "Server-rendered calendar workflow helpers for organization projects.",
+      "Tournament, roster, and results workflow surfaces for the speech and debate program.",
     visibility: "private",
     is_active: true,
-    // Must match the plugin manifest (calendar-tools/plugin.tsx) and a
-    // published `plugin_versions` row. The fixture said 0.1.0 while the
-    // manifest and the only published release said 1.0.0, so seeding a stack
-    // that already had the real catalog tripped
-    // `enforce_catalog_published_plugin_release`. Fixed here rather than by
-    // editing the catalog, which would just move the drift.
-    latest_version: "1.0.0",
-    private_codebase: true,
-  },
-  {
-    key: "community-impact-radar",
-    name: "Community Impact Radar",
-    description:
-      "Organization impact analytics surfaces backed by host-controlled read paths.",
-    visibility: "global",
-    is_active: true,
-    latest_version: "0.1.0",
+    // Must match the manifest and a published `plugin_versions` row.
+    latest_version: "2.0.0",
     private_codebase: true,
   },
   {
@@ -266,16 +251,6 @@ const pluginCatalogRows = [
     name: "DVHS CSF",
     description:
       "Private CSF workflow system for cohort membership, applications, officer roles, points, posts, and sheets.",
-    visibility: "private",
-    is_active: true,
-    latest_version: "0.1.0",
-    private_codebase: true,
-  },
-  {
-    key: "family-liaison-workbench",
-    name: "Family Liaison Workbench",
-    description:
-      "Staff-only liaison workflow surfaces for signup and family support pilots.",
     visibility: "private",
     is_active: true,
     latest_version: "0.1.0",
