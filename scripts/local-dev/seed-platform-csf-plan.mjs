@@ -896,6 +896,16 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           status: "active",
         },
         {
+          // Seniors in Fall 2026. Without this the class reads "No current
+          // semester" during the very term it is graduating from.
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2027,
+          term_id: IDS.csfTermF26,
+          grade_level: 12,
+          sheet_tab_name: "F26-2027",
+          status: "active",
+        },
+        {
           organization_id: IDS.csfOrg,
           cohort_id: IDS.csfCohort2028,
           term_id: IDS.csfTermF26,
