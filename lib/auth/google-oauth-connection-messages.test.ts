@@ -53,7 +53,10 @@ test("never echoes an unrecognized or attacker-supplied error code", () => {
   assert.ok(notice);
   assert.equal(notice.tone, "error");
   assert.ok(!notice.message.includes("script"));
-  assert.equal(notice.message, "The connection did not finish. Nothing was changed.");
+  assert.equal(
+    notice.message,
+    "The connection did not finish. Nothing was changed.",
+  );
 });
 
 test("surfaces a correlation code only when it has the expected shape", () => {

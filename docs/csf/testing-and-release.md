@@ -3,7 +3,7 @@
 **Run:** `20260812-current-development-state` (with the historical `20260811-hosted-development` amendment and `20260806-post-cleanup` gallery retained)<br>
 **Environment:** hosted Development plus the isolated CI replay; Production is a read-only release reference
 **Evidence policy:** synthetic browser data; real Google Drive and Gmail are read-only operational evidence and never appear in screenshots, fixtures, or committed row data  
-**Status:** This repository carries 292 ordered migrations through
+**Historical status snapshot:** This repository carried 292 ordered migrations through
 `20260815100500_dvhs_csf_application_queue_projection`, including project-signup
 rejection, active staff-invite issuer, content-report integrity, plugin ACL,
 atomic AI quota, CSF meeting-permission, Google CAP effect fencing, and the
@@ -26,12 +26,41 @@ derived summary key. Zero term applications were committed. Production remains
 at 236 ordered migrations through `20260811001500`, so 55 migrations are
 Production-pending; Production remains untouched.
 
-**Latest contract amendment:** August 12, 2026; this current-state amendment
+**Historical contract amendment:** August 12, 2026; this snapshot
 separates the repository target, hosted Development ledger, and stale code
 served by the Development alias. Historical counts below remain evidence for
 their named runs only.
 
 ## Current hosted Development state
+
+- The sole current CSF implementation/status register is
+  `docs/development/cleanup-register.md`; this document is a testing runbook and
+  retains older evidence below without promoting it to current status.
+- The repository candidate has 298 ordered migrations through
+  `20260816190454_durable_paper_signup_notifications`. The two Development-only
+  migrations added after the audited `development` baseline are
+  `20260816185321_enforce_authoritative_plugin_releases` and
+  `20260816190454_durable_paper_signup_notifications`.
+- Hosted Development was healthy and migration-current at the audited 296-row
+  base through `20260816083000_csf_import_annotation_settlement`. This
+  implementation did not apply the two new migrations or re-verify hosted
+  parity, advisors, application deployment, or provider acceptance.
+- Production remains untouched at the audited 236-row baseline through
+  `20260811001500`; the exact read-only preflight now expects a 62-migration
+  cutover to this 298-row candidate. Running that cutover is not authorized.
+- Local evidence includes a fresh isolated replay of all 298 migrations,
+  passing focused plugin-release, paper-scan, waiver, and feedback pgTAP suites,
+  and passing static quality gates. Full exact-tree tests, build, strict
+  submodule reachability, hosted role/browser acceptance, and provider
+  acceptance remain release gates until recorded in the cleanup register.
+- Private CSF source is on `codex/csf-reconciliation-guard-20260816` at
+  `5e21d5dd60744dc50b7817bfc734a4e2ca71c8f5`. It must merge to private
+  `development` before the root gitlink is published.
+- Real CSF sources remain immutable-preview-only. Class of 2030 is
+  template-only; no real-row commit, real-recipient email, model submission,
+  hosted apply, deployment, alias promotion, or Production operation occurred.
+
+## Historical pre-hardening Development state
 
 - The repository branch has 296 ordered migrations through
   `20260816083000_csf_import_annotation_settlement`.

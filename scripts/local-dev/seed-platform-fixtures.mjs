@@ -241,7 +241,7 @@ const pluginCatalogRows = [
       "Server-rendered calendar workflow helpers for organization projects.",
     visibility: "private",
     is_active: true,
-    latest_version: "0.1.0",
+    latest_version: "1.0.0",
     private_codebase: true,
   },
   {

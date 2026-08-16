@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
-import { shouldUseMailpitTransport } from "./email";
+import {
+  guardDevelopmentProviderSend,
+  shouldUseMailpitTransport,
+} from "./email";
 
 /**
  * Transport selection is the boundary between "a test mailed nobody" and "a test
@@ -21,7 +24,13 @@ import { shouldUseMailpitTransport } from "./email";
  * would pass against the broken implementation and prove nothing.
  */
 
-const ENV_KEYS = ["EMAIL_TRANSPORT", "VERCEL_ENV", "NODE_ENV"] as const;
+const ENV_KEYS = [
+  "EMAIL_TRANSPORT",
+  "VERCEL_ENV",
+  "NODE_ENV",
+  "RESEND_DEV_FROM_DOMAIN",
+  "RESEND_DEV_RECIPIENT_ALLOWLIST",
+] as const;
 const originals = new Map<string, string | undefined>(
   ENV_KEYS.map((key) => [key, process.env[key]]),
 );
@@ -113,5 +122,77 @@ describe("shouldUseMailpitTransport explicit override", () => {
     });
 
     expect(shouldUseMailpitTransport()).toBe(true);
+  });
+});
+
+describe("Development Resend recipient guard", () => {
+  test("requires the dedicated sender domain on Preview", () => {
+    setEnv({ VERCEL_ENV: "preview", EMAIL_TRANSPORT: "resend" });
+
+    expect(
+      guardDevelopmentProviderSend({
+        from: "Let's Assist <development@dev-mail.lets-assist.com>",
+        to: "delivered@resend.dev",
+      }),
+    ).toEqual({
+      allowed: false,
+      code: "development_sender_domain_missing",
+    });
+  });
+
+  test("allows Resend test addresses from the dedicated domain", () => {
+    setEnv({
+      VERCEL_ENV: "preview",
+      EMAIL_TRANSPORT: "resend",
+      RESEND_DEV_FROM_DOMAIN: "dev-mail.lets-assist.com",
+    });
+
+    expect(
+      guardDevelopmentProviderSend({
+        from: "Let's Assist Development <development@dev-mail.lets-assist.com>",
+        to: [
+          "delivered@resend.dev",
+          "bounced+synthetic-1@resend.dev",
+          "complained@resend.dev",
+          "suppressed@resend.dev",
+        ],
+      }),
+    ).toEqual({ allowed: true });
+  });
+
+  test("blocks non-test recipients unless explicitly allowlisted", () => {
+    setEnv({
+      VERCEL_ENV: "preview",
+      EMAIL_TRANSPORT: "resend",
+      RESEND_DEV_FROM_DOMAIN: "dev-mail.lets-assist.com",
+      RESEND_DEV_RECIPIENT_ALLOWLIST: "qa-owner@example.test",
+    });
+
+    expect(
+      guardDevelopmentProviderSend({
+        from: "development@dev-mail.lets-assist.com",
+        to: "student@example.org",
+      }),
+    ).toEqual({
+      allowed: false,
+      code: "development_recipient_blocked",
+    });
+    expect(
+      guardDevelopmentProviderSend({
+        from: "development@dev-mail.lets-assist.com",
+        to: "QA-OWNER@example.test",
+      }),
+    ).toEqual({ allowed: true });
+  });
+
+  test("does not apply Preview policy to Production", () => {
+    setEnv({ VERCEL_ENV: "production", EMAIL_TRANSPORT: "resend" });
+
+    expect(
+      guardDevelopmentProviderSend({
+        from: "projects@notifications.lets-assist.com",
+        to: "member@example.org",
+      }),
+    ).toEqual({ allowed: true });
   });
 });

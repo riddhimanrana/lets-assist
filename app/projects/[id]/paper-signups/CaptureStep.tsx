@@ -22,7 +22,7 @@ import { downscaleImageFiles } from "@/components/projects/paper-signup/useImage
 import { PaperScanCameraInput } from "@/components/projects/paper-signup/PaperScanCameraInput";
 import { PAPER_SCAN_MAX_IMAGES } from "@/lib/ai/paper-signup-schema";
 
-import { createPaperScanBatch } from "./actions";
+import { createPaperScanBatch, queueOrphanedPaperScanUploads } from "./actions";
 import type {
   PaperScanBatchView,
   PaperScanSlotOption,
@@ -170,6 +170,10 @@ export function CaptureStep({
     } catch (error) {
       // Roll back stray uploads so abandoned objects never linger.
       if (uploadedPaths.length > 0) {
+        await queueOrphanedPaperScanUploads({
+          projectId,
+          objectPaths: uploadedPaths,
+        }).catch(() => undefined);
         await supabase.storage
           .from("paper-signup-scans")
           .remove(uploadedPaths)

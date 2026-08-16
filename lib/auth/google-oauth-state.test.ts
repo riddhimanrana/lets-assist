@@ -63,7 +63,10 @@ test("gives every concurrent attempt its own cookie so tabs cannot overwrite eac
 test("derives an S256 PKCE challenge and never sends the verifier with it", () => {
   const secrets = createGoogleOAuthAttemptSecrets();
 
-  assert.equal(secrets.codeChallenge, digestGoogleOAuthSecret(secrets.codeVerifier));
+  assert.equal(
+    secrets.codeChallenge,
+    digestGoogleOAuthSecret(secrets.codeVerifier),
+  );
   assert.notEqual(secrets.codeChallenge, secrets.codeVerifier);
   // RFC 7636 allows 43-128 characters; 32 random bytes is 43 base64url.
   assert.ok(secrets.codeVerifier.length >= 43);
@@ -202,11 +205,7 @@ test("does not let one purpose borrow another purpose's return surface", () => {
 test("keeps the live Calendar, Sheets, and Reports return surfaces working", () => {
   const cases = [
     ["personal_calendar", "/account/calendar", []],
-    [
-      "personal_calendar",
-      "/projects/33333333-3333-4333-8333-333333333333",
-      [],
-    ],
+    ["personal_calendar", "/projects/33333333-3333-4333-8333-333333333333", []],
     [
       "organization_calendar",
       "/organization/acme/settings?section=calendar",

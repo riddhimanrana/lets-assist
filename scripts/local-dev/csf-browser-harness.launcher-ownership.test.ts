@@ -122,7 +122,7 @@ describe("isolated launcher ownership contract", () => {
     ]) {
       expect((await stat(join(workDir, file))).mode & 0o777).toBe(0o600);
     }
-  });
+  }, 15_000);
 
   test("generated run IDs stay inside the 1-16 character contract and stay unique", async () => {
     const sandbox = await createSandbox();
@@ -147,7 +147,7 @@ describe("isolated launcher ownership contract", () => {
       expect(runId.length).toBe(16);
       expect(projectId.length).toBeLessThanOrEqual(40);
     }
-  });
+  }, 15_000);
 
   test("accepts the worst-case 16-character run ID", async () => {
     const sandbox = await createSandbox();

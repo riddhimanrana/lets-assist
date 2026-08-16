@@ -42,6 +42,13 @@ export function createPostHogTelemetry({
 }: CreatePostHogTelemetryOptions) {
   return {
     isEnabled: true,
+    // AI SDK telemetry records prompts and generations by default. Those
+    // payloads can contain student records, uploaded document text, moderation
+    // evidence, or other user content. Operational telemetry only needs the
+    // bounded metadata below; raw model inputs and outputs must never leave the
+    // feature's reviewed storage boundary through tracing.
+    recordInputs: false,
+    recordOutputs: false,
     functionId,
     metadata: {
       ...metadata,

@@ -40,6 +40,10 @@ function makeClient() {
     const settle = () => {
       tableCalls.push({ table, ops });
 
+      if (table === "projects" && ops.some((op) => op.method === "update")) {
+        return { data: { id: PROJECT_ID }, error: null };
+      }
+
       if (table === "projects" && ops.some((op) => op.method === "select")) {
         return {
           data: {

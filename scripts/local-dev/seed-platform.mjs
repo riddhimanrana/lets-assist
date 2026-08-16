@@ -565,6 +565,14 @@ async function main() {
   );
 
   for (const pluginKey of seededPluginKeys) {
+    const installedVersion = seededPluginCatalogRows.find(
+      (plugin) => plugin.key === pluginKey,
+    )?.latest_version;
+    if (!installedVersion) {
+      throw new Error(
+        `Missing release version for seeded plugin ${pluginKey}.`,
+      );
+    }
     const entitledOrgIds =
       pluginKey === "dvhs-csf"
         ? [IDS.csfOrg]
@@ -591,7 +599,7 @@ async function main() {
             organization_id: orgId,
             plugin_key: pluginKey,
             enabled: true,
-            installed_version: "0.1.0",
+            installed_version: installedVersion,
             installed_by: users.developer.id,
             configuration: {
               localFixture: true,

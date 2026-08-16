@@ -84,6 +84,7 @@ async function extractImageWithModel(options: {
     const result = await generateText({
       model: tracked.model,
       experimental_telemetry: tracked.telemetry,
+      providerOptions: { gateway: tracked.gatewayOptions },
       output: Output.object({ schema: paperSignupExtractionSchema }),
       messages: [
         {

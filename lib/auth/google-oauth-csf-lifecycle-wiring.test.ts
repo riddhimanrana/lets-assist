@@ -46,10 +46,12 @@ describe("DVHS CSF Google identity lifecycle wiring", () => {
     // The address reaches the redirect only through the guarded spread, and
     // the redirect builder itself reads the settled outcome, never the raw
     // provider value.
-    expect(callback).toContain("...(outcome.email ? { email: outcome.email } : {})");
-    expect(
-      [...callback.matchAll(/^\s*email: calendarEmail,?$/gmu)],
-    ).toHaveLength(1);
+    expect(callback).toContain(
+      "...(outcome.email ? { email: outcome.email } : {})",
+    );
+    expect([
+      ...callback.matchAll(/^\s*email: calendarEmail,?$/gmu),
+    ]).toHaveLength(1);
   });
 
   test("persists and reloads only durable server-side binding evidence", () => {

@@ -48,10 +48,14 @@ mock.module("@/lib/encryption", () => ({
 // is touched, so neither claiming nor finalizing may run on this branch.
 mock.module("@/lib/auth/google-oauth-attempt-store", () => ({
   claimGoogleOAuthAttempt: async () => {
-    throw new Error("route-origin.test.ts: the attempt ledger must not be read");
+    throw new Error(
+      "route-origin.test.ts: the attempt ledger must not be read",
+    );
   },
   finalizeGoogleOAuthAttempt: async () => {
-    throw new Error("route-origin.test.ts: the attempt ledger must not be written");
+    throw new Error(
+      "route-origin.test.ts: the attempt ledger must not be written",
+    );
   },
   markGoogleOAuthAttemptExchanged: async () => {
     throw new Error("route-origin.test.ts: no code exchange may be recorded");

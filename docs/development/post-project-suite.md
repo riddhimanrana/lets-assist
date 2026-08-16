@@ -89,16 +89,20 @@ the email layer's invariant.
 
 ## Environment
 
-| Variable                               | Purpose                                                                                                                                        |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PROJECT_FEEDBACK_WORKER_ENABLED`      | Exact-`"true"` opt-in for the follow-up worker. Deploy unset first; verify the enqueue backfill guard against production data before enabling. |
-| `PROJECT_FEEDBACK_WORKER_SECRET_TOKEN` | Dedicated cron bearer token (falls back to `CRON_TOKEN`/`CRON_SECRET`).                                                                        |
-| `PROJECT_FEEDBACK_WORKER_BATCH_SIZE`   | Optional, default 25, max 50.                                                                                                                  |
-| `PROJECT_FEEDBACK_TOKEN_SECRET`        | HMAC secret for feedback links (falls back to `ENCRYPTION_KEY`, min 32 chars).                                                                 |
+| Variable                                        | Purpose                                                                                                                                        |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PROJECT_FEEDBACK_WORKER_ENABLED`               | Exact-`"true"` opt-in for the follow-up worker. Deploy unset first; verify the enqueue backfill guard against production data before enabling. |
+| `PROJECT_FEEDBACK_WORKER_SECRET_TOKEN`          | Dedicated cron bearer token (falls back to `CRON_TOKEN`/`CRON_SECRET`).                                                                        |
+| `PROJECT_FEEDBACK_WORKER_BATCH_SIZE`            | Optional, default 25, max 50.                                                                                                                  |
+| `PROJECT_FEEDBACK_TOKEN_SECRET`                 | HMAC secret for feedback links (falls back to `ENCRYPTION_KEY`, min 32 chars).                                                                 |
+| `PAPER_SIGNUP_NOTIFICATION_WORKER_ENABLED`      | Exact-`"true"` opt-in for durable paper-attendance notifications. Keep unset until Development Resend acceptance.                              |
+| `PAPER_SIGNUP_NOTIFICATION_WORKER_SECRET_TOKEN` | Dedicated cron bearer token (falls back to `CRON_TOKEN`/`CRON_SECRET`).                                                                        |
+| `RESEND_DEV_FROM_DOMAIN`                        | Required sender-domain fence whenever a Preview explicitly uses Resend.                                                                        |
+| `RESEND_DEV_RECIPIENT_ALLOWLIST`                | Comma-separated synthetic/authorized Development recipients; Resend test addresses remain allowed.                                             |
 
 GitHub Actions secrets follow the shared cron template; optional dedicated
 heartbeats: `BETTERSTACK_PAPER_SCAN_CLEANUP_HEARTBEAT_URL`,
 `BETTERSTACK_PROJECT_FEEDBACK_HEARTBEAT_URL`.
 
-The DVHS CSF isolated harness forces `PROJECT_FEEDBACK_WORKER_ENABLED`
-off via `DISABLED_WORKER_ENV_KEYS`.
+The DVHS CSF isolated harness forces both post-project email workers off via
+`DISABLED_WORKER_ENV_KEYS`.

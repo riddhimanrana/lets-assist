@@ -5,6 +5,7 @@ import {
   classifyProviderError,
   emailLogAttributes,
   getResendClient,
+  guardDevelopmentProviderSend,
   safeLogToken,
   sendViaMailpit,
   shouldUseMailpitTransport,
@@ -212,6 +213,33 @@ export async function sendEmail({
     return mailpitResult;
   }
 
+  const resolvedFrom =
+    from ??
+    process.env.EMAIL_FROM?.trim() ??
+    "Let's Assist <projects@notifications.lets-assist.com>";
+  const developmentGuard = guardDevelopmentProviderSend({
+    to,
+    from: resolvedFrom,
+  });
+  if (!developmentGuard.allowed) {
+    if (shouldLog) {
+      logWarn("Development email provider send blocked by safety policy", {
+        ...safeLogAttributes,
+        transport: "resend",
+        reason: developmentGuard.code,
+      });
+    }
+    return {
+      outcome: "definitive_failure",
+      success: false,
+      skipped: false,
+      phase: "transport_setup",
+      code: developmentGuard.code,
+      status: null,
+      error: "the Development email safety policy rejected the request",
+    };
+  }
+
   const setup = getResendClient();
 
   if (!setup.ok && !setup.configured) {
@@ -315,10 +343,7 @@ export async function sendEmail({
     };
     const { data, error } = await resend.emails.send(
       {
-        from:
-          from ??
-          process.env.EMAIL_FROM?.trim() ??
-          "Let's Assist <projects@notifications.lets-assist.com>",
+        from: resolvedFrom,
         to,
         subject,
         ...content,

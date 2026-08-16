@@ -12,6 +12,7 @@ mock.module("@/lib/security/html.server", () => ({
 }));
 mock.module("@/lib/projects/waiver-validation", () => ({
   getWaiverPdfRequirementError: () => null,
+  getWaiverConfigurationError: () => null,
 }));
 mock.module("@/lib/supabase/server", () => ({
   createClient: async () => ({
