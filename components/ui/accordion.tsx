@@ -78,7 +78,14 @@ function AccordionContent({
           // rendered as buttons and tab bars, which came out underlined like
           // debug output. Anything carrying a `data-slot` is a styled control,
           // not prose, so it keeps its own affordance.
-          "pt-0 pb-4 [&_a:not([data-slot])]:hover:text-foreground h-(--accordion-panel-height) data-ending-style:h-0 data-starting-style:h-0 [&_a:not([data-slot])]:underline [&_a:not([data-slot])]:underline-offset-3 [&_p:not(:last-child)]:mb-4",
+          //
+          // The exclusion is wrapped in `:where()` deliberately. A bare
+          // `:not([data-slot])` adds a class-level weight, which pushed this
+          // rule past the `[&_a]:no-underline` escape hatch consumers already
+          // use (CsfClassTerms) and silently re-underlined them. `:where()`
+          // contributes zero specificity, so this stays exactly as easy to
+          // override as it was before the exclusion existed.
+          "pt-0 pb-4 [&_a:where(:not([data-slot]))]:hover:text-foreground h-(--accordion-panel-height) data-ending-style:h-0 data-starting-style:h-0 [&_a:where(:not([data-slot]))]:underline [&_a:where(:not([data-slot]))]:underline-offset-3 [&_p:not(:last-child)]:mb-4",
           className,
         )}
       >
