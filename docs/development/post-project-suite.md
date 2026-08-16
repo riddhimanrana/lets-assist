@@ -19,10 +19,18 @@ pipeline. Human review is mandatory — AI output never commits directly.
   escalation with per-field confidence. The route reads photos server-side
   from Storage; it never accepts image bytes.
 - Commit: `public.commit_paper_signup_batch` (service-role RPC). Takes the
-  same per-slot advisory lock as `insert_project_signup_with_capacity`,
+  same per-slot advisory lock as `insert_project_signup_with_waiver`,
   clamps times to the slot window, reuses/creates `anonymous_signups` by
   `(lower(email), project_id)`, and replays idempotently by commit key.
   Capacity can only be exceeded with an explicit organizer opt-in.
+- Waiver invariant: the commit refuses an unpublished project outright, and
+  on a waiver-required project it fails any row that would create a _new_
+  signup with `detail = 'waiver_required'`. A scanned sheet is not evidence
+  of digital waiver consent and the commit will not fabricate one. Marking an
+  already-signed signup attended and recording a roster-only headcount stay
+  available. The paper-waiver evidence path is deferred; see CLEAN-021 in
+  [the cleanup register](cleanup-register.md) and
+  `supabase/tests/database/waiver_paper_signup_boundary.test.sql`.
 - Committing onto a session whose hours are already published issues
   certificates immediately via `issueCertificatesForSignups`
   (`app/projects/[id]/hours/certificate-issuance.ts`), pre-filtered against

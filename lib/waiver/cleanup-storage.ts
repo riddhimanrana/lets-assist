@@ -212,3 +212,42 @@ export async function drainWaiverStorageDeletionQueue(
 
   return firstError ? { deleted, error: firstError } : { deleted };
 }
+
+type WaiverStorageQueueInsert = (
+  rows: { bucket_id: string; object_path: string }[],
+) => Promise<{ error: { message?: string } | null }>;
+
+/**
+ * Records signature assets that were uploaded for a signup transaction that
+ * never committed.
+ *
+ * The rows are inert once the transaction rolls back, so this is retention
+ * hygiene rather than an integrity boundary: the queue is drained and
+ * reference-rechecked by the existing waiver-cleanup worker, and a failure
+ * here leaves only unreferenced private objects behind.
+ */
+export async function enqueueOrphanedWaiverEvidence(
+  insert: WaiverStorageQueueInsert,
+  objectPaths: string[],
+): Promise<{ enqueued: number; error?: string }> {
+  const paths = [...new Set(objectPaths.filter(isStoredSignatureAsset))];
+  if (paths.length === 0) {
+    return { enqueued: 0 };
+  }
+
+  const { error } = await insert(
+    paths.map((objectPath) => ({
+      bucket_id: "waiver-signatures",
+      object_path: objectPath,
+    })),
+  );
+
+  if (error) {
+    return {
+      enqueued: 0,
+      error: "Failed to queue uncommitted waiver evidence for cleanup",
+    };
+  }
+
+  return { enqueued: paths.length };
+}

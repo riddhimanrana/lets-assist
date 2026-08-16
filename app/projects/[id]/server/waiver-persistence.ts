@@ -8,6 +8,7 @@ import {
   MAX_WAIVER_SIGNATURE_BYTES,
   MAX_WAIVER_UPLOAD_BYTES,
   WAIVER_SIGNATURE_BUCKET,
+  type WaiverSignatureRecord,
   getRequestMetadata,
   isMissingWaiverDisableEsignatureColumnError,
   parseDataUrl,
@@ -69,15 +70,23 @@ export async function getCurrentSignups(
   return count || 0;
 }
 
-export async function persistWaiverSignature(params: {
+export type PreparedWaiverEvidence =
+  | { record: WaiverSignatureRecord; uploadedPaths: string[] }
+  | { error: string; uploadedPaths: string[] };
+
+/**
+ * Uploads the signature assets and builds the evidence row without writing it.
+ *
+ * The row is inserted by the same transaction that creates the signup, so an
+ * unwritten record only ever leaves inert Storage objects behind.
+ */
+export async function prepareWaiverSignatureRecord(params: {
   projectId: string;
-  signupId: string;
-  userId?: string | null;
-  anonymousId?: string | null;
+  evidenceKey: string;
   signerName: string;
   signerEmail: string;
   waiverSignature: WaiverSignatureInput;
-}) {
+}): Promise<PreparedWaiverEvidence> {
   const serviceSupabase = getAdminClient();
 
   // Check for project-specific waiver PDF first
@@ -115,7 +124,7 @@ export async function persistWaiverSignature(params: {
   }
 
   if (!project) {
-    return { error: "Project not found." };
+    return { error: "Project not found.", uploadedPaths: [] };
   }
 
   const waiverDefinitionIdInput =
@@ -136,6 +145,7 @@ export async function persistWaiverSignature(params: {
     if (project.waiver_definition_id !== waiverDefinitionId) {
       return {
         error: "The waiver definition does not belong to this project.",
+        uploadedPaths: [],
       };
     }
 
@@ -150,11 +160,11 @@ export async function persistWaiverSignature(params: {
     if (defError || !definition) {
       console.error("Invalid waiver definition in signature payload", {
         projectId: params.projectId,
-        signupId: params.signupId,
+        evidenceKey: params.evidenceKey,
         waiverDefinitionId,
         defError,
       });
-      return { error: "Invalid waiver definition." };
+      return { error: "Invalid waiver definition.", uploadedPaths: [] };
     }
 
     // A definition is the immutable source used by historical signatures.
@@ -193,7 +203,10 @@ export async function persistWaiverSignature(params: {
     // Phase 1: Validate upload permissions for multi-signer flow
     for (const signer of rawPayload.signers) {
       if (signer.method === "upload" && !waiverAllowUpload) {
-        return { error: "Signature upload is not allowed for this project." };
+        return {
+          error: "Signature upload is not allowed for this project.",
+          uploadedPaths: uploadedSignaturePaths,
+        };
       }
     }
 
@@ -221,7 +234,7 @@ export async function persistWaiverSignature(params: {
           fileExt = "jpg";
         }
 
-        const fileName = `waiver_${params.signupId}_${signer.role_key}_${Date.now()}.${fileExt}`;
+        const fileName = `waiver_${params.evidenceKey}_${signer.role_key}_${Date.now()}.${fileExt}`;
 
         // Upload asset
         const uploadResult = await uploadWaiverAsset({
@@ -240,6 +253,7 @@ export async function persistWaiverSignature(params: {
           });
           return {
             error: "Failed to upload one of the required signature assets.",
+            uploadedPaths: uploadedSignaturePaths,
           };
         }
 
@@ -267,13 +281,16 @@ export async function persistWaiverSignature(params: {
     const uploadResult = await uploadWaiverAsset({
       bucket: WAIVER_SIGNATURE_BUCKET,
       dataUrl: params.waiverSignature.signatureImageDataUrl ?? "",
-      fileName: `signatures/${params.projectId}/${params.signupId}/${crypto.randomUUID()}.${extension}`,
+      fileName: `signatures/${params.projectId}/${params.evidenceKey}/${crypto.randomUUID()}.${extension}`,
       maxBytes: MAX_WAIVER_SIGNATURE_BYTES,
       allowedTypes: ["image/png", "image/jpeg", "image/jpg"],
     });
 
     if (uploadResult.error || !uploadResult.path) {
-      return { error: "Failed to store the drawn signature." };
+      return {
+        error: "Failed to store the drawn signature.",
+        uploadedPaths: uploadedSignaturePaths,
+      };
     }
 
     signatureStoragePath = uploadResult.path;
@@ -285,6 +302,7 @@ export async function persistWaiverSignature(params: {
       await removeUploadedSignatureAssets();
       return {
         error: "Signed waiver uploads are not allowed for this project.",
+        uploadedPaths: uploadedSignaturePaths,
       };
     }
 
@@ -293,6 +311,7 @@ export async function persistWaiverSignature(params: {
       return {
         error:
           "A configured waiver document is required before uploading a signed copy.",
+        uploadedPaths: uploadedSignaturePaths,
       };
     }
 
@@ -308,30 +327,28 @@ export async function persistWaiverSignature(params: {
     const uploadResult = await uploadWaiverAsset({
       bucket: WAIVER_SIGNATURE_BUCKET,
       dataUrl: params.waiverSignature.uploadFileDataUrl ?? "",
-      fileName: `signed-waivers/${params.projectId}/${params.signupId}/${crypto.randomUUID()}.${extension}`,
+      fileName: `signed-waivers/${params.projectId}/${params.evidenceKey}/${crypto.randomUUID()}.${extension}`,
       maxBytes: MAX_WAIVER_UPLOAD_BYTES,
       allowedTypes: ["application/pdf", "image/png", "image/jpeg", "image/jpg"],
     });
 
     if (uploadResult.error || !uploadResult.path) {
       await removeUploadedSignatureAssets();
-      return { error: "Failed to store the signed waiver upload." };
+      return {
+        error: "Failed to store the signed waiver upload.",
+        uploadedPaths: uploadedSignaturePaths,
+      };
     }
 
     uploadStoragePath = uploadResult.path;
     uploadedSignaturePaths.push(uploadResult.path);
   }
 
-  const { error: insertError } = await serviceSupabase
-    .from("waiver_signatures")
-    .insert({
+  return {
+    record: {
       waiver_definition_id: waiverDefinitionId,
       waiver_pdf_url: waiverPdfUrl,
       waiver_pdf_storage_path: waiverPdfStoragePath,
-      project_id: params.projectId,
-      signup_id: params.signupId,
-      user_id: params.userId ?? null,
-      anonymous_id: params.anonymousId ?? null,
       signer_name: params.signerName,
       signer_email: params.signerEmail,
       signature_type: params.waiverSignature.signatureType,
@@ -345,22 +362,21 @@ export async function persistWaiverSignature(params: {
       form_data: params.waiverSignature.formData ?? null,
       ip_address: ipAddress,
       user_agent: userAgent,
-    });
-
-  if (insertError) {
-    await removeUploadedSignatureAssets();
-    console.error("Error saving waiver signature:", insertError);
-    return { error: "Failed to store waiver signature." };
-  }
-
-  return { success: true };
+    },
+    uploadedPaths: uploadedSignaturePaths,
+  };
 }
 
-export async function cloneAnonymousWaiverSignatureToSignup(params: {
+/**
+ * Copies an existing guest signature's evidence objects and builds the row for
+ * a new signup without writing it. The copy is the only side effect until the
+ * signup transaction inserts the record.
+ */
+export async function prepareClonedAnonymousWaiverRecord(params: {
   projectId: string;
   anonymousId: string;
-  signupId: string;
-}) {
+  evidenceKey: string;
+}): Promise<PreparedWaiverEvidence> {
   const serviceSupabase = getAdminClient();
 
   const { data: latestSignature, error: fetchError } = await serviceSupabase
@@ -391,12 +407,16 @@ export async function cloneAnonymousWaiverSignatureToSignup(params: {
       "Error fetching reusable anonymous waiver signature:",
       fetchError,
     );
-    return { error: "Failed to reuse existing waiver signature." };
+    return {
+      error: "Failed to reuse existing waiver signature.",
+      uploadedPaths: [],
+    };
   }
 
   if (!latestSignature) {
     return {
       error: "No existing waiver signature found for this anonymous profile.",
+      uploadedPaths: [],
     };
   }
 
@@ -431,7 +451,7 @@ export async function cloneAnonymousWaiverSignatureToSignup(params: {
 
     const extensionMatch = sourcePath.match(/\.([a-z0-9]{1,5})$/iu);
     const extension = extensionMatch?.[1]?.toLowerCase() ?? "bin";
-    const destinationPath = `cloned-waiver-evidence/${params.projectId}/${params.signupId}/${crypto.randomUUID()}.${extension}`;
+    const destinationPath = `cloned-waiver-evidence/${params.projectId}/${params.evidenceKey}/${crypto.randomUUID()}.${extension}`;
     const { error } = await serviceSupabase.storage
       .from(WAIVER_SIGNATURE_BUCKET)
       .copy(sourcePath, destinationPath);
@@ -502,33 +522,21 @@ export async function cloneAnonymousWaiverSignatureToSignup(params: {
     console.error("Error copying reusable anonymous waiver evidence:", error);
     return {
       error: "Failed to attach existing waiver evidence to this signup.",
+      uploadedPaths: copiedPaths,
     };
   }
 
   const { ipAddress, userAgent } = await getRequestMetadata();
 
-  const { error: insertError } = await serviceSupabase
-    .from("waiver_signatures")
-    .insert({
+  return {
+    record: {
       ...latestSignature,
       signature_storage_path: clonedSignatureStoragePath,
       upload_storage_path: clonedUploadStoragePath,
       signature_payload: clonedSignaturePayload,
-      project_id: params.projectId,
-      signup_id: params.signupId,
-      user_id: null,
-      anonymous_id: params.anonymousId,
       ip_address: ipAddress,
       user_agent: userAgent,
-    });
-
-  if (insertError) {
-    await removeCopiedEvidence();
-    console.error("Error cloning anonymous waiver signature:", insertError);
-    return {
-      error: "Failed to attach existing waiver signature to this signup.",
-    };
-  }
-
-  return { success: true };
+    } as WaiverSignatureRecord,
+    uploadedPaths: copiedPaths,
+  };
 }

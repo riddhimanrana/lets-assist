@@ -112,7 +112,9 @@ test("signup creation and anonymous confirmation use the capacity lock", () => {
     "utf8",
   );
 
-  assert.match(signupActions, /insert_project_signup_with_capacity/u);
+  // Production signups now go through the atomic waiver-aware RPC, which
+  // takes the same per-slot advisory lock as the capacity-only predecessor.
+  assert.match(signupActions, /insert_project_signup_with_waiver/u);
   assert.doesNotMatch(
     signupActions,
     /\.from\(["']project_signups["']\)[\s\S]{0,120}\.insert\(/u,

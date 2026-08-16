@@ -7,8 +7,12 @@ import { type Project } from "@/types";
 import { headers } from "next/headers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { isTurnstileEnabled, verifyTurnstileToken } from "@/lib/turnstile";
+import { enqueueOrphanedWaiverEvidence } from "@/lib/waiver/cleanup-storage";
+import { resolveWaiverSignerIdentity } from "@/lib/waiver/signer-identity";
 
 // Define your site URL (replace with environment variable ideally)
+export { resolveWaiverSignerIdentity };
+
 export const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -132,31 +136,99 @@ export function getProjectSignupInsertErrorMessage(error: unknown): string {
   if (code === "project_closed") {
     return "Signups for this project are no longer available.";
   }
+  if (code === "project_unpublished") {
+    return "This project is not open for signups yet.";
+  }
   if (code === "invalid_slot") {
     return "This project slot is no longer available.";
+  }
+  if (code === "waiver_required") {
+    return "This project requires a waiver signature before signing up.";
+  }
+  if (code === "identity_conflict") {
+    // The guest profile for this email was created by another request while
+    // this one was in flight. Nothing is signed up yet and a retry picks up
+    // that profile, so this is genuinely retryable.
+    return "Another signup for this email is still being processed. Please try again in a moment.";
+  }
+  if (code === "conflicting_identity") {
+    return "We could not confirm who is signing up. Please reload and try again.";
   }
 
   return "Failed to sign up. Please try again.";
 }
 
+/**
+ * The waiver evidence row exactly as the database stores it. Project, signup,
+ * and actor identity are supplied separately by the transaction and are never
+ * read from this record.
+ */
+export type WaiverSignatureRecord = {
+  waiver_definition_id: string | null;
+  waiver_pdf_url: string | null;
+  waiver_pdf_storage_path: string | null;
+  signer_name: string;
+  signer_email: string;
+  signature_type: string;
+  signature_text: string | null;
+  signature_storage_path: string | null;
+  upload_storage_path: string | null;
+  signature_payload: Record<string, unknown> | null;
+  form_data: Record<string, unknown> | null;
+  ip_address: string | null;
+  user_agent: string | null;
+};
+
+export type AnonymousProfileInput = {
+  email: string;
+  name: string | null;
+  phone_number: string | null;
+  token: string;
+  confirmed: boolean;
+};
+
+export type AtomicSignupInsert = {
+  id: string;
+  anonymousId: string | null;
+  waiverSignatureId: string | null;
+};
+
+/**
+ * Creates the guest identity (when supplied), the capacity-checked signup row,
+ * and the waiver evidence row in one database transaction.
+ *
+ * The transaction is the integrity boundary: a refusal or a crash anywhere in
+ * it leaves no approved or pending signup and consumes no capacity, so no
+ * caller has to compensate with a delete.
+ */
 export async function insertProjectSignupAtomically(
   signupData: Record<string, unknown>,
   traceId?: string,
-): Promise<{ data: { id: string } | null; error: unknown | null }> {
+  options?: {
+    waiver?: WaiverSignatureRecord | null;
+    anonymousProfile?: AnonymousProfileInput | null;
+  },
+): Promise<{ data: AtomicSignupInsert | null; error: unknown | null }> {
+  const waiver = options?.waiver ?? null;
+  const anonymousProfile = options?.anonymousProfile ?? null;
+
   if (traceId) {
     logSignupDebug(traceId, "project_signup_atomic_insert_attempt", {
       hasResponseData: signupData.response_data != null,
       projectId: signupData.project_id,
       scheduleId: signupData.schedule_id,
       status: signupData.status,
-      isAnonymous: Boolean(signupData.anonymous_id),
+      isAnonymous:
+        Boolean(signupData.anonymous_id) || Boolean(anonymousProfile),
       hasUser: Boolean(signupData.user_id),
+      hasWaiverEvidence: Boolean(waiver),
+      createsGuestIdentity: Boolean(anonymousProfile),
     });
   }
 
   const serviceSupabase = getAdminClient();
   const { data, error } = await serviceSupabase.rpc(
-    "insert_project_signup_with_capacity",
+    "insert_project_signup_with_waiver",
     {
       p_project_id: signupData.project_id ?? null,
       p_schedule_id: signupData.schedule_id ?? null,
@@ -165,11 +237,15 @@ export async function insertProjectSignupAtomically(
       p_status: signupData.status ?? null,
       p_volunteer_comment: signupData.volunteer_comment ?? null,
       p_response_data: signupData.response_data ?? null,
+      p_waiver: waiver,
+      p_anonymous_profile: anonymousProfile,
     },
   );
 
   type AtomicSignupInsertRow = {
     signup_id: string | null;
+    anonymous_signup_id: string | null;
+    waiver_signature_id: string | null;
     outcome: string;
     slot_capacity: number | null;
     active_count: number;
@@ -196,9 +272,17 @@ export async function insertProjectSignupAtomically(
       signupId: result.signup_id,
       slotCapacity: result.slot_capacity,
       activeCountBeforeInsert: result.active_count,
+      persistedWaiverEvidence: Boolean(result.waiver_signature_id),
     });
   }
-  return { data: { id: result.signup_id }, error: null };
+  return {
+    data: {
+      id: result.signup_id,
+      anonymousId: result.anonymous_signup_id ?? null,
+      waiverSignatureId: result.waiver_signature_id ?? null,
+    },
+    error: null,
+  };
 }
 
 export type ParsedDataUrl = {
@@ -317,4 +401,33 @@ export function getScheduleDetails(project: Project, scheduleId: string) {
   }
 
   return { date: "TBD", time: "TBD", timeRange: "TBD", slotLabel: "TBD" };
+}
+
+/**
+ * Queues signature assets whose signup transaction did not commit.
+ *
+ * Correctness does not depend on this running: the rolled-back transaction
+ * already left no signup, no capacity, and no evidence row, so these objects
+ * are unreferenced. Failing to queue them costs storage, never integrity.
+ */
+export async function releaseUncommittedWaiverEvidence(
+  objectPaths: string[],
+  traceId?: string,
+): Promise<void> {
+  if (objectPaths.length === 0) return;
+
+  const serviceSupabase = getAdminClient();
+  const { error } = await enqueueOrphanedWaiverEvidence(
+    async (rows) =>
+      await serviceSupabase
+        .from("waiver_storage_deletion_queue")
+        .upsert(rows, { onConflict: "bucket_id,object_path" }),
+    objectPaths,
+  );
+
+  if (error && traceId) {
+    logSignupDebug(traceId, "uncommitted_waiver_evidence_queue_failed", {
+      objectCount: objectPaths.length,
+    });
+  }
 }

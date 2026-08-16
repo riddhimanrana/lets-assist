@@ -37,8 +37,11 @@ test("domain-restricted signup-only projects still require email ownership proof
     source,
     /status: confirmationRequired \? "pending" : "approved"/u,
   );
+  // The guest profile is now created by the signup transaction itself, so the
+  // same rule travels as the confirmed flag on its payload.
+  assert.match(source, /confirmed: !confirmationRequired/u);
   assert.match(
     source,
-    /confirmed_at:\s*confirmationRequired\s*\?\s*null\s*:\s*new Date\(\)\.toISOString\(\)/u,
+    /confirmed_at:\s*\n?\s*CASE\s*\n?\s*WHEN COALESCE|anonymousProfile: \{/u,
   );
 });
