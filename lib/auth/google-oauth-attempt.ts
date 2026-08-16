@@ -21,6 +21,8 @@
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
+import { resolveGoogleOAuthCallbackPath } from "./google-oauth-callback-path";
+
 /** How long an authorization request stays completable. */
 export const GOOGLE_OAUTH_ATTEMPT_TTL_SECONDS = 10 * 60;
 
@@ -92,7 +94,7 @@ export function getGoogleOAuthAttemptCookieOptions() {
     httpOnly: true,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
-    path: "/api/calendar/google/callback",
+    path: resolveGoogleOAuthCallbackPath(),
     maxAge: GOOGLE_OAUTH_ATTEMPT_TTL_SECONDS,
   };
 }

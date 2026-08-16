@@ -74,11 +74,11 @@ test("matches Drive file grants exactly", () => {
 
 test("connect and callback routes share the exact scope boundary", () => {
   const connectSource = readFileSync(
-    `${process.cwd()}/app/api/calendar/google/connect/route.ts`,
+    `${process.cwd()}/app/api/google/oauth/connect/route.ts`,
     "utf8",
   );
   const callbackSource = readFileSync(
-    `${process.cwd()}/app/api/calendar/google/callback/route.ts`,
+    `${process.cwd()}/app/api/google/oauth/callback/route.ts`,
     "utf8",
   );
 

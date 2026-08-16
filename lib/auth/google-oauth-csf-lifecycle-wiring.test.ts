@@ -7,7 +7,7 @@ const readSource = (path: string) => readFileSync(join(root, path), "utf8");
 
 describe("DVHS CSF Google identity lifecycle wiring", () => {
   test("uses account selection only for the exact CSF import intent", () => {
-    const connect = readSource("app/api/calendar/google/connect/route.ts");
+    const connect = readSource("app/api/google/oauth/connect/route.ts");
 
     expect(connect).toContain('intent.purpose === "csf_import"');
     expect(connect).toContain('intent.pluginKey === "dvhs-csf"');
@@ -16,7 +16,7 @@ describe("DVHS CSF Google identity lifecycle wiring", () => {
   });
 
   test("validates Google-verified identity before any bound credential save", () => {
-    const callback = readSource("app/api/calendar/google/callback/route.ts");
+    const callback = readSource("app/api/google/oauth/callback/route.ts");
     const identityCheck = callback.indexOf(
       "validateGoogleOAuthCallbackIdentity({",
     );
@@ -36,7 +36,7 @@ describe("DVHS CSF Google identity lifecycle wiring", () => {
   });
 
   test("keeps the verified CSF account email out of the return URL", () => {
-    const callback = readSource("app/api/calendar/google/callback/route.ts");
+    const callback = readSource("app/api/google/oauth/callback/route.ts");
 
     expect(callback).toContain("isDvhsCsfGoogleImportBinding(binding)");
     expect(callback).toContain("? {}\n        : { email: calendarEmail }");

@@ -118,7 +118,7 @@ test("keeps the attempt cookie HttpOnly and scoped to the callback route", () =>
 
   assert.equal(options.httpOnly, true);
   assert.equal(options.sameSite, "lax");
-  assert.equal(options.path, "/api/calendar/google/callback");
+  assert.equal(options.path, "/api/google/oauth/callback");
   assert.ok(options.maxAge > 0);
 });
 
@@ -307,7 +307,7 @@ test("refuses a plugin capability attached to a non-CSF purpose", () => {
 
 test("the connect route sends a denial to the purpose allowlist, not a caller path", () => {
   const source = readFileSync(
-    `${process.cwd()}/app/api/calendar/google/connect/route.ts`,
+    `${process.cwd()}/app/api/google/oauth/connect/route.ts`,
     "utf8",
   );
 
@@ -326,7 +326,7 @@ test("the connect route sends a denial to the purpose allowlist, not a caller pa
 
 test("the callback marks the code spent before presenting it to Google", () => {
   const source = readFileSync(
-    `${process.cwd()}/app/api/calendar/google/callback/route.ts`,
+    `${process.cwd()}/app/api/google/oauth/callback/route.ts`,
     "utf8",
   );
 
@@ -344,7 +344,7 @@ test("the callback marks the code spent before presenting it to Google", () => {
 
 test("the connect route records a durable attempt before sending the browser to Google", () => {
   const source = readFileSync(
-    `${process.cwd()}/app/api/calendar/google/connect/route.ts`,
+    `${process.cwd()}/app/api/google/oauth/connect/route.ts`,
     "utf8",
   );
 
@@ -364,7 +364,7 @@ test("the connect route records a durable attempt before sending the browser to 
 
 test("the callback claims the ledger before exchanging and sends the verifier only there", () => {
   const source = readFileSync(
-    `${process.cwd()}/app/api/calendar/google/callback/route.ts`,
+    `${process.cwd()}/app/api/google/oauth/callback/route.ts`,
     "utf8",
   );
 
@@ -386,11 +386,11 @@ test("the callback claims the ledger before exchanging and sends the verifier on
 
 test("both OAuth endpoints enforce the shared authorization before token storage", () => {
   const connectSource = readFileSync(
-    `${process.cwd()}/app/api/calendar/google/connect/route.ts`,
+    `${process.cwd()}/app/api/google/oauth/connect/route.ts`,
     "utf8",
   );
   const callbackSource = readFileSync(
-    `${process.cwd()}/app/api/calendar/google/callback/route.ts`,
+    `${process.cwd()}/app/api/google/oauth/callback/route.ts`,
     "utf8",
   );
 
@@ -452,7 +452,7 @@ test("both OAuth endpoints enforce the shared authorization before token storage
 
 test("a recorded success always names the connection it produced", () => {
   const source = readFileSync(
-    `${process.cwd()}/app/api/calendar/google/callback/route.ts`,
+    `${process.cwd()}/app/api/google/oauth/callback/route.ts`,
     "utf8",
   );
 
@@ -470,7 +470,7 @@ test("a recorded success always names the connection it produced", () => {
 
 test("the callback never leaks raw state, verifier, or provider text to the browser", () => {
   const source = readFileSync(
-    `${process.cwd()}/app/api/calendar/google/callback/route.ts`,
+    `${process.cwd()}/app/api/google/oauth/callback/route.ts`,
     "utf8",
   );
 

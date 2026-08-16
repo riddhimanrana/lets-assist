@@ -248,7 +248,7 @@ export default function ReportsTab({
   const hasSyncConfig = Boolean(sheetStatus?.syncConfig);
   const canReconnect = isAdmin; // Any admin can reconnect/take over a broken or existing sync
   const orgSlugOrId = organizationSlug || organizationId;
-  const connectUrl = `/api/calendar/google/connect?purpose=organization_sheets&scopes=sheets&sheets_sync=1&force=1&org_id=${organizationId}&return_to=${encodeURIComponent(
+  const connectUrl = `/api/google/oauth/connect?purpose=organization_sheets&scopes=sheets&sheets_sync=1&force=1&org_id=${organizationId}&return_to=${encodeURIComponent(
     `/organization/${orgSlugOrId}?tab=reports`,
   )}`;
   const startGoogleConnection = () => {

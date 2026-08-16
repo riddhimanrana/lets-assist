@@ -80,7 +80,7 @@ function request({
     headers.set(name, value);
   }
   return new NextRequest(
-    "http://internal-test/api/calendar/google/callback?code=abc123&state=xyz",
+    "http://internal-test/api/google/oauth/callback?code=abc123&state=xyz",
     { headers },
   );
 }
@@ -113,7 +113,7 @@ function restoreEnv() {
   }
 }
 
-describe("GET /api/calendar/google/callback (redirect origin)", () => {
+describe("GET /api/google/oauth/callback (redirect origin)", () => {
   test("an unauthenticated callback redirects to the trusted origin, not the Host", async () => {
     try {
       const response = await GET(request({ host: EVIL_HOST }));

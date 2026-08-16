@@ -89,12 +89,12 @@ afterEach(() => {
 
 function deniedRequest(host: string) {
   return new Request(
-    "http://internal-test/api/calendar/google/connect?organization_id=org-1&return_to=%2Faccount%2Fcalendar",
+    "http://internal-test/api/google/oauth/connect?organization_id=org-1&return_to=%2Faccount%2Fcalendar",
     { headers: { host, "x-forwarded-host": "evil.example" } },
   );
 }
 
-describe("GET /api/calendar/google/connect denied redirect", () => {
+describe("GET /api/google/oauth/connect denied redirect", () => {
   test("uses the trusted configured origin instead of request URL or proxy headers", async () => {
     const response = await GET(deniedRequest("evil.example"));
     const location = new URL(response.headers.get("location") as string);

@@ -9,7 +9,7 @@ const readSource = (path: string) => readFileSync(join(root, path), "utf8");
 
 describe("Google OAuth credential purpose boundaries", () => {
   test("the callback resolves and saves only the signed binding", () => {
-    const source = readSource("app/api/calendar/google/callback/route.ts");
+    const source = readSource("app/api/google/oauth/callback/route.ts");
 
     expect(source).toContain("getGoogleOAuthConnectionForBinding(");
     expect(source).toContain("saveGoogleOAuthConnectionForBinding({");
@@ -149,7 +149,7 @@ describe("Google OAuth credential purpose boundaries", () => {
   });
 
   test("OAuth token failures never log provider response bodies", () => {
-    const callback = readSource("app/api/calendar/google/callback/route.ts");
+    const callback = readSource("app/api/google/oauth/callback/route.ts");
     const service = readCalendarServiceSource();
     const refreshStart = service.indexOf("async function refreshAccessToken(");
     const refreshEnd = service.indexOf(

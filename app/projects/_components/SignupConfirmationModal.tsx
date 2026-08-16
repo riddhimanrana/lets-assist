@@ -203,7 +203,7 @@ export function SignupConfirmationModal({
 
       // Redirect to OAuth
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.href = `/api/calendar/google/connect?purpose=personal_calendar&scopes=calendar&return_to=${encodeURIComponent(returnUrl)}`;
+      window.location.href = `/api/google/oauth/connect?purpose=personal_calendar&scopes=calendar&return_to=${encodeURIComponent(returnUrl)}`;
     } catch (error) {
       console.error("Failed to connect calendar:", error);
       toast.error("Connection Failed", {

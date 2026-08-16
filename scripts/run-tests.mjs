@@ -29,7 +29,7 @@ const groups = [
     name: "authentication and deployment safety",
     args: [
       "test",
-      "app/api/calendar/google/callback/connection-selection.test.ts",
+      "app/api/google/oauth/callback/connection-selection.test.ts",
       "lib/auth/google-oauth-connection-store.test.ts",
       "lib/auth/google-oauth-state.test.ts",
       "lib/auth/google-oauth-connection-messages.test.ts",
