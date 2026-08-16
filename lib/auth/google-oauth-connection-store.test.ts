@@ -66,7 +66,7 @@ describe("Google OAuth credential purpose boundaries", () => {
   test("disconnects delete only the selected purpose credential and report shared-grant handling", () => {
     const service = readCalendarServiceSource();
     const personalDisconnect = readSource(
-      "app/api/calendar/google/disconnect/route.ts",
+      "app/api/google/oauth/disconnect/route.ts",
     );
     const orgCalendar = readSource("app/organization/[id]/calendar/actions.ts");
     const orgSheets = readOrganizationSheetActionsSource();
