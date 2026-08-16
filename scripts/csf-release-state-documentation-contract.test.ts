@@ -45,9 +45,9 @@ describe("CSF release-state documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(295);
+    expect(migrations).toHaveLength(296);
     expect(migrations.at(-1)).toBe(
-      "20260815130000_google_oauth_attempt_ledger.sql",
+      "20260816083000_csf_import_annotation_settlement.sql",
     );
 
     const currentState = between(
@@ -56,7 +56,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 295 ordered migrations through",
+      "repository branch has 296 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260812203500_close_plugin_data_browser_default_acl`",

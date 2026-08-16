@@ -22,7 +22,7 @@ const architectureAudit = readFileSync(
 );
 
 const PRODUCTION_HEAD = "20260811001500";
-const TARGET_HEAD = "20260815130000";
+const TARGET_HEAD = "20260816083000";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
 const HARD_FAIL_SITES = 30;
 const hardFailStatements =
@@ -87,6 +87,7 @@ const PENDING_VERSIONS = [
   "20260815110000",
   "20260815120000",
   "20260815130000",
+  "20260816083000",
 ] as const;
 
 function readMigration(version: string) {
@@ -98,7 +99,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 236 -> 295 ledger and all 59 pending versions", () => {
+  test("pins the exact 236 -> 296 ledger and all 60 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -120,7 +121,7 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    expect(migrations).toHaveLength(295);
+    expect(migrations).toHaveLength(296);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
     expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
@@ -129,10 +130,10 @@ describe("Production cutover preflight source contract", () => {
     expect(pending).toEqual([...PENDING_VERSIONS]);
     expect(pinnedTargetTail).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 236");
-    expect(preflight).toContain("count(*) = 295");
+    expect(preflight).toContain("count(*) = 296");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("59 migrations pending");
-    expect(preflight).not.toContain("count(*) = 294");
+    expect(preflight).toContain("60 migrations pending");
+    expect(preflight).not.toContain("count(*) = 295");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
     }
