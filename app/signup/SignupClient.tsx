@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { signup, signInWithGoogle } from "./actions";
 import Link from "next/link";
-import { signupContinuationDescription } from "./signup-continuation-copy";
+import { signupContinuationDescription } from "./signup-continuation";
 import { Button } from "@/components/ui/button";
 import {
   Card,

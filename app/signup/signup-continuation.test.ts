@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { signupContinuationDescription } from "./signup-continuation-copy";
+import { signupContinuationDescription } from "./signup-continuation";
 
 /**
  * A student arriving from a CSF class invitation was told they were finishing
