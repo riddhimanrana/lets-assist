@@ -153,9 +153,9 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260811001500'
     ) = 0 AS baseline_ledger,
-  count(*) = 293
+  count(*) = 294
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260815110000'
+    AND max(version::text) = '20260815120000'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
@@ -185,7 +185,8 @@ SELECT
       '20260813013200','20260813013300',
       '20260813020000','20260813085442','20260813091801',
       '20260814001123','20260814051720','20260815100500',
-      '20260815110000'
+      '20260815110000',
+      '20260815120000'
       -- END EXACT PRODUCTION TARGET TAIL
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
@@ -193,7 +194,7 @@ FROM supabase_migrations.schema_migrations
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 57 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 58 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'

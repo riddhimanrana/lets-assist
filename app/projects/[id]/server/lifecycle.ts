@@ -13,13 +13,56 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { getPluginRegistry } from "@/lib/plugins/registry";
 import { runProjectClone } from "@/lib/plugins/lifecycle";
 import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
+import {
+  extractWaiverSettingUpdates,
+  getWaiverSettingsErrorMessage,
+  type WaiverSettingUpdates,
+} from "@/lib/projects/waiver-settings";
 import { canUserManageProject } from "./access-helpers";
+import {
+  getExactCancellationReceipt,
+  getExactRecurringSeriesEndReceipt,
+} from "./lifecycle-receipts";
 import { getExactProjectStatusTransitionReceipt } from "./status-transition-receipt";
 import {
   validateRecurrenceRule,
   validateProjectSchedule,
   validateProjectTimezone,
 } from "@/lib/projects/schedule-validation";
+
+/**
+ * Applies the waiver switches through the sanctioned service-role RPC.
+ *
+ * Returns a user-facing reason when the database refused, or null when the
+ * settings were applied (or were already in the requested state).
+ */
+async function applyWaiverSettings(
+  projectId: string,
+  actorId: string,
+  settings: WaiverSettingUpdates,
+): Promise<string | null> {
+  const admin = getAdminClient();
+  const { data, error } = await admin.rpc("apply_project_waiver_settings", {
+    p_project_id: projectId,
+    p_actor_id: actorId,
+    p_waiver_required: settings.waiver_required,
+    p_waiver_allow_upload: settings.waiver_allow_upload,
+    p_waiver_disable_esignature: settings.waiver_disable_esignature,
+  });
+
+  if (error) {
+    console.error("Error applying project waiver settings:", error);
+    return "This project's waiver settings could not be saved.";
+  }
+
+  const outcome = (data as { outcome: string }[] | null)?.[0]?.outcome;
+
+  if (!outcome) {
+    return "This project's waiver settings could not be saved.";
+  }
+
+  return getWaiverSettingsErrorMessage(outcome);
+}
 
 async function getProjectForMutation(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -38,102 +81,6 @@ async function getProjectForMutation(
   }
 
   return { project: project as Project, error: null };
-}
-
-type CancellationReceipt = {
-  outcome:
-    "cancelled" | "already_cancelled" | "already_cancelled_review_required";
-  jobStatus:
-    | "pending"
-    | "processing"
-    | "completed"
-    | "failed"
-    | "needs_review"
-    | "missing";
-  accepted: boolean;
-};
-
-function getExactCancellationReceipt(
-  value: unknown,
-): CancellationReceipt | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-
-  const outcome = Reflect.get(value, "outcome");
-  const jobStatus = Reflect.get(value, "jobStatus");
-  const accepted = Reflect.get(value, "accepted");
-  const valid =
-    (outcome === "cancelled" && jobStatus === "pending" && accepted === true) ||
-    (outcome === "already_cancelled" &&
-      ["pending", "processing", "completed"].includes(String(jobStatus)) &&
-      accepted === true) ||
-    (outcome === "already_cancelled_review_required" &&
-      ["needs_review", "failed", "missing"].includes(String(jobStatus)) &&
-      accepted === false);
-
-  return valid
-    ? ({ outcome, jobStatus, accepted } as CancellationReceipt)
-    : null;
-}
-
-type RecurringSeriesEndReceipt = {
-  outcome: "ended" | "replayed" | "unchanged";
-  endedRecurringSeries: boolean;
-  cancelledOccurrences: number;
-  calendarCleanupProjectIds: string[];
-};
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function getExactRecurringSeriesEndReceipt(
-  value: unknown,
-): RecurringSeriesEndReceipt | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-
-  const outcome = Reflect.get(value, "outcome");
-  const endedRecurringSeries = Reflect.get(value, "endedRecurringSeries");
-  const cancelledOccurrences = Reflect.get(value, "cancelledOccurrences");
-  const calendarCleanupProjectIds = Reflect.get(
-    value,
-    "calendarCleanupProjectIds",
-  );
-
-  if (
-    (outcome !== "ended" &&
-      outcome !== "replayed" &&
-      outcome !== "unchanged") ||
-    typeof endedRecurringSeries !== "boolean" ||
-    !Number.isSafeInteger(cancelledOccurrences) ||
-    (cancelledOccurrences as number) < 0 ||
-    !Array.isArray(calendarCleanupProjectIds) ||
-    !calendarCleanupProjectIds.every(
-      (projectId) =>
-        typeof projectId === "string" && UUID_PATTERN.test(projectId),
-    )
-  ) {
-    return null;
-  }
-
-  if (
-    (outcome === "ended" &&
-      (endedRecurringSeries !== true ||
-        cancelledOccurrences !== calendarCleanupProjectIds.length)) ||
-    (outcome === "replayed" &&
-      (endedRecurringSeries !== true || cancelledOccurrences !== 0)) ||
-    (outcome === "unchanged" &&
-      (endedRecurringSeries !== false ||
-        cancelledOccurrences !== 0 ||
-        calendarCleanupProjectIds.length !== 0))
-  ) {
-    return null;
-  }
-
-  return {
-    outcome,
-    endedRecurringSeries,
-    cancelledOccurrences: cancelledOccurrences as number,
-    calendarCleanupProjectIds,
-  };
 }
 
 export async function updateProjectStatus(
@@ -629,10 +576,22 @@ export async function updateProject(
       "recurrence_generation_id",
       "recurrence_sequence",
       "recurrence_occurrence_date",
+      // Publication is a consequential transition, not a generic field write.
+      // It is owned by publish_waiver_staged_project / publishDraft.
+      "workflow_status",
+      "creation_idempotency_key",
     ] as const;
     for (const field of immutableProjectFields) {
       delete mutableSanitizedUpdates[field];
     }
+
+    // Waiver switches leave this generic update entirely. Turning a published
+    // project into a waiver project (or changing how its waiver may be signed)
+    // has to keep proving the waiver, so it goes through the service-role
+    // organizer-scoped RPC the database boundary sanctions.
+    const requestedWaiverSettings = extractWaiverSettingUpdates(
+      mutableSanitizedUpdates,
+    );
 
     // Validate project_timezone when being updated (explicit undefined means omitted).
     if (
@@ -692,6 +651,20 @@ export async function updateProject(
               "Only Trusted Members can set project visibility to Public. Keep the project Unlisted or Organization-only, or apply at /trusted-member.",
           };
         }
+      }
+    }
+
+    // Applied before anything else so a refused waiver change leaves the whole
+    // project untouched rather than half saved.
+    if (requestedWaiverSettings) {
+      const waiverSettingsError = await applyWaiverSettings(
+        projectId,
+        user.id,
+        requestedWaiverSettings,
+      );
+
+      if (waiverSettingsError) {
+        return { error: waiverSettingsError };
       }
     }
 

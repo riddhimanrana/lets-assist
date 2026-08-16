@@ -45,8 +45,10 @@ describe("CSF release-state documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(293);
-    expect(migrations.at(-1)).toBe("20260815110000_log_ai_usage_rpc.sql");
+    expect(migrations).toHaveLength(294);
+    expect(migrations.at(-1)).toBe(
+      "20260815120000_waiver_signup_and_publication_integrity.sql",
+    );
 
     const currentState = between(
       testingAndRelease,
@@ -54,7 +56,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "## Historical August 11 hosted Development amendment",
     );
     expect(currentState).toContain(
-      "repository branch has 293 ordered migrations through",
+      "repository branch has 294 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260812203500_close_plugin_data_browser_default_acl`",

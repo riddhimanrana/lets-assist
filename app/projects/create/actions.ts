@@ -1,4 +1,7 @@
-export { createBasicProject } from "./server/create";
+export {
+  createBasicProject,
+  publishWaiverStagedProject,
+} from "./server/create";
 export {
   linkProjectUploadedAssets,
   uploadCoverImage,
