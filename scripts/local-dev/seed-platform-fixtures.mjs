@@ -242,7 +242,13 @@ const pluginCatalogRows = [
       "Server-rendered calendar workflow helpers for organization projects.",
     visibility: "private",
     is_active: true,
-    latest_version: "0.1.0",
+    // Must match the plugin manifest (calendar-tools/plugin.tsx) and a
+    // published `plugin_versions` row. The fixture said 0.1.0 while the
+    // manifest and the only published release said 1.0.0, so seeding a stack
+    // that already had the real catalog tripped
+    // `enforce_catalog_published_plugin_release`. Fixed here rather than by
+    // editing the catalog, which would just move the drift.
+    latest_version: "1.0.0",
     private_codebase: true,
   },
   {

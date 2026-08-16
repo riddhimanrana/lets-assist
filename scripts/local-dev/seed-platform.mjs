@@ -591,7 +591,13 @@ async function main() {
             organization_id: orgId,
             plugin_key: pluginKey,
             enabled: true,
-            installed_version: "0.1.0",
+            // Derived from the catalog rather than hardcoded. A fixed "0.1.0"
+            // silently disagreed with calendar-tools, whose published release
+            // is 1.0.0, and an enabled install must reference a published
+            // compatible release.
+            installed_version:
+              seededPluginCatalogRows.find((row) => row.key === pluginKey)
+                ?.latest_version ?? "0.1.0",
             installed_by: users.developer.id,
             configuration: {
               localFixture: true,
