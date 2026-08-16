@@ -755,8 +755,8 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           label: "Fall 2025",
           school_year: "2025-2026",
           semester: "fall",
-          starts_at: "2025-08-12",
-          ends_at: "2025-12-19",
+          starts_at: "2025-08-04",
+          ends_at: "2025-12-25",
           is_current: false,
           lifecycle_status: "open",
           closed_at: null,
@@ -774,7 +774,28 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           school_year: "2025-2026",
           semester: "spring",
           starts_at: "2026-01-06",
-          ends_at: "2026-05-29",
+          ends_at: "2026-06-22",
+          is_current: false,
+          lifecycle_status: "open",
+          closed_at: null,
+          closed_by: null,
+          closure_policy_version: null,
+          settings: {
+            csfPointPolicy: { minimumTotalPoints: 7, maxDrivePoints: 2 },
+          },
+        },
+        {
+          // The live term. A fixture whose "current" semester ended months ago
+          // makes every current-term surface look broken for reasons that have
+          // nothing to do with the code under test.
+          id: IDS.csfTermF26,
+          organization_id: IDS.csfOrg,
+          code: "F26",
+          label: "Fall 2026",
+          school_year: "2026-2027",
+          semester: "fall",
+          starts_at: "2026-08-04",
+          ends_at: "2026-12-25",
           is_current: true,
           lifecycle_status: "open",
           closed_at: null,
@@ -792,7 +813,7 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
   await must(
     "csf-term-policies",
     pluginDb.from("csf_term_policies").upsert(
-      [IDS.csfTermF25, IDS.csfTermS26].map((termId) => ({
+      [IDS.csfTermF25, IDS.csfTermS26, IDS.csfTermF26].map((termId) => ({
         organization_id: IDS.csfOrg,
         term_id: termId,
         policy_version: 1,
@@ -872,6 +893,22 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
           term_id: IDS.csfTermS26,
           grade_level: 9,
           sheet_tab_name: "S26-2029",
+          status: "active",
+        },
+        {
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2028,
+          term_id: IDS.csfTermF26,
+          grade_level: 11,
+          sheet_tab_name: "F26-2028",
+          status: "active",
+        },
+        {
+          organization_id: IDS.csfOrg,
+          cohort_id: IDS.csfCohort2029,
+          term_id: IDS.csfTermF26,
+          grade_level: 10,
+          sheet_tab_name: "F26-2029",
           status: "active",
         },
       ],
