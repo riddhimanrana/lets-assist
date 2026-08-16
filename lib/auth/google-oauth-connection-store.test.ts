@@ -13,9 +13,13 @@ describe("Google OAuth credential purpose boundaries", () => {
 
     expect(source).toContain("getGoogleOAuthConnectionForBinding(");
     expect(source).toContain("saveGoogleOAuthConnectionForBinding({");
-    expect(source).toContain("purpose: stateData.purpose");
-    expect(source).toContain("organizationId: stateData.organizationId");
-    expect(source).toContain("pluginKey: stateData.pluginKey");
+    // The binding is built from the durable attempt the ledger returned, so
+    // nothing the callback request carries can redirect a credential to
+    // another purpose, organization, or plugin.
+    expect(source).toContain("purpose: attemptBinding.purpose");
+    expect(source).toContain("organizationId: attemptBinding.organizationId");
+    expect(source).toContain("pluginKey: attemptBinding.pluginKey");
+    expect(source).toContain("const { attemptId, claimEpoch, binding: attemptBinding, returnTo } = claim;");
     expect(source).not.toContain('.from("user_calendar_connections")');
     expect(source).not.toContain("google_oauth_binding:");
   });

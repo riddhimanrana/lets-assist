@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  GOOGLE_OAUTH_CALLBACK_PARAMS,
+  readGoogleOAuthCallbackNotice,
+} from "@/lib/auth/google-oauth-connection-messages";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -156,22 +161,30 @@ export default function OrganizationSheetsSettings({
         toast.success("Google account connected successfully!");
         // Clean up URL
         const newParams = new URLSearchParams(searchParams.toString());
-        newParams.delete("success");
+        for (const param of GOOGLE_OAUTH_CALLBACK_PARAMS) {
+          newParams.delete(param);
+        }
         router.replace(`?${newParams.toString()}`, { scroll: false });
         loadStatus();
       } else if (error) {
-        if (error === "access_denied") {
-          toast.error("Access denied. Please grant the required permissions.");
-        } else if (error === "no_refresh_token") {
-          toast.error(
-            "Google did not return a refresh token. Please reconnect and approve offline access.",
-          );
-        } else {
-          toast.error(`Connection failed: ${error}`);
+        // Render from the shared catalogue rather than echoing the code, so an
+        // outcome this build does not recognize can never become screen text.
+        const notice = readGoogleOAuthCallbackNotice(searchParams.toString());
+        if (notice) {
+          const detail = notice.correlationId
+            ? `${notice.message} Reference: ${notice.correlationId}.`
+            : notice.message;
+          if (notice.tone === "warning") {
+            toast.warning(detail);
+          } else {
+            toast.error(detail);
+          }
         }
         // Clean up URL
         const newParams = new URLSearchParams(searchParams.toString());
-        newParams.delete("error");
+        for (const param of GOOGLE_OAUTH_CALLBACK_PARAMS) {
+          newParams.delete(param);
+        }
         router.replace(`?${newParams.toString()}`, { scroll: false });
       }
     }

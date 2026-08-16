@@ -32,6 +32,7 @@ const groups = [
       "app/api/calendar/google/callback/connection-selection.test.ts",
       "lib/auth/google-oauth-connection-store.test.ts",
       "lib/auth/google-oauth-state.test.ts",
+      "lib/auth/google-oauth-connection-messages.test.ts",
       "lib/auth/google-oauth-authorization.test.ts",
       "scripts/check-source-data-hygiene.test.ts",
       "scripts/check-source-organization.test.ts",
