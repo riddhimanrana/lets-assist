@@ -33,8 +33,8 @@ their named runs only.
 
 ## Current hosted Development state
 
-- The repository branch has 294 ordered migrations through
-  `20260815120000_waiver_signup_and_publication_integrity`.
+- The repository branch has 295 ordered migrations through
+  `20260815130000_google_oauth_attempt_ledger`.
 - Hosted Development Supabase remains at 273 ordered migrations through
   `20260812152300_atomic_csf_post_replies`. The twenty repository-only migrations are
   `20260812161500_atomic_project_signup_rejection`,

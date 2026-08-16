@@ -39,10 +39,17 @@ describe("DVHS CSF Google identity lifecycle wiring", () => {
     const callback = readSource("app/api/calendar/google/callback/route.ts");
 
     expect(callback).toContain("isDvhsCsfGoogleImportBinding(binding)");
-    expect(callback).toContain("? {}\n          : { email: calendarEmail }");
+    expect(callback).toContain("? {}\n        : { email: calendarEmail }");
     expect(callback).not.toContain(
-      'success: "connected",\n        email: calendarEmail',
+      'success: "connected",\n      email: calendarEmail',
     );
+    // The address reaches the redirect only through the guarded spread, and
+    // the redirect builder itself reads the settled outcome, never the raw
+    // provider value.
+    expect(callback).toContain("...(outcome.email ? { email: outcome.email } : {})");
+    expect(
+      [...callback.matchAll(/^\s*email: calendarEmail,?$/gmu)],
+    ).toHaveLength(1);
   });
 
   test("persists and reloads only durable server-side binding evidence", () => {

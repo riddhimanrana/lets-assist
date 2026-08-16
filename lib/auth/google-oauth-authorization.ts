@@ -5,16 +5,13 @@ import {
   isGoogleOAuthCsfImportCapability,
   type GoogleOAuthConnectionPurpose,
   type GoogleOAuthCsfImportCapability,
-  type GoogleOAuthStatePayload,
+  type GoogleOAuthConnectionIntent,
 } from "@/lib/auth/google-oauth-state";
 import { hasOrganizationPluginRuntimeAccess } from "@/lib/plugins/runtime-access";
 import { getCsfPermissionsForUser } from "@/lib/plugins/private/plugins/dvhs-csf/services/roles";
 import { getAdminClient } from "@/lib/supabase/admin";
 
-type GoogleOAuthOrganizationAuthorizationInput = Pick<
-  GoogleOAuthStatePayload,
-  "organizationId" | "pluginKey" | "purpose" | "requestedCapability"
-> & {
+type GoogleOAuthOrganizationAuthorizationInput = GoogleOAuthConnectionIntent & {
   userId: string;
   userEmail?: string | null;
 };

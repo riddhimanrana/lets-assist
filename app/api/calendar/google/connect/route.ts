@@ -1,15 +1,24 @@
 /**
- * Google Calendar OAuth - Initiate Connection
+ * Google OAuth - Initiate Connection
  * GET /api/calendar/google/connect
+ *
+ * Every Calendar, Drive/Sheets, and DVHS-CSF import connection starts here.
+ * The request is recorded as one durable server-side attempt before the
+ * browser is sent to Google, so concurrent attempts from different tabs or
+ * surfaces no longer overwrite one another.
  */
 
 import { createClient } from "@/lib/supabase/server";
 import {
-  createGoogleOAuthState,
-  getGoogleOAuthStateCookieOptions,
-  GOOGLE_OAUTH_STATE_COOKIE_NAME,
-  normalizeGoogleOAuthReturnTo,
-} from "@/lib/auth/google-oauth-state";
+  createGoogleOAuthAttemptSecrets,
+  digestGoogleOAuthSessionBinding,
+  getGoogleOAuthAttemptCookieOptions,
+} from "@/lib/auth/google-oauth-attempt";
+import { beginGoogleOAuthAttempt } from "@/lib/auth/google-oauth-attempt-store";
+import {
+  getGoogleOAuthDefaultReturnRoute,
+  resolveGoogleOAuthReturnRoute,
+} from "@/lib/auth/google-oauth-return-routes";
 import {
   authorizeGoogleOAuthOrganizationRequest,
   getGoogleOAuthRequiredScopeFamily,
@@ -23,19 +32,35 @@ import {
   hasGoogleCalendarWriteScope,
   hasGoogleDriveFileScope,
 } from "@/lib/auth/google-oauth-scopes";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { resolveAuthRedirectOrigin } from "@/app/signup/request-origin";
 
-function attachGoogleOAuthStateCookie(
-  response: NextResponse,
-  nonce: string,
-): NextResponse {
-  response.cookies.set(
-    GOOGLE_OAUTH_STATE_COOKIE_NAME,
-    nonce,
-    getGoogleOAuthStateCookieOptions(),
-  );
-  return response;
+/**
+ * The return-route allowlist accepts an organization by id or by slug, because
+ * every organization surface links by slug while the connect request carries
+ * the id. Resolving both keeps the allowlist strict without forcing call sites
+ * to change how they build their own URLs.
+ */
+async function resolveOrganizationSegments(
+  organizationId: string | null,
+): Promise<string[]> {
+  if (!organizationId) return [];
+  try {
+    const { data } = await getAdminClient()
+      .from("organizations")
+      .select("username")
+      .eq("id", organizationId)
+      .maybeSingle();
+    return [organizationId, data?.username].filter(
+      (segment): segment is string => Boolean(segment),
+    );
+  } catch {
+    // Degrade to the id-only allowlist rather than failing the request. The
+    // slug is a convenience for matching links the UI already builds; losing
+    // it narrows the allowlist, which is the safe direction.
+    return [organizationId];
+  }
 }
 
 export async function GET(request: Request) {
@@ -80,6 +105,18 @@ export async function GET(request: Request) {
     }
 
     const intent = intentResult.intent;
+    // Resolve the allowlisted destination once, before the authorization
+    // decision, so a denial lands on the same audited surface a success would
+    // and never on an arbitrary same-origin path the caller supplied.
+    const organizationSegments = await resolveOrganizationSegments(
+      intent.organizationId,
+    );
+    const { returnTo: allowlistedReturnTo } = resolveGoogleOAuthReturnRoute({
+      purpose: intent.purpose,
+      returnTo,
+      organizationSegments,
+    });
+
     const authorization = await authorizeGoogleOAuthOrganizationRequest({
       ...intent,
       userId: user.id,
@@ -88,13 +125,7 @@ export async function GET(request: Request) {
 
     if (!authorization.allowed) {
       const baseUrl = resolveAuthRedirectOrigin(request.headers.get("host"));
-      const safeReturnTo = normalizeGoogleOAuthReturnTo(returnTo);
-      const target =
-        safeReturnTo ||
-        (intent.organizationId
-          ? `/organization/${intent.organizationId}/settings`
-          : "/account/calendar");
-      const redirectUrl = new URL(target, baseUrl);
+      const redirectUrl = new URL(allowlistedReturnTo, baseUrl);
       redirectUrl.searchParams.set(
         "error",
         googleOAuthAuthorizationError(authorization, intent.purpose),
@@ -114,16 +145,15 @@ export async function GET(request: Request) {
       );
     }
 
-    // Bind the OAuth response to this signed-in user and a short-lived,
-    // HttpOnly nonce cookie. The callback consumes the cookie exactly once.
-    const { state, nonce } = createGoogleOAuthState({
-      userId: user.id,
-      returnTo,
-      organizationId: intent.organizationId,
-      pluginKey: intent.pluginKey,
-      purpose: intent.purpose,
-      requestedCapability: intent.requestedCapability,
-    });
+    // Bind the attempt to the signed-in session, not just the user, so a
+    // callback presented after a re-authentication fails closed.
+    const { data: claims } = await supabase.auth.getClaims();
+    const sessionDigest = digestGoogleOAuthSessionBinding(
+      claims?.claims?.session_id,
+    );
+    if (!sessionDigest) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const requiredScopeFamily = getGoogleOAuthRequiredScopeFamily(
       intent.purpose,
@@ -156,6 +186,40 @@ export async function GET(request: Request) {
 
     const sheetsScopes = [GOOGLE_DRIVE_FILE_SCOPE];
 
+    // One durable attempt per connect click. The state Google echoes back and
+    // the cookie are both unguessable secrets whose digests live in the ledger,
+    // and the PKCE verifier never leaves the server.
+    const secrets = createGoogleOAuthAttemptSecrets();
+    const recorded = await beginGoogleOAuthAttempt({
+      secrets,
+      userId: user.id,
+      sessionDigest,
+      binding: {
+        purpose: intent.purpose,
+        organizationId: intent.organizationId,
+        pluginKey: intent.pluginKey,
+        requestedCapability: intent.requestedCapability,
+      },
+      returnTo: allowlistedReturnTo,
+    });
+
+    if (!recorded) {
+      // Without a durable record the callback could not be claimed, verified,
+      // or made idempotent. Failing here is strictly safer than sending the
+      // browser to Google with an unrecorded state.
+      const baseUrl = resolveAuthRedirectOrigin(request.headers.get("host"));
+      const redirectUrl = new URL(
+        getGoogleOAuthDefaultReturnRoute({
+          purpose: intent.purpose,
+          organizationSegment: organizationSegments[0] ?? null,
+        }),
+        baseUrl,
+      );
+      redirectUrl.searchParams.set("error", "attempt_not_started");
+      redirectUrl.searchParams.set("code", secrets.correlationId);
+      return NextResponse.redirect(redirectUrl.toString());
+    }
+
     // Build Google OAuth URL
     // IMPORTANT: redirect_uri must exactly match what's configured in Google Cloud Console
     const googleAuthUrl = new URL(
@@ -186,21 +250,21 @@ export async function GET(request: Request) {
       ];
       googleAuthUrl.searchParams.set("prompt", prompts.join(" "));
     }
-    googleAuthUrl.searchParams.set("state", state);
+    googleAuthUrl.searchParams.set("state", secrets.state);
+    // PKCE S256. Only the challenge travels here; the verifier is released
+    // from the ledger once, to the single callback that claims this attempt.
+    googleAuthUrl.searchParams.set("code_challenge", secrets.codeChallenge);
+    googleAuthUrl.searchParams.set("code_challenge_method", "S256");
 
-    if (wantsJson) {
-      return attachGoogleOAuthStateCookie(
-        NextResponse.json({
-          authUrl: googleAuthUrl.toString(),
-        }),
-        nonce,
-      );
-    }
-
-    return attachGoogleOAuthStateCookie(
-      NextResponse.redirect(googleAuthUrl.toString()),
-      nonce,
+    const response = wantsJson
+      ? NextResponse.json({ authUrl: googleAuthUrl.toString() })
+      : NextResponse.redirect(googleAuthUrl.toString());
+    response.cookies.set(
+      secrets.cookieName,
+      secrets.cookieSecret,
+      getGoogleOAuthAttemptCookieOptions(),
     );
+    return response;
   } catch (error) {
     console.error("Error initiating Google Calendar connection:", error);
     return NextResponse.json(

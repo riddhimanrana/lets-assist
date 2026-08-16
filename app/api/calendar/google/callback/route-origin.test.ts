@@ -24,6 +24,7 @@ mock.module("@/lib/supabase/server", () => ({
         data: { user: null },
         error: { message: "no session" },
       }),
+      getClaims: async () => ({ data: null, error: null }),
     },
   }),
 }));
@@ -37,6 +38,23 @@ mock.module("@/lib/supabase/admin", () => ({
 mock.module("@/lib/encryption", () => ({
   encrypt: () => {
     throw new Error("route-origin.test.ts: encryption must not be used");
+  },
+  decrypt: () => {
+    throw new Error("route-origin.test.ts: decryption must not be used");
+  },
+}));
+
+// An unauthenticated callback must be turned away before the durable ledger
+// is touched, so neither claiming nor finalizing may run on this branch.
+mock.module("@/lib/auth/google-oauth-attempt-store", () => ({
+  claimGoogleOAuthAttempt: async () => {
+    throw new Error("route-origin.test.ts: the attempt ledger must not be read");
+  },
+  finalizeGoogleOAuthAttempt: async () => {
+    throw new Error("route-origin.test.ts: the attempt ledger must not be written");
+  },
+  markGoogleOAuthAttemptExchanged: async () => {
+    throw new Error("route-origin.test.ts: no code exchange may be recorded");
   },
 }));
 
