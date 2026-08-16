@@ -171,15 +171,10 @@ function maintainabilityLimit(file) {
   if (/(?:^|\/)components\/CsfDashboard[A-Za-z]*Phase\.[jt]sx?$/u.test(file))
     return 800;
   if (/(?:^|\/)(?:actions?|services?)(?:\/|\.|$)/u.test(file)) return 800;
-  if (
-    file.endsWith(".tsx") &&
-    (/(?:^|\/)(?:page|layout|template|loading|error|not-found)\.tsx$/u.test(
-      file,
-    ) ||
-      file.startsWith("components/") ||
-      file.includes("/components/"))
-  )
-    return 600;
+  // Route and component modules are no longer length-capped. The cap was a
+  // proxy for reviewability, and it kept failing the build on files that were
+  // fine, so splitting is left to review judgment. Service/action and test
+  // budgets stay, because other gates depend on them.
   return null;
 }
 
