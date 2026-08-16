@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { signup, signInWithGoogle } from "./actions";
 import Link from "next/link";
+import { signupContinuationDescription } from "./signup-continuation-copy";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -180,9 +181,7 @@ export default function SignupClient({
           <CardDescription className="text-left text-sm leading-5">
             {isStaffInvite
               ? `You've been invited to join as staff. Create your account to continue.`
-              : redirectPath
-                ? "Sign up to continue with your project signup"
-                : "Enter your details below to create your account"}
+              : signupContinuationDescription(redirectPath)}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 p-6 sm:p-7 sm:pt-6">
