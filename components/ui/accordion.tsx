@@ -73,7 +73,12 @@ function AccordionContent({
     >
       <div
         className={cn(
-          "pt-0 pb-4 [&_a]:hover:text-foreground h-(--accordion-panel-height) data-ending-style:h-0 data-starting-style:h-0 [&_a]:underline [&_a]:underline-offset-3 [&_p:not(:last-child)]:mb-4",
+          // Prose links inside an accordion answer read better underlined, but
+          // the rule used to hit EVERY descendant anchor -- including links
+          // rendered as buttons and tab bars, which came out underlined like
+          // debug output. Anything carrying a `data-slot` is a styled control,
+          // not prose, so it keeps its own affordance.
+          "pt-0 pb-4 [&_a:not([data-slot])]:hover:text-foreground h-(--accordion-panel-height) data-ending-style:h-0 data-starting-style:h-0 [&_a:not([data-slot])]:underline [&_a:not([data-slot])]:underline-offset-3 [&_p:not(:last-child)]:mb-4",
           className,
         )}
       >
