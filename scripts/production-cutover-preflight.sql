@@ -1,4 +1,4 @@
--- Production 236 -> repository target 314 cutover preflight.
+-- Production 236 -> repository target 315 cutover preflight.
 --
 -- Read-only by construction: every check is SELECT or SHOW inside an explicit
 -- READ ONLY transaction. Run this only with the reviewed Production read-only
@@ -10,7 +10,7 @@
 --
 -- The only supported ledgers are:
 --   pre-cutover   236 rows headed by 20260811001500
---   post-cutover  314 rows headed by 20260817132000 with the exact 78-row tail
+--   post-cutover  315 rows headed by 20260817133000 with the exact 79-row tail
 --
 -- Any partial, divergent, later, or wrong-tail ledger exits non-zero before
 -- shape-specific relations are parsed. Relation inventories then fail with a
@@ -48,7 +48,7 @@ SELECT current_setting('transaction_read_only') = 'on' AS read_only_transaction
 \echo ''
 \echo '=============================================================='
 \echo 'L0  Exact migration ledger'
-\echo '    PASS: exactly 236/baseline or exactly 314/target'
+\echo '    PASS: exactly 236/baseline or exactly 315/target'
 \echo '=============================================================='
 SELECT count(*) AS applied_migrations,
        min(version::text) AS first_version,
@@ -151,9 +151,9 @@ SELECT
     AND count(*) FILTER (
       WHERE version::text > '20260811001500'
     ) = 0 AS baseline_ledger,
-  count(*) = 314
+  count(*) = 315
     AND min(version::text) = '20260325181408'
-    AND max(version::text) = '20260817132000'
+    AND max(version::text) = '20260817133000'
     AND :'baseline_versions_exact'::boolean
     AND (
       SELECT array_agg(pending.version ORDER BY pending.version)
@@ -189,7 +189,8 @@ SELECT
       '20260817020000','20260817021000','20260817022000',
       '20260817030000','20260817040000','20260817050000',
       '20260817100000','20260817120000','20260817121000',
-      '20260817130000','20260817131000','20260817132000'
+      '20260817130000','20260817131000','20260817132000',
+      '20260817133000'
       -- END EXACT PRODUCTION TARGET TAIL
     ]::text[] AS target_ledger
 FROM supabase_migrations.schema_migrations
@@ -197,7 +198,7 @@ FROM supabase_migrations.schema_migrations
 
 \if :baseline_ledger
   \set cutover_shape pre
-  \echo 'PASS L0: exact Production baseline; 78 migrations pending.'
+  \echo 'PASS L0: exact Production baseline; 79 migrations pending.'
 \elif :target_ledger
   \set cutover_shape post
   \echo 'PASS L0: exact repository target; zero migrations pending.'

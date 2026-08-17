@@ -323,10 +323,6 @@ jobs:
         run: bun run dv:test:db
         env:
           DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
-          # The required quality job separately runs typecheck and a full build.
-          # This browser-only build still compiles the exact SHA, but avoids a
-          # second parallel Next typecheck while the database stack is resident.
-          CSF_BROWSER_SKIP_BUILD_TYPECHECK: "1"
 
       - name: Validate CSF database workflows
         run: bun run csf:test:workflows
@@ -351,6 +347,10 @@ jobs:
         run: bun run dv:test:e2e
         env:
           DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
+          # Standalone typecheck and the full quality build already passed on
+          # this SHA. Keep the second isolated browser build compile-only while
+          # its Supabase stack is resident, matching the CSF browser step.
+          CSF_BROWSER_SKIP_BUILD_TYPECHECK: "1"
 
       - name: Skip private DV browser workflows
         if: ${{ hashFiles('lib/plugins/private/plugins/dv-speech-debate/plugin.tsx') == '' }}
