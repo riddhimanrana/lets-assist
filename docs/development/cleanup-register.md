@@ -4,6 +4,37 @@ This register separates actionable repository defects from provider/account and 
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## CSF renderer repair candidate — 2026-08-17
+
+- Repository finding: every CSF response rendered all five dashboard route
+  families. Repeated Applications list/detail soft navigation retained the
+  unrelated React Flight and client-component graphs until Chrome terminated
+  the renderer with `Aw, Snap!` error code 5.
+- Hosted Development remains the read-only failing baseline. In a fresh Chrome
+  tab, Applications used 14.7 MB of renderer heap; the first detail reached
+  59.2 MB, returning reached 103.8 MB, and the second settled detail reached
+  213.2 MB. The visible DOM stayed between 437 and 744 nodes, isolating the
+  growth to retained framework/component state rather than visible page size.
+- The local candidate is this root `development` tree with private
+  `development` commit `7331d1e`. The dashboard composition now dynamically
+  selects exactly one route family, including the officer-list versus
+  member/detail Activities split. The production compiler emits the five
+  families as separate server chunks.
+- Local repository evidence: all 233 plugin test files pass, including the new
+  route-isolation contract; TypeScript, zero-warning ESLint, source-layout
+  checks, seed safety, formatting, and the optimized Next.js production build
+  pass. The build used non-secret local public Supabase placeholders and did
+  not contact a hosted provider.
+- Browser acceptance of the candidate remains pending. The isolated fictional
+  runtime could not complete its login because the machine data volume reached
+  `ENOSPC`, and Docker then stopped responding during namespaced teardown. No
+  user file or unrelated stack was deleted to make space.
+- Promotion remains private-first. Both local Development branches are one
+  commit ahead of their remotes; strict containment correctly fails until the
+  private commit is reviewed, published, and merged to private
+  `origin/development`. Nothing was pushed, deployed, aliased, merged to
+  `main`, or run against Production.
+
 ## Development hardening candidate — 2026-08-16
 
 This is the current status section. Later dated sections are retained as
