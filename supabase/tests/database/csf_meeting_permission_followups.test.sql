@@ -133,10 +133,18 @@ INSERT INTO plugin_data.csf_staff_positions (
   ('ea300000-0000-4000-8000-000000000006', 'ea100000-0000-4000-8000-000000000001', 'ea000000-0000-4000-8000-000000000006', 'ea200000-0000-4000-8000-000000000006', '2050-2051', 'Attendance reconciler', 'active'),
   ('ea300000-0000-4000-8000-000000000007', 'ea100000-0000-4000-8000-000000000001', 'ea000000-0000-4000-8000-000000000007', 'ea200000-0000-4000-8000-000000000007', '2050-2051', 'Meeting importer', 'active');
 
+-- An earlier autocommit concurrency fixture intentionally retains the same
+-- synthetic organization through the disposable full-suite replay. Advance
+-- its term honestly before configuring this fixture's current school year.
+UPDATE plugin_data.csf_terms
+SET is_current = false
+WHERE organization_id = 'ea100000-0000-4000-8000-000000000001'
+  AND is_current = true;
+
 INSERT INTO plugin_data.csf_terms (
   id, organization_id, code, label, school_year, semester, lifecycle_status, is_current
 ) VALUES
-  ('ea400000-0000-4000-8000-000000000001', 'ea100000-0000-4000-8000-000000000001', 'F50', 'Fall 2050', '2050-2051', 'fall', 'open', false),
+  ('ea400000-0000-4000-8000-000000000001', 'ea100000-0000-4000-8000-000000000001', 'F50', 'Fall 2050', '2050-2051', 'fall', 'open', true),
   ('ea400000-0000-4000-8000-000000000002', 'ea100000-0000-4000-8000-000000000002', 'F50', 'Fall 2050', '2050-2051', 'fall', 'open', true);
 
 INSERT INTO plugin_data.csf_profiles (

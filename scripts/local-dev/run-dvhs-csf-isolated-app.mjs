@@ -290,6 +290,14 @@ export function buildIsolatedChildEnvironment(options) {
     mode === "cron-probe"
       ? ".next-csf-isolated/cron-probe"
       : ".next-csf-isolated/browser-app";
+  if (hostEnv.CSF_BROWSER_SKIP_BUILD_TYPECHECK === "1") {
+    if (mode !== "isolated-app" || serverMode !== "production") {
+      throw new Error(
+        "CSF_BROWSER_SKIP_BUILD_TYPECHECK requires the isolated production browser app.",
+      );
+    }
+    childEnv.CSF_BROWSER_SKIP_BUILD_TYPECHECK = "1";
+  }
   childEnv.CSF_LOCAL_FIXTURE_MODE = "1";
   childEnv.PORT = String(port);
   childEnv.EMAIL_TRANSPORT = "mailpit";

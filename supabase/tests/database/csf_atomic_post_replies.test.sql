@@ -168,6 +168,14 @@ INSERT INTO plugin_data.csf_role_permissions (
   'manage_posts', true
 );
 
+INSERT INTO plugin_data.csf_terms (
+  id, organization_id, code, label, school_year, semester, is_current
+) VALUES (
+  'fb200000-0000-4000-8000-000000000001',
+  'fb100000-0000-4000-8000-000000000001',
+  'F26', 'Fall 2026', '2026-2027', 'fall', true
+);
+
 DO $$
 BEGIN
   PERFORM pg_catalog.set_config(

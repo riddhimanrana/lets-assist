@@ -202,12 +202,18 @@ VALUES (
 );
 
 INSERT INTO plugin_data.csf_terms (
-  id, organization_id, code, label, school_year, semester
-) VALUES (
-  'df160000-0000-4000-8000-000000000001',
-  'df100000-0000-4000-8000-000000000001',
-  'F28', 'Fall 2028', '2028-2029', 'fall'
-);
+  id, organization_id, code, label, school_year, semester, is_current
+) VALUES
+  (
+    'df160000-0000-4000-8000-000000000001',
+    'df100000-0000-4000-8000-000000000001',
+    'F28', 'Fall 2028', '2028-2029', 'fall', true
+  ),
+  (
+    'df160000-0000-4000-8000-000000000002',
+    'df100000-0000-4000-8000-000000000002',
+    'F28', 'Fall 2028', '2028-2029', 'fall', true
+  );
 
 INSERT INTO plugin_data.csf_cohort_terms (organization_id, cohort_id, term_id)
 VALUES (

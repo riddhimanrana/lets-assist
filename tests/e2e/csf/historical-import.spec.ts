@@ -277,12 +277,32 @@ test.describe("CSF historical workbook import", () => {
     const workbook = createHistoricalWorkbook(fixture.activityTitle);
     expect(workbook.byteLength).toBeGreaterThan(0);
 
-    await loginAs(page, "admin", `${CSF_ORGANIZATION_PATH}?tab=csf-imports`);
+    const classMembersUrl = new URLSearchParams({
+      tab: "csf-cohorts",
+      csf_cohort: fixture.cohortId,
+      csf_cohort_tab: "members",
+      csf_semester_term: fixture.termId,
+    });
+    await loginAs(
+      page,
+      "admin",
+      `${CSF_ORGANIZATION_PATH}?${classMembersUrl.toString()}`,
+    );
+    await page.getByRole("button", { name: "Import roster" }).click();
+    await expect(page).toHaveURL(/[?&]tab=csf-imports(?:&|$)/);
     // The accordion is client-controlled. Let the post-login route finish
     // loading its client chunks before the first interaction so a fast SSR
     // paint cannot accept an inert pre-hydration click.
     await page.waitForLoadState("networkidle");
-    await page.getByRole("button", { name: /Upload Excel or CSV/ }).click();
+    const uploadSection = page.getByRole("button", {
+      name: /Upload Excel or CSV/,
+    });
+    if (!(await uploadSection.isVisible())) {
+      await page
+        .getByRole("button", { name: "Source, scope & mapping", exact: true })
+        .click();
+    }
+    await uploadSection.click();
     await expect(page.getByLabel("Workbook", { exact: true })).toBeVisible();
     await page
       .getByRole("button", { name: "Historical records", exact: true })
