@@ -192,16 +192,27 @@ const STAFF_ACCESS: LabelContract[] = [
 const CLASSES_AND_POLICY: LabelContract[] = [
   {
     component: "CsfClassTermCreateDialogs.tsx",
-    labels: ["Set up graduating class", "Add one semester"],
+    labels: ["Set up a graduating class", "Add one semester"],
   },
   {
     component: "CsfClassTermActionsMenu.tsx",
     labels: ["Term actions", "Set as current"],
   },
   {
-    component: "CsfCohortHub.tsx",
-    labels: ["Semesters & setup"],
-    sourceSpelling: { "Semesters & setup": "Semesters &amp; setup" },
+    component: "CsfTermsWorkspace.tsx",
+    labels: ["Meeting schedule"],
+  },
+  {
+    component: "CsfStartNextTermDialog.tsx",
+    labels: ["Start next term"],
+  },
+  {
+    component: "CsfTermsChapterRules.tsx",
+    labels: ["Chapter rules"],
+  },
+  {
+    component: "CsfCloseTermDialog.tsx",
+    labels: ["Semester close preflight"],
   },
   {
     component: "CsfPolicyPublicationControls.tsx",

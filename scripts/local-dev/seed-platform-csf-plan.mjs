@@ -1557,6 +1557,63 @@ export async function seedDvhsCsfFixtures({ admin, users, must }) {
       ),
   );
 
+  // Realistic officer-owned deadlines for the seeded semester, so the Terms
+  // page and officer home rehearse against operational-looking dates instead
+  // of placeholder rows.
+  await must(
+    "csf-term-deadlines",
+    pluginDb.from("csf_term_deadlines").upsert(
+      [
+        {
+          id: IDS.csfDeadlineApplicationsClose,
+          organization_id: IDS.csfOrg,
+          term_id: IDS.csfTermS26,
+          deadline_type: "application_close",
+          title: "Spring 2026 applications close",
+          description:
+            "Final day for students to submit the semester application form.",
+          due_at: "2026-02-06T23:59:00-08:00",
+          status: "completed",
+          audience: "all",
+          related_route: "applications",
+          owner_user_id: users.csfOfficer.id,
+          completed_by: users.csfOfficer.id,
+          completed_at: "2026-02-07T09:00:00-08:00",
+        },
+        {
+          id: IDS.csfDeadlineDues,
+          organization_id: IDS.csfOrg,
+          term_id: IDS.csfTermS26,
+          deadline_type: "dues",
+          title: "Dues receipts due",
+          description: "Webstore dues receipts submitted for verification.",
+          due_at: "2026-02-20T23:59:00-08:00",
+          status: "completed",
+          audience: "members",
+          related_route: "applications",
+          owner_user_id: users.csfOfficer.id,
+          completed_by: users.csfOfficer.id,
+          completed_at: "2026-02-21T09:00:00-08:00",
+        },
+        {
+          id: IDS.csfDeadlinePoints,
+          organization_id: IDS.csfOrg,
+          term_id: IDS.csfTermS26,
+          deadline_type: "points",
+          title: "Service points due",
+          description:
+            "Last day for members to submit service point evidence for review.",
+          due_at: "2026-05-01T23:59:00-07:00",
+          status: "open",
+          audience: "members",
+          related_route: "points",
+          owner_user_id: users.csfOfficer.id,
+        },
+      ],
+      { onConflict: "id" },
+    ),
+  );
+
   const meetingProjectionByLegacyId = new Map();
   for (const meeting of seededMeetings) {
     const logicalMeeting = await must(

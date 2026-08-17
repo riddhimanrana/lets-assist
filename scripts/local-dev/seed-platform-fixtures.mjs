@@ -66,6 +66,9 @@ export const IDS = {
   csfPartnerBatch: "10000000-0000-4000-8000-000000000135",
   csfAnnouncementPinned: "10000000-0000-4000-8000-000000000136",
   csfAnnouncementOfficer: "10000000-0000-4000-8000-000000000137",
+  csfDeadlineApplicationsClose: "10000000-0000-4000-8000-000000000145",
+  csfDeadlineDues: "10000000-0000-4000-8000-000000000146",
+  csfDeadlinePoints: "10000000-0000-4000-8000-000000000147",
 };
 
 export function fixtureJoinCode(seed) {

@@ -7,20 +7,36 @@ import {
   watchBrowserFailures,
 } from "./helpers";
 
-const policyPath =
+// The legacy semester-workspace deep link: it must alias onto the Terms page
+// and, because it names the old policy view, open Chapter rules.
+const legacyPolicyPath =
   `${CSF_ORGANIZATION_PATH}?tab=csf-cohorts` + "&csf_semester_view=policy";
 
 test.describe("transactional semester-close preflight", () => {
-  test("shows every blocking domain and prevents a stale early close", async ({
+  test("shows every blocking domain inside the archive dialog and prevents a stale early close", async ({
     page,
   }) => {
     const failures = watchBrowserFailures(page);
-    await loginAs(page, "admin", policyPath);
+    await loginAs(page, "admin", legacyPolicyPath);
 
-    // A semester deep link lands with "Semesters & setup" already open, so
-    // the preflight is visible without hunting for the disclosure.
+    // The legacy URL lands on the Terms page with Chapter rules expanded.
     await expect(
-      page.getByText("Semester close preflight", { exact: true }),
+      page.getByRole("button", { name: "Start next term" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Chapter rules", { exact: true }),
+    ).toBeVisible();
+
+    // The preflight lives inside the archive flow now: the trigger stays
+    // available, and opening it presents the server-derived blocker list.
+    const archiveTrigger = page.getByRole("button", { name: "Archive term" });
+    await expect(archiveTrigger).toBeEnabled();
+    await archiveTrigger.click();
+
+    const dialog = page.getByRole("dialog", { name: "Close a CSF term" });
+    await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByText("Semester close preflight", { exact: true }),
     ).toBeVisible();
 
     // Counts marked with a number are invariant across the suite. Imports is
@@ -50,7 +66,7 @@ test.describe("transactional semester-close preflight", () => {
 
     let totalUnresolved = 0;
     for (const group of expectedGroups) {
-      const link = page.getByRole("link", {
+      const link = dialog.getByRole("link", {
         name: new RegExp(`^${group.label}\\b`),
       });
       await expect(link).toBeVisible();
@@ -74,14 +90,16 @@ test.describe("transactional semester-close preflight", () => {
     }
 
     await expect(
-      page.getByText(`${totalUnresolved} unresolved`, { exact: true }),
+      dialog.getByText(`${totalUnresolved} unresolved`, { exact: true }),
     ).toBeVisible();
 
+    // Blockers remain, so the destructive submit stays locked while the
+    // refusal names the condition.
     await expect(
-      page.getByRole("button", { name: "Archive term" }),
+      dialog.getByRole("button", { name: "Close and snapshot term" }),
     ).toBeDisabled();
     await expect(
-      page.getByText(
+      dialog.getByText(
         "Resolve every linked record before the close action becomes available.",
         { exact: true },
       ),

@@ -19,8 +19,8 @@ const canonicalTabs = [
 ] as const;
 
 const canonicalMoreItems = [
+  "Terms",
   "Imports",
-  "Reports",
   "Staff access",
   "Change history",
   "Communications",
@@ -53,8 +53,8 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
     label: "Co-President",
     visibleTabs: canonicalTabs,
     visibleMoreItems: [
+      "Terms",
       "Imports",
-      "Reports",
       "Change history",
       "Communications",
       "Settings",
@@ -68,7 +68,9 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
     // The Classes hub opens for any class-tab capability; membership holds
     // manage_profiles, process_points, and manage_meetings.
     visibleTabs: ["Home", "Applications", "Members", "Service", "Classes"],
-    visibleMoreItems: ["Imports", "Reports", "Help"],
+    // The report download moved to Settings, which admits every report-export
+    // key the retired Reports page honored.
+    visibleMoreItems: ["Imports", "Settings", "Help"],
     deniedRoute: "staff",
   },
   {
@@ -86,22 +88,22 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
     label: "Vice President — Clubs",
     // process_points opens the Classes hub (Points tab only inside it).
     visibleTabs: ["Home", "Service", "Classes"],
-    visibleMoreItems: ["Imports", "Reports", "Help"],
+    visibleMoreItems: ["Imports", "Settings", "Help"],
     deniedRoute: "applications",
   },
   {
     actor: "treasurer",
     label: "Treasurer",
     visibleTabs: ["Home", "Applications"],
-    visibleMoreItems: ["Reports", "Help"],
+    visibleMoreItems: ["Settings", "Help"],
     deniedRoute: "profiles",
   },
   {
     actor: "secretary",
     label: "Secretary",
-    // The former Semester tab now lives inside the Classes hub.
+    // manage_schedule opens the Terms page (deadline editing lives there).
     visibleTabs: ["Home", "Members", "Service", "Classes"],
-    visibleMoreItems: ["Imports", "Reports", "Help"],
+    visibleMoreItems: ["Terms", "Imports", "Settings", "Help"],
     deniedRoute: "applications",
   },
   {
@@ -123,7 +125,7 @@ const staffRoleNavigationMatrix: readonly StaffRoleNavigationScenario[] = [
     actor: "dataManagement",
     label: "Data Management",
     visibleTabs: ["Home", "Applications", "Members", "Service", "Classes"],
-    visibleMoreItems: ["Imports", "Reports", "Change history", "Help"],
+    visibleMoreItems: ["Imports", "Change history", "Settings", "Help"],
     deniedRoute: "staff",
   },
 ] as const;
