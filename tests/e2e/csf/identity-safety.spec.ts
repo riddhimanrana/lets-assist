@@ -5,6 +5,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
 import {
+  CSF_ORGANIZATION_PATH,
   expectNoBrowserFailures,
   watchBrowserFailures,
   loginAs,
@@ -358,8 +359,14 @@ async function cleanIdentityFixture(current: IdentityFixture) {
 }
 
 async function openMembersTab(page: Page) {
-  await page.getByRole("tab", { name: "Members", exact: true }).click();
-  await expect(page).toHaveURL(/[?&]tab=csf-members(?:&|$)/);
+  const classMembersUrl = new URLSearchParams({
+    tab: "csf-cohorts",
+    csf_cohort: fixture.cohortId,
+    csf_cohort_tab: "members",
+  });
+  await page.goto(`${CSF_ORGANIZATION_PATH}?${classMembersUrl.toString()}`);
+  await expect(page).toHaveURL(/[?&]tab=csf-cohorts(?:&|$)/);
+  await expect(page).toHaveURL(/[?&]csf_cohort_tab=members(?:&|$)/);
   await expect(
     page.getByRole("navigation", { name: "Member views" }),
   ).toBeVisible();
@@ -622,7 +629,7 @@ test.describe("CSF identity safety", () => {
     await loginAs(page, "admin");
     await openMembersTab(page);
 
-    await page.getByRole("button", { name: "Account connections" }).click();
+    await page.getByRole("button", { name: "Needs account link" }).click();
     await expect(page).toHaveURL(/[?&]csf_member_view=connections(?:&|$)/);
 
     const connections = page.getByRole("region", {

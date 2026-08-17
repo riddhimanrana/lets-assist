@@ -28,6 +28,93 @@ const AUDIENCE_FIELDSETS = [
 
 const terminalCampaignStatuses = new Set(["cancelled", "completed", "failed"]);
 
+type SyntheticTermRecipient = {
+  profileId: string;
+  termMembershipId: string;
+};
+
+async function seedSyntheticTermRecipient(
+  fixture: CsfFeedFixture,
+): Promise<SyntheticTermRecipient> {
+  const plugin = fixture.admin.schema("plugin_data");
+  const suffix = randomUUID().slice(0, 8);
+  const profileId = randomUUID();
+  const termMembershipId = randomUUID();
+  const { data: currentTerm, error: termError } = await plugin
+    .from("csf_terms")
+    .select("id")
+    .eq("organization_id", fixture.organizationId)
+    .eq("is_current", true)
+    .single();
+  if (termError || !currentTerm) {
+    throw new Error(
+      `Could not load the current term for communications acceptance: ${termError?.message ?? "missing fixture"}`,
+    );
+  }
+  const cohortId = fixture.cohortIdsByYear[2028];
+  if (!cohortId) throw new Error("The Class of 2028 fixture is missing.");
+
+  const { error: profileError } = await plugin.from("csf_profiles").insert({
+    id: profileId,
+    organization_id: fixture.organizationId,
+    first_name: "Fictional",
+    last_name: `Recipient-${suffix}`,
+    personal_email: `csf.communications.${suffix}@local.test`,
+    normalized_first_name: "fictional",
+    normalized_last_name: `recipient-${suffix}`,
+    source_summary: { browserFixture: true },
+  });
+  if (profileError) {
+    throw new Error(
+      `Could not seed the communications recipient profile: ${profileError.message}`,
+    );
+  }
+  const { error: membershipError } = await plugin
+    .from("csf_term_memberships")
+    .insert({
+      id: termMembershipId,
+      organization_id: fixture.organizationId,
+      profile_id: profileId,
+      term_id: currentTerm.id,
+      cohort_id: cohortId,
+      status: "active",
+    });
+  if (membershipError) {
+    await plugin.from("csf_profiles").delete().eq("id", profileId);
+    throw new Error(
+      `Could not seed the communications term membership: ${membershipError.message}`,
+    );
+  }
+  return { profileId, termMembershipId };
+}
+
+async function cleanSyntheticTermRecipient(
+  fixture: CsfFeedFixture,
+  recipient: SyntheticTermRecipient,
+) {
+  const plugin = fixture.admin.schema("plugin_data");
+  const { error: membershipError } = await plugin
+    .from("csf_term_memberships")
+    .delete()
+    .eq("organization_id", fixture.organizationId)
+    .eq("id", recipient.termMembershipId);
+  if (membershipError) {
+    throw new Error(
+      `Could not clean the communications term membership: ${membershipError.message}`,
+    );
+  }
+  const { error: profileError } = await plugin
+    .from("csf_profiles")
+    .delete()
+    .eq("organization_id", fixture.organizationId)
+    .eq("id", recipient.profileId);
+  if (profileError) {
+    throw new Error(
+      `Could not clean the communications recipient profile: ${profileError.message}`,
+    );
+  }
+}
+
 /**
  * Campaigns are immutable receipt history: cleanup withdraws any non-terminal
  * synthetic campaign through the same audited RPC the product uses and never
@@ -143,12 +230,14 @@ test.describe("CSF communications workspace", () => {
   test.describe.configure({ mode: "serial" });
 
   let fixture: CsfFeedFixture;
+  let syntheticRecipient: SyntheticTermRecipient;
   let originalConfiguration: StoredPluginConfiguration | null = null;
   let configurationWasSaved = false;
 
   test.beforeAll(async () => {
     fixture = await loadCsfFeedFixture();
     await cancelSyntheticCampaigns(fixture, SUBJECT_PREFIX);
+    syntheticRecipient = await seedSyntheticTermRecipient(fixture);
   });
 
   // The stored-configuration restoration lives in lifecycle cleanup so a
@@ -163,7 +252,11 @@ test.describe("CSF communications workspace", () => {
   });
 
   test.afterAll(async () => {
-    if (fixture) await cancelSyntheticCampaigns(fixture, SUBJECT_PREFIX);
+    if (!fixture) return;
+    await cancelSyntheticCampaigns(fixture, SUBJECT_PREFIX);
+    if (syntheticRecipient) {
+      await cleanSyntheticTermRecipient(fixture, syntheticRecipient);
+    }
   });
 
   test("an organization admin reaches Communications from the Settings hub", async ({
@@ -224,17 +317,20 @@ test.describe("CSF communications workspace", () => {
       sections.getByRole("button", { name: "Settings", exact: true }),
     ).toBeVisible();
 
-    // The hub link lands directly on the stored-topic settings, one fieldset
-    // per audience with both stored values labelled.
+    // The hub link lands directly on friendly readiness settings. Provider
+    // identifiers remain platform diagnostics and are never exposed here.
     await expect(
       page.getByText("Communications settings", { exact: true }),
     ).toBeVisible();
     for (const audience of AUDIENCE_FIELDSETS) {
       const fieldset = page.getByRole("group", { name: audience, exact: true });
       await expect(fieldset).toBeVisible();
-      await expect(fieldset.getByLabel("Consent topic key")).toBeVisible();
-      await expect(fieldset.getByLabel("Resend topic id")).toBeVisible();
+      await expect(
+        fieldset.getByRole("status", { name: new RegExp(`^${audience} `) }),
+      ).toBeVisible();
     }
+    await expect(page.getByText(/Resend topic id/i)).toHaveCount(0);
+    await expect(page.getByText(/Consent topic key/i)).toHaveCount(0);
 
     await sections
       .getByRole("button", { name: "Delivery issues", exact: true })
