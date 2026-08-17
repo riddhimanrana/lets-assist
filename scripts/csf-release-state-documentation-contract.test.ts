@@ -45,9 +45,9 @@ describe("CSF release-state documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(302);
+    expect(migrations).toHaveLength(305);
     expect(migrations.at(-1)).toBe(
-      "20260817010000_csf_source_evidence_revision_deadlock.sql",
+      "20260817022000_csf_permanent_class_code_join.sql",
     );
 
     const currentState = between(
@@ -59,7 +59,7 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "sole current CSF implementation/status register is",
     );
     expect(currentState).toContain(
-      "repository candidate has 302 ordered migrations through",
+      "repository candidate has 305 ordered migrations through",
     );
     expect(currentState).toContain(
       "`20260816185321_enforce_authoritative_plugin_releases`",
@@ -71,6 +71,9 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "`20260817010000_csf_source_evidence_revision_deadlock`",
     );
     expect(currentState).toContain(
+      "`20260817022000_csf_permanent_class_code_join`",
+    );
+    expect(currentState).toContain(
       "Hosted Development was healthy and migration-current at the audited 296-row base",
     );
     expect(currentState).toContain(
@@ -80,13 +83,13 @@ describe("CSF release-state documentation truthfulness guards", () => {
       "Production remains untouched at the audited 236-row baseline",
     );
     expect(currentState).toContain(
-      "exact read-only preflight now expects a 66-migration cutover",
+      "exact read-only preflight now expects a 69-migration cutover",
     );
     expect(currentState).toContain(
-      "fresh isolated replay of all 302 migrations",
+      "fresh isolated replay of all 305 migrations",
     );
     expect(currentState).toContain(
-      "Isolated replay passed: 302 migrations, 84 CSF tables",
+      "Isolated replay passed: 305 migrations, 84 CSF tables",
     );
     expect(currentState).toContain("e9e86fe4d16a304b7e94bc5c4464d901653ef30d");
     expect(currentState).toContain("5e21d5dd60744dc50b7817bfc734a4e2ca71c8f5");

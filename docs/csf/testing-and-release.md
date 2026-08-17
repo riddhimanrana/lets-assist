@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 302 ordered migrations through
-  `20260817010000_csf_source_evidence_revision_deadlock`. The six migrations
+- The repository candidate has 305 ordered migrations through
+  `20260817022000_csf_permanent_class_code_join`. The nine migrations
   added after the audited `development` baseline merge two prior lines: the
   Development-hardening pair
   (`20260816185321_enforce_authoritative_plugin_releases`,
@@ -46,16 +46,19 @@ their named runs only.
   (`20260816190000_remove_example_tier_test_plugins`,
   `20260816230000_csf_preview_row_annotations`,
   `20260816233000_csf_blank_row_convention`,
-  `20260817010000_csf_source_evidence_revision_deadlock`).
+  `20260817010000_csf_source_evidence_revision_deadlock`,
+  `20260817020000_csf_class_term_member_projection`,
+  `20260817021000_csf_permanent_class_join_codes`, and
+  `20260817022000_csf_permanent_class_code_join`).
 - Hosted Development was healthy and migration-current at the audited 296-row
   base through `20260816083000_csf_import_annotation_settlement`. This
   implementation did not apply the six new migrations or re-verify hosted
   parity, advisors, application deployment, or provider acceptance.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects a 66-migration
-  cutover to this 302-row candidate. Running that cutover is not authorized.
-- Local evidence includes a fresh isolated replay of all 302 migrations
-  (`Isolated replay passed: 302 migrations, 84 CSF tables`, 151 pgTAP files,
+  `20260811001500`; the exact read-only preflight now expects a 69-migration
+  cutover to this 305-row candidate. Running that cutover is not authorized.
+- Local evidence includes a fresh isolated replay of all 305 migrations
+  (`Isolated replay passed: 305 migrations, 84 CSF tables`, 151 pgTAP files,
   6011 tests, all passing), and passing static quality gates
   (`typecheck`, `lint`, `format:check`). Full exact-tree tests, build, strict
   submodule reachability, hosted role/browser acceptance, and provider

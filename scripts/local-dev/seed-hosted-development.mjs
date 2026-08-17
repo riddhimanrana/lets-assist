@@ -143,6 +143,11 @@ function psql(databaseUrl, args, options = {}) {
 }
 
 async function main() {
+  fail(
+    "Hosted Development fixture seeding is disabled. Use isolated local/CI fixtures; inspect hosted rows with a read-only cleanup preview before any reviewed cleanup.",
+  );
+
+  /* c8 ignore start -- retained only as inert historical implementation notes */
   required("CSF_LOCAL_TEST_PASSWORD");
   const branch = resolveBranch();
   let seamInstalled = false;
@@ -167,6 +172,7 @@ async function main() {
       psql(branch.databaseUrl, [], { input: cleanupSql });
     }
   }
+  /* c8 ignore stop */
 }
 
 main().catch((error) => {

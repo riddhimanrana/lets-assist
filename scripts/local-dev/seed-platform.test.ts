@@ -944,52 +944,6 @@ describe("package scripts carry the exact seed modes", () => {
 });
 
 describe("hosted Development seed wrapper", () => {
-  // Records every argv, and answers `branches get` with a mismatched API origin
-  // so a run that reaches the metadata lookup stops there — before any database
-  // credential exists — while still proving what the CLI was asked.
-  function createHostedCliSandbox(
-    branch: Record<string, string> = {
-      SUPABASE_URL: "https://unexpected-origin.supabase.co",
-    },
-  ) {
-    const directory = mkdtempSync(join(tmpdir(), "csf-hosted-seed-"));
-    sandboxes.push(directory);
-    const fakeBin = join(directory, "bin");
-    mkdirSync(fakeBin);
-    writeFileSync(
-      join(fakeBin, "supabase"),
-      [
-        "#!/bin/sh",
-        'printf "%s\\n" "$*" >> "${FAKE_SUPABASE_CALLS:-/dev/null}"',
-        'if [ "$1" = "branches" ] && [ "$2" = "get" ]; then',
-        `  printf '%s\\n' '${JSON.stringify(branch)}'`,
-        "fi",
-        "exit 0",
-        "",
-      ].join("\n"),
-      { mode: 0o700 },
-    );
-    writeFileSync(
-      join(fakeBin, "psql"),
-      [
-        "#!/bin/sh",
-        'printf "psql %s\\n" "$*" >> "${FAKE_SUPABASE_CALLS:-/dev/null}"',
-        "exit 97",
-        "",
-      ].join("\n"),
-      { mode: 0o700 },
-    );
-    return {
-      fakeBin,
-      callsPath: join(directory, "supabase-calls.log"),
-      calls() {
-        return existsSync(this.callsPath)
-          ? readFileSync(this.callsPath, "utf8").split("\n").filter(Boolean)
-          : [];
-      },
-    };
-  }
-
   function runHosted(env: Record<string, string>) {
     const result = Bun.spawnSync([process.execPath, hostedSeedScript], {
       cwd: new URL("../..", import.meta.url).pathname,
@@ -1006,113 +960,11 @@ describe("hosted Development seed wrapper", () => {
     };
   }
 
-  test("requires a run-scoped fixture password before resolving a remote branch", () => {
+  test("refuses every hosted fixture seed before credentials or provider calls", () => {
     const result = runHosted({});
-
-    expect(result.exitCode).not.toBe(0);
-    expect(result.stderr).toContain("CSF_LOCAL_TEST_PASSWORD is required");
-  });
-
-  test("refuses the Production project ref before invoking Supabase", () => {
-    const result = runHosted({
-      CSF_LOCAL_TEST_PASSWORD: "synthetic-test-password-Aa1!",
-      EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: "fotdmeakexgrkronxlof",
-      SUPABASE_BRANCH_ID: "e230a19e-00cf-41fa-9ab6-c0194108a617",
-    });
-
-    expect(result.exitCode).not.toBe(0);
-    expect(result.stderr).toContain("refuses the Production project ref");
-  });
-
-  test("refuses malformed branch IDs before invoking Supabase", () => {
-    const result = runHosted({
-      CSF_LOCAL_TEST_PASSWORD: "synthetic-test-password-Aa1!",
-      EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: "ocbuygudvarsuxijxhau",
-      SUPABASE_BRANCH_ID: "not-a-branch",
-    });
-
-    expect(result.exitCode).not.toBe(0);
-    expect(result.stderr).toContain("SUPABASE_BRANCH_ID is malformed");
-  });
-
-  test("requires an explicit parent project ref before invoking Supabase", () => {
-    const cli = createHostedCliSandbox();
-    const result = runHosted({
-      PATH: `${cli.fakeBin}:${process.env.PATH ?? "/usr/bin:/bin"}`,
-      FAKE_SUPABASE_CALLS: cli.callsPath,
-      CSF_LOCAL_TEST_PASSWORD: "synthetic-test-password-Aa1!",
-      EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: "ocbuygudvarsuxijxhau",
-      SUPABASE_BRANCH_ID: "e230a19e-00cf-41fa-9ab6-c0194108a617",
-    });
-
-    expect(result.exitCode).not.toBe(0);
-    expect(result.stderr).toContain("SUPABASE_PARENT_PROJECT_REF is required");
-    expect(cli.calls()).toEqual([]);
-  });
-
-  test("refuses a malformed parent project ref before invoking Supabase", () => {
-    for (const value of ["not-a-project-ref", "fotdmeakexgrkronxlo"]) {
-      const cli = createHostedCliSandbox();
-      const result = runHosted({
-        PATH: `${cli.fakeBin}:${process.env.PATH ?? "/usr/bin:/bin"}`,
-        FAKE_SUPABASE_CALLS: cli.callsPath,
-        CSF_LOCAL_TEST_PASSWORD: "synthetic-test-password-Aa1!",
-        EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: "ocbuygudvarsuxijxhau",
-        SUPABASE_BRANCH_ID: "e230a19e-00cf-41fa-9ab6-c0194108a617",
-        SUPABASE_PARENT_PROJECT_REF: value,
-      });
-
-      expect(result.exitCode, `ref=${JSON.stringify(value)}`).not.toBe(0);
-      expect(result.stderr).toContain(
-        "SUPABASE_PARENT_PROJECT_REF is malformed",
-      );
-      expect(cli.calls(), `ref=${JSON.stringify(value)}`).toEqual([]);
-    }
-  });
-
-  test("scopes the read-only branch metadata lookup to the parent project ref", () => {
-    // The parent project may legitimately be the Supabase parent
-    // (fotdmeakexgrkronxlof); only the seed *target* ref is refused above. The
-    // fake CLI's mismatched origin stops the run right after the lookup.
-    const cli = createHostedCliSandbox();
-    const result = runHosted({
-      PATH: `${cli.fakeBin}:${process.env.PATH ?? "/usr/bin:/bin"}`,
-      FAKE_SUPABASE_CALLS: cli.callsPath,
-      CSF_LOCAL_TEST_PASSWORD: "synthetic-test-password-Aa1!",
-      EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: "ocbuygudvarsuxijxhau",
-      SUPABASE_BRANCH_ID: "e230a19e-00cf-41fa-9ab6-c0194108a617",
-      SUPABASE_PARENT_PROJECT_REF: "fotdmeakexgrkronxlof",
-    });
-
-    expect(result.exitCode).not.toBe(0);
-    expect(result.stderr).toContain("resolves to a different API origin");
-    expect(cli.calls()).toEqual([
-      "branches get e230a19e-00cf-41fa-9ab6-c0194108a617 --project-ref fotdmeakexgrkronxlof --experimental --output json",
-    ]);
-  });
-
-  test("refuses database credentials from a different project before psql", () => {
-    const cli = createHostedCliSandbox({
-      SUPABASE_URL: "https://ocbuygudvarsuxijxhau.supabase.co",
-      POSTGRES_URL_NON_POOLING:
-        "postgresql://db.rkuukkprqqqejfrxvteu.supabase.co:5432/postgres",
-      SUPABASE_SERVICE_ROLE_KEY: "synthetic-service-role-key",
-    });
-    const result = runHosted({
-      PATH: `${cli.fakeBin}:${process.env.PATH ?? "/usr/bin:/bin"}`,
-      FAKE_SUPABASE_CALLS: cli.callsPath,
-      CSF_LOCAL_TEST_PASSWORD: "synthetic-test-password-Aa1!",
-      EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF: "ocbuygudvarsuxijxhau",
-      SUPABASE_BRANCH_ID: "e230a19e-00cf-41fa-9ab6-c0194108a617",
-      SUPABASE_PARENT_PROJECT_REF: "fotdmeakexgrkronxlof",
-    });
-
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toContain(
-      "database URL belongs to a different project ref",
+      "Hosted Development fixture seeding is disabled",
     );
-    expect(cli.calls()).toEqual([
-      "branches get e230a19e-00cf-41fa-9ab6-c0194108a617 --project-ref fotdmeakexgrkronxlof --experimental --output json",
-    ]);
   });
 });
