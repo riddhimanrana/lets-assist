@@ -275,30 +275,14 @@ const IMPORTS: LabelContract[] = [
 
 const APPLICATIONS: LabelContract[] = [
   {
-    component: "CsfApplicationsWorkspaceSupporting.tsx",
-    labels: ["Application checks"],
-  },
-  {
-    component: "CsfApplicationsWorkspaceReview.tsx",
+    component: "csf-review/panels/ApplicationReviewPanel.tsx",
     labels: [
-      "Application history",
-      "Decision preflight",
-      "Decision record",
-      "Term membership",
-      "Approval blocked",
-    ],
-  },
-  {
-    component: "CsfApplicationReviewDialog.tsx",
-    labels: [
-      "Record decision",
-      "Review notes",
-      "Request changes",
-      "Approve application",
+      "Courses as imported",
+      "Reported point totals",
+      "Transcript",
+      "Webstore receipt",
       "Reject",
-      "Decision already saved; reload required",
-      "Decision request conflict; reload required",
-      "Reload application",
+      "Approve",
     ],
   },
 ];
@@ -454,7 +438,7 @@ describe("CSF operator documentation label contract", () => {
     assertContract(IMPORTS);
   });
 
-  test("applications preserve preflight, decision, and reload labels", () => {
+  test("applications preserve the current evidence and decision labels", () => {
     assertContract(APPLICATIONS);
   });
 

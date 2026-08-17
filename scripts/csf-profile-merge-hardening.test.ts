@@ -45,7 +45,6 @@ describe("CSF profile-merge hardening source contract", () => {
       "csf_meeting_attendance.profile_id",
       "csf_sheet_import_rows.matched_profile_id",
       "csf_sheet_import_rows.commit_target_profile_id",
-      "csf_partner_submission_rows.profile_id",
       "csf_profile_link_requests.matched_profile_id",
       "csf_profile_link_requests.candidate_profile_ids",
       "csf_profile_merge_reviews.source_profile_id",
@@ -60,7 +59,6 @@ describe("CSF profile-merge hardening source contract", () => {
       "csf_application_correction_requests.profile_id",
       "csf_term_membership_outcomes.profile_id",
       "csf_communication_recipient_snapshots.profile_id",
-      "csf_partner_club_representatives.profile_id",
       "csf_communication_broadcast_preferences.profile_id",
     ];
 

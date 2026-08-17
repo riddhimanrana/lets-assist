@@ -577,26 +577,14 @@ it into a Fall 2026 rule.
 1. Open **Applications → Review queue** for unresolved work. Use **All
    applications** for search and decision history; neither view changes an
    application.
-2. Open the application and review identity/source, academic evidence,
-   transcript and receipt access, **Application checks**, dues, notes, and
-   **Application history**. Dues evidence and academic eligibility are separate
-   facts.
-3. Read **Decision preflight**. It is the latest loaded state, not an
-   authorization token: the server reloads and rechecks the same evidence when
-   the decision is saved. If the action bar says **Approval blocked**, resolve
-   the named blocker or record an allowed adviser override through its
-   dedicated control; do not work around it by creating membership.
-4. Select **Record decision** and enter **Review notes**. **Request changes**
-   returns the application for correction, **Approve application** creates or
-   updates semester membership atomically, and **Reject** records a final
-   application decision. Approval does not mark semester requirements complete.
-5. If the result says **Decision already saved; reload required** or **Decision
-   request conflict; reload required**, select **Reload application** before
-   doing anything else. A missing response never authorizes a second manual
-   write.
-6. After saving, confirm **Decision record**, its reason, and **Term
-   membership**. Withdrawals and adviser overrides require their own current
-   evidence and recorded reason; never infer either from the imported response.
+2. Open the application and review the applicant identity, **Courses as
+   imported**, **Reported point totals**, **Transcript**, and **Webstore
+   receipt**. Dues evidence and academic eligibility remain separate facts.
+3. Use **Reject** only with a recorded reason, or **Approve** after the evidence
+   is complete. Approval creates or updates semester membership atomically; it
+   does not mark semester requirements complete.
+4. If a response is lost or rejected, reload the application before retrying.
+   A missing response never authorizes a second manual write.
 
 ## Service activities and points
 

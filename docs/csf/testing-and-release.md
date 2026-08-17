@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 308 ordered migrations through
-  `20260817050000_publish_dvhs_csf_1_0_0`. The twelve migrations
+- The repository candidate has 314 ordered migrations through
+  `20260817132000_restore_multi_date_meeting_permission_rechecks`. The eighteen migrations
   added after the audited `development` baseline merge two prior lines: the
   Development-hardening pair
   (`20260816185321_enforce_authoritative_plugin_releases`,
@@ -52,19 +52,24 @@ their named runs only.
   `20260817022000_csf_permanent_class_code_join`,
   `20260817030000_csf_current_school_year_staff_authority`,
   `20260817040000_csf_announcement_link_previews`, and
-  `20260817050000_publish_dvhs_csf_1_0_0`).
+  `20260817050000_publish_dvhs_csf_1_0_0`,
+  `20260817100000_csf_review_decision_drives_application`,
+  `20260817120000_csf_term_bound_staff_access`,
+  `20260817121000_dvhs_csf_partner_clubs_simplification`,
+  `20260817130000_csf_multi_date_meeting_sessions`,
+  `20260817131000_csf_partial_attendance_commit_and_ai_resolution`, and
+  `20260817132000_restore_multi_date_meeting_permission_rechecks`).
 - Hosted Development was healthy and migration-current at the audited 296-row
   base through `20260816083000_csf_import_annotation_settlement`. This
-  implementation did not apply the twelve new migrations or re-verify hosted
+  implementation did not apply the eighteen new migrations or re-verify hosted
   parity, advisors, application deployment, or provider acceptance.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects a 72-migration
-  cutover to this 308-row candidate. Running that cutover requires separate
+  `20260811001500`; the exact read-only preflight now expects a 78-migration
+  cutover to this 314-row candidate. Running that cutover requires separate
   explicit action-time approval.
-- Local evidence on this candidate currently includes successful replay through
-  the 307-migration pre-release ledger plus focused pgTAP and application tests,
-  and passing `typecheck` and `lint`. A fresh exact 308-migration replay, full
-  exact-tree tests, build, strict
+- Local evidence on this candidate includes a fresh exact 314-migration replay,
+  155 pgTAP files with 5,833 assertions, focused workflow and browser tests,
+  and passing `typecheck`, `lint`, build, and strict
   submodule reachability, hosted role/browser acceptance, and provider
   acceptance remain release gates until recorded in the cleanup register.
 - Private CSF source is frozen on the release branch at

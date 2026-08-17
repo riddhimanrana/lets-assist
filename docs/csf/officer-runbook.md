@@ -1,7 +1,7 @@
 # DVHS CSF Officer Operations Runbook
 
 **Audience:** organization administrators, adviser, chapter officers, and Data Management
-**Current status:** this repository carries 308 ordered migrations through `20260817050000_publish_dvhs_csf_1_0_0`; Production was last verified read-only at 236 through `20260811001500`, leaving an exact repository-pinned 72-migration cutover. Hosted Development exact database parity, exact served SHA, browser role acceptance, provider acceptance, and the fresh full 308-migration replay remain pending release gates. Google OAuth and Picker were previously connected for a bounded Spring 2026 application preview that committed zero applications. Production remains untouched, and schema deployment or real-data mutation requires separate explicit action-time approval.
+**Current status:** this repository carries 314 ordered migrations through `20260817132000_restore_multi_date_meeting_permission_rechecks`; Production was last verified read-only at 236 through `20260811001500`, leaving an exact repository-pinned 78-migration cutover. Hosted Development exact database parity, exact served SHA, browser role acceptance, and provider acceptance remain pending release gates. The fresh full 314-migration local replay passed. Google OAuth and Picker were previously connected for a bounded Spring 2026 application preview that committed zero applications. Production remains untouched, and schema deployment or real-data mutation requires separate explicit action-time approval.
 **Authoritative record after review:** Let's Assist
 
 This runbook describes the v1.3 officer workflow. Do not use it for a production cutover until the remaining Google, full browser-mutation, accessibility, hosted scheduled-post, Production email/webhook, advisor, and database cutover gates in [testing and release](testing-and-release.md) pass.
@@ -270,7 +270,7 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Complete green PR checks; least-privilege `PRIVATE_SUBMODULE_TOKEN`, GitGuardian disposition for the removed local-only fixture password, and authenticated Vercel Preview diagnosis remain open
 - [x] Post-hardening production build and full private-plugin unit-suite rerun
 - [ ] Persistent isolated Supabase development branch after explicit `$0.01344/hour` cost confirmation
-- [ ] Re-establish the stable Development alias and prove branch-scoped non-production Supabase parity against the ordered ledger through `20260817050000`; the earlier alias/parity evidence applies only to its historical tree
+- [ ] Re-establish the stable Development alias and prove branch-scoped non-production Supabase parity against the ordered ledger through `20260817132000`; the earlier alias/parity evidence applies only to its historical tree
 - [x] Authorize local and hosted Development Google origins/callbacks, including `http://localhost:3001` and `https://dev.lets-assist.com`
 - [ ] Complete Google reconnect, revocation, and failure-state verification; the exact chapter identity, Picker selection, and one bounded failed-preview attempt are current Development evidence, not full import acceptance
 - [ ] Complete synthetic visible mutation lifecycle for every actor
@@ -287,6 +287,6 @@ Before this runbook is used for the real chapter cutover, all boxes must be chec
 - [ ] Prove an enabled hosted scheduled-post worker invocation and visible synthetic schedule → Feed transition before relying on it in that environment
 - [x] Configure and repeatedly verify hosted `csf-communications-dispatch`; document that GitHub scheduling is irregular and does not promise fixed-time delivery
 
-Live chapter Google OAuth, Picker selection, and one bounded Development preview have been performed; the preview stopped at its failed seal after storing 85 rows and committed zero applications. No chapter import commit or Google write has been performed. Development uses a separate hosted Supabase project, but exact parity with the current 308-migration repository ledger and exact-current-code alias evidence have not been established. Production has been inspected read-only but not mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.
+Live chapter Google OAuth, Picker selection, and one bounded Development preview have been performed; the preview stopped at its failed seal after storing 85 rows and committed zero applications. No chapter import commit or Google write has been performed. Development uses a separate hosted Supabase project, but exact parity with the current 314-migration repository ledger and exact-current-code alias evidence have not been established. Production has been inspected read-only but not mutated. Vela was not accessed or mutated. The remaining items are action-time release gates, not completed runbook steps.
 
 See [testing and release](testing-and-release.md) for current evidence and residual risk. See the [product contract](product-contract.md) for the full product, permission, data, and acceptance contracts.
