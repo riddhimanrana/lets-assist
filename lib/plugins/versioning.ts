@@ -46,6 +46,13 @@ export function isPluginVersionBehind(
   return comparePluginVersions(current, target) < 0;
 }
 
+export function isPluginRuntimeVersionExact(
+  installed: string | null | undefined,
+  loaded: string | null | undefined,
+): boolean {
+  return comparePluginVersions(installed, loaded) === 0;
+}
+
 export function coalescePluginVersion(
   primary: string | null | undefined,
   fallback: string | null | undefined,

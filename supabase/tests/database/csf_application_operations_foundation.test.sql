@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(46);
+SELECT extensions.plan(47);
 
 SELECT extensions.ok(
   NOT has_function_privilege(
@@ -137,25 +137,32 @@ VALUES
   );
 
 INSERT INTO public.organization_members (organization_id, user_id, role, status)
-VALUES (
-  'ca100000-0000-4000-8000-000000000001',
-  'ca000000-0000-4000-8000-000000000001',
-  'admin',
-  'active'
-);
+VALUES
+  (
+    'ca100000-0000-4000-8000-000000000001',
+    'ca000000-0000-4000-8000-000000000001',
+    'admin',
+    'active'
+  ),
+  (
+    'ca100000-0000-4000-8000-000000000001',
+    'ca000000-0000-4000-8000-000000000004',
+    'staff',
+    'active'
+  );
 
 INSERT INTO plugin_data.csf_terms (
-  id, organization_id, code, label, school_year, semester
+  id, organization_id, code, label, school_year, semester, is_current
 ) VALUES
   (
     'ca200000-0000-4000-8000-000000000001',
     'ca100000-0000-4000-8000-000000000001',
-    'F28', 'Fall 2028', '2028-2029', 'fall'
+    'F28', 'Fall 2028', '2028-2029', 'fall', true
   ),
   (
     'ca200000-0000-4000-8000-000000000002',
     'ca100000-0000-4000-8000-000000000002',
-    'F28', 'Fall 2028', '2028-2029', 'fall'
+    'F28', 'Fall 2028', '2028-2029', 'fall', true
   );
 
 INSERT INTO plugin_data.csf_term_policies (
@@ -239,6 +246,12 @@ INSERT INTO plugin_data.csf_staff_positions (
     'ca000000-0000-4000-8000-000000000004',
     'ca500000-0000-4000-8000-000000000001',
     '2028-2029', 'Application Reviewer', 'active'
+  ),
+  (
+    'ca100000-0000-4000-8000-000000000001',
+    'ca000000-0000-4000-8000-000000000003',
+    'ca500000-0000-4000-8000-000000000002',
+    '2027-2028', 'Former Advisor', 'active'
   );
 
 INSERT INTO plugin_data.csf_term_applications (
@@ -387,6 +400,19 @@ SELECT extensions.throws_ok(
   'P0001',
   'Academic eligibility may only be overridden by a CSF adviser.',
   'a non-adviser cannot waive academic eligibility'
+);
+SELECT extensions.throws_ok(
+  $$
+    SELECT plugin_data.csf_set_application_check(
+      'ca100000-0000-4000-8000-000000000001',
+      'ca600000-0000-4000-8000-000000000001',
+      'academic_eligibility', 'waived', 'former_adviser_override', 'Former adviser override.', '{}',
+      'ca000000-0000-4000-8000-000000000003', 'Attempted prior-year adviser exception'
+    )
+  $$,
+  'P0001',
+  'Academic eligibility may only be overridden by a CSF adviser.',
+  'a prior-year adviser cannot waive current academic eligibility'
 );
 SELECT extensions.lives_ok(
   $$

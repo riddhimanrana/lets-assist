@@ -2,6 +2,7 @@ import { isEntitlementActive } from "@/lib/plugins/resolve-org-plugins";
 import {
   coalescePluginVersion,
   isPluginVersionBehind,
+  isPluginRuntimeVersionExact,
 } from "@/lib/plugins/versioning";
 import type { OrganizationPluginAdminSetting } from "@/types";
 
@@ -125,6 +126,13 @@ export function buildOrganizationPluginAdminSettings(input: {
       if (!blockedReason && forceUpdateRequired) {
         blockedReason =
           "A platform-enforced update is required before this plugin can be used.";
+      } else if (
+        !blockedReason &&
+        runtimePlugin &&
+        !isPluginRuntimeVersionExact(installedVersion, runtimePlugin.version)
+      ) {
+        blockedReason =
+          "Update this installation before using the plugin version loaded by the platform.";
       }
 
       return {

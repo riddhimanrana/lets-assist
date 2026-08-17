@@ -616,10 +616,11 @@ test.describe("CSF identity safety", () => {
     page,
   }) => {
     const failures = watchBrowserFailures(page);
-    await loginAs(page, "admin");
-    await openMembersTab(page);
-
-    await page.getByRole("button", { name: "Needs account link" }).click();
+    await loginAs(
+      page,
+      "admin",
+      `${CSF_ORGANIZATION_PATH}?tab=csf-members&csf_member_view=connections`,
+    );
     await expect(page).toHaveURL(/[?&]csf_member_view=connections(?:&|$)/);
 
     const connections = page.getByRole("region", {
