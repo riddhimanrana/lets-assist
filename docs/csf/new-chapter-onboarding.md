@@ -153,7 +153,7 @@ For DVHS, the only historical student imports are the approved Class of 2027–2
 
 ## Stage 5 — Communications setup
 
-Before any announcement email: save the broadcast topic and the Resend topic id in the organization's plugin settings for the `term_members` audience. Cohort posts email through the same announcements consent topic, and the durable ledger will refuse to queue without it.
+Before any announcement email, open **Communications settings**, select **Check communications setup**, and confirm the **Term members** audience reports **Ready**. The platform provisions and validates provider topics server-side; ordinary officers never enter or see provider identifiers. Class posts use the same chapter-announcement unsubscribe boundary, and the durable ledger refuses to queue while setup is degraded or incomplete.
 
 ## Stage 6 — Student rollout
 

@@ -179,7 +179,7 @@ This section is the one-time cutover procedure from Google Classroom + spreadshe
 ### 10.1 One-time semester and cohort setup
 
 1. Create cohorts Class of 2027 through Class of 2030 and terms Spring 2025, Fall 2025, Spring 2026 (closed) and Fall 2026 (current) through **Classes → Semesters & setup** (§2). Class of 2026 is out of scope. The Class of 2030 setup creates its cohort and terms only; never import its template workbook. Create each 2030 profile from reviewed current application evidence, then resolve the separate application row to that existing profile as described in §10.3.
-2. In **More → Communications → Settings**, confirm the two stored values for the **Term members** audience: **Consent topic key** and **Resend topic id**. That section holds nothing else — sender domain and provider health are verified outside it, against the provider. An established consent key is read-only, because opt-outs are stored under that exact key; changing one takes a dedicated audited migration. A missing pair keeps broadcast queueing disabled for that audience rather than guessing a scope. Do not use the generic organization-plugin JSON editor; cohort posts email through the same announcements consent topic.
+2. In **More → Communications → Settings**, use **Check communications setup** and confirm the **Term members** audience reports **Ready**. Officers see only the friendly readiness state; provider topic identifiers remain in platform-admin diagnostics. **Needs provider setup** keeps broadcast queueing disabled rather than guessing a scope. Do not use the generic organization-plugin JSON editor; class posts use the same chapter-announcement unsubscribe boundary.
 
 ### 10.2 Legacy data seed (rehearse locally first: `bun run dev`)
 

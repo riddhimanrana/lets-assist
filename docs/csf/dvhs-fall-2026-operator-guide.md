@@ -639,11 +639,12 @@ If any changed, reload and resolve the current blocker.
 2. Use its three sections: **Campaigns** for drafts and exact audience
    snapshots, **Delivery issues** for unknown/quarantined provider outcomes, and
    **Settings** for the reviewed consent configuration.
-3. **Settings** stores exactly two values per audience — **Consent topic key**
-   and **Resend topic id**. An established consent key is locked, because
-   existing opt-outs are stored under that exact key; changing one takes a
-   dedicated audited migration. A missing pair keeps broadcast queueing disabled
-   for that audience rather than guessing a scope.
+3. **Communications settings** shows only the officer-safe state for each
+   audience: **Ready** or **Needs provider setup**. Use **Check communications
+   setup** to ask the platform to provision and validate the audience boundary.
+   Provider identifiers remain in platform-admin diagnostics. A degraded or
+   incomplete setup keeps broadcast queueing disabled rather than guessing a
+   scope.
 4. In **Campaigns**, start with **New email** and save the draft, then select
    **Finalize content**. That freezes content and still queues nothing. Select
    **Review recipients** to record canonical included/excluded totals. Only

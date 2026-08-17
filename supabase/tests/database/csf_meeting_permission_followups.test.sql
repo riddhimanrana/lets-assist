@@ -136,7 +136,7 @@ INSERT INTO plugin_data.csf_staff_positions (
 INSERT INTO plugin_data.csf_terms (
   id, organization_id, code, label, school_year, semester, lifecycle_status, is_current
 ) VALUES
-  ('ea400000-0000-4000-8000-000000000001', 'ea100000-0000-4000-8000-000000000001', 'F50', 'Fall 2050', '2050-2051', 'fall', 'open', false),
+  ('ea400000-0000-4000-8000-000000000001', 'ea100000-0000-4000-8000-000000000001', 'F50', 'Fall 2050', '2050-2051', 'fall', 'open', true),
   ('ea400000-0000-4000-8000-000000000002', 'ea100000-0000-4000-8000-000000000002', 'F50', 'Fall 2050', '2050-2051', 'fall', 'open', true);
 
 INSERT INTO plugin_data.csf_profiles (

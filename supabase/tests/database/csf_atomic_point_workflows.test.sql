@@ -248,6 +248,11 @@ INSERT INTO plugin_data.csf_terms (
   true
 );
 
+UPDATE plugin_data.csf_staff_positions
+SET school_year = '2027-2028'
+WHERE organization_id = 'cd100000-0000-4000-8000-000000000001'
+  AND user_id = 'cd000000-0000-4000-8000-000000000001';
+
 INSERT INTO plugin_data.csf_term_memberships (
   organization_id, profile_id, term_id, status, accepted_at
 ) VALUES (

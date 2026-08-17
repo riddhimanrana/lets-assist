@@ -361,7 +361,12 @@ const COMMUNICATIONS: LabelContract[] = [
   },
   {
     component: "CsfCommunicationsSettings.tsx",
-    labels: ["Consent topic key", "Resend topic id"],
+    labels: [
+      "Communications settings",
+      "Ready",
+      "Needs provider setup",
+      "Check communications setup",
+    ],
   },
   {
     component: "CsfCommunicationsCampaigns.tsx",

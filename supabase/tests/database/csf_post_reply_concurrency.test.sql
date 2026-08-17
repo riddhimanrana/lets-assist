@@ -46,6 +46,14 @@ SELECT plugin_data.csf_install_default_roles(
   'fc100000-0000-4000-8000-000000000001'
 );
 
+INSERT INTO plugin_data.csf_terms (
+  id, organization_id, code, label, school_year, semester, is_current
+) VALUES (
+  'fc150000-0000-4000-8000-000000000001',
+  'fc100000-0000-4000-8000-000000000001',
+  'F26', 'Fall 2026', '2026-2027', 'fall', true
+);
+
 INSERT INTO plugin_data.csf_staff_positions (
   organization_id, user_id, role_id, school_year, display_title, status
 )
