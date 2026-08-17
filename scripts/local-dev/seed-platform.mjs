@@ -28,13 +28,14 @@ import {
 // then wiped its CSF data. The stack it destroys must be stated by the caller,
 // never inferred from which environment variables happen to be exported.
 //
-// There are exactly three modes, no default, and no cross-mode fallback. A
+// There are exactly four modes, no default, and no cross-mode fallback. A
 // missing, empty, or misspelled value fails here — before the fixture password,
 // before either environment helper, before the client, before the Supabase CLI,
 // and before any database access.
 // ---------------------------------------------------------------------------
 const PLATFORM_SEED_MODES = [
   "shared-local-v1",
+  "shared-local-csf-v1",
   "csf-isolated-v1",
   "hosted-development-v1",
 ];
@@ -49,6 +50,8 @@ function resolvePlatformSeedMode(env = process.env) {
         "PLATFORM_SEED_MODE=shared-local-v1 (bun run supabase:seed:local-dev) for the " +
         "shared local stack, or PLATFORM_SEED_MODE=csf-isolated-v1 " +
         "(bun run csf:seed:platform:isolated) for a generated CSF isolated stack, or " +
+        "PLATFORM_SEED_MODE=shared-local-csf-v1 (bun run supabase:seed:local-dev:csf) " +
+        "for the shared local stack WITH the CSF fixtures, or " +
         "PLATFORM_SEED_MODE=hosted-development-v1 (bun run csf:seed:hosted-development) " +
         "for the persistent hosted development branch.",
     );
@@ -68,6 +71,14 @@ function resolvePlatformSeedMode(env = process.env) {
       "PLATFORM_SEED_MODE=shared-local-v1 refuses CSF_ISOLATED_WORK_DIR. A shared-local " +
         "seed must never be pointed at a generated isolated stack; run " +
         "bun run csf:seed:platform:isolated instead.",
+    );
+  }
+
+  if (requested === "shared-local-csf-v1" && isolatedWorkDir) {
+    throw new Error(
+      "PLATFORM_SEED_MODE=shared-local-csf-v1 refuses CSF_ISOLATED_WORK_DIR. It " +
+        "targets the shared local stack; run bun run csf:seed:platform:isolated " +
+        "for a generated isolated stack.",
     );
   }
 
@@ -99,6 +110,13 @@ const PLATFORM_SEED_MODE = resolvePlatformSeedMode();
 // as the non-CSF path. Isolated mode keeps the deterministic synthetic CSF
 // fixtures the browser and replay acceptance path depends on; shared local mode
 // now creates, replaces, and deletes none of them.
+//
+// `shared-local-csf-v1` exists because no local stack could exercise CSF and
+// Google together: the isolated runner shadows every provider key
+// unconditionally, and shared local seeded no CSF at all. It is a separate,
+// explicitly named mode rather than a loosening of shared-local-v1, so the
+// "zero CSF mutations" contract that mode advertises stays literally true and
+// nobody gets the CSF footprint without asking for it by name.
 const SEEDS_DVHS_CSF = PLATFORM_SEED_MODE !== "shared-local-v1";
 
 function getHostedDevelopmentSupabaseEnv(env = process.env) {
@@ -591,7 +609,13 @@ async function main() {
             organization_id: orgId,
             plugin_key: pluginKey,
             enabled: true,
-            installed_version: "0.1.0",
+            // Derived from the catalog rather than hardcoded. A fixed "0.1.0"
+            // silently disagreed with calendar-tools, whose published release
+            // is 1.0.0, and an enabled install must reference a published
+            // compatible release.
+            installed_version:
+              seededPluginCatalogRows.find((row) => row.key === pluginKey)
+                ?.latest_version ?? "0.1.0",
             installed_by: users.developer.id,
             configuration: {
               localFixture: true,

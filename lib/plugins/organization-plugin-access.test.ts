@@ -16,7 +16,7 @@ function accessRow(
 ): OrganizationPluginAccessRow {
   return {
     organization_id: "org-1",
-    plugin_key: "calendar-tools",
+    plugin_key: "dvhs-csf",
     enabled: true,
     configuration: {},
     installed_at: "2026-01-01T00:00:00.000Z",
@@ -342,7 +342,7 @@ describe("organization plugin access resolution", () => {
     });
 
     expect(attempts).toBe(2);
-    expect(rows.map((row) => row.plugin_key)).toEqual(["calendar-tools"]);
+    expect(rows.map((row) => row.plugin_key)).toEqual(["dvhs-csf"]);
   });
 
   test("thrown query failures fail closed", async () => {
