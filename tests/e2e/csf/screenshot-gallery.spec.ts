@@ -160,11 +160,10 @@ test.describe("sanitized DVHS CSF screenshot gallery", () => {
       }
 
       if (name === "41-applications-list") {
-        const reviewLinks = page.locator('a[href*="csf_application="]');
-        expect(await reviewLinks.count()).toBeGreaterThan(0);
-        await reviewLinks.first().click();
-        await expect(page).toHaveURL(/csf_application=/);
-        await capture(page, "42-application-review");
+        // The tab now mounts the review campaign workspace; a per-application
+        // review screen only exists once an officer enters the queue, so the
+        // gallery keeps the roster capture.
+        await expect(page.locator("#applications")).toBeVisible();
       }
     }
   });

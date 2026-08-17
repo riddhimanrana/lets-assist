@@ -52,28 +52,15 @@ test.describe("admin visible-action matrix", () => {
     await expect(page).toHaveURL(/[?&]tab=csf-settings(?:&|$)/);
   });
 
-  test("application list exposes enabled operational controls", async ({
+  test("applications tab mounts the review campaign workspace", async ({
     page,
   }) => {
     await page.goto(`${CSF_ORGANIZATION_PATH}?tab=csf-applications`);
-    // Everyday controls: the five queue chips plus search stay in view; the
-    // operational dropdowns wait behind one explicit disclosure.
-    const chips = page.locator(
-      '[aria-label="Application work queues"] [role="button"]:visible',
-    );
-    expect(await chips.count()).toBeGreaterThanOrEqual(5);
-    for (const chip of await chips.all()) {
-      await expect(chip).toBeVisible();
-      await expect(chip).toBeEnabled();
-    }
-    await page.getByRole("button", { name: "More filters" }).click();
-    const controls = page.locator(
-      '[aria-label="Application filters"] button:visible, form[role="search"] button:visible, button[aria-label^="Sort applications"]:visible',
-    );
-    expect(await controls.count()).toBeGreaterThanOrEqual(8);
-    for (const control of await controls.all()) {
-      await expect(control).toBeVisible();
-      await expect(control).toBeEnabled();
-    }
+    // The tab is the application review campaign: the shared review chrome
+    // renders and the old queue-chip toolbar is gone.
+    await expect(page.locator("#applications")).toBeVisible();
+    await expect(
+      page.locator('[aria-label="Application work queues"]'),
+    ).toHaveCount(0);
   });
 });
