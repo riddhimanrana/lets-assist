@@ -165,6 +165,25 @@ describe("CI db-replay-validation uses the recovery topology and isolated seed",
     expect(job).toContain("bun run csf:seed:platform:isolated");
     expect(job).not.toContain("bun run supabase:seed:local-dev");
   });
+
+  test("both isolated production browser builds skip only their redundant typecheck", () => {
+    const job = dbReplayJob();
+    const dvStep = job.slice(
+      job.indexOf("- name: Validate DV browser workflows"),
+      job.indexOf("- name: Skip private DV browser workflows"),
+    );
+    const csfStep = job.slice(
+      job.indexOf("- name: Validate CSF browser workflows"),
+      job.indexOf("- name: Verify isolated Supabase remains healthy"),
+    );
+
+    for (const step of [dvStep, csfStep]) {
+      expect(step).toContain('CSF_BROWSER_SKIP_BUILD_TYPECHECK: "1"');
+    }
+    expect(job.match(/CSF_BROWSER_SKIP_BUILD_TYPECHECK: "1"/gu)?.length).toBe(
+      2,
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
