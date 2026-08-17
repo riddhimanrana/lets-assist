@@ -292,19 +292,19 @@ test.describe("DVHS CSF accessibility acceptance", () => {
     await expect(tablist).toMatchAriaSnapshot(`
       - tablist:
         - tab "Home" [selected]
-        - tab "Applications"
-        - tab "Members"
-        - tab "Service"
         - tab "Classes"
+        - tab "Applications"
     `);
 
     await page.getByRole("button", { name: "More", exact: true }).click();
     await expect(page.getByRole("menu")).toMatchAriaSnapshot(`
       - menu "More":
         - group "More":
-          - menuitem "Imports"
+          - menuitem "Meetings"
+          - menuitem "Partner clubs"
+          - menuitem "Import history"
           - menuitem "Reports"
-          - menuitem "Staff access"
+          - menuitem "Officers & access"
           - menuitem "Change history"
           - menuitem "Communications"
           - menuitem "Settings"
@@ -324,14 +324,14 @@ test.describe("DVHS CSF accessibility acceptance", () => {
       - menu:
         - group "Workspace":
           - menuitem "Home"
-          - menuitem "Applications"
-          - menuitem "Members"
-          - menuitem "Service"
           - menuitem "Classes"
+          - menuitem "Applications"
         - group "More":
-          - menuitem "Imports"
+          - menuitem "Meetings"
+          - menuitem "Partner clubs"
+          - menuitem "Import history"
           - menuitem "Reports"
-          - menuitem "Staff access"
+          - menuitem "Officers & access"
           - menuitem "Change history"
           - menuitem "Communications"
           - menuitem "Settings"

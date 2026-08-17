@@ -2,17 +2,13 @@ import { expect, test } from "@playwright/test";
 
 import { CSF_ORGANIZATION_PATH, loginAs } from "./helpers";
 
-const primaryTabs = [
-  "Home",
-  "Applications",
-  "Members",
-  "Service",
-  "Classes",
-] as const;
+const primaryTabs = ["Home", "Classes", "Applications"] as const;
 const utilityTabs = [
-  "Imports",
+  "Meetings",
+  "Partner clubs",
+  "Import history",
   "Reports",
-  "Staff access",
+  "Officers & access",
   "Change history",
   "Communications",
   "Settings",
