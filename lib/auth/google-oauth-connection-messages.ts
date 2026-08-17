@@ -109,6 +109,12 @@ const GOOGLE_OAUTH_OUTCOME_MESSAGES: Readonly<
       "Your current role no longer permits this connection. Ask an officer who holds the matching permission.",
     canRetry: false,
   },
+  google_not_configured: {
+    tone: "error",
+    message:
+      "Google is not configured in this environment, so no connection can be started. Local development runs with providers disabled.",
+    canRetry: false,
+  },
 
   // --- provider and persistence ------------------------------------------
   token_exchange_failed: {

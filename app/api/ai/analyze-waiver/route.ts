@@ -11,9 +11,8 @@ import { detectCandidateAreas } from "@/lib/waiver/candidate-detection";
 import { detectPdfWidgets } from "@/lib/waiver/pdf-field-detect";
 import type { CandidateArea } from "@/lib/waiver/candidate-detection";
 import type { DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
-import { gatewayModel } from "@/lib/ai/gateway";
 import { AI_MODEL_FAST, AI_MODEL_FALLBACK_CHAIN } from "@/lib/ai/models";
-import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
+import { prepareTrackedAiCall } from "@/lib/ai/with-ai-tracking";
 import {
   buildAnalyzeWaiverQuotaIdentity,
   consumeAnalyzeWaiverQuota,
@@ -1579,15 +1578,19 @@ export async function POST(request: NextRequest) {
       2,
     );
 
+    const trackedWaiverAnalysis = prepareTrackedAiCall({
+      context: {
+        scope: "platform",
+        userId: posthogDistinctId,
+        feature: "waiver-analysis",
+      },
+      modelId: selectedModel,
+    });
+    const waiverAnalysisStartedAt = Date.now();
     const result = await generateText({
-      model: gatewayModel("platform", selectedModel),
-      experimental_telemetry: createPostHogTelemetry({
-        functionId: "analyze-waiver",
-        distinctId: posthogDistinctId,
-        metadata: {
-          ai_feature: "waiver-analysis",
-        },
-      }),
+      model: trackedWaiverAnalysis.model,
+      experimental_telemetry: trackedWaiverAnalysis.telemetry,
+      providerOptions: { gateway: trackedWaiverAnalysis.gatewayOptions },
       output: Output.object({ schema: WaiverClassificationSchema }),
       messages: [
         {
@@ -1655,6 +1658,11 @@ ${structuredInput}
         },
       ],
       temperature: 0,
+    });
+    await trackedWaiverAnalysis.logUsage({
+      promptTokens: result.usage.inputTokens,
+      completionTokens: result.usage.outputTokens,
+      latencyMs: Date.now() - waiverAnalysisStartedAt,
     });
     const structured = result.output;
 
@@ -1747,16 +1755,19 @@ ${structuredInput}
           2,
         );
 
+        const trackedVisionFallback = prepareTrackedAiCall({
+          context: {
+            scope: "platform",
+            userId: posthogDistinctId,
+            feature: "waiver-analysis-vision-fallback",
+          },
+          modelId: selectedModel,
+        });
+        const visionFallbackStartedAt = Date.now();
         const fallback = await generateText({
-          model: gatewayModel("platform", selectedModel),
-          experimental_telemetry: createPostHogTelemetry({
-            functionId: "analyze-waiver-vision-fallback",
-            distinctId: posthogDistinctId,
-            metadata: {
-              ai_feature: "waiver-analysis",
-              ai_phase: "vision-fallback",
-            },
-          }),
+          model: trackedVisionFallback.model,
+          experimental_telemetry: trackedVisionFallback.telemetry,
+          providerOptions: { gateway: trackedVisionFallback.gatewayOptions },
           output: Output.object({ schema: VisionFallbackSchema }),
           messages: [
             {
@@ -1832,6 +1843,11 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
             },
           ],
           temperature: 0,
+        });
+        await trackedVisionFallback.logUsage({
+          promptTokens: fallback.usage.inputTokens,
+          completionTokens: fallback.usage.outputTokens,
+          latencyMs: Date.now() - visionFallbackStartedAt,
         });
 
         const minVisionConfidence = strictHallucinationGuard

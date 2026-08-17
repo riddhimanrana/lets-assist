@@ -41,7 +41,13 @@ test("project parser authenticates, validates input, meters, and emits user tele
   assert.match(route, /\.max\(4_000\)/u);
   assert.match(route, /consumeParseProjectQuota/u);
   assert.match(route, /status: 429/u);
-  assert.match(route, /distinctId: user\.id/u);
+  assert.match(route, /prepareTrackedAiCall/u);
+  assert.match(route, /userId: user\.id/u);
+  assert.match(route, /experimental_telemetry: tracked\.telemetry/u);
+  assert.match(
+    route,
+    /providerOptions: \{ gateway: tracked\.gatewayOptions \}/u,
+  );
   assert.match(route, /parseProjectOutputSchema\.safeParse/u);
   assert.match(route, /status: 502/u);
   assert.match(

@@ -85,7 +85,7 @@ export default function CalendarClient({
   const handleDisconnect = async () => {
     setIsDisconnecting(true);
     try {
-      const response = await fetch("/api/calendar/google/disconnect", {
+      const response = await fetch("/api/google/oauth/disconnect", {
         method: "POST",
       });
 

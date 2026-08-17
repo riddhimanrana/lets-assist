@@ -4,6 +4,100 @@ This register separates actionable repository defects from provider/account and 
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
 
+## Development hardening candidate — 2026-08-16
+
+This is the current status section. Later dated sections are retained as
+historical evidence and do not override it.
+
+- Root work is isolated on `codex/development-hardening-20260816` from exact
+  Development base `f866bd6`. The user-owned dirty checkout at
+  `/Users/riddhiman.rana/Desktop/Coding/lets-assist`, including feedback UI work
+  and `.playwright-mcp`, was not staged, formatted, stashed, or modified.
+- Private CSF work is committed on
+  `codex/csf-reconciliation-guard-20260816` at
+  `5e21d5dd60744dc50b7817bfc734a4e2ca71c8f5`. Private-first promotion remains
+  mandatory: merge that branch to private `development` before publishing a
+  root commit that advances the gitlink.
+- The repository candidate has 298 migrations through
+  `20260816190454_durable_paper_signup_notifications`. The audited hosted
+  Development baseline was healthy and migration-current at 296 through
+  `20260816083000_csf_import_annotation_settlement`; this implementation has
+  not applied the two new migrations or re-verified hosted parity/advisors.
+  Production remains untouched at the audited 236-migration baseline.
+- Implemented locally: authoritative attested plugin releases and fail-closed
+  entitlement/install resolution; centralized AI usage/quota/privacy handling;
+  Development Resend sender/recipient guards; durable paper-signup notification
+  outbox and orphan-upload recovery; attended/completed-project feedback dialog
+  with a persistent manual entry point; and private CSF reconciliation guards
+  that keep annotation AI advisory/redacted, block Class of 2030 before source
+  acquisition, and allow no hosted commit without an exact Development source
+  UUID allowlist.
+- Current local evidence: static quality is green; the canonical runner passed
+  all 247 root and 227 plugin test files; and a synthetic-key Next.js production
+  build compiled, typechecked, prerendered all 81 static pages, and completed.
+  A generated isolated stack replayed all 298 migrations and passed all 150
+  pgTAP files with 6,004 assertions, then seeded the deterministic CSF fixtures
+  and passed the architecture, plugin isolation/data-access, release-registry,
+  and five-runtime-contract gates. Focused feedback/waiver pgTAP passed 273
+  assertions and plugin-release/paper-scan pgTAP passed 65 assertions.
+- The canonical `bun run build` and final redesign wrapper intentionally stop
+  only at strict private-submodule containment: private PR #51 is published but
+  not merged to private `development`. The direct build and every database gate
+  before that ordering check pass; this is a promotion blocker, not permission
+  to bypass or weaken the check.
+- GitHub branch protection is now enabled on root and private `development` and
+  `main`: one approving review, stale-review dismissal, last-push approval,
+  resolved conversations, up-to-date required checks, admin enforcement, and
+  no force pushes or deletion. Root requires `quality`; private requires
+  `GitGuardian Security Checks`.
+- The live Vercel inventory confirmed that generic Preview still inherited
+  legacy Supabase/database and Resend variables. The unscoped Preview records
+  for the Supabase URL/publishable/secret variants, legacy Postgres
+  host/user/database metadata, and `RESEND_API_KEY` were removed. The
+  `development` branch retains its branch-scoped Development values;
+  Production retains Production-only Supabase URL and Postgres metadata, now
+  stored as Sensitive. No deployment or alias changed.
+- The connected Resend team is Let’s Assist-owned and has three previously
+  verified Let’s Assist domains, a named Development worker key, four
+  Development CSF topics, and one enabled Development webhook. A dedicated
+  sending-only `dev-mail.lets-assist.com` domain now exists with tracking off,
+  and Vercel Preview branch `development` has a Sensitive
+  `RESEND_DEV_FROM_DOMAIN` fence for that exact domain. On 2026-08-16 its
+  conflict-free DKIM, MAIL FROM MX, and SPF records were installed DNS-only in
+  Cloudflare and independently resolved through `1.1.1.1`; Resend reports the
+  domain and all three records verified. All five legacy provider templates
+  remain drafts because the app renders the canonical React Email templates
+  directly. Per operator decision, the enabled webhook's Vercel
+  protection-bypass credential is intentionally retained for now and is not
+  recorded here.
+- A fresh generated isolated stack exercised the compiled CSF post workflow on
+  the current tree. The focused Playwright lane passed 5/5: an organization
+  admin published and pinned a synthetic class post, an officer appended a
+  follow-up, a member saw the pinned post and reply, a member-role account had
+  no compose affordance, and queued-email state remained explicitly distinct
+  from provider delivery. The suite cleaned its disposable post rows; the
+  stack then passed ownership-aware dry-run teardown and proved zero residual
+  labeled containers, volumes, or networks. The authenticated hosted
+  Development class workspace was inspected read-only and showed the synthetic
+  class fixtures, but no hosted post was submitted and no hosted candidate
+  acceptance is claimed.
+- The feedback worker and paper-signup notification worker remain disabled by
+  default. No provider send, webhook registration, hosted apply, deployment,
+  alias promotion, database mutation, real-source commit, or Production data
+  operation occurred.
+- Real 2027-2029 sources remain immutable-preview-only and permission-aware.
+  Class of 2030 remains template-only. No real student rows, attachments,
+  emails, or scan images were copied into fixtures, logs, screenshots, model
+  prompts, or committed artifacts.
+- Remaining release gates: merge private PR #51 after review/CI, rerun strict
+  containment and the canonical build/redesign wrappers, publish a root
+  Development PR, run the remaining isolated browser suites and hosted
+  synthetic role acceptance on the deployed candidate, run the synthetic
+  Resend acceptance matrix, and capture measured
+  provider/advisor evidence. Provider templates are not a release dependency
+  while application sends continue to render the reviewed React Email source.
+  Production promotion is a separately authorized program.
+
 ## Exact integrated Development evidence — 2026-08-14
 
 The current exact tree is the root branch `codex/development-closeout-20260813`

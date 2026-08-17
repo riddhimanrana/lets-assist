@@ -79,8 +79,34 @@ VALUES
   ('eb100000-0000-4000-8000-000000000001', 'Uninstall Retention Org One', 'uninstall-retention-org-one', 'school', '881101'),
   ('eb100000-0000-4000-8000-000000000002', 'Uninstall Retention Org Two', 'uninstall-retention-org-two', 'school', '881102');
 
-INSERT INTO public.plugins (key, name, visibility, is_active)
-VALUES ('uninstall-contract-test-plugin', 'Uninstall Contract Test Plugin', 'global', true);
+INSERT INTO public.plugins (
+  key, name, visibility, is_active, latest_version
+)
+VALUES (
+  'uninstall-contract-test-plugin',
+  'Uninstall Contract Test Plugin',
+  'global',
+  false,
+  '1.0.0'
+);
+
+INSERT INTO public.plugin_versions (
+  plugin_key, version, status, commit_sha, manifest_hash,
+  compatibility_contract, published_at
+)
+VALUES (
+  'uninstall-contract-test-plugin',
+  '1.0.0',
+  'published',
+  '2222222222222222222222222222222222222222',
+  '2222222222222222222222222222222222222222222222222222222222222222',
+  '{"host":"lets-assist","automaticUpdate":false}'::jsonb,
+  now()
+);
+
+UPDATE public.plugins
+SET is_active = true
+WHERE key = 'uninstall-contract-test-plugin';
 
 SELECT extensions.lives_ok(
   $$INSERT INTO public.organization_plugin_installs

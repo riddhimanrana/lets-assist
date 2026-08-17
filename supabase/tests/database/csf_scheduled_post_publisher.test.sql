@@ -206,6 +206,19 @@ VALUES
   ('fb100000-0000-4000-8000-000000000001', 'Scheduled Posts A', 'scheduled-posts-a', 'school', '996101'),
   ('fb100000-0000-4000-8000-000000000002', 'Scheduled Posts B', 'scheduled-posts-b', 'school', '996102');
 
+-- The publisher is intentionally global. Keep any synthetic scheduled rows
+-- supplied by a broader local fixture outside this test's due window so the
+-- bounded result below describes only the two chapters this transaction owns.
+-- ROLLBACK restores those rows after the test.
+UPDATE plugin_data.csf_announcements
+SET scheduled_for = '2199-01-01T00:00:00Z'::timestamptz
+WHERE status = 'scheduled'
+  AND scheduled_for <= pg_catalog.statement_timestamp()
+  AND organization_id NOT IN (
+    'fb100000-0000-4000-8000-000000000001',
+    'fb100000-0000-4000-8000-000000000002'
+  );
+
 INSERT INTO public.organization_members (
   organization_id, user_id, role, status
 ) VALUES
@@ -219,10 +232,10 @@ INSERT INTO public.organization_plugin_entitlements (
   ('fb150000-0000-4000-8000-000000000002', 'fb100000-0000-4000-8000-000000000002', 'dvhs-csf', 'active', 'fb000000-0000-4000-8000-000000000002');
 
 INSERT INTO public.organization_plugin_installs (
-  id, organization_id, plugin_key, enabled, installed_by
+  id, organization_id, plugin_key, installed_version, enabled, installed_by
 ) VALUES
-  ('fb160000-0000-4000-8000-000000000001', 'fb100000-0000-4000-8000-000000000001', 'dvhs-csf', true, 'fb000000-0000-4000-8000-000000000001'),
-  ('fb160000-0000-4000-8000-000000000002', 'fb100000-0000-4000-8000-000000000002', 'dvhs-csf', true, 'fb000000-0000-4000-8000-000000000002');
+  ('fb160000-0000-4000-8000-000000000001', 'fb100000-0000-4000-8000-000000000001', 'dvhs-csf', '0.1.0', true, 'fb000000-0000-4000-8000-000000000001'),
+  ('fb160000-0000-4000-8000-000000000002', 'fb100000-0000-4000-8000-000000000002', 'dvhs-csf', '0.1.0', true, 'fb000000-0000-4000-8000-000000000002');
 
 INSERT INTO plugin_data.csf_terms (
   id, organization_id, code, label, school_year, semester,

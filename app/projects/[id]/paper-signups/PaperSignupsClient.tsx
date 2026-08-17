@@ -69,7 +69,7 @@ export interface CommitSummary {
   overCapacity: number;
   failed: Array<{ rowId: string; detail: string }>;
   certificatesIssued: number;
-  emailsSent: number;
+  notificationsQueued: number;
 }
 
 interface PaperSignupsClientProps {
@@ -252,10 +252,10 @@ export function PaperSignupsClient({
                   the slot capacity
                 </li>
               )}
-              {commitSummary.emailsSent > 0 && (
+              {commitSummary.notificationsQueued > 0 && (
                 <li>
-                  <strong>{commitSummary.emailsSent}</strong> volunteers emailed
-                  a link to their record
+                  <strong>{commitSummary.notificationsQueued}</strong>{" "}
+                  attendance notifications queued
                 </li>
               )}
               {commitSummary.certificatesIssued > 0 && (

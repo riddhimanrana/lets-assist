@@ -19,7 +19,9 @@ describe("Google OAuth credential purpose boundaries", () => {
     expect(source).toContain("purpose: attemptBinding.purpose");
     expect(source).toContain("organizationId: attemptBinding.organizationId");
     expect(source).toContain("pluginKey: attemptBinding.pluginKey");
-    expect(source).toContain("const { attemptId, claimEpoch, binding: attemptBinding, returnTo } = claim;");
+    expect(source).toContain(
+      "const { attemptId, claimEpoch, binding: attemptBinding, returnTo } = claim;",
+    );
     expect(source).not.toContain('.from("user_calendar_connections")');
     expect(source).not.toContain("google_oauth_binding:");
   });
@@ -66,7 +68,7 @@ describe("Google OAuth credential purpose boundaries", () => {
   test("disconnects delete only the selected purpose credential and report shared-grant handling", () => {
     const service = readCalendarServiceSource();
     const personalDisconnect = readSource(
-      "app/api/calendar/google/disconnect/route.ts",
+      "app/api/google/oauth/disconnect/route.ts",
     );
     const orgCalendar = readSource("app/organization/[id]/calendar/actions.ts");
     const orgSheets = readOrganizationSheetActionsSource();

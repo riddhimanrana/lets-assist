@@ -138,11 +138,24 @@ export async function GET(request: Request) {
     const redirectUri = process.env.GOOGLE_REDIRECT_URI;
 
     if (!clientId || !redirectUri) {
+      /*
+        Not calendar-specific: this same route starts Sheets, Drive and CSF
+        import connections, so naming calendar sent officers hunting through
+        calendar settings for a Sheets import failure.
+
+        A JSON 500 is also a dead end -- the browser is mid-navigation from a
+        button click, so the officer lands on a raw error body with no way
+        back. Redirect to where they came from and let the surface explain it,
+        the same way every other refusal on this route already does.
+
+        The provider-disabled local stack strips these keys deliberately, so
+        this is the expected state there rather than a misconfiguration.
+      */
       console.error("Missing Google OAuth configuration");
-      return NextResponse.json(
-        { error: "Calendar integration is not configured" },
-        { status: 500 },
-      );
+      const baseUrl = resolveAuthRedirectOrigin(request.headers.get("host"));
+      const redirectUrl = new URL(allowlistedReturnTo, baseUrl);
+      redirectUrl.searchParams.set("error", "google_not_configured");
+      return NextResponse.redirect(redirectUrl.toString());
     }
 
     // Bind the attempt to the signed-in session, not just the user, so a

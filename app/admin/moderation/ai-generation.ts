@@ -1,7 +1,6 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { gatewayModel } from "@/lib/ai/gateway";
-import { createPostHogTelemetry } from "@/lib/ai/posthog-telemetry";
+import { prepareTrackedAiCall } from "@/lib/ai/with-ai-tracking";
 import { AI_MODEL_FAST, AI_MODEL_QUALITY } from "@/lib/ai/models";
 
 export const MODERATION_MODELS = [
@@ -52,26 +51,34 @@ export async function generateModerationObject<TSchema extends z.ZodTypeAny>({
   let lastError: unknown;
 
   for (const model of models) {
+    const tracked = prepareTrackedAiCall({
+      context: { scope: "moderation", feature: label },
+      modelId: model,
+    });
+    const startedAt = Date.now();
     try {
-      const { output } = await generateText({
-        model: gatewayModel("moderation", model),
-        experimental_telemetry: createPostHogTelemetry({
-          functionId: label,
-          metadata: {
-            ai_feature: "moderation",
-          },
-        }),
+      const result = await generateText({
+        model: tracked.model,
+        experimental_telemetry: tracked.telemetry,
+        providerOptions: { gateway: tracked.gatewayOptions },
         output: Output.object({ schema }),
         prompt,
       });
+      await tracked.logUsage({
+        promptTokens: result.usage.inputTokens,
+        completionTokens: result.usage.outputTokens,
+        latencyMs: Date.now() - startedAt,
+      });
 
-      return output as z.output<TSchema>;
-    } catch (error) {
-      lastError = error;
-      console.warn(
-        `[${label}] moderation generation failed with ${model}:`,
-        error,
-      );
+      return result.output as z.output<TSchema>;
+    } catch {
+      lastError = new Error(`${label} generation failed`);
+      await tracked.logUsage({
+        latencyMs: Date.now() - startedAt,
+        success: false,
+        errorMessage: "generation_failed",
+      });
+      console.warn(`[${label}] moderation generation failed`);
     }
   }
 

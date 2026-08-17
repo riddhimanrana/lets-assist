@@ -273,8 +273,26 @@ VALUES (
   true
 );
 
-INSERT INTO public.plugins (key, name, visibility)
-VALUES ('org-boundary-test', 'Organization Boundary Test', 'private');
+INSERT INTO public.plugins (key, name, visibility, is_active, latest_version)
+VALUES ('org-boundary-test', 'Organization Boundary Test', 'private', false, '1.0.0');
+
+INSERT INTO public.plugin_versions (
+  plugin_key, version, status, commit_sha, manifest_hash,
+  compatibility_contract, published_at
+)
+VALUES (
+  'org-boundary-test',
+  '1.0.0',
+  'published',
+  '1111111111111111111111111111111111111111',
+  '1111111111111111111111111111111111111111111111111111111111111111',
+  '{"host":"lets-assist","automaticUpdate":false}'::jsonb,
+  now()
+);
+
+UPDATE public.plugins
+SET is_active = true
+WHERE key = 'org-boundary-test';
 
 INSERT INTO public.organization_plugin_entitlements (
   id, organization_id, plugin_key, status, created_by

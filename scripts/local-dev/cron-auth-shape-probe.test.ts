@@ -22,7 +22,7 @@ import { join } from "node:path";
 mock.module("server-only", () => ({}));
 
 /**
- * The shared cron auth/shape probe, and the seven routes that call it, driven
+ * The shared cron auth/shape probe and every route that calls it, driven
  * with no database, no provider, no Storage, and no network.
  *
  * The assertions that matter most are the negative ones. Every danger boundary
@@ -313,6 +313,8 @@ const LOAD_TIME_ENV: Record<string, string> = {
   ORG_SHEET_SYNC_WORKER_SECRET_TOKEN: CRON_SECRET,
   CSF_COMMUNICATIONS_WORKER_SECRET_TOKEN: CRON_SECRET,
   CSF_SCHEDULED_POST_PUBLISHER_SECRET_TOKEN: CRON_SECRET,
+  PROJECT_FEEDBACK_WORKER_SECRET_TOKEN: CRON_SECRET,
+  PAPER_SIGNUP_NOTIFICATION_WORKER_SECRET_TOKEN: CRON_SECRET,
   // Deliberately enabled: a route that only looked safe because its worker was
   // switched off would prove nothing about the probe.
   AUTO_PUBLISH_ENABLED: "true",
@@ -320,6 +322,8 @@ const LOAD_TIME_ENV: Record<string, string> = {
   ORG_SHEET_SYNC_WORKER_ENABLED: "true",
   CSF_COMMUNICATIONS_WORKER_ENABLED: "true",
   CSF_SCHEDULED_POST_PUBLISHER_ENABLED: "true",
+  PROJECT_FEEDBACK_WORKER_ENABLED: "true",
+  PAPER_SIGNUP_NOTIFICATION_WORKER_ENABLED: "true",
 };
 for (const [key, value] of Object.entries(LOAD_TIME_ENV))
   process.env[key] = value;
@@ -348,6 +352,10 @@ const routeModules = {
     await import("@/app/api/cron/csf-communications-dispatch/route"),
   "csf-scheduled-post-publisher":
     await import("@/app/api/cron/csf-scheduled-post-publisher/route"),
+  "project-feedback-followups":
+    await import("@/app/api/cron/project-feedback-followups/route"),
+  "paper-signup-notifications":
+    await import("@/app/api/cron/paper-signup-notifications/route"),
 } as const;
 
 const ROUTE_PATHS = {
@@ -358,6 +366,8 @@ const ROUTE_PATHS = {
   "data-exports": "/api/cron/data-exports",
   "csf-communications-dispatch": "/api/cron/csf-communications-dispatch",
   "csf-scheduled-post-publisher": "/api/cron/csf-scheduled-post-publisher",
+  "project-feedback-followups": "/api/cron/project-feedback-followups",
+  "paper-signup-notifications": "/api/cron/paper-signup-notifications",
 } as const;
 
 type RouteId = keyof typeof routeModules;
@@ -440,7 +450,7 @@ const EXACT_PROBE_HEADERS = headersWith({
 // ---------------------------------------------------------------------------
 
 describe("cron auth/shape probe helper contract", () => {
-  test("exposes exactly the eight stable route IDs", () => {
+  test("exposes exactly the nine stable route IDs", () => {
     expect([...CRON_PROBE_ROUTE_IDS]).toEqual([
       "auto-publish-hours",
       "project-cancellations",
@@ -450,6 +460,7 @@ describe("cron auth/shape probe helper contract", () => {
       "csf-communications-dispatch",
       "csf-scheduled-post-publisher",
       "project-feedback-followups",
+      "paper-signup-notifications",
     ]);
     expect(CRON_AUTH_SHAPE_PROBE_ENV).toBe("CRON_AUTH_SHAPE_PROBE_ONLY");
     expect(CRON_AUTH_SHAPE_PROBE_MODE).toBe("auth-shape-v1");

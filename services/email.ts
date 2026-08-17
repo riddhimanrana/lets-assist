@@ -370,6 +370,72 @@ export function shouldUseMailpitTransport(): boolean {
   return process.env.VERCEL_ENV?.trim().toLowerCase() !== "production";
 }
 
+type DevelopmentProviderGuardResult =
+  | { allowed: true }
+  | {
+      allowed: false;
+      code:
+        | "development_sender_domain_missing"
+        | "development_sender_domain_mismatch"
+        | "development_recipient_blocked";
+    };
+
+function emailAddress(value: string): string | null {
+  const bracketed = value.match(/<([^<>]+)>/u)?.[1] ?? value;
+  const normalized = bracketed.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+$/u.test(normalized) ? normalized : null;
+}
+
+function configuredDevelopmentRecipients(): Set<string> {
+  return new Set(
+    (process.env.RESEND_DEV_RECIPIENT_ALLOWLIST ?? "")
+      .split(",")
+      .map((value) => emailAddress(value))
+      .filter((value): value is string => value !== null),
+  );
+}
+
+/**
+ * A Preview may deliberately opt into Resend for provider acceptance, but that
+ * must never turn a branch deployment into a general-purpose mail sender.
+ * Production is governed by its separate environment and is intentionally not
+ * affected by this Development-only gate.
+ */
+export function guardDevelopmentProviderSend(input: {
+  to: string | string[];
+  from: string;
+}): DevelopmentProviderGuardResult {
+  const vercelEnvironment = process.env.VERCEL_ENV?.trim().toLowerCase();
+  if (vercelEnvironment !== "preview" && vercelEnvironment !== "development") {
+    return { allowed: true };
+  }
+
+  const allowedDomain =
+    process.env.RESEND_DEV_FROM_DOMAIN?.trim().toLowerCase();
+  if (!allowedDomain) {
+    return { allowed: false, code: "development_sender_domain_missing" };
+  }
+
+  const sender = emailAddress(input.from);
+  if (!sender || !sender.endsWith(`@${allowedDomain}`)) {
+    return { allowed: false, code: "development_sender_domain_mismatch" };
+  }
+
+  const allowlist = configuredDevelopmentRecipients();
+  const recipients = Array.isArray(input.to) ? input.to : [input.to];
+  const allRecipientsAreSafe = recipients.every((recipient) => {
+    const normalized = emailAddress(recipient);
+    return (
+      normalized !== null &&
+      (normalized.endsWith("@resend.dev") || allowlist.has(normalized))
+    );
+  });
+
+  return allRecipientsAreSafe
+    ? { allowed: true }
+    : { allowed: false, code: "development_recipient_blocked" };
+}
+
 export async function sendViaMailpit({
   to,
   subject,

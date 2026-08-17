@@ -48,7 +48,7 @@ import { QRCodeScannerModal } from "@/app/projects/_components/QRCodeScannerModa
 import { createClient } from "@/lib/supabase/client"; // 🆕 add supabase client
 import { toast } from "sonner";
 import { getMyProjectFeedback, getMyWaiverSignatures } from "./actions";
-import { ProjectFeedbackForm } from "@/components/projects/ProjectFeedbackForm";
+import { ProjectFeedbackDialog } from "@/components/projects/ProjectFeedbackDialog";
 import {
   Carousel,
   CarouselContent,
@@ -1335,36 +1335,25 @@ export default function UserDashboard({
    * follow-up email links them here 24-96h after the event, which is
    * exactly when the carousel tends to be empty.
    */
-  const feedbackCard =
+  const feedbackPrompt =
     isProjectCompleted && attendedFeedbackSignupId && feedbackLoaded ? (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">
-            How did volunteering here go?
-          </CardTitle>
-          <CardDescription>
-            Share private feedback with the organizer.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ProjectFeedbackForm
-            projectId={project.id}
-            signupId={attendedFeedbackSignupId}
-            initial={myFeedback}
-          />
-        </CardContent>
-      </Card>
+      <ProjectFeedbackDialog
+        projectId={project.id}
+        signupId={attendedFeedbackSignupId}
+        initial={myFeedback}
+        onSubmitted={setMyFeedback}
+      />
     ) : null;
 
   if (!eventCards || eventCards.length === 0) {
     // Render general alerts and feedback even if no specific signup cards show
-    if (!feedbackCard && !renderGeneralSignupOnlyAlert()) {
+    if (!feedbackPrompt && !renderGeneralSignupOnlyAlert()) {
       return null;
     }
     return (
       <div className="space-y-4 mb-6">
         {renderGeneralSignupOnlyAlert()}
-        {feedbackCard}
+        {feedbackPrompt}
       </div>
     );
   }
@@ -1375,7 +1364,7 @@ export default function UserDashboard({
       {renderGeneralSignupOnlyAlert()}
       {/* --- END ADDED --- */}
 
-      {feedbackCard}
+      {feedbackPrompt}
 
       {/* Event Cards Carousel */}
       <Carousel

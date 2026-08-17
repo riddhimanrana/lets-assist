@@ -45,130 +45,52 @@ describe("CSF release-state documentation truthfulness guards", () => {
     const migrations = readdirSync(join(repositoryRoot, "supabase/migrations"))
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
-    expect(migrations).toHaveLength(296);
+    expect(migrations).toHaveLength(298);
     expect(migrations.at(-1)).toBe(
-      "20260816083000_csf_import_annotation_settlement.sql",
+      "20260816190454_durable_paper_signup_notifications.sql",
     );
 
     const currentState = between(
       testingAndRelease,
       "## Current hosted Development state",
-      "## Historical August 11 hosted Development amendment",
+      "## Historical pre-hardening Development state",
     );
     expect(currentState).toContain(
-      "repository branch has 296 ordered migrations through",
+      "sole current CSF implementation/status register is",
     );
     expect(currentState).toContain(
-      "`20260812203500_close_plugin_data_browser_default_acl`",
+      "repository candidate has 298 ordered migrations through",
     );
     expect(currentState).toContain(
-      "`20260812161500_atomic_project_signup_rejection`",
+      "`20260816185321_enforce_authoritative_plugin_releases`",
     );
     expect(currentState).toContain(
-      "`20260813013100_lock_project_lifecycle_transactions`",
+      "`20260816190454_durable_paper_signup_notifications`",
     );
     expect(currentState).toContain(
-      "Hosted Development Supabase remains at 273 ordered migrations through",
-    );
-    expect(currentState).toContain("`20260813010000_atomic_ai_quota_receipts`");
-    expect(currentState).toContain(
-      "`20260813012206_google_cap_effect_fencing`",
+      "Hosted Development was healthy and migration-current at the audited 296-row base",
     );
     expect(currentState).toContain(
-      "`20260812220000_csf_meeting_permission_followups`",
+      "did not apply the two new migrations or re-verify hosted parity",
     );
     expect(currentState).toContain(
-      "`20260813013300_close_csf_representative_and_publication_races`",
+      "Production remains untouched at the audited 236-row baseline",
     );
     expect(currentState).toContain(
-      "`20260813020000_cancellation_preserves_unknown_delivery_outcomes`",
+      "exact read-only preflight now expects a 62-migration cutover",
     );
     expect(currentState).toContain(
-      "`20260813085442_harden_private_is_plugin_enabled_acl`",
+      "fresh isolated replay of all 298 migrations",
+    );
+    expect(currentState).toContain("5e21d5dd60744dc50b7817bfc734a4e2ca71c8f5");
+    expect(currentState).toContain(
+      "merge to private `development` before the root gitlink is published",
     );
     expect(currentState).toContain(
-      "`20260813091801_harden_dv_private_policy_helper_acls`",
+      "Real CSF sources remain immutable-preview-only",
     );
-    expect(currentState).toContain(
-      "exact local isolated union replay passed all 293 migrations and 143 pgTAP files with 5,794 assertions and 84 CSF tables present",
-    );
-    expect(currentState).toContain(
-      "`20260815100500_dvhs_csf_application_queue_projection`",
-    );
-    expect(currentState).toContain(
-      "`20260812193400_protect_staff_invite_issuer_capability`",
-    );
-    expect(currentState).toContain(
-      "Hosted Development Supabase remains at 273 ordered migrations through",
-    );
-    expect(currentState).toContain("The twenty repository-only migrations are");
-    expect(currentState).toContain("`20260813010000_atomic_ai_quota_receipts`");
-    expect(currentState).toContain(
-      "`20260813013000_reconcile_project_lifecycle_boundaries`",
-    );
-    expect(currentState).toContain(
-      "hosted Development database parity, application deployment, and provider acceptance have not been established",
-    );
-    expect(currentState).not.toContain(
-      "repository and Development database ledgers match",
-    );
-    expect(currentState).toContain(
-      "Production remains at 236 ordered migrations through `20260811001500`",
-    );
-    expect(currentState).toContain("57-migration cutover has not run");
-    expect(currentState).not.toContain("50 migrations are Production-pending");
-    expect(currentState).toContain(
-      "`20260812132725_csf_drive_metadata_compare_and_set_fence`",
-    );
-    expect(currentState).toContain(
-      "Ready repository tree ended at 272 through",
-    );
-    expect(currentState).toContain(
-      "external Vercel 100-deployment-per-day project cap",
-    );
-    expect(currentState).toContain("alias is not exact-current-code evidence");
-    expect(currentState).toContain(
-      "95 INFO, 0 WARN, and 0 ERROR security findings",
-    );
-    expect(currentState).toContain(
-      "611 INFO, 0 WARN, and 0 ERROR performance findings",
-    );
-    expect(currentState).toContain("`dev.lets-assist.com`");
-    expect(currentState).toContain(
-      "`cf330e5faa844d63a2f41c8f0be4d1c727d51a47`",
-    );
-    expect(currentState).toContain(
-      "seven-argument metadata RPC exists, its old four-argument overload is absent",
-    );
-    expect(currentState).toContain(
-      "only `service_role` can execute the current RPC",
-    );
-    expect(currentState).toContain("Google OAuth and Picker are connected");
-    expect(currentState).toContain("Spring 2026 application workbook");
-    expect(currentState).toContain("`A1:Q518`");
-    expect(currentState).toContain("inspected and mapped");
-    expect(currentState).toContain(
-      "passed the metadata RPC and appended 85 stored preview rows",
-    );
-    expect(currentState).toContain(
-      "failed while sealing because the caller summary wrongly stated the reserved derived `rows` key",
-    );
-    expect(currentState).toContain("one failed preview job");
-    expect(currentState).toContain("zero term applications were committed");
-    expect(currentState).toContain("No names or email addresses");
-    expect(currentState).toContain(
-      "current root gitlink is `cdbeb59e6cc086e8794ec8b35157ab043f65c01c`",
-    );
-    expect(currentState).toContain(
-      "locally known private `origin/development` still ends at `605342ca8a3f2d83c4a7b40abf60ba03b9f12b5b`",
-    );
-    expect(currentState).toContain(
-      "current target is not contained there and remains a local-only, private-first release blocker",
-    );
-    expect(currentState).not.toContain(
-      "Preview failed before reading or importing rows because the seven-argument RPC was missing",
-    );
-    expect(currentState).toContain("Production remains untouched");
+    expect(currentState).toContain("Class of 2030 is template-only");
+    expect(currentState).toContain("no real-row commit");
 
     const externalGates = between(
       testingAndRelease,

@@ -25,6 +25,10 @@ import {
 } from "@/schemas/onboarding-schema";
 import { useState, useEffect, useRef } from "react";
 import { completeInitialOnboarding } from "./onboarding-actions";
+import {
+  firstAvailableUsername,
+  usernameCandidatesFromIdentity,
+} from "./username-suggestions";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -61,8 +65,8 @@ export default function InitialOnboardingModal({
   isOpen,
   onClose,
   userId: _userId,
-  currentFullName: _currentFullName,
-  currentEmail: _currentEmail,
+  currentFullName,
+  currentEmail,
   autoJoinedOrg,
   variant = "default",
 }: InitialOnboardingModalProps) {
@@ -161,6 +165,48 @@ export default function InitialOnboardingModal({
       }
     }
   }
+
+  /*
+    Suggest a username instead of opening on an empty box.
+
+    The modal tells students it "will keep showing up until filled out", so an
+    empty field is a stall in front of the one thing standing between them and
+    their connected CSF record. The name they already typed is enough to offer
+    a handle; availability still decides, and the value is only a default --
+    they can replace it, and `suggestedUsernameRef` makes sure we never
+    overwrite anything they have started typing.
+  */
+  const suggestedUsernameRef = useRef(false);
+  useEffect(() => {
+    if (suggestedUsernameRef.current) return;
+    if (!isOpen) return;
+    if (form.getValues("username")) return;
+    suggestedUsernameRef.current = true;
+
+    const candidates = usernameCandidatesFromIdentity(
+      currentFullName,
+      currentEmail,
+    );
+    if (!candidates.length) return;
+
+    let cancelled = false;
+    void firstAvailableUsername(candidates, async (candidate) => {
+      const res = await fetch(
+        `/api/check-username?username=${encodeURIComponent(candidate)}`,
+      );
+      if (!res.ok) throw new Error("Failed to check username");
+      const data = await res.json();
+      return data.available === true;
+    }).then((picked) => {
+      // Still empty: a student who typed while we were checking keeps theirs.
+      if (cancelled || !picked || form.getValues("username")) return;
+      form.setValue("username", picked, { shouldValidate: true });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, currentFullName, currentEmail, form]);
 
   useEffect(() => {
     if (!usernameValue) {

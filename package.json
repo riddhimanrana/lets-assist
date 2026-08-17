@@ -22,6 +22,7 @@
     "supabase:dump:schema": "supabase db dump --linked --schema public --file supabase/schemas/remote_baseline_schema.sql",
     "supabase:dump:seed": "supabase db dump --linked --data-only --schema public --file supabase/seeds/remote-snapshot.sql",
     "supabase:seed:local-dev": "PLATFORM_SEED_MODE=shared-local-v1 node scripts/local-dev/seed-platform.mjs",
+    "supabase:seed:local-dev:csf": "PLATFORM_SEED_MODE=shared-local-csf-v1 node scripts/local-dev/seed-platform.mjs",
     "csf:seed:platform:isolated": "PLATFORM_SEED_MODE=csf-isolated-v1 node scripts/local-dev/seed-platform.mjs",
     "csf:seed:hosted-development": "node scripts/local-dev/seed-hosted-development.mjs",
     "supabase:seed:dvsd": "bun run dv:fixtures",
