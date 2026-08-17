@@ -22,7 +22,7 @@ const architectureAudit = readFileSync(
 );
 
 const PRODUCTION_HEAD = "20260811001500";
-const TARGET_HEAD = "20260816190454";
+const TARGET_HEAD = "20260817010000";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
 const HARD_FAIL_SITES = 30;
 const hardFailStatements =
@@ -89,7 +89,11 @@ const PENDING_VERSIONS = [
   "20260815130000",
   "20260816083000",
   "20260816185321",
+  "20260816190000",
   "20260816190454",
+  "20260816230000",
+  "20260816233000",
+  "20260817010000",
 ] as const;
 
 function readMigration(version: string) {
@@ -101,7 +105,7 @@ function readMigration(version: string) {
 }
 
 describe("Production cutover preflight source contract", () => {
-  test("pins the exact 236 -> 298 ledger and all 62 pending versions", () => {
+  test("pins the exact 236 -> 302 ledger and all 66 pending versions", () => {
     const migrations = readdirSync(migrationsRoot)
       .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
       .sort();
@@ -123,7 +127,7 @@ describe("Production cutover preflight source contract", () => {
       (match) => match[1],
     );
 
-    expect(migrations).toHaveLength(298);
+    expect(migrations).toHaveLength(302);
     expect(migrations.at(0)?.slice(0, 14)).toBe("20260325181408");
     expect(migrations.at(-1)?.slice(0, 14)).toBe(TARGET_HEAD);
     expect(pinnedBaseline).toEqual(
@@ -132,9 +136,9 @@ describe("Production cutover preflight source contract", () => {
     expect(pending).toEqual([...PENDING_VERSIONS]);
     expect(pinnedTargetTail).toEqual([...PENDING_VERSIONS]);
     expect(preflight).toContain("count(*) = 236");
-    expect(preflight).toContain("count(*) = 298");
+    expect(preflight).toContain("count(*) = 302");
     expect(preflight).toContain("min(version::text) = '20260325181408'");
-    expect(preflight).toContain("62 migrations pending");
+    expect(preflight).toContain("66 migrations pending");
     expect(preflight).not.toContain("count(*) = 295");
     for (const version of PENDING_VERSIONS) {
       expect(preflight).toContain(`'${version}'`);
