@@ -367,7 +367,7 @@ imports rows nor authorizes a commit. Choose **Historical records**, never
 ### Connect Google first — and connect it yourself
 
 1. Open **More → Imports**.
-2. Under **Google Sheets connection**, read the badge: **Connected**, **Not
+2. Under **Google Drive connection**, read the badge: **Connected**, **Not
    connected**, **Reconnect required**, or **Checking access**. The approved
    account is named on the panel.
 3. Select **Connect** (or **Switch or reconnect** when the badge says so;

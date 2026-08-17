@@ -22,13 +22,20 @@ import { submitProjectFeedback } from "@/app/projects/[id]/actions";
 
 const COMMENT_MAX = 2000;
 
+export interface ProjectFeedbackFormValue {
+  rating: number;
+  comment: string | null;
+}
+
 interface ProjectFeedbackFormProps {
   projectId: string;
   signupId: string;
-  initial?: { rating: number; comment: string | null } | null;
+  initial?: ProjectFeedbackFormValue | null;
   /** Pre-selection from a deep link; still requires an explicit submit. */
   initialRating?: number | null;
-  onSubmitted?: (rating: number) => void;
+  /** Keep the editable controls visible when the host owns the compact summary. */
+  alwaysEditing?: boolean;
+  onSubmitted?: (value: ProjectFeedbackFormValue) => void;
 }
 
 /**
@@ -42,6 +49,7 @@ export function ProjectFeedbackForm({
   signupId,
   initial,
   initialRating,
+  alwaysEditing = false,
   onSubmitted,
 }: ProjectFeedbackFormProps) {
   const [rating, setRating] = useState<number>(
@@ -74,11 +82,11 @@ export function ProjectFeedbackForm({
       toast.success("Thanks — your feedback went to the organizer.");
       setSubmitted(true);
       setEditing(false);
-      onSubmitted?.(rating);
+      onSubmitted?.({ rating, comment: comment.trim() || null });
     });
   };
 
-  if (submitted && !editing) {
+  if (submitted && !editing && !alwaysEditing) {
     return (
       <FieldGroup>
         <Field>
@@ -144,7 +152,7 @@ export function ProjectFeedbackForm({
               ? "Update feedback"
               : "Send feedback"}
         </Button>
-        {submitted ? (
+        {submitted && !alwaysEditing ? (
           <Button
             variant="ghost"
             disabled={pending}

@@ -1,6 +1,5 @@
 "use server";
 
-import * as React from "react";
 import { z } from "zod";
 
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -8,8 +7,6 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
 import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
 import { resolveScheduleId } from "@/utils/project";
-import { sendEmail } from "@/services/email";
-import PaperSignupRecorded from "@/emails/paper-signup-recorded";
 import {
   getPublishStateKey,
   issueCertificatesForSignups,
@@ -182,6 +179,50 @@ export async function createPaperScanBatch(input: {
   }
 
   return { batchId: batch.id };
+}
+
+const orphanCleanupSchema = z
+  .object({
+    projectId: z.string().uuid(),
+    objectPaths: z
+      .array(z.string().min(1).max(500))
+      .min(1)
+      .max(PAPER_SCAN_MAX_IMAGES),
+  })
+  .strict();
+
+/**
+ * Record uploads that succeeded before a batch could be created. The browser
+ * may still delete them immediately, but the service-only outbox is the durable
+ * recovery path when that best-effort removal or its response is lost.
+ */
+export async function queueOrphanedPaperScanUploads(input: {
+  projectId: string;
+  objectPaths: string[];
+}): Promise<{ success: true } | { error: string }> {
+  const parsed = orphanCleanupSchema.safeParse(input);
+  if (!parsed.success) return { error: "Invalid scan cleanup request." };
+
+  const access = await requirePaperScanAccess(parsed.data.projectId);
+  if (!access.ok) return { error: access.error };
+
+  const pathPattern = new RegExp(
+    `^paper_signups/${parsed.data.projectId}/${OBJECT_PATH_SEGMENT}/[0-9]+_[A-Za-z0-9_-]+\\.(jpg|jpeg|png|webp)$`,
+  );
+  if (!parsed.data.objectPaths.every((path) => pathPattern.test(path))) {
+    return { error: "Invalid scan cleanup path." };
+  }
+
+  const { error } = await access.admin
+    .from("paper_scan_storage_deletion_queue")
+    .upsert(
+      parsed.data.objectPaths.map((objectPath) => ({
+        bucket_id: "paper-signup-scans",
+        object_path: objectPath,
+      })),
+      { onConflict: "bucket_id,object_path", ignoreDuplicates: true },
+    );
+  return error ? { error: "Could not queue scan cleanup." } : { success: true };
 }
 
 const updateRowSchema = z
@@ -362,7 +403,7 @@ export async function commitPaperScanBatch(input: {
       overCapacity: number;
       failed: Array<{ rowId: string; detail: string }>;
       certificatesIssued: number;
-      emailsSent: number;
+      notificationsQueued: number;
     }
   | { error: string }
 > {
@@ -408,9 +449,9 @@ export async function commitPaperScanBatch(input: {
     .filter((row) => row.outcome === "failed")
     .map((row) => ({ rowId: row.row_id, detail: row.detail ?? "failed" }));
 
-  // Notify newly-created anonymous identities that an organizer recorded
-  // their attendance. Failures never fail the commit.
-  let emailsSent = 0;
+  // The commit trigger creates one immutable notification outbox item for
+  // every new anonymous identity in the same transaction. Delivery is handled
+  // by a separately enabled worker; this action never sends inline.
   const newAnonymousIds = [
     ...new Set(
       created
@@ -418,15 +459,6 @@ export async function commitPaperScanBatch(input: {
         .filter((id): id is string => Boolean(id)),
     ),
   ];
-  if (newAnonymousIds.length > 0) {
-    emailsSent = await sendPaperSignupRecordedEmails({
-      project,
-      scheduleId: batch.schedule_id,
-      anonymousIds: newAnonymousIds,
-      admin,
-    });
-  }
-
   // A session that already published its hours will never re-run
   // certificate issuance for these signups; do it here.
   let certificatesIssued = 0;
@@ -452,76 +484,8 @@ export async function commitPaperScanBatch(input: {
     overCapacity: results.filter((row) => row.over_capacity).length,
     failed,
     certificatesIssued,
-    emailsSent,
+    notificationsQueued: newAnonymousIds.length,
   };
-}
-
-async function sendPaperSignupRecordedEmails(options: {
-  project: PaperScanProject;
-  scheduleId: string;
-  anonymousIds: string[];
-  admin: ReturnType<typeof getAdminClient>;
-}): Promise<number> {
-  const { project, scheduleId, anonymousIds, admin } = options;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const timezone = project.project_timezone || "America/Los_Angeles";
-
-  const window = getAttendanceScheduleWindow(project, scheduleId);
-  const projectDate = window
-    ? new Date(window.startsAt).toLocaleDateString("en-US", {
-        timeZone: timezone,
-        dateStyle: "long",
-      })
-    : "";
-  const projectTime = window
-    ? `${new Date(window.startsAt).toLocaleTimeString("en-US", {
-        timeZone: timezone,
-        hour: "numeric",
-        minute: "2-digit",
-      })} - ${new Date(window.endsAt).toLocaleTimeString("en-US", {
-        timeZone: timezone,
-        hour: "numeric",
-        minute: "2-digit",
-      })}`
-    : "";
-
-  const { data: organizer } = await admin
-    .from("profiles")
-    .select("full_name")
-    .eq("id", project.creator_id)
-    .maybeSingle();
-
-  const { data: recipients } = await admin
-    .from("anonymous_signups")
-    .select("id, name, email, token")
-    .in("id", anonymousIds);
-
-  let sent = 0;
-  for (const recipient of recipients ?? []) {
-    if (!recipient.email) continue;
-    try {
-      const result = await sendEmail({
-        to: recipient.email,
-        subject: `Your volunteering at ${project.title} was recorded`,
-        react: React.createElement(PaperSignupRecorded, {
-          volunteerName: recipient.name || "Volunteer",
-          projectName: project.title,
-          organizerName: organizer?.full_name || "The project organizer",
-          projectDate,
-          projectTime,
-          anonymousProfileUrl: `${siteUrl}/anonymous/${recipient.id}?token=${recipient.token}`,
-        }),
-        type: "transactional",
-      });
-      if (!result.error) sent += 1;
-    } catch (error) {
-      console.error(
-        `Paper signup email failed for anonymous ${recipient.id}:`,
-        error,
-      );
-    }
-  }
-  return sent;
 }
 
 export async function discardPaperScanBatch(input: {

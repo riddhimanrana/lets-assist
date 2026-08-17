@@ -69,8 +69,17 @@ mock.module("@/lib/ai/models", () => ({
   AI_MODEL_FAST: "test/model",
   AI_MODEL_FALLBACK_CHAIN: ["test/model"],
 }));
+mock.module("@/lib/ai/with-ai-tracking", () => ({
+  prepareTrackedAiCall: () => ({
+    model: {},
+    telemetry: undefined,
+    gatewayOptions: {},
+    logUsage: async () => undefined,
+  }),
+}));
 mock.module("@/lib/ai/posthog-telemetry", () => ({
   createPostHogTelemetry: () => undefined,
+  createPluginTelemetry: () => undefined,
 }));
 
 const { NextRequest } = await import("next/server");

@@ -6,7 +6,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(41);
+SELECT extensions.plan(52);
 
 -- ---------------------------------------------------------------------------
 -- Privileges
@@ -71,6 +71,22 @@ SELECT extensions.ok(
 SELECT extensions.ok(
   NOT has_table_privilege('authenticated', 'public.paper_scan_storage_deletion_queue', 'SELECT'),
   'authenticated clients cannot read the scan deletion outbox'
+);
+SELECT extensions.ok(
+  NOT has_table_privilege('anon', 'public.paper_signup_notification_outbox', 'SELECT'),
+  'anonymous clients cannot read the notification outbox'
+);
+SELECT extensions.ok(
+  NOT has_table_privilege('authenticated', 'public.paper_signup_notification_outbox', 'SELECT'),
+  'authenticated clients cannot read the notification outbox'
+);
+SELECT extensions.ok(
+  has_function_privilege(
+    'service_role',
+    'public.claim_paper_signup_notifications(text,integer,integer)',
+    'EXECUTE'
+  ),
+  'only the server worker can claim paper notifications'
 );
 
 -- ---------------------------------------------------------------------------
@@ -375,6 +391,27 @@ SELECT extensions.is(
   'replay creates no additional signups'
 );
 SELECT extensions.is(
+  (SELECT count(*)
+   FROM public.paper_signup_notification_outbox AS outbox
+   WHERE outbox.source_scan_row_id = 'b5500000-0000-4000-8000-000000000002'),
+  1::bigint,
+  'the attendance transaction creates exactly one notification item'
+);
+SELECT extensions.is(
+  (SELECT outbox.idempotency_key
+   FROM public.paper_signup_notification_outbox AS outbox
+   WHERE outbox.source_scan_row_id = 'b5500000-0000-4000-8000-000000000002'),
+  'paper-signup-recorded/b5500000-0000-4000-8000-000000000002',
+  'the notification carries a stable source-derived idempotency key'
+);
+SELECT extensions.is(
+  (SELECT count(*)
+   FROM public.paper_signup_notification_outbox AS outbox
+   WHERE outbox.source_scan_row_id = 'b5500000-0000-4000-8000-000000000002'),
+  1::bigint,
+  'commit replay cannot duplicate notification work'
+);
+SELECT extensions.is(
   (SELECT result.outcome || ':' || result.detail
    FROM public.commit_paper_signup_batch(
      'b5400000-0000-4000-8000-000000000001',
@@ -419,6 +456,46 @@ SELECT extensions.is(
    WHERE scan_rows.id = 'b5500000-0000-4000-8000-000000000007'),
   'pending',
   'a row from another batch is never committed by this batch'
+);
+SELECT extensions.is(
+  (SELECT count(*) FROM public.paper_signup_notification_outbox),
+  2::bigint,
+  'each newly created anonymous attendee has one queued notification'
+);
+
+CREATE TEMP TABLE paper_notification_claim AS
+SELECT * FROM public.claim_paper_signup_notifications('pgtap-worker', 1, 120);
+
+SELECT extensions.is(
+  (SELECT count(*) FROM paper_notification_claim),
+  1::bigint,
+  'the worker claims a bounded batch'
+);
+SELECT extensions.is(
+  (SELECT state FROM paper_notification_claim),
+  'leased',
+  'claiming records a pre-dispatch lease'
+);
+SELECT extensions.is(
+  (SELECT public.begin_paper_signup_notification_dispatch(
+    claim.id,
+    'pgtap-worker',
+    claim.lease_token
+  ) FROM paper_notification_claim AS claim),
+  1,
+  'dispatch begins with the first durable attempt'
+);
+SELECT extensions.is(
+  (SELECT public.settle_paper_signup_notification(
+    claim.id,
+    'pgtap-worker',
+    claim.lease_token,
+    'retryable_pre_send',
+    NULL,
+    'synthetic_pre_send'
+  ) FROM paper_notification_claim AS claim),
+  'queued',
+  'a proven pre-send failure is safely requeued'
 );
 
 -- ---------------------------------------------------------------------------

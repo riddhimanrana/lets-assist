@@ -25,7 +25,9 @@ mock.module("@/lib/auth/google-oauth-state", () => ({
 mock.module("@/lib/auth/google-oauth-attempt-store", () => ({
   beginGoogleOAuthAttempt: async () => {
     attemptRecorded = true;
-    throw new Error("An OAuth attempt must not be recorded for a denied request");
+    throw new Error(
+      "An OAuth attempt must not be recorded for a denied request",
+    );
   },
 }));
 
@@ -33,7 +35,9 @@ mock.module("@/lib/supabase/admin", () => ({
   getAdminClient: () => ({
     from: () => ({
       select: () => ({
-        eq: () => ({ maybeSingle: async () => ({ data: { username: "org-slug" } }) }),
+        eq: () => ({
+          maybeSingle: async () => ({ data: { username: "org-slug" } }),
+        }),
       }),
     }),
   }),

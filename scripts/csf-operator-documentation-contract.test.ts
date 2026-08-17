@@ -213,7 +213,7 @@ const IMPORTS: LabelContract[] = [
   {
     component: "CsfGoogleSheetsConnectionPanel.tsx",
     labels: [
-      "Google Sheets connection",
+      "Google Drive connection",
       "Reconnect required",
       "Not connected",
       "Switch or reconnect",

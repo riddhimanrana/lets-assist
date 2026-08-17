@@ -405,6 +405,7 @@ export async function signUpForProject(
         projectId,
         scheduleId,
         volunteerComment: volunteerCommentToSave,
+        waiverSignature,
         formData,
         traceId,
       });

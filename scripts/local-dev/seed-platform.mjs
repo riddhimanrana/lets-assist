@@ -583,6 +583,14 @@ async function main() {
   );
 
   for (const pluginKey of seededPluginKeys) {
+    const installedVersion = seededPluginCatalogRows.find(
+      (plugin) => plugin.key === pluginKey,
+    )?.latest_version;
+    if (!installedVersion) {
+      throw new Error(
+        `Missing release version for seeded plugin ${pluginKey}.`,
+      );
+    }
     const entitledOrgIds =
       pluginKey === "dvhs-csf"
         ? [IDS.csfOrg]
@@ -609,13 +617,7 @@ async function main() {
             organization_id: orgId,
             plugin_key: pluginKey,
             enabled: true,
-            // Derived from the catalog rather than hardcoded. A fixed "0.1.0"
-            // silently disagreed with calendar-tools, whose published release
-            // is 1.0.0, and an enabled install must reference a published
-            // compatible release.
-            installed_version:
-              seededPluginCatalogRows.find((row) => row.key === pluginKey)
-                ?.latest_version ?? "0.1.0",
+            installed_version: installedVersion,
             installed_by: users.developer.id,
             configuration: {
               localFixture: true,

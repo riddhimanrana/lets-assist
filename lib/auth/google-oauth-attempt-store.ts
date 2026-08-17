@@ -69,7 +69,11 @@ export type GoogleOAuthClaim =
       correlationId: string | null;
     }
   | {
-      verdict: "unknown_attempt" | "cookie_mismatch" | "user_mismatch" | "session_mismatch";
+      verdict:
+        | "unknown_attempt"
+        | "cookie_mismatch"
+        | "user_mismatch"
+        | "session_mismatch";
       correlationId: string | null;
     };
 
