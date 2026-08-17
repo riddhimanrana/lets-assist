@@ -39,7 +39,10 @@ describe("Google OAuth route shape", () => {
     for (const verb of ["connect", "callback", "disconnect"]) {
       expect(
         existsSync(
-          new URL(`../../app/api/google/oauth/${verb}/route.ts`, import.meta.url),
+          new URL(
+            `../../app/api/google/oauth/${verb}/route.ts`,
+            import.meta.url,
+          ),
         ),
       ).toBe(true);
     }

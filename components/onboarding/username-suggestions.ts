@@ -19,13 +19,15 @@ const USERNAME_MAX_LENGTH = 32;
 
 /** Lowercase, strip accents, and keep only what the username rule allows. */
 function normalizeSegment(value: string): string {
-  return value
-    .normalize("NFD")
-    // Combining marks, so "Sofía" becomes "sofia" rather than "sofa".
-    .replace(/[̀-ͯ]/gu, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/gu, "-")
-    .replace(/^-+|-+$/gu, "");
+  return (
+    value
+      .normalize("NFD")
+      // Combining marks, so "Sofía" becomes "sofia" rather than "sofa".
+      .replace(/[̀-ͯ]/gu, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/gu, "-")
+      .replace(/^-+|-+$/gu, "")
+  );
 }
 
 function isUsable(candidate: string): boolean {
