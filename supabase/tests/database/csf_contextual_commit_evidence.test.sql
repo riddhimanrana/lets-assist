@@ -2,9 +2,11 @@
 --
 -- The readiness contract -- which sibling rows stop a commit -- is proved in
 -- csf_contextual_commit_readiness.test.sql, and the lock order in
--- csf_contextual_commit_lock_order.test.sql. This file proves the third thing the two
--- commits now do: `p_evidence_token` is consumed inside the commit transaction, exactly
--- once, and every way of failing to produce one is a refusal that writes nothing.
+-- csf_contextual_commit_lock_order.test.sql. This file proves the third thing the
+-- meeting commit does: `p_evidence_token` is consumed inside the commit transaction,
+-- exactly once, and every way of failing to produce one is a refusal that writes
+-- nothing. The partner-audit commit that used to share this contract was retired with
+-- the partner-clubs simplification (20260817120000), so only the meeting path remains.
 --
 -- The receipts below are minted directly rather than through
 -- `csf_refresh_sheet_source_evidence`, because that issuer additionally asserts an
@@ -24,7 +26,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
 -- An exact plan. no_plan() cannot distinguish "every assertion passed" from "some never
 -- ran", and a fence that silently stops running is the failure this file exists to catch.
-SELECT extensions.plan(30);
+SELECT extensions.plan(20);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -68,8 +70,6 @@ INSERT INTO plugin_data.csf_profiles (
 ) VALUES
   ('e3300000-0000-4000-8000-000000000001', 'e3100000-0000-4000-8000-000000000001',
    'Proved', 'Attendee', 'proved', 'attendee', 'active', NULL, NULL, NULL, NULL),
-  ('e3300000-0000-4000-8000-000000000002', 'e3100000-0000-4000-8000-000000000001',
-   'Proved', 'Auditee', 'proved', 'auditee', 'active', NULL, NULL, NULL, NULL),
   ('e3300000-0000-4000-8000-000000000003', 'e3100000-0000-4000-8000-000000000001',
    'Rollback', 'Attendee', 'rollback', 'attendee', 'active',
    NULL, NULL, NULL, NULL);
@@ -98,16 +98,7 @@ INSERT INTO plugin_data.csf_meeting_sessions (
   ('e3c00000-0000-4000-8000-000000000002', 'e3100000-0000-4000-8000-000000000001',
    'e3b00000-0000-4000-8000-000000000002', 'e3400000-0000-4000-8000-000000000002', '2033-10-01');
 
-INSERT INTO plugin_data.csf_partner_clubs (
-  id, organization_id, name, approved_point_types
-) VALUES (
-  'e3800000-0000-4000-8000-000000000001',
-  'e3100000-0000-4000-8000-000000000001',
-  'Synthetic Evidence Club',
-  ARRAY['non_drive']::text[]
-);
-
--- Three Google-backed sources, because only that family can carry a database receipt at
+-- Two Google-backed sources, because only that family can carry a database receipt at
 -- all. Each records the exact drive coordinates the receipts below attest to.
 INSERT INTO plugin_data.csf_sheet_sources (
   id, organization_id, source_type, title, provider, spreadsheet_id, uploaded_file_path,
@@ -124,13 +115,7 @@ INSERT INTO plugin_data.csf_sheet_sources (
    'google_sheets', 'evidence-rolled-back-meeting', NULL,
    'evidence-rolled-back-meeting', 'application/vnd.google-apps.spreadsheet',
    '2033-08-02T00:00:00Z', 'not_synced',
-   '{"sourceKind":"meeting_attendance","meetingId":"e3400000-0000-4000-8000-000000000002"}'),
-  ('e3500000-0000-4000-8000-000000000004', 'e3100000-0000-4000-8000-000000000001',
-   'partner_club_audit', 'Proved partner source',
-   'google_sheets', 'evidence-proved-partner', NULL,
-   'evidence-proved-partner', 'application/vnd.google-apps.spreadsheet',
-   '2033-08-04T00:00:00Z', 'not_synced',
-   '{"sourceKind":"partner_club_audit"}');
+   '{"sourceKind":"meeting_attendance","meetingId":"e3400000-0000-4000-8000-000000000002"}');
 
 INSERT INTO plugin_data.csf_sheet_import_jobs (
   id, organization_id, source_id, initiated_by, mode, status, source_type,
@@ -156,13 +141,7 @@ INSERT INTO plugin_data.csf_sheet_import_jobs (
    'preview', 'completed', 'meeting_attendance',
    'evidence-proved-meeting', 'Proved Meeting Again', 'Responses', 'Responses!A1:C10',
    '{"version":1,"sourceType":"meeting_attendance"}', 1,
-   'e3d00000-0000-4000-8000-000000000003', '{}', now()),
-  ('e3600000-0000-4000-8000-000000000004', 'e3100000-0000-4000-8000-000000000001',
-   'e3500000-0000-4000-8000-000000000004', 'e3000000-0000-4000-8000-000000000001',
-   'preview', 'completed', 'partner_club_audit',
-   'evidence-proved-partner', 'Proved Partner', 'Audit', 'Audit!A1:E12',
-   '{"version":1,"sourceType":"partner_club_audit"}', 1,
-   'e3d00000-0000-4000-8000-000000000004', '{}', now());
+   'e3d00000-0000-4000-8000-000000000003', '{}', now());
 
 INSERT INTO plugin_data.csf_sheet_import_rows (
   id, organization_id, job_id, source_id, term_id, sheet_tab_name, row_number,
@@ -181,52 +160,16 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
    'e3200000-0000-4000-8000-000000000001', 'Responses', 2, '{"Name":"Merged Attendee"}',
    '{"meetingId":"e3400000-0000-4000-8000-000000000002","submittedName":"Merged Attendee"}',
    'evidence-rolled-back-meeting-hash', 'e3300000-0000-4000-8000-000000000003', 'pending',
-   'e3d00000-0000-4000-8000-000000000002'),
-  ('e3700000-0000-4000-8000-000000000004', 'e3100000-0000-4000-8000-000000000001',
-   'e3600000-0000-4000-8000-000000000004', 'e3500000-0000-4000-8000-000000000004',
-   'e3200000-0000-4000-8000-000000000001', 'Audit', 2, '{"Name":"Proved Auditee"}',
-   '{"partnerAuditBatchId":"e3900000-0000-4000-8000-000000000001","source":{"rowHash":"evidence-proved-partner-hash"}}',
-   'evidence-proved-partner-hash', 'e3300000-0000-4000-8000-000000000002', 'pending',
-   'e3d00000-0000-4000-8000-000000000004');
-
-INSERT INTO plugin_data.csf_partner_submission_batches (
-  id, organization_id, partner_club_id, term_id, title, source, source_url, status, submitted_by, summary
-) VALUES
-  ('e3900000-0000-4000-8000-000000000001', 'e3100000-0000-4000-8000-000000000001',
-   'e3800000-0000-4000-8000-000000000001', 'e3200000-0000-4000-8000-000000000001',
-   'Synthetic proved audit', 'sheet', 'evidence-proved-partner', 'needs_verification',
-   'e3000000-0000-4000-8000-000000000001',
-   '{"sheetImportPreviewJobId":"e3600000-0000-4000-8000-000000000004","sheetImportCorrelationId":"e3d00000-0000-4000-8000-000000000004"}'),
-  -- No linked preview: the historical shape, whose way in is the acknowledgement rather
-  -- than a receipt, because no receipt can be issued against a preview that does not exist.
-  ('e3900000-0000-4000-8000-000000000002', 'e3100000-0000-4000-8000-000000000001',
-   'e3800000-0000-4000-8000-000000000001', 'e3200000-0000-4000-8000-000000000001',
-   'Synthetic historical audit', 'sheet', 'csf/fixture/evidence-historical.xlsx', 'needs_verification',
-   'e3000000-0000-4000-8000-000000000001',
-   '{}');
-
-INSERT INTO plugin_data.csf_partner_submission_rows (
-  id, organization_id, batch_id, profile_id, matched_status, raw_data, normalized_data,
-  claimed_points, point_type
-) VALUES
-  ('e3a00000-0000-4000-8000-000000000001', 'e3100000-0000-4000-8000-000000000001',
-   'e3900000-0000-4000-8000-000000000001', 'e3300000-0000-4000-8000-000000000002',
-   'matched', '{"Name":"Proved Auditee"}',
-   '{"source":{"rowHash":"evidence-proved-partner-hash"}}', 2, 'non_drive'),
-  ('e3a00000-0000-4000-8000-000000000002', 'e3100000-0000-4000-8000-000000000001',
-   'e3900000-0000-4000-8000-000000000002', 'e3300000-0000-4000-8000-000000000002',
-   'matched', '{"Name":"Historical Auditee"}',
-   '{"source":{"rowHash":"evidence-historical-hash"}}', 4, 'non_drive');
+   'e3d00000-0000-4000-8000-000000000002');
 
 -- ---------------------------------------------------------------------------
--- The receipts. Six, over three sources, each shaped exactly as its issuer writes it.
+-- The receipts. Five, over two sources, each shaped exactly as its issuer writes it.
 --
 --   ...0001  valid, bound to the proved meeting preview
 --   ...0002  identical but EXPIRED
 --   ...0003  identical but issued for a DIFFERENT officer
 --   ...0004  identical but issued for the SECOND preview of the same source
 --   ...0005  valid, bound to the rolled-back meeting preview
---   ...0006  valid, bound to the partner preview
 --
 -- The wrong-officer id is a bare uuid on purpose: `actor_user_id` on this table carries no
 -- foreign key, and inventing a second auth user would imply this test says something about
@@ -249,9 +192,6 @@ WITH minted AS (
      interval '2 minutes'),
     ('e3e00000-0000-4000-8000-000000000005'::uuid, 'e3500000-0000-4000-8000-000000000002'::uuid,
      'e3600000-0000-4000-8000-000000000002'::uuid, 'e3000000-0000-4000-8000-000000000001'::uuid,
-     interval '2 minutes'),
-    ('e3e00000-0000-4000-8000-000000000006'::uuid, 'e3500000-0000-4000-8000-000000000004'::uuid,
-     'e3600000-0000-4000-8000-000000000004'::uuid, 'e3000000-0000-4000-8000-000000000001'::uuid,
      interval '2 minutes')
   ) AS receipt(nonce, source_id, preview_job_id, actor_user_id, lifetime)
 ),
@@ -546,142 +486,6 @@ SELECT extensions.is(
 
 DROP TRIGGER fail_contextual_commit_after_evidence_consume
   ON plugin_data.csf_sheet_import_jobs;
-
--- ---------------------------------------------------------------------------
--- F. The partner path: a linked preview is held to the same receipt.
--- ---------------------------------------------------------------------------
-SELECT extensions.throws_ok(
-  $$
-    SELECT plugin_data.csf_commit_partner_audit_import(
-      'e3100000-0000-4000-8000-000000000001',
-      'e3900000-0000-4000-8000-000000000001',
-      'approved',
-      'e3000000-0000-4000-8000-000000000001',
-      'Attempted to commit a linked partner batch with no receipt.',
-      'e3d00000-0000-4000-8000-000000000004',
-      NULL
-    )
-  $$,
-  '55000',
-  'This CSF import must re-verify its source immediately before committing.',
-  'a partner-audit commit with a linked preview and no receipt refuses'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_credit_records
-   WHERE evidence->>'partnerAuditBatchId' = 'e3900000-0000-4000-8000-000000000001'),
-  0,
-  'and created no credit record'
-);
-SELECT extensions.lives_ok(
-  $$
-    SELECT plugin_data.csf_commit_partner_audit_import(
-      'e3100000-0000-4000-8000-000000000001',
-      'e3900000-0000-4000-8000-000000000001',
-      'approved',
-      'e3000000-0000-4000-8000-000000000001',
-      'Committed the proved synthetic partner audit.',
-      'e3d00000-0000-4000-8000-000000000004',
-      'e3e00000-0000-4000-8000-000000000006'
-    )
-  $$,
-  'and the same batch commits once it holds a valid receipt'
-);
-SELECT extensions.ok(
-  (SELECT consumed_at IS NOT NULL
-   FROM plugin_data.csf_sheet_source_evidence_tokens
-   WHERE nonce = 'e3e00000-0000-4000-8000-000000000006'),
-  'spending it exactly once'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_point_submissions
-   WHERE description = 'Synthetic proved audit partner club audit'),
-  1,
-  'and generating exactly its one matched row'
-);
-SELECT extensions.ok(
-  (
-    plugin_data.csf_commit_partner_audit_import(
-      'e3100000-0000-4000-8000-000000000001',
-      'e3900000-0000-4000-8000-000000000001',
-      'approved',
-      'e3000000-0000-4000-8000-000000000001',
-      'Replayed the proved synthetic partner audit.',
-      'e3d00000-0000-4000-8000-000000000004',
-      NULL
-    )->>'idempotent'
-  )::boolean,
-  'replaying an already-committed partner batch with a NULL receipt is idempotent'
-);
-
--- ---------------------------------------------------------------------------
--- G. The preview-less batch: a receipt is a contradiction, and the acknowledgement is
---    still the way in. This is the branch that must NOT be re-bricked -- no receipt can
---    be issued against a preview that does not exist, so demanding one would make these
---    batches permanently unimportable.
--- ---------------------------------------------------------------------------
-SELECT extensions.throws_ok(
-  $$
-    SELECT plugin_data.csf_commit_partner_audit_import(
-      'e3100000-0000-4000-8000-000000000001',
-      'e3900000-0000-4000-8000-000000000002',
-      'approved',
-      'e3000000-0000-4000-8000-000000000001',
-      'Attempted to commit an unacknowledged preview-less batch.',
-      NULL,
-      NULL
-    )
-  $$,
-  'P0001',
-  'Acknowledge this audit batch, recorded before import previews were linked, before importing.',
-  'an unacknowledged preview-less batch still fails closed on provenance'
-);
-SELECT plugin_data.csf_acknowledge_partner_audit_batch_provenance(
-  'e3100000-0000-4000-8000-000000000001',
-  'e3900000-0000-4000-8000-000000000002',
-  'e3000000-0000-4000-8000-000000000001',
-  'Officer vouches for the synthetic historical workbook.',
-  'e3d00000-0000-4000-8000-000000000005'
-);
--- Acknowledged, so readiness no longer refuses it -- and now the receipt branch is what
--- this batch reaches. A supplied receipt is a contradiction here: there is no preview it
--- could have been issued against, and this one demonstrably belongs to another source's
--- preview entirely.
-SELECT extensions.throws_ok(
-  $$
-    SELECT plugin_data.csf_commit_partner_audit_import(
-      'e3100000-0000-4000-8000-000000000001',
-      'e3900000-0000-4000-8000-000000000002',
-      'approved',
-      'e3000000-0000-4000-8000-000000000001',
-      'Attempted to commit a preview-less batch with a receipt.',
-      NULL,
-      'e3e00000-0000-4000-8000-000000000004'
-    )
-  $$,
-  '55000',
-  'This audit batch has no linked import preview, so no source freshness check could have been issued for it.',
-  'and it refuses a supplied receipt rather than ignoring it'
-);
-SELECT extensions.lives_ok(
-  $$
-    SELECT plugin_data.csf_commit_partner_audit_import(
-      'e3100000-0000-4000-8000-000000000001',
-      'e3900000-0000-4000-8000-000000000002',
-      'approved',
-      'e3000000-0000-4000-8000-000000000001',
-      'Committed the acknowledged historical batch.',
-      NULL,
-      NULL
-    )
-  $$,
-  'while the acknowledged batch still commits with no receipt at all'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_point_submissions
-   WHERE description = 'Synthetic historical audit partner club audit'),
-  1,
-  'and generated its one credit-bearing submission'
-);
 
 SELECT * FROM extensions.finish();
 ROLLBACK;

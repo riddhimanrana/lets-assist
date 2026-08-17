@@ -7049,8 +7049,7 @@ SELECT extensions.ok(
       'organizationId', 'dispatchAttempts', 'preferenceDecisionEvents',
       'broadcastPreferences', 'addressSafetyEvents', 'addressSafetyRecords',
       'webhookQuarantine', 'providerEvents', 'deliveries', 'recipientSnapshots',
-      'campaigns', 'partnerClubTermEvents', 'partnerClubRepresentatives',
-      'calendarProjections'
+      'campaigns', 'partnerClubTermEvents', 'calendarProjections'
     ])
   )
   AND NOT EXISTS (
@@ -7058,16 +7057,15 @@ SELECT extensions.ok(
       'organizationId', 'dispatchAttempts', 'preferenceDecisionEvents',
       'broadcastPreferences', 'addressSafetyEvents', 'addressSafetyRecords',
       'webhookQuarantine', 'providerEvents', 'deliveries', 'recipientSnapshots',
-      'campaigns', 'partnerClubTermEvents', 'partnerClubRepresentatives',
-      'calendarProjections'
+      'campaigns', 'partnerClubTermEvents', 'calendarProjections'
     ])
     EXCEPT
     SELECT key FROM jsonb_object_keys((SELECT result FROM t_qpurge)) AS key
   )
   AND (
     SELECT count(*) FROM jsonb_object_keys((SELECT result FROM t_qpurge))
-  ) = 14,
-  'plugin_data.csf_purge_recovery_foundations(uuid) returns exactly its fourteen documented keys'
+  ) = 13,
+  'plugin_data.csf_purge_recovery_foundations(uuid) returns exactly its thirteen documented keys'
 );
 
 -- The owner-only helper, called standalone against the now-empty fixture

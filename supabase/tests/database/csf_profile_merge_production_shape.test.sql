@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(18);
+SELECT extensions.plan(17);
 
 -- A successful, production-shaped merge. Every value is synthetic, but the
 -- fixture spans the current ownership projections and deliberate history
@@ -194,13 +194,6 @@ INSERT INTO plugin_data.csf_partner_club_terms (
   'fcb00000-0000-4000-8000-000000000001',
   'fc200000-0000-4000-8000-000000000001', 'new', 'active'
 );
-INSERT INTO plugin_data.csf_partner_club_representatives (
-  id, organization_id, partner_club_term_id, profile_id, role,
-  display_name, email, status, effective_start, effective_end, is_primary
-) VALUES
-  ('fcd00000-0000-4000-8000-000000000001', 'fc100000-0000-4000-8000-000000000001', 'fcc00000-0000-4000-8000-000000000001', 'fc400000-0000-4000-8000-000000000001', 'primary_contact', 'Current synthetic representative', 'current-rep@local.test', 'active', current_date - 30, NULL, true),
-  ('fcd00000-0000-4000-8000-000000000002', 'fc100000-0000-4000-8000-000000000001', 'fcc00000-0000-4000-8000-000000000001', 'fc400000-0000-4000-8000-000000000001', 'president', 'Historical synthetic representative', 'history-rep@local.test', 'revoked', current_date - 90, current_date - 60, false);
-
 INSERT INTO plugin_data.csf_communication_broadcast_preferences (
   id, organization_id, topic_key, recipient_email, profile_id,
   subscription_state, last_decision_at, decision_actor_kind,
@@ -333,17 +326,6 @@ SELECT extensions.is(
   'profile-link candidates rewrite and collapse duplicate target identifiers'
 );
 SELECT extensions.ok(
-  EXISTS (SELECT 1 FROM plugin_data.csf_partner_club_representatives
-    WHERE id = 'fcd00000-0000-4000-8000-000000000001'
-      AND profile_id = 'fc400000-0000-4000-8000-000000000002'
-      AND status = 'active')
-  AND EXISTS (SELECT 1 FROM plugin_data.csf_partner_club_representatives
-    WHERE id = 'fcd00000-0000-4000-8000-000000000002'
-      AND profile_id = 'fc400000-0000-4000-8000-000000000001'
-      AND status = 'revoked'),
-  'the live representative binding moves while terminal representative history remains'
-);
-SELECT extensions.ok(
   EXISTS (SELECT 1 FROM plugin_data.csf_communication_broadcast_preferences
     WHERE id = 'fce00000-0000-4000-8000-000000000001'
       AND profile_id = 'fc400000-0000-4000-8000-000000000002'
@@ -387,11 +369,6 @@ SELECT extensions.ok(
   AND NOT EXISTS (
     SELECT 1 FROM plugin_data.csf_application_correction_requests
     WHERE profile_id = 'fc400000-0000-4000-8000-000000000001'
-  )
-  AND NOT EXISTS (
-    SELECT 1 FROM plugin_data.csf_partner_club_representatives
-    WHERE profile_id = 'fc400000-0000-4000-8000-000000000001'
-      AND status IN ('invited', 'active')
   )
   AND NOT EXISTS (
     SELECT 1 FROM plugin_data.csf_communication_broadcast_preferences

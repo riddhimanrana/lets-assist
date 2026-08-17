@@ -5,7 +5,7 @@
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(15);
+SELECT extensions.plan(12);
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data,
@@ -59,8 +59,8 @@ INSERT INTO plugin_data.csf_cohort_terms (
   'active'
 );
 
--- Four source/target duplicate pairs: central row commit, reconciliation,
--- meeting attendance, and partner audit.
+-- Three source/target duplicate pairs: central row commit, reconciliation,
+-- and meeting attendance.
 INSERT INTO plugin_data.csf_profiles (
   id, organization_id, first_name, last_name, preferred_name, school_email,
   normalized_first_name, normalized_last_name, normalized_school_email
@@ -70,9 +70,7 @@ INSERT INTO plugin_data.csf_profiles (
   ('fe400000-0000-4000-8000-000000000003', 'fe100000-0000-4000-8000-000000000001', 'Reconcile', 'Race', 'Source', 'reconcile.race@local.test', 'reconcile', 'race', 'reconcile.race@local.test'),
   ('fe400000-0000-4000-8000-000000000004', 'fe100000-0000-4000-8000-000000000001', 'Reconcile', 'Race', 'Target', 'reconcile.race@local.test', 'reconcile', 'race', 'reconcile.race@local.test'),
   ('fe400000-0000-4000-8000-000000000005', 'fe100000-0000-4000-8000-000000000001', 'Meeting', 'Race', 'Source', 'meeting.race@local.test', 'meeting', 'race', 'meeting.race@local.test'),
-  ('fe400000-0000-4000-8000-000000000006', 'fe100000-0000-4000-8000-000000000001', 'Meeting', 'Race', 'Target', 'meeting.race@local.test', 'meeting', 'race', 'meeting.race@local.test'),
-  ('fe400000-0000-4000-8000-000000000007', 'fe100000-0000-4000-8000-000000000001', 'Partner', 'Race', 'Source', 'partner.race@local.test', 'partner', 'race', 'partner.race@local.test'),
-  ('fe400000-0000-4000-8000-000000000008', 'fe100000-0000-4000-8000-000000000001', 'Partner', 'Race', 'Target', 'partner.race@local.test', 'partner', 'race', 'partner.race@local.test');
+  ('fe400000-0000-4000-8000-000000000006', 'fe100000-0000-4000-8000-000000000001', 'Meeting', 'Race', 'Target', 'meeting.race@local.test', 'meeting', 'race', 'meeting.race@local.test');
 
 INSERT INTO plugin_data.csf_profile_cohort_memberships (
   organization_id, profile_id, cohort_id, status
@@ -82,9 +80,7 @@ INSERT INTO plugin_data.csf_profile_cohort_memberships (
   ('fe100000-0000-4000-8000-000000000001', 'fe400000-0000-4000-8000-000000000003', 'fe300000-0000-4000-8000-000000000001', 'active'),
   ('fe100000-0000-4000-8000-000000000001', 'fe400000-0000-4000-8000-000000000004', 'fe300000-0000-4000-8000-000000000001', 'archived'),
   ('fe100000-0000-4000-8000-000000000001', 'fe400000-0000-4000-8000-000000000005', 'fe300000-0000-4000-8000-000000000001', 'active'),
-  ('fe100000-0000-4000-8000-000000000001', 'fe400000-0000-4000-8000-000000000006', 'fe300000-0000-4000-8000-000000000001', 'archived'),
-  ('fe100000-0000-4000-8000-000000000001', 'fe400000-0000-4000-8000-000000000007', 'fe300000-0000-4000-8000-000000000001', 'active'),
-  ('fe100000-0000-4000-8000-000000000001', 'fe400000-0000-4000-8000-000000000008', 'fe300000-0000-4000-8000-000000000001', 'archived');
+  ('fe100000-0000-4000-8000-000000000001', 'fe400000-0000-4000-8000-000000000006', 'fe300000-0000-4000-8000-000000000001', 'archived');
 
 INSERT INTO plugin_data.csf_sheet_sources (
   id, organization_id, source_type, title, cohort_id, provider, sync_status,
@@ -207,8 +203,8 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
   )
 );
 
--- Reconciliation starts unmatched. Meeting and partner start as mutable live
--- references, so merge must rewrite both to the canonical profile atomically.
+-- Reconciliation starts unmatched. Meeting starts as a mutable live
+-- reference, so merge must rewrite it to the canonical profile atomically.
 INSERT INTO plugin_data.csf_sheet_import_rows (
   id, organization_id, job_id, source_id, term_id, sheet_tab_name, row_number,
   raw_data, normalized_data, row_hash, matched_profile_id, import_status,
@@ -216,45 +212,6 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
 ) VALUES
   ('fe800000-0000-4000-8000-000000000002', 'fe100000-0000-4000-8000-000000000001', 'fe600000-0000-4000-8000-000000000003', 'fe500000-0000-4000-8000-000000000002', NULL, 'Roster', 3, '{"Name":"Reconcile Race"}', '{}', repeat('d', 64), NULL, 'ambiguous', 'fea00000-0000-4000-8000-000000000002'),
   ('fe800000-0000-4000-8000-000000000003', 'fe100000-0000-4000-8000-000000000001', 'fe600000-0000-4000-8000-000000000004', 'fe500000-0000-4000-8000-000000000003', 'fe200000-0000-4000-8000-000000000001', 'Responses', 2, '{"Name":"Meeting Race"}', '{}', repeat('e', 64), 'fe400000-0000-4000-8000-000000000005', 'pending', 'fea00000-0000-4000-8000-000000000003');
-
-INSERT INTO plugin_data.csf_partner_clubs (
-  id, organization_id, name, approved_point_types
-) VALUES (
-  'fe900000-0000-4000-8000-000000000001',
-  'fe100000-0000-4000-8000-000000000001',
-  'Synthetic Import Race Club',
-  ARRAY['non_drive']::text[]
-);
-
-INSERT INTO plugin_data.csf_partner_submission_batches (
-  id, organization_id, partner_club_id, term_id, title, source, status,
-  submitted_by, summary
-) VALUES (
-  'fe910000-0000-4000-8000-000000000001',
-  'fe100000-0000-4000-8000-000000000001',
-  'fe900000-0000-4000-8000-000000000001',
-  'fe200000-0000-4000-8000-000000000001',
-  'Synthetic import/merge race batch',
-  'sheet',
-  'needs_verification',
-  'fe000000-0000-4000-8000-000000000001',
-  '{}'
-);
-
-INSERT INTO plugin_data.csf_partner_submission_rows (
-  id, organization_id, batch_id, profile_id, matched_status,
-  raw_data, normalized_data, claimed_points, point_type
-) VALUES (
-  'fe920000-0000-4000-8000-000000000001',
-  'fe100000-0000-4000-8000-000000000001',
-  'fe910000-0000-4000-8000-000000000001',
-  'fe400000-0000-4000-8000-000000000007',
-  'matched',
-  '{"Name":"Partner Race"}',
-  '{"source":{"rowHash":"partner-race"}}',
-  2,
-  'non_drive'
-);
 
 SELECT extensions.lives_ok(
   $$
@@ -353,16 +310,6 @@ BEGIN
         'fea00000-0000-4000-8000-000000000003',
         NULL
       );
-    WHEN 'partner' THEN
-      PERFORM plugin_data.csf_commit_partner_audit_import(
-        'fe100000-0000-4000-8000-000000000001',
-        'fe910000-0000-4000-8000-000000000001',
-        'approved',
-        'fe000000-0000-4000-8000-000000000001',
-        'Synthetic partner commit queued behind profile merge.',
-        'fea00000-0000-4000-8000-000000000004',
-        NULL
-      );
     ELSE
       RAISE EXCEPTION 'Unknown test operation.';
   END CASE;
@@ -409,16 +356,6 @@ SELECT extensions.dblink_connect(
   ' password=' || current_user ||
   ' sslmode=disable'
 );
-SELECT extensions.dblink_connect(
-  'partner_race_worker',
-  'hostaddr=' || host(inet_server_addr()) ||
-  ' port=' || current_setting('port') ||
-  ' dbname=' || current_database() ||
-  ' user=' || current_user ||
-  ' password=' || current_user ||
-  ' sslmode=disable'
-);
-
 CREATE TEMP TABLE import_merge_race_results (
   label text PRIMARY KEY,
   payload text NOT NULL
@@ -558,44 +495,6 @@ SELECT extensions.is(
   'meeting import ownership remains on the active canonical profile'
 );
 
--- Partner commit has the same common first lock and must consume the partner row
--- only after merge has atomically moved its profile ownership.
-BEGIN;
-SELECT plugin_data.csf_merge_profiles(
-  'fe100000-0000-4000-8000-000000000001',
-  'fe400000-0000-4000-8000-000000000007',
-  'fe400000-0000-4000-8000-000000000008',
-  'Synthetic partner commit versus merge race.',
-  'fe000000-0000-4000-8000-000000000001',
-  'feb00000-0000-4000-8000-000000000004'
-);
-SELECT extensions.dblink_send_query(
-  'partner_race_worker',
-  $$SELECT plugin_data.csf_test_capture_import_merge_race('partner')$$
-);
-SELECT pg_catalog.pg_sleep(0.25);
-SELECT extensions.is(
-  extensions.dblink_is_busy('partner_race_worker'),
-  1,
-  'partner audit commit serializes behind profile merge'
-);
-COMMIT;
-
-INSERT INTO import_merge_race_results (label, payload)
-SELECT 'partner', payload
-FROM extensions.dblink_get_result('partner_race_worker', false) AS result(payload text);
-SELECT extensions.dblink_disconnect('partner_race_worker');
-SELECT extensions.ok(
-  (SELECT payload NOT LIKE '%40P01%' FROM import_merge_race_results WHERE label = 'partner'),
-  'queued partner audit commit finishes without a deadlock'
-);
-SELECT extensions.is(
-  (SELECT profile_id FROM plugin_data.csf_partner_submission_rows
-   WHERE id = 'fe920000-0000-4000-8000-000000000001'),
-  'fe400000-0000-4000-8000-000000000008'::uuid,
-  'partner import ownership remains on the active canonical profile'
-);
-
 SELECT extensions.is(
   (
     SELECT count(*)::integer
@@ -603,14 +502,13 @@ SELECT extensions.is(
     WHERE id = ANY (ARRAY[
       'fe400000-0000-4000-8000-000000000001'::uuid,
       'fe400000-0000-4000-8000-000000000003'::uuid,
-      'fe400000-0000-4000-8000-000000000005'::uuid,
-      'fe400000-0000-4000-8000-000000000007'::uuid
+      'fe400000-0000-4000-8000-000000000005'::uuid
     ])
       AND record_status = 'merged'
       AND merged_into_profile_id IS NOT NULL
   ),
-  4,
-  'all four source records are durable merge tombstones'
+  3,
+  'all three source records are durable merge tombstones'
 );
 
 SELECT extensions.is(
@@ -624,14 +522,12 @@ SELECT extensions.is(
           import_row.matched_profile_id = ANY (ARRAY[
             'fe400000-0000-4000-8000-000000000001'::uuid,
             'fe400000-0000-4000-8000-000000000003'::uuid,
-            'fe400000-0000-4000-8000-000000000005'::uuid,
-            'fe400000-0000-4000-8000-000000000007'::uuid
+            'fe400000-0000-4000-8000-000000000005'::uuid
           ])
           OR import_row.commit_target_profile_id = ANY (ARRAY[
             'fe400000-0000-4000-8000-000000000001'::uuid,
             'fe400000-0000-4000-8000-000000000003'::uuid,
-            'fe400000-0000-4000-8000-000000000005'::uuid,
-            'fe400000-0000-4000-8000-000000000007'::uuid
+            'fe400000-0000-4000-8000-000000000005'::uuid
           ])
         )
         AND plugin_data.csf_profile_merge_import_row_disposition(
@@ -645,24 +541,13 @@ SELECT extensions.is(
           import_row.commit_outcome_resolution
         ) <> 'immutable_history'
       UNION ALL
-      SELECT partner_row.id
-      FROM plugin_data.csf_partner_submission_rows AS partner_row
-      WHERE partner_row.organization_id = 'fe100000-0000-4000-8000-000000000001'
-        AND partner_row.profile_id = ANY (ARRAY[
-          'fe400000-0000-4000-8000-000000000001'::uuid,
-          'fe400000-0000-4000-8000-000000000003'::uuid,
-          'fe400000-0000-4000-8000-000000000005'::uuid,
-          'fe400000-0000-4000-8000-000000000007'::uuid
-        ])
-      UNION ALL
       SELECT attendance.id
       FROM plugin_data.csf_meeting_attendance AS attendance
       WHERE attendance.organization_id = 'fe100000-0000-4000-8000-000000000001'
         AND attendance.profile_id = ANY (ARRAY[
           'fe400000-0000-4000-8000-000000000001'::uuid,
           'fe400000-0000-4000-8000-000000000003'::uuid,
-          'fe400000-0000-4000-8000-000000000005'::uuid,
-          'fe400000-0000-4000-8000-000000000007'::uuid
+          'fe400000-0000-4000-8000-000000000005'::uuid
         ])
       UNION ALL
       SELECT submission.id
@@ -671,8 +556,7 @@ SELECT extensions.is(
         AND submission.profile_id = ANY (ARRAY[
           'fe400000-0000-4000-8000-000000000001'::uuid,
           'fe400000-0000-4000-8000-000000000003'::uuid,
-          'fe400000-0000-4000-8000-000000000005'::uuid,
-          'fe400000-0000-4000-8000-000000000007'::uuid
+          'fe400000-0000-4000-8000-000000000005'::uuid
         ])
     ) AS live_source_reference
   ),

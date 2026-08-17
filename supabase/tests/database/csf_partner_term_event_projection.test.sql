@@ -47,11 +47,10 @@ VALUES
   ('be300000-0000-4000-8000-000000000002', 'be100000-0000-4000-8000-000000000002', 'Other Science Club', 'active');
 
 INSERT INTO plugin_data.csf_partner_club_terms (
-  id, organization_id, partner_club_id, term_id, relationship_status,
-  workflow_status, approved_point_types, non_drive_points, drive_points, proof_required
+  id, organization_id, partner_club_id, term_id, relationship_status, workflow_status
 ) VALUES
-  ('be400000-0000-4000-8000-000000000001', 'be100000-0000-4000-8000-000000000001', 'be300000-0000-4000-8000-000000000001', 'be200000-0000-4000-8000-000000000001', 'new', 'active', ARRAY['non_drive']::text[], 2, 0, true),
-  ('be400000-0000-4000-8000-000000000002', 'be100000-0000-4000-8000-000000000002', 'be300000-0000-4000-8000-000000000002', 'be200000-0000-4000-8000-000000000002', 'new', 'active', ARRAY['non_drive']::text[], 2, 0, true);
+  ('be400000-0000-4000-8000-000000000001', 'be100000-0000-4000-8000-000000000001', 'be300000-0000-4000-8000-000000000001', 'be200000-0000-4000-8000-000000000001', 'new', 'active'),
+  ('be400000-0000-4000-8000-000000000002', 'be100000-0000-4000-8000-000000000002', 'be300000-0000-4000-8000-000000000002', 'be200000-0000-4000-8000-000000000002', 'new', 'active');
 
 SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_set_partner_club_term_status(

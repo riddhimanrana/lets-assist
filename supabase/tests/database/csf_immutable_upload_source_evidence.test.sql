@@ -3,10 +3,11 @@
 -- This is the third receipt issuer. `csf_refresh_sheet_source_evidence` proves a live
 -- Google file, `csf_issue_uploaded_source_evidence` proves a locked staged generation, and
 -- `csf_issue_immutable_upload_source_evidence` proves the one family neither of those can
--- describe: a partner-club audit workbook written ONCE to a permanent per-batch object path
--- with `upsert: false`, which has no Drive object to re-read and no staged generation to
--- lock. Before it existed, every such batch reached
--- `csf_commit_partner_audit_import` with a NULL token and was refused with no way out.
+-- describe: a partner-club audit workbook written ONCE to a permanent object path with
+-- `upsert: false`, which has no Drive object to re-read and no staged generation to lock.
+-- (The per-batch commit that once spent these receipts,
+-- `csf_commit_partner_audit_import`, was retired with the 2026-08-17 partner-club
+-- simplification; the receipt lifecycle is proved at the consume boundary directly.)
 --
 -- What this file proves, in order:
 --
@@ -16,11 +17,11 @@
 --      unauthorized officer, wrong preview, a mutable or mis-typed provider, a staged
 --      source, and missing, malformed or disagreeing immutable coordinates on either the
 --      source or the preview;
---   C. the receipt is spent by a real commit, exactly once, bound to that one preview;
+--   C. the receipt is spendable exactly once, bound to the one preview it was issued for;
 --   D. re-issuing and mutating the source both invalidate a receipt already in hand;
 --   E. the two uploaded families cannot be substituted for each other;
 --   F. the issuer is reachable by service_role and nobody else, the consume by nobody,
---      and the receipt-less commit overload is gone.
+--      and the retired partner-audit commit is gone in every shape.
 --
 -- Nothing here is a source scan. Every assertion runs the functions.
 --
@@ -35,7 +36,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 -- An exact plan. `no_plan()` cannot distinguish "every assertion passed" from "some never
 -- ran", and an evidence gate that silently stops running is the failure this file exists
 -- to catch.
-SELECT extensions.plan(48);
+SELECT extensions.plan(44);
 
 -- ---------------------------------------------------------------------------
 -- Fixture.
@@ -75,13 +76,6 @@ INSERT INTO plugin_data.csf_profiles (
 ) VALUES (
   'e4300000-0000-4000-8000-000000000001', 'e4100000-0000-4000-8000-000000000001',
   'Immutable', 'Auditee', 'immutable', 'auditee', 'active'
-);
-
-INSERT INTO plugin_data.csf_partner_clubs (
-  id, organization_id, name, approved_point_types
-) VALUES (
-  'e4800000-0000-4000-8000-000000000001', 'e4100000-0000-4000-8000-000000000001',
-  'Synthetic Immutable Club', ARRAY['non_drive']::text[]
 );
 
 -- The sources. One valid immutable workbook, and one of every shape that must NOT receive
@@ -252,9 +246,9 @@ INSERT INTO plugin_data.csf_sheet_import_jobs (
    '{"version":1,"sourceType":"partner_club_audit"}', 1,
    'e4d00000-0000-4000-8000-000000000009', '{}', now());
 
--- One ready row per preview that a commit will actually read. Readiness refuses a commit
--- while any sibling is undecided, so the two previews the commits below use carry exactly
--- one `pending` row each.
+-- One ready row per preview. The batch commit that once read these rows was retired;
+-- they remain so each preview is a complete, decided snapshot like the ones the issuer
+-- sees in production.
 INSERT INTO plugin_data.csf_sheet_import_rows (
   id, organization_id, job_id, source_id, term_id, sheet_tab_name, row_number,
   raw_data, normalized_data, row_hash, matched_profile_id, import_status, correlation_id
@@ -262,45 +256,15 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
   ('e4700000-0000-4000-8000-000000000001', 'e4100000-0000-4000-8000-000000000001',
    'e4600000-0000-4000-8000-000000000001', 'e4500000-0000-4000-8000-000000000001',
    'e4200000-0000-4000-8000-000000000001', 'Audit', 2, '{"Name":"Immutable Auditee"}',
-   '{"partnerAuditBatchId":"e4900000-0000-4000-8000-000000000001","source":{"rowHash":"immutable-audit-hash-1"}}',
+   '{"source":{"rowHash":"immutable-audit-hash-1"}}',
    'immutable-audit-hash-1', 'e4300000-0000-4000-8000-000000000001', 'pending',
    'e4d00000-0000-4000-8000-000000000001'),
   ('e4700000-0000-4000-8000-000000000002', 'e4100000-0000-4000-8000-000000000001',
    'e4600000-0000-4000-8000-000000000002', 'e4500000-0000-4000-8000-000000000001',
    'e4200000-0000-4000-8000-000000000001', 'Audit', 2, '{"Name":"Immutable Auditee"}',
-   '{"partnerAuditBatchId":"e4900000-0000-4000-8000-000000000002","source":{"rowHash":"immutable-audit-hash-2"}}',
+   '{"source":{"rowHash":"immutable-audit-hash-2"}}',
    'immutable-audit-hash-2', 'e4300000-0000-4000-8000-000000000001', 'pending',
    'e4d00000-0000-4000-8000-000000000002');
-
-INSERT INTO plugin_data.csf_partner_submission_batches (
-  id, organization_id, partner_club_id, term_id, title, source, source_url, status,
-  submitted_by, summary
-) VALUES
-  ('e4900000-0000-4000-8000-000000000001', 'e4100000-0000-4000-8000-000000000001',
-   'e4800000-0000-4000-8000-000000000001', 'e4200000-0000-4000-8000-000000000001',
-   'Synthetic immutable audit', 'sheet',
-   'csf/e4100000-0000-4000-8000-000000000001/partner-audits/e4900000-0000-4000-8000-000000000001/synthetic-audit.xlsx',
-   'needs_verification', 'e4000000-0000-4000-8000-000000000001',
-   '{"sheetImportPreviewJobId":"e4600000-0000-4000-8000-000000000001","sheetImportCorrelationId":"e4d00000-0000-4000-8000-000000000001"}'),
-  ('e4900000-0000-4000-8000-000000000002', 'e4100000-0000-4000-8000-000000000001',
-   'e4800000-0000-4000-8000-000000000001', 'e4200000-0000-4000-8000-000000000001',
-   'Synthetic immutable audit two', 'sheet',
-   'csf/e4100000-0000-4000-8000-000000000001/partner-audits/e4900000-0000-4000-8000-000000000001/synthetic-audit.xlsx',
-   'needs_verification', 'e4000000-0000-4000-8000-000000000001',
-   '{"sheetImportPreviewJobId":"e4600000-0000-4000-8000-000000000002","sheetImportCorrelationId":"e4d00000-0000-4000-8000-000000000002"}');
-
-INSERT INTO plugin_data.csf_partner_submission_rows (
-  id, organization_id, batch_id, profile_id, matched_status, raw_data, normalized_data,
-  claimed_points, point_type
-) VALUES
-  ('e4a00000-0000-4000-8000-000000000001', 'e4100000-0000-4000-8000-000000000001',
-   'e4900000-0000-4000-8000-000000000001', 'e4300000-0000-4000-8000-000000000001',
-   'matched', '{"Name":"Immutable Auditee"}',
-   '{"source":{"rowHash":"immutable-audit-hash-1"}}', 3, 'non_drive'),
-  ('e4a00000-0000-4000-8000-000000000002', 'e4100000-0000-4000-8000-000000000001',
-   'e4900000-0000-4000-8000-000000000002', 'e4300000-0000-4000-8000-000000000001',
-   'matched', '{"Name":"Immutable Auditee"}',
-   '{"source":{"rowHash":"immutable-audit-hash-2"}}', 5, 'non_drive');
 
 -- ---------------------------------------------------------------------------
 -- A. The issuer accepts exactly the reviewed immutable shape.
@@ -656,23 +620,22 @@ SELECT extensions.is(
 );
 
 -- ---------------------------------------------------------------------------
--- C. The receipt is spent by a real commit, exactly once, bound to that preview.
+-- C. The receipt is spendable exactly once, bound to the preview it was issued for.
 -- ---------------------------------------------------------------------------
 --
--- The receipt in hand was issued for preview ...0001. Batch ...0002 links preview ...0002,
--- so this is a receipt for the right source, the right officer and the wrong preview --
+-- The retired batch commit used to reach this consume; it is exercised directly now.
+-- The receipt in hand was issued for preview ...0001, so offering it with preview
+-- ...0002 is a receipt for the right source, the right officer and the wrong preview --
 -- the case the token's preview binding exists for.
 SELECT extensions.throws_ok(
   format(
     $$
-      SELECT plugin_data.csf_commit_partner_audit_import(
+      SELECT plugin_data.csf_consume_sheet_source_evidence(
         'e4100000-0000-4000-8000-000000000001',
-        'e4900000-0000-4000-8000-000000000002',
-        'pending',
+        'e4500000-0000-4000-8000-000000000001',
         'e4000000-0000-4000-8000-000000000001',
-        'Attempted to commit one preview with the other preview''''s receipt.',
-        NULL,
-        %L
+        %L,
+        'e4600000-0000-4000-8000-000000000002'
       )
     $$,
     (SELECT token FROM immutable_receipts WHERE label = 'first')
@@ -690,27 +653,20 @@ SELECT extensions.is(
   'and refusing it does not spend it'
 );
 
-SELECT extensions.is(
-  (SELECT (plugin_data.csf_commit_partner_audit_import(
-    'e4100000-0000-4000-8000-000000000001',
-    'e4900000-0000-4000-8000-000000000001',
-    'pending',
-    'e4000000-0000-4000-8000-000000000001',
-    'Committed the immutable partner-audit workbook against its own receipt.',
-    NULL,
+SELECT extensions.lives_ok(
+  format(
+    $$
+      SELECT plugin_data.csf_consume_sheet_source_evidence(
+        'e4100000-0000-4000-8000-000000000001',
+        'e4500000-0000-4000-8000-000000000001',
+        'e4000000-0000-4000-8000-000000000001',
+        %L,
+        'e4600000-0000-4000-8000-000000000001'
+      )
+    $$,
     (SELECT token FROM immutable_receipts WHERE label = 'first')
-  ))->>'generated')::integer,
-  1,
-  'the immutable uploaded family can now commit'
-);
-
-SELECT extensions.is(
-  (SELECT count(*)::integer
-   FROM plugin_data.csf_credit_records AS credit
-   WHERE credit.organization_id = 'e4100000-0000-4000-8000-000000000001'
-     AND credit.profile_id = 'e4300000-0000-4000-8000-000000000001'),
-  1,
-  'and the credit it exists to write is written'
+  ),
+  'the immutable uploaded family receipt spends against its own preview'
 );
 
 SELECT extensions.is(
@@ -721,74 +677,23 @@ SELECT extensions.is(
   'the receipt is recorded as spent by the exact preview it was issued for'
 );
 
--- Single use, durably. The spent receipt is offered to the OTHER batch, whose preview it
--- was never issued for either -- so if the spend check were the thing that regressed, the
--- preview binding would still refuse. Both are asserted rather than one standing in for
--- the other: the sentence names which check answered.
--- The batch is already committed, so the replay short-circuits ahead of the population
--- lock, the readiness gate and the consume. Offering it the spent receipt is therefore
--- not an error: a replay writes nothing new, and re-proving a durable snapshot would turn
--- a safe retry into a failure whenever the workbook has legitimately changed since.
-SELECT extensions.lives_ok(
-  format(
-    $$
-      SELECT plugin_data.csf_commit_partner_audit_import(
-        'e4100000-0000-4000-8000-000000000001',
-        'e4900000-0000-4000-8000-000000000001',
-        'pending',
-        'e4000000-0000-4000-8000-000000000001',
-        'Attempted to spend one receipt twice.',
-        NULL,
-        %L
-      )
-    $$,
-    (SELECT token FROM immutable_receipts WHERE label = 'first')
-  ),
-  'replaying the committed batch with the spent receipt short-circuits ahead of the consume'
-);
-
-SELECT extensions.is(
-  (SELECT (plugin_data.csf_commit_partner_audit_import(
-    'e4100000-0000-4000-8000-000000000001',
-    'e4900000-0000-4000-8000-000000000001',
-    'pending',
-    'e4000000-0000-4000-8000-000000000001',
-    'Replayed the committed batch with no receipt at all.',
-    NULL,
-    NULL
-  ))->>'idempotent')::boolean,
-  true,
-  'a replay of an already-committed batch stays idempotent and needs no fresh receipt'
-);
-
-SELECT extensions.is(
-  (SELECT count(*)::integer
-   FROM plugin_data.csf_credit_records AS credit
-   WHERE credit.organization_id = 'e4100000-0000-4000-8000-000000000001'),
-  1,
-  'and writes nothing a second time'
-);
-
--- The spent receipt against a batch that has NOT been committed: now the consume is
--- reached, and the durable single-use rule is what answers.
+-- Single use, durably. A replayed token is refused rather than silently accepted twice.
 SELECT extensions.throws_ok(
   format(
     $$
-      SELECT plugin_data.csf_commit_partner_audit_import(
+      SELECT plugin_data.csf_consume_sheet_source_evidence(
         'e4100000-0000-4000-8000-000000000001',
-        'e4900000-0000-4000-8000-000000000002',
-        'pending',
+        'e4500000-0000-4000-8000-000000000001',
         'e4000000-0000-4000-8000-000000000001',
-        'Attempted to spend a used receipt on an uncommitted batch.',
-        NULL,
-        %L
+        %L,
+        'e4600000-0000-4000-8000-000000000001'
       )
     $$,
     (SELECT token FROM immutable_receipts WHERE label = 'first')
   ),
-  '42501',
-  'This CSF source freshness check was issued for a different preview; check this preview and import again.',
-  'a spent receipt is still refused on the preview it was never issued for'
+  '55000',
+  'This CSF source freshness check has already been used.',
+  'a spent receipt is durably refused a second spend'
 );
 
 -- ---------------------------------------------------------------------------
@@ -1045,9 +950,13 @@ SELECT extensions.ok(
 );
 
 SELECT extensions.is(
-  to_regprocedure('plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid)')::text,
-  NULL,
-  'and the receipt-less partner-audit overload still does not resolve'
+  (SELECT count(*)::integer
+   FROM pg_catalog.pg_proc AS proc
+   JOIN pg_catalog.pg_namespace AS ns ON ns.oid = proc.pronamespace
+   WHERE ns.nspname = 'plugin_data'
+     AND proc.proname = 'csf_commit_partner_audit_import'),
+  0,
+  'and the retired partner-audit commit does not resolve in any shape'
 );
 
 SELECT extensions.is(

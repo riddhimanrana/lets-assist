@@ -1,11 +1,11 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(35);
+SELECT extensions.plan(32);
 
 SELECT extensions.ok(
   to_regprocedure('plugin_data.csf_upsert_partner_club_policy(uuid,uuid,uuid,jsonb)') IS NOT NULL,
-  'the atomic partner-club policy review operation exists'
+  'the atomic partner-club review operation exists'
 );
 SELECT extensions.ok(
   NOT has_function_privilege('public', 'plugin_data.csf_upsert_partner_club_policy(uuid,uuid,uuid,jsonb)', 'EXECUTE')
@@ -67,15 +67,11 @@ SELECT extensions.throws_ok(
     jsonb_build_object(
       'termId', 'bd200000-0000-4000-8000-000000000001',
       'termStatus', 'new',
-      'name', 'Unauthorized Club',
-      'approvedPointTypes', jsonb_build_array('non_drive'),
-      'nonDrivePoints', 2,
-      'drivePoints', 0,
-      'proofRequired', true
+      'name', 'Unauthorized Club'
     )
   )$$,
   'P0001', 'Not authorized to manage CSF partner clubs.',
-  'an ordinary member cannot create or review a partner policy'
+  'an ordinary member cannot create or review a partner club'
 );
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_partner_clubs WHERE name = 'Unauthorized Club'),
@@ -91,15 +87,27 @@ SELECT extensions.throws_ok(
     jsonb_build_object(
       'returningClubId', 'bd300000-0000-4000-8000-000000000002',
       'termId', 'bd200000-0000-4000-8000-000000000001',
-      'termStatus', 'returning',
-      'approvedPointTypes', jsonb_build_array('non_drive'),
-      'nonDrivePoints', 2,
-      'drivePoints', 0,
-      'proofRequired', true
+      'termStatus', 'returning'
     )
   )$$,
   'P0001', 'Partner club was not found.',
   'an authorized manager cannot attach another organization club'
+);
+
+SELECT extensions.throws_ok(
+  $$SELECT plugin_data.csf_upsert_partner_club_policy(
+    'bd100000-0000-4000-8000-000000000001',
+    'bd000000-0000-4000-8000-000000000001',
+    'bd900000-0000-4000-8000-000000000009',
+    jsonb_build_object(
+      'termId', 'bd200000-0000-4000-8000-000000000001',
+      'termStatus', 'new',
+      'name', 'Bad Link Club',
+      'spreadsheetUrl', 'javascript:alert(1)'
+    )
+  )$$,
+  'P0001', 'The club spreadsheet link must be an http(s) URL.',
+  'the club spreadsheet link must be a plain http(s) URL'
 );
 
 SELECT extensions.lives_ok(
@@ -117,14 +125,11 @@ SELECT extensions.lives_ok(
       'recruitingNewMembers', 'yes',
       'allocationSatisfied', 'yes',
       'allocationNotes', 'Reviewed against the semester allocation.',
-      'approvedPointTypes', jsonb_build_array('non_drive', 'drive'),
-      'nonDrivePoints', 4.5,
-      'drivePoints', 2,
-      'proofRequired', true,
-      'notes', 'Officer-approved semester policy.'
+      'spreadsheetUrl', 'https://docs.google.com/spreadsheets/d/science-partners',
+      'notes', 'Officer-approved record.'
     )
   )$$,
-  'an authorized manager atomically creates and reviews a partner policy'
+  'an authorized manager atomically creates and reviews a partner club'
 );
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_partner_clubs WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
@@ -136,17 +141,12 @@ SELECT extensions.is(
   1,
   'the canonical normalized alias is created in the same transaction'
 );
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_partner_submission_batches WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
-  1,
-  'the reviewed form is retained as an immutable source fact'
-);
 SELECT extensions.results_eq(
-  $$SELECT relationship_status, workflow_status, approved_point_types, non_drive_points, drive_points, proof_required, allocation_satisfied, policy_notes
+  $$SELECT relationship_status, workflow_status, allocation_satisfied, policy_notes, spreadsheet_url
     FROM plugin_data.csf_partner_club_terms
     WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'$$,
-  $$VALUES ('new'::text, 'active'::text, ARRAY['drive', 'non_drive']::text[], 4.5::numeric, 2::numeric, true, true, 'Reviewed against the semester allocation.'::text)$$,
-  'the current semester projection contains the reviewed point policy'
+  $$VALUES ('new'::text, 'active'::text, true, 'Reviewed against the semester allocation.'::text, 'https://docs.google.com/spreadsheets/d/science-partners'::text)$$,
+  'the current semester projection contains the reviewed record and sheet link'
 );
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_partner_club_term_events WHERE idempotency_key = 'policy-request:bd900000-0000-4000-8000-000000000003'),
@@ -161,7 +161,7 @@ SELECT extensions.is(
 SELECT extensions.is(
   (SELECT event_type FROM plugin_data.csf_partner_club_term_events WHERE idempotency_key = 'policy-request:bd900000-0000-4000-8000-000000000003'),
   'point_policy_published',
-  'the lifecycle receipt identifies a published point-policy review'
+  'the lifecycle receipt identifies a published partner-club review'
 );
 
 SELECT extensions.is(
@@ -179,11 +179,8 @@ SELECT extensions.is(
       'recruitingNewMembers', 'yes',
       'allocationSatisfied', 'yes',
       'allocationNotes', 'Reviewed against the semester allocation.',
-      'approvedPointTypes', jsonb_build_array('non_drive', 'drive'),
-      'nonDrivePoints', 4.5,
-      'drivePoints', 2,
-      'proofRequired', true,
-      'notes', 'Officer-approved semester policy.'
+      'spreadsheetUrl', 'https://docs.google.com/spreadsheets/d/science-partners',
+      'notes', 'Officer-approved record.'
     )
   ) ->> 'idempotent'),
   'true',
@@ -193,11 +190,6 @@ SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_partner_clubs WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
   1,
   'exact replay cannot duplicate the club projection'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_partner_submission_batches WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
-  1,
-  'exact replay cannot duplicate the source-review fact'
 );
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_partner_club_terms WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
@@ -229,21 +221,18 @@ SELECT extensions.throws_ok(
       'continuationStatus', 'new',
       'recruitingNewMembers', 'yes',
       'allocationSatisfied', 'yes',
-      'allocationNotes', 'Reviewed against the semester allocation.',
-      'approvedPointTypes', jsonb_build_array('non_drive', 'drive'),
-      'nonDrivePoints', 99,
-      'drivePoints', 2,
-      'proofRequired', true,
-      'notes', 'Officer-approved semester policy.'
+      'allocationNotes', 'A materially different review narrative.',
+      'spreadsheetUrl', 'https://docs.google.com/spreadsheets/d/science-partners',
+      'notes', 'Officer-approved record.'
     )
   )$$,
   'P0001', 'That partner-club policy request identifier is already bound to a different review.',
-  'a stable request identifier cannot be rebound to different policy content'
+  'a stable request identifier cannot be rebound to different review content'
 );
 SELECT extensions.is(
-  (SELECT non_drive_points FROM plugin_data.csf_partner_club_terms WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
-  4.5::numeric,
-  'a conflicting replay leaves the current policy unchanged'
+  (SELECT policy_notes FROM plugin_data.csf_partner_club_terms WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
+  'Reviewed against the semester allocation.',
+  'a conflicting replay leaves the current record unchanged'
 );
 
 SELECT extensions.throws_ok(
@@ -254,11 +243,7 @@ SELECT extensions.throws_ok(
     jsonb_build_object(
       'termId', 'bd200000-0000-4000-8000-000000000001',
       'termStatus', 'new',
-      'name', '  science   partners  ',
-      'approvedPointTypes', jsonb_build_array('non_drive'),
-      'nonDrivePoints', 1,
-      'drivePoints', 0,
-      'proofRequired', true
+      'name', '  science   partners  '
     )
   )$$,
   'P0001', 'That club name or alias already belongs to another canonical partner club.',
@@ -268,11 +253,6 @@ SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_partner_clubs WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
   1,
   'an alias conflict cannot leave an orphan club projection'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_partner_submission_batches WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
-  1,
-  'an alias conflict cannot leave an orphan submission fact'
 );
 
 SELECT extensions.lives_ok(
@@ -288,32 +268,24 @@ SELECT extensions.lives_ok(
       'name', 'Science Partners',
       'recruitingNewMembers', 'unknown',
       'allocationSatisfied', 'no',
-      'allocationNotes', 'Cap changed after a second officer review.',
-      'approvedPointTypes', jsonb_build_array('non_drive'),
-      'nonDrivePoints', 3,
-      'drivePoints', 0,
-      'proofRequired', false,
-      'notes', 'Return for policy changes.'
+      'allocationNotes', 'Record returned after a second officer review.',
+      'spreadsheetUrl', 'https://docs.google.com/spreadsheets/d/science-partners-v2',
+      'notes', 'Return for changes.'
     )
   )$$,
   'a returning-club review updates the exact locked club-term projection'
 );
 SELECT extensions.results_eq(
-  $$SELECT relationship_status, workflow_status, approved_point_types, non_drive_points, drive_points, proof_required, allocation_satisfied, policy_notes
+  $$SELECT relationship_status, workflow_status, allocation_satisfied, policy_notes, spreadsheet_url
     FROM plugin_data.csf_partner_club_terms
     WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'$$,
-  $$VALUES ('returning'::text, 'active'::text, ARRAY['non_drive']::text[], 3::numeric, 0::numeric, false, false, 'Cap changed after a second officer review.'::text)$$,
-  'the returning review replaces the term projection with its exact approved policy'
+  $$VALUES ('returning'::text, 'active'::text, false, 'Record returned after a second officer review.'::text, 'https://docs.google.com/spreadsheets/d/science-partners-v2'::text)$$,
+  'the returning review replaces the term projection with its exact reviewed record'
 );
 SELECT extensions.is(
   (SELECT contact_email FROM plugin_data.csf_partner_clubs WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
   'partners@example.test',
   'omitted returning-club contact data inherits the canonical club value'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_partner_submission_batches WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
-  2,
-  'a distinct review appends a second source fact'
 );
 SELECT extensions.is(
   (SELECT count(*)::integer FROM plugin_data.csf_partner_club_term_events WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'),
@@ -351,7 +323,7 @@ SELECT extensions.ok(
     WHERE organization_id = 'bd100000-0000-4000-8000-000000000001'
       AND NULLIF(metadata ->> 'requestFingerprint', '') IS NULL
   ),
-  'every policy receipt stores a canonical request fingerprint for conflict detection'
+  'every review receipt stores a canonical request fingerprint for conflict detection'
 );
 
 SELECT * FROM extensions.finish();

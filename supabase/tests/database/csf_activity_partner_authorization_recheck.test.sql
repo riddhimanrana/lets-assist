@@ -17,10 +17,8 @@ SELECT extensions.ok(
     AND to_regprocedure('plugin_data.csf_link_activity_project(uuid,uuid,uuid,uuid,uuid)') IS NOT NULL
     AND to_regprocedure('plugin_data.csf_set_partner_club_status(uuid,uuid,text,uuid,uuid)') IS NOT NULL
     AND to_regprocedure('plugin_data.csf_set_partner_club_term_status(uuid,uuid,text,text,uuid,uuid)') IS NOT NULL
-    AND to_regprocedure('plugin_data.csf_upsert_partner_club_policy(uuid,uuid,uuid,jsonb)') IS NOT NULL
-    AND to_regprocedure('plugin_data.csf_assign_partner_representative(uuid,uuid,text,text,text,date,boolean,uuid,uuid)') IS NOT NULL
-    AND to_regprocedure('plugin_data.csf_revoke_partner_representative(uuid,uuid,uuid,text,uuid,uuid)') IS NOT NULL,
-  'all nine stable activity and partner-club wrappers exist'
+    AND to_regprocedure('plugin_data.csf_upsert_partner_club_policy(uuid,uuid,uuid,jsonb)') IS NOT NULL,
+  'all seven stable activity and partner-club wrappers exist'
 );
 SELECT extensions.ok(
   to_regprocedure('plugin_data.csf_create_activity_locked_impl(uuid,uuid,uuid,jsonb,uuid,uuid)') IS NOT NULL
@@ -29,10 +27,8 @@ SELECT extensions.ok(
     AND to_regprocedure('plugin_data.csf_link_activity_project_locked_impl(uuid,uuid,uuid,uuid,uuid)') IS NOT NULL
     AND to_regprocedure('plugin_data.csf_set_partner_club_status_locked_impl(uuid,uuid,text,uuid,uuid)') IS NOT NULL
     AND to_regprocedure('plugin_data.csf_set_partner_club_term_status_locked_impl(uuid,uuid,text,text,uuid,uuid)') IS NOT NULL
-    AND to_regprocedure('plugin_data.csf_upsert_partner_club_policy_locked_impl(uuid,uuid,uuid,jsonb)') IS NOT NULL
-    AND to_regprocedure('plugin_data.csf_assign_partner_representative_locked_impl(uuid,uuid,text,text,text,date,boolean,uuid,uuid)') IS NOT NULL
-    AND to_regprocedure('plugin_data.csf_revoke_partner_representative_locked_impl(uuid,uuid,uuid,text,uuid,uuid)') IS NOT NULL,
-  'all nine prior transactions remain behind clearly named implementations'
+    AND to_regprocedure('plugin_data.csf_upsert_partner_club_policy_locked_impl(uuid,uuid,uuid,jsonb)') IS NOT NULL,
+  'all seven prior transactions remain behind clearly named implementations'
 );
 SELECT extensions.ok(
   NOT EXISTS (
@@ -44,9 +40,7 @@ SELECT extensions.ok(
       'plugin_data.csf_link_activity_project(uuid,uuid,uuid,uuid,uuid)',
       'plugin_data.csf_set_partner_club_status(uuid,uuid,text,uuid,uuid)',
       'plugin_data.csf_set_partner_club_term_status(uuid,uuid,text,text,uuid,uuid)',
-      'plugin_data.csf_upsert_partner_club_policy(uuid,uuid,uuid,jsonb)',
-      'plugin_data.csf_assign_partner_representative(uuid,uuid,text,text,text,date,boolean,uuid,uuid)',
-      'plugin_data.csf_revoke_partner_representative(uuid,uuid,uuid,text,uuid,uuid)'
+      'plugin_data.csf_upsert_partner_club_policy(uuid,uuid,uuid,jsonb)'
     ]) AS operation(signature)
     CROSS JOIN unnest(ARRAY['public', 'anon', 'authenticated']) AS client(role_name)
     WHERE has_function_privilege(client.role_name::name, operation.signature, 'EXECUTE')
@@ -60,12 +54,10 @@ SELECT extensions.ok(
       'plugin_data.csf_link_activity_project(uuid,uuid,uuid,uuid,uuid)',
       'plugin_data.csf_set_partner_club_status(uuid,uuid,text,uuid,uuid)',
       'plugin_data.csf_set_partner_club_term_status(uuid,uuid,text,text,uuid,uuid)',
-      'plugin_data.csf_upsert_partner_club_policy(uuid,uuid,uuid,jsonb)',
-      'plugin_data.csf_assign_partner_representative(uuid,uuid,text,text,text,date,boolean,uuid,uuid)',
-      'plugin_data.csf_revoke_partner_representative(uuid,uuid,uuid,text,uuid,uuid)'
+      'plugin_data.csf_upsert_partner_club_policy(uuid,uuid,uuid,jsonb)'
     ]) AS operation(signature)
   ),
-  'only service_role can execute the nine stable wrappers'
+  'only service_role can execute the seven stable wrappers'
 );
 SELECT extensions.ok(
   NOT EXISTS (
@@ -77,9 +69,7 @@ SELECT extensions.ok(
       'plugin_data.csf_link_activity_project_locked_impl(uuid,uuid,uuid,uuid,uuid)',
       'plugin_data.csf_set_partner_club_status_locked_impl(uuid,uuid,text,uuid,uuid)',
       'plugin_data.csf_set_partner_club_term_status_locked_impl(uuid,uuid,text,text,uuid,uuid)',
-      'plugin_data.csf_upsert_partner_club_policy_locked_impl(uuid,uuid,uuid,jsonb)',
-      'plugin_data.csf_assign_partner_representative_locked_impl(uuid,uuid,text,text,text,date,boolean,uuid,uuid)',
-      'plugin_data.csf_revoke_partner_representative_locked_impl(uuid,uuid,uuid,text,uuid,uuid)'
+      'plugin_data.csf_upsert_partner_club_policy_locked_impl(uuid,uuid,uuid,jsonb)'
     ]) AS implementation(signature)
     CROSS JOIN unnest(
       ARRAY['public', 'anon', 'authenticated', 'service_role']
@@ -90,7 +80,7 @@ SELECT extensions.ok(
       'EXECUTE'
     )
   ),
-  'the nine implementations are executable only by their owner'
+  'the seven implementations are executable only by their owner'
 );
 SELECT extensions.ok(
   (
@@ -103,9 +93,7 @@ SELECT extensions.ok(
       'plugin_data.csf_link_activity_project(uuid,uuid,uuid,uuid,uuid)'::regprocedure,
       'plugin_data.csf_set_partner_club_status(uuid,uuid,text,uuid,uuid)'::regprocedure,
       'plugin_data.csf_set_partner_club_term_status(uuid,uuid,text,text,uuid,uuid)'::regprocedure,
-      'plugin_data.csf_upsert_partner_club_policy(uuid,uuid,uuid,jsonb)'::regprocedure,
-      'plugin_data.csf_assign_partner_representative(uuid,uuid,text,text,text,date,boolean,uuid,uuid)'::regprocedure,
-      'plugin_data.csf_revoke_partner_representative(uuid,uuid,uuid,text,uuid,uuid)'::regprocedure
+      'plugin_data.csf_upsert_partner_club_policy(uuid,uuid,uuid,jsonb)'::regprocedure
     )
   ),
   'every stable wrapper is SECURITY DEFINER with an empty search path'
@@ -121,9 +109,7 @@ SELECT extensions.ok(
       'plugin_data.csf_link_activity_project_locked_impl(uuid,uuid,uuid,uuid,uuid)'::regprocedure,
       'plugin_data.csf_set_partner_club_status_locked_impl(uuid,uuid,text,uuid,uuid)'::regprocedure,
       'plugin_data.csf_set_partner_club_term_status_locked_impl(uuid,uuid,text,text,uuid,uuid)'::regprocedure,
-      'plugin_data.csf_upsert_partner_club_policy_locked_impl(uuid,uuid,uuid,jsonb)'::regprocedure,
-      'plugin_data.csf_assign_partner_representative_locked_impl(uuid,uuid,text,text,text,date,boolean,uuid,uuid)'::regprocedure,
-      'plugin_data.csf_revoke_partner_representative_locked_impl(uuid,uuid,uuid,text,uuid,uuid)'::regprocedure
+      'plugin_data.csf_upsert_partner_club_policy_locked_impl(uuid,uuid,uuid,jsonb)'::regprocedure
     )
   ),
   'every retained implementation is still SECURITY DEFINER with an empty search path'
@@ -136,9 +122,7 @@ WITH wrapper_contract(name, signature, permission_key) AS (
     ('csf_link_activity_project', 'plugin_data.csf_link_activity_project(uuid,uuid,uuid,uuid,uuid)', 'manage_opportunities'),
     ('csf_set_partner_club_status', 'plugin_data.csf_set_partner_club_status(uuid,uuid,text,uuid,uuid)', 'manage_partner_clubs'),
     ('csf_set_partner_club_term_status', 'plugin_data.csf_set_partner_club_term_status(uuid,uuid,text,text,uuid,uuid)', 'manage_partner_clubs'),
-    ('csf_upsert_partner_club_policy', 'plugin_data.csf_upsert_partner_club_policy(uuid,uuid,uuid,jsonb)', 'manage_partner_clubs'),
-    ('csf_assign_partner_representative', 'plugin_data.csf_assign_partner_representative(uuid,uuid,text,text,text,date,boolean,uuid,uuid)', 'manage_partner_clubs'),
-    ('csf_revoke_partner_representative', 'plugin_data.csf_revoke_partner_representative(uuid,uuid,uuid,text,uuid,uuid)', 'manage_partner_clubs')
+    ('csf_upsert_partner_club_policy', 'plugin_data.csf_upsert_partner_club_policy(uuid,uuid,uuid,jsonb)', 'manage_partner_clubs')
 ),
 definitions AS (
   SELECT
@@ -199,14 +183,6 @@ WITH expected_arguments(signature, arguments) AS (
     (
       'plugin_data.csf_upsert_partner_club_policy(uuid,uuid,uuid,jsonb)',
       'p_organization_id uuid, p_actor_user_id uuid, p_request_id uuid, p_request jsonb'
-    ),
-    (
-      'plugin_data.csf_assign_partner_representative(uuid,uuid,text,text,text,date,boolean,uuid,uuid)',
-      'p_organization_id uuid, p_partner_club_term_id uuid, p_display_name text, p_email text, p_role text, p_effective_start date, p_is_primary boolean, p_request_id uuid, p_actor_user_id uuid'
-    ),
-    (
-      'plugin_data.csf_revoke_partner_representative(uuid,uuid,uuid,text,uuid,uuid)',
-      'p_organization_id uuid, p_assignment_id uuid, p_partner_club_term_id uuid, p_reason text, p_request_id uuid, p_actor_user_id uuid'
     )
 )
 SELECT extensions.ok(
@@ -227,17 +203,7 @@ LANGUAGE plpgsql
 SET search_path = ''
 AS $function$
 BEGIN
-  DELETE FROM plugin_data.csf_partner_club_representatives
-  WHERE organization_id IN (
-    'f9100000-0000-4000-8000-000000000001',
-    'f9100000-0000-4000-8000-000000000002'
-  );
   DELETE FROM plugin_data.csf_partner_club_terms
-  WHERE organization_id IN (
-    'f9100000-0000-4000-8000-000000000001',
-    'f9100000-0000-4000-8000-000000000002'
-  );
-  DELETE FROM plugin_data.csf_partner_submission_batches
   WHERE organization_id IN (
     'f9100000-0000-4000-8000-000000000001',
     'f9100000-0000-4000-8000-000000000002'
@@ -294,9 +260,7 @@ BEGIN
     'f9000000-0000-4000-8000-000000000007',
     'f9000000-0000-4000-8000-000000000008',
     'f9000000-0000-4000-8000-000000000009',
-    'f9000000-0000-4000-8000-000000000010',
-    'f9000000-0000-4000-8000-000000000011',
-    'f9000000-0000-4000-8000-000000000012'
+    'f9000000-0000-4000-8000-000000000010'
   );
 END;
 $function$;
@@ -345,9 +309,7 @@ INSERT INTO auth.users (
   ('f9000000-0000-4000-8000-000000000007', 'authenticated', 'authenticated', 'activity-fence-other-admin@local.test', now(), '{}', '{}', now(), now()),
   ('f9000000-0000-4000-8000-000000000008', 'authenticated', 'authenticated', 'activity-fence-standing@local.test', now(), '{}', '{}', now(), now()),
   ('f9000000-0000-4000-8000-000000000009', 'authenticated', 'authenticated', 'activity-fence-policy@local.test', now(), '{}', '{}', now(), now()),
-  ('f9000000-0000-4000-8000-000000000010', 'authenticated', 'authenticated', 'activity-fence-retry@local.test', now(), '{}', '{}', now(), now()),
-  ('f9000000-0000-4000-8000-000000000011', 'authenticated', 'authenticated', 'activity-fence-representative-assign@local.test', now(), '{}', '{}', now(), now()),
-  ('f9000000-0000-4000-8000-000000000012', 'authenticated', 'authenticated', 'activity-fence-representative-revoke@local.test', now(), '{}', '{}', now(), now());
+  ('f9000000-0000-4000-8000-000000000010', 'authenticated', 'authenticated', 'activity-fence-retry@local.test', now(), '{}', '{}', now(), now());
 
 INSERT INTO public.organizations (id, name, username, type, join_code)
 VALUES
@@ -366,8 +328,6 @@ INSERT INTO public.organization_members (
   ('f9100000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000008', 'member', 'active'),
   ('f9100000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000009', 'member', 'active'),
   ('f9100000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000010', 'member', 'active'),
-  ('f9100000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000011', 'member', 'active'),
-  ('f9100000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000012', 'member', 'active'),
   ('f9100000-0000-4000-8000-000000000002', 'f9000000-0000-4000-8000-000000000007', 'admin', 'active');
 
 INSERT INTO plugin_data.csf_roles (
@@ -381,9 +341,7 @@ INSERT INTO plugin_data.csf_roles (
   ('f9700000-0000-4000-8000-000000000005', 'f9100000-0000-4000-8000-000000000001', 'activity-fence-partner', 'Partner officer', 'Partner officer', 'Partner clubs', 'Synthetic authorization-fence role.', 'custom', false, 505),
   ('f9700000-0000-4000-8000-000000000006', 'f9100000-0000-4000-8000-000000000001', 'activity-fence-standing', 'Standing officer', 'Standing officer', 'Club standing', 'Synthetic authorization-fence role.', 'custom', false, 506),
   ('f9700000-0000-4000-8000-000000000007', 'f9100000-0000-4000-8000-000000000001', 'activity-fence-policy', 'Policy officer', 'Policy officer', 'Club policy', 'Synthetic authorization-fence role.', 'custom', false, 507),
-  ('f9700000-0000-4000-8000-000000000008', 'f9100000-0000-4000-8000-000000000001', 'activity-fence-retry', 'Retry officer', 'Retry officer', 'Activity retries', 'Synthetic authorization-fence role.', 'custom', false, 508),
-  ('f9700000-0000-4000-8000-000000000009', 'f9100000-0000-4000-8000-000000000001', 'activity-fence-representative-assign', 'Representative assignment officer', 'Representative assignment officer', 'Representative assignments', 'Synthetic authorization-fence role.', 'custom', false, 509),
-  ('f9700000-0000-4000-8000-000000000010', 'f9100000-0000-4000-8000-000000000001', 'activity-fence-representative-revoke', 'Representative revocation officer', 'Representative revocation officer', 'Representative revocations', 'Synthetic authorization-fence role.', 'custom', false, 510);
+  ('f9700000-0000-4000-8000-000000000008', 'f9100000-0000-4000-8000-000000000001', 'activity-fence-retry', 'Retry officer', 'Retry officer', 'Activity retries', 'Synthetic authorization-fence role.', 'custom', false, 508);
 
 INSERT INTO plugin_data.csf_role_permissions (
   organization_id, role_id, permission_key, enabled
@@ -395,9 +353,7 @@ INSERT INTO plugin_data.csf_role_permissions (
   ('f9100000-0000-4000-8000-000000000001', 'f9700000-0000-4000-8000-000000000005', 'manage_partner_clubs', true),
   ('f9100000-0000-4000-8000-000000000001', 'f9700000-0000-4000-8000-000000000006', 'manage_partner_clubs', true),
   ('f9100000-0000-4000-8000-000000000001', 'f9700000-0000-4000-8000-000000000007', 'manage_partner_clubs', true),
-  ('f9100000-0000-4000-8000-000000000001', 'f9700000-0000-4000-8000-000000000008', 'manage_opportunities', true),
-  ('f9100000-0000-4000-8000-000000000001', 'f9700000-0000-4000-8000-000000000009', 'manage_partner_clubs', true),
-  ('f9100000-0000-4000-8000-000000000001', 'f9700000-0000-4000-8000-000000000010', 'manage_partner_clubs', true);
+  ('f9100000-0000-4000-8000-000000000001', 'f9700000-0000-4000-8000-000000000008', 'manage_opportunities', true);
 
 INSERT INTO plugin_data.csf_staff_positions (
   id, organization_id, user_id, role_id, school_year,
@@ -410,9 +366,7 @@ INSERT INTO plugin_data.csf_staff_positions (
   ('f9800000-0000-4000-8000-000000000005', 'f9100000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000006', 'f9700000-0000-4000-8000-000000000005', '2040-2041', 'Partner officer', 'active', current_date - 1, current_date + 30),
   ('f9800000-0000-4000-8000-000000000006', 'f9100000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000008', 'f9700000-0000-4000-8000-000000000006', '2040-2041', 'Standing officer', 'active', current_date - 1, current_date + 30),
   ('f9800000-0000-4000-8000-000000000007', 'f9100000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000009', 'f9700000-0000-4000-8000-000000000007', '2040-2041', 'Policy officer', 'active', current_date - 1, current_date + 30),
-  ('f9800000-0000-4000-8000-000000000008', 'f9100000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000010', 'f9700000-0000-4000-8000-000000000008', '2040-2041', 'Retry officer', 'active', current_date - 1, current_date + 30),
-  ('f9800000-0000-4000-8000-000000000009', 'f9100000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000011', 'f9700000-0000-4000-8000-000000000009', '2040-2041', 'Representative assignment officer', 'active', current_date - 1, current_date + 30),
-  ('f9800000-0000-4000-8000-000000000010', 'f9100000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000012', 'f9700000-0000-4000-8000-000000000010', '2040-2041', 'Representative revocation officer', 'active', current_date - 1, current_date + 30);
+  ('f9800000-0000-4000-8000-000000000008', 'f9100000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000010', 'f9700000-0000-4000-8000-000000000008', '2040-2041', 'Retry officer', 'active', current_date - 1, current_date + 30);
 
 INSERT INTO plugin_data.csf_terms (
   id, organization_id, code, label, school_year, semester,
@@ -445,27 +399,9 @@ INSERT INTO plugin_data.csf_partner_clubs (
 
 INSERT INTO plugin_data.csf_partner_club_terms (
   id, organization_id, partner_club_id, term_id, relationship_status,
-  workflow_status, approved_point_types, non_drive_points, drive_points,
-  proof_required
+  workflow_status
 ) VALUES
-  ('f9b00000-0000-4000-8000-000000000001', 'f9100000-0000-4000-8000-000000000001', 'f9600000-0000-4000-8000-000000000003', 'f9200000-0000-4000-8000-000000000001', 'new', 'active', ARRAY['non_drive']::text[], 2, 0, true);
-
-INSERT INTO plugin_data.csf_partner_club_representatives (
-  id, organization_id, partner_club_term_id, role, display_name, email,
-  status, effective_start, is_primary, created_by, metadata
-) VALUES (
-  'f9c00000-0000-4000-8000-000000000001',
-  'f9100000-0000-4000-8000-000000000001',
-  'f9b00000-0000-4000-8000-000000000001',
-  'coordinator',
-  'Revocation Target',
-  'revocation-target@local.test',
-  'invited',
-  current_date,
-  false,
-  'f9000000-0000-4000-8000-000000000001',
-  '{}'::jsonb
-);
+  ('f9b00000-0000-4000-8000-000000000001', 'f9100000-0000-4000-8000-000000000001', 'f9600000-0000-4000-8000-000000000003', 'f9200000-0000-4000-8000-000000000001', 'new', 'active');
 
 CREATE TEMP TABLE csf_activity_partner_fence_results (
   key text PRIMARY KEY,
@@ -1048,7 +984,7 @@ SELECT extensions.dblink_send_query(
       'f9100000-0000-4000-8000-000000000001'::uuid,
       'f9000000-0000-4000-8000-000000000009'::uuid,
       'f9a00000-0000-4000-8000-000000000007'::uuid,
-      '{"termId":"f9200000-0000-4000-8000-000000000001","termStatus":"new","name":"Deleted membership club","approvedPointTypes":["non_drive"],"nonDrivePoints":"2","drivePoints":"0","proofRequired":"true"}'::jsonb
+      '{"termId":"f9200000-0000-4000-8000-000000000001","termStatus":"new","name":"Deleted membership club","spreadsheetUrl":"https://example.test/deleted-membership-club-members"}'::jsonb
     )::text
   $query$
 );

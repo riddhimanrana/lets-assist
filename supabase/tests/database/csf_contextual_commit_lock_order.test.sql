@@ -1,19 +1,24 @@
 -- Contextual CSF commits hold their whole authoritative population while they decide.
 --
+-- The partner-audit commit that used to share this file was retired with the
+-- partner-clubs simplification (20260817120000): partner submission batches and rows,
+-- the audit-import RPCs, and the provenance acknowledgement are gone, and
+-- `csf_lock_contextual_commit_population` now refuses a non-null partner batch id
+-- outright. Only the meeting-attendance commit remains under test.
+--
 -- Two kinds of assertion, because neither alone is enough.
 --
 -- Part A pins the ORDER in the source. A deadlock is precisely the failure a functional
 -- test cannot reproduce on demand -- it needs two sessions interleaved at one instruction
--- -- so the direction (import rows before partner rows, the same direction
--- `csf_reconcile_sheet_import_row` takes them) is asserted as source text, where a
--- regression is visible at review time instead of at load.
+-- -- so the direction (population before readiness, rows before source) is asserted as
+-- source text, where a regression is visible at review time instead of at load.
 --
--- Part B proves the SCOPE with two live sessions over dblink. The old commits locked only
--- the rows they were about to write: an already-settled sibling of the same preview, and a
--- `rejected` row of the same batch, were never held, so a concurrent reconciliation could
--- move them between the readiness read and the write loop. Both fixtures below contend on
--- exactly such a row, which is why the second session blocking is the regression proof --
--- against the predecessor it would not have blocked at all.
+-- Part B proves the SCOPE with two live sessions over dblink. The old commit locked only
+-- the rows it was about to write: an already-settled sibling of the same preview was
+-- never held, so a concurrent reconciliation could move it between the readiness read and
+-- the write loop. The fixture below contends on exactly such a row, which is why the
+-- second session blocking is the regression proof -- against the predecessor it would not
+-- have blocked at all.
 --
 -- This file does NOT run inside one rolled-back transaction: a second connection cannot
 -- see fixtures this session has not committed. It follows
@@ -25,22 +30,16 @@
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(40);
+SELECT extensions.plan(28);
 
--- The readiness projections and historical acknowledgement are server-only; the
--- population lock is internal even to service-role callers.
+-- The readiness projections are server-only; the population lock is internal even to
+-- service-role callers.
 SELECT extensions.ok(NOT has_function_privilege('anon', 'plugin_data.csf_import_preview_row_readiness_blockers(uuid,uuid)', 'EXECUTE'), 'anonymous clients cannot read CSF preview row readiness');
 SELECT extensions.ok(NOT has_function_privilege('authenticated', 'plugin_data.csf_import_preview_row_readiness_blockers(uuid,uuid)', 'EXECUTE'), 'authenticated clients cannot read CSF preview row readiness directly');
 SELECT extensions.ok(has_function_privilege('service_role', 'plugin_data.csf_import_preview_row_readiness_blockers(uuid,uuid)', 'EXECUTE'), 'the server role can read CSF preview row readiness');
 SELECT extensions.ok(NOT has_function_privilege('anon', 'plugin_data.csf_meeting_attendance_preview_readiness_blockers(uuid,uuid)', 'EXECUTE'), 'anonymous clients cannot read CSF meeting-attendance row readiness');
 SELECT extensions.ok(NOT has_function_privilege('authenticated', 'plugin_data.csf_meeting_attendance_preview_readiness_blockers(uuid,uuid)', 'EXECUTE'), 'authenticated clients cannot read CSF meeting-attendance row readiness directly');
 SELECT extensions.ok(has_function_privilege('service_role', 'plugin_data.csf_meeting_attendance_preview_readiness_blockers(uuid,uuid)', 'EXECUTE'), 'the server role can read CSF meeting-attendance row readiness');
-SELECT extensions.ok(NOT has_function_privilege('anon', 'plugin_data.csf_partner_audit_batch_readiness_blockers(uuid,uuid)', 'EXECUTE'), 'anonymous clients cannot read CSF partner-audit batch readiness');
-SELECT extensions.ok(NOT has_function_privilege('authenticated', 'plugin_data.csf_partner_audit_batch_readiness_blockers(uuid,uuid)', 'EXECUTE'), 'authenticated clients cannot read CSF partner-audit batch readiness directly');
-SELECT extensions.ok(has_function_privilege('service_role', 'plugin_data.csf_partner_audit_batch_readiness_blockers(uuid,uuid)', 'EXECUTE'), 'the server role can read CSF partner-audit batch readiness');
-SELECT extensions.ok(NOT has_function_privilege('anon', 'plugin_data.csf_acknowledge_partner_audit_batch_provenance(uuid,uuid,uuid,text,uuid)', 'EXECUTE'), 'anonymous clients cannot acknowledge historical partner-audit provenance');
-SELECT extensions.ok(NOT has_function_privilege('authenticated', 'plugin_data.csf_acknowledge_partner_audit_batch_provenance(uuid,uuid,uuid,text,uuid)', 'EXECUTE'), 'authenticated clients cannot acknowledge historical partner-audit provenance directly');
-SELECT extensions.ok(has_function_privilege('service_role', 'plugin_data.csf_acknowledge_partner_audit_batch_provenance(uuid,uuid,uuid,text,uuid)', 'EXECUTE'), 'the server role can acknowledge historical partner-audit provenance');
 SELECT extensions.ok(NOT has_function_privilege('anon', 'plugin_data.csf_lock_contextual_commit_population(uuid,uuid,uuid)', 'EXECUTE'), 'anonymous clients cannot take a contextual commit population lock');
 SELECT extensions.ok(NOT has_function_privilege('authenticated', 'plugin_data.csf_lock_contextual_commit_population(uuid,uuid,uuid)', 'EXECUTE'), 'authenticated clients cannot take a contextual commit population lock');
 SELECT extensions.ok(NOT has_function_privilege('service_role', 'plugin_data.csf_lock_contextual_commit_population(uuid,uuid,uuid)', 'EXECUTE'), 'not even the server role may take the population lock outside the owned commits');
@@ -66,10 +65,10 @@ SELECT extensions.ok(
     )
     FROM unnest(ARRAY[
       'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import(uuid,uuid,uuid,text,uuid,uuid,boolean)'
     ]) AS routine_name
   ),
-  'both public contextual commits lock organization identity before actor authorization'
+  'every public contextual commit signature locks organization identity before actor authorization'
 );
 
 SELECT extensions.ok(
@@ -81,11 +80,10 @@ SELECT extensions.ok(
       ) > 0
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid,boolean)'
     ]) AS routine_name
   ),
-  'both owner-internal contextual commits take their population through the one canonical lock helper'
+  'the owner-internal contextual commit takes its population through the one canonical lock helper'
 );
 
 SELECT extensions.ok(
@@ -100,11 +98,10 @@ SELECT extensions.ok(
       )
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid,boolean)'
     ]) AS routine_name
   ),
-  'the population lock precedes the readiness read in both contextual commits'
+  'the population lock precedes the readiness read in the contextual commit'
 );
 
 SELECT extensions.ok(
@@ -119,8 +116,7 @@ SELECT extensions.ok(
       )
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid,boolean)'
     ]) AS routine_name
   ),
   'the idempotent replay return precedes the population lock, so a replay stays a read'
@@ -138,41 +134,25 @@ SELECT extensions.ok(
       )
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid,boolean)'
     ]) AS routine_name
   ),
-  'readiness is read before the first business write in both contextual commits'
+  'readiness is read before the first business write in the contextual commit'
 );
 
-SELECT extensions.ok(
-  pg_catalog.strpos(
-    pg_get_functiondef(
-      'plugin_data.csf_lock_contextual_commit_population(uuid,uuid,uuid)'::regprocedure
-    ),
-    'plugin_data.csf_sheet_import_rows'
-  ) < pg_catalog.strpos(
-    pg_get_functiondef(
-      'plugin_data.csf_lock_contextual_commit_population(uuid,uuid,uuid)'::regprocedure
-    ),
-    'plugin_data.csf_partner_submission_rows'
-  ),
-  'the population lock takes import rows before partner rows'
-);
-
-SELECT extensions.ok(
-  pg_catalog.strpos(
-    pg_get_functiondef(
-      'plugin_data.csf_reconcile_sheet_import_row_identity_base(uuid,uuid,uuid,text,text,uuid,uuid)'::regprocedure
-    ),
-    'FROM plugin_data.csf_sheet_import_rows'
-  ) < pg_catalog.strpos(
-    pg_get_functiondef(
-      'plugin_data.csf_reconcile_sheet_import_row_identity_base(uuid,uuid,uuid,text,text,uuid,uuid)'::regprocedure
-    ),
-    'UPDATE plugin_data.csf_partner_submission_rows'
-  ),
-  'reconciliation takes import rows before partner rows, which is why the two cannot ABBA'
+-- The partner half of the population lock is not merely unused: the argument survives
+-- only so the meeting call site keeps its shape, and a non-null value is a hard refusal.
+SELECT extensions.throws_ok(
+  $$
+    SELECT plugin_data.csf_lock_contextual_commit_population(
+      'e2100000-0000-4000-8000-0000000000ff',
+      NULL,
+      'e2900000-0000-4000-8000-0000000000ff'
+    )
+  $$,
+  '22023',
+  'Partner audit batch commits were removed; only preview populations can be locked.',
+  'the population lock refuses a partner audit batch id outright'
 );
 
 SELECT extensions.ok(
@@ -200,17 +180,16 @@ SELECT extensions.ok(
       ) = 0
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid,boolean)'
     ]) AS routine_name
   ),
-  'neither contextual commit continues past a refused row into a partial success'
+  'the contextual commit does not continue past a refused row into a partial success'
 );
 
 -- --- The evidence receipt, pinned in the same place and the same way ---------
 --
 -- These four are ordering assertions for the same reason the ones above are: the failure
--- they guard against is an ABBA deadlock between the contextual pair and the central
+-- they guard against is an ABBA deadlock between the contextual commit and the central
 -- importer, and a deadlock is precisely what a functional test cannot reproduce on
 -- demand. `csf_claim_import_commit_attempt` takes `csf_lock_import_commit_coordinate`
 -- first -- which locks the preview's import rows at step 5 and the SOURCE at step 6 --
@@ -226,11 +205,10 @@ SELECT extensions.ok(
       ) > 0
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid,boolean)'
     ]) AS routine_name
   ),
-  'both contextual commits spend the source-evidence receipt inside the commit transaction'
+  'the contextual commit spends the source-evidence receipt inside the commit transaction'
 );
 
 SELECT extensions.ok(
@@ -245,11 +223,10 @@ SELECT extensions.ok(
       )
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid,boolean)'
     ]) AS routine_name
   ),
-  'the population lock precedes the consume, so rows are taken before the source in both'
+  'the population lock precedes the consume, so rows are taken before the source'
 );
 
 SELECT extensions.ok(
@@ -264,7 +241,7 @@ SELECT extensions.ok(
     ),
     'csf_consume_sheet_source_evidence'
   ),
-  'the central claim takes its coordinate before its consume, which is the direction the contextual pair matches'
+  'the central claim takes its coordinate before its consume, which is the direction the contextual commit matches'
 );
 
 SELECT extensions.ok(
@@ -279,11 +256,10 @@ SELECT extensions.ok(
       )
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid,boolean)'
     ]) AS routine_name
   ),
-  'the receipt is spent before the first business write in both contextual commits'
+  'the receipt is spent before the first business write in the contextual commit'
 );
 
 SELECT extensions.ok(
@@ -298,50 +274,32 @@ SELECT extensions.ok(
       )
     )
     FROM unnest(ARRAY[
-      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid)',
-      'plugin_data.csf_commit_partner_audit_import_identity_base(uuid,uuid,text,uuid,text,uuid,uuid)'
+      'plugin_data.csf_commit_meeting_attendance_import_identity_base(uuid,uuid,uuid,text,uuid,uuid,boolean)'
     ]) AS routine_name
   ),
   'the idempotent replay return precedes the consume, so a replay needs no fresh receipt'
 );
 
 -- The receipt-less signatures are GONE, not merely unused. A surviving overload would
--- still resolve from `plugin.rpc(...)` with the old argument set and still commit.
-SELECT extensions.is(
-  (SELECT count(*)::integer
+-- still resolve from `plugin.rpc(...)` with the old argument set and still commit. Every
+-- overload that does exist -- the 20260812071500 shape and the allow-unresolved shape
+-- from 20260817131000 -- must carry the receipt argument.
+SELECT extensions.ok(
+  (SELECT count(*) > 0
+     AND bool_and('p_evidence_token' = ANY (proc.proargnames))
    FROM pg_catalog.pg_proc AS proc
    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = proc.pronamespace
    WHERE namespace.nspname = 'plugin_data'
      AND proc.proname = 'csf_commit_meeting_attendance_import'),
-  1,
-  'exactly one meeting-attendance commit signature exists, so no receipt-less overload resolves'
+  'every meeting-attendance commit signature carries the receipt, so no receipt-less overload resolves'
 );
-SELECT extensions.is(
-  (SELECT count(*)::integer
-   FROM pg_catalog.pg_proc AS proc
-   JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = proc.pronamespace
-   WHERE namespace.nspname = 'plugin_data'
-     AND proc.proname = 'csf_commit_partner_audit_import'),
-  1,
-  'exactly one partner-audit commit signature exists, so no receipt-less overload resolves'
-);
-SELECT extensions.is(
-  (SELECT proc.pronargdefaults::integer
+SELECT extensions.ok(
+  (SELECT bool_and(proc.pronargdefaults = 0)
    FROM pg_catalog.pg_proc AS proc
    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = proc.pronamespace
    WHERE namespace.nspname = 'plugin_data'
      AND proc.proname = 'csf_commit_meeting_attendance_import'),
-  0,
-  'and the meeting commit declares no defaults, so the receipt cannot be omitted'
-);
-SELECT extensions.is(
-  (SELECT proc.pronargdefaults::integer
-   FROM pg_catalog.pg_proc AS proc
-   JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = proc.pronamespace
-   WHERE namespace.nspname = 'plugin_data'
-     AND proc.proname = 'csf_commit_partner_audit_import'),
-  0,
-  'and the partner commit declares no defaults either'
+  'and no meeting commit signature declares defaults, so the receipt cannot be omitted'
 );
 
 -- ---------------------------------------------------------------------------
@@ -393,11 +351,6 @@ INSERT INTO plugin_data.csf_profiles (
     'e2300000-0000-4000-8000-000000000002',
     'e2100000-0000-4000-8000-000000000001',
     'Second', 'Contender', 'second', 'contender'
-  ),
-  (
-    'e2300000-0000-4000-8000-000000000003',
-    'e2100000-0000-4000-8000-000000000001',
-    'Partner', 'Contender', 'partner', 'contender'
   );
 
 INSERT INTO plugin_data.csf_term_meetings (
@@ -504,52 +457,6 @@ INSERT INTO plugin_data.csf_sheet_import_rows (
     'e2d00000-0000-4000-8000-000000000001'
   );
 
-INSERT INTO plugin_data.csf_partner_clubs (
-  id, organization_id, name, approved_point_types
-) VALUES (
-  'e2800000-0000-4000-8000-000000000001',
-  'e2100000-0000-4000-8000-000000000001',
-  'Synthetic Lock Order Club',
-  ARRAY['non_drive']::text[]
-);
-
-INSERT INTO plugin_data.csf_partner_submission_batches (
-  id, organization_id, partner_club_id, term_id, title, source, source_url, status, submitted_by, summary
-) VALUES (
-  'e2900000-0000-4000-8000-000000000001',
-  'e2100000-0000-4000-8000-000000000001',
-  'e2800000-0000-4000-8000-000000000001',
-  'e2200000-0000-4000-8000-000000000001',
-  'Synthetic lock order audit', 'sheet', 'csf/fixture/contextual-lock-order.xlsx',
-  'needs_verification',
-  'e2000000-0000-4000-8000-000000000001',
-  '{}'
-);
-
--- One row the commit will write, and one ALREADY REJECTED row it will not. The
--- predecessor's loop selected `matched_status = 'matched' AND profile_id IS NOT NULL AND
--- generated_submission_id IS NULL`, so nothing ever held the rejected row.
-INSERT INTO plugin_data.csf_partner_submission_rows (
-  id, organization_id, batch_id, profile_id, matched_status, raw_data, normalized_data,
-  claimed_points, point_type
-) VALUES
-  (
-    'e2a00000-0000-4000-8000-000000000001',
-    'e2100000-0000-4000-8000-000000000001',
-    'e2900000-0000-4000-8000-000000000001',
-    'e2300000-0000-4000-8000-000000000003',
-    'matched', '{"Name":"Partner Contender"}',
-    '{"source":{"rowHash":"contextual-lock-order-partner-hash"}}', 3, 'non_drive'
-  ),
-  (
-    'e2a00000-0000-4000-8000-000000000002',
-    'e2100000-0000-4000-8000-000000000001',
-    'e2900000-0000-4000-8000-000000000001',
-    NULL,
-    'rejected', '{"Name":"Rejected Contender"}',
-    '{"source":{"rowHash":"contextual-lock-order-rejected-hash"}}', 1, 'non_drive'
-  );
-
 -- The receipt the meeting commit spends, written exactly as
 -- `csf_refresh_sheet_source_evidence` writes one: the same canonical metadata digest,
 -- the same `evidenceRevision`/`evidenceDigest` pair on the source, the same generation.
@@ -604,22 +511,12 @@ SELECT
   now(), now() + interval '10 minutes'
 FROM coordinate;
 
--- The batch carries no linked preview, so it fails closed until it is acknowledged. Doing
--- that here keeps the contention test about locking rather than about readiness.
-SELECT plugin_data.csf_acknowledge_partner_audit_batch_provenance(
-  'e2100000-0000-4000-8000-000000000001',
-  'e2900000-0000-4000-8000-000000000001',
-  'e2000000-0000-4000-8000-000000000001',
-  'Officer vouches for the synthetic lock-order workbook.',
-  'e2d00000-0000-4000-8000-000000000002'
-);
-
 CREATE TEMP TABLE csf_contextual_lock_order_results (
   label text NOT NULL,
   payload text
 ) ON COMMIT PRESERVE ROWS;
 
--- Two connections rather than one reused connection: dblink requires a sent query to be
+-- A dedicated connection per contention probe: dblink requires a sent query to be
 -- drained to an empty result set before its connection can be reused, and disconnecting
 -- after a single get_result is the shape csf_term_close_serialization.test.sql proves.
 SELECT extensions.dblink_connect(
@@ -633,15 +530,6 @@ SELECT extensions.dblink_connect(
   -- The disposable local Supabase image uses its bootstrap role name as the bootstrap
   -- password. Build that connection value from the active role so no credential-shaped
   -- fixture is committed to the repository.
-  ' user=' || current_user ||
-  ' password=' || current_user ||
-  ' sslmode=disable'
-);
-SELECT extensions.dblink_connect(
-  'partner_writer',
-  'hostaddr=' || host(inet_server_addr()) ||
-  ' port=' || current_setting('port') ||
-  ' dbname=' || current_database() ||
   ' user=' || current_user ||
   ' password=' || current_user ||
   ' sslmode=disable'
@@ -709,61 +597,6 @@ SELECT extensions.is(
    WHERE term_meeting_id = 'e2400000-0000-4000-8000-000000000001'),
   2,
   'the meeting commit wrote exactly its two ready rows'
-);
-
--- --- Partner-club audit ----------------------------------------------------
-
-BEGIN;
-
-SELECT plugin_data.csf_commit_partner_audit_import(
-  'e2100000-0000-4000-8000-000000000001',
-  'e2900000-0000-4000-8000-000000000001',
-  'approved',
-  'e2000000-0000-4000-8000-000000000001',
-  'Committed the synthetic lock-order partner audit.',
-  NULL,
-  -- No linked preview, so no receipt could have been issued for this batch. Its source is
-  -- proved by the acknowledgement above instead, and a supplied token here is refused.
-  NULL
-);
-
-SELECT extensions.dblink_send_query(
-  'partner_writer',
-  $query$
-  UPDATE plugin_data.csf_partner_submission_rows
-  SET notes = 'Touched by a concurrent session.'
-  WHERE organization_id = 'e2100000-0000-4000-8000-000000000001'
-    AND id = 'e2a00000-0000-4000-8000-000000000002'
-  RETURNING id::text
-  $query$
-);
-
-SELECT pg_sleep(0.25);
-SELECT extensions.is(
-  extensions.dblink_is_busy('partner_writer'),
-  1,
-  'a concurrent write to an already-rejected batch row waits on the partner-audit commit'
-);
-
-COMMIT;
-
-INSERT INTO csf_contextual_lock_order_results (label, payload)
-SELECT 'partner', payload
-FROM extensions.dblink_get_result('partner_writer', false) AS result(payload text);
-
-SELECT extensions.dblink_disconnect('partner_writer');
-
-SELECT extensions.is(
-  (SELECT notes FROM plugin_data.csf_partner_submission_rows
-   WHERE id = 'e2a00000-0000-4000-8000-000000000002'),
-  'Touched by a concurrent session.',
-  'the queued write lands once the commit releases the population'
-);
-SELECT extensions.is(
-  (SELECT count(*)::integer FROM plugin_data.csf_point_submissions
-   WHERE description = 'Synthetic lock order audit partner club audit'),
-  1,
-  'the partner-audit commit generated exactly its one matched row'
 );
 
 SELECT * FROM extensions.finish();
