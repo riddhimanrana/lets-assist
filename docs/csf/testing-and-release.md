@@ -36,26 +36,39 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 298 ordered migrations through
-  `20260816190454_durable_paper_signup_notifications`. The two Development-only
-  migrations added after the audited `development` baseline are
-  `20260816185321_enforce_authoritative_plugin_releases` and
-  `20260816190454_durable_paper_signup_notifications`.
+- The repository candidate has 302 ordered migrations through
+  `20260817010000_csf_source_evidence_revision_deadlock`. The six migrations
+  added after the audited `development` baseline merge two prior lines: the
+  Development-hardening pair
+  (`20260816185321_enforce_authoritative_plugin_releases`,
+  `20260816190454_durable_paper_signup_notifications`) and the CSF
+  member-onboarding tail
+  (`20260816190000_remove_example_tier_test_plugins`,
+  `20260816230000_csf_preview_row_annotations`,
+  `20260816233000_csf_blank_row_convention`,
+  `20260817010000_csf_source_evidence_revision_deadlock`).
 - Hosted Development was healthy and migration-current at the audited 296-row
   base through `20260816083000_csf_import_annotation_settlement`. This
-  implementation did not apply the two new migrations or re-verify hosted
+  implementation did not apply the six new migrations or re-verify hosted
   parity, advisors, application deployment, or provider acceptance.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects a 62-migration
-  cutover to this 298-row candidate. Running that cutover is not authorized.
-- Local evidence includes a fresh isolated replay of all 298 migrations,
-  passing focused plugin-release, paper-scan, waiver, and feedback pgTAP suites,
-  and passing static quality gates. Full exact-tree tests, build, strict
+  `20260811001500`; the exact read-only preflight now expects a 66-migration
+  cutover to this 302-row candidate. Running that cutover is not authorized.
+- Local evidence includes a fresh isolated replay of all 302 migrations
+  (`Isolated replay passed: 302 migrations, 84 CSF tables`, 151 pgTAP files,
+  6011 tests, all passing), and passing static quality gates
+  (`typecheck`, `lint`, `format:check`). Full exact-tree tests, build, strict
   submodule reachability, hosted role/browser acceptance, and provider
   acceptance remain release gates until recorded in the cleanup register.
-- Private CSF source is on `codex/csf-reconciliation-guard-20260816` at
-  `5e21d5dd60744dc50b7817bfc734a4e2ca71c8f5`. It must merge to private
-  `development` before the root gitlink is published.
+- Private CSF source merged both outstanding lines to private `development`
+  at `e9e86fe4d16a304b7e94bc5c4464d901653ef30d`: `feature/csf-member-onboarding`
+  and `codex/csf-reconciliation-guard-20260816`
+  (`5e21d5dd60744dc50b7817bfc734a4e2ca71c8f5`). The two branches reworked CSF
+  import annotation interpretation with opposite intent (full-evidence
+  auto-settlement versus redacted advisory-only); the merge resolved in favor
+  of auto-settlement as the later, deliberate design, keeping the guard's
+  class-of-2030 template block, hosted-Development commit allowlist, and AI
+  usage tracking.
 - Real CSF sources remain immutable-preview-only. Class of 2030 is
   template-only; no real-row commit, real-recipient email, model submission,
   hosted apply, deployment, alias promotion, or Production operation occurred.
