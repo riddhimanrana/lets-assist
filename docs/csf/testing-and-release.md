@@ -36,8 +36,8 @@ their named runs only.
 - The sole current CSF implementation/status register is
   `docs/development/cleanup-register.md`; this document is a testing runbook and
   retains older evidence below without promoting it to current status.
-- The repository candidate has 314 ordered migrations through
-  `20260817132000_restore_multi_date_meeting_permission_rechecks`. The eighteen migrations
+- The repository candidate has 315 ordered migrations through
+  `20260817133000_consolidate_plugin_version_read_policies`. The nineteen migrations
   added after the audited `development` baseline merge two prior lines: the
   Development-hardening pair
   (`20260816185321_enforce_authoritative_plugin_releases`,
@@ -57,24 +57,32 @@ their named runs only.
   `20260817120000_csf_term_bound_staff_access`,
   `20260817121000_dvhs_csf_partner_clubs_simplification`,
   `20260817130000_csf_multi_date_meeting_sessions`,
-  `20260817131000_csf_partial_attendance_commit_and_ai_resolution`, and
-  `20260817132000_restore_multi_date_meeting_permission_rechecks`).
-- Hosted Development was healthy and migration-current at the audited 296-row
-  base through `20260816083000_csf_import_annotation_settlement`. This
-  implementation did not apply the eighteen new migrations or re-verify hosted
-  parity, advisors, application deployment, or provider acceptance.
+  `20260817131000_csf_partial_attendance_commit_and_ai_resolution`,
+  `20260817132000_restore_multi_date_meeting_permission_rechecks`, and
+  `20260817133000_consolidate_plugin_version_read_policies`).
+- Hosted Development served exact merge SHA
+  `59f916ad30b423137ae2134ca4b516a8938714f1` and was healthy and
+  migration-current at 314 rows through
+  `20260817132000_restore_multi_date_meeting_permission_rechecks`. The advisor
+  snapshot recorded 101 INFO and zero WARN/ERROR security findings plus 616
+  INFO, one WARN, and zero ERROR performance findings. The single warning was
+  the duplicate authenticated `plugin_versions` permissive-read policy that
+  motivated `20260817133000`; that follow-up is not yet deployed or re-audited.
 - Production remains untouched at the audited 236-row baseline through
-  `20260811001500`; the exact read-only preflight now expects a 78-migration
-  cutover to this 314-row candidate. Running that cutover requires separate
+  `20260811001500`; the exact read-only preflight now expects a 79-migration
+  cutover to this 315-row candidate. Running that cutover requires separate
   explicit action-time approval.
-- Local evidence on this candidate includes a fresh exact 314-migration replay,
-  155 pgTAP files with 5,833 assertions, focused workflow and browser tests,
-  and passing `typecheck`, `lint`, build, and strict
-  submodule reachability, hosted role/browser acceptance, and provider
-  acceptance remain release gates until recorded in the cleanup register.
-- Private CSF source is frozen on the release branch at
-  `a55c10d68c04fedd00614bcfdcd6230f17c2d526`, with manifest version `1.0.0`
-  and SHA-256 `7334038cb6519e1732d9ac9ba0111f0ae41cfef2861c36595be975ba60f95534`.
+- Local evidence on this candidate must include a fresh exact 315-migration
+  replay; the predecessor passed 155 pgTAP files with 5,833 assertions plus
+  focused workflow/browser tests, `typecheck`, `lint`, build, and strict
+  submodule reachability. Follow-up hosted parity, final role/browser
+  acceptance, and provider acceptance remain release gates until recorded in
+  the cleanup register.
+- Private CSF source is merged to private `development` at
+  `86f9727460db24f50a444c7b69c4cfac242164f0`. The published `1.0.0` release
+  attestation remains commit `a55c10d68c04fedd00614bcfdcd6230f17c2d526`
+  with manifest SHA-256
+  `7334038cb6519e1732d9ac9ba0111f0ae41cfef2861c36595be975ba60f95534`.
   Its base had already merged `feature/csf-member-onboarding`
   and `codex/csf-reconciliation-guard-20260816`
   (`5e21d5dd60744dc50b7817bfc734a4e2ca71c8f5`). The two branches reworked CSF
@@ -84,8 +92,8 @@ their named runs only.
   class-of-2030 template block, hosted-Development commit allowlist, and AI
   usage tracking.
 - Real CSF sources remain immutable-preview-only. Class of 2030 is
-  template-only; no real-row commit, real-recipient email, model submission,
-  hosted apply, deployment, alias promotion, or Production operation occurred.
+  template-only; no real-row commit, real-recipient email, model submission, or
+  Production operation occurred during this acceptance pass.
 
 ## Historical pre-hardening Development state
 

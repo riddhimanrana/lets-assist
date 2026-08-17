@@ -1,7 +1,45 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(13);
+SELECT extensions.plan(16);
+
+SELECT extensions.is(
+  (
+    SELECT count(*)
+    FROM pg_catalog.pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'plugin_versions'
+      AND cmd = 'SELECT'
+      AND 'anon' = ANY (roles)
+  ),
+  1::bigint,
+  'anonymous plugin release reads use one permissive policy'
+);
+
+SELECT extensions.is(
+  (
+    SELECT count(*)
+    FROM pg_catalog.pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'plugin_versions'
+      AND cmd = 'SELECT'
+      AND 'authenticated' = ANY (roles)
+  ),
+  1::bigint,
+  'authenticated plugin release reads use one permissive policy'
+);
+
+SELECT extensions.ok(
+  (
+    SELECT qual LIKE '%status%published%'
+      AND qual LIKE '%is_trusted_member%'
+    FROM pg_catalog.pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'plugin_versions'
+      AND policyname = 'plugin_versions_authenticated_read'
+  ),
+  'authenticated readers retain published-or-trusted release visibility'
+);
 
 SELECT extensions.has_column(
   'public',
